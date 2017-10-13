@@ -25,6 +25,7 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 USE netcdf                                                  ! netcdf libraries
+USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
 ! provide access to subroutines and functions
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
@@ -106,6 +107,7 @@ USE globalData,only:bpar_meta,bvar_meta                     ! metadata structure
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:model_decisions                         ! model decision structure
 ! provide access to global data
+USE globalData,only:dNaN                                    ! double precision NaN
 USE globalData,only:refTime                                 ! reference time
 USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
@@ -270,6 +272,9 @@ INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! get the command line arguments
 call getCommandArguments()
+
+! define double precision NaNs (shared in globalData)
+dNaN = ieee_value(1._dp, ieee_quiet_nan)
 
 ! get the initial time
 call date_and_time(values=ctime1)
@@ -1319,8 +1324,6 @@ contains
  integer(i4b),parameter :: outunit=6               ! write to screen
  integer(i4b)           :: ctime2(8)               ! final time
  real(dp)               :: elpSec                  ! elapsed seconds
- integer(i4b)           :: nc_err                  ! error code of nc_close
- character(len=256)     :: cmessage                ! error message of the downwind routine
  
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed

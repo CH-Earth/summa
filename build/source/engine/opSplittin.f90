@@ -39,6 +39,7 @@ USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
 ! domain types
+USE globalData,only:iname_cas       ! named variables for the canopy air space
 USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
@@ -77,6 +78,9 @@ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
+! look up structure for variable types
+USE var_lookup,only:iLookVarType
+
 ! provide access to the number of flux variables
 USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
 
@@ -84,6 +88,7 @@ USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (dp)
+                    var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
                     model_options   ! defines the model decisions
@@ -104,11 +109,10 @@ implicit none
 private
 public::opSplittin
 
-! named variables for the solution method
+! named variables for the coupling method
 integer(i4b),parameter  :: fullyCoupled=1             ! 1st try: fully coupled solution
-integer(i4b),parameter  :: splitStateType=2           ! 2nd try: split the solution by state type (energy and water)
-integer(i4b),parameter  :: splitDomainType=3          ! 3rd try: split the solution by domain type (veg, snow, and soil)
-integer(i4b),parameter  :: explicitEuler=4            ! 4th try: explicit Euler solution for sub-domains of a given type
+integer(i4b),parameter  :: stateSplit=2               ! 2nd try: separate solutions for each state type
+integer(i4b),parameter  :: nCoupling=2                ! number of possible solutions
 
 ! named variables for the state variable split
 integer(i4b),parameter  :: nrgSplit=1                 ! order in sequence for the energy operation
@@ -118,6 +122,15 @@ integer(i4b),parameter  :: massSplit=2                ! order in sequence for th
 integer(i4b),parameter  :: vegSplit=1                 ! order in sequence for the vegetation split
 integer(i4b),parameter  :: snowSplit=2                ! order in sequence for the snow split
 integer(i4b),parameter  :: soilSplit=3                ! order in sequence for the soil split
+
+! named variables for the solution method
+integer(i4b),parameter  :: vector=1                   ! vector solution method
+integer(i4b),parameter  :: scalar=2                   ! scalar solution method
+integer(i4b),parameter  :: nSolutions=2               ! number of solution methods
+
+! named variables for the switch between states and domains
+integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+soil)
+integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, and soil separately)
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
@@ -136,9 +149,9 @@ contains
  ! public subroutine opSplittin: run the coupled energy-mass model for one timestep
  !
  ! The logic of the solver is as follows:
- ! (1) Attempt different solutions in the following order: (a) fully coupled; (b) split by state type (energy
- !      and mass); (c) split by domain type or a given energy and mass split (vegetation, snow, and soil);
- !      and (d) explicit Euler solution for a given state type and domain subset.
+ ! (1) Attempt different solutions in the following order: (a) fully coupled; (b) split by state type and by
+ !      domain type for a given energy and mass split (vegetation, snow, and soil); and (c) scalar solution
+ !      for a given state type and domain subset.
  ! (2) For a given split, compute a variable number of substeps (in varSubstep).
  ! **********************************************************************************************************
  subroutine opSplittin(&
@@ -165,7 +178,7 @@ contains
                        dtMultiplier,   & ! intent(out):   substep multiplier (-)
                        tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
                        stepFailure,    & ! intent(out):   flag to denote step failure
-                       ixSolution,     & ! intent(out):   solution method used in this iteration
+                       ixCoupling,     & ! intent(out):   coupling method used in this iteration
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -182,7 +195,8 @@ contains
  ! population/extraction of state vectors
  USE indexState_module,only:indexSplit                ! get state indices
  USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
- ! numerical recipes utility modules
+ ! identify name of variable type (for error message)
+ USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages 
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -218,6 +232,10 @@ contains
  ! * general local variables
  ! ---------------------------------------------------------------------------------------
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
+ integer(i4b)                    :: minLayer                       ! the minimum layer used in assigning flags for flux aggregations
+ integer(i4b)                    :: iOffset                        ! offset to account for different indices in the soil domain
+ integer(i4b)                    :: iMin(1),iMax(1)                ! bounds of a given vector
+ integer(i4b)                    :: iLayer,jLayer                  ! index of model layer
  integer(i4b)                    :: iSoil                          ! index of soil layer
  integer(i4b)                    :: iVar                           ! index of variables in data structures
  logical(lgt)                    :: firstSuccess                   ! flag to define the first success
@@ -225,37 +243,43 @@ contains
  logical(lgt)                    :: reduceCoupledStep              ! flag to define the need to reduce the length of the coupled step
  type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
  type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
+ type(var_dlength)               :: flux_temp                      ! temporary model fluxes
  type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables 
  real(dp),dimension(nLayers)     :: mLayerVolFracIceInit           ! initial vector for volumetric fraction of ice (-)
  ! ------------------------------------------------------------------------------------------------------
  ! * operator splitting
  ! ------------------------------------------------------------------------------------------------------
- ! minimum time step
+ ! minimum timestep
+ real(dp),parameter              :: dtmin_coupled=1800._dp         ! minimum time step for the fully coupled solution (seconds)
+ real(dp),parameter              :: dtmin_split=360._dp            ! minimum time step for the fully split solution (seconds)
+ real(dp),parameter              :: dtmin_scalar=60._dp            ! minimum time step for the scalar solution (seconds)
  real(dp)                        :: dt_min                         ! minimum time step (seconds)
- real(dp),parameter              :: dtmin_fullyCoupled=10._dp      ! minimum time step for the fully coupled solution
- real(dp),parameter              :: dtmin_splitStateType=1._dp     ! minimum time step for the split by state type 
- real(dp),parameter              :: dtmin_splitDomainType=0.1_dp   ! minimum time step for the split by domain type 
- real(dp),parameter              :: dtmin_explicitEuler=0.1_dp     ! minimum time step for the explicit Euler solution
  ! explicit error tolerance (depends on state type split, so defined here)
  real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
  real(dp),parameter              :: errorTolNrgFlux=10._dp         ! error tolerance in the explicit solution (energy flux)
- real(dp)                        :: errTol                         ! error tolerance in the explicit solution
  ! number of substeps taken for a given split
  integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
- ! named variables defining the solution method
- integer(i4b)                    :: ixSolution                     ! index of solution method (1,2,3,...)
+ ! named variables defining the coupling and solution method
+ integer(i4b)                    :: ixCoupling                     ! index of coupling method (1,2)
+ integer(i4b)                    :: ixSolution                     ! index of solution method (1,2)
+ integer(i4b)                    :: ixStateThenDomain              ! switch between the state and domain (1,2)
+ integer(i4b)                    :: tryDomainSplit                 ! (0,1) - flag to try the domain split
  ! actual number of splits
  integer(i4b)                    :: nStateTypeSplit                ! number of splits for the state type
  integer(i4b)                    :: nDomainSplit                   ! number of splits for the domain
- ! indices for the state type split
+ integer(i4b)                    :: nLayerSplit                    ! number of splits for the layers
+ ! indices for the state type and the domain split
  integer(i4b)                    :: iStateTypeSplit                ! index of the state type split
- integer(i4b)                    :: iTrialStateSplit               ! index of state split trial
- ! indices for the domain split
  integer(i4b)                    :: iDomainSplit                   ! index of the domain split
- ! state and flux masks for a given split
- integer(i4b),dimension(nState)  :: stateCheck                     ! number of times each state variable is updated (should=1) 
+ integer(i4b)                    :: iLayerSplit                    ! index of the layer split
+ ! flux masks
+ logical(lgt)                    :: neededFlux(nFlux)              ! .true. if flux is needed at all
+ logical(lgt)                    :: desiredFlux                    ! .true. if flux is desired for a given split
+ type(var_ilength)               :: fluxCount                      ! number of times each flux is updated (should equal nSubsteps)
+ type(var_flagVec)               :: fluxMask                       ! mask defining model fluxes
+ ! state masks
+ integer(i4b),dimension(nState)  :: stateCheck                     ! number of times each state variable is updated (should equal 1) 
  logical(lgt),dimension(nState)  :: stateMask                      ! mask defining desired state variables
- logical(lgt),dimension(nFlux)   :: fluxMask                       ! mask defining desired flux variables
  integer(i4b)                    :: nSubset                        ! number of selected state variables for a given split
  ! flags
  logical(lgt)                    :: failure                        ! flag to denote failure of substepping
@@ -277,6 +301,7 @@ contains
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
  ! indices of model state variables
+ ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat         ,& ! intent(in):    [i4b(:)] list of indices in the state subset (missing for values not in the subset)
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):    [i4b(:)] indices defining the type of the state (ixNrgState...)
  ixNrgCanair             => indx_data%var(iLookINDEX%ixNrgCanair)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
  ixNrgCanopy             => indx_data%var(iLookINDEX%ixNrgCanopy)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
@@ -335,9 +360,8 @@ contains
  if(globalPrintFlag)&
  print*, trim(message), dt
 
- ! initialize the first flux call
+ ! initialize the first success call
  firstSuccess=.false.
- firstFluxCall=.true.
 
  ! initialize the flags 
  tooMuchMelt=.false.  ! too much melt (merge snow layers)
@@ -345,6 +369,9 @@ contains
 
  ! initialize flag for the success of the substepping
  failure=.false.
+
+ ! initialize the flux check
+ neededFlux(:) = .false.
 
  ! initialize the state check
  stateCheck(:) = 0
@@ -373,6 +400,14 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through soil layers (computing liquid water matric potential)
 
+ ! allocate space for the flux mask (used to define when fluxes are updated)
+ call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! allocate space for the flux count (used to check that fluxes are only updated once)
+ call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
  ! allocate space for the temporary prognostic variable structure
  call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
@@ -381,347 +416,509 @@ contains
  call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+ ! allocate space for the temporary flux variable structure
+ call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
  ! allocate space for the derivative structure
  call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
+ ! intialize the flux conter
+ do iVar=1,size(flux_meta)  ! loop through fluxes
+  fluxCount%var(iVar)%dat(:) = 0
+ end do
+
+ ! initialize the model fluxes
+ do iVar=1,size(flux_meta)  ! loop through fluxes
+  if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
+  flux_data%var(iVar)%dat(:) = 0._dp
+ end do
+
+ ! initialize derivatives
+ do iVar=1,size(deriv_meta)
+  deriv_data%var(iVar)%dat(:) = 0._dp
+ end do
+
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
 
- ! initialize solution method
- ixSolution=fullyCoupled
+ ! loop through different coupling strategies 
+ coupling: do ixCoupling=1,nCoupling
 
- ! loop through solution methods 
- solution: do
+  ! initialize the minimum time step 
+  dt_min = min( merge(dtmin_coupled, dtmin_split, ixCoupling==fullyCoupled), dt)
  
   ! define the number of operator splits for the state type
-  if(ixSolution==fullyCoupled)then
-   nStateTypeSplit=1
-  else
-   nStateTypeSplit=nStateTypes
-  endif
+  select case(ixCoupling)
+   case(fullyCoupled); nStateTypeSplit=1
+   case(stateSplit);   nStateTypeSplit=nStateTypes
+   case default; err=20; message=trim(message)//'coupling case not found'; return
+  end select  ! operator splitting option
+ 
+  ! define if we wish to try the domain split
+  select case(ixCoupling)
+   case(fullyCoupled); tryDomainSplit=0
+   case(stateSplit);   tryDomainSplit=1
+   case default; err=20; message=trim(message)//'coupling case not found'; return
+  end select  ! operator splitting option
 
-  ! state type splitting loop
+  ! state splitting loop
   stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit 
-   trialStateSplit: do iTrialStateSplit=1,2  ! two state type trials: 1=full domain; 2=sub-domains
+
+   !print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
+
+   ! -----
+   ! * identify state-specific variables for a given state split...
+   ! --------------------------------------------------------------
+   
+   ! flag to adjust the temperature
+   doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)
   
-    ! define the number of operator splits for the domain
-    if(ixSolution==fullyCoupled .or. ixSolution==splitStateType)then
-     nDomainSplit=1
-    else
-     nDomainSplit=nDomains
+   ! modify the state type names associated with the state vector
+   if(ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)then
+    if(computeVegFlux)then
+     where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
     endif
-  
-    ! flag to adjust the temperature
-    doAdjustTemp = (ixSolution/=fullyCoupled .and. iStateTypeSplit==massSplit)
-  
-    ! get the error tolerance
-    errTol = merge(errorTolNrgFlux,errorTolLiqFlux,iStateTypeSplit==nrgSplit)
-  
-    ! -----
-    ! * modify state variables for the mass split...
-    ! ----------------------------------------------
+    where(ixStateType(ixHydLayer) ==iname_watLayer)  ixStateType(ixHydLayer) =iname_liqLayer
+    where(ixStateType(ixHydLayer) ==iname_matLayer)  ixStateType(ixHydLayer) =iname_lmpLayer
+   endif  ! if modifying state variables for the mass split
+
+   ! first try the state type split, then try the domain split within a given state type
+   stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type   
+
+    !print*, 'start of stateThenDomain loop'
+
+    ! define the number of domain splits for the state type
+    select case(ixStateThenDomain)
+     case(fullDomain); nDomainSplit=1
+     case(subDomain);  nDomainSplit=nDomains
+     case default; err=20; message=trim(message)//'coupling case not found'; return
+    end select
    
-    ! modify the state type names associated with the state vector
-    if(ixSolution/=fullyCoupled .and. iStateTypeSplit==massSplit)then
-     if(computeVegFlux)then
-      where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
-     endif
-     where(ixStateType(ixHydLayer) ==iname_watLayer)  ixStateType(ixHydLayer) =iname_liqLayer
-     where(ixStateType(ixHydLayer) ==iname_matLayer)  ixStateType(ixHydLayer) =iname_lmpLayer
-    endif  ! if modifying state variables for the mass split
-   
-    ! domain type splitting loop
+    ! check that we haven't split the domain when we are fully coupled
+    if(ixCoupling==fullyCoupled .and. nDomainSplit==nDomains)then
+     message=trim(message)//'cannot split domains when fully coupled'
+     err=20; return
+    endif
+
+    ! domain splitting loop
     domainSplit: do iDomainSplit=1,nDomainSplit
+
+     ! trial with the vector then scalar solution
+     solution: do ixSolution=1,nSolutions
   
-     ! try multiple solution methods
-     trySolution: do    ! exit upon success
-   
-      ! *******************************************************************************************************************************
-      ! *******************************************************************************************************************************
-      ! *******************************************************************************************************************************
-      ! ***** trial with a given solution method...
-     
       ! initialize error control
       err=0; message="opSplittin/"
 
-      ! -----
-      ! * define subsets for a given split...
-      ! -------------------------------------
-
-      ! get the mask for the state subset
-      call stateFilter(ixSolution,iStateTypeSplit,iDomainSplit,indx_data,stateMask,nSubset,err,cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-      ! check
-      if(globalPrintFlag)then
-       print*, 'after filter: stateMask   = ', stateMask
-       print*, 'ixSolution==explicitEuler = ', ixSolution==explicitEuler
-      endif
-
-      ! check that state variables exist
-      if(nSubset==0) cycle domainSplit 
- 
-      ! -----
-      ! * assemble vectors for a given split...
-      ! ---------------------------------------
-
-      ! define minimum time step
-      select case(ixSolution)
-       case(fullyCoupled);    dt_min = dtmin_fullyCoupled
-       case(splitStateType);  dt_min = dtmin_splitStateType
-       case(splitDomainType); dt_min = dtmin_splitDomainType
-       case(explicitEuler);   dt_min = dtmin_explicitEuler
-       case default; err=20; message=trim(message)//'solution method not found'; return
-      end select
-
-      ! get indices for a given split
-      call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
-                      nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
-                      indx_data,                   & ! intent(inout) : index data structure
-                      err,cmessage)                  ! intent(out)   : error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     
-      ! define the mask of the fluxes used
-      stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat)
-      do iVar=1,size(flux_meta)
-
-       ! * split solution
-       if(ixSolution/=fullyCoupled)then
-        select case(iStateTypeSplit)
-         case(nrgSplit);  fluxMask(iVar) = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2) 
-         case(massSplit); fluxMask(iVar) = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
-         case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
-        end select
-  
-       ! * fully coupled
-       else
-        fluxMask(iVar) = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+      ! check that we have not split the energy fluxes over vegetation
+      if(ixSolution==scalar .and. count(stateMask)>1)then
+       if(iStateTypeSplit==nrgSplit .and. iDomainSplit==vegSplit)then
+        message=trim(message)//'recoverable error: not yet implemented scalar splitting for the vegetation domain for energy'
+        err=20; return ! temporary fix to see if this ever happens -- convert to non-fatal error (recovery) by reducing length of the coupled step
        endif
-       
-       ! * check
-       if(globalPrintFlag .and. fluxMask(iVar))&
-       print*, trim(flux_meta(iVar)%varname)
-  
-      end do
-      end associate stateSubset
-   
-      ! initialize the model fluxes (some model fluxes are not computed in the iterations)
-      do iVar=1,size(flux_meta)
-       if(fluxMask(iVar)) flux_data%var(iVar)%dat(:) = 0._dp
-      end do
-   
-      ! -----
-      ! * solve variable subset for one time step...
-      ! --------------------------------------------
-
-      ! reset the flag for the first flux call
-      if(.not.firstSuccess) firstFluxCall=.true.
- 
-      ! save/recover copies of prognostic variables
-      do iVar=1,size(prog_data%var)
-       select case(failure)
-        case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
-        case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
-       end select
-      end do  ! looping through variables
-   
-      ! save/recover copies of diagnostic variables
-      do iVar=1,size(diag_data%var)
-       select case(failure)
-        case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
-        case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
-       end select
-      end do  ! looping through variables
-
-      ! solve variable subset for one full time step
-      call varSubstep(&
-                      ! input: model control
-                      dt,                         & ! intent(inout) : time step (s)
-                      dt_min,                     & ! intent(in)    : minimum time step (seconds)
-                      errTol,                     & ! intent(in)    : error tolerance for the explicit solution
-                      nSubset,                    & ! intent(in)    : total number of variables in the state subset
-                      doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
-                      firstSubStep,               & ! intent(in)    : flag to denote first sub-step
-                      firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
-                      (ixSolution==explicitEuler),& ! intent(in)    : flag to denote computing the explicit Euler solution
-                      computeVegFlux,             & ! intent(in)    : flag to denote if computing energy flux over vegetation
-                      fluxMask,                   & ! intent(in)    : mask for the fluxes used in this given state subset
-                      ! input/output: data structures
-                      model_decisions,            & ! intent(in)    : model decisions
-                      type_data,                  & ! intent(in)    : type of vegetation and soil
-                      attr_data,                  & ! intent(in)    : spatial attributes
-                      forc_data,                  & ! intent(in)    : model forcing data
-                      mpar_data,                  & ! intent(in)    : model parameters
-                      indx_data,                  & ! intent(inout) : index data
-                      prog_data,                  & ! intent(inout) : model prognostic variables for a local HRU
-                      diag_data,                  & ! intent(inout) : model diagnostic variables for a local HRU
-                      flux_data,                  & ! intent(inout) : model fluxes for a local HRU
-                      deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
-                      bvar_data,                  & ! intent(in)    : model variables for the local basin
-                      ! output: control
-                      ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      dtMultiplier,               & ! intent(out)   : substep multiplier (-)
-                      nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
-                      failedMinimumStep,          & ! intent(out)   : flag for failed substeps
-                      reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
-                      tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                      err,cmessage)                 ! intent(out)   : error code and error message
-      if(err/=0)then
-       message=trim(message)//trim(cmessage)
-       if(err>0) return
-      endif  ! (check for errors)
-
-      ! check 
-      if(globalPrintFlag .and. ixSolution>splitStateType)then
-       print*, 'dt = ', dt
-       print*, 'after varSubstep: err            = ', err
-       print*, 'after varSubstep: cmessage       = ', trim(cmessage)
-       print*, 'after varSubstep: stateMask      = ', stateMask
-       print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
-       print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
-       print*, 'nSubset           = ', nSubset
-       print*, 'tooMuchMelt       = ', tooMuchMelt
-       print*, 'reduceCoupledStep = ', reduceCoupledStep
-       print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixSolution==fullyCoupled)
-       !if(ixSolution==explicitEuler)then
-       ! print*, trim(message)//trim(cmessage)
-       ! print*, 'PAUSE: failed splitStateType attempt'; read(*,*)
-       !endif
-      endif    
-
-      ! if too much melt then return
-      ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-      if(tooMuchMelt .or. reduceCoupledStep)then
-       stepFailure=.true.
-       err=0 ! recovering
-       return
       endif
- 
-      ! define failure
-      failure = (failedMinimumStep .or. err<0)
-      if(.not.failure) firstSuccess=.true. 
- 
-      ! -----
-      ! * success: revert back to "more coupled" methods...
-      ! ---------------------------------------------------
-     
-      ! success = exit the trySolution loop
-      if(.not.failure)then
 
+      ! refine the minimum time step
+      if(ixSolution==scalar) dt_min = min(dtmin_scalar, dt)
+
+      ! initialize the first flux call  
+      firstFluxCall=.true.
+
+      ! get the number of split layers
+      select case(ixSolution)
+       case(vector); nLayerSplit=1
+       case(scalar); nLayerSplit=count(stateMask)
+       case default; err=20; message=trim(message)//'unknown solution method'; return
+      end select
+   
+      !print*, '*****'
+      !print*, 'computeVegFlux = ', computeVegFlux
+      !print*, '(ixSolution==scalar) = ', (ixSolution==scalar)
+      !print*, 'ixCoupling, iStateTypeSplit, iDomainSplit: ', ixCoupling, iStateTypeSplit, iDomainSplit
+      !print*, 'ixSoilOnlyHyd = ', indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat
+  
+      ! loop through layers (NOTE: nLayerSplit=1 for the vector solution, hence no looping)
+      layerSplit: do iLayerSplit=1,nLayerSplit
+   
+       ! -----
+       ! * define state subsets for a given split...
+       ! -------------------------------------------
+  
+       ! get the mask for the state subset
+       call stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iLayerSplit,&
+                        indx_data,stateMask,nSubset,err,cmessage)
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+    
+       ! check that state variables exist
+       if(nSubset==0) cycle domainSplit 
+    
+       ! avoid redundant case where vector solution is of length 1
+       if(ixSolution==vector .and. count(stateMask)==1) cycle solution
+
+       ! check
+       !print*, 'after stateFilter: stateMask   = ', stateMask
+       !print*, 'count(stateMask) = ', count(stateMask)
+    
+       !if(ixSolution==scalar)then
+       ! print*, 'iLayerSplit, nLayerSplit = ', iLayerSplit, nLayerSplit
+       ! print*, 'start of scalar solution'
+       ! !print*, 'PAUSE'; read(*,*)
+       !endif
+   
+       ! -----
+       ! * assemble vectors for a given split...
+       ! ---------------------------------------
+   
+       ! get indices for a given split
+       call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
+                       nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
+                       indx_data,                   & ! intent(inout) : index data structure
+                       err,cmessage)                  ! intent(out)   : error control
+       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ 
+       ! -----
+       ! * define the mask of the fluxes used...
+       ! ---------------------------------------
+   
+       ! identify the type of state for the states in the subset
+       stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat ,& ! intent(in): [i4b(:)] indices of state types
+                              ixMapFull2Subset    => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat   ,& ! intent(in): [i4b(:)] mapping of full state vector to the state subset
+                              ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat    ,& ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
+                              ixLayerActive       => indx_data%var(iLookINDEX%ixLayerActive)%dat      ,& ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerM
+                              ixDomainType        => indx_data%var(iLookINDEX%ixDomainType)%dat       )  ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+
+       ! loop through flux variables
+       do iVar=1,size(flux_meta)
+    
+        ! * identify flux mask for the fully coupled solution
+        if(ixCoupling==fullyCoupled)then
+         desiredFlux            = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+         fluxMask%var(iVar)%dat = desiredFlux 
+
+        ! * identify flux mask for the split solution
+        else
+ 
+         ! identify the flux mask for a given state split 
+         select case(iStateTypeSplit)
+          case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2) 
+          case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+          case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+         end select
+
+         ! no domain splitting
+         if(nDomains==1)then
+          fluxMask%var(iVar)%dat = desiredFlux
+
+         ! domain splitting
+         else
+
+          ! initialize to .false.
+          fluxMask%var(iVar)%dat = .false.
+
+          ! only need to proceed if the flux is desired
+          if(desiredFlux)then
+
+           ! different domain splitting operations
+           select case(iDomainSplit)
+  
+            ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
+            case(vegSplit)
+             fluxMask%var(iVar)%dat(:1) = desiredFlux
+  
+            ! fluxes through snow and soil
+            case(snowSplit,soilSplit)
+
+             ! loop through layers
+             do iLayer=1,nLayers
+              if(ixlayerActive(iLayer)/=integerMissing)then
+  
+               ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+1, nSnow+2, ..., nLayers)
+               iOffset = merge(nSnow, 0, flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil)
+               jLayer  = iLayer-iOffset
+  
+               ! identify the minimum layer
+               select case(flux_meta(iVar)%vartype)
+                case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcSoil); minLayer=merge(jLayer-1, jLayer, jLayer==1)
+                case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midSoil); minLayer=jLayer
+                case default; minLayer=integerMissing
+               end select
+  
+               ! set desired layers
+               select case(flux_meta(iVar)%vartype)
+                case(iLookVarType%midToto,iLookVarType%ifcToto);                   fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+                case(iLookVarType%midSnow,iLookVarType%ifcSnow); if(iLayer<=nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+                case(iLookVarType%midSoil,iLookVarType%ifcSoil); if(iLayer> nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+               end select
+
+               ! add hydrology states for scalar variables
+               if(iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv)then
+                select case(iDomainSplit)
+                 case(snowSplit); if(iLayer==nSnow)   fluxMask%var(iVar)%dat = desiredFlux
+                 case(soilSplit); if(iLayer==nSnow+1) fluxMask%var(iVar)%dat = desiredFlux
+                end select
+               endif  ! if hydrology split and scalar
+
+              endif    ! if the layer is active
+             end do   ! looping through layers
+
+            ! check
+            case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return
+           end select  ! domain split
+
+          endif  ! if flux is desired
+
+         endif  ! domain splitting
+        endif  ! not fully coupled
+
+        ! define if the flux is desired
+        if(desiredFlux) neededFlux(iVar)=.true.
+        !if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
+
+        ! * check
+        if( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 )&
+        print*, trim(flux_meta(iVar)%varname)
+     
+       end do  ! (loop through fluxes)
+
+       end associate stateSubset
+      
+       ! *******************************************************************************************************************************
+       ! *******************************************************************************************************************************
+       ! *******************************************************************************************************************************
+       ! ***** trial with a given solution method...
+       
+       ! check that we do not attempt the scalar solution for the fully coupled case
+       if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
+        message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
+        err=20; return
+       endif
+
+       ! reset the flag for the first flux call
+       if(.not.firstSuccess) firstFluxCall=.true.
+    
+       ! save/recover copies of prognostic variables
+       do iVar=1,size(prog_data%var)
+        select case(failure)
+         case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
+         case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
+        end select
+       end do  ! looping through variables
+      
+       ! save/recover copies of diagnostic variables
+       do iVar=1,size(diag_data%var)
+        select case(failure)
+         case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
+         case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
+        end select
+       end do  ! looping through variables
+ 
+       ! save/recover copies of model fluxes
+       do iVar=1,size(flux_data%var)
+        select case(failure)
+         case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+         case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+        end select
+       end do  ! looping through variables
+ 
+       ! -----
+       ! * solve variable subset for one time step...
+       ! --------------------------------------------
+
+       ! solve variable subset for one full time step
+       call varSubstep(&
+                       ! input: model control
+                       dt,                         & ! intent(inout) : time step (s)
+                       dt_min,                     & ! intent(in)    : minimum time step (seconds)
+                       nSubset,                    & ! intent(in)    : total number of variables in the state subset
+                       doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
+                       firstSubStep,               & ! intent(in)    : flag to denote first sub-step
+                       firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
+                       computeVegFlux,             & ! intent(in)    : flag to denote if computing energy flux over vegetation
+                       (ixSolution==scalar),       & ! intent(in)    : flag to denote computing the scalar solution
+                       iLayerSplit,                & ! intent(in)    : index of the layer in the splitting operation
+                       fluxMask,                   & ! intent(in)    : mask for the fluxes used in this given state subset
+                       fluxCount,                  & ! intent(inout) : number of times fluxes are updated (should equal nsubstep) 
+                       ! input/output: data structures
+                       model_decisions,            & ! intent(in)    : model decisions
+                       type_data,                  & ! intent(in)    : type of vegetation and soil
+                       attr_data,                  & ! intent(in)    : spatial attributes
+                       forc_data,                  & ! intent(in)    : model forcing data
+                       mpar_data,                  & ! intent(in)    : model parameters
+                       indx_data,                  & ! intent(inout) : index data
+                       prog_data,                  & ! intent(inout) : model prognostic variables for a local HRU
+                       diag_data,                  & ! intent(inout) : model diagnostic variables for a local HRU
+                       flux_data,                  & ! intent(inout) : model fluxes for a local HRU
+                       deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
+                       bvar_data,                  & ! intent(in)    : model variables for the local basin
+                       ! output: control
+                       ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       dtMultiplier,               & ! intent(out)   : substep multiplier (-)
+                       nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
+                       failedMinimumStep,          & ! intent(out)   : flag for failed substeps
+                       reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
+                       tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
+                       err,cmessage)                 ! intent(out)   : error code and error message
+       if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        if(err>0) return
+       endif  ! (check for errors)
+
+       !print*, trim(message)//'after varSubstep: scalarSnowDrainage = ', flux_data%var(iLookFLUX%scalarSnowDrainage)%dat
+       !print*, trim(message)//'after varSubstep: iLayerLiqFluxSnow  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat
+       !print*, trim(message)//'after varSubstep: iLayerLiqFluxSoil  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat
+
+       ! check
+       !if(ixSolution==scalar)then
+       ! print*, 'PAUSE: check scalar'; read(*,*)
+       !endif
+
+       ! reduce coupled step if failed the minimum step for the scalar solution
+       if(failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
+
+       ! check 
+       !if(ixCoupling/=fullyCoupled)then
+       ! print*, 'dt = ', dt
+       ! print*, 'after varSubstep: err              = ', err
+       ! print*, 'after varSubstep: cmessage         = ', trim(cmessage)
+       ! print*, 'after varSubstep: computeVegFlux   = ', computeVegFlux
+       ! print*, 'after varSubstep: stateMask        = ', stateMask
+       ! print*, 'after varSubstep: coupling         = ', (ixCoupling==fullyCoupled)
+       ! print*, 'after varSubstep: scalar solve     = ', (ixSolution==scalar)
+       ! print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
+       ! print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
+       ! print*, 'nSubset           = ', nSubset
+       ! print*, 'tooMuchMelt       = ', tooMuchMelt
+       ! print*, 'reduceCoupledStep = ', reduceCoupledStep
+       ! print*, 'failedMinimumStep = ', failedMinimumStep, merge('coupled','opSplit',ixCoupling==fullyCoupled)
+       ! if(ixSolution==scalar)then; print*, 'PAUSE'; read(*,*); endif
+       !endif    
+   
+       !if(ixSolution==scalar)then
+       ! !print*, trim(message)//'stop: checking scalar solution'; stop
+       ! print*, trim(message)//'pause: checking scalar solution'; read(*,*)
+       !endif
+ 
+       !print*, 'tooMuchMelt, reduceCoupledStep = ', tooMuchMelt, reduceCoupledStep
+ 
+       ! if too much melt (or some other need to reduce the coupled step) then return
+       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
+       if(tooMuchMelt .or. reduceCoupledStep)then
+        stepFailure=.true.
+        err=0 ! recovering
+        return
+       endif
+   
+       ! define failure
+       failure = (failedMinimumStep .or. err<0 .or. ixSolution/=scalar)
+       if(iStateTypeSplit==nrgSplit .and. iDomainSplit==vegSplit .and. nDomainSplit==nDomains) failure=.false.
+       !failure = (failedMinimumStep .or. err<0)
+       if(.not.failure) firstSuccess=.true.
+
+       ! if failed, need to reset the flux counter
+       if(failure)then
+        !print*, 'failure!'
+        do iVar=1,size(flux_meta)
+         iMin=lbound(flux_data%var(iVar)%dat)
+         iMax=ubound(flux_data%var(iVar)%dat)
+         do iLayer=iMin(1),iMax(1)
+          if(fluxMask%var(iVar)%dat(iLayer)) fluxCount%var(iVar)%dat(iLayer) = fluxCount%var(iVar)%dat(iLayer) - nSubsteps
+         end do
+         !if(iVar==iLookFLUX%mLayerTranspire) print*, flux_meta(iVar)%varname, fluxCount%var(iVar)%dat
+        end do
+       endif
+ 
+       ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
+       if(ixCoupling==fullyCoupled .and. failure) cycle coupling
+       
+       ! try the scalar solution if failed to converge with a minimum time step in the split solution
+       if(ixCoupling/=fullyCoupled)then
+        select case(ixStateThenDomain)
+         case(fullDomain); if(failure) cycle stateThenDomain
+         case(subDomain);  if(failure) cycle solution
+         case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
+        end select
+       endif
+         
        ! check that state variables updated
        where(stateMask) stateCheck = stateCheck+1
        if(any(stateCheck>1))then
         message=trim(message)//'state variable updated more than once!'
         err=20; return
        endif
-
-       ! fully coupled
-       if(ixSolution==fullyCoupled)then
-        exit stateTypeSplit     ! stay within the ixSolution loop in case mass balance errors
-
-       ! split state type
-       elseif(ixSolution==splitStateType)then
-        exit domainSplit  ! this (1) tries the other state split if iStateTypeSplit<nStateTypeSplit, or (2) exits since finished
-
-       ! split domain type
-       elseif(ixSolution==splitDomainType)then
-        if(iDomainSplit==nDomainSplit)then
-         ixSolution=splitStateType   ! try to solve all domains simultaneously for the next state split
-         exit domainSplit            
-        else
-         exit trySolution            ! iDomainSplit<nDomainSplit: try the next domain
-        endif
-
-       ! explicit Euler
-       elseif(ixSolution==explicitEuler)then
-        if(iDomainSplit==nDomainSplit)then
-         ixSolution=splitStateType   ! try to solve all domains simultaneously for the next state split (implicit solution)
-         exit domainSplit
-        else
-         ixSolution=splitDomainType  ! try implicit solution for the next domain
-         exit trySolution            ! iDomainSplit<nDomainSplit: try the next domain
-        endif
-
-       ! check that the index of ixSolution is known
+   
+       ! success = exit solution
+       if(.not.failure)then
+        select case(ixStateThenDomain)
+         case(fullDomain); if(iLayerSplit==nLayerSplit) exit stateThenDomain
+         case(subDomain);  if(iLayerSplit==nLayerSplit) exit solution
+         case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
+        end select
        else
-        message=trim(message)//'unknown solution index'
-        err=20; return
-       endif
-
-      ! -----
-      ! * if failed substeps then try another solution method...
-      ! --------------------------------------------------------
-     
-      ! adjust solution if failed to converge at the prescribed minimum time step dt_min
-      else
    
-       ! if fully coupled then start again by splitting by state type
-       if(ixSolution==fullyCoupled)then
-        ixSolution=splitStateType
-        exit stateTypeSplit  ! split into state types
+        ! check that we did not fail for the scalar solution (last resort)
+        if(ixSolution==scalar)then
+         message=trim(message)//'failed the minimum step for the scalar solution'
+         err=20; return
    
-       ! if splitting by state type then start again by splitting by domain type
-       ! NOTE: will do another trial using the trialStateSplit loop 
-       elseif(ixSolution==splitStateType)then
-        ixSolution=splitDomainType
-        exit domainSplit
+        ! check for an unexpected failure
+        else
+         message=trim(message)//'unexpected failure'
+         err=20; return
+        endif
    
-       ! if already splitting by domain type then move to the last resort of explicit Euler
-       elseif(ixSolution==splitDomainType)then
-        ixSolution=explicitEuler
-        cycle trySolution
-   
-       ! check that did not fail with explicit Euler (this was the last resort!)
-       elseif(ixSolution==explicitEuler)then
-        stepFailure=.true.
-        return
-   
-       ! check that the index of ixSolution is known
-       else
-        message=trim(message)//'unknown solution index'
-        err=20; return
-       endif
-        
-      endif  ! if failed substeps
-   
-      ! ***** trial with a given solution method...
-      ! *******************************************************************************************************************************
-      ! *******************************************************************************************************************************
-      ! *******************************************************************************************************************************
+       endif  ! success check
   
-     end do trySolution  ! trial of given solution method
+      end do layerSplit ! solution with split layers
+      !print*, 'after layerSplit'
+
+     end do solution ! trial with the full layer solution then the split layer solution
+
+     !print*, 'after solution loop' 
+ 
+     ! ***** trial with a given solution method...
+     ! *******************************************************************************************************************************
+     ! *******************************************************************************************************************************
+     ! *******************************************************************************************************************************
+  
     end do domainSplit ! domain type splitting loop
-  
-    ! -----
-    ! * reset state variables for the mass split...
-    ! ---------------------------------------------
+
+    !print*, 'ixStateThenDomain = ', ixStateThenDomain
+    !print*, 'after domain split loop'
+
+   end do stateThenDomain  ! switch between the state and the domain
+
+   !print*, 'after stateThenDomain switch'
+
+   ! -----
+   ! * reset state variables for the mass split...
+   ! ---------------------------------------------
    
-    ! modify the state type names associated with the state vector
-    if(ixSolution/=fullyCoupled .and. iStateTypeSplit==massSplit)then
-     if(computeVegFlux)then
-      where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
-     endif
-     where(ixStateType(ixHydLayer) ==iname_liqLayer)  ixStateType(ixHydLayer) =iname_watLayer
-     where(ixStateType(ixHydLayer) ==iname_lmpLayer)  ixStateType(ixHydLayer) =iname_matLayer
-    endif  ! if modifying state variables for the mass split
+   ! modify the state type names associated with the state vector
+   if(ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)then
+    if(computeVegFlux)then
+     where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
+    endif
+    where(ixStateType(ixHydLayer) ==iname_liqLayer)  ixStateType(ixHydLayer) =iname_watLayer
+    where(ixStateType(ixHydLayer) ==iname_lmpLayer)  ixStateType(ixHydLayer) =iname_matLayer
+   endif  ! if modifying state variables for the mass split
 
-    ! success = exit the trialStateSplit loop
-    if(.not.failure) exit trialStateSplit
-
-   end do trialStateSplit ! trial different state type splits  
   end do stateTypeSplit ! state type splitting loop 
-  !print*, 'PAUSE: end of splitting loop'; read(*,*)
+
+  ! check
+  !if(ixCoupling/=fullyCoupled)then
+  ! print*, 'PAUSE: end of splitting loop'; read(*,*)
+  !endif
 
   ! ==========================================================================================================================================
   ! ==========================================================================================================================================
 
-  ! success = exit the trySolution loop
-  if(.not.failure) exit solution
+  ! success = exit the coupling loop
+  if(ixCoupling==fullyCoupled .and. .not.failure) exit coupling
 
- end do solution ! solution method
+ end do coupling ! coupling method
 
  ! check that all state variables were updated
  if(any(stateCheck==0))then
@@ -729,8 +926,17 @@ contains
   err=20; return
  endif
 
+ ! check that the desired fluxes were computed
+ do iVar=1,size(flux_meta)
+  if(neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0))then
+   print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
+   message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
+   err=20; return
+  endif
+ end do
+
  ! use step halving if unable to complete the fully coupled solution in one substep
- if(ixSolution/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_dp
+ if(ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_dp
 
  ! compute the melt in each snow and soil layer
  if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIce(      1:nSnow  ) - mLayerVolFracIceInit(      1:nSnow  ))*iden_ice
@@ -743,41 +949,51 @@ contains
 
 
  ! **********************************************************************************************************
- ! private subroutine stateSubset: get a mask for the desired state variables
+ ! private subroutine stateFilter: get a mask for the desired state variables
  ! **********************************************************************************************************
- subroutine stateFilter(ixSolution,iStateTypeSplit,iDomainSplit,indx_data,stateMask,nSubset,err,message)
+ subroutine stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iLayerSplit,&
+                        indx_data,stateMask,nSubset,err,message)
+ 
+ USE indexState_module,only:indxSubset                            ! get state indices
  implicit none
  ! input
- integer(i4b),intent(in)         :: ixSolution                    ! index of solution method (1,2,3,...)
+ integer(i4b),intent(in)         :: ixCoupling                    ! index of coupling method (1,2)
+ integer(i4b),intent(in)         :: ixSolution                    ! index of solution method (1,2)
+ integer(i4b),intent(in)         :: ixStateThenDomain             ! switch between full domain and sub domains
  integer(i4b),intent(in)         :: iStateTypeSplit               ! index of the state type split
  integer(i4b),intent(in)         :: iDomainSplit                  ! index of the domain split
+ integer(i4b),intent(in)         :: iLayerSplit                   ! index of the layer split
  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
  ! output
  logical(lgt),intent(out)        :: stateMask(:)                  ! mask defining desired state variables
  integer(i4b),intent(out)        :: nSubset                       ! number of selected state variables for a given split
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
+ ! local
+ integer(i4b),allocatable        :: ixSubset(:)                   ! list of indices in the state subset
+ character(len=256)              :: cmessage                      ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! data structures
  associate(&
  ! indices of model state variables
- ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
- ixNrgCanair => indx_data%var(iLookINDEX%ixNrgCanair)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
- ixNrgCanopy => indx_data%var(iLookINDEX%ixNrgCanopy)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
- ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
- ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
- ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+ ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat      ,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
+ ixNrgCanair => indx_data%var(iLookINDEX%ixNrgCanair)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
+ ixNrgCanopy => indx_data%var(iLookINDEX%ixNrgCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
+ ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+ ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+ ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+ ixAllState  => indx_data%var(iLookINDEX%ixAllState)%dat       ,& ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
  ! number of layers
- nSnow       => indx_data%var(iLookINDEX%nSnow)%dat(1)   ,& ! intent(in): [i4b]    number of snow layers
- nSoil       => indx_data%var(iLookINDEX%nSoil)%dat(1)   ,& ! intent(in): [i4b]    number of soil layers
- nLayers     => indx_data%var(iLookINDEX%nLayers)%dat(1)  & ! intent(in): [i4b]    total number of layers
+ nSnow       => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b]    number of snow layers
+ nSoil       => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b]    number of soil layers
+ nLayers     => indx_data%var(iLookINDEX%nLayers)%dat(1)        & ! intent(in): [i4b]    total number of layers
  ) ! data structures
  ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='stateFilter/'
 
  ! identify splitting option
- select case(ixSolution)
+ select case(ixCoupling)
  
   ! -----
   ! - fully coupled...
@@ -785,58 +1001,84 @@ contains
 
   ! use all state variables
   case(fullyCoupled); stateMask(:) = .true.
- 
+
   ! -----
   ! - splitting by state type...
   ! ----------------------------
+
+  ! initial split by state type    
+  case(stateSplit)
+
+   ! switch between full domain and sub domains
+   select case(ixStateThenDomain)
+
+   ! split into energy and mass
+   case(fullDomain)
+    select case(iStateTypeSplit)
+     case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
+     case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
+     case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+    end select
  
-  ! split into energy and mass
-  case(splitStateType)
-   select case(iStateTypeSplit)
-    case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
-    case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
-    case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
-   end select
+   ! split into vegetation, snow, and soil
+   case(subDomain)
  
-  ! -----
-  ! - splitting by domain...
-  ! ------------------------
- 
-  ! split into vegetation, snow, and soil
-  case(splitDomainType,explicitEuler)
- 
-   ! define state mask
-   stateMask=.false. ! (initialize state mask)
-   select case(iStateTypeSplit)
- 
-    ! define mask for energy
-    case(nrgSplit)
-     select case(iDomainSplit)
-      case(vegSplit)
-       if(ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
-       if(ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
-       stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
-      case(snowSplit); if(nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) top layer in the snow+soil domain included in vegSplit
-      case(soilSplit); stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
-      case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
-     end select       
- 
-    ! define mask for water
-    case(massSplit) 
-     select case(iDomainSplit)
-      case(vegSplit);  if(ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
-      case(snowSplit); stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
-      case(soilSplit); stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
-      case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
-     end select
- 
+    ! define state mask
+    stateMask=.false. ! (initialize state mask)
+    select case(iStateTypeSplit)
+  
+     ! define mask for energy
+     case(nrgSplit)
+      select case(iDomainSplit)
+       case(vegSplit)
+        if(ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
+        if(ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
+        stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
+       case(snowSplit); if(nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
+       case(soilSplit); stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
+       case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
+      end select       
+  
+     ! define mask for water
+     case(massSplit) 
+      select case(iDomainSplit)
+       case(vegSplit);  if(ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
+       case(snowSplit); stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
+       case(soilSplit); stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
+       case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
+      end select
+  
+     ! check
+     case default; err=20; message=trim(message)//'unable to identify the state type'; return
+    end select  ! (split based on state type)
+
     ! check
-    case default; err=20; message=trim(message)//'unable to identify the state type'; return
-   end select  ! (split based on state type)
- 
-  case default; err=20; message=trim(message)//'unable to identify solution method'; return
+    case default; err=20; message=trim(message)//'unable to identify the switch between full domains and sub domains'; return
+   end select ! (switch between full domains and sub domains)
+
+  ! check
+  case default; err=20; message=trim(message)//'unable to identify coupling method'; return
  end select  ! (selecting solution method)
  
+ ! identify scalar solutions
+ if(ixSolution==scalar)then
+
+  ! get the subset of indices
+  call indxSubset(ixSubset, ixAllState, stateMask, err, cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+  ! get the mask
+  stateMask(:) = .false.
+  stateMask( ixSubset(iLayerSplit) ) = .true.
+
+  ! check
+  if(count(stateMask)/=1)then
+   message=trim(message)//'expect size=1 (scalar)'
+   err=20; return
+  endif
+
+ endif  
+
  ! get the number of selected state variables
  nSubset = count(stateMask)
  

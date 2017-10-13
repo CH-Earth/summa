@@ -84,10 +84,11 @@ integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
 ! algorithmic parameters
-real(dp),parameter     :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
-real(dp),parameter     :: dx=1.e-11_dp         ! finite difference increment
+real(dp),parameter     :: missingValue=-9999._dp   ! missing value, used when diagnostic or state variables are undefined
+real(dp),parameter     :: verySmall=1.e-6_dp       ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: tinyVal=epsilon(1._dp)   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: mpe=1.e-6_dp             ! prevents overflow error if division by zero
+real(dp),parameter     :: dx=1.e-11_dp             ! finite difference increment
 ! control
 logical(lgt)           :: printflag            ! flag to turn on printing
 contains
@@ -2762,6 +2763,18 @@ contains
  end if
  groundConductanceLH = 1._dp/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
  totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
+ 
+ ! check sensible heat conductance
+ if(totalConductanceSH < -tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
+  message=trim(message)//'negative conductance for sensible heat'
+  err=20; return
+ endif
+
+ ! check latent heat conductance
+ if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
+  message=trim(message)//'negative conductance for latent heat'
+  err=20; return
+ endif
 
  ! * compute derivatives
  ! NOTE: it may be more efficient to compute these derivatives when computing resistances

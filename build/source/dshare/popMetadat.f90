@@ -643,6 +643,7 @@ contains
  indx_meta(iLookINDEX%ixAllState)          = var_info('ixAllState'          , 'list of indices for all model state variables'                           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixSoilState)         = var_info('ixSoilState'         , 'list of indices for all soil layers'                                     , '-', get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixLayerState)        = var_info('ixLayerState'        , 'list of indices for all model layers'                                    , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixLayerActive)       = var_info('ixLayerActive'       , 'list of indices for active model layers (inactive=integerMissing)'       , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
  ! indices for the model output files
  indx_meta(iLookINDEX%midSnowStartIndex)   = var_info('midSnowStartIndex'   , 'start index of the midSnow vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%midSoilStartIndex)   = var_info('midSoilStartIndex'   , 'start index of the midSoil vector for a given timestep'                  , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)

@@ -134,9 +134,15 @@ MODULE data_types
  type, public :: ilength
   integer(i4b),allocatable            :: dat(:)    ! dat(:)
  endtype ilength
+ ! ** logical type
+ type, public :: flagVec
+  logical(lgt),allocatable            :: dat(:)    ! dat(:)
+ endtype flagVec
+
 
  ! define derived types to hold data for multiple variables
  ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
+
  ! ** double precision type of variable length
  type, public :: var_dlength
   type(dlength),allocatable           :: var(:)    ! var(:)%dat 
@@ -145,6 +151,11 @@ MODULE data_types
  type, public :: var_ilength
   type(ilength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_ilength
+ ! ** logical type of variable length
+ type, public :: var_flagVec
+  type(flagVec),allocatable           :: var(:)    ! var(:)%dat
+ endtype var_flagVec
+
  ! ** double precision type of fixed length
  type, public :: var_d
   real(dp),allocatable                :: var(:)    ! var(:)
