@@ -125,12 +125,6 @@ contains
  integer(i4b)                  :: nSnow             ! number of snow layers
  integer(i4b)                  :: nSoil             ! number of soil layers
  integer(i4b)                  :: nLayers           ! total number of layers
- integer(i4b)                  :: midSnowStartIndex ! start index of the midSnow vector for a given timestep
- integer(i4b)                  :: midSoilStartIndex ! start index of the midSoil vector for a given timestep
- integer(i4b)                  :: midTotoStartIndex ! start index of the midToto vector for a given timestep
- integer(i4b)                  :: ifcSnowStartIndex ! start index of the ifcSnow vector for a given timestep
- integer(i4b)                  :: ifcSoilStartIndex ! start index of the ifcSoil vector for a given timestep
- integer(i4b)                  :: ifcTotoStartIndex ! start index of the ifcToto vector for a given timestep
 
  ! initialize error control
  err=0;message="writeData/"
@@ -139,13 +133,6 @@ contains
  nSoil             = indx(iLookIndex%nSoil)%dat(1)
  nSnow             = indx(iLookIndex%nSnow)%dat(1)
  nLayers           = indx(iLookIndex%nLayers)%dat(1)
- ! model indices
- midSnowStartIndex = indx(iLookIndex%midSnowStartIndex)%dat(1)
- midSoilStartIndex = indx(iLookIndex%midSoilStartIndex)%dat(1)
- midTotoStartIndex = indx(iLookIndex%midTotoStartIndex)%dat(1)
- ifcSnowStartIndex = indx(iLookIndex%ifcSnowStartIndex)%dat(1)
- ifcSoilStartIndex = indx(iLookIndex%ifcSoilStartIndex)%dat(1)
- ifcTotoStartIndex = indx(iLookIndex%ifcTotoStartIndex)%dat(1)
 
  ! loop through output frequencies
  do iFreq = 1,nFreq
@@ -171,10 +158,10 @@ contains
     end if
 
     ! check that the variable is desired
-    if (meta(iVar)%outFreq.ne.iFreq) cycle
+    if(meta(iVar)%outFreq.ne.iFreq) cycle
 
     ! loop through output stats
-    do iStat = 1,maxVarStat
+    do iStat=1,maxVarStat
 
      ! check that the variable is desired
      if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
@@ -195,25 +182,25 @@ contains
        type is (dlength)
         select case (meta(iVar)%varType)
          case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
-         case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-         case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-         case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-         case(iLookVarType%ifcToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
-         case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-         case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
+         case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nLayers/))
+         case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSnow/))
+         case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSoil/))
+         case(iLookVarType%ifcToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nLayers+1/))
+         case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSnow+1/))
+         case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSoil+1/))
         end select ! vartype
        type is (ilength)
         select case (meta(iVar)%varType)
          case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
-         case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-         case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-         case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-         case(iLookVarType%ifcToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
-         case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-         case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
+         case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nLayers/))
+         case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSnow/))
+         case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSoil/))
+         case(iLookVarType%ifcToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nLayers+1/))
+         case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSnow+1/))
+         case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,nSoil+1/))
         end select ! vartype
       end select ! dat
-     end if ! sacalarv
+     end if ! scalarv
 
      ! process error code
      if (err.ne.0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
