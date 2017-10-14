@@ -75,7 +75,6 @@ contains
  subroutine summaSolve(&
                        ! input: model control
                        dt,                      & ! intent(in):    length of the time step (seconds)
-                       funcOnly,                & ! intent(in):    logical flag to only return the flux and function evaluation
                        iter,                    & ! intent(in):    iteration index
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
@@ -86,6 +85,7 @@ contains
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
                        fScale,                  & ! intent(in):    function scaling vector
@@ -116,18 +116,17 @@ contains
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
                        fNew,                    & ! intent(out):   new function evaluation
-                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        converged,               & ! intent(out):   convergence flag
                        err,message)               ! intent(out):   error control
  USE computJacob_module, only: computJacob
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)             :: dt                       ! length of the time step (seconds)
- logical(lgt),intent(in)         :: funcOnly                 ! logical flag to only return the flux and function evaluation
  integer(i4b),intent(in)         :: iter                     ! interation index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
@@ -138,6 +137,7 @@ contains
  logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)         :: scalarSolution           ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)         ! trial state vector
  real(dp),intent(in)             :: fScale(:)                ! function scaling vector
@@ -168,7 +168,6 @@ contains
  real(dp),intent(out)            :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
  real(dp),intent(out)            :: fNew                     ! new function evaluation
- logical(lgt),intent(out)        :: feasible                 ! flag to denote the feasibility of the solution
  logical(lgt),intent(out)        :: converged                ! convergence flag
  ! output: error control
  integer(i4b),intent(out)        :: err                      ! error code
@@ -205,18 +204,6 @@ contains
 
  ! initialize the global print flag
  globalPrintFlagInit=globalPrintFlag
-
- ! -----
- ! * only compute the function evaluation and return...
- ! ----------------------------------------------------
-
- ! this is done if using the explicit Euler solution
- if(funcOnly)then
-  stateVecNew = stateVecTrial
-  call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if                  ! (check for errors)
-  return
- endif
 
  ! -----
  ! * compute the Jacobian matrix...
@@ -299,19 +286,29 @@ contains
  ! initialize the flag for step refinement
  doRefine=.true.
 
+ ! * case 1: state vector
  ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
  ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
- select case(ixStepRefinement)
-  case(ixLineSearch);  call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-  case(ixTrustRegion); call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-  case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
- end select
+ if(size(stateVecTrial)>1)then
 
- ! check warnings: negative error code = warning; in this case back-tracked to the original value
- ! NOTE: Accept the full newton step
- if(err<0)then
-  doRefine=.false.;    call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
- end if
+  ! try to backtrack
+  select case(ixStepRefinement)
+   case(ixLineSearch);  call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+   case(ixTrustRegion); call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+   case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
+  end select
+
+  ! check warnings: negative error code = warning; in this case back-tracked to the original value
+  ! NOTE: Accept the full newton step if back-tracked to the original value
+  if(err<0)then
+   doRefine=.false.;    call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+  end if
+
+ ! * case 2: scalar
+ else
+  call safeRootfinder(stateVecTrial,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ endif
 
  ! check errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -555,6 +552,92 @@ contains
 
   end subroutine trustRegionRefinement
 
+
+  ! *********************************************************************************************************
+  ! * internal subroutine safeRootfinder: refine the 1-d iteration increment using brackets
+  ! *********************************************************************************************************
+  subroutine safeRootfinder(stateVecTrial,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
+  USE globalData,only:dNaN                                   ! double precision NaN
+  implicit none
+  ! input
+  real(dp),intent(in)            :: stateVecTrial(:)         ! trial state vector
+  real(dp),intent(in)            :: newtStepScaled(:)        ! scaled newton step
+  ! output
+  real(dp),intent(out)           :: stateVecNew(:)           ! new state vector
+  real(dp),intent(out)           :: fluxVecNew(:)            ! new flux vector
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(dp),intent(out)           :: fNew                     ! new function evaluation
+  logical(lgt),intent(out)       :: converged                ! convergence flag
+  integer(i4b),intent(out)       :: err                      ! error code
+  character(*),intent(out)       :: message                  ! error message
+  ! --------------------------------------------------------------------------------------------------------
+  ! local variables
+  character(len=256)             :: cmessage                 ! error message of downwind routine
+  real(dp),save                  :: xMin,xMax                ! brackets of the root
+  real(dp),parameter             :: relTolerance=0.005_dp    ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
+  real(dp)                       :: xTolerance               ! relTolerance*(xmax-xmin)
+  real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
+  logical(lgt)                   :: feasible                 ! feasibility of the solution
+  logical(lgt)                   :: doBisection              ! flag to do the bi-section
+  logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
+  ! --------------------------------------------------------------------------------------------------------
+  err=0; message='safeRootfinder/'
+
+  ! check scalar
+  if(size(stateVecTrial)/=1 .or. size(newtStepScaled)/=1)then
+   message=trim(message)//'unexpected size of input vectors'
+   err=20; return
+  endif
+  
+  ! initialize brackets to double precision Indian bread
+  if(iter==1)then 
+   xMax = dNaN
+   xMin = dNaN
+  endif
+  
+  ! get the iteration increment
+  xInc = newtStepScaled*xScale
+  
+  ! impose solution constraints
+  call imposeConstraints(stateVecTrial,xInc,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  
+  ! update brackets
+  if(xInc(1)<0._dp)then
+   xMax = stateVecTrial(1)
+  else
+   xMin = stateVecTrial(1)
+  endif
+
+  ! compute the iteration increment
+  stateVecNew = stateVecTrial + xInc
+  
+  ! bi-section
+  bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
+  if(bracketsDefined)then
+   xTolerance  = relTolerance*(xMax-xMin)
+   doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
+   if(doBisection) stateVecNew(1) = 0.5_dp*(xMin+xMax)
+  endif
+  
+  ! evaluate summa
+  call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+  ! check feasibility (should be feasible because of the call to imposeConstraints 
+  if(.not.feasible)then; err=20; message=trim(message)//'infeasible solution'; return; endif
+
+  ! check convergence
+  converged = checkConv(resVecNew,xInc,stateVecNew)
+
+  !print*, 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
+  !         bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
+  !print*, 'PAUSE'; read(*,*)
+  
+  end subroutine safeRootfinder
+  
+
   ! *********************************************************************************************************
   ! * internal subroutine numJacobian: compute the numerical Jacobian matrix
   ! *********************************************************************************************************
@@ -624,9 +707,10 @@ contains
 
   ! print the Jacobian
   print*, '** numerical Jacobian:', ixNumType==ixNumRes
-  write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-  do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
-  print*, 'PAUSE: testing Jacobian'; read(*,*)
+  print*, 'nJac = ', nJac
+  !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+  !do iJac=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iJac, nJac(iJac1:iJac2,iJac); end do
+  !print*, 'PAUSE: testing Jacobian'; read(*,*)
 
   end subroutine numJacobian
 
@@ -738,6 +822,7 @@ contains
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                   .false.,                 & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
                   fScale,                  & ! intent(in):    function scaling vector
@@ -767,7 +852,6 @@ contains
                   err,cmessage)              ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
   end subroutine eval8summa_wrapper
 
 
@@ -790,6 +874,7 @@ contains
   ! locals
   real(dp),dimension(nSoil) :: psiScale               ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp        ! a small offset
+  real(dp),parameter        :: watBalTol_scalar=1.e-14_dp  ! water balance tolerance for the scalar solution (tighter tolerance)
   real(dp)                  :: soilWatbalErr          ! error in the soil water balance
   real(dp)                  :: canopy_max             ! absolute value of the residual in canopy water (kg m-2)
   real(dp),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
@@ -842,7 +927,12 @@ contains
   ! check convergence based on the residuals for volumetric liquid water content (-)
   if(size(ixHydOnly)>0)then
    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), dp)
-   liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+   ! (tighter convergence for the scalar solution)
+   if(scalarSolution)then
+    liquidConv = (liquid_max(1) < watBalTol_scalar)   ! (based on the residual)
+   else
+    liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+   endif
   else
    liquid_max = realMissing
    liquidConv = .true.
@@ -861,8 +951,8 @@ contains
 
   ! check convergence based on the soil water balance error (m)
   if(size(ixMatOnly)>0)then
-   soilWatBalErr = abs( sum( real(rVec(ixMatOnly), dp)*mLayerDepth(nSnow+ixMatricHead) ) )
-   watbalConv    = (soilWatbalErr < absConvTol_liquid)  ! absolute error in total soil water balance (m)
+   soilWatBalErr = sum( real(rVec(ixMatOnly), dp)*mLayerDepth(nSnow+ixMatricHead) )
+   watbalConv    = (abs(soilWatbalErr) < absConvTol_liquid)  ! absolute error in total soil water balance (m)
   else
    soilWatbalErr = realMissing
    watbalConv    = .true.

@@ -25,6 +25,7 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 USE netcdf                                                  ! netcdf libraries
+USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
 ! provide access to subroutines and functions
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
@@ -106,6 +107,7 @@ USE globalData,only:bpar_meta,bvar_meta                     ! metadata structure
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:model_decisions                         ! model decision structure
 ! provide access to global data
+USE globalData,only:dNaN                                    ! double precision NaN
 USE globalData,only:refTime                                 ! reference time
 USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
@@ -149,6 +151,9 @@ USE mDecisions_module,only:&                                ! look-up values for
 USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
+USE mDecisions_module,only:&
+  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
 USE output_stats,only:calcStats                             ! module for compiling output statistics
 USE globalData,only:nFreq,outFreq                           ! model output files
 USE globalData,only:ncid                                    ! file id of netcdf output file
@@ -158,6 +163,7 @@ implicit none
 ! *****************************************************************************
 ! (0) variable definitions
 ! *****************************************************************************
+! define the statistics structures 
 type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
 type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
 type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
@@ -257,6 +263,9 @@ character(len=256)               :: timeString                 ! protion of rest
 character(len=256)               :: restartFile                ! restart file name
 character(len=256)               :: attrFile                   ! attributes file name
 ! parallelize the model run
+integer(i4b)                     :: nHRUrun                    ! number of HRUs in the run domain
+integer(i4b)                     :: maxLayers                  ! maximum number of layers
+integer(i4b)                     :: maxSnowLayers              ! maximum number of snow layers
 integer(i4b)                     :: startGRU                   ! index of the starting GRU for parallelization run
 integer(i4b)                     :: checkHRU                   ! index of the HRU for a single HRU run
 integer(i4b)                     :: fileGRU                    ! number of GRUs in the input file
@@ -270,6 +279,9 @@ INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! get the command line arguments
 call getCommandArguments()
+
+! define double precision NaNs (shared in globalData)
+dNaN = ieee_value(1._dp, ieee_quiet_nan)
 
 ! get the initial time
 call date_and_time(values=ctime1)
@@ -289,6 +301,7 @@ call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err
 ! *****************************************************************************
 ! (2) populate/check metadata structures
 ! *****************************************************************************
+
 ! populate metadata for all model variables
 call popMetadat(err,message); call handle_err(err,message)
 
@@ -375,6 +388,9 @@ end do
 call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,message)
 call handle_err(err,message)
 
+! get the number of HRUs in the run domain
+nHRUrun = sum(gru_struc%hruCount)
+
 ! *****************************************************************************
 ! (4b) read description of model forcing datafile used in each HRU
 ! *****************************************************************************
@@ -384,6 +400,16 @@ call ffile_info(nGRU,err,message); call handle_err(err,message)
 ! (4c) read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
+
+! get the maximum number of snow layers
+select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+ case(sameRulesAllLayers);    maxSnowLayers = 100
+ case(rulesDependLayerIndex); maxSnowLayers = 5
+ case default; call handle_err(20,'unable to identify option to combine/sub-divide snow layers')
+end select ! (option to combine/sub-divide snow layers)
+
+! get the maximum number of layers
+maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
 
 ! *****************************************************************************
 ! (4d) allocate space for output statistics data structures
@@ -698,26 +724,19 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
- ! read forcing data 
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   
-   ! read forcing data
-   call read_force(&
-                   ! input
-                   modelTimeStep,                              & ! intent(in):    time step index
-                   gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,       & ! intent(in):    index of hru in netcdf
-                   ! input-output
-                   iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
-                   forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
-                   forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
-                   ! output
-                   timeStruct%var,                             & ! intent(out):   time data structure (integer)
-                   forcStruct%gru(iGRU)%hru(iHRU)%var,         & ! intent(out):   forcing data structure (double precision)
-                   err, message)                               ! intent(out):   error control
-   call handle_err(err,message)
-  end do 
- end do  ! (end looping through global GRUs)
+ ! read forcing data
+ call read_force(&
+                 ! input
+                 modelTimeStep,      & ! intent(in):    time step index
+                 ! input-output
+                 iFile,              & ! intent(inout): index of current forcing file in forcing file list
+                 forcingStep,        & ! intent(inout): index of read position in time dimension in current netcdf file
+                 forcNcid,           & ! intent(inout): netcdf file identifier for the current forcing file
+                 ! output
+                 timeStruct%var,     & ! intent(out):   time data structure (integer)
+                 forcStruct,         & ! intent(out):   forcing data structure (double precision)
+                 err, message)         ! intent(out):   error control
+ call handle_err(err,message)
 
  ! set print flag
  globalPrintFlag=.false.
@@ -798,15 +817,9 @@ do modelTimeStep=1,numtim
     call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
-    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
+    ! re-initalize the indices for model writing 
     waterYearTimeStep=1
     outputTimeStep=1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
    end do  ! (looping through HRUs)
    call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
   end do  ! (looping through GRUs)
@@ -894,7 +907,7 @@ do modelTimeStep=1,numtim
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
 
    !print*, 'iHRU = ', iHRU
- 
+
    ! initialize the number of flux calls
    diagStruct%gru(iGRU)%hru(iHRU)%var(iLookDIAG%numFluxCalls)%dat(1) = 0._dp
 
@@ -975,25 +988,6 @@ do modelTimeStep=1,numtim
    call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
    call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
 
-   ! write the model output to the NetCDF file
-   ! Passes the full metadata structure rather than the stats metadata structure because 
-   !  we have the option to write out data of types other than statistics. 
-   !  Thus, we must also pass the stats parent->child maps from childStruct.
-   call writeData(waterYearTimeStep,outputTimeStep,forc_meta,forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,forcChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,prog_meta,progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,progChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,diag_meta,diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,diagChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,flux_meta,fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,fluxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
-   call writeData(waterYearTimeStep,outputTimeStep,indx_meta,indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,indxChild_map,indxStruct%gru(iGRU)%hru(iHRU)%var,gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,err,message); call handle_err(err,message)
-
-   ! increment the model indices
-   nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) + nLayers
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil+1
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) + nLayers+1
-
   end do  ! (looping through HRUs)
 
   ! compute water balance for the basin aquifer
@@ -1028,6 +1022,16 @@ do modelTimeStep=1,numtim
 
  ! write current time to all files
  call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
+
+ ! write the model output to the NetCDF file
+ ! Passes the full metadata structure rather than the stats metadata structure because 
+ !  we have the option to write out data of types other than statistics. 
+ !  Thus, we must also pass the stats parent->child maps from childStruct.
+ call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,message); call handle_err(err,message)
 
  ! increment output file timestep
  do iFreq = 1,nFreq
@@ -1234,7 +1238,7 @@ contains
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
  print "(A)",  ' -r --restart       Define frequency [y,m,d,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
- print "(A)",  ' -v --version       Display version infotmation of the current built'
+ print "(A)",  ' -v --version       Display version information of the current built'
  stop 
  end subroutine printCommandHelp
 
@@ -1319,8 +1323,6 @@ contains
  integer(i4b),parameter :: outunit=6               ! write to screen
  integer(i4b)           :: ctime2(8)               ! final time
  real(dp)               :: elpSec                  ! elapsed seconds
- integer(i4b)           :: nc_err                  ! error code of nc_close
- character(len=256)     :: cmessage                ! error message of the downwind routine
  
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed

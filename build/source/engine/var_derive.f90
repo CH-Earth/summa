@@ -413,7 +413,7 @@ contains
  ! initialize runoffFuture
  runoffFuture(1:nTDH) = 0._dp
 
- !print*, 'nTDH = ', nTDH
+ print*, 'nTDH = ', nTDH
 
  ! select option for sub-grid routing
  select case(ixRouting)
@@ -434,15 +434,17 @@ contains
    end if
    ! loop through time steps and compute fraction of runoff in future steps
    do iFuture = 1,nTDH
+    ! get weight for a given bin
     tFuture = real(iFuture, kind(dt))*dt                  ! future time (end of step)
     cumProb = gammp(routingGammaShape,aLambda*tFuture)    ! cumulative probability at the end of the step
     fractionFuture(iFuture) = max(0._dp, cumProb - pSave) ! fraction of runoff in the current step
     pSave   = cumProb                                     ! save the cumulative probability for use in the next step
+    !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
+    ! set remaining bins to zero
     if(fractionFuture(iFuture) < tiny(dt))then
      fractionFuture(iFuture:nTDH) = 0._dp
      exit
     end if
-    !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
    end do ! (looping through future time steps)
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)

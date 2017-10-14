@@ -188,6 +188,7 @@ contains
  real(dp)                             :: massBalance            ! mass balance error (kg m-2)
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
+ real(dp)                             :: totalSoilCompress      ! total soil compression (kg m-2)
  real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
  real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
  real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
@@ -202,6 +203,10 @@ contains
  real(dp)                             :: balanceSoilET          ! output from the soil zone
  real(dp)                             :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
  real(dp)                             :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
+ ! test balance checks
+ logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
+ real(dp), allocatable                :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
+ real(dp), allocatable                :: liqSoilInit(:)         ! soil moisture at the start of the time step
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="coupled_em/"
@@ -218,7 +223,7 @@ contains
  stepFailure  = .false.
  doLayerMerge = .false.
 
- ! initialize flags to mdify the veg layers or modify snow layers
+ ! initialize flags to modify the veg layers or modify snow layers
  modifiedLayers    = .false.    ! flag to denote that snow layers were modified
  modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
@@ -252,6 +257,7 @@ contains
 
  ! initialize compression and surface melt pond
  sfcMeltPond       = 0._dp  ! change in storage associated with the surface melt pond (kg m-2)
+ totalSoilCompress = 0._dp  ! change in soil storage associated with compression of the matrix (kg m-2)
 
  ! initialize mean fluxes
  do iVar=1,size(averageFlux_meta)
@@ -286,6 +292,17 @@ contains
 
  ! get the total aquifer storage at the start of the time step (kg m-2)
  balanceAquifer0 = scalarAquiferStorage*iden_water
+
+ ! save liquid water content
+ if(printBalance)then
+  allocate(liqSnowInit(nSnow), liqSoilInit(nSoil), stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to allocate space for the initial vectors'
+   err=20; return
+  endif
+  if(nSnow>0) liqSnowInit = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)
+  liqSoilInit = mLayerVolFracLiq
+ endif
 
  ! end association of local variables with information in the data structures
  end associate
@@ -698,6 +715,7 @@ contains
 
   ! save input step
   dtSave = dt_sub
+  !print*, trim(message)//'before opSplittin: dtSave = ', dtSave
 
   ! get the new solution
   call opSplittin(&
@@ -727,7 +745,6 @@ contains
                   ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
 
-
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
   !print*, 'completed step'
@@ -744,16 +761,21 @@ contains
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
   if(stepFailure)then
+
    ! halve step
    dt_sub = dtSave/2._dp
+
    ! check that the step is not tiny
    if(dt_sub < minstep)then
     print*,ixSolution
+    print*, 'dtSave, dt_sub', dtSave, dt_sub
     message=trim(message)//'length of the coupled step is below the minimum step length'
     err=20; return
    endif
+
    ! try again
    cycle substeps
+
   endif
 
   ! update first step
@@ -895,6 +917,9 @@ contains
   ! increment change in storage associated with the surface melt pond (kg m-2)
   if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
+  ! increment soil compression (kg m-2)
+  totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression over whole layer (kg m-2)
+
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
   ! ****************************************************************************************************
@@ -969,7 +994,6 @@ contains
  scalarAquiferStorage       => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)                          ,&  ! aquifer storage (m)
  ! error tolerance
  absConvTol_liquid          => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)                            ,&  ! absolute convergence tolerance for vol frac liq water (-)
- totalSoilCompress          => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)                            ,&  ! total soil compression over whole later (kg/m^2)
  scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
  scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures
@@ -1020,6 +1044,20 @@ contains
                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
  end if
  
+ ! check the individual layers
+ if(printBalance .and. nSnow>0)then
+  write(*,'(a,1x,10(f12.8,1x))') 'liqSnowInit       = ', liqSnowInit
+  write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)
+  write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSnow = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat*iden_water*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSnow = ', flux_data%var(iLookFLUX%mLayerLiqFluxSnow)%dat*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow) - liqSnowInit
+  deallocate(liqSnowInit, stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to deallocate space for the initial volumetric liquid water content of snow'
+   err=20; return
+  endif
+ endif
+ 
  ! check SWE
  if(nSnow>0)then
   effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
@@ -1065,6 +1103,20 @@ contains
  balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
  balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
 
+ ! check the individual layers
+ if(printBalance)then
+  write(*,'(a,1x,10(f12.8,1x))') 'liqSoilInit       = ', liqSoilInit
+  write(*,'(a,1x,10(f12.8,1x))') 'volFracLiq        = ', mLayerVolFracLiq
+  write(*,'(a,1x,10(f12.8,1x))') 'iLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat*iden_water*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'mLayerLiqFluxSoil = ', flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat*data_step
+  write(*,'(a,1x,10(f12.8,1x))') 'change volFracLiq = ', mLayerVolFracLiq - liqSoilInit
+  deallocate(liqSoilInit, stat=err)
+  if(err/=0)then
+   message=trim(message)//'unable to deallocate space for the initial soil moisture'
+   err=20; return
+  endif
+ endif
+ 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
  if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues

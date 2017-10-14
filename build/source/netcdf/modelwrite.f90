@@ -19,9 +19,39 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module modelwrite_module
+
+! NetCDF types
 USE netcdf
 USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
 USE nrtype, integerMissing=>nr_integerMissing             ! top-level data types
+
+! provide access to global data
+USE globalData,only:gru_struc                             ! gru->hru mapping structure
+
+! provide access to the derived types to define the data structures
+USE data_types,only:&
+                    ! final data vectors
+                    dlength,             & ! var%dat
+                    ilength,             & ! var%dat
+                    ! no spatial dimension
+                    var_i,               & ! x%var(:)            (i4b)
+                    var_d,               & ! x%var(:)            (dp)
+                    var_ilength,         & ! x%var(:)%dat        (i4b)
+                    var_dlength,         & ! x%var(:)%dat        (dp)
+                    ! no variable dimension
+                    hru_i,               & ! x%hru(:)            (i4b)
+                    hru_d,               & ! x%hru(:)            (dp)
+                    ! gru dimension
+                    gru_int,             & ! x%gru(:)%var(:)     (i4b)
+                    gru_double,          & ! x%gru(:)%var(:)     (dp)
+                    gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
+                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
+                    ! gru+hru dimension
+                    gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
+                    gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
+                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
+
 implicit none
 private
 public::writeParm
@@ -40,7 +70,6 @@ contains
  USE globalData,only:ncid                        ! netcdf file ids
  USE globalData,only:integerMissing              ! missing value
  USE data_types,only:var_info                    ! metadata info
- USE data_types,only:var_i,var_d,var_dlength     ! derived data types
  USE var_lookup,only:iLookStat                   ! to index into write flag
  implicit none
 
@@ -95,8 +124,8 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
  ! **************************************************************************************
- subroutine writeData(modelTimestep,outputTimestep,meta,stat,dat,map,indx,iHRU,err,message)
- USE data_types,only:var_info,dlength,ilength       ! type structures for passing
+ subroutine writeData(modelTimestep,outputTimestep,nHRUrun,maxLayers,meta,stat,dat,map,indx,err,message)
+ USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
  USE var_lookup,only:iLookIndex                     ! index into index structure
@@ -105,122 +134,137 @@ contains
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
-
  ! declare dummy variables
- type(var_info),intent(in)     :: meta(:)           ! meta data
- class(*)      ,intent(in)     :: stat(:)           ! stats data
- class(*)      ,intent(in)     :: dat(:)            ! timestep data
- type(ilength) ,intent(in)     :: indx(:)           ! index data
- integer(i4b)  ,intent(in)     :: map(:)            ! map into stats child struct
- integer(i4b)  ,intent(in)     :: iHRU              ! hydrologic response unit
- integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
- integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
- integer(i4b)  ,intent(out)    :: err               ! error code
- character(*)  ,intent(out)    :: message           ! error message
+ integer(i4b)  ,intent(in)        :: modelTimestep     ! model time step
+ integer(i4b)  ,intent(in)        :: outputTimestep(:) ! output time step
+ integer(i4b)  ,intent(in)        :: nHRUrun           ! number of HRUs in the run domain
+ integer(i4b)  ,intent(in)        :: maxLayers         ! maximum number of layers
+ type(var_info),intent(in)        :: meta(:)           ! meta data
+ class(*)      ,intent(in)        :: stat              ! stats data
+ class(*)      ,intent(in)        :: dat               ! timestep data
+ integer(i4b)  ,intent(in)        :: map(:)            ! map into stats child struct
+ type(gru_hru_intVec) ,intent(in) :: indx              ! index data
+ integer(i4b)  ,intent(out)       :: err               ! error code
+ character(*)  ,intent(out)       :: message           ! error message
  ! local variables
- integer(i4b)                  :: iVar              ! variable index
- integer(i4b)                  :: iStat             ! statistics index
- integer(i4b)                  :: iFreq             ! frequency index
- integer(i4b)                  :: ncVarID           ! used only for time
- integer(i4b)                  :: nSnow             ! number of snow layers
- integer(i4b)                  :: nSoil             ! number of soil layers
- integer(i4b)                  :: nLayers           ! total number of layers
- integer(i4b)                  :: midSnowStartIndex ! start index of the midSnow vector for a given timestep
- integer(i4b)                  :: midSoilStartIndex ! start index of the midSoil vector for a given timestep
- integer(i4b)                  :: midTotoStartIndex ! start index of the midToto vector for a given timestep
- integer(i4b)                  :: ifcSnowStartIndex ! start index of the ifcSnow vector for a given timestep
- integer(i4b)                  :: ifcSoilStartIndex ! start index of the ifcSoil vector for a given timestep
- integer(i4b)                  :: ifcTotoStartIndex ! start index of the ifcToto vector for a given timestep
+ integer(i4b)                     :: iGRU              ! grouped response unit
+ integer(i4b)                     :: iHRU              ! hydrologic response unit
+ integer(i4b)                     :: iVar              ! variable index
+ integer(i4b)                     :: iStat             ! statistics index
+ integer(i4b)                     :: iFreq             ! frequency index
+ integer(i4b)                     :: ncVarID           ! used only for time
+ integer(i4b)                     :: nSnow             ! number of snow layers
+ integer(i4b)                     :: nSoil             ! number of soil layers
+ integer(i4b)                     :: nLayers           ! total number of layers
+ ! output arrays
+ integer(i4b)                     :: datLength         ! length of each data vector 
+ real(dp)                         :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
+ real(dp)                         :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
+ integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
 
  ! initialize error control
  err=0;message="writeData/"
 
- ! model layers
- nSoil             = indx(iLookIndex%nSoil)%dat(1)
- nSnow             = indx(iLookIndex%nSnow)%dat(1)
- nLayers           = indx(iLookIndex%nLayers)%dat(1)
- ! model indices
- midSnowStartIndex = indx(iLookIndex%midSnowStartIndex)%dat(1)
- midSoilStartIndex = indx(iLookIndex%midSoilStartIndex)%dat(1)
- midTotoStartIndex = indx(iLookIndex%midTotoStartIndex)%dat(1)
- ifcSnowStartIndex = indx(iLookIndex%ifcSnowStartIndex)%dat(1)
- ifcSoilStartIndex = indx(iLookIndex%ifcSoilStartIndex)%dat(1)
- ifcTotoStartIndex = indx(iLookIndex%ifcTotoStartIndex)%dat(1)
-
  ! loop through output frequencies
- do iFreq = 1,nFreq
+ do iFreq=1,nFreq
 
   ! check that the timestep is desired
   if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
 
-   ! loop through model variables
-   do iVar = 1,size(meta)
+  ! loop through model variables
+  do iVar = 1,size(meta)
 
-    ! handle time first
-    if (meta(iVar)%varName=='time') then    
-     select type(stat)
-      type is (dlength)
-       err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
-       call netcdf_err(err,message); if (err/=0) return
-       err = nf90_put_var(ncid(iFreq),ncVarID,(/stat(iVar)%dat(iLookStat%inst)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
-       call netcdf_err(err,message); if (err/=0) return
-       cycle
-     class default; err=20; message=trim(message)//'time variable must be of type dlength'; return; 
-     end select
-    end if
+   ! handle time first
+   if (meta(iVar)%varName=='time')then
+    ! get variable index
+    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
+    call netcdf_err(err,message); if (err/=0) return
+    ! define HRUs and GRUs (only write once)
+    iGRU=1; iHRU=1
+    ! data bound write
+    select type(stat)
+     type is (gru_hru_doubleVec)
+      err = nf90_put_var(ncid(iFreq),ncVarID,(/stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(iLookStat%inst)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
+      call netcdf_err(err,message); if (err/=0) return
+      cycle ! move onto the next variable
+     class default; err=20; message=trim(message)//'time variable must be of type gru_hru_doubleVec (forcing statistics structure)'; return; 
+    end select
+   end if  ! id time
+
+   ! check that the variable is desired
+   if(meta(iVar)%outFreq.ne.iFreq) cycle
+
+   ! loop through output stats
+   do iStat=1,maxVarStat
 
     ! check that the variable is desired
-    if (meta(iVar)%outFreq.ne.iFreq) cycle
+    if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
 
-    ! loop through output stats
-    do iStat = 1,maxVarStat
+    ! stats output: only scalar variable type
+    if(meta(iVar)%varType==iLookVarType%scalarv) then
+     select type(stat)
+      type is (gru_hru_doubleVec)
+       ! loop through HRUs and GRUs, and place data in the single vector
+       do iGRU=1,size(gru_struc)
+        do iHRU=1,gru_struc(iGRU)%hruCount
+         realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iStat)
+        end do
+       end do
+       ! write data
+       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realVec,start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,1/))
+      class default; err=20; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec'; return
+     end select  ! stat
 
-     ! check that the variable is desired
-     if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
+    ! non-scalar variables: regular data structures
+    else
 
-     ! stats/data output - select data type
-     if (meta(iVar)%varType==iLookVarType%scalarv) then
-       select type(stat)
-        type is (ilength)
-         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
-        type is (dlength)
-         err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iHRU,outputTimestep(iFreq)/),count=(/1,1/))
-        class default; err=20; message=trim(message)//'stats must be scalarv and either ilength of dlength'; return
-       end select  ! stat
+     ! loop thru GRUs and HRUs
+     do iGRU=1,size(gru_struc)
+      do iHRU=1,gru_struc(iGRU)%hruCount
 
-     ! non-scalar variables
-     else
-      select type (dat)
-       type is (dlength)
-        select case (meta(iVar)%varType)
-         case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
-         case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-         case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-         case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-         case(iLookVarType%ifcToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
-         case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-         case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
-        end select ! vartype
-       type is (ilength)
-        select case (meta(iVar)%varType)
-         case(iLookVarType%wLength); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,1,outputTimestep(iFreq)/),count=(/1,maxSpectral,1/))
-         case(iLookVarType%midToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midTotoStartIndex/),count=(/1,nLayers/))
-         case(iLookVarType%midSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSnowStartIndex/),count=(/1,nSnow/))
-         case(iLookVarType%midSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,midSoilStartIndex/),count=(/1,nSoil/))
-         case(iLookVarType%ifcToto); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcTotoStartIndex/),count=(/1,nLayers+1/))
-         case(iLookVarType%ifcSnow); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSnowStartIndex/),count=(/1,nSnow+1/))
-         case(iLookVarType%ifcSoil); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/iHRU,ifcSoilStartIndex/),count=(/1,nSoil+1/))
-        end select ! vartype
-      end select ! dat
-     end if ! sacalarv
+       ! get the model layers
+       nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat(1)
+       nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat(1)
+       nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nLayers)%dat(1)
 
-     ! process error code
-     if (err.ne.0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
-     call netcdf_err(err,message); if (err/=0) return
+       ! get the length of each data vector
+       select case (meta(iVar)%varType)
+        case(iLookVarType%wLength); datLength = maxSpectral
+        case(iLookVarType%midToto); datLength = nLayers    
+        case(iLookVarType%midSnow); datLength = nSnow      
+        case(iLookVarType%midSoil); datLength = nSoil      
+        case(iLookVarType%ifcToto); datLength = nLayers+1  
+        case(iLookVarType%ifcSnow); datLength = nSnow+1    
+        case(iLookVarType%ifcSoil); datLength = nSoil+1    
+        case default; cycle
+       end select ! vartype
 
-    end do ! iStat
-   end do ! iVar
-  end do ! iFreq
+       ! get the data vectors
+       select type (dat)
+        type is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+        type is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+        class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+       end select
+
+      end do  ! HRU loop
+     end do  ! GRU loop
+
+     ! write the data vectors
+     select type (dat)
+      type is (gru_hru_doubleVec); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realArray(1:nHRUrun,1:datLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,datLength,1/))
+      type is (gru_hru_intVec);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),intArray(1:nHRUrun,1:datLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,datLength,1/))
+      class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+     end select ! data type
+
+    end if ! not scalarv
+
+    ! process error code
+    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
+    call netcdf_err(err,message); if (err/=0) return
+
+   end do ! iStat
+  end do ! iVar
+ end do ! iFreq
 
  end subroutine writeData
 
@@ -228,7 +272,7 @@ contains
  ! public subroutine writeBasin: write basin-average variables
  ! **************************************************************************************
  subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,map,err,message)
- USE data_types,only:var_info,dlength,ilength       ! type structures for passing
+ USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
@@ -296,7 +340,7 @@ contains
  ! public subroutine writeTime: write current time to all files 
  ! **************************************************************************************
  subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
- USE data_types,only:var_info,dlength,ilength       ! type structures for passing
+ USE data_types,only:var_info                       ! metadata type
  USE globalData,only:outFreq,nFreq,ncid             ! output file information
  USE var_lookup,only:iLookStat                      ! index into stat structure
  implicit none
@@ -356,9 +400,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! access the derived types to define the data structures
-! USE data_types,only:hru_d                  ! length of substep
- USE data_types,only:gru_hru_doubleVec      ! actual data
- USE data_types,only:gru_hru_intVec         ! actual data
  USE data_types,only:var_info               ! metadata 
  ! access named variables defining elements in the data structures
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements

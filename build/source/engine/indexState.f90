@@ -62,6 +62,7 @@ implicit none
 private
 public::indexState
 public::indexSplit
+public::indxSubset
 contains
 
 
@@ -320,6 +321,9 @@ contains
  ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat    ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow domain
  ixSoilOnlyHyd    => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
 
+ ! indices of active model layers
+ ixLayerActive    => indx_data%var(iLookINDEX%ixLayerActive)%dat    ,& ! intent(in):    [i4b(:)] index of active model layers (inactive=integerMissing) 
+
  ! number of state variables of a specific type
  nSnowSoilNrg     => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1) ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
  nSnowOnlyNrg     => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1) ,& ! intent(in):    [i4b]    number of energy state variables in the snow domain
@@ -452,6 +456,9 @@ contains
  ixSnowOnlyHyd = ixMapFull2Subset(ixHydLayer(      1:nSnow  ))   ! snow layers only
  ixSoilOnlyHyd = ixMapFull2Subset(ixHydLayer(nSnow+1:nLayers))   ! soil layers only
 
+ ! define active layers (regardless if the splitting operation is energy or mass)
+ ixLayerActive =  merge(ixSnowSoilNrg, ixSnowSoilHyd, ixSnowSoilNrg/=integerMissing)
+
  ! get the number of valid states for energy
  nSnowSoilNrg = count(ixSnowSoilNrg/=integerMissing)
  nSnowOnlyNrg = count(ixSnowOnlyNrg/=integerMissing)
@@ -470,7 +477,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! private subroutine indxSubset: get a subset of indices for a given mask
+ ! public subroutine indxSubset: get a subset of indices for a given mask
  ! **********************************************************************************************************
  subroutine indxSubset(ixSubset,ixMaster,mask,err,message)
  implicit none
@@ -502,8 +509,10 @@ contains
  if(size(ixSubset)/=nSubset) then
 
   ! deallocate space
-  deallocate(ixSubset,stat=err)
-  if(err/=0)then; message=trim(message)//'unable to deallocate space for variable'; err=20; return; endif
+  if(allocated(ixSubset))then
+   deallocate(ixSubset,stat=err)
+   if(err/=0)then; message=trim(message)//'unable to deallocate space for variable'; err=20; return; endif
+  endif
 
   ! allocate space
   allocate(ixSubset(nSubset),stat=err)

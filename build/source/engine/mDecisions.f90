@@ -155,6 +155,7 @@ contains
  ! model time structures
  USE multiconst,only:secprday               ! number of seconds in a day
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
+ USE globalData,only:refTime,refJulday      ! reference time
  USE globalData,only:startTime,finshTime    ! start/end time of simulation
  USE globalData,only:dJulianStart           ! julian day of start time of simulation
  USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
@@ -163,6 +164,9 @@ contains
  ! model decision structures
  USE globaldata,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ ! forcing metadata
+ USE globalData,only:forc_meta              ! metadata structures
+ USE var_lookup,only:iLookFORCE             ! named variables to define structure elements
  ! Noah-MP decision structures
  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
  USE noahmp_globals,only:OPT_RAD            ! decision for canopy radiation
@@ -189,6 +193,17 @@ contains
 
  ! -------------------------------------------------------------------------------------------------
 
+ ! put reference time information into the time structures
+ call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
+                  refTime%var(iLookTIME%iyyy),                           & ! year
+                  refTime%var(iLookTIME%im),                             & ! month
+                  refTime%var(iLookTIME%id),                             & ! day
+                  refTime%var(iLookTIME%ih),                             & ! hour
+                  refTime%var(iLookTIME%imin),                           & ! minute
+                  dsec,                                                  & ! second
+                  err,cmessage)                                            ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
                   startTime%var(iLookTIME%iyyy),                         & ! year
@@ -209,6 +224,18 @@ contains
                   finshTime%var(iLookTIME%imin),                         & ! minute
                   dsec,                                                  & ! second
                   err,cmessage)
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! compute the julian date (fraction of day) for the reference time
+ call compjulday(&
+                 refTime%var(iLookTIME%iyyy),                           & ! year
+                 refTime%var(iLookTIME%im),                             & ! month
+                 refTime%var(iLookTIME%id),                             & ! day
+                 refTime%var(iLookTIME%ih),                             & ! hour
+                 refTime%var(iLookTIME%imin),                           & ! minute
+                 0._dp,                                                 & ! second
+                 refJulday,                                             & ! julian date for the start of the simulation
+                 err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the start of the simulation
@@ -636,6 +663,7 @@ contains
  subroutine readoption(err,message)
  ! used to read information from model decisions file
  USE ascii_util_module,only:file_open       ! open file
+ USE ascii_util_module,only:linewidth       ! max character number for one line
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
  USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
@@ -649,7 +677,7 @@ contains
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
- character(LEN=256),allocatable       :: charline(:)    ! vector of character strings
+ character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions
  character(len=32)                    :: decision       ! name of model decision

@@ -631,12 +631,12 @@ MODULE var_lookup
  integer(i4b)     :: ixMatOnly          = integerMissing  ! indices IN THE STATE SUBSET for matric head state variables              (-) 
  integer(i4b)     :: ixMassOnly         = integerMissing  ! indices IN THE STATE SUBSET for hydrology states (mass of water)         (-) 
  ! vectors of indices for specific state types within specific sub-domains
- integer(i4b)     :: ixSnowSoilNrg      = integerMissing  ! indices IN THE STATE SUBSET for energy states in the snow+soil domain    (-) 
- integer(i4b)     :: ixSnowOnlyNrg      = integerMissing  ! indices IN THE STATE SUBSET for energy states in the snow domain         (-) 
- integer(i4b)     :: ixSoilOnlyNrg      = integerMissing  ! indices IN THE STATE SUBSET for energy states in the soil domain         (-) 
- integer(i4b)     :: ixSnowSoilHyd      = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-) 
- integer(i4b)     :: ixSnowOnlyHyd      = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the snow domain      (-) 
- integer(i4b)     :: ixSoilOnlyHyd      = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the soil domain      (-) 
+ integer(i4b)     :: ixSnowSoilNrg      = integerMissing  ! indices of model layers for energy states in the snow+soil domain        (-) 
+ integer(i4b)     :: ixSnowOnlyNrg      = integerMissing  ! indices of model layers for energy states in the snow domain             (-) 
+ integer(i4b)     :: ixSoilOnlyNrg      = integerMissing  ! indices of model layers for energy states in the soil domain             (-) 
+ integer(i4b)     :: ixSnowSoilHyd      = integerMissing  ! indices of model layers for hydrology states in the snow+soil domain     (-) 
+ integer(i4b)     :: ixSnowOnlyHyd      = integerMissing  ! indices of model layers for hydrology states in the snow domain          (-) 
+ integer(i4b)     :: ixSoilOnlyHyd      = integerMissing  ! indices of model layers for hydrology states in the soil domain          (-) 
  ! vectors of indices for specfic state types within specific sub-domains
  integer(i4b)     :: ixNrgCanair        = integerMissing  ! indices IN THE FULL VECTOR for energy states in canopy air space domain  (-) 
  integer(i4b)     :: ixNrgCanopy        = integerMissing  ! indices IN THE FULL VECTOR for energy states in the canopy domain        (-) 
@@ -650,13 +650,7 @@ MODULE var_lookup
  integer(i4b)     :: ixAllState         = integerMissing  ! list of indices for all model state variables                            (-) 
  integer(i4b)     :: ixSoilState        = integerMissing  ! list of indices for all soil layers                                      (-) 
  integer(i4b)     :: ixLayerState       = integerMissing  ! list of indices for all model layers                                     (-) 
- ! indices for the model output files
- integer(i4b)     :: midSnowStartIndex  = integerMissing  ! start index of the midSnow vector for a given timestep                   (-) 
- integer(i4b)     :: midSoilStartIndex  = integerMissing  ! start index of the midSoil vector for a given timestep                   (-) 
- integer(i4b)     :: midTotoStartIndex  = integerMissing  ! start index of the midToto vector for a given timestep                   (-) 
- integer(i4b)     :: ifcSnowStartIndex  = integerMissing  ! start index of the ifcSnow vector for a given timestep                   (-) 
- integer(i4b)     :: ifcSoilStartIndex  = integerMissing  ! start index of the ifcSoil vector for a given timestep                   (-) 
- integer(i4b)     :: ifcTotoStartIndex  = integerMissing  ! start index of the ifcToto vector for a given timestep                   (-) 
+ integer(i4b)     :: ixLayerActive      = integerMissing  ! list of indices for active model layers (inactive=integerMissing)        (-)
  endtype iLook_index
 
  ! ***********************************************************************************************************
@@ -802,7 +796,7 @@ MODULE var_lookup
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
-                                                                         51, 52, 53, 54, 55, 56, 57, 58)
+                                                                         51, 52, 53)
 
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
