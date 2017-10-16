@@ -704,26 +704,19 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
- ! read forcing data 
- do iGRU=1,nGRU
-  do iHRU=1,gru_struc(iGRU)%hruCount
-   
-   ! read forcing data
-   call read_force(&
-                   ! input
-                   modelTimeStep,                              & ! intent(in):    time step index
-                   gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,       & ! intent(in):    index of hru in netcdf
-                   ! input-output
-                   iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
-                   forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
-                   forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
-                   ! output
-                   timeStruct%var,                             & ! intent(out):   time data structure (integer)
-                   forcStruct%gru(iGRU)%hru(iHRU)%var,         & ! intent(out):   forcing data structure (double precision)
-                   err, message)                               ! intent(out):   error control
-   call handle_err(err,message)
-  end do 
- end do  ! (end looping through global GRUs)
+ ! read forcing data
+ call read_force(&
+                 ! input
+                 modelTimeStep,      & ! intent(in):    time step index
+                 ! input-output
+                 iFile,              & ! intent(inout): index of current forcing file in forcing file list
+                 forcingStep,        & ! intent(inout): index of read position in time dimension in current netcdf file
+                 forcNcid,           & ! intent(inout): netcdf file identifier for the current forcing file
+                 ! output
+                 timeStruct%var,     & ! intent(out):   time data structure (integer)
+                 forcStruct,         & ! intent(out):   forcing data structure (double precision)
+                 err, message)         ! intent(out):   error control
+ call handle_err(err,message)
 
  ! set print flag
  globalPrintFlag=.false.
@@ -804,15 +797,9 @@ do modelTimeStep=1,numtim
     call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
-    ! re-initalize the indices for midSnow, midSoil, midToto, and ifcToto
+    ! re-initalize the indices for model writing 
     waterYearTimeStep=1
     outputTimeStep=1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
-    indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
    end do  ! (looping through HRUs)
    call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
   end do  ! (looping through GRUs)
@@ -994,12 +981,6 @@ do modelTimeStep=1,numtim
 
    ! increment the model indices
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) + nLayers
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) + gru_struc(iGRU)%hruInfo(iHRU)%nSoil+1
-   indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = indxStruct%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) + nLayers+1
 
   end do  ! (looping through HRUs)
 
