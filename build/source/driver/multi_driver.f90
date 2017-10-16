@@ -221,6 +221,7 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 integer(i4b)                     :: ivar                       ! index of model variable
+integer(i4b),parameter           :: maxSoilLayers=10           ! Maximum Number of Soil Layers
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
@@ -856,11 +857,12 @@ do modelTimeStep=1,numtim
    zSoilReverseSign(:) = -progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1:nLayers)
   
    ! get NOAH-MP parameters
+   ! Passing a maxSoilLayer in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code. NROOT from Noah-MP veg tables (as read here) is not used in SUMMA
    call REDPRM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex),     & ! soil type
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
                zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
-               gru_struc(iGRU)%hruInfo(iHRU)%nSoil,                             & ! number of soil layers
+               maxSoilLayers,                                                   & ! number of soil layers
                urbanVegCategory)                                                  ! vegetation category for urban areas
   
    ! deallocate height at bottom of each soil layer(used in Noah MP)
