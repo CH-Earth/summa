@@ -676,7 +676,7 @@ contains
      endif
    
      ! - include terms for baseflow
-     if(computeBaseflow)then
+     if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
       do pLayer=1,nSoil
        qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
        aJac(watState,qState) = aJac(watState,qState) + (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer)

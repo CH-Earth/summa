@@ -812,9 +812,7 @@ contains
        endif
    
        ! define failure
-       failure = (failedMinimumStep .or. err<0 .or. ixSolution/=scalar)
-       if(iStateTypeSplit==nrgSplit .and. iDomainSplit==vegSplit .and. nDomainSplit==nDomains) failure=.false.
-       !failure = (failedMinimumStep .or. err<0)
+       failure = (failedMinimumStep .or. err<0)
        if(.not.failure) firstSuccess=.true.
 
        ! if failed, need to reset the flux counter
