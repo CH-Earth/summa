@@ -241,6 +241,10 @@ contains
    end do
   end if
 
+  ! close file
+  err = nf90_close(ncid)
+  if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
+
  end do ! (loop through files)
 
  end subroutine ffile_info
