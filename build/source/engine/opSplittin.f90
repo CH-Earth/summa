@@ -111,7 +111,7 @@ public::opSplittin
 
 ! named variables for the coupling method
 integer(i4b),parameter  :: fullyCoupled=1             ! 1st try: fully coupled solution
-integer(i4b),parameter  :: stateSplit=2               ! 2nd try: separate solutions for each state type
+integer(i4b),parameter  :: stateTypeSplit=2           ! 2nd try: separate solutions for each state type
 integer(i4b),parameter  :: nCoupling=2                ! number of possible solutions
 
 ! named variables for the state variable split
@@ -254,6 +254,7 @@ contains
  real(dp),parameter              :: dtmin_split=360._dp            ! minimum time step for the fully split solution (seconds)
  real(dp),parameter              :: dtmin_scalar=60._dp            ! minimum time step for the scalar solution (seconds)
  real(dp)                        :: dt_min                         ! minimum time step (seconds)
+ real(dp)                        :: dtInit                         ! initial time step (seconds)
  ! explicit error tolerance (depends on state type split, so defined here)
  real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
  real(dp),parameter              :: errorTolNrgFlux=10._dp         ! error tolerance in the explicit solution (energy flux)
@@ -267,11 +268,11 @@ contains
  ! actual number of splits
  integer(i4b)                    :: nStateTypeSplit                ! number of splits for the state type
  integer(i4b)                    :: nDomainSplit                   ! number of splits for the domain
- integer(i4b)                    :: nLayerSplit                    ! number of splits for the layers
+ integer(i4b)                    :: nStateSplit                    ! number of splits for the states within a given domain
  ! indices for the state type and the domain split
  integer(i4b)                    :: iStateTypeSplit                ! index of the state type split
  integer(i4b)                    :: iDomainSplit                   ! index of the domain split
- integer(i4b)                    :: iLayerSplit                    ! index of the layer split
+ integer(i4b)                    :: iStateSplit                    ! index of the state split
  ! flux masks
  logical(lgt)                    :: neededFlux(nFlux)              ! .true. if flux is needed at all
  logical(lgt)                    :: desiredFlux                    ! .true. if flux is desired for a given split
@@ -448,20 +449,21 @@ contains
  ! loop through different coupling strategies 
  coupling: do ixCoupling=1,nCoupling
 
-  ! initialize the minimum time step 
-  dt_min = min( merge(dtmin_coupled, dtmin_split, ixCoupling==fullyCoupled), dt)
+  ! initialize the time step
+  dtInit = min( merge(dt,            dtmin_coupled, ixCoupling==fullyCoupled), dt) ! initial time step 
+  dt_min = min( merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
  
   ! define the number of operator splits for the state type
   select case(ixCoupling)
-   case(fullyCoupled); nStateTypeSplit=1
-   case(stateSplit);   nStateTypeSplit=nStateTypes
+   case(fullyCoupled);   nStateTypeSplit=1
+   case(stateTypeSplit); nStateTypeSplit=nStateTypes
    case default; err=20; message=trim(message)//'coupling case not found'; return
   end select  ! operator splitting option
  
   ! define if we wish to try the domain split
   select case(ixCoupling)
-   case(fullyCoupled); tryDomainSplit=0
-   case(stateSplit);   tryDomainSplit=1
+   case(fullyCoupled);   tryDomainSplit=0
+   case(stateTypeSplit); tryDomainSplit=1
    case default; err=20; message=trim(message)//'coupling case not found'; return
   end select  ! operator splitting option
 
@@ -513,42 +515,37 @@ contains
       ! initialize error control
       err=0; message="opSplittin/"
 
-      ! check that we have not split the energy fluxes over vegetation
-      if(ixSolution==scalar .and. count(stateMask)>1)then
-       if(iStateTypeSplit==nrgSplit .and. iDomainSplit==vegSplit)then
-        message=trim(message)//'recoverable error: not yet implemented scalar splitting for the vegetation domain for energy'
-        err=20; return ! temporary fix to see if this ever happens -- convert to non-fatal error (recovery) by reducing length of the coupled step
-       endif
+      ! refine the time step
+      if(ixSolution==scalar)then
+       dtInit = min(dtmin_split, dt)    ! initial time step  
+       dt_min = min(dtmin_scalar, dt)   ! minimum time step
       endif
-
-      ! refine the minimum time step
-      if(ixSolution==scalar) dt_min = min(dtmin_scalar, dt)
 
       ! initialize the first flux call  
       firstFluxCall=.true.
 
       ! get the number of split layers
       select case(ixSolution)
-       case(vector); nLayerSplit=1
-       case(scalar); nLayerSplit=count(stateMask)
+       case(vector); nStateSplit=1
+       case(scalar); nStateSplit=count(stateMask)
        case default; err=20; message=trim(message)//'unknown solution method'; return
       end select
    
       !print*, '*****'
       !print*, 'computeVegFlux = ', computeVegFlux
       !print*, '(ixSolution==scalar) = ', (ixSolution==scalar)
-      !print*, 'ixCoupling, iStateTypeSplit, iDomainSplit: ', ixCoupling, iStateTypeSplit, iDomainSplit
+      !print*, 'ixCoupling, iStateTypeSplit, ixStateThenDomain, iDomainSplit, nDomainSplit: ', ixCoupling, iStateTypeSplit, ixStateThenDomain, iDomainSplit, nDomainSplit
       !print*, 'ixSoilOnlyHyd = ', indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat
   
-      ! loop through layers (NOTE: nLayerSplit=1 for the vector solution, hence no looping)
-      layerSplit: do iLayerSplit=1,nLayerSplit
+      ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
+      stateSplit: do iStateSplit=1,nStateSplit
    
        ! -----
        ! * define state subsets for a given split...
        ! -------------------------------------------
   
        ! get the mask for the state subset
-       call stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iLayerSplit,&
+       call stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit,&
                         indx_data,stateMask,nSubset,err,cmessage)
        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
     
@@ -563,7 +560,7 @@ contains
        !print*, 'count(stateMask) = ', count(stateMask)
     
        !if(ixSolution==scalar)then
-       ! print*, 'iLayerSplit, nLayerSplit = ', iLayerSplit, nLayerSplit
+       ! print*, 'iStateSplit, nStateSplit = ', iStateSplit, nStateSplit
        ! print*, 'start of scalar solution'
        ! !print*, 'PAUSE'; read(*,*)
        !endif
@@ -626,8 +623,20 @@ contains
   
             ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
             case(vegSplit)
-             fluxMask%var(iVar)%dat(:1) = desiredFlux
-  
+
+             ! vector solution (should only be present for energy)
+             if(ixSolution==vector)then
+              fluxMask%var(iVar)%dat(:1) = desiredFlux
+              if(ixStateThenDomain>1 .and. iStateTypeSplit/=nrgSplit)then
+               message=trim(message)//'only expect a vector solution for the vegetation domain for energy'
+               err=20; return
+              endif
+
+             ! scalar solution
+             else
+              fluxMask%var(iVar)%dat(:1) = desiredFlux
+             endif
+
             ! fluxes through snow and soil
             case(snowSplit,soilSplit)
 
@@ -727,10 +736,13 @@ contains
        ! * solve variable subset for one time step...
        ! --------------------------------------------
 
+       !print*, 'nSubset = ', nSubset
+
        ! solve variable subset for one full time step
        call varSubstep(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
+                       dtInit,                     & ! intent(in)    : initial time step (seconds)
                        dt_min,                     & ! intent(in)    : minimum time step (seconds)
                        nSubset,                    & ! intent(in)    : total number of variables in the state subset
                        doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
@@ -738,7 +750,7 @@ contains
                        firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
                        computeVegFlux,             & ! intent(in)    : flag to denote if computing energy flux over vegetation
                        (ixSolution==scalar),       & ! intent(in)    : flag to denote computing the scalar solution
-                       iLayerSplit,                & ! intent(in)    : index of the layer in the splitting operation
+                       iStateSplit,                & ! intent(in)    : index of the layer in the splitting operation
                        fluxMask,                   & ! intent(in)    : mask for the fluxes used in this given state subset
                        fluxCount,                  & ! intent(inout) : number of times fluxes are updated (should equal nsubstep) 
                        ! input/output: data structures
@@ -850,8 +862,8 @@ contains
        ! success = exit solution
        if(.not.failure)then
         select case(ixStateThenDomain)
-         case(fullDomain); if(iLayerSplit==nLayerSplit) exit stateThenDomain
-         case(subDomain);  if(iLayerSplit==nLayerSplit) exit solution
+         case(fullDomain); if(iStateSplit==nStateSplit) exit stateThenDomain
+         case(subDomain);  if(iStateSplit==nStateSplit) exit solution
          case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
         end select
        else
@@ -869,8 +881,8 @@ contains
    
        endif  ! success check
   
-      end do layerSplit ! solution with split layers
-      !print*, 'after layerSplit'
+      end do stateSplit ! solution with split layers
+      !print*, 'after stateSplit'
 
      end do solution ! trial with the full layer solution then the split layer solution
 
@@ -949,7 +961,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine stateFilter: get a mask for the desired state variables
  ! **********************************************************************************************************
- subroutine stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iLayerSplit,&
+ subroutine stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit,&
                         indx_data,stateMask,nSubset,err,message)
  
  USE indexState_module,only:indxSubset                            ! get state indices
@@ -960,7 +972,7 @@ contains
  integer(i4b),intent(in)         :: ixStateThenDomain             ! switch between full domain and sub domains
  integer(i4b),intent(in)         :: iStateTypeSplit               ! index of the state type split
  integer(i4b),intent(in)         :: iDomainSplit                  ! index of the domain split
- integer(i4b),intent(in)         :: iLayerSplit                   ! index of the layer split
+ integer(i4b),intent(in)         :: iStateSplit                   ! index of the layer split
  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
  ! output
  logical(lgt),intent(out)        :: stateMask(:)                  ! mask defining desired state variables
@@ -1005,7 +1017,7 @@ contains
   ! ----------------------------
 
   ! initial split by state type    
-  case(stateSplit)
+  case(stateTypeSplit)
 
    ! switch between full domain and sub domains
    select case(ixStateThenDomain)
@@ -1058,6 +1070,8 @@ contains
   case default; err=20; message=trim(message)//'unable to identify coupling method'; return
  end select  ! (selecting solution method)
  
+ !print*, 'stateMask = ', stateMask
+
  ! identify scalar solutions
  if(ixSolution==scalar)then
 
@@ -1067,7 +1081,7 @@ contains
 
   ! get the mask
   stateMask(:) = .false.
-  stateMask( ixSubset(iLayerSplit) ) = .true.
+  stateMask( ixSubset(iStateSplit) ) = .true.
 
   ! check
   if(count(stateMask)/=1)then
