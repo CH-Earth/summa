@@ -73,7 +73,6 @@ contains
  ! **********************************************************************************************************
  subroutine writeParm(iHRU,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
- USE globalData,only:integerMissing              ! missing value
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookStat                   ! to index into write flag
  implicit none
@@ -228,8 +227,8 @@ contains
 
      ! initialize the data vectors
      select type (dat)
-      type is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixInteger
-      type is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixReal
+      type is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
+      type is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
       class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
      end select
 
