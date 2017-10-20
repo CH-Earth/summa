@@ -676,7 +676,7 @@ contains
      endif
    
      ! - include terms for baseflow
-     if(computeBaseflow)then
+     if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
       do pLayer=1,nSoil
        qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
        aJac(watState,qState) = aJac(watState,qState) + (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer)
@@ -745,10 +745,10 @@ contains
    ! print the Jacobian
    if(globalPrintFlag)then
     print*, '** analytical Jacobian (full):'
-    print*, 'size(aJac) = ', size(aJac)
-    print*, 'aJac = ', aJac
-    ! write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
-    ! do iLayer=iJac1,iJac2; write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer); end do
+    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+    do iLayer=min(iJac1,nState),min(iJac2,nState)
+     write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
+    end do
    end if
 
   ! ***
