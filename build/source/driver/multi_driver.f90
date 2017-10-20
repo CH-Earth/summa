@@ -25,6 +25,7 @@ program multi_driver
 ! *****************************************************************************
 USE nrtype                                                  ! variable types, etc.
 USE netcdf                                                  ! netcdf libraries
+USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
 ! provide access to subroutines and functions
 USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
@@ -106,6 +107,7 @@ USE globalData,only:bpar_meta,bvar_meta                     ! metadata structure
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
 USE globalData,only:model_decisions                         ! model decision structure
 ! provide access to global data
+USE globalData,only:dNaN                                    ! double precision NaN
 USE globalData,only:refTime                                 ! reference time
 USE globalData,only:startTime                               ! start time
 USE globalData,only:finshTime                               ! end time
@@ -219,6 +221,7 @@ type(hru_d),allocatable          :: dt_init(:)                 ! used to initial
 type(hru_d),allocatable          :: upArea(:)                  ! area upslope of each HRU 
 ! general local variables        
 integer(i4b)                     :: ivar                       ! index of model variable
+integer(i4b),parameter           :: maxSoilLayers=10           ! Maximum Number of Soil Layers
 real(dp)                         :: fracHRU                    ! fractional area of a given HRU (-)
 logical(lgt)                     :: flux_mask(maxvarFlux)      ! mask defining desired flux variables
 integer(i4b)                     :: forcNcid=integerMissing    ! netcdf id for current netcdf forcing file
@@ -270,6 +273,9 @@ INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! get the command line arguments
 call getCommandArguments()
+
+! define double precision NaNs (shared in globalData)
+dNaN = ieee_value(1._dp, ieee_quiet_nan)
 
 ! get the initial time
 call date_and_time(values=ctime1)
@@ -851,11 +857,12 @@ do modelTimeStep=1,numtim
    zSoilReverseSign(:) = -progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%iLayerHeight)%dat(gru_struc(iGRU)%hruInfo(iHRU)%nSnow+1:nLayers)
   
    ! get NOAH-MP parameters
+   ! Passing a maxSoilLayer in order to pass the check for NROOT, that is done to avoid making any changes to Noah-MP code. NROOT from Noah-MP veg tables (as read here) is not used in SUMMA
    call REDPRM(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex),      & ! vegetation type index
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%soilTypeIndex),     & ! soil type
                typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%slopeTypeIndex),    & ! slope type index
                zSoilReverseSign,                                                & ! * not used: height at bottom of each layer [NOTE: negative] (m)
-               gru_struc(iGRU)%hruInfo(iHRU)%nSoil,                             & ! number of soil layers
+               maxSoilLayers,                                                   & ! number of soil layers
                urbanVegCategory)                                                  ! vegetation category for urban areas
   
    ! deallocate height at bottom of each soil layer(used in Noah MP)
@@ -1319,8 +1326,6 @@ contains
  integer(i4b),parameter :: outunit=6               ! write to screen
  integer(i4b)           :: ctime2(8)               ! final time
  real(dp)               :: elpSec                  ! elapsed seconds
- integer(i4b)           :: nc_err                  ! error code of nc_close
- character(len=256)     :: cmessage                ! error message of the downwind routine
  
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed

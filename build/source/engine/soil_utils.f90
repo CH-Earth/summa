@@ -43,7 +43,7 @@ public::gammp
 ! constant parameters
 real(dp),parameter     :: valueMissing=-9999._dp    ! missing value parameter
 real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used to avoid divide by zero)
-real(dp),parameter     :: dx=1.e-8_dp               ! finite difference increment
+real(dp),parameter     :: dx=-1.e-12_dp             ! finite difference increment
 contains
 
 

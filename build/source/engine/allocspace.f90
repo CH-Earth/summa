@@ -31,6 +31,7 @@ USE data_types,only:&
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
                     var_d,               & ! x%var(:)            (dp)
+                    var_flagVec,         & ! x%var(:)%dat        (logical)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
                     var_dlength,         & ! x%var(:)%dat        (dp)
                     ! gru dimension
@@ -219,6 +220,7 @@ contains
  ! It is possible that nSnow and nSoil are actually needed here, so we return an error if the optional arguments are missing when needed
  else
   select type(dataStruct)
+   class is (var_flagVec); err=20
    class is (var_ilength); err=20
    class is (var_dlength); err=20
   end select
@@ -232,6 +234,7 @@ contains
  select type(dataStruct)
   class is (var_i);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
   class is (var_d);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
+  class is (var_flagVec); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
   class is (var_ilength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
   class is (var_dlength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
@@ -242,8 +245,9 @@ contains
 
  ! allocate the dimension for model data
  select type(dataStruct)
-  class is (var_ilength); call allocateDat_int(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
-  class is (var_dlength); call allocateDat_dp( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_flagVec); call allocateDat_flag(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_ilength); call allocateDat_int( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_dlength); call allocateDat_dp(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
  
@@ -630,5 +634,67 @@ contains
  end do  ! looping through variables
 
  end subroutine allocateDat_int
+
+ ! ************************************************************************************************
+ ! private subroutine allocateDat_flag: initialize data dimension of the data structures
+ ! ************************************************************************************************
+ subroutine allocateDat_flag(metadata,nSnow,nSoil,nLayers, & ! input
+                             varData,err,message)            ! output
+ USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
+ USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
+ USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
+ implicit none
+ ! input variables
+ type(var_info),intent(in)         :: metadata(:) ! metadata structure
+ integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nSoil       ! number of soil layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ ! output variables
+ type(var_flagVec),intent(inout)   :: varData     ! model variables for a local HRU
+ integer(i4b),intent(out)          :: err         ! error code
+ character(*),intent(out)          :: message     ! error message
+ ! local variables
+ integer(i4b)                      :: iVar        ! variable index
+ integer(i4b)                      :: nVars       ! number of variables in the metadata structure
+ ! initialize error control
+ err=0; message='allocateDat_flag/'
+
+ ! get the number of variables in the metadata structure
+ nVars = size(metadata)
+
+ ! loop through variables in the data structure
+ do iVar=1,nVars
+
+  ! check allocated
+  if(allocated(varData%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
+
+  ! allocate structures
+  ! NOTE: maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
+  else
+   select case(metadata(iVar)%vartype)
+    case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
+    case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
+   end select
+   ! check error
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; end if
+   ! set to false
+   varData%var(iVar)%dat(:) = .false.
+  end if  ! if not allocated
+
+ end do  ! looping through variables
+
+ end subroutine allocateDat_flag
 
 end module allocspace_module
