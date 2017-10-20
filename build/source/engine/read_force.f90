@@ -27,6 +27,9 @@ USE globalData,only:integerMissing    ! integer missing value
 ! access the mapping betweeen GRUs and HRUs
 USE globalData,only:gru_struc         ! gru-hru mapping structures
 
+! access the minimum and maximum HRUs in the file
+USE globalData,only:ixHRUfile_min,ixHRUfile_max
+
 ! define data types
 USE data_types,only:gru_hru_double    ! x%gru(:)%hru(:)%var(:)     (dp)
 
@@ -79,10 +82,12 @@ contains
  integer(i4b)                      :: dimLen           ! dimension length
  integer(i4b)                      :: attLen           ! attribute length
  character(len = nf90_max_name)    :: varName          ! dimenison name
- integer(i4b),save                 :: nHRU             ! number of HRUs
+ integer(i4b),save                 :: nHRUfile         ! number of HRUs in the file
+ integer(i4b),save                 :: nHRUlocal        ! number of HRUs in the local simulation
  ! other local variables
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
+ integer(i4b)                      :: iHRU_local       ! index of HRU in the data subset
  real(dp),parameter                :: verySmall=1e-3   ! tiny number
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
@@ -105,7 +110,7 @@ contains
  !integer(i4b)                      :: iyyy,im,id       ! year, month, day 
  !integer(i4b)                      :: ih,imin          ! hour, minute   
  real(dp)                          :: dsec             ! double precision seconds (not used)
- logical(lgt),parameter            :: simultaneousRead=.false. ! flag to denote reading all HRUs at once
+ logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
  ! Start procedure here
  err=0; message="read_force/"
 
@@ -141,8 +146,14 @@ contains
    err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time dimension size/'//trim(nf90_strerror(err)); return; endif
 
    ! how many HRUs in current file?
-   err = nf90_inq_dimid(ncid,'hru',dimId);            if(err/=nf90_noerr)then; message=trim(message)//'trouble finding hru dimension/'//trim(nf90_strerror(err)); return; endif
-   err = nf90_inquire_dimension(ncid,dimId,len=nHRU); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading hru dimension size/'//trim(nf90_strerror(err)); return; endif
+   err = nf90_inq_dimid(ncid,'hru',dimId);                if(err/=nf90_noerr)then; message=trim(message)//'trouble finding hru dimension/'//trim(nf90_strerror(err)); return; endif
+   err = nf90_inquire_dimension(ncid,dimId,len=nHRUfile); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading hru dimension size/'//trim(nf90_strerror(err)); return; endif
+
+   ! check that the HRUs are in sequential order
+   if(ixHRUfile_min+sum(gru_struc(:)%hruCount)-1 /= ixHRUfile_max)then
+    message=trim(message)//'recoverable error: HRUs are not in order -- just set nHRUlocal=(ixHRUfile_max-ixHRUfile_min)+1'
+    err=20; return
+   endif
 
    ! allocate space for time vectors
    if(allocated(fileTime)) deallocate(fileTime)
@@ -152,10 +163,17 @@ contains
 
    ! read time vector from current file
    ! NOTE: This could be faster by checking just the start and the end times
+
+   ! (get variable ID)
+   err = nf90_inq_varid(ncid,'time',varId)
+   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
+
+   ! (get time data)
    err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
 
-   fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday_data ! convert time to units of days, and add reference julian day
+   ! convert time to units of days, and add reference julian day
+   fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday_data
 
    ! find difference of fileTime from currentJulday
    diffTime=abs(fileTime-currentJulday)
@@ -240,10 +258,13 @@ contains
    end do
   end if
 
+  ! get the number of HRUs in the local simulation
+  nHRUlocal = sum(gru_struc(:)%hruCount)
+
   ! allocate space for data
-  allocate(dataVec(nHRU), stat=err)
+  allocate(dataVec(nHRUlocal), stat=err)
   if(err/=0)then
-   message=trim(message)//'undable to allocate space for the data vector'
+   message=trim(message)//'unable to allocate space for the data vector'
    err=20; return
   endif
 
@@ -272,10 +293,9 @@ contains
    ! set flag
    checkForce(iVar) = .true.
 
-   ! read forcing data for all HRUs
    if(simultaneousRead)then
-    !print*, 'nHRU = ', nHRU
-    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/1,iRead/),count=(/nHRU,1/))
+    ! read forcing data for all HRUs
+    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
     if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
    endif
 
@@ -285,7 +305,8 @@ contains
   
      ! define global HRU
      iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-     !print*, 'iGRU, iHRU, iHRU_global = ', iGRU, iHRU, iHRU_global 
+     iHRU_local  = (iHRU_global - ixHRUfile_min)+1
+     !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
  
      ! read forcing data for a single HRU
      if(.not.simultaneousRead)then
@@ -294,14 +315,14 @@ contains
      endif
 
      ! check the number of HRUs
-     if(iHRU_global > nHRU)then
-      message=trim(message)//'HRU index exceeds the number of HRUs'
+     if(iHRU_global > nHRUfile)then
+      message=trim(message)//'HRU index exceeds the number of HRUs in the forcing data file'
       err=20; return
      endif
 
      ! put the data into structures
      if(simultaneousRead)then
-      forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVec(iHRU_global)
+      forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVec(iHRU_local)
      else
       forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
      endif
