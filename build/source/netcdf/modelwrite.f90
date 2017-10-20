@@ -23,7 +23,12 @@ module modelwrite_module
 ! NetCDF types
 USE netcdf
 USE netcdf_util_module,only:netcdf_err                    ! netcdf error handling function
-USE nrtype, integerMissing=>nr_integerMissing             ! top-level data types
+
+! top-level data types
+USE nrtype
+
+! missing values
+USE globalData, only: integerMissing, realMissing
 
 ! provide access to global data
 USE globalData,only:gru_struc                             ! gru->hru mapping structure
@@ -158,10 +163,13 @@ contains
  integer(i4b)                     :: nLayers           ! total number of layers
  ! output arrays
  integer(i4b)                     :: datLength         ! length of each data vector 
+ integer(i4b)                     :: maxLength         ! maximum length of each data vector 
  real(dp)                         :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
  real(dp)                         :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
  integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
-
+ integer(i4b)                     :: dataType          ! type of data
+ integer(i4b),parameter           :: ixInteger=1001    ! named variable for integer
+ integer(i4b),parameter           :: ixReal=1002       ! named variable for real
  ! initialize error control
  err=0;message="writeData/"
 
@@ -218,6 +226,13 @@ contains
     ! non-scalar variables: regular data structures
     else
 
+     ! initialize the data vectors
+     select type (dat)
+      type is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixInteger
+      type is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixReal
+      class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+     end select
+
      ! loop thru GRUs and HRUs
      do iGRU=1,size(gru_struc)
       do iHRU=1,gru_struc(iGRU)%hruCount
@@ -249,11 +264,23 @@ contains
       end do  ! HRU loop
      end do  ! GRU loop
 
+     ! get the maximum length of each data vector
+     select case (meta(iVar)%varType)
+      case(iLookVarType%wLength); maxLength = maxSpectral
+      case(iLookVarType%midToto); maxLength = maxLayers    
+      case(iLookVarType%midSnow); maxLength = maxLayers-nSoil      
+      case(iLookVarType%midSoil); maxLength = nSoil      
+      case(iLookVarType%ifcToto); maxLength = maxLayers+1  
+      case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1    
+      case(iLookVarType%ifcSoil); maxLength = nSoil+1    
+      case default; cycle
+     end select ! vartype
+
      ! write the data vectors
-     select type (dat)
-      type is (gru_hru_doubleVec); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realArray(1:nHRUrun,1:datLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,datLength,1/))
-      type is (gru_hru_intVec);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),intArray(1:nHRUrun,1:datLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,datLength,1/))
-      class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+     select case(dataType)
+      case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+      case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),intArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
      end select ! data type
 
     end if ! not scalarv
