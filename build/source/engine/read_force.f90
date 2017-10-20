@@ -100,10 +100,12 @@ contains
  real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
  real(dp),allocatable              :: dataVec(:)       ! vector of data
+ real(dp),dimension(1)             :: dataVal          ! single data value
  logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist 
  !integer(i4b)                      :: iyyy,im,id       ! year, month, day 
  !integer(i4b)                      :: ih,imin          ! hour, minute   
  real(dp)                          :: dsec             ! double precision seconds (not used)
+ logical(lgt),parameter            :: simultaneousRead=.false. ! flag to denote reading all HRUs at once
  ! Start procedure here
  err=0; message="read_force/"
 
@@ -271,8 +273,11 @@ contains
    checkForce(iVar) = .true.
 
    ! read forcing data for all HRUs
-   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/1,iRead/),count=(/nHRU,1/))
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+   if(simultaneousRead)then
+    !print*, 'nHRU = ', nHRU
+    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/1,iRead/),count=(/nHRU,1/))
+    if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+   endif
 
    ! loop through GRUs and HRUs
    do iGRU=1,size(gru_struc)
@@ -280,7 +285,14 @@ contains
   
      ! define global HRU
      iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-  
+     !print*, 'iGRU, iHRU, iHRU_global = ', iGRU, iHRU, iHRU_global 
+ 
+     ! read forcing data for a single HRU
+     if(.not.simultaneousRead)then
+      err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
+      if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+     endif
+
      ! check the number of HRUs
      if(iHRU_global > nHRU)then
       message=trim(message)//'HRU index exceeds the number of HRUs'
@@ -288,7 +300,11 @@ contains
      endif
 
      ! put the data into structures
-     forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVec(iHRU_global)
+     if(simultaneousRead)then
+      forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVec(iHRU_global)
+     else
+      forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
+     endif
 
     end do  ! looping through HRUs within a given GRU
    end do  ! looping through GRUs
