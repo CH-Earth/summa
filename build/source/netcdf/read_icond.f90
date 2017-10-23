@@ -155,6 +155,7 @@ contains
  character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
+ integer(i4b)                           :: ixFile       ! index in file 
  real(dp),allocatable                   :: varData(:,:) ! variable data storage        
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
@@ -235,20 +236,23 @@ contains
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil 
     nToto = nSnow + nSoil 
+
+    ! get the index in the file
+    ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    
     ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
      case (iLookVarType%scalarv)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1)       = varData(ixFile,1)
       if(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
      case (iLookVarType%midSoil)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) = varData(ixFile,1:nSoil)
       if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      case (iLookVarType%midToto)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) = varData(ixFile,1:nToto)
       if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      case (iLookVarType%ifcToto)
-      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) = varData(ixFile,1:nToto+1)
       if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      case default
       message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
