@@ -343,7 +343,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarLAI                       = integerMissing ! one-sided leaf area index (m2 m-2)
   integer(i4b)    :: scalarSAI                       = integerMissing ! one-sided stem area index (m2 m-2)
   integer(i4b)    :: scalarExposedLAI                = integerMissing ! exposed leaf area index after burial by snow (m2 m-2)
-  integer(i4b)    :: scalarExposedSAI                = integerMissing ! exposed stem area index after burial by snow(m2 m-2)
+  integer(i4b)    :: scalarExposedSAI                = integerMissing ! exposed stem area index after burial by snow (m2 m-2)
+  integer(i4b)    :: scalarAdjMeasHeight             = integerMissing ! adjusted measurement height for cases snowDepth>mHeight (m)
   integer(i4b)    :: scalarCanopyIceMax              = integerMissing ! maximum interception storage capacity for ice (kg m-2)
   integer(i4b)    :: scalarCanopyLiqMax              = integerMissing ! maximum interception storage capacity for liquid water (kg m-2)
   integer(i4b)    :: scalarGrowingSeasonIndex        = integerMissing ! growing season index (0=off, 1=on)
@@ -779,7 +780,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81)
+                                                                         81, 82)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
