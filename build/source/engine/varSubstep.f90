@@ -81,6 +81,7 @@ contains
  subroutine varSubstep(&
                        ! input: model control
                        dt,                & ! intent(in)    : time step (s)
+                       dtInit,            & ! intent(in)    : initial time step (seconds)
                        dt_min,            & ! intent(in)    : minimum time step (seconds)
                        nState,            & ! intent(in)    : total number of state variables
                        doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
@@ -88,7 +89,7 @@ contains
                        firstFluxCall,     & ! intent(inout) : flag to indicate if we are processing the first flux call
                        computeVegFlux,    & ! intent(in)    : flag to denote if computing energy flux over vegetation
                        scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
-                       iLayerSplit,       & ! intent(in)    : index of the layer in the splitting operation
+                       iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
                        fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
                        fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps) 
                        ! input/output: data structures
@@ -128,6 +129,7 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! input: model control
  real(dp),intent(in)             :: dt                            ! time step (seconds)
+ real(dp),intent(in)             :: dtInit                        ! initial time step (seconds)
  real(dp),intent(in)             :: dt_min                        ! minimum time step (seconds)
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
@@ -135,7 +137,7 @@ contains
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote implementing the scalar solution
- integer(i4b),intent(in)         :: iLayerSplit                   ! index of the layer in the splitting operation
+ integer(i4b),intent(in)         :: iStateSplit                   ! index of the state in the splitting operation
  type(var_flagVec),intent(in)    :: fluxMask                      ! flags to denote if the flux is calculated in the given state subset
  type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps) 
  ! input/output: data structures
@@ -239,7 +241,7 @@ contains
  failedMinimumStep=.false.
 
  ! initialize the length of the substep
- dtSubstep    = dt
+ dtSubstep = dtInit
 
  ! allocate space for the temporary model flux structure
  call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -258,7 +260,7 @@ contains
  allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer 
 
  ! define the first flux call in a splitting operation
- firstSplitOper = (.not.scalarSolution .or. iLayerSplit==1)
+ firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
 
  ! initialize subStep
  dtSum     = 0._dp  ! keep track of the portion of the time step that is completed
@@ -271,7 +273,7 @@ contains
   ! initialize error control
   err=0; message='varSubstep/'
 
-  !print*, '** new substep'
+  !write(*,'(a,1x,3(f13.2,1x))') '***** new subStep: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
   !print*, 'scalarCanopyIce  = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
   !print*, 'scalarCanopyTemp = ', prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
 
@@ -290,7 +292,7 @@ contains
                    stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+ 
   ! -----
   ! * iterative solution...
   ! -----------------------
@@ -454,7 +456,7 @@ contains
   ! get the total soil compression
   if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
    ! scalar compression
-   if(.not.scalarSolution .or. iLayerSplit==nSoil)&
+   if(.not.scalarSolution .or. iStateSplit==nSoil)&
    sumSoilCompress = sumSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
    ! vector compression
    do iSoil=1,nSoil
