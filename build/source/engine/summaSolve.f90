@@ -583,10 +583,6 @@ contains
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   logical(lgt)                   :: doBisection              ! flag to do the bi-section
   logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
-  integer(i4b)                   :: iCheck                   ! check the model state variables
-  integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
-  real(dp),parameter             :: delX=1._dp               ! trial increment
-  real(dp)                       :: xIncrement(nState)       ! trial increment 
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
 
@@ -619,48 +615,14 @@ contains
   ! * case 1: the iteration increment is the same sign as the residual vector
   if(xInc(1)*rVec(1) > 0._dp)then
 
-   ! initialize state vector
-   stateVecNew = stateVecTrial
-
-   ! get xIncrement
-   xIncrement = -sign((/delX/),rVec)
-
-   ! try the increment a few times
-   do iCheck=1,nCheck
-
-    ! impose solution constraints
-    call imposeConstraints(stateVecNew,xIncrement,err,cmessage)
+   ! get brackets if they do not exist
+   if( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) )then
+    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-    stateVecNew = stateVecNew + xIncrement
-    
-    ! evaluate summa
-    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   endif
 
-    ! check that the trial value is feasible (should not happen because of the call to impose constraints)
-    if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
-
-    ! update brackets
-    if(real(resVecNew(1), dp)<0._dp)then
-     xMin = stateVecNew(1)
-    else
-     xMax = stateVecNew(1)
-    endif
-
-    ! print progress
-    !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
-    !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
- 
-    ! check that the brackets are defined
-    if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
-    
-    ! check that we found the brackets
-    if(iCheck==nCheck)then
-     message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
-     err=20; return
-    endif
-
-   end do  ! multiple checks
+   ! use bi-section
+   stateVecNew(1) = 0.5_dp*(xMin + xMax)
 
   ! *****
   ! * case 2: the iteration increment is the correct sign
@@ -699,6 +661,74 @@ contains
   
   end subroutine safeRootfinder
   
+  ! *********************************************************************************************************
+  ! * internal subroutine numJacobian: get the brackets
+  ! *********************************************************************************************************
+  subroutine getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
+  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
+  implicit none
+  ! dummies
+  real(dp),intent(in)            :: stateVecTrial(:)         ! trial state vector
+  real(dp),intent(out)           :: stateVecNew(:)           ! new state vector
+  real(dp),intent(out)           :: xMin,xMax                ! constraints
+  integer(i4b),intent(inout)     :: err                      ! error code
+  character(*),intent(out)       :: message                  ! error message
+  ! locals
+  integer(i4b)                   :: iCheck                   ! check the model state variables
+  integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
+  logical(lgt)                   :: feasible                 ! feasibility of the solution
+  real(dp),parameter             :: delX=1._dp               ! trial increment
+  real(dp)                       :: xIncrement(nState)       ! trial increment 
+  ! initialize
+  err=0; message='getBrackets/'
+
+  ! initialize state vector
+  stateVecNew = stateVecTrial
+
+  ! get xIncrement
+  xIncrement = -sign((/delX/),rVec)
+
+  ! try the increment a few times
+  do iCheck=1,nCheck
+
+   ! impose solution constraints
+   call imposeConstraints(stateVecNew,xIncrement,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+   ! increment state vector
+   stateVecNew = stateVecNew + xIncrement
+   
+   ! evaluate summa
+   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+   ! check that the trial value is feasible (should not happen because of the call to impose constraints)
+   if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
+
+   ! update brackets
+   if(real(resVecNew(1), dp)<0._dp)then
+    xMin = stateVecNew(1)
+   else
+    xMax = stateVecNew(1)
+   endif
+
+   ! print progress
+   !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
+   !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
+ 
+   ! check that the brackets are defined
+   if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
+   
+   ! check that we found the brackets
+   if(iCheck==nCheck)then
+    message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
+    err=20; return
+   endif
+
+  end do  ! multiple checks
+
+  end subroutine getBrackets
+
 
   ! *********************************************************************************************************
   ! * internal subroutine numJacobian: compute the numerical Jacobian matrix
