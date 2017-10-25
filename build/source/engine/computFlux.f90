@@ -203,7 +203,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  integer(i4b)                    :: local_ixGroundwater         ! local index for groundwater representation
  integer(i4b)                    :: iLayer                      ! index of model layers
- integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
  logical(lgt)                    :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
  real(dp),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  character(LEN=256)              :: cmessage                    ! error message of downwind routine
@@ -241,10 +240,6 @@ contains
  ixSnowSoilNrg                => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                     ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
  ixSnowSoilHyd                => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                     ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
  layerType                    => indx_data%var(iLookINDEX%layerType)%dat                         ,& ! intent(in): [i4b(:)] type of layer (iname_soil or iname_snow)
-
- ! mapping between states and layers
- ixMapFull2Subset             => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat                  ,&  ! intent(in): [i4b(:)] mapping of full state vector to the state subset
- ixControlVolume              => indx_data%var(iLookINDEX%ixControlVolume)%dat                   ,&  ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
 
  ! number of state variables of a specific type
  nSnowSoilNrg                 => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
@@ -393,12 +388,7 @@ contains
  ! *********************************************
 
  ! identify the need to calculate the energy flux over vegetation
- if(scalarSolution)then
-  jState       = pack(ixControlVolume, ixMapFull2Subset/=integerMissing)
-  doVegNrgFlux = (jState(1)==1 .and. ixTopNrg/=integerMissing)
- else
-  doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
- endif
+ doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
 
  ! check if there is a need to calculate the energy fluxes over vegetation
  if(doVegNrgFlux)then
@@ -423,7 +413,6 @@ contains
                   dCanLiq_dTcanopy,                       & ! intent(in): derivative in canopy liquid storage w.r.t. canopy temperature (kg m-2 K-1)
                   ! input/output: data structures
                   type_data,                              & ! intent(in):    type of vegetation and soil
-                  attr_data,                              & ! intent(in):    spatial attributes
                   forc_data,                              & ! intent(in):    model forcing data
                   mpar_data,                              & ! intent(in):    model parameters
                   indx_data,                              & ! intent(in):    index data
