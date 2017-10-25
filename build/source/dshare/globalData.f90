@@ -21,6 +21,7 @@
 MODULE globalData
  ! data types
  USE nrtype
+ USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:model_options   ! the model decision structure
@@ -62,6 +63,9 @@ MODULE globalData
  ! define limit checks
  real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
  real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
+
+ ! define Indian bread (NaN)
+ real(dp),save,public                        :: dNaN
 
  ! define algorithmic control parameters
  real(dp),parameter,public                   :: dx = 1.e-8_dp            ! finite difference increment
@@ -145,9 +149,13 @@ MODULE globalData
  integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
  integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
 
+ ! define indices describing the indices of the first and last HRUs in the forcing file
+ integer(i4b),save,public                    :: ixHRUfile_min           ! minimum index
+ integer(i4b),save,public                    :: ixHRUfile_max           ! maximum index
+
  ! define mapping structures
- type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing
- type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map ! NOTE: change variable name to be more self describing
+ type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map
+ type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
@@ -170,7 +178,5 @@ MODULE globalData
  integer(i4b),dimension(maxFreq),save,public :: ncid                    ! netcdf output file id
  integer(i4b),save,public                    :: nFreq                   ! actual number of output files
  integer(i4b),dimension(maxFreq),save,public :: outFreq                 ! frequency of all output files
-
-
 
 END MODULE globalData

@@ -22,6 +22,7 @@ module ffile_info_module
 USE nrtype
 USE netcdf
 USE globalData,only:integerMissing
+USE globalData,only:ixHRUfile_min,ixHRUfile_max
 implicit none
 private
 public::ffile_info
@@ -34,6 +35,7 @@ contains
  subroutine ffile_info(nGRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
+ USE ascii_util_module,only:linewidth
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
  USE netcdf_util_module,only:netcdf_err      ! netcdf error handling function
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
@@ -60,7 +62,7 @@ contains
  integer(i4b)                         :: iNC            ! index of a variable in netcdf file
  integer(i4b)                         :: nvar           ! number of variables in netcdf local attribute file
  ! the rest
- character(LEN=1024),allocatable      :: dataLines(:)   ! vector of lines of information (non-comment lines)
+ character(LEN=linewidth),allocatable :: dataLines(:)   ! vector of lines of information (non-comment lines)
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
  integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
@@ -214,10 +216,13 @@ contains
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
 
+     ixHRUfile_min=huge(1)
+     ixHRUfile_max=0
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
       do localHRU=1,gru_struc(iGRU)%hruCount
+       ! check the HRU is what we expect
        err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
        if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
         write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_nc,' - ',  &
@@ -225,9 +230,12 @@ contains
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
+       ! save the index of the minimum and maximum HRUs in the file
+       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
+       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
       end do
      end do
-  
+
     ! OK to have additional variables in the forcing file that are not used
     case default; cycle
    end select  ! select variable name
@@ -239,6 +247,10 @@ contains
     if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
    end do
   end if
+
+  ! close file
+  err = nf90_close(ncid)
+  if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
  end do ! (loop through files)
 

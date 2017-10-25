@@ -28,32 +28,32 @@ private
 public :: def_output
 
 ! define dimension names
-character(len=32),parameter :: hru_DimName            = 'hru'              ! dimension name for the HRUs
-character(len=32),parameter :: depth_DimName          = 'depth'            ! dimension name for soil depth
-character(len=32),parameter :: scalar_DimName         = 'scalar'           ! dimension name for scalar variables
-character(len=32),parameter :: wLength_dimName        = 'spectral_bands'   ! dimension name for the number of spectral bands
-character(len=32),parameter :: timestep_DimName       = 'time'             ! dimension name for the time step
-character(len=32),parameter :: routing_DimName        = 'timeDelayRouting' ! dimension name for thetime delay routing vectors
-character(len=32),parameter :: midSnowAndTime_DimName = 'midSnowAndTime'   ! dimension name for midSnow-time
-character(len=32),parameter :: midSoilAndTime_DimName = 'midSoilAndTime'   ! dimension name for midSoil-time
-character(len=32),parameter :: midTotoAndTime_DimName = 'midTotoAndTime'   ! dimension name for midToto-time
-character(len=32),parameter :: ifcSnowAndTime_DimName = 'ifcSnowAndTime'   ! dimension name for ifcSnow-time
-character(len=32),parameter :: ifcSoilAndTime_DimName = 'ifcSoilAndTime'   ! dimension name for ifcSoil-time
-character(len=32),parameter :: ifcTotoAndTime_DimName = 'ifcTotoAndTime'   ! dimension name for ifcToto-time
+character(len=32),parameter :: hru_DimName      = 'hru'              ! dimension name for the HRUs
+character(len=32),parameter :: depth_DimName    = 'depth'            ! dimension name for soil depth
+character(len=32),parameter :: scalar_DimName   = 'scalar'           ! dimension name for scalar variables
+character(len=32),parameter :: wLength_dimName  = 'spectral_bands'   ! dimension name for the number of spectral bands
+character(len=32),parameter :: timestep_DimName = 'time'             ! dimension name for the time step
+character(len=32),parameter :: routing_DimName  = 'timeDelayRouting' ! dimension name for the time delay routing vectors
+character(len=32),parameter :: midSnow_DimName  = 'midSnow'          ! dimension name for midSnow
+character(len=32),parameter :: midSoil_DimName  = 'midSoil'          ! dimension name for midSoil
+character(len=32),parameter :: midToto_DimName  = 'midToto'          ! dimension name for midToto
+character(len=32),parameter :: ifcSnow_DimName  = 'ifcSnow'          ! dimension name for ifcSnow
+character(len=32),parameter :: ifcSoil_DimName  = 'ifcSoil'          ! dimension name for ifcSoil
+character(len=32),parameter :: ifcToto_DimName  = 'ifcToto'          ! dimension name for ifcToto
 
 ! define the dimension IDs
-integer(i4b)                :: hru_DimID                               ! dimension name for the HRUs
-integer(i4b)                :: depth_DimID                             ! dimension name for the soil depth
-integer(i4b)                :: scalar_DimID                            ! dimension name for scalar variables
-integer(i4b)                :: wLength_dimID                           ! dimension name for the number of spectral bands
-integer(i4b)                :: timestep_DimID                          ! dimension name for the time step
-integer(i4b)                :: routing_DimID                           ! dimension name for thetime delay routing vectors
-integer(i4b)                :: midSnowAndTime_DimID                    ! dimension name for midSnow-time
-integer(i4b)                :: midSoilAndTime_DimID                    ! dimension name for midSoil-time
-integer(i4b)                :: midTotoAndTime_DimID                    ! dimension name for midToto-time
-integer(i4b)                :: ifcSnowAndTime_DimID                    ! dimension name for ifcSnow-time
-integer(i4b)                :: ifcSoilAndTime_DimID                    ! dimension name for ifcSoil-time
-integer(i4b)                :: ifcTotoAndTime_DimID                    ! dimension name for ifcToto-time
+integer(i4b)                :: hru_DimID                             ! dimension name for the HRUs
+integer(i4b)                :: depth_DimID                           ! dimension name for the soil depth
+integer(i4b)                :: scalar_DimID                          ! dimension name for scalar variables
+integer(i4b)                :: wLength_dimID                         ! dimension name for the number of spectral bands
+integer(i4b)                :: timestep_DimID                        ! dimension name for the time step
+integer(i4b)                :: routing_DimID                         ! dimension name for thetime delay routing vectors
+integer(i4b)                :: midSnow_DimID                         ! dimension name for midSnow
+integer(i4b)                :: midSoil_DimID                         ! dimension name for midSoil
+integer(i4b)                :: midToto_DimID                         ! dimension name for midToto
+integer(i4b)                :: ifcSnow_DimID                         ! dimension name for ifcSnow
+integer(i4b)                :: ifcSoil_DimID                         ! dimension name for ifcSoil
+integer(i4b)                :: ifcToto_DimID                         ! dimension name for ifcToto
 
 ! define named variables to specify dimensions
 integer(i4b),parameter  :: needHRU=1,noHRU=2    ! define if there is an HRU dimension
@@ -149,8 +149,6 @@ contains
  subroutine ini_create(nHRU,nSoil,infile,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
- USE globalData,only:data_step          ! time step of model forcing data (s)
- USE globalData,only:numtim             ! number of time steps
  ! model decisions
  USE globalData,only:model_decisions    ! model decision structure
  USE var_lookup,only:iLookDECISIONS     ! named variables for elements of the decision structure
@@ -169,39 +167,33 @@ contains
  integer(i4b)                :: maxRouting=1000            ! maximum length of routing vector
  integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
  integer(i4b),parameter      :: scalarLength=1             ! length of scalar variable
- integer(i4b)                :: meanSnowLayersPerStep      ! mean number of snow layers per time step
- integer(i4b)                :: maxStepsPerFile            ! maximum number of time steps to be stored in each file
- integer(i4b)                :: maxLength                  ! maximum length of the variable vector
+ integer(i4b)                :: maxSnowLayers              ! maximum number of snow layers
  ! initialize error control
  err=0;message="f-iniCreate/"
  ! identify length of the variable vector
- maxStepsPerFile = min(numtim,nint(366._dp * secprday/data_step))
- if(maxStepsPerFile < numtim) maxStepsPerFile=numtim
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
-  case(sameRulesAllLayers);    meanSnowLayersPerStep = 100
-  case(rulesDependLayerIndex); meanSnowLayersPerStep = 5
+  case(sameRulesAllLayers);    maxSnowLayers = 100
+  case(rulesDependLayerIndex); maxSnowLayers = 5
   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
  end select ! (option to combine/sub-divide snow layers)
- maxLength = maxStepsPerFile*(nSoil+1 + meanSnowLayersPerStep)
- print*, 'maxStepsPerFile, maxLength = ', maxStepsPerFile, maxLength
 
  ! create output file
- err = nf90_create(trim(infile),nf90_classic_model,ncid)
+ err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
- err = nf90_def_dim(ncid, trim(           hru_DimName), nHRU,                  hru_DimID); message='iCreate[HRU]';      call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(      timestep_DimName), nf90_unlimited,   timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(         depth_DimName), nSoil,               depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(        scalar_DimName), scalarLength,       scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(       wLength_DimName), maxSpectral,       wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(       routing_DimName), maxRouting,        routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(midSnowAndTime_DimName), maxLength,  midSnowAndTime_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(midSoilAndTime_DimName), maxLength,  midSoilAndTime_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(midTotoAndTime_DimName), maxLength,  midTotoAndTime_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(ifcSnowAndTime_DimName), maxLength,  ifcSnowAndTime_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(ifcSoilAndTime_DimName), maxLength,  ifcSoilAndTime_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
- err = nf90_def_dim(ncid, trim(ifcTotoAndTime_DimName), maxLength,  ifcTotoAndTime_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                      hru_DimID); message='iCreate[HRU]';      call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited,       timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(   depth_DimName), nSoil,                   depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim(  scalar_DimName), scalarLength,           scalar_DimID); message='iCreate[scalar]';   call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( wLength_DimName), maxSpectral,           wLength_DimID); message='iCreate[spectral]'; call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( routing_DimName), maxRouting,            routing_DimID); message='iCreate[routing]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midSnow_DimName), maxSnowLayers,         midSnow_DimID); message='iCreate[midSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midSoil_DimName), nSoil,                 midSoil_DimID); message='iCreate[midSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( midToto_DimName), nSoil+maxSnowLayers,   midToto_DimID); message='iCreate[midToto]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcSnow_DimName), maxSnowLayers+1,       ifcSnow_DimID); message='iCreate[ifcSnow]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcSoil_DimName), nSoil+1,               ifcSoil_DimID); message='iCreate[ifcSoil]';  call netcdf_err(err,message); if (err/=0) return
+ err = nf90_def_dim(ncid, trim( ifcToto_DimName), nSoil+maxSnowLayers+1, ifcToto_DimID); message='iCreate[ifcToto]';  call netcdf_err(err,message); if (err/=0) return
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message='nf90_enddef'; call netcdf_err(err,message); if (err/=0) return
@@ -290,15 +282,15 @@ contains
      if(hruDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
 
     ! (other variables)
-    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID,       Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnowAndTime_DimID               /), err=err, message=cmessage)
-    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoilAndTime_DimID               /), err=err, message=cmessage)
-    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midTotoAndTime_DimID               /), err=err, message=cmessage)
-    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnowAndTime_DimID               /), err=err, message=cmessage)
-    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoilAndTime_DimID               /), err=err, message=cmessage)
-    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcTotoAndTime_DimID               /), err=err, message=cmessage)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                        /), err=err, message=cmessage)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                                 /), err=err, message=cmessage)
+    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage)
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage)
    end select
    ! check errors
    if(err/=0)then
@@ -314,7 +306,7 @@ contains
   end if
 
   ! loop through statistics
-  do iStat = 1,maxvarStat
+  do iStat=1,maxvarStat
 
    ! if requested
    if ((.not.metaData(iVar)%statFlag(iStat)).and.(metaData(iVar)%varName.ne.'time'))  cycle
@@ -337,12 +329,14 @@ contains
    ! add parameter units
    catName = trim(metaData(iVar)%varunit) 
    if (iStat==iLookStat%totl) then
+
     ! make sure that the units of this varaible allow for integration
     if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then 
      err=20
      message=trim(message)//'trying to integrate a non-time variable: '//trim(metaData(iVar)%varName)//' - units: '//trim(catName)
      return
     endif
+
     ! change to integrated units
     if (index(catName,'s-1')>0)       then 
      timePosition = index(catName,'s-1')
@@ -354,7 +348,10 @@ contains
      timePosition = index(catName,'W') 
      catName(timePosition:(timePosition+1)) = 'J'
     end if
-   end if
+
+   end if  ! if an integrated flux
+
+   ! add attribute
    err = nf90_put_att(ncid,iVarId,'units',trim(catName))
    call netcdf_err(err,message); if (err/=0) return
 

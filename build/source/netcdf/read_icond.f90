@@ -155,6 +155,7 @@ contains
  character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
  integer(i4b)                           :: dimLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
+ integer(i4b)                           :: ixFile       ! index in file 
  real(dp),allocatable                   :: varData(:,:) ! variable data storage        
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
@@ -226,12 +227,6 @@ contains
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message) 
   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
-  ! check data are not set to the fill value
-  if( any( abs(varData - nf90_fill_double) < epsilon(varData) ) )then   
-   message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"
-   err=20; return
-  endif
-
   ! store data in prognostics structure 
   ! loop through GRUs
   do iGRU = 1,nGRU
@@ -241,17 +236,30 @@ contains
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil 
     nToto = nSnow + nSoil 
+
+    ! get the index in the file
+    ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    
-    ! put the data into data structures
+    ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
-     case (iLookVarType%scalarv); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1        ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1        ) 
-     case (iLookVarType%midSoil); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nSoil  ) 
-     case (iLookVarType%midToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto  ) 
-     case (iLookVarType%ifcToto); progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto  ) = varData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,1:nToto+1) 
+     case (iLookVarType%scalarv)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1)       = varData(ixFile,1)
+      if(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1) - nf90_fill_double) < epsilon(varData))then; err=20; endif
+     case (iLookVarType%midSoil)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) = varData(ixFile,1:nSoil)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nSoil) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     case (iLookVarType%midToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) = varData(ixFile,1:nToto)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(1:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     case (iLookVarType%ifcToto)
+      progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) = varData(ixFile,1:nToto+1)
+      if(any(abs(progData%gru(iGRU)%hru(iHRU)%var(iVar)%dat(0:nToto) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      case default
       message=trim(message)//"unexpectedVariableType[name='"//trim(prog_meta(iVar)%varName)//"';type='"//trim(get_varTypeName(prog_meta(iVar)%varType))//"']"
       err=20; return
     end select
+
+    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
     ! initialize the spectral albedo
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
@@ -275,14 +283,6 @@ contains
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSnow 
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)   = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nLayers)%dat(1) = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
-
-   ! initalize the indices for midSnow, midSoil, midToto, and ifcToto
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSnowStartIndex)%dat(1) = 1
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midSoilStartIndex)%dat(1) = 1
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%midTotoStartIndex)%dat(1) = 1
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSnowStartIndex)%dat(1) = 1
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcSoilStartIndex)%dat(1) = 1
-   indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%ifcTotoStartIndex)%dat(1) = 1
 
    ! set layer type
    indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%layerType)%dat(1:gru_struc(iGRU)%hruInfo(iHRU)%nSnow) = iname_snow
