@@ -470,7 +470,7 @@ contains
   ! state splitting loop
   stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit 
 
-   !print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
+   print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
 
    ! -----
    ! * identify state-specific variables for a given state split...
@@ -491,7 +491,7 @@ contains
    ! first try the state type split, then try the domain split within a given state type
    stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type   
 
-    !print*, 'start of stateThenDomain loop'
+    print*, 'start of stateThenDomain loop'
 
     ! define the number of domain splits for the state type
     select case(ixStateThenDomain)
@@ -531,9 +531,9 @@ contains
        case default; err=20; message=trim(message)//'unknown solution method'; return
       end select
    
-      !print*, '*****'
-      !print*, 'computeVegFlux = ', computeVegFlux
-      !print*, '(ixSolution==scalar) = ', (ixSolution==scalar)
+      print*, '*****'
+      print*, 'computeVegFlux = ', computeVegFlux
+      print*, '(ixSolution==scalar) = ', (ixSolution==scalar)
       !print*, 'ixCoupling, iStateTypeSplit, ixStateThenDomain, iDomainSplit, nDomainSplit: ', ixCoupling, iStateTypeSplit, ixStateThenDomain, iDomainSplit, nDomainSplit
       !print*, 'ixSoilOnlyHyd = ', indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat
   
@@ -556,14 +556,14 @@ contains
        if(ixSolution==vector .and. count(stateMask)==1) cycle solution
 
        ! check
-       !print*, 'after stateFilter: stateMask   = ', stateMask
-       !print*, 'count(stateMask) = ', count(stateMask)
+       print*, 'after stateFilter: stateMask   = ', stateMask
+       print*, 'count(stateMask) = ', count(stateMask)
     
-       !if(ixSolution==scalar)then
-       ! print*, 'iStateSplit, nStateSplit = ', iStateSplit, nStateSplit
-       ! print*, 'start of scalar solution'
-       ! !print*, 'PAUSE'; read(*,*)
-       !endif
+       if(ixSolution==scalar)then
+        print*, 'iStateSplit, nStateSplit = ', iStateSplit, nStateSplit
+        print*, 'start of scalar solution'
+        !print*, 'PAUSE'; read(*,*)
+       endif
    
        ! -----
        ! * assemble vectors for a given split...
@@ -736,7 +736,7 @@ contains
        ! * solve variable subset for one time step...
        ! --------------------------------------------
 
-       !print*, 'nSubset = ', nSubset
+       print*, 'nSubset = ', nSubset
 
        ! solve variable subset for one full time step
        call varSubstep(&
@@ -813,7 +813,7 @@ contains
        ! print*, trim(message)//'pause: checking scalar solution'; read(*,*)
        !endif
  
-       !print*, 'tooMuchMelt, reduceCoupledStep = ', tooMuchMelt, reduceCoupledStep
+       print*, 'tooMuchMelt, reduceCoupledStep = ', tooMuchMelt, reduceCoupledStep
  
        ! if too much melt (or some other need to reduce the coupled step) then return
        ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
@@ -829,7 +829,7 @@ contains
 
        ! if failed, need to reset the flux counter
        if(failure)then
-        !print*, 'failure!'
+        print*, 'failure!'
         do iVar=1,size(flux_meta)
          iMin=lbound(flux_data%var(iVar)%dat)
          iMax=ubound(flux_data%var(iVar)%dat)
@@ -882,11 +882,11 @@ contains
        endif  ! success check
   
       end do stateSplit ! solution with split layers
-      !print*, 'after stateSplit'
+      print*, 'after stateSplit'
 
      end do solution ! trial with the full layer solution then the split layer solution
 
-     !print*, 'after solution loop' 
+     print*, 'after solution loop' 
  
      ! ***** trial with a given solution method...
      ! *******************************************************************************************************************************
@@ -895,12 +895,12 @@ contains
   
     end do domainSplit ! domain type splitting loop
 
-    !print*, 'ixStateThenDomain = ', ixStateThenDomain
-    !print*, 'after domain split loop'
+    print*, 'ixStateThenDomain = ', ixStateThenDomain
+    print*, 'after domain split loop'
 
    end do stateThenDomain  ! switch between the state and the domain
 
-   !print*, 'after stateThenDomain switch'
+   print*, 'after stateThenDomain switch'
 
    ! -----
    ! * reset state variables for the mass split...
@@ -1070,7 +1070,7 @@ contains
   case default; err=20; message=trim(message)//'unable to identify coupling method'; return
  end select  ! (selecting solution method)
  
- !print*, 'stateMask = ', stateMask
+ print*, 'stateMask = ', stateMask
 
  ! identify scalar solutions
  if(ixSolution==scalar)then
