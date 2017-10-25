@@ -447,6 +447,7 @@ contains
   case('scalarSAI'                      ); get_ixdiag = iLookDIAG%scalarSAI                        ! one-sided stem area index (m2 m-2)
   case('scalarExposedLAI'               ); get_ixdiag = iLookDIAG%scalarExposedLAI                 ! exposed leaf area index after burial by snow (m2 m-2)
   case('scalarExposedSAI'               ); get_ixdiag = iLookDIAG%scalarExposedSAI                 ! exposed stem area index after burial by snow (m2 m-2)
+  case('scalarAdjMeasHeight'            ); get_ixdiag = iLookDIAG%scalarAdjMeasHeight              ! adjusted measurement height for cases snowDepth>mHeight (m) 
   case('scalarCanopyIceMax'             ); get_ixdiag = iLookDIAG%scalarCanopyIceMax               ! maximum interception storage capacity for ice (kg m-2)
   case('scalarCanopyLiqMax'             ); get_ixdiag = iLookDIAG%scalarCanopyLiqMax               ! maximum interception storage capacity for liquid water (kg m-2)
   case('scalarGrowingSeasonIndex'       ); get_ixdiag = iLookDIAG%scalarGrowingSeasonIndex         ! growing season index (0=off, 1=on)
@@ -789,13 +790,6 @@ contains
   case('ixSoilState'         ); get_ixINDEX = iLookINDEX%ixSoilState         ! list of indices for all soil layers                                      (-)
   case('ixLayerState'        ); get_ixINDEX = iLookINDEX%ixLayerState        ! list of indices for all model layers                                     (-)
   case('ixLayerActive'       ); get_ixINDEX = iLookINDEX%ixLayerActive       ! list of indices for all active model layers                              (-)
-  ! indices for the model output files
-  case('midSnowStartIndex'   ); get_ixINDEX = iLookINDEX%midSnowStartIndex   ! start index of the midSnow vector for a given timestep                   (-)
-  case('midSoilStartIndex'   ); get_ixINDEX = iLookINDEX%midSoilStartIndex   ! start index of the midSoil vector for a given timestep                   (-)
-  case('midTotoStartIndex'   ); get_ixINDEX = iLookINDEX%midTotoStartIndex   ! start index of the midToto vector for a given timestep                   (-)
-  case('ifcSnowStartIndex'   ); get_ixINDEX = iLookINDEX%ifcSnowStartIndex   ! start index of the ifcSnow vector for a given timestep                   (-)
-  case('ifcSoilStartIndex'   ); get_ixINDEX = iLookINDEX%ifcSoilStartIndex   ! start index of the ifcSoil vector for a given timestep                   (-)
-  case('ifcTotoStartIndex'   ); get_ixINDEX = iLookINDEX%ifcTotoStartIndex   ! start index of the ifcToto vector for a given timestep                   (-)
   case default
    get_ixindex = integerMissing
  end select

@@ -116,7 +116,6 @@ contains
 
                        ! input/output: data structures
                        type_data,                               & ! intent(in):    type of vegetation and soil
-                       attr_data,                               & ! intent(in):    spatial attributes
                        forc_data,                               & ! intent(in):    model forcing data
                        mpar_data,                               & ! intent(in):    model parameters
                        indx_data,                               & ! intent(in):    state vector geometry
@@ -174,7 +173,6 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookATTR           ! named variables for structure elements
  USE var_lookup,only:iLookTYPE           ! named variables for structure elements
  USE var_lookup,only:iLookPROG           ! named variables for structure elements
  USE var_lookup,only:iLookDIAG           ! named variables for structure elements
@@ -215,7 +213,6 @@ contains
 
  ! input/output: data structures
  type(var_i),intent(in)          :: type_data                       ! type of vegetation and soil
- type(var_d),intent(in)          :: attr_data                       ! spatial attributes
  type(var_d),intent(in)          :: forc_data                       ! model forcing data
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters
  type(var_ilength),intent(in)    :: indx_data                       ! state vector geometry
@@ -481,7 +478,7 @@ contains
  minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
 
  ! input: forcing at the upper boundary
- mHeight                         => attr_data%var(iLookATTR%mHeight),                               & ! intent(in): [dp] measurement height (m)
+ mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height (m)
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
  windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at some height above the surface (m s-1)
  airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
@@ -598,6 +595,10 @@ contains
 
  ! set wind measurement height at distance above canopy
  uHeight = mHeight + heightCanopyTop
+
+ print*, 'canairTempTrial = ',  canairTempTrial   ! trial value of the canopy air space temperature (K)
+ print*, 'canopyTempTrial = ',  canopyTempTrial   ! trial value of canopy temperature (K)
+ print*, 'groundTempTrial = ',  groundTempTrial   ! trial value of ground temperature (K)
 
  ! initialize printflag
  printflag = .false.
