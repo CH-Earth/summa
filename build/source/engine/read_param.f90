@@ -184,8 +184,8 @@ contains
     do iHRU=1,nHRU
      iGRU=index_map(iHRU)%gru_ix
      localHRU=index_map(iHRU)%localHRU
-     if((hruId(iHRU)>0).and.(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex)))then
-      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+     if((hruId(iHRU)>0).and.(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruId)))then
+      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruId), '(param HRU = ', hruId(iHRU), ')'
       err=20; return
      endif
     end do  ! looping through HRUs
@@ -195,8 +195,8 @@ contains
      iGRU=index_map(iHRU)%gru_ix
      localHRU=index_map(iHRU)%localHRU
      fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
-     if(hruId(fHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+     if(hruId(fHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruId))then
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruId), '(param HRU = ', hruId(iHRU), ')'
      err=20; return
     endif
    enddo
@@ -204,8 +204,8 @@ contains
    else if (iRunMode==iRunModeHRU) then
     iGRU=index_map(1)%gru_ix
     localHRU=index_map(1)%localHRU
-    if(hruId(checkHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+    if(hruId(checkHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruId))then
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruId), '(param HRU = ', hruId(iHRU), ')'
      err=20; return
     endif
 
