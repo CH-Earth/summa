@@ -436,7 +436,8 @@ contains
  do iter=1,localMaxIter
  
   ! print iteration count
-  !print*, '*** iter, maxiter, dt = ', iter, localMaxiter, dt
+  print*, '*** iter, maxiter, dt = ', iter, localMaxiter, dt
+  print*, 'stateVecTrial = ', stateVecTrial
   !print*, trim(message)//'before summaSolve'
 
   ! keep track of the number of iterations
