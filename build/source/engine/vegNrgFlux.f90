@@ -596,6 +596,10 @@ contains
  ! set wind measurement height at distance above canopy
  uHeight = mHeight + heightCanopyTop
 
+ print*, 'canairTempTrial = ',  canairTempTrial   ! trial value of the canopy air space temperature (K)
+ print*, 'canopyTempTrial = ',  canopyTempTrial   ! trial value of canopy temperature (K)
+ print*, 'groundTempTrial = ',  groundTempTrial   ! trial value of ground temperature (K)
+
  ! initialize printflag
  printflag = .false.
 
