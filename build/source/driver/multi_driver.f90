@@ -539,7 +539,7 @@ do iGRU=1,nGRU
   kHRU=0
   ! check the network topology (only expect there to be one downslope HRU)
   do jHRU=1,gru_struc(iGRU)%hruCount
-   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruId))then
     if(kHRU==0)then  ! check there is a unique match
      kHRU=jHRU
     else
@@ -629,7 +629,7 @@ do iGRU=1,nGRU
   upArea(iGRU)%hru(iHRU) = 0._dp
   do jHRU=1,gru_struc(iGRU)%hruCount
    ! check if jHRU flows into iHRU; assume no exchange between GRUs
-   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
+   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId))then
     upArea(iGRU)%hru(iHRU) = upArea(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
    endif   ! (if jHRU is an upstream HRU)
   end do  ! jHRU
@@ -953,7 +953,7 @@ do modelTimeStep=1,numtim
    kHRU = 0
    ! identify the downslope HRU
    dsHRU: do jHRU=1,gru_struc(iGRU)%hruCount
-    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruId))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
       exit dsHRU
@@ -1275,7 +1275,7 @@ contains
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
     print*, 'initial time step  = ', dt_init(iGRU)%hru(iHRU)
-    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
+    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId)
     print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
     print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
     print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)%dat(1)            ! soil residual volumetric water content (-)

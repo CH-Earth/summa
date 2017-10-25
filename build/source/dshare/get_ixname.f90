@@ -184,7 +184,7 @@ contains
  integer(i4b)             :: get_ixType              ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('hruIndex'       ); get_ixType = iLookTYPE%hruIndex           ! index defining HRU index
+  case('hruId'          ); get_ixType = iLookTYPE%hruId              ! id defining HRU index
   case('vegTypeIndex'   ); get_ixType = iLookTYPE%vegTypeIndex       ! index defining vegetation type
   case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
   case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
