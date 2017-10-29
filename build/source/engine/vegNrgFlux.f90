@@ -2353,9 +2353,9 @@ contains
    dCanopyResistance_dTCanair = -dCanopyStabilityCorrection_dCasTemp/(windspd*canopyExNeut*canopyStabilityCorrection**2._dp)
    ! derivative in ground resistance w.r.t. canopy air temperature (s m-1 K-1)
    ! (compute derivative in NEUTRAL ground resistance w.r.t. canopy air temperature (s m-1 K-1))
-   dFV_dT = windspd*canopyExNeut*dCanopyStabilityCorrection_dCasTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                ! d(frictionVelocity)/d(canopy air temperature)
-   dED_dT = dFV_dT*vkc*(heightCanopyTop - zeroPlaneDisplacement)                                                             ! d(eddyDiffusCanopyTop)d(canopy air temperature)
-   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp) ! d(groundResistanceNeutral)/d(canopy air temperature)
+   dFV_dT = windspd*canopyExNeut*dCanopyStabilityCorrection_dCasTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                         ! d(frictionVelocity)/d(canopy air temperature)
+   dED_dT = dFV_dT*vkc*(heightCanopyTopAboveSnow - zeroPlaneDisplacement)                                                              ! d(eddyDiffusCanopyTop)d(canopy air temperature)
+   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp) ! d(groundResistanceNeutral)/d(canopy air temperature)
    ! (stitch everything together -- product rule)
    dGroundResistance_dTCanair = dGR_dT/groundStabilityCorrection - groundResistanceNeutral*dGroundStabilityCorrection_dCasTemp/(groundStabilityCorrection**2._dp)
 
