@@ -446,7 +446,6 @@ contains
   !  1) Computes the Jacobian matrix based on derivatives from the last flux evaluation
   !  2) Computes the iteration increment based on Jacobian and residuals from the last flux evaluation
   !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
-  ! NOTE: only returns the flux vector and function evaluation when the solution method is explicitEuler
   call summaSolve(&
                   ! input: model control
                   dt,                            & ! intent(in):    length of the time step (seconds)
