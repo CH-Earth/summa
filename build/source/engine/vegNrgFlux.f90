@@ -116,7 +116,6 @@ contains
 
                        ! input/output: data structures
                        type_data,                               & ! intent(in):    type of vegetation and soil
-                       attr_data,                               & ! intent(in):    spatial attributes
                        forc_data,                               & ! intent(in):    model forcing data
                        mpar_data,                               & ! intent(in):    model parameters
                        indx_data,                               & ! intent(in):    state vector geometry
@@ -174,7 +173,6 @@ contains
                      var_dlength,      & ! data vector with variable length dimension (dp)
                      model_options       ! defines the model decisions
  ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookATTR           ! named variables for structure elements
  USE var_lookup,only:iLookTYPE           ! named variables for structure elements
  USE var_lookup,only:iLookPROG           ! named variables for structure elements
  USE var_lookup,only:iLookDIAG           ! named variables for structure elements
@@ -215,7 +213,6 @@ contains
 
  ! input/output: data structures
  type(var_i),intent(in)          :: type_data                       ! type of vegetation and soil
- type(var_d),intent(in)          :: attr_data                       ! spatial attributes
  type(var_d),intent(in)          :: forc_data                       ! model forcing data
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters
  type(var_ilength),intent(in)    :: indx_data                       ! state vector geometry
@@ -481,7 +478,7 @@ contains
  minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
 
  ! input: forcing at the upper boundary
- mHeight                         => attr_data%var(iLookATTR%mHeight),                               & ! intent(in): [dp] measurement height (m)
+ mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height (m)
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
  windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at some height above the surface (m s-1)
  airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
@@ -2356,9 +2353,9 @@ contains
    dCanopyResistance_dTCanair = -dCanopyStabilityCorrection_dCasTemp/(windspd*canopyExNeut*canopyStabilityCorrection**2._dp)
    ! derivative in ground resistance w.r.t. canopy air temperature (s m-1 K-1)
    ! (compute derivative in NEUTRAL ground resistance w.r.t. canopy air temperature (s m-1 K-1))
-   dFV_dT = windspd*canopyExNeut*dCanopyStabilityCorrection_dCasTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                ! d(frictionVelocity)/d(canopy air temperature)
-   dED_dT = dFV_dT*vkc*(heightCanopyTop - zeroPlaneDisplacement)                                                             ! d(eddyDiffusCanopyTop)d(canopy air temperature)
-   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp) ! d(groundResistanceNeutral)/d(canopy air temperature)
+   dFV_dT = windspd*canopyExNeut*dCanopyStabilityCorrection_dCasTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                         ! d(frictionVelocity)/d(canopy air temperature)
+   dED_dT = dFV_dT*vkc*(heightCanopyTopAboveSnow - zeroPlaneDisplacement)                                                              ! d(eddyDiffusCanopyTop)d(canopy air temperature)
+   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp) ! d(groundResistanceNeutral)/d(canopy air temperature)
    ! (stitch everything together -- product rule)
    dGroundResistance_dTCanair = dGR_dT/groundStabilityCorrection - groundResistanceNeutral*dGroundStabilityCorrection_dCasTemp/(groundStabilityCorrection**2._dp)
 

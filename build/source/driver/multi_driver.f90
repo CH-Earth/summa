@@ -889,6 +889,7 @@ do modelTimeStep=1,numtim
                    forcStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model forcing data
                    attrStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model attributes
                    mparStruct%gru(iGRU)%hru(iHRU),    & ! vector of model parameters
+                   progStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model prognostic variables
                    diagStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model diagnostic variables
                    fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes
                    err,message)                         ! error control
@@ -1311,7 +1312,7 @@ contains
   end if
  end do
 
- stop
+ stop 1
  end subroutine handle_err
 
  ! **************************************************************************************************

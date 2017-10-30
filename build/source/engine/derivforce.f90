@@ -35,7 +35,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(time_data,forc_data,attr_data,mpar_data,diag_data,flux_data,err,message)
+ subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,err,message)
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
  USE multiconst,only:secprhour                               ! number of seconds in an hour
  USE multiconst,only:minprhour                               ! number of minutes in an hour
@@ -43,7 +43,8 @@ contains
  USE globalData,only:model_decisions                         ! model decision structure
  USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
  USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
- USE var_lookup,only:iLookPARAM,iLookFORCE,iLookDIAG,iLookFLUX  ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM,iLookFORCE                   ! named variables for structure elements
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX           ! named variables for structure elements
  USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
@@ -56,6 +57,7 @@ contains
  real(dp),         intent(inout) :: forc_data(:)             ! vector of forcing data for a given time step
  real(dp),         intent(in)    :: attr_data(:)             ! vector of model attributes
  type(var_dlength),intent(in)    :: mpar_data                ! vector of model parameters
+ type(var_dlength),intent(in)    :: prog_data                ! data structure of model prognostic variables for a local HRU
  ! output variables
  type(var_dlength),intent(inout) :: diag_data                ! data structure of model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                ! data structure of model fluxes for a local HRU
@@ -72,6 +74,7 @@ contains
  real(dp),parameter              :: valueMissing=-9999._dp   ! missing value
  real(dp),parameter              :: co2Factor=355.e-6_dp     ! empirical factor to obtain partial pressure of co2
  real(dp),parameter              :: o2Factor=0.209_dp        ! empirical factor to obtain partial pressure of o2
+ real(dp),parameter              :: minMeasHeight=1._dp      ! minimum measurement height (m) 
  real(dp)                        :: relhum                   ! relative humidity (-)
  real(dp)                        :: fracrain                 ! fraction of precipitation that falls as rain
  real(dp)                        :: maxFrozenSnowTemp        ! maximum temperature of snow when the snow is predominantely frozen (K)
@@ -83,7 +86,7 @@ contains
  real(dp),parameter              :: andersonColdDenLimit=15._dp! Lower air temperature limit in Anderson (1976) new snow density (C)
  real(dp),parameter              :: andersonDenScal=1.5_dp     ! Scalar parameter in Anderson (1976) new snow density function (-)
  real(dp),parameter              :: pahautDenWindScal=0.5_dp   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
-! ************************************************************************************************
+ ! ************************************************************************************************
  ! associate local variables with the information in the data structures
  associate(&
  ! model parameters
@@ -111,6 +114,10 @@ contains
  imin                    => time_data(iLookTIME%imin)                             , & ! minute
  latitude                => attr_data(iLookATTR%latitude)                         , & ! latitude (degrees north)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
+ ! measurement height
+ mHeight                 => attr_data(iLookATTR%mHeight)                          , & ! latitude (degrees north)
+ adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
+ scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
  ! model forcing data
  SWRadAtm                => forc_data(iLookFORCE%SWRadAtm)                        , & ! downward shortwave radiation (W m-2)
  airtemp                 => forc_data(iLookFORCE%airtemp)                         , & ! air temperature at 2 meter height (K)
@@ -142,6 +149,13 @@ contains
   write(message,'(a,i0,a)') trim(message)//'expect ', nBands, 'spectral classes for radiation'
   err=20; return
  end if
+
+ ! compute the adjusted measurement height
+ if(mHeight < scalarSnowDepth+minMeasHeight)then
+  adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the surface
+ else
+  adjMeasHeight = mHeight
+ endif
 
  ! compute the partial pressure of o2 and co2
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
