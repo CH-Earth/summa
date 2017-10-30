@@ -704,19 +704,26 @@ outputTimeStep(1:nFreq) = 1
 
 do modelTimeStep=1,numtim
 
- ! read forcing data
- call read_force(&
-                 ! input
-                 modelTimeStep,                              & ! intent(in):    time step index
-                 ! input-output
-                 iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
-                 forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
-                 forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
-                 ! output
-                 timeStruct%var,                             & ! intent(out):   time data structure (integer)
-                 forcStruct%gru(iGRU)%hru(iHRU)%var,         & ! intent(out):   forcing data structure (double precision)
-                 err, message)                                 ! intent(out):   error control
- call handle_err(err,message)
+ ! read forcing data 
+ do iGRU=1,nGRU
+  do iHRU=1,gru_struc(iGRU)%hruCount
+   
+   ! read forcing data
+   call read_force(&
+                   ! input
+                   modelTimeStep,                              & ! intent(in):    time step index
+                   gru_struc(iGRU)%hruInfo(iHRU)%hru_nc,       & ! intent(in):    index of hru in netcdf
+                   ! input-output
+                   iFile,                                      & ! intent(inout): index of current forcing file in forcing file list
+                   forcingStep,                                & ! intent(inout): index of read position in time dimension in current netcdf file
+                   forcNcid,                                   & ! intent(inout): netcdf file identifier for the current forcing file
+                   ! output
+                   timeStruct%var,                             & ! intent(out):   time data structure (integer)
+                   forcStruct%gru(iGRU)%hru(iHRU)%var,         & ! intent(out):   forcing data structure (double precision)
+                   err, message)                               ! intent(out):   error control
+   call handle_err(err,message)
+  end do 
+ end do  ! (end looping through global GRUs)
 
  ! set print flag
  globalPrintFlag=.false.
@@ -882,6 +889,7 @@ do modelTimeStep=1,numtim
                    forcStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model forcing data
                    attrStruct%gru(iGRU)%hru(iHRU)%var,& ! vector of model attributes
                    mparStruct%gru(iGRU)%hru(iHRU),    & ! vector of model parameters
+                   progStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model prognostic variables
                    diagStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model diagnostic variables
                    fluxStruct%gru(iGRU)%hru(iHRU),    & ! data structure of model fluxes
                    err,message)                         ! error control

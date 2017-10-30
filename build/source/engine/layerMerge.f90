@@ -308,7 +308,7 @@ contains
  real(dp)                        :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
  real(dp)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
  real(dp)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
- real(dp),parameter              :: eTol=1.e-4_dp            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+ real(dp),parameter              :: eTol=1.e-1_dp            ! tolerance for the enthalpy-->temperature conversion (J m-3)
 
  ! initialize error control
  err=0; message="layer_combine/"

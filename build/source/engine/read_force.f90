@@ -19,25 +19,16 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module read_force_module
-
-! access missing values
-USE globalData,only:realMissing       ! real missing value
-USE globalData,only:integerMissing    ! integer missing value
-
-! access the mapping betweeen GRUs and HRUs
-USE globalData,only:gru_struc         ! gru-hru mapping structures
-
 implicit none
 private
 public::read_force
-
 contains
 
 
  ! ************************************************************************************************
  ! public subroutine read_force: read in forcing data
  ! ************************************************************************************************
- subroutine read_force(istep,iFile,iRead,ncid,time_data,forc_data,err,message)
+ subroutine read_force(istep,iHRU_global,iFile,iRead,ncid,time_data,forc_data,err,message)
  ! provide access to subroutines
  USE nrtype                                            ! variable types, etc.
  USE netcdf                                            ! netcdf capability
@@ -56,9 +47,11 @@ contains
  USE globalData,only:time_meta,forc_meta               ! metadata structures
  USE var_lookup,only:iLookTIME,iLookFORCE              ! named variables to define structure elements
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
+ USE globalData,only:integerMissing                    ! integer missing value
  implicit none
  ! define input variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
+ integer(i4b),intent(in)           :: iHRU_global      ! index of global hydrologic response unit
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
  integer(i4b),intent(inout)        :: iRead            ! index of read position in time dimension in current netcdf file
@@ -78,9 +71,8 @@ contains
  character(len = nf90_max_name)    :: varName          ! dimenison name
  integer(i4b)                      :: ncStart(2)       ! start array for reading hru forcing
  integer(i4b),save                 :: nHRU             ! number of HRUs
- ! other local variables
- integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
- integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
+ ! rest
+ real(dp),parameter                :: amiss= -1.d+30   ! missing real
  real(dp),parameter                :: verySmall=1e-3   ! tiny number
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
@@ -206,7 +198,13 @@ contains
 
   ! initialize time and forcing data structures
   time_data(:) = integerMissing
-  forc_data(:) = realMissing
+  forc_data(:) = amiss
+
+  ! check the number of HRUs
+  if(iHRU_global > nHRU)then
+   message=trim(message)//'HRU index exceeds the number of HRUs'
+   err=20; return
+  endif
 
   ! read time data from iRead location in netcdf file
   err = nf90_inq_varid(ncid,'time',varId);                   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
@@ -235,47 +233,31 @@ contains
    end do
   end if
 
-  ! loop through GRUs and HRUs
-  do iGRU=1,size(gru_struc)
-   do iHRU=1,gru_struc(iGRU)%hruCount
+  ! setup count,start arrays
+  ncStart = (/iHRU_global,iRead/)
 
-    ! define global HRU
-    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+  ! other forcing var
+  do iNC=1,forcFileInfo(iFile)%nVars
 
-    ! check the number of HRUs
-    if(iHRU_global > nHRU)then
-     message=trim(message)//'HRU index exceeds the number of HRUs'
-     err=20; return
-    endif
-   
-    ! setup count,start arrays
-    ncStart = (/iHRU_global,iRead/)
-   
-    ! other forcing var
-    do iNC=1,forcFileInfo(iFile)%nVars
-   
-     ! inqure about current variable name
-     err = nf90_inquire_variable(ncid,iNC,name=varName)
-     if(err/=nf90_noerr)then; message=trim(message)//'problem finding variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-   
-     ! make sure the variable name is one desired
-     select case(trim(varname))
-      case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
-      case default; cycle
-     end select
-   
-     ! get index of forcing variable in forcing data vector
-     ivar = get_ixforce(trim(varname))
-     if(ivar < 0)then;                                 err=40; message=trim(message)//"variableNotFound [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
-     if(ivar > size(forcFileInfo(iFile)%data_id))then; err=40; message=trim(message)//"indexOutOfRange  [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
-   
-     ! get forcing data
-     err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forc_data(ivar),start=ncStart)
-     if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-    end do  ! loop through forcing variables
+   ! inqure about current variable name
+   err = nf90_inquire_variable(ncid,iNC,name=varName)
+   if(err/=nf90_noerr)then; message=trim(message)//'problem finding variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
 
-   end do  ! looping through HRUs within a given GRU
-  end do  ! looping through GRUs
+   ! make sure the variable name is one desired
+   select case(trim(varname))
+    case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
+    case default; cycle
+   end select
+
+   ! get index of forcing variable in forcing data vector
+   ivar = get_ixforce(trim(varname))
+   if(ivar < 0)then;                                 err=40; message=trim(message)//"variableNotFound [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
+   if(ivar > size(forcFileInfo(iFile)%data_id))then; err=40; message=trim(message)//"indexOutOfRange  [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
+
+   ! get forcing data
+   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forc_data(ivar),start=ncStart)
+   if(err/=nf90_noerr)then; message=trim(message)//'problem inquiring variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+  end do  ! loop through forcing variables
 
  ! check that the file was in fact open
  else
@@ -320,9 +302,9 @@ contains
 
  ! check to see if any of the forcing data is missing
  ! NOTE: The 0.99 multiplier is used to avoid precision issues when comparing real numbers.
- if(any(forc_data(:)<realMissing*0.99_dp))then
+ if(any(forc_data(:)<amiss*0.99_dp))then
   do iline=1,size(forc_meta)
-   if(forc_data(iline)<realMissing*0.99_dp)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"; return; end if
+   if(forc_data(iline)<amiss*0.99_dp)then; err=40; message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"; return; end if
   end do
  end if
 

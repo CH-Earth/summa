@@ -150,8 +150,8 @@ MODULE globalData
  integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
 
  ! define mapping structures
- type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map
- type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map
+ type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map ! NOTE: change variable name to be more self describing
+ type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map ! NOTE: change variable name to be more self describing
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
