@@ -106,9 +106,9 @@ contains
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
  real(dp),allocatable              :: dataVec(:)       ! vector of data
  real(dp),dimension(1)             :: dataVal          ! single data value
- logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist 
- !integer(i4b)                      :: iyyy,im,id       ! year, month, day 
- !integer(i4b)                      :: ih,imin          ! hour, minute   
+ logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
+ !integer(i4b)                      :: iyyy,im,id       ! year, month, day
+ !integer(i4b)                      :: ih,imin          ! hour, minute
  real(dp)                          :: dsec             ! double precision seconds (not used)
  logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
  ! Start procedure here
@@ -127,7 +127,7 @@ contains
  ! **********************************************************************************************
  ! ***** part 0: if initial step, then open first file and find initial model time step
  ! *****         loop through as many forcing files as necessary to find the initial model step
- ! ********************************************************************************************** 
+ ! **********************************************************************************************
  ! check if file is open
  if(ncid==integerMissing)then ! file is closed if ncid==integerMissing
 
@@ -140,7 +140,7 @@ contains
 
    ! open netCDF file
    call openForcingFile()
- 
+
    ! how many time steps in current file?
    err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time dimension/'//trim(nf90_strerror(err)); return; endif
    err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time dimension size/'//trim(nf90_strerror(err)); return; endif
@@ -200,7 +200,7 @@ contains
  end if  ! if the file is not yet open
 
  ! **********************************************************************************************
- ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it, 
+ ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it,
  ! *****         and open new file
  ! *****         Then read the data
  ! **********************************************************************************************
@@ -274,11 +274,11 @@ contains
 
   ! loop through forcing data variables
   do iNC=1,forcFileInfo(iFile)%nVars
-  
+
    ! get the variable name
    err = nf90_inquire_variable(ncid,iNC,name=varName)
    if(err/=nf90_noerr)then; message=trim(message)//'problem finding variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-  
+
    ! make sure the variable name is one desired
    select case(trim(varname))
     case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
@@ -302,12 +302,12 @@ contains
    ! loop through GRUs and HRUs
    do iGRU=1,size(gru_struc)
     do iHRU=1,gru_struc(iGRU)%hruCount
-  
+
      ! define global HRU
      iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
      iHRU_local  = (iHRU_global - ixHRUfile_min)+1
      !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
- 
+
      ! read forcing data for a single HRU
      if(.not.simultaneousRead)then
       err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
@@ -341,7 +341,7 @@ contains
     endif    ! if variable is missing
    end do   ! looping through variables
   end if   ! if any variables are missing
-  
+
   ! deallocate space for data
   deallocate(dataVec, stat=err)
   if(err/=0)then
@@ -406,16 +406,16 @@ contains
                                          yearLength                             ! number of days in the current year
   !pause ' checking time'
  end if
- 
+
  contains
- 
+
   ! **************************************************
-  ! * open the NetCDF forcing file and get the time information 
+  ! * open the NetCDF forcing file and get the time information
   ! **************************************************
   subroutine openForcingFile()
   ! variables with local scope
   integer(i4b) :: iyyy,im,id,ih,imin
-   
+
    ! define new filename
    infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
@@ -423,7 +423,7 @@ contains
    mode=nf90_NoWrite
    call nc_file_open(trim(infile),mode,ncid,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
+
    ! get definition of time data
    err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
 
@@ -441,7 +441,7 @@ contains
    call compjulday(iyyy,im,id,ih,imin,dsec,                & ! output = year, month, day, hour, minute, second
                    refJulday_data,err,cmessage)              ! output = julian day (fraction of day) + error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   
+
    ! get the time multiplier needed to convert time to units of days
    select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
     case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp

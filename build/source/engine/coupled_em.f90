@@ -165,7 +165,7 @@ contains
  real(dp),parameter                   :: varNotUsed2=-9999._dp  ! variables used to calculate derivatives (not needed here)
  integer(i4b)                         :: iSnow                  ! index of snow layers
  integer(i4b)                         :: iLayer                 ! index of model layers
- real(dp)                             :: subLoss                ! sublimation loss (kg m-2)
+ real(dp)                             :: massLiquid             ! mass liquid water (kg m-2)
  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
@@ -795,6 +795,7 @@ contains
    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
+   mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
   ) ! associations to variables in data structures
 
@@ -830,15 +831,18 @@ contains
   ! NOTE: this is done BEFORE densification
   if(nSnow > 0)then ! snow layers exist
 
-   ! compute sublimation loss (kg m-2)
-   subLoss = dt_sub*scalarSnowSublimation
-
    ! try to remove ice from the top layer
    iSnow=1
-   mLayerVolFracIce(iSnow) = mLayerVolFracIce(iSnow) + subLoss/(mLayerDepth(iSnow)*iden_ice)  ! update volumetric ice content (-)
 
-   ! check that we did not remove all the ice
-   if(mLayerVolFracIce(iSnow) < verySmall)then
+   ! save the mass of liquid water (kg m-2)
+   massLiquid = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water 
+
+   ! add/remove the depth of snow gained/lost by frost/sublimation (m)
+   ! NOTE: assume constant density
+   mLayerDepth(iSnow) = mLayerDepth(iSnow) + dt_sub*scalarSnowSublimation/(mLayerVolFracIce(iSnow)*iden_ice)
+
+   ! check that we did not remove the entire layer
+   if(mLayerDepth(iSnow) < verySmall)then
     stepFailure  = .true.
     doLayerMerge = .true.
     dt_sub      = max(dt_init/2._dp, minstep)
@@ -848,11 +852,8 @@ contains
     doLayerMerge = .false.
    endif
 
-   ! check
-   if(any(mLayerVolFracIce(1:nSnow) < 0._dp) .or. any(mLayerVolFracIce(1:nSnow) > 1._dp) )then
-    message=trim(message)//'unrealistic volumetric fraction of ice for snow layers'
-    err=20; return
-   endif
+   ! update the volumetric fraction of liquid water
+   mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)
 
   ! no snow
   else
@@ -876,7 +877,6 @@ contains
                    indx_data%var(iLookINDEX%nSnow)%dat(1),                 & ! intent(in): number of snow layers
                    prog_data%var(iLookPROG%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
                    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
-                   flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),  & ! intent(in): sublimation from the snow surface (kg m-2 s-1)
                    ! intent(in): parameters
                    mpar_data%var(iLookPARAM%densScalGrowth)%dat(1),        & ! intent(in): density scaling factor for grain growth (kg-1 m3)
                    mpar_data%var(iLookPARAM%tempScalGrowth)%dat(1),        & ! intent(in): temperature scaling factor for grain growth (K-1)

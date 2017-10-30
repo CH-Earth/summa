@@ -133,7 +133,7 @@ contains
  integer(i4b),intent(in)         :: nLayers                  ! total number of layers
  integer(i4b),intent(in)         :: nLeadDim                 ! length of the leading dimension of the Jacobian matrix (nBands or nState)
  integer(i4b),intent(in)         :: nState                   ! total number of state variables
- integer(i4b),intent(in)         :: ixMatrix                 ! type of matrix (full or band diagonal) 
+ integer(i4b),intent(in)         :: ixMatrix                 ! type of matrix (full or band diagonal)
  logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
@@ -144,7 +144,7 @@ contains
  real(dp),intent(in)             :: xScale(:)                ! "variable" scaling vector, i.e., for state variables
  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
- real(dp),intent(inout)          :: dMat(:)                  ! diagonal matrix (excludes flux derivatives) 
+ real(dp),intent(inout)          :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
  real(dp),intent(in)             :: fOld                     ! old function evaluation
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
@@ -197,7 +197,7 @@ contains
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associations to information in data structures
- associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization 
+ associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summaSolve/'
@@ -222,7 +222,7 @@ contains
                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
                   ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                  ! input: data structures        
+                  ! input: data structures
                   indx_data,                      & ! intent(in):    index data
                   prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
                   diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
@@ -367,7 +367,7 @@ contains
    ! compute the gradient of the function vector
    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
+
    ! compute the initial slope
    slopeInit = dot_product(gradScaled,newtStepScaled)
 
@@ -586,7 +586,7 @@ contains
   integer(i4b)                   :: iCheck                   ! check the model state variables
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   real(dp),parameter             :: delX=1._dp               ! trial increment
-  real(dp)                       :: xIncrement(nState)       ! trial increment 
+  real(dp)                       :: xIncrement(nState)       ! trial increment
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
 
@@ -595,15 +595,15 @@ contains
    message=trim(message)//'unexpected size of input vectors'
    err=20; return
   endif
-  
+
   ! initialize brackets to double precision Indian bread
-  if(iter==1)then 
+  if(iter==1)then
    xMax = dNaN
    xMin = dNaN
   endif
 
   ! get the residual vector
-  rVec = real(rVecScaled, dp)*fScale 
+  rVec = real(rVecScaled, dp)*fScale
 
   ! update brackets
   if(rVec(1)<0._dp)then
@@ -614,7 +614,7 @@ contains
 
   ! get the iteration increment
   xInc = newtStepScaled*xScale
-  
+
   ! *****
   ! * case 1: the iteration increment is the same sign as the residual vector
   if(xInc(1)*rVec(1) > 0._dp)then
@@ -632,7 +632,7 @@ contains
     call imposeConstraints(stateVecNew,xIncrement,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
     stateVecNew = stateVecNew + xIncrement
-    
+
     ! evaluate summa
     call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -650,10 +650,10 @@ contains
     ! print progress
     !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
     !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
- 
+
     ! check that the brackets are defined
     if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
-    
+
     ! check that we found the brackets
     if(iCheck==nCheck)then
      message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
@@ -669,12 +669,12 @@ contains
    ! impose solution constraints
    call imposeConstraints(stateVecTrial,xInc,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  
+
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
- 
+
   endif  ! if the iteration increment is the same sign as the residual vecto
-  
+
   ! bi-section
   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
   if(bracketsDefined)then
@@ -682,12 +682,12 @@ contains
    doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
    if(doBisection) stateVecNew(1) = 0.5_dp*(xMin+xMax)
   endif
-  
+
   ! evaluate summa
   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-  ! check feasibility (should be feasible because of the call to imposeConstraints 
+  ! check feasibility (should be feasible because of the call to imposeConstraints
   if(.not.feasible)then; err=20; message=trim(message)//'infeasible solution'; return; endif
 
   ! check convergence
@@ -696,9 +696,77 @@ contains
   !print*, 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
   !         bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
   !print*, 'PAUSE'; read(*,*)
-  
+
   end subroutine safeRootfinder
-  
+
+  ! *********************************************************************************************************
+  ! * internal subroutine numJacobian: get the brackets
+  ! *********************************************************************************************************
+  subroutine getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
+  USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
+  implicit none
+  ! dummies
+  real(dp),intent(in)            :: stateVecTrial(:)         ! trial state vector
+  real(dp),intent(out)           :: stateVecNew(:)           ! new state vector
+  real(dp),intent(out)           :: xMin,xMax                ! constraints
+  integer(i4b),intent(inout)     :: err                      ! error code
+  character(*),intent(out)       :: message                  ! error message
+  ! locals
+  integer(i4b)                   :: iCheck                   ! check the model state variables
+  integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
+  logical(lgt)                   :: feasible                 ! feasibility of the solution
+  real(dp),parameter             :: delX=1._dp               ! trial increment
+  real(dp)                       :: xIncrement(nState)       ! trial increment
+  ! initialize
+  err=0; message='getBrackets/'
+
+  ! initialize state vector
+  stateVecNew = stateVecTrial
+
+  ! get xIncrement
+  xIncrement = -sign((/delX/),rVec)
+
+  ! try the increment a few times
+  do iCheck=1,nCheck
+
+   ! impose solution constraints
+   call imposeConstraints(stateVecNew,xIncrement,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+   ! increment state vector
+   stateVecNew = stateVecNew + xIncrement
+
+   ! evaluate summa
+   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+   ! check that the trial value is feasible (should not happen because of the call to impose constraints)
+   if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
+
+   ! update brackets
+   if(real(resVecNew(1), dp)<0._dp)then
+    xMin = stateVecNew(1)
+   else
+    xMax = stateVecNew(1)
+   endif
+
+   ! print progress
+   !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
+   !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
+
+   ! check that the brackets are defined
+   if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
+
+   ! check that we found the brackets
+   if(iCheck==nCheck)then
+    message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
+    err=20; return
+   endif
+
+  end do  ! multiple checks
+
+  end subroutine getBrackets
+
 
   ! *********************************************************************************************************
   ! * internal subroutine numJacobian: compute the numerical Jacobian matrix
@@ -724,7 +792,7 @@ contains
   integer(i4b)                   :: iJac                       ! index of row of the Jacobian matrix
   integer(i4b),parameter         :: ixNumFlux=1001             ! named variable for the flux-based form of the numerical Jacobian
   integer(i4b),parameter         :: ixNumRes=1002              ! named variable for the residual-based form of the numerical Jacobian
-  integer(i4b)                   :: ixNumType=ixNumRes         ! method used to calculate the numerical Jacobian 
+  integer(i4b)                   :: ixNumType=ixNumRes         ! method used to calculate the numerical Jacobian
   ! ----------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='numJacobian/'
@@ -1080,7 +1148,7 @@ contains
   ! associate variables with indices of model state variables
   associate(&
   ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
-  ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states 
+  ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
   ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
   ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
   ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
@@ -1113,54 +1181,54 @@ contains
   ! -----------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='imposeConstraints/'
-  
+
   ! ** limit temperature increment to zMaxTempIncrement
   if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
    iMax       = maxloc( abs(xInc(ixNrgOnly)) )                            ! index of maximum temperature increment
    xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) + epsT )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   end if
-  
+
   ! ** impose solution constraints for vegetation
   ! (stop just above or just below the freezing point if crossing)
   ! --------------------------------------------------------------------------------------------------------------------
   ! canopy temperatures
-  
+
   if(ixVegNrg/=integerMissing)then
-  
+
    ! initialize
    critDiff    = Tfreeze - stateVecTrial(ixVegNrg)
    crosTempVeg = .false.
-  
+
    ! initially frozen (T < Tfreeze)
    if(critDiff > 0._dp)then
     if(xInc(ixVegNrg) > critDiff)then
      crosTempVeg = .true.
      cInc        = critDiff + epsT  ! constrained temperature increment (K)
     end if
-  
+
    ! initially unfrozen (T > Tfreeze)
    else
     if(xInc(ixVegNrg) < critDiff)then
      crosTempVeg = .true.
      cInc        = critDiff - epsT  ! constrained temperature increment (K)
     end if
-  
+
    end if  ! switch between frozen and unfrozen
-  
+
    ! scale iterations
    if(crosTempVeg)then
     xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
     xInc        = xIncFactor*xInc      ! scale iteration increments
    endif
- 
+
   endif  ! if the state variable for canopy temperature is included within the state subset
- 
+
   ! --------------------------------------------------------------------------------------------------------------------
   ! canopy liquid water
 
   if(ixVegHyd/=integerMissing)then
-  
+
    ! check if new value of storage will be negative
    if(stateVecTrial(ixVegHyd)+xInc(ixVegHyd) < 0._dp)then
     ! scale iteration increment
@@ -1168,13 +1236,13 @@ contains
     xIncFactor = cInc/xInc(ixVegHyd)                                              ! scaling factor for the iteration increment (-)
     xInc       = xIncFactor*xInc                                                  ! new iteration increment
    end if
-  
+
   endif  ! if the state variable for canopy water is included within the state subset
-  
+
   ! --------------------------------------------------------------------------------------------------------------------
   ! ** impose solution constraints for snow
   if(nSnowOnlyNrg > 0)then
-  
+
    ! loop through snow layers
    checksnow: do iLayer=1,nSnow  ! necessary to ensure that NO layers rise above Tfreeze
 
@@ -1193,12 +1261,12 @@ contains
    end do checkSnow
 
   endif  ! if there are state variables for energy in the snow domain
-  
+
   ! --------------------------------------------------------------------------------------------------------------------
   ! - check if drain more than what is available
   ! NOTE: change in total water is only due to liquid flux
   if(nSnowOnlyHyd>0)then
-  
+
    ! loop through snow layers
    do iLayer=1,nSnow
 
@@ -1228,9 +1296,9 @@ contains
     endif
 
    end do  ! looping through snow layers
-  
+
   endif   ! if there are state variables for liquid water in the snow domain
-  
+
   ! --------------------------------------------------------------------------------------------------------------------
   ! ** impose solution constraints for soil temperature
   if(nSoilOnlyNrg>0)then
@@ -1241,9 +1309,9 @@ contains
 
     ! - define index of the state variables within the state subset
     ixNrg = ixSoilOnlyNrg(iLayer)
-    ixLiq = ixSoilOnlyHyd(iLayer)       
+    ixLiq = ixSoilOnlyHyd(iLayer)
 
-    ! get the matric potential of total water 
+    ! get the matric potential of total water
     if(ixLiq/=integerMissing)then
      xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
     else
@@ -1252,30 +1320,30 @@ contains
 
     ! identify the critical point when soil begins to freeze (TcSoil)
     TcSoil = crit_soilT(xPsi00)
-   
+
     ! get the difference from the current state and the crossing point (K)
     critDiff = TcSoil - stateVecTrial(ixNrg)
-   
+
     ! * initially frozen (T < TcSoil)
     if(critDiff > 0._dp)then
-   
+
      ! (check crossing above zero)
      if(xInc(ixNrg) > critDiff)then
       crosFlag(iLayer) = .true.
       xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
      endif
-   
+
     ! * initially unfrozen (T > TcSoil)
     else
-   
+
      ! (check crossing below zero)
      if(xInc(ixNrg) < critDiff)then
       crosFlag(iLayer) = .true.
       xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
      endif
-   
+
     endif  ! (switch between initially frozen and initially unfrozen)
-   
+
    end do  ! (loop through soil layers)
   endif   ! (if there are both energy and liquid water state variables)
 
@@ -1293,10 +1361,10 @@ contains
 
    end do  ! (loop through soil layers)
   endif   ! (if there are both energy and liquid water state variables)
-  
+
   ! end association with variables with indices of model state variables
   end associate
-  
+
   end subroutine imposeConstraints
 
  end subroutine summaSolve

@@ -406,9 +406,9 @@ contains
   checkMassBalance = (.not.scalarSolution)
 
   ! update prognostic variables
-  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,scalarSolution,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
-                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                                         & ! input-output: data structures
-                  waterBalanceError,nrgFluxModified,err,cmessage)                                                                         ! output: flags and error control
+  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
+                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                          & ! input-output: data structures
+                  waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
   if(err/=0)then
    message=trim(message)//trim(cmessage)
    if(err>0) return
@@ -539,9 +539,9 @@ contains
  ! **********************************************************************************************************
  ! private subroutine updateProg: update prognostic variables
  ! **********************************************************************************************************
- subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,explicitEuler,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
-                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                                 & ! input-output: data structures
-                       waterBalanceError,nrgFluxModified,err,message)                                                                  ! output: flags and error control
+ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
+                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                   & ! input-output: data structures
+                       waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -551,7 +551,6 @@ contains
  integer(i4b)     ,intent(in)    :: nSoil                          ! number of soil layers
  integer(i4b)     ,intent(in)    :: nLayers                        ! total number of layers
  logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
- logical(lgt)     ,intent(in)    :: explicitEuler                  ! flag to denote computing the explicit Euler solution
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
  real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
  real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
@@ -694,7 +693,6 @@ contains
  call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                 explicitEuler,            & ! intent(in):    flag to denote computing the explicit Euler solution
                  mpar_data,                & ! intent(in):    model parameters for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
@@ -815,8 +813,8 @@ contains
  endif  ! if checking the mass balance
 
  ! -----
- ! * remove untapped melt energy (in the explicit Euler method)...
- ! ---------------------------------------------------------------
+ ! * remove untapped melt energy...
+ ! --------------------------------
 
  ! only work with energy state variables
  if(size(ixNrgOnly)>0)then  ! energy state variables exist

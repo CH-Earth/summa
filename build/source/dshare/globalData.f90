@@ -30,8 +30,8 @@ MODULE globalData
  USE data_types,only:var_info        ! metadata for variables in each model structure
  USE data_types,only:flux2state      ! extended metadata to define flux-to-state mapping
  USE data_types,only:extended_info   ! extended metadata for variables in each model structure
- USE data_types,only:struct_info     ! summary information on all data structures 
- USE data_types,only:var_i           ! vector of integers 
+ USE data_types,only:struct_info     ! summary information on all data structures
+ USE data_types,only:var_i           ! vector of integers
  ! number of variables in each data structure
  USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
  USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
@@ -53,7 +53,7 @@ MODULE globalData
  ! define missing values
  real(qp),parameter,public                   :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
  real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
- integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer 
+ integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer
 
  ! define run modes
  integer(i4b),parameter,public               :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
@@ -76,7 +76,7 @@ MODULE globalData
  ! Define metadata for model forcing datafile
  type(file_info),save,public,allocatable     :: forcFileInfo(:)         ! file info for model forcing data
 
- ! define default parameter values and parameter bounds 
+ ! define default parameter values and parameter bounds
  type(par_info),save,public                  :: localParFallback(maxvarMpar) ! local column default parameters
  type(par_info),save,public                  :: basinParFallback(maxvarBpar) ! basin-average default parameters
 
@@ -121,7 +121,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: iname_soil=1002         ! named variable to denote a soil layer
  integer(i4b),parameter,public               :: iname_snow=1003         ! named variable to denote a snow layer
 
- ! define named variables to describe the state varible type            
+ ! define named variables to describe the state varible type
  integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space
  integer(i4b),parameter,public               :: iname_nrgCanopy=2002    ! named variable defining the energy of the vegetation canopy
  integer(i4b),parameter,public               :: iname_watCanopy=2003    ! named variable defining the mass of total water on the vegetation canopy
