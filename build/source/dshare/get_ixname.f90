@@ -790,13 +790,6 @@ contains
   case('ixSoilState'         ); get_ixINDEX = iLookINDEX%ixSoilState         ! list of indices for all soil layers                                      (-)
   case('ixLayerState'        ); get_ixINDEX = iLookINDEX%ixLayerState        ! list of indices for all model layers                                     (-)
   case('ixLayerActive'       ); get_ixINDEX = iLookINDEX%ixLayerActive       ! list of indices for all active model layers                              (-)
-  ! indices for the model output files
-  case('midSnowStartIndex'   ); get_ixINDEX = iLookINDEX%midSnowStartIndex   ! start index of the midSnow vector for a given timestep                   (-)
-  case('midSoilStartIndex'   ); get_ixINDEX = iLookINDEX%midSoilStartIndex   ! start index of the midSoil vector for a given timestep                   (-)
-  case('midTotoStartIndex'   ); get_ixINDEX = iLookINDEX%midTotoStartIndex   ! start index of the midToto vector for a given timestep                   (-)
-  case('ifcSnowStartIndex'   ); get_ixINDEX = iLookINDEX%ifcSnowStartIndex   ! start index of the ifcSnow vector for a given timestep                   (-)
-  case('ifcSoilStartIndex'   ); get_ixINDEX = iLookINDEX%ifcSoilStartIndex   ! start index of the ifcSoil vector for a given timestep                   (-)
-  case('ifcTotoStartIndex'   ); get_ixINDEX = iLookINDEX%ifcTotoStartIndex   ! start index of the ifcToto vector for a given timestep                   (-)
   case default
    get_ixindex = integerMissing
  end select
