@@ -149,6 +149,10 @@ MODULE globalData
  integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
  integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
 
+ ! define indices describing the indices of the first and last HRUs in the forcing file
+ integer(i4b),save,public                    :: ixHRUfile_min           ! minimum index
+ integer(i4b),save,public                    :: ixHRUfile_max           ! maximum index
+
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map
  type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map
