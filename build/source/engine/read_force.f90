@@ -127,7 +127,7 @@ contains
  ! **********************************************************************************************
  ! ***** part 0: if initial step, then open first file and find initial model time step
  ! *****         loop through as many forcing files as necessary to find the initial model step
- ! ********************************************************************************************** 
+ ! **********************************************************************************************
  ! check if file is open
  if(ncid==integerMissing)then ! file is closed if ncid==integerMissing
 
@@ -140,7 +140,7 @@ contains
 
    ! open netCDF file
    call openForcingFile()
- 
+
    ! how many time steps in current file?
    err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time dimension/'//trim(nf90_strerror(err)); return; endif
    err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time dimension size/'//trim(nf90_strerror(err)); return; endif
@@ -200,7 +200,7 @@ contains
  end if  ! if the file is not yet open
 
  ! **********************************************************************************************
- ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it, 
+ ! ***** part 1: if file open, check to see if we've reached the end of the file, if so close it,
  ! *****         and open new file
  ! *****         Then read the data
  ! **********************************************************************************************
@@ -406,16 +406,16 @@ contains
                                          yearLength                             ! number of days in the current year
   !pause ' checking time'
  end if
- 
+
  contains
- 
+
   ! **************************************************
-  ! * open the NetCDF forcing file and get the time information 
+  ! * open the NetCDF forcing file and get the time information
   ! **************************************************
   subroutine openForcingFile()
   ! variables with local scope
   integer(i4b) :: iyyy,im,id,ih,imin
-   
+
    ! define new filename
    infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
@@ -423,7 +423,7 @@ contains
    mode=nf90_NoWrite
    call nc_file_open(trim(infile),mode,ncid,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
+
    ! get definition of time data
    err = nf90_inq_varid(ncid,'time',varId);                       if(err/=nf90_noerr)then; message=trim(message)//'cannot find time variable/'//trim(nf90_strerror(err)); return; endif
 
@@ -441,7 +441,7 @@ contains
    call compjulday(iyyy,im,id,ih,imin,dsec,                & ! output = year, month, day, hour, minute, second
                    refJulday_data,err,cmessage)              ! output = julian day (fraction of day) + error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   
+
    ! get the time multiplier needed to convert time to units of days
    select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
     case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp
