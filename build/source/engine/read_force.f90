@@ -106,9 +106,9 @@ contains
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
  real(dp),allocatable              :: dataVec(:)       ! vector of data
  real(dp),dimension(1)             :: dataVal          ! single data value
- logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
- !integer(i4b)                      :: iyyy,im,id       ! year, month, day
- !integer(i4b)                      :: ih,imin          ! hour, minute
+ logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist 
+ !integer(i4b)                      :: iyyy,im,id       ! year, month, day 
+ !integer(i4b)                      :: ih,imin          ! hour, minute   
  real(dp)                          :: dsec             ! double precision seconds (not used)
  logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
  ! Start procedure here
@@ -274,11 +274,11 @@ contains
 
   ! loop through forcing data variables
   do iNC=1,forcFileInfo(iFile)%nVars
-
+  
    ! get the variable name
    err = nf90_inquire_variable(ncid,iNC,name=varName)
    if(err/=nf90_noerr)then; message=trim(message)//'problem finding variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-
+  
    ! make sure the variable name is one desired
    select case(trim(varname))
     case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
@@ -302,12 +302,12 @@ contains
    ! loop through GRUs and HRUs
    do iGRU=1,size(gru_struc)
     do iHRU=1,gru_struc(iGRU)%hruCount
-
+  
      ! define global HRU
      iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
      iHRU_local  = (iHRU_global - ixHRUfile_min)+1
      !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
-
+ 
      ! read forcing data for a single HRU
      if(.not.simultaneousRead)then
       err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
@@ -341,7 +341,7 @@ contains
     endif    ! if variable is missing
    end do   ! looping through variables
   end if   ! if any variables are missing
-
+  
   ! deallocate space for data
   deallocate(dataVec, stat=err)
   if(err/=0)then

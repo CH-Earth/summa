@@ -163,7 +163,7 @@ implicit none
 ! *****************************************************************************
 ! (0) variable definitions
 ! *****************************************************************************
-! define the statistics structures
+! define the statistics structures 
 type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
 type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
 type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
@@ -539,7 +539,7 @@ do iGRU=1,nGRU
   kHRU=0
   ! check the network topology (only expect there to be one downslope HRU)
   do jHRU=1,gru_struc(iGRU)%hruCount
-   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruId))then
     if(kHRU==0)then  ! check there is a unique match
      kHRU=jHRU
     else
@@ -629,7 +629,7 @@ do iGRU=1,nGRU
   upArea(iGRU)%hru(iHRU) = 0._dp
   do jHRU=1,gru_struc(iGRU)%hruCount
    ! check if jHRU flows into iHRU; assume no exchange between GRUs
-   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex))then
+   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId))then
     upArea(iGRU)%hru(iHRU) = upArea(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
    endif   ! (if jHRU is an upstream HRU)
   end do  ! jHRU
@@ -817,7 +817,7 @@ do modelTimeStep=1,numtim
     call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
-    ! re-initalize the indices for model writing
+    ! re-initalize the indices for model writing 
     waterYearTimeStep=1
     outputTimeStep=1
    end do  ! (looping through HRUs)
@@ -953,7 +953,7 @@ do modelTimeStep=1,numtim
    kHRU = 0
    ! identify the downslope HRU
    dsHRU: do jHRU=1,gru_struc(iGRU)%hruCount
-    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruIndex))then
+    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruId))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
       exit dsHRU
@@ -1026,8 +1026,8 @@ do modelTimeStep=1,numtim
  call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
 
  ! write the model output to the NetCDF file
- ! Passes the full metadata structure rather than the stats metadata structure because
- !  we have the option to write out data of types other than statistics.
+ ! Passes the full metadata structure rather than the stats metadata structure because 
+ !  we have the option to write out data of types other than statistics. 
  !  Thus, we must also pass the stats parent->child maps from childStruct.
  call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,message); call handle_err(err,message)
  call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,message); call handle_err(err,message)
@@ -1275,7 +1275,7 @@ contains
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
     print*, 'initial time step  = ', dt_init(iGRU)%hru(iHRU)
-    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruIndex)
+    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId)
     print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
     print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
     print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)%dat(1)            ! soil residual volumetric water content (-)

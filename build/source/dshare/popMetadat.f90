@@ -85,7 +85,7 @@ contains
  ! -----
  ! * categorical data...
  ! ---------------------
- type_meta(iLookTYPE%hruIndex)               = var_info('hruIndex'      , 'index defining the hydrologic response unit', '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ type_meta(iLookTYPE%hruId)                  = var_info('hruId'         , 'id defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  type_meta(iLookTYPE%vegTypeIndex)           = var_info('vegTypeIndex'  , 'index defining vegetation type'             , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  type_meta(iLookTYPE%soilTypeIndex)          = var_info('soilTypeIndex' , 'index defining soil type'                   , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  type_meta(iLookTYPE%slopeTypeIndex)         = var_info('slopeTypeIndex', 'index defining slope'                       , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)

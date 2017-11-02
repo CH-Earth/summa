@@ -116,7 +116,7 @@ MODULE var_lookup
  ! (4) define local classification of veg, soil, etc.
  ! ***********************************************************************************************************
  type, public  ::  iLook_type
-  integer(i4b)    :: hruIndex      = integerMissing  ! index defining hydrologic response unit (-)
+  integer(i4b)    :: hruId         = integerMissing  ! id defining hydrologic response unit (-)
   integer(i4b)    :: vegTypeIndex  = integerMissing  ! index defining vegetation type (-)
   integer(i4b)    :: soilTypeIndex = integerMissing  ! index defining soil type (-)
   integer(i4b)    :: slopeTypeIndex= integerMissing  ! index defining slope (-)

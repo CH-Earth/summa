@@ -111,7 +111,7 @@ contains
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
  err = nf90_get_var(ncID,varID,gru_id);        if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
 
- ! read hruIndex from netcdf file
+ ! read hru_id from netcdf file
  err = nf90_inq_varid(ncID,"hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding hruId'; return; end if
  err = nf90_get_var(ncID,varID,hru_id);        if (err/=0) then; message=trim(message)//'problem reading hruId'; return; end if
 
@@ -273,11 +273,7 @@ end subroutine read_dimension
 
     ! get the index of the variable
     varType = categorical
-    if(trim(varName) == "hruId") then
-     varIndx = get_ixType("hruIndex")
-    else
-     varIndx = get_ixType(varName)
-    end if
+    varIndx = get_ixType(varName)
     checkType(varIndx) = .true.
 
     ! check that the variable could be identified in the data structure
