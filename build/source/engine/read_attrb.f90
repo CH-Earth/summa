@@ -97,7 +97,7 @@ contains
  endif
 
  ! check dimensions
- if ((present(startGRU)).and.(startGRU + nGRU > fileGRU)) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
+ if ((present(startGRU)).and.(startGRU + nGRU - 1  > fileGRU)) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
  if ((present(checkHRU)).and.(checkHRU        > fileHRU)) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'       ; return; end if
 
  ! *********************************************************************************************
