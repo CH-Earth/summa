@@ -447,7 +447,7 @@ contains
   case('scalarSAI'                      ); get_ixdiag = iLookDIAG%scalarSAI                        ! one-sided stem area index (m2 m-2)
   case('scalarExposedLAI'               ); get_ixdiag = iLookDIAG%scalarExposedLAI                 ! exposed leaf area index after burial by snow (m2 m-2)
   case('scalarExposedSAI'               ); get_ixdiag = iLookDIAG%scalarExposedSAI                 ! exposed stem area index after burial by snow (m2 m-2)
-  case('scalarAdjMeasHeight'            ); get_ixdiag = iLookDIAG%scalarAdjMeasHeight              ! adjusted measurement height for cases snowDepth>mHeight (m) 
+  case('scalarAdjMeasHeight'            ); get_ixdiag = iLookDIAG%scalarAdjMeasHeight              ! adjusted measurement height for cases snowDepth>mHeight (m)
   case('scalarCanopyIceMax'             ); get_ixdiag = iLookDIAG%scalarCanopyIceMax               ! maximum interception storage capacity for ice (kg m-2)
   case('scalarCanopyLiqMax'             ); get_ixdiag = iLookDIAG%scalarCanopyLiqMax               ! maximum interception storage capacity for liquid water (kg m-2)
   case('scalarGrowingSeasonIndex'       ); get_ixdiag = iLookDIAG%scalarGrowingSeasonIndex         ! growing season index (0=off, 1=on)
@@ -489,7 +489,7 @@ contains
   case('scalarRiBulkGround'             ); get_ixdiag = iLookDIAG%scalarRiBulkGround               ! bulk Richardson number for the ground surface (-)
   case('scalarCanopyStabilityCorrection'); get_ixdiag = iLookDIAG%scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
   case('scalarGroundStabilityCorrection'); get_ixdiag = iLookDIAG%scalarGroundStabilityCorrection  ! stability correction for the ground surface (-)
-  ! evapotranspiration 
+  ! evapotranspiration
   case('scalarIntercellularCO2Sunlit'   ); get_ixdiag = iLookDIAG%scalarIntercellularCO2Sunlit     ! carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
   case('scalarIntercellularCO2Shaded'   ); get_ixdiag = iLookDIAG%scalarIntercellularCO2Shaded     ! carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
   case('scalarTranspireLim'             ); get_ixdiag = iLookDIAG%scalarTranspireLim               ! aggregate soil moisture and aquifer storage limit on transpiration (-)
@@ -500,13 +500,13 @@ contains
   case('mLayerRootDensity'              ); get_ixdiag = iLookDIAG%mLayerRootDensity                ! fraction of roots in each soil layer (-)
   case('scalarAquiferRootFrac'          ); get_ixdiag = iLookDIAG%scalarAquiferRootFrac            ! fraction of roots below the soil profile (-)
   ! canopy hydrology
-  case('scalarFracLiqVeg'               ); get_ixdiag = iLookDIAG%scalarFracLiqVeg                 ! fraction of liquid water on vegetation (-) 
+  case('scalarFracLiqVeg'               ); get_ixdiag = iLookDIAG%scalarFracLiqVeg                 ! fraction of liquid water on vegetation (-)
   case('scalarCanopyWetFraction'        ); get_ixdiag = iLookDIAG%scalarCanopyWetFraction          ! fraction of canopy that is wet
   ! snow hydrology
   case('scalarSnowAge'                  ); get_ixdiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixdiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('spectralSnowAlbedoDirect'       ); get_ixdiag = iLookDIAG%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  case('mLayerFracLiqSnow'              ); get_ixdiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-) 
+  case('mLayerFracLiqSnow'              ); get_ixdiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-)
   case('mLayerThetaResid'               ); get_ixdiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixdiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixdiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
@@ -549,10 +549,10 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! net energy and mass fluxes for the vegetation domain
-  case('scalarCanairNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanairNetNrgFlux           ! net energy flux for the canopy air space (W m-2)  
-  case('scalarCanopyNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetNrgFlux           ! net energy flux for the vegetation canopy (W m-2)  
-  case('scalarGroundNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarGroundNetNrgFlux           ! net energy flux for the ground surface (W m-2)  
-  case('scalarCanopyNetLiqFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetLiqFlux           ! net liquid water flux for the vegetation canopy (kg m-2 s-1)  
+  case('scalarCanairNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanairNetNrgFlux           ! net energy flux for the canopy air space (W m-2)
+  case('scalarCanopyNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetNrgFlux           ! net energy flux for the vegetation canopy (W m-2)
+  case('scalarGroundNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarGroundNetNrgFlux           ! net energy flux for the ground surface (W m-2)
+  case('scalarCanopyNetLiqFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetLiqFlux           ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
   ! forcing
   case('scalarRainfall'                 ); get_ixflux = iLookFLUX%scalarRainfall                   ! computed rainfall rate (kg m-2 s-1)
   case('scalarSnowfall'                 ); get_ixflux = iLookFLUX%scalarSnowfall                   ! computed snowfall rate (kg m-2 s-1)
@@ -620,11 +620,11 @@ contains
   case('iLayerAdvectiveFlux'            ); get_ixflux = iLookFLUX%iLayerAdvectiveFlux              ! advective energy flux at layer interfaces at end of time step (W m-2)
   case('iLayerNrgFlux'                  ); get_ixflux = iLookFLUX%iLayerNrgFlux                    ! energy flux at layer interfaces at the end of the time step (W m-2)
   case('mLayerNrgFlux'                  ); get_ixflux = iLookFLUX%mLayerNrgFlux                    ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
-  ! liquid water fluxes for the snow domain 
+  ! liquid water fluxes for the snow domain
   case('scalarSnowDrainage'             ); get_ixflux = iLookFLUX%scalarSnowDrainage               ! drainage from the bottom of the snow profile (m s-1)
   case('iLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('mLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
-  ! liquid water fluxes for the soil domain 
+  ! liquid water fluxes for the soil domain
   case('scalarRainPlusMelt'             ); get_ixflux = iLookFLUX%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarMaxInfilRate'             ); get_ixflux = iLookFLUX%scalarMaxInfilRate               ! maximum infiltration rate (m s-1)
   case('scalarInfiltration'             ); get_ixflux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
@@ -777,9 +777,9 @@ contains
   case('ixSnowOnlyHyd'       ); get_ixINDEX = iLookINDEX%ixSnowOnlyHyd       ! indices IN THE STATE SUBSET for hydrology states in the snow domain      (-)
   case('ixSoilOnlyHyd'       ); get_ixINDEX = iLookINDEX%ixSoilOnlyHyd       ! indices IN THE STATE SUBSET for hydrology states in the soil domain      (-)
   ! vectors of indices for specfic state types within specific sub-domains
-  case('ixNrgCanair'         ); get_ixINDEX = iLookINDEX%ixNrgCanair         ! indices IN THE STATE SUBSET for energy states in canopy air space domain (-) 
-  case('ixNrgCanopy'         ); get_ixINDEX = iLookINDEX%ixNrgCanopy         ! indices IN THE STATE SUBSET for energy states in the canopy domain       (-) 
-  case('ixHydCanopy'         ); get_ixINDEX = iLookINDEX%ixHydCanopy         ! indices IN THE STATE SUBSET for hydrology states in the canopy domain    (-) 
+  case('ixNrgCanair'         ); get_ixINDEX = iLookINDEX%ixNrgCanair         ! indices IN THE STATE SUBSET for energy states in canopy air space domain (-)
+  case('ixNrgCanopy'         ); get_ixINDEX = iLookINDEX%ixNrgCanopy         ! indices IN THE STATE SUBSET for energy states in the canopy domain       (-)
+  case('ixHydCanopy'         ); get_ixINDEX = iLookINDEX%ixHydCanopy         ! indices IN THE STATE SUBSET for hydrology states in the canopy domain    (-)
   case('ixNrgLayer'          ); get_ixINDEX = iLookINDEX%ixNrgLayer          ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
   case('ixHydLayer'          ); get_ixINDEX = iLookINDEX%ixHydLayer          ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
@@ -909,12 +909,12 @@ contains
  end function get_VarTypeName
 
  ! *******************************************************************************************************************
- ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the 
+ ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the
  ! structrue that it was found in
  ! *******************************************************************************************************************
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
  USE nrtype
- USE globalData,only:structInfo        ! information on the data structures                  
+ USE globalData,only:structInfo        ! information on the data structures
  implicit none
 
  ! dummies

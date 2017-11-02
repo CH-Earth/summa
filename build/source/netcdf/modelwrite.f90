@@ -161,8 +161,8 @@ contains
  integer(i4b)                     :: nSoil             ! number of soil layers
  integer(i4b)                     :: nLayers           ! total number of layers
  ! output arrays
- integer(i4b)                     :: datLength         ! length of each data vector 
- integer(i4b)                     :: maxLength         ! maximum length of each data vector 
+ integer(i4b)                     :: datLength         ! length of each data vector
+ integer(i4b)                     :: maxLength         ! maximum length of each data vector
  real(dp)                         :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
  real(dp)                         :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
  integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
@@ -184,7 +184,7 @@ contains
    ! handle time first
    if (meta(iVar)%varName=='time')then
     ! get variable index
-    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
+    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
     call netcdf_err(err,message); if (err/=0) return
     ! define HRUs and GRUs (only write once)
     iGRU=1; iHRU=1
@@ -194,7 +194,7 @@ contains
       err = nf90_put_var(ncid(iFreq),ncVarID,(/stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(iLookStat%inst)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
       call netcdf_err(err,message); if (err/=0) return
       cycle ! move onto the next variable
-     class default; err=20; message=trim(message)//'time variable must be of type gru_hru_doubleVec (forcing statistics structure)'; return; 
+     class default; err=20; message=trim(message)//'time variable must be of type gru_hru_doubleVec (forcing statistics structure)'; return;
     end select
    end if  ! id time
 
@@ -244,12 +244,12 @@ contains
        ! get the length of each data vector
        select case (meta(iVar)%varType)
         case(iLookVarType%wLength); datLength = maxSpectral
-        case(iLookVarType%midToto); datLength = nLayers    
-        case(iLookVarType%midSnow); datLength = nSnow      
-        case(iLookVarType%midSoil); datLength = nSoil      
-        case(iLookVarType%ifcToto); datLength = nLayers+1  
-        case(iLookVarType%ifcSnow); datLength = nSnow+1    
-        case(iLookVarType%ifcSoil); datLength = nSoil+1    
+        case(iLookVarType%midToto); datLength = nLayers
+        case(iLookVarType%midSnow); datLength = nSnow
+        case(iLookVarType%midSoil); datLength = nSoil
+        case(iLookVarType%ifcToto); datLength = nLayers+1
+        case(iLookVarType%ifcSnow); datLength = nSnow+1
+        case(iLookVarType%ifcSoil); datLength = nSoil+1
         case default; cycle
        end select ! vartype
 
@@ -266,12 +266,12 @@ contains
      ! get the maximum length of each data vector
      select case (meta(iVar)%varType)
       case(iLookVarType%wLength); maxLength = maxSpectral
-      case(iLookVarType%midToto); maxLength = maxLayers    
-      case(iLookVarType%midSnow); maxLength = maxLayers-nSoil      
-      case(iLookVarType%midSoil); maxLength = nSoil      
-      case(iLookVarType%ifcToto); maxLength = maxLayers+1  
-      case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1    
-      case(iLookVarType%ifcSoil); maxLength = nSoil+1    
+      case(iLookVarType%midToto); maxLength = maxLayers
+      case(iLookVarType%midSnow); maxLength = maxLayers-nSoil
+      case(iLookVarType%midSoil); maxLength = nSoil
+      case(iLookVarType%ifcToto); maxLength = maxLayers+1
+      case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1
+      case(iLookVarType%ifcSoil); maxLength = nSoil+1
       case default; cycle
      end select ! vartype
 
@@ -363,7 +363,7 @@ contains
  end subroutine writeBasin
 
  ! **************************************************************************************
- ! public subroutine writeTime: write current time to all files 
+ ! public subroutine writeTime: write current time to all files
  ! **************************************************************************************
  subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info                       ! metadata type
@@ -396,7 +396,7 @@ contains
     if (.not.meta(iVar)%statFlag(iLookStat%inst)) cycle
 
     ! get variable id in file
-    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID) 
+    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
     if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
     call netcdf_err(err,message)
     if (err/=0) then; err=20; return; end if
@@ -410,7 +410,7 @@ contains
    end do ! iVar
   end do ! iFreq
 
- end subroutine writeTime 
+ end subroutine writeTime
 
  ! *********************************************************************************************************
  ! public subroutine printRestartFile: print a re-start file
@@ -418,15 +418,15 @@ contains
  subroutine writeRestart(filename,         & ! intent(in): name of restart file
                          nGRU,             & ! intent(in): number of GRUs
                          nHRU,             & ! intent(in): number of HRUs
-                         prog_meta,        & ! intent(in): prognostics metadata 
+                         prog_meta,        & ! intent(in): prognostics metadata
                          prog_data,        & ! intent(in): prognostics data
-                         indx_meta,        & ! intent(in): index metadata 
+                         indx_meta,        & ! intent(in): index metadata
                          indx_data,        & ! intent(in): index data
                          err,message)        ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! access the derived types to define the data structures
- USE data_types,only:var_info               ! metadata 
+ USE data_types,only:var_info               ! metadata
  ! access named variables defining elements in the data structures
  USE var_lookup,only:iLookINDEX             ! named variables for structure elements
  USE var_lookup,only:iLookVarType           ! named variables for structure elements
@@ -441,10 +441,10 @@ contains
  character(len=256),intent(in)      :: filename      ! name of the restart file
  integer(i4b),intent(in)            :: nGRU          ! number of GRUs
  integer(i4b),intent(in)            :: nHRU          ! number of HRUs
- type(var_info),intent(in)          :: prog_meta(:)  ! metadata 
- type(gru_hru_doubleVec),intent(in) :: prog_data     ! prognostic vars 
- type(var_info),intent(in)          :: indx_meta(:)  ! metadata 
- type(gru_hru_intVec),intent(in)    :: indx_data     ! indexing vars 
+ type(var_info),intent(in)          :: prog_meta(:)  ! metadata
+ type(gru_hru_doubleVec),intent(in) :: prog_data     ! prognostic vars
+ type(var_info),intent(in)          :: indx_meta(:)  ! metadata
+ type(gru_hru_intVec),intent(in)    :: indx_data     ! indexing vars
  ! output: error control
  integer(i4b),intent(out)           :: err           ! error code
  character(*),intent(out)           :: message       ! error message
@@ -513,11 +513,11 @@ contains
    maxSnow = max(maxSnow,gru_struc(iGRU)%hruInfo(iHRU)%nSnow)
   end do
  end do
- 
+
  ! total number of layers
  maxLayers = maxSnow+maxSoil
 
- ! create file 
+ ! create file
  err = nf90_create(trim(filename),nf90_classic_model,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
 
@@ -540,16 +540,16 @@ contains
 
   ! define variable
   select case(prog_meta(iVar)%varType)
-   case(iLookvarType%scalarv);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar)) 
-   case(iLookvarType%wLength);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar)) 
-   case(iLookvarType%midSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar)) 
-   case(iLookvarType%midToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar)) 
-   case(iLookvarType%ifcSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar)) 
-   case(iLookvarType%ifcToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar)) 
-   case(iLookvarType%midSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar)) 
-   case(iLookvarType%ifcSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar)) 
+   case(iLookvarType%scalarv);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,  scalDimID /),ncVarID(iVar))
+   case(iLookvarType%wLength);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,  specDimID /),ncVarID(iVar))
+   case(iLookvarType%midSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midSoilDimID/),ncVarID(iVar))
+   case(iLookvarType%midToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midTotoDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcSoil);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcSoilDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcToto);                err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcTotoDimID/),ncVarID(iVar))
+   case(iLookvarType%midSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,midSnowDimID/),ncVarID(iVar))
+   case(iLookvarType%ifcSnow); if (maxSnow>0) err = nf90_def_var(ncid,trim(prog_meta(iVar)%varname),nf90_double,(/hruDimID,ifcSnowDimID/),ncVarID(iVar))
   end select
- 
+
   ! check errors
   if(err/=0)then
    message=trim(message)//trim(cmessage)//' [variable '//trim(prog_meta(iVar)%varName)//']'
@@ -564,7 +564,7 @@ contains
   err = nf90_put_att(ncid,ncVarID(iVar),'units',trim(prog_meta(iVar)%varunit))
   call netcdf_err(err,message)
 
- end do ! iVar 
+ end do ! iVar
 
  ! define index variables - snow
  err = nf90_def_var(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
@@ -582,7 +582,7 @@ contains
  ! write variables
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   cHRU = gru_struc(iGRU)%hruInfo(iHRU)%hru_ix 
+   cHRU = gru_struc(iGRU)%hruInfo(iHRU)%hru_ix
    do iVar = 1,size(prog_meta)
 
     ! excape if this variable is not used
@@ -606,7 +606,7 @@ contains
      case(iLookVarType%midSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow    )
      case(iLookVarType%ifcSnow); if (nSnow>0) okLength = (size(prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat) == nSnow+1  )
      case default; err=20; message=trim(message)//'unknown var type'; return
-    end select 
+    end select
 
     ! error check
     if(.not.okLength)then
@@ -614,7 +614,7 @@ contains
      err=20; return
     endif
 
-    ! write data 
+    ! write data
     select case (prog_meta(iVar)%varType)
      case(iLookVarType%scalarv);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nScalar  /))
      case(iLookVarType%wlength);              err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSpectral/))
@@ -625,19 +625,19 @@ contains
      case(iLookVarType%midSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow    /))
      case(iLookVarType%ifcSnow); if (nSnow>0) err=nf90_put_var(ncid,ncVarID(iVar),(/prog_data%gru(iGRU)%hru(iHRU)%var(iVar)%dat/),start=(/cHRU,1/),count=(/1,nSnow+1  /))
      case default; err=20; message=trim(message)//'unknown var type'; return
-    end select 
+    end select
 
     ! error check
     if (err.ne.0) message=trim(message)//'writing variable:'//trim(prog_meta(iVar)%varName)
     call netcdf_err(err,message); if (err/=0) return
     err=0; message='writeRestart/'
 
-   end do ! iVar 
+   end do ! iVar
 
-   ! write index variables 
+   ! write index variables
    err=nf90_put_var(ncid,ncSnowID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat/),start=(/cHRU/),count=(/1/))
    err=nf90_put_var(ncid,ncSoilID,(/indx_data%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat/),start=(/cHRU/),count=(/1/))
- 
+
   end do ! iGRU
  end do ! iHRU
 

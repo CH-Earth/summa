@@ -218,7 +218,7 @@ contains
  else
   scalarAquiferRootFrac = 0._dp
  end if
- 
+
  ! check that roots in the aquifer are appropriate
  if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._dp*epsilon(rootingDepth)))then
   if(scalarAquiferRootFrac < rootTolerance) then
@@ -298,7 +298,7 @@ contains
 
    ! constant hydraulic conductivity with depth
    case(constant)
-    ! - conductivity at layer interfaces 
+    ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1)
@@ -315,10 +315,10 @@ contains
 
    ! power-law profile
    case(powerLaw_profile)
-    ! - conductivity at layer interfaces 
+    ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
     ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
-                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) 
+                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
     else
@@ -369,7 +369,7 @@ contains
  USE mDecisions_module,only:      &
   timeDelay,&  ! time-delay histogram
   qInstant     ! instantaneous routing
- ! named variables 
+ ! named variables
  USE globalData,only:data_step                        ! time step of forcing data
  USE var_lookup,only:iLookBVAR,iLookBPAR              ! named variables for structure elements
  ! data types

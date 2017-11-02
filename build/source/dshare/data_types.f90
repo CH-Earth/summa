@@ -68,10 +68,10 @@ MODULE data_types
   character(len=64)                      :: varname  = 'empty'         ! variable name
   character(len=128)                     :: vardesc  = 'empty'         ! variable description
   character(len=64)                      :: varunit  = 'empty'         ! variable units
-  integer(i4b)                           :: vartype  = integerMissing  ! variable type 
-  logical(lgt),dimension(maxvarStat)     :: statFlag = .false.         ! statistic flag (on/off) 
-  integer(i4b)                           :: outFreq  = integerMissing  ! output file id # - each variable may be output to exactly one of maxFreq output files 
-  integer(i4b),dimension(maxvarStat)     :: ncVarID  = integerMissing  ! netcdf variable id 
+  integer(i4b)                           :: vartype  = integerMissing  ! variable type
+  logical(lgt),dimension(maxvarStat)     :: statFlag = .false.         ! statistic flag (on/off)
+  integer(i4b)                           :: outFreq  = integerMissing  ! output file id # - each variable may be output to exactly one of maxFreq output files
+  integer(i4b),dimension(maxvarStat)     :: ncVarID  = integerMissing  ! netcdf variable id
  endtype var_info
 
  ! define extended data type (include indices to map onto parent data type)
@@ -89,7 +89,7 @@ MODULE data_types
  ! Define summary of data structures
  ! ***********************************************************************************************************
  ! data structure information
- type,public :: struct_info 
+ type,public :: struct_info
   character(len=32)                      :: structName  ! name of the data structure
   character(len=32)                      :: lookName    ! name of the look-up variables
   integer(i4b)                           :: nVar        ! number of variables in each data structure
@@ -117,7 +117,7 @@ MODULE data_types
 
  ! define the mapping from the HRUs to the GRUs
  type, public :: hru2gru_map
-  integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to 
+  integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to
   integer(i4b)                      :: localHRU                 ! index of a hru within a gru
  endtype hru2gru_map
 
@@ -128,7 +128,7 @@ MODULE data_types
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
  type, public :: dlength
-  real(dp),allocatable                :: dat(:)    ! dat(:) 
+  real(dp),allocatable                :: dat(:)    ! dat(:)
  endtype dlength
  ! ** integer type
  type, public :: ilength
@@ -145,7 +145,7 @@ MODULE data_types
 
  ! ** double precision type of variable length
  type, public :: var_dlength
-  type(dlength),allocatable           :: var(:)    ! var(:)%dat 
+  type(dlength),allocatable           :: var(:)    ! var(:)%dat
  endtype var_dlength
  ! ** integer type of variable length
  type, public :: var_ilength

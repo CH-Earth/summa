@@ -133,7 +133,7 @@ contains
                        untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                        stateVecTrial,     & ! intent(out):   updated state vector
                        reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
-                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt 
+                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
                        niter,             & ! intent(out):   number of iterations taken
                        err,message)         ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
@@ -156,7 +156,7 @@ contains
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
  logical(lgt),intent(in)         :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution 
+ logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution
  ! input/output: data structures
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
@@ -170,12 +170,12 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
  real(dp),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
  ! output: model control
- type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables 
+ type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
  real(dp),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
- logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step 
- logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt 
+ logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
+ logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
@@ -195,7 +195,7 @@ contains
  real(dp)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
  real(dp),parameter              :: tempAccelerate=0.00_dp        ! factor to force initial canopy temperatures to be close to air temperature
  real(dp),parameter              :: xMinCanopyWater=0.0001_dp     ! minimum value to initialize canopy water (kg m-2)
- real(dp),parameter              :: tinyStep=0.000001_dp          ! stupidly small time step (s) 
+ real(dp),parameter              :: tinyStep=0.000001_dp          ! stupidly small time step (s)
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
@@ -204,7 +204,7 @@ contains
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
  integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
- type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step 
+ type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
  real(dp),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(dp)                        :: stateVecNew(nState)           ! new state vector (mixed units)
  real(dp)                        :: fluxVec0(nState)              ! flux vector (mixed units)
@@ -276,7 +276,7 @@ contains
 
  ! initialize the flags
  tooMuchMelt        = .false.   ! too much melt
- reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step 
+ reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
 
  ! define maximum number of iterations
  maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
@@ -298,7 +298,7 @@ contains
   allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
  else
   allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
- end if 
+ end if
  if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
 
  ! identify the matrix solution method
@@ -310,12 +310,12 @@ contains
   nLeadDim=nBands         ! length of the leading dimension
   ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
  endif
-   
+
  ! initialize the model fluxes (some model fluxes are not computed in the iterations)
  do iVar=1,size(flux_temp%var)
   flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
  end do
-   
+
  ! **************************************************************************************************************************
  ! **************************************************************************************************************************
  ! **************************************************************************************************************************
@@ -323,11 +323,11 @@ contains
  ! **************************************************************************************************************************
  ! **************************************************************************************************************************
  ! **************************************************************************************************************************
- 
+
  ! -----
  ! * get scaling vectors...
  ! ------------------------
- 
+
  ! initialize state vectors
  call getScaling(&
                  ! input
@@ -337,22 +337,22 @@ contains
                  fScale,                           & ! intent(out):   function scaling vector (mixed units)
                  xScale,                           & ! intent(out):   variable scaling vector (mixed units)
                  sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                 dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes) 
+                 dMat,                             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes)
                  err,cmessage)                       ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
+
  ! -----
  ! * compute the initial function evaluation...
  ! --------------------------------------------
- 
+
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
- 
+
  ! need to intialize canopy water at a positive value
  if(ixVegHyd/=integerMissing)then
   if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
  endif
- 
+
  ! try to accelerate solution for energy
  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
@@ -417,24 +417,24 @@ contains
    tooMuchMelt=.true.
    message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
    err=-20; return ! negative error code to denote a warning
-  endif 
+  endif
  endif
- 
+
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
  ! ==========================================================================================================================================
- 
+
  ! **************************
  ! *** MAIN ITERATION LOOP...
  ! **************************
 
  ! correct the number of iterations
  localMaxIter = merge(scalarMaxIter, maxIter, scalarSolution)
- 
+
  ! iterate
  do iter=1,localMaxIter
- 
+
   ! print iteration count
   !print*, '*** iter, maxiter, dt = ', iter, localMaxiter, dt
   !print*, trim(message)//'before summaSolve'
@@ -453,7 +453,7 @@ contains
                   nSnow,                         & ! intent(in):    number of snow layers
                   nSoil,                         & ! intent(in):    number of soil layers
                   nLayers,                       & ! intent(in):    total number of layers
-                  nLeadDim,                      & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState) 
+                  nLeadDim,                      & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState)
                   nState,                        & ! intent(in):    total number of state variables
                   ixMatrix,                      & ! intent(in):    type of matrix (full or band diagonal)
                   firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
@@ -468,7 +468,7 @@ contains
                   sMul,                          & ! intent(in):    state vector multiplier (used in the residual calculations)
                   dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
                   fOld,                          & ! intent(in):    old function evaluation
-                  ! input: data structures       
+                  ! input: data structures
                   model_decisions,               & ! intent(in):    model decisions
                   type_data,                     & ! intent(in):    type of vegetation and soil
                   attr_data,                     & ! intent(in):    spatial attributes
@@ -481,7 +481,7 @@ contains
                   diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
                   flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
                   deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ! input-output: baseflow       
+                  ! input-output: baseflow
                   ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
                   ! output
@@ -494,7 +494,7 @@ contains
                   err,cmessage)                    ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  !print*, err,trim(cmessage) 
+  !print*, err,trim(cmessage)
 
   ! update function evaluation, residual vector, and states
   ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
@@ -502,32 +502,32 @@ contains
 
   ! save functions and residuals
   fOld          = fNew
-  rVec          = resVecNew 
+  rVec          = resVecNew
   stateVecTrial = stateVecNew
 
   ! print progress
   !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec           ( min(nState,iJac1) : min(nState,iJac2) )
   !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )*dt
   !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
-  !print*, 'PAUSE: check states and fluxes'; read(*,*) 
- 
+  !print*, 'PAUSE: check states and fluxes'; read(*,*)
+
   ! exit iteration loop if converged
   if(converged) exit
- 
+
   ! check convergence
   if(iter==localMaxiter)then
    message=trim(message)//'failed to converge'
    err=-20; return
   endif
   !print*, 'PAUSE: iterating'; read(*,*)
- 
+
  end do  ! iterating
  !print*, 'PAUSE: after iterations'; read(*,*)
-  
+
  ! -----
  ! * update states...
  ! ------------------
- 
+
  ! set untapped melt energy to zero
  untappedMelt(:) = 0._dp
 

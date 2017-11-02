@@ -137,7 +137,7 @@ contains
  ! data structures (input-output)
  type(var_ilength),intent(inout)      :: indx_data              ! state vector geometry
  type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
- type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU 
+ type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
  ! error control
  integer(i4b),intent(out)             :: err                    ! error code
@@ -173,8 +173,8 @@ contains
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
  logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
- logical(lgt)                         :: pauseFlag              ! flag to pause execution 
- logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches. 
+ logical(lgt)                         :: pauseFlag              ! flag to pause execution
+ logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches.
  type(var_ilength)                    :: indx_temp              ! temporary model index variables
  type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
  type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
@@ -219,7 +219,7 @@ contains
  ! start by NOT pausing
  pauseFlag=.false.
 
- ! start by assuming that the step is successful 
+ ! start by assuming that the step is successful
  stepFailure  = .false.
  doLayerMerge = .false.
 
@@ -335,7 +335,7 @@ contains
  diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
 
  ! remember if we compute the vegetation flux on the previous sub-step
- computeVegFluxOld = computeVegFlux  
+ computeVegFluxOld = computeVegFlux
 
  ! compute the exposed LAI and SAI and whether veg is buried by snow
  call vegPhenlgy(&
@@ -743,7 +743,7 @@ contains
                   ! output: model control
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)
                   tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
-                  stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed 
+                  stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed
                   ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
 
@@ -835,7 +835,7 @@ contains
    iSnow=1
 
    ! save the mass of liquid water (kg m-2)
-   massLiquid = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water 
+   massLiquid = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water
 
    ! add/remove the depth of snow gained/lost by frost/sublimation (m)
    ! NOTE: assume constant density
@@ -913,7 +913,7 @@ contains
   ! increment fluxes
   dt_wght = dt_sub/data_step ! define weight applied to each sub-step
   do iVar=1,size(averageFlux_meta)
-   flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght 
+   flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
   end do
 
   ! increment change in storage associated with the surface melt pond (kg m-2)
@@ -1009,7 +1009,7 @@ contains
 
   ! canopy water balance
   balanceCanopyWater1 = scalarCanopyLiq + scalarCanopyIce
-  
+
   ! balance checks for the canopy
   ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
   scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
@@ -1045,7 +1045,7 @@ contains
                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
  end if
- 
+
  ! check the individual layers
  if(printBalance .and. nSnow>0)then
   write(*,'(a,1x,10(f12.8,1x))') 'liqSnowInit       = ', liqSnowInit
@@ -1059,7 +1059,7 @@ contains
    err=20; return
   endif
  endif
- 
+
  ! check SWE
  if(nSnow>0)then
   effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
@@ -1118,7 +1118,7 @@ contains
    err=20; return
   endif
  endif
- 
+
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
  if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues

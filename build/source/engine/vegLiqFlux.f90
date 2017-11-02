@@ -51,7 +51,7 @@ contains
  ! model decisions
  USE globalData,only:model_decisions                              ! model decision structure
  USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
- ! named variables 
+ ! named variables
  USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
  ! data types
  USE data_types,only:var_d           ! x%var(:)       (dp)
@@ -78,7 +78,7 @@ contains
   scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
   scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain)%dat(1),& ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
   scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1)  & ! intent(in): canopy drainage coefficient (s-1)
- ) ! associating local variables with information in the data structures 
+ ) ! associating local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="vegLiqFlux/"

@@ -603,7 +603,7 @@ contains
   endif
 
   ! get the residual vector
-  rVec = real(rVecScaled, dp)*fScale 
+  rVec = real(rVecScaled, dp)*fScale
 
   ! update brackets
   if(rVec(1)<0._dp)then
@@ -614,7 +614,7 @@ contains
 
   ! get the iteration increment
   xInc = newtStepScaled*xScale
-  
+
   ! *****
   ! * case 1: the iteration increment is the same sign as the residual vector
   if(xInc(1)*rVec(1) > 0._dp)then
@@ -635,12 +635,12 @@ contains
    ! impose solution constraints
    call imposeConstraints(stateVecTrial,xInc,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  
+
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
- 
+
   endif  ! if the iteration increment is the same sign as the residual vecto
-  
+
   ! bi-section
   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
   if(bracketsDefined)then
@@ -682,7 +682,7 @@ contains
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   real(dp),parameter             :: delX=1._dp               ! trial increment
-  real(dp)                       :: xIncrement(nState)       ! trial increment 
+  real(dp)                       :: xIncrement(nState)       ! trial increment
   ! initialize
   err=0; message='getBrackets/'
 
@@ -701,7 +701,7 @@ contains
 
    ! increment state vector
    stateVecNew = stateVecNew + xIncrement
-   
+
    ! evaluate summa
    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -719,10 +719,10 @@ contains
    ! print progress
    !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
    !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
- 
+
    ! check that the brackets are defined
    if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
-   
+
    ! check that we found the brackets
    if(iCheck==nCheck)then
     message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'

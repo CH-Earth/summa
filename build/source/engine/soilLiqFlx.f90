@@ -362,16 +362,16 @@ contains
   else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
    mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
   end if
-  
+
   ! check fractions sum to one
   if(abs(sum(mLayerTranspireFrac) - 1._dp) > verySmall)then
    message=trim(message)//'fraction transpiration in soil layers does not sum to one'
    err=20; return
   endif
-  
+
   ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
   mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
-  
+
   ! special case of prescribed head -- no transpiration
   if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp
 
@@ -704,22 +704,22 @@ contains
 
   ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
   do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
-  
+
    ! =====
    ! get input state variables...
    ! ============================
    ! identify the type of perturbation
    select case(itry)
-  
+
     ! skip undesired perturbations
     case(perturbStateBelow); cycle   ! only perturb soil state at this time (perhaps perturb aquifer state later)
     case(perturbState); cycle        ! here pertubing the state above the flux at the interface
-  
+
     ! un-perturbed case
     case(unperturbed)
      scalarVolFracLiqTrial   = mLayerVolFracLiqTrial(nSoil)
      scalarMatricHeadTrial   = mLayerMatricHeadTrial(nSoil)
-  
+
     ! perturb soil state (one-sided finite differences)
     case(perturbStateAbove)
      select case(ixRichards)  ! (perturbation depends on the form of Richards' equation)
@@ -731,31 +731,31 @@ contains
        scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil) + dx
       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
      end select ! (form of Richards' equation)
-  
+
    end select ! (type of perturbation)
-  
+
    ! =====
    ! get hydraulic conductivty...
    ! ============================
    select case(itry)
-  
+
     ! compute perturbed value of hydraulic conductivity
     case(perturbStateAbove)
      select case(ixRichards)
       case(moisture); scalarHydCondTrial = hydCond_liq(scalarVolFracLiqTrial,mLayerSatHydCond(nSoil),theta_res(nSoil),theta_sat(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
       case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadTrial,mLayerSatHydCond(nSoil),vGn_alpha(nSoil),vGn_n(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
      end select
-  
+
     ! (use un-perturbed value)
     case default
      scalarHydCondTrial = mLayerHydCond(nSoil)        ! hydraulic conductivity at the mid-point of the lowest unsaturated soil layer (m s-1)
-  
+
    end select ! (re-computing hydraulic conductivity)
-  
+
    ! =====
    ! compute drainage flux and its derivative...
    ! ===========================================
-  
+
    call qDrainFlux(&
                    ! input: model control
                    desireAnal,                      & ! intent(in): flag indicating if derivatives are desired
@@ -800,7 +800,7 @@ contains
                    ! output: error control
                    err,cmessage)                ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
+
    ! get copies of drainage flux to compute derivatives
    if(deriv_desired .and. ixDerivMethod==numerical)then
     select case(itry)
@@ -810,20 +810,20 @@ contains
      case default; err=10; message=trim(message)//"unknown perturbation"; return
     end select
    end if
-  
+
   end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
-  
+
   ! compute numerical derivatives
   ! NOTE: drainage derivatives w.r.t. state below are *actually* w.r.t. water table depth, so need to be corrected for aquifer storage
   !       (note also negative sign to account for inverse relationship between water table depth and aquifer storage)
   if(deriv_desired .and. ixDerivMethod==numerical)then
    dq_dHydStateAbove(nSoil) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in state in lowest unsaturated node (m s-1 or s-1)
   end if
-  
+
   ! no dependence on the aquifer for drainage
   dq_dHydStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
   dq_dNrgStateBelow(nSoil) = 0._dp  ! keep this here in case we want to couple some day....
-  
+
   ! print drainage
   !print*, 'iLayerLiqFluxSoil(nSoil) = ', iLayerLiqFluxSoil(nSoil)
 

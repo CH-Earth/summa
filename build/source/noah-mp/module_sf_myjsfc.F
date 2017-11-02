@@ -679,7 +679,7 @@ CONTAINS
              CZIL = 10.0 ** ( -0.40 * ( Z0 / 0.07 ) )
           ENDIF
           ZILFC=-CZIL*VKARMAN*SQVISC
-          
+
 !----------------------------------------------------------------------
 !
 !mp   Topo modification of ZILFC term
@@ -1031,7 +1031,7 @@ CONTAINS
 !
       IF(SEAMASK>0.5)THEN
           QS=PQ0SEA/PSFC                                      &
-     &         *EXP(A2S*(TSK-A3S)/(TSK-A4S)) 
+     &         *EXP(A2S*(TSK-A3S)/(TSK-A4S))
         QS=QS/(1.-QS)
       ENDIF
 !----------------------------------------------------------------------

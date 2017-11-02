@@ -219,7 +219,7 @@ contains
  ! local variables
  integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
  integer(i4b)          :: step_1a,step_1b,step_1c,step_1d    ! temporary variables for calendar calculations
- real(dp)              :: frac_day  ! fractional day 
+ real(dp)              :: frac_day  ! fractional day
  real(dp)              :: remainder ! remainder of modulus operation
 
  ! initialize errors
@@ -264,10 +264,10 @@ contains
  dsec = nint(remainder*secprmin)
 
  end subroutine compcalday
- 
+
  ! ***************************************************************************************
  ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()
- ! *************************************************************************************** 
+ ! ***************************************************************************************
  function elapsedSec(startTime, endTime)
  USE multiconst,only            :  secprday,secprhour,secprmin        ! seconds in an (day, hour, minute)
  integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
@@ -278,7 +278,7 @@ contains
  ! number of days of each month
  integer(i4b)                   :: days1(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
  integer(i4b)                   :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
- 
+
  ! calculate the elapsed time smaller than a day
  elapsedSec = (endTime(8)-startTime(8))*.001_dp + (endTime(7)-startTime(7)) + (endTime(6)-startTime(6))*secprmin + (endTime(5)-startTime(5))*secprhour
 
@@ -293,15 +293,15 @@ contains
   end do
   if ((mod(startTime(1),4)==0 .and. .not. mod(startTime(1),100)==0) .or. (mod(startTime(1),400)==0)) days1(2) = 29
   if ((mod(endTime(1),4)==0 .and. .not. mod(endTime(1),100)==0) .or. (mod(endTime(1),400)==0)) days2(2) = 29
-  ! difference in month 
+  ! difference in month
   if (startTime(2) > 1) elapsedDay = elapsedDay - sum(days1(1:(startTime(2)-1)))
-  elapsedDay = elapsedDay - startTime(3) 
+  elapsedDay = elapsedDay - startTime(3)
   ! difference in day
   if (endTime(2) > 1) elapsedDay = elapsedDay + sum(days2(1:(endTime(2)-1)))
   elapsedDay = elapsedDay + endTime(3)
   ! convert to seconds
   elapsedSec = elapsedSec + elapsedDay * secprday
- end if 
- end function  
+ end if
+ end function
 
 end module time_utils_module

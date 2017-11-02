@@ -75,7 +75,7 @@ contains
  metaChild(:)%var_info = metaParent(metaChild(:)%ixParent)
 
  ! allows to map from the parent to the child - must carry this around outside
- if(allocated(parent2child_map)) then; err=20; message=trim(message)//'child map already allocated'; return; end if; 
+ if(allocated(parent2child_map)) then; err=20; message=trim(message)//'child map already allocated'; return; end if;
  allocate(parent2child_map(nParent))
  parent2child_map(:) = integerMissing
  if(nChild>0) parent2child_map(metaChild(:)%ixParent) = arth(1,1,nChild)

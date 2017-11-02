@@ -137,9 +137,9 @@ contains
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
  USE updateVars_module, only:updateVars           ! update prognostic variables
- USE computFlux_module, only:soilCmpres           ! compute soil compression 
+ USE computFlux_module, only:soilCmpres           ! compute soil compression
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
- USE computResid_module,only:computResid          ! compute residuals given a state vector 
+ USE computResid_module,only:computResid          ! compute residuals given a state vector
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
  USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
@@ -163,7 +163,7 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector 
+ real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector
  real(dp),intent(in)             :: fScale(:)              ! function scaling vector
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
@@ -308,7 +308,7 @@ contains
 
    ! --> check
    if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-   !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax 
+   !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
   endif  ! if water states
 
@@ -316,8 +316,8 @@ contains
 
  ! early return for non-feasible solutions
  if(.not.feasible)then
-  fluxVec(:) = realMissing 
-  resVec(:)  = quadMissing 
+  fluxVec(:) = realMissing
+  resVec(:)  = quadMissing
   fEval      = realMissing
   return
  end if
@@ -336,8 +336,8 @@ contains
  call varExtract(&
                  ! input
                  stateVecTrial,            & ! intent(in):    model state vector (mixed units)
-                 diag_data,                & ! intent(in):    model diagnostic variables for a local HRU         
-                 prog_data,                & ! intent(in):    model prognostic variables for a local HRU         
+                 diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                 prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  ! output: variables for the vegetation canopy
                  scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
@@ -387,7 +387,7 @@ contains
  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyWatTrial     = ', scalarCanopyWatTrial
  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyLiqTrial     = ', scalarCanopyLiqTrial
  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceTrial     = ', scalarCanopyIceTrial
- 
+
  ! print the states in the snow+soil domain
  !write(*,'(a,1x,10(f20.10,1x))') 'mLayerTempTrial          = ', mLayerTempTrial(iJac1:min(nLayers,iJac2))
  !write(*,'(a,1x,10(f20.10,1x))') 'mLayerVolFracWatTrial    = ', mLayerVolFracWatTrial(iJac1:min(nLayers,iJac2))

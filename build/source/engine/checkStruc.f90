@@ -28,7 +28,7 @@ contains
 
 
  ! ************************************************************************************************
- ! public subroutine checkStruc: check data structures 
+ ! public subroutine checkStruc: check data structures
  ! ************************************************************************************************
  subroutine checkStruc(err,message)
  ! ascii utilities
@@ -65,7 +65,7 @@ contains
  ! * check that the structure constructors are correct...
  ! ------------------------------------------------------
 
- ! loop through data structures 
+ ! loop through data structures
  do iStruct=1,nStruct
   ! convert the lookup structures to a character string
   ! expect the lookup structures to be a vector (1,2,3,...,n)
@@ -104,23 +104,23 @@ contains
 
  ! loop through data structures
  do iStruct=1,nStruct
-  ! check that the metadata is fully populated 
+  ! check that the metadata is fully populated
   select case(trim(structInfo(iStruct)%structName))
    case('time');  call checkPopulated(iStruct,time_meta,err,cmessage)
-   case('forc');  call checkPopulated(iStruct,forc_meta,err,cmessage) 
-   case('attr');  call checkPopulated(iStruct,attr_meta,err,cmessage) 
-   case('type');  call checkPopulated(iStruct,type_meta,err,cmessage) 
-   case('mpar');  call checkPopulated(iStruct,mpar_meta,err,cmessage) 
-   case('bpar');  call checkPopulated(iStruct,bpar_meta,err,cmessage) 
-   case('bvar');  call checkPopulated(iStruct,bvar_meta,err,cmessage) 
-   case('indx');  call checkPopulated(iStruct,indx_meta,err,cmessage) 
-   case('prog');  call checkPopulated(iStruct,prog_meta,err,cmessage) 
-   case('diag');  call checkPopulated(iStruct,diag_meta,err,cmessage) 
-   case('flux');  call checkPopulated(iStruct,flux_meta,err,cmessage) 
-   case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage) 
+   case('forc');  call checkPopulated(iStruct,forc_meta,err,cmessage)
+   case('attr');  call checkPopulated(iStruct,attr_meta,err,cmessage)
+   case('type');  call checkPopulated(iStruct,type_meta,err,cmessage)
+   case('mpar');  call checkPopulated(iStruct,mpar_meta,err,cmessage)
+   case('bpar');  call checkPopulated(iStruct,bpar_meta,err,cmessage)
+   case('bvar');  call checkPopulated(iStruct,bvar_meta,err,cmessage)
+   case('indx');  call checkPopulated(iStruct,indx_meta,err,cmessage)
+   case('prog');  call checkPopulated(iStruct,prog_meta,err,cmessage)
+   case('diag');  call checkPopulated(iStruct,diag_meta,err,cmessage)
+   case('flux');  call checkPopulated(iStruct,flux_meta,err,cmessage)
+   case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors) 
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  end do  ! looping through data structures
 
 
@@ -131,13 +131,13 @@ contains
   ! ************************************************************************************************
   subroutine checkPopulated(iStruct,metadata,err,message)
   ! access the data type for the metadata structures
-  USE data_types,only:var_info 
+  USE data_types,only:var_info
   ! get index from character string
   USE get_ixname_module,only: get_ixUnknown! variable lookup structure
   implicit none
   ! dummy variables
   integer(i4b),intent(in)   :: iStruct     ! index of data structure
-  type(var_info)            :: metadata(:) ! metadata structure 
+  type(var_info)            :: metadata(:) ! metadata structure
   integer(i4b),intent(out)  :: err         ! error code
   character(*),intent(out)  :: message     ! error message
   ! local variables
@@ -147,11 +147,11 @@ contains
   character(len=256)        :: cmessage    ! error message of downwind routine
   ! initialize error control
   err=0; message='checkPopulated/'
- 
+
   ! loop through variables
   do iVar=1,size(metadata)
 
-   ! check that this variable is populated 
+   ! check that this variable is populated
    if (trim(metadata(iVar)%varname)=='empty') then
     write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar, ' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return
@@ -159,14 +159,14 @@ contains
 
    ! look for the populated variable
    call get_ixUnknown(trim(metadata(iVar)%varname),typeName,jVar,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors) 
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check that the variable was found at all
    if (jVar==integerMissing) then
     message = trim(message)//'cannot find variable '//trim(metadata(iVar)%varname)//' in structure '//trim(structInfo(iStruct)%structName)//'_meta; you need to add variable to get_ix'//trim(structInfo(iStruct)%structName)
     err=20; return
    end if
-   
+
    ! check that the variable was found in the correct structure
    if (trim(structInfo(iStruct)%structName)/=typeName) then
     message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' from structure '//trim(structInfo(iStruct)%structName)//'_meta is in structure '//trim(typeName)//'_meta'

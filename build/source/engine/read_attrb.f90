@@ -37,7 +37,7 @@ contains
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru->hru mapping structure
  USE globalData,only:index_map                              ! hru->gru mapping structure
- implicit none 
+ implicit none
 
  character(*),intent(in)              :: attrFile           ! name of attributed file
  integer(i4b),intent(out)             :: fileGRU            ! number of GRUs in the input file
@@ -65,7 +65,7 @@ contains
  character(len=256)                   :: cmessage           ! error message for downwind routine
 
  ! Start procedure here
- err=0; message="read_dimension/" 
+ err=0; message="read_dimension/"
 
  ! check that we do not have conflicting flags
  if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist'; return; end if
@@ -75,7 +75,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! *********************************************************************************************
- ! read and set GRU dimensions 
+ ! read and set GRU dimensions
  ! **********************************************************************************************
  ! get gru dimension of whole file
  err = nf90_inq_dimid(ncID,"gru",gruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -83,7 +83,7 @@ contains
 
  ! get hru dimension of whole file
  err = nf90_inq_dimid(ncID,"hru",hruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if 
+ err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get runtime GRU dimensions
  if     (present(startGRU)) then
@@ -131,9 +131,9 @@ if (allocated(gru_struc)) then; message=trim(message)//'gru_struc is unexpectedl
 if (allocated(index_map)) then; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
 
 ! allocate first level of gru to hru mapping
-allocate(gru_struc(nGRU))  
+allocate(gru_struc(nGRU))
 
-! set gru to hru mapping  
+! set gru to hru mapping
 if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
 
  ! gru to hru maping
@@ -146,9 +146,9 @@ if (present(checkHRU)) then                                                     
  gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)                                       ! set id of hru
 
 else ! allocate space for anything except a single HRU run
- 
+
  iHRU = 1
- do iGRU = 1,nGRU 
+ do iGRU = 1,nGRU
 
   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
@@ -162,20 +162,20 @@ else ! allocate space for anything except a single HRU run
 
 end if ! not checkHRU
 
-! set hru to gru mapping 
+! set hru to gru mapping
 nHRU = sum(gru_struc%hruCount)                                                                 ! total number of HRUs
 allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
 
 if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
  if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
- iGRU = 1; 
+ iGRU = 1;
  index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run domain to which the hru belongs
  index_map(1)%localHRU = hru_ix(1)                                                             ! index of hru within the gru
 
 else ! anything other than a single HRU run
- do iGRU = 1,nGRU 
+ do iGRU = 1,nGRU
   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run domain to which the hru belongs
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU = hru_ix(1:gru_struc(iGRU)%hruCount)   ! index of hru within the gru 
+  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU = hru_ix(1:gru_struc(iGRU)%hruCount)   ! index of hru within the gru
  enddo ! iGRU = 1,nGRU
 
 end if ! not checkHRU
@@ -220,7 +220,7 @@ end subroutine read_dimension
  integer(i4b)                         :: iCheck             ! index of an attribute name
  logical(lgt),allocatable             :: checkType(:)       ! vector to check if we have all desired categorical values
  logical(lgt),allocatable             :: checkAttr(:)       ! vector to check if we have all desired local attributes
- 
+
  ! netcdf variables
  integer(i4b)                         :: ncID               ! netcdf file id
  character(LEN=nf90_max_name)         :: varName            ! character array of netcdf variable name
@@ -236,7 +236,7 @@ end subroutine read_dimension
  err=0; message="read_attrb/"
 
  ! **********************************************************************************************
- ! (1) prepare check vectors 
+ ! (1) prepare check vectors
  ! **********************************************************************************************
  allocate(checkType(size(type_meta)),checkAttr(size(attr_meta)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for variable check vectors'; return; endif
@@ -244,7 +244,7 @@ end subroutine read_dimension
  checkAttr(:) = .false.
 
  ! **********************************************************************************************
- ! (2) open netcdf file 
+ ! (2) open netcdf file
  ! **********************************************************************************************
  ! open file
  call nc_file_open(trim(attrFile),nf90_noWrite,ncID,err,cmessage)
@@ -282,7 +282,7 @@ end subroutine read_dimension
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
      do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncID,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/)) 
+      err = nf90_get_var(ncID,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
      end do
@@ -301,7 +301,7 @@ end subroutine read_dimension
 
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
-     do iHRU = 1, gru_struc(iGRU)%hruCount      
+     do iHRU = 1, gru_struc(iGRU)%hruCount
       err = nf90_get_var(ncID,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
@@ -319,7 +319,7 @@ end subroutine read_dimension
  end do ! (looping through netcdf local attribute file)
 
  ! **********************************************************************************************
- ! (4) check that we have all the desired varaibles 
+ ! (4) check that we have all the desired varaibles
  ! **********************************************************************************************
  ! check that we have all desired categorical variables
  if(any(.not.checkType))then
@@ -336,7 +336,7 @@ end subroutine read_dimension
  endif
 
  ! **********************************************************************************************
- ! (5) close netcdf file 
+ ! (5) close netcdf file
  ! **********************************************************************************************
  call nc_file_close(ncID,err,cmessage)
  if (err/=0)then; message=trim(message)//trim(cmessage); return; end if

@@ -67,7 +67,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine indexState: define list of indices for each state variable 
+ ! public subroutine indexState: define list of indices for each state variable
  ! **********************************************************************************************************
  subroutine indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                        nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
@@ -135,7 +135,7 @@ contains
 
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables
- nWatState  = nSnow                        ! number of "total water" state variables -- will be modified later if using primary variable switching 
+ nWatState  = nSnow                        ! number of "total water" state variables -- will be modified later if using primary variable switching
  nMatState  = nSoil                        ! number of matric head state variables -- will be modified later if using primary variable switching
  nMassState = nVegMass                     ! number of mass state variables -- currently restricted to canopy water
 
@@ -244,7 +244,7 @@ contains
  !print*, 'ixStateType     = ', ixStateType
 
  ! end association to the ALLOCATABLE variables in the data structures
- end associate 
+ end associate
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -254,7 +254,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine indexSplit: define list of indices for each state variable 
+ ! public subroutine indexSplit: define list of indices for each state variable
  ! **********************************************************************************************************
  subroutine indexSplit(stateSubsetMask,             & ! intent(in)    : logical vector (.true. if state is in the subset)
                        nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
@@ -262,7 +262,7 @@ contains
                        err,message)                   ! intent(out)   : error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
- logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset) 
+ logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset)
  integer(i4b),intent(in)         :: nSnow,nSoil,nLayers,nSubset ! number of snow and soil layers, total number of layers, and number of states in the subset
  type(var_ilength),intent(inout) :: indx_data                   ! indices defining model states and layers
  ! output
@@ -295,7 +295,7 @@ contains
  ! indices of the top model state variables in the snow+soil system
  ixTopNrg         => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)      ,& ! intent(in):    [i4b]    index of upper-most energy state in the snow-soil subdomain
  ixTopHyd         => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)      ,& ! intent(in):    [i4b]    index of upper-most hydrology state in the snow-soil subdomain
- 
+
  ! indices of model state variables
  ixMapFull2Subset => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat ,& ! intent(in):    [i4b(:)] list of indices in the state subset (missing for values not in the subset)
  ixDomainType     => indx_data%var(iLookINDEX%ixDomainType)%dat     ,& ! intent(in):    [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
@@ -322,7 +322,7 @@ contains
  ixSoilOnlyHyd    => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
 
  ! indices of active model layers
- ixLayerActive    => indx_data%var(iLookINDEX%ixLayerActive)%dat    ,& ! intent(in):    [i4b(:)] index of active model layers (inactive=integerMissing) 
+ ixLayerActive    => indx_data%var(iLookINDEX%ixLayerActive)%dat    ,& ! intent(in):    [i4b(:)] index of active model layers (inactive=integerMissing)
 
  ! number of state variables of a specific type
  nSnowSoilNrg     => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1) ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
@@ -331,7 +331,7 @@ contains
  nSnowSoilHyd     => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1) ,& ! intent(in):    [i4b]    number of hydrology variables in the snow+soil domain
  nSnowOnlyHyd     => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1) ,& ! intent(in):    [i4b]    number of hydrology variables in the snow domain
  nSoilOnlyHyd     => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)  & ! intent(in):    [i4b]    number of hydrology variables in the soil domain
- 
+
  ) ! association to variables in the data structures
 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -363,7 +363,7 @@ contains
   ! get the subset of indices
   ! NOTE: indxSubset(subset, fullVector, mask), provides subset of fullVector where mask==.true.
   select case(iVar)
-   case(iLookINDEX%ixMapSubset2Full);     call indxSubset(indx_data%var(iVar)%dat, ixAllState,   stateSubsetMask, err, cmessage) 
+   case(iLookINDEX%ixMapSubset2Full);     call indxSubset(indx_data%var(iVar)%dat, ixAllState,   stateSubsetMask, err, cmessage)
    case(iLookINDEX%ixStateType_subset);   call indxSubset(indx_data%var(iVar)%dat, ixStateType,  stateSubsetMask, err, cmessage)
    case(iLookINDEX%ixDomainType_subset);  call indxSubset(indx_data%var(iVar)%dat, ixDomainType, stateSubsetMask, err, cmessage)
    case(iLookINDEX%ixVolFracWat);         call indxSubset(indx_data%var(iVar)%dat, ixLayerState, volFracWat_mask, err, cmessage)
@@ -382,9 +382,9 @@ contains
  ! ---------------------------------------------------------------------------
 
  ! check the number of state variables in the vegetation canopy
- if(count(ixStateType_subset==iname_nrgCanair)>1)then; err=20; message=trim(message)//'expect count(iname_nrgCanair)=1 or 0'; return; endif  
- if(count(ixStateType_subset==iname_nrgCanopy)>1)then; err=20; message=trim(message)//'expect count(iname_nrgCanopy)=1 or 0'; return; endif  
- if(count(ixStateType_subset==iname_watCanopy)>1)then; err=20; message=trim(message)//'expect count(iname_watCanopy)=1 or 0'; return; endif  
+ if(count(ixStateType_subset==iname_nrgCanair)>1)then; err=20; message=trim(message)//'expect count(iname_nrgCanair)=1 or 0'; return; endif
+ if(count(ixStateType_subset==iname_nrgCanopy)>1)then; err=20; message=trim(message)//'expect count(iname_nrgCanopy)=1 or 0'; return; endif
+ if(count(ixStateType_subset==iname_watCanopy)>1)then; err=20; message=trim(message)//'expect count(iname_watCanopy)=1 or 0'; return; endif
 
  ! define indices for energy states for the canopy air space and the vegetation canopy
  ! NOTE: finds first index of named variable within stateType (set to integerMissing if not found)
@@ -404,8 +404,8 @@ contains
  ! NOTE: local variables -- ixTopHyd defined next
  ixTopWat = findIndex(ixStateType_subset, iname_watLayer, integerMissing)    ! upper-most total water state variable in the snow+soil system
  ixTopLiq = findIndex(ixStateType_subset, iname_liqLayer, integerMissing)    ! upper-most liquid water state variable in the snow+soil system
- ixTopMat = findIndex(ixStateType_subset, iname_matLayer, integerMissing)    ! upper-most total water matric potential state 
- ixTopLMP = findIndex(ixStateType_subset, iname_lmpLayer, integerMissing)    ! upper-most liquid water matric potential state 
+ ixTopMat = findIndex(ixStateType_subset, iname_matLayer, integerMissing)    ! upper-most total water matric potential state
+ ixTopLMP = findIndex(ixStateType_subset, iname_lmpLayer, integerMissing)    ! upper-most liquid water matric potential state
 
  ! define index for the upper most hydrology state in the snow+soil system
  if(ixTopWat==integerMissing .and. ixTopLiq==integerMissing)then
@@ -530,16 +530,16 @@ contains
 
 
  ! **********************************************************************************************************
- ! private subroutine resizeIndx: re-size specific index vectors 
+ ! private subroutine resizeIndx: re-size specific index vectors
  ! **********************************************************************************************************
  subroutine resizeIndx(ixDesire,indx_data,nVec,err,message)
  ! input
  integer(i4b)     ,intent(in)    :: ixDesire(:)            ! variables needing to be re-sized
  type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
- integer(i4b)     ,intent(in)    :: nVec                   ! desired vector length 
+ integer(i4b)     ,intent(in)    :: nVec                   ! desired vector length
  ! output
  integer(i4b)     ,intent(out)   :: err                    ! error code
- character(*)     ,intent(out)   :: message                ! error message 
+ character(*)     ,intent(out)   :: message                ! error message
  ! local variables
  integer(i4b)                    :: jVar,iVar              ! vatiable index
  ! initialize error control

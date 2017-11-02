@@ -65,7 +65,7 @@ integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay
 contains
 
  ! ************************************************************************************************
- ! public subroutine allocGlobal: allocate space for global data structures 
+ ! public subroutine allocGlobal: allocate space for global data structures
  ! ************************************************************************************************
  subroutine allocGlobal(metaStruct,dataStruct,err,message)
  USE globalData,only: gru_struc                    ! gru-hru mapping structures
@@ -85,10 +85,10 @@ contains
  character(len=256)              :: cmessage       ! error message of the downwind routine
  ! initialize error control
  err=0; message='allocGlobal/'
- 
+
  ! initialize allocation check
  check=.false.
- 
+
  ! get the number of GRUs
  nGRU = size(gru_struc)
 
@@ -172,14 +172,14 @@ contains
 
  ! * allocate local data structures where there is no spatial dimension
  select type(dataStruct)
-  class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
+  class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
   class is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
   class is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
   class is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
   ! check identified the data type
   class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; end if
  end select
- 
+
  ! error check
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
@@ -245,12 +245,12 @@ contains
 
  ! allocate the dimension for model data
  select type(dataStruct)
-  class is (var_flagVec); call allocateDat_flag(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
-  class is (var_ilength); call allocateDat_int( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
-  class is (var_dlength); call allocateDat_dp(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_flagVec); call allocateDat_flag(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
+  class is (var_ilength); call allocateDat_int( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
+  class is (var_dlength); call allocateDat_dp(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
- 
+
  ! check errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -298,7 +298,7 @@ contains
 
  ! allocate the dimension for model variables
  select type(dataStructNew)
-  class is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err) 
+  class is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
   class is (var_dlength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
  end select
@@ -307,12 +307,12 @@ contains
  ! loop through variables
  do iVar=1,nVars
 
-  ! resize and copy data structures 
+  ! resize and copy data structures
   select type(dataStructOrig)
 
    ! double precision
    class is (var_dlength)
-    select type(dataStructNew) 
+    select type(dataStructNew)
      class is (var_dlength); call copyStruct_dp( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
      class default; err=20; message=trim(message)//'mismatch data structure for variable'//trim(metaStruct(iVar)%varname); return
     end select
@@ -334,7 +334,7 @@ contains
  end subroutine resizeData
 
  ! ************************************************************************************************
- ! private subroutine copyStruct_dp: copy a given data structure 
+ ! private subroutine copyStruct_dp: copy a given data structure
  ! ************************************************************************************************
  subroutine copyStruct_dp(varOrig,varNew,copy,err,message)
  ! dummy variables
@@ -387,7 +387,7 @@ contains
  ! internal routines
  contains
 
-  ! internal subroutine getVarInfo: get information from a given data structure 
+  ! internal subroutine getVarInfo: get information from a given data structure
   subroutine getVarInfo(var,isAllocated,lowerBound,upperBound)
   ! input
   type(dlength),intent(in)         :: var            ! data vector for a given variable
@@ -415,13 +415,13 @@ contains
    lowerBound=0
    upperBound=0
   endif ! (check allocation)
-  
+
   end subroutine getVarInfo
 
  end subroutine copyStruct_dp
 
  ! ************************************************************************************************
- ! private subroutine copyStruct_i4b: copy a given data structure 
+ ! private subroutine copyStruct_i4b: copy a given data structure
  ! ************************************************************************************************
  subroutine copyStruct_i4b(varOrig,varNew,copy,err,message)
  ! dummy variables
@@ -474,7 +474,7 @@ contains
  ! internal routines
  contains
 
-  ! internal subroutine getVarInfo: get information from a given data structure 
+  ! internal subroutine getVarInfo: get information from a given data structure
   subroutine getVarInfo(var,isAllocated,lowerBound,upperBound)
   ! input
   type(ilength),intent(in)         :: var            ! data vector for a given variable
@@ -502,7 +502,7 @@ contains
    lowerBound=0
    upperBound=0
   endif ! (check allocation)
-  
+
   end subroutine getVarInfo
 
  end subroutine copyStruct_i4b
