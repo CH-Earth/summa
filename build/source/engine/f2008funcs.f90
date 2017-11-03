@@ -46,7 +46,7 @@ contains
  integer(i4b),intent(in),optional   :: missingValue ! desired missing value if desiredValue is not found
  integer(i4b)                       :: findIndex    ! first index of the desired value in the vector
  ! local variables
- integer(i4b),dimension(1)          :: vecIndex     ! first index of the desired value in the vector (vec of length=1) 
+ integer(i4b),dimension(1)          :: vecIndex     ! first index of the desired value in the vector (vec of length=1)
 
  ! check if the value exisits
  if(any(vector==desiredValue))then

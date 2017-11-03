@@ -85,7 +85,7 @@ contains
 
 
  ! ******************************************************************************************************************************
- ! public subroutine: compute the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)  
+ ! public subroutine: compute the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  ! ******************************************************************************************************************************
  subroutine liquidHead(&
                        ! input
@@ -99,7 +99,7 @@ contains
                        matricHeadLiq                            ,& ! intent(out)   : liquid water matric potential (m)
                        dPsiLiq_dPsi0                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
                        dPsiLiq_dTemp                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. temperature (m K-1)
-                       err,message)                                ! intent(out)   : error control 
+                       err,message)                                ! intent(out)   : error control
  ! computes the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  implicit none
  ! input
@@ -144,7 +144,7 @@ contains
 
   ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
   if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
-   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m) 
+   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)
   endif
 
   ! -----

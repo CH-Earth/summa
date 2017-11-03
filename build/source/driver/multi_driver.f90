@@ -163,7 +163,7 @@ implicit none
 ! *****************************************************************************
 ! (0) variable definitions
 ! *****************************************************************************
-! define the statistics structures 
+! define the statistics structures
 type(gru_hru_doubleVec)          :: forcStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model forcing data
 type(gru_hru_doubleVec)          :: progStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
 type(gru_hru_doubleVec)          :: diagStat                   ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
@@ -817,7 +817,7 @@ do modelTimeStep=1,numtim
     call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
     call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
-    ! re-initalize the indices for model writing 
+    ! re-initalize the indices for model writing
     waterYearTimeStep=1
     outputTimeStep=1
    end do  ! (looping through HRUs)
@@ -1026,8 +1026,8 @@ do modelTimeStep=1,numtim
  call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
 
  ! write the model output to the NetCDF file
- ! Passes the full metadata structure rather than the stats metadata structure because 
- !  we have the option to write out data of types other than statistics. 
+ ! Passes the full metadata structure rather than the stats metadata structure because
+ !  we have the option to write out data of types other than statistics.
  !  Thus, we must also pass the stats parent->child maps from childStruct.
  call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,message); call handle_err(err,message)
  call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,message); call handle_err(err,message)

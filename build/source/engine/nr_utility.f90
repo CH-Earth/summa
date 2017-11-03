@@ -12,7 +12,7 @@ public::arth
 contains
 
  ! *************************************************************************************************
- ! * the arth function, used to build a vector of regularly spaced numbers 
+ ! * the arth function, used to build a vector of regularly spaced numbers
  ! *************************************************************************************************
  FUNCTION arth_r(first,increment,n)
  implicit none

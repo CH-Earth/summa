@@ -91,7 +91,7 @@ contains
  integer(i4b)                          :: parLength        ! length of the parameter data
  integer(i4b),allocatable              :: hruId(:)      ! HRU identifier in the file
  real(dp),allocatable                  :: parVector(:)     ! model parameter vector
- logical                               :: fexist           ! inquire whether the parmTrial file exists 
+ logical                               :: fexist           ! inquire whether the parmTrial file exists
  integer(i4b)                          :: fHRU             ! index of HRU in input file
 
  ! Start procedure here
@@ -148,7 +148,7 @@ contains
   message=trim(message)//'not enough HRUs in file '//trim(infile)
   err=20; return
  endif
- 
+
  ! check have the correct number of GRUs
  if ((irunMode==irunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'not enough GRUs in file '//trim(infile)
@@ -158,7 +158,7 @@ contains
   message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
   err=20; return
  endif
- 
+
  ! **********************************************************************************************
  ! * read the HRU index
  ! **********************************************************************************************
@@ -210,7 +210,7 @@ contains
     endif
 
    ! error check
-   else 
+   else
     err = 20; message = 'run mode not recognized'; return;
    end if
 
@@ -243,11 +243,11 @@ contains
 
    ! get the length of the depth dimension (if it exists)
    if(nDims==2)then
- 
+
     ! get the information on the 2nd dimension for 2-d variables
     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    
+
     ! check that it is the depth dimension
     if(trim(dimName)/='depth')then
      message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
@@ -266,7 +266,7 @@ contains
    else
     parLength = 1
    endif  ! if two dimensions
- 
+
    ! allocate space for model parameters
    allocate(parVector(parLength),stat=err)
    if(err/=0)then
@@ -276,8 +276,8 @@ contains
 
    ! loop through HRUs
    do iHRU=1,nHRU
- 
-    ! map to the GRUs and HRUs    
+
+    ! map to the GRUs and HRUs
     iGRU=index_map(iHRU)%gru_ix
     localHRU=index_map(iHRU)%localHRU
     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
@@ -294,7 +294,7 @@ contains
 
     ! populate parameter structures
     select case(nDims)
-     case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
+     case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
      case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
     end select
@@ -335,14 +335,14 @@ contains
    ! populate parameter structures
    if (iRunMode==iRunModeGRU) then
     do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1) 
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1)
     end do  ! looping through GRUs
    else if (iRunMode==iRunModeFull) then
     do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU)
     end do  ! looping through GRUs
    else if (iRunMode==iRunModeHRU) then
-    err = 20; message='checkHRU run mode not working'; return; 
+    err = 20; message='checkHRU run mode not working'; return;
    endif
 
    ! deallocate space for model parameters

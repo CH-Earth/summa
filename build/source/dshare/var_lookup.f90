@@ -588,69 +588,69 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_index
  ! number of model layers, and layer indices
- integer(i4b)     :: nSnow              = integerMissing  ! number of snow layers                                                    (-) 
- integer(i4b)     :: nSoil              = integerMissing  ! number of soil layers                                                    (-) 
- integer(i4b)     :: nLayers            = integerMissing  ! total number of layers                                                   (-) 
- integer(i4b)     :: layerType          = integerMissing  ! index defining type of layer (snow or soil)                              (-) 
+ integer(i4b)     :: nSnow              = integerMissing  ! number of snow layers                                                    (-)
+ integer(i4b)     :: nSoil              = integerMissing  ! number of soil layers                                                    (-)
+ integer(i4b)     :: nLayers            = integerMissing  ! total number of layers                                                   (-)
+ integer(i4b)     :: layerType          = integerMissing  ! index defining type of layer (snow or soil)                              (-)
  ! number of state variables of different type
- integer(i4b)     :: nCasNrg            = integerMissing  ! number of energy state variables for the canopy air space                (-) 
- integer(i4b)     :: nVegNrg            = integerMissing  ! number of energy state variables for the vegetation canopy               (-) 
- integer(i4b)     :: nVegMass           = integerMissing  ! number of hydrology states for vegetation (mass of water)                (-) 
- integer(i4b)     :: nVegState          = integerMissing  ! number of vegetation state variables                                     (-) 
- integer(i4b)     :: nNrgState          = integerMissing  ! number of energy state variables                                         (-) 
- integer(i4b)     :: nWatState          = integerMissing  ! number of "total water" states (vol. total water content)                (-) 
- integer(i4b)     :: nMatState          = integerMissing  ! number of matric head state variables                                    (-) 
- integer(i4b)     :: nMassState         = integerMissing  ! number of hydrology state variables (mass of water)                      (-) 
- integer(i4b)     :: nState             = integerMissing  ! total number of model state variables                                    (-) 
+ integer(i4b)     :: nCasNrg            = integerMissing  ! number of energy state variables for the canopy air space                (-)
+ integer(i4b)     :: nVegNrg            = integerMissing  ! number of energy state variables for the vegetation canopy               (-)
+ integer(i4b)     :: nVegMass           = integerMissing  ! number of hydrology states for vegetation (mass of water)                (-)
+ integer(i4b)     :: nVegState          = integerMissing  ! number of vegetation state variables                                     (-)
+ integer(i4b)     :: nNrgState          = integerMissing  ! number of energy state variables                                         (-)
+ integer(i4b)     :: nWatState          = integerMissing  ! number of "total water" states (vol. total water content)                (-)
+ integer(i4b)     :: nMatState          = integerMissing  ! number of matric head state variables                                    (-)
+ integer(i4b)     :: nMassState         = integerMissing  ! number of hydrology state variables (mass of water)                      (-)
+ integer(i4b)     :: nState             = integerMissing  ! total number of model state variables                                    (-)
  ! number of state variables within different domains in the snow+soil system
- integer(i4b)     :: nSnowSoilNrg       = integerMissing  ! number of energy states in the snow+soil domain                          (-) 
- integer(i4b)     :: nSnowOnlyNrg       = integerMissing  ! number of energy states in the snow domain                               (-) 
- integer(i4b)     :: nSoilOnlyNrg       = integerMissing  ! number of energy states in the soil domain                               (-) 
- integer(i4b)     :: nSnowSoilHyd       = integerMissing  ! number of hydrology states in the snow+soil domain                       (-) 
- integer(i4b)     :: nSnowOnlyHyd       = integerMissing  ! number of hydrology states in the snow domain                            (-) 
- integer(i4b)     :: nSoilOnlyHyd       = integerMissing  ! number of hydrology states in the soil domain                            (-) 
+ integer(i4b)     :: nSnowSoilNrg       = integerMissing  ! number of energy states in the snow+soil domain                          (-)
+ integer(i4b)     :: nSnowOnlyNrg       = integerMissing  ! number of energy states in the snow domain                               (-)
+ integer(i4b)     :: nSoilOnlyNrg       = integerMissing  ! number of energy states in the soil domain                               (-)
+ integer(i4b)     :: nSnowSoilHyd       = integerMissing  ! number of hydrology states in the snow+soil domain                       (-)
+ integer(i4b)     :: nSnowOnlyHyd       = integerMissing  ! number of hydrology states in the snow domain                            (-)
+ integer(i4b)     :: nSoilOnlyHyd       = integerMissing  ! number of hydrology states in the soil domain                            (-)
  ! type of model state variables
- integer(i4b)     :: ixControlVolume    = integerMissing  ! index of the control volume for different domains (veg, snow, soil)      (-) 
- integer(i4b)     :: ixDomainType       = integerMissing  ! index of the type of domain (iname_veg, iname_snow, iname_soil)          (-) 
- integer(i4b)     :: ixStateType        = integerMissing  ! index of the type of every state variable (iname_nrgCanair, ...)         (-) 
- integer(i4b)     :: ixHydType          = integerMissing  ! index of the type of hydrology states in snow+soil domain                (-) 
+ integer(i4b)     :: ixControlVolume    = integerMissing  ! index of the control volume for different domains (veg, snow, soil)      (-)
+ integer(i4b)     :: ixDomainType       = integerMissing  ! index of the type of domain (iname_veg, iname_snow, iname_soil)          (-)
+ integer(i4b)     :: ixStateType        = integerMissing  ! index of the type of every state variable (iname_nrgCanair, ...)         (-)
+ integer(i4b)     :: ixHydType          = integerMissing  ! index of the type of hydrology states in snow+soil domain                (-)
  ! type of model state variables (state subset)
- integer(i4b)     :: ixDomainType_subset= integerMissing  ! [state subset] id of domain for desired model state variables            (-) 
- integer(i4b)     :: ixStateType_subset = integerMissing  ! [state subset] type of desired model state variables                     (-) 
+ integer(i4b)     :: ixDomainType_subset= integerMissing  ! [state subset] id of domain for desired model state variables            (-)
+ integer(i4b)     :: ixStateType_subset = integerMissing  ! [state subset] type of desired model state variables                     (-)
  ! mapping between state subset and the full state vector
- integer(i4b)     :: ixMapFull2Subset   = integerMissing  ! list of indices of the state subset in the full state vector             (-) 
- integer(i4b)     :: ixMapSubset2Full   = integerMissing  ! list of indices of the full state vector in the state subset             (-) 
+ integer(i4b)     :: ixMapFull2Subset   = integerMissing  ! list of indices of the state subset in the full state vector             (-)
+ integer(i4b)     :: ixMapSubset2Full   = integerMissing  ! list of indices of the full state vector in the state subset             (-)
  ! indices of model specific state variables
- integer(i4b)     :: ixCasNrg           = integerMissing  ! index IN THE STATE SUBSET of canopy air space energy state variable      (-) 
- integer(i4b)     :: ixVegNrg           = integerMissing  ! index IN THE STATE SUBSET of canopy energy state variable                (-) 
- integer(i4b)     :: ixVegHyd           = integerMissing  ! index IN THE STATE SUBSET of canopy hydrology state variable (mass)      (-) 
- integer(i4b)     :: ixTopNrg           = integerMissing  ! index IN THE STATE SUBSET of upper-most energy state in snow+soil domain (-) 
- integer(i4b)     :: ixTopHyd           = integerMissing  ! index IN THE STATE SUBSET of upper-most hydrol state in snow+soil domain (-) 
+ integer(i4b)     :: ixCasNrg           = integerMissing  ! index IN THE STATE SUBSET of canopy air space energy state variable      (-)
+ integer(i4b)     :: ixVegNrg           = integerMissing  ! index IN THE STATE SUBSET of canopy energy state variable                (-)
+ integer(i4b)     :: ixVegHyd           = integerMissing  ! index IN THE STATE SUBSET of canopy hydrology state variable (mass)      (-)
+ integer(i4b)     :: ixTopNrg           = integerMissing  ! index IN THE STATE SUBSET of upper-most energy state in snow+soil domain (-)
+ integer(i4b)     :: ixTopHyd           = integerMissing  ! index IN THE STATE SUBSET of upper-most hydrol state in snow+soil domain (-)
  ! vectors of indices for specific state types
- integer(i4b)     :: ixNrgOnly          = integerMissing  ! indices IN THE STATE SUBSET for all energy states                        (-) 
- integer(i4b)     :: ixHydOnly          = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-) 
- integer(i4b)     :: ixMatOnly          = integerMissing  ! indices IN THE STATE SUBSET for matric head state variables              (-) 
- integer(i4b)     :: ixMassOnly         = integerMissing  ! indices IN THE STATE SUBSET for hydrology states (mass of water)         (-) 
+ integer(i4b)     :: ixNrgOnly          = integerMissing  ! indices IN THE STATE SUBSET for all energy states                        (-)
+ integer(i4b)     :: ixHydOnly          = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
+ integer(i4b)     :: ixMatOnly          = integerMissing  ! indices IN THE STATE SUBSET for matric head state variables              (-)
+ integer(i4b)     :: ixMassOnly         = integerMissing  ! indices IN THE STATE SUBSET for hydrology states (mass of water)         (-)
  ! vectors of indices for specific state types within specific sub-domains
- integer(i4b)     :: ixSnowSoilNrg      = integerMissing  ! indices of model layers for energy states in the snow+soil domain        (-) 
- integer(i4b)     :: ixSnowOnlyNrg      = integerMissing  ! indices of model layers for energy states in the snow domain             (-) 
- integer(i4b)     :: ixSoilOnlyNrg      = integerMissing  ! indices of model layers for energy states in the soil domain             (-) 
- integer(i4b)     :: ixSnowSoilHyd      = integerMissing  ! indices of model layers for hydrology states in the snow+soil domain     (-) 
- integer(i4b)     :: ixSnowOnlyHyd      = integerMissing  ! indices of model layers for hydrology states in the snow domain          (-) 
- integer(i4b)     :: ixSoilOnlyHyd      = integerMissing  ! indices of model layers for hydrology states in the soil domain          (-) 
+ integer(i4b)     :: ixSnowSoilNrg      = integerMissing  ! indices of model layers for energy states in the snow+soil domain        (-)
+ integer(i4b)     :: ixSnowOnlyNrg      = integerMissing  ! indices of model layers for energy states in the snow domain             (-)
+ integer(i4b)     :: ixSoilOnlyNrg      = integerMissing  ! indices of model layers for energy states in the soil domain             (-)
+ integer(i4b)     :: ixSnowSoilHyd      = integerMissing  ! indices of model layers for hydrology states in the snow+soil domain     (-)
+ integer(i4b)     :: ixSnowOnlyHyd      = integerMissing  ! indices of model layers for hydrology states in the snow domain          (-)
+ integer(i4b)     :: ixSoilOnlyHyd      = integerMissing  ! indices of model layers for hydrology states in the soil domain          (-)
  ! vectors of indices for specfic state types within specific sub-domains
- integer(i4b)     :: ixNrgCanair        = integerMissing  ! indices IN THE FULL VECTOR for energy states in canopy air space domain  (-) 
- integer(i4b)     :: ixNrgCanopy        = integerMissing  ! indices IN THE FULL VECTOR for energy states in the canopy domain        (-) 
- integer(i4b)     :: ixHydCanopy        = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the canopy domain     (-) 
- integer(i4b)     :: ixNrgLayer         = integerMissing  ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-) 
- integer(i4b)     :: ixHydLayer         = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-) 
+ integer(i4b)     :: ixNrgCanair        = integerMissing  ! indices IN THE FULL VECTOR for energy states in canopy air space domain  (-)
+ integer(i4b)     :: ixNrgCanopy        = integerMissing  ! indices IN THE FULL VECTOR for energy states in the canopy domain        (-)
+ integer(i4b)     :: ixHydCanopy        = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the canopy domain     (-)
+ integer(i4b)     :: ixNrgLayer         = integerMissing  ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
+ integer(i4b)     :: ixHydLayer         = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
- integer(i4b)     :: ixVolFracWat       = integerMissing  ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-) 
- integer(i4b)     :: ixMatricHead       = integerMissing  ! indices IN THE SOIL VECTOR for hyd states                                (-) 
+ integer(i4b)     :: ixVolFracWat       = integerMissing  ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
+ integer(i4b)     :: ixMatricHead       = integerMissing  ! indices IN THE SOIL VECTOR for hyd states                                (-)
  ! indices within state vectors
- integer(i4b)     :: ixAllState         = integerMissing  ! list of indices for all model state variables                            (-) 
- integer(i4b)     :: ixSoilState        = integerMissing  ! list of indices for all soil layers                                      (-) 
- integer(i4b)     :: ixLayerState       = integerMissing  ! list of indices for all model layers                                     (-) 
+ integer(i4b)     :: ixAllState         = integerMissing  ! list of indices for all model state variables                            (-)
+ integer(i4b)     :: ixSoilState        = integerMissing  ! list of indices for all soil layers                                      (-)
+ integer(i4b)     :: ixLayerState       = integerMissing  ! list of indices for all model layers                                     (-)
  integer(i4b)     :: ixLayerActive      = integerMissing  ! list of indices for active model layers (inactive=integerMissing)        (-)
  endtype iLook_index
 
@@ -688,14 +688,14 @@ MODULE var_lookup
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
- ! (10) structure for looking up the type of a model variable (this is only needed for backward 
+ ! (10) structure for looking up the type of a model variable (this is only needed for backward
  ! compatability, and should be removed eventually)
  ! ***********************************************************************************************************
  type, public :: iLook_varType
-  integer(i4b)    :: scalarv   = integerMissing ! scalar variables 
+  integer(i4b)    :: scalarv   = integerMissing ! scalar variables
   integer(i4b)    :: wLength   = integerMissing ! # spectral bands
   integer(i4b)    :: midSnow   = integerMissing ! mid-layer snow variables
-  integer(i4b)    :: midSoil   = integerMissing ! mid-layer soil variables 
+  integer(i4b)    :: midSoil   = integerMissing ! mid-layer soil variables
   integer(i4b)    :: midToto   = integerMissing ! mid-layer, both snow and soil
   integer(i4b)    :: ifcSnow   = integerMissing ! interface snow variables
   integer(i4b)    :: ifcSoil   = integerMissing ! interface soil variables
@@ -707,14 +707,14 @@ MODULE var_lookup
  endtype iLook_varType
 
  ! ***********************************************************************************************************
- ! (11) structure for looking up statistics 
+ ! (11) structure for looking up statistics
  ! ***********************************************************************************************************
  type, public :: iLook_stat
-  integer(i4b)    :: totl = integerMissing ! summation 
-  integer(i4b)    :: inst = integerMissing ! instantaneous 
+  integer(i4b)    :: totl = integerMissing ! summation
+  integer(i4b)    :: inst = integerMissing ! instantaneous
   integer(i4b)    :: mean = integerMissing ! mean over period
   integer(i4b)    :: vari = integerMissing ! variance over period
-  integer(i4b)    :: mini = integerMissing ! minimum over period 
+  integer(i4b)    :: mini = integerMissing ! minimum over period
   integer(i4b)    :: maxi = integerMissing ! maximum over period
   integer(i4b)    :: mode = integerMissing ! mode over period
  endtype iLook_stat
@@ -804,7 +804,7 @@ MODULE var_lookup
 
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11) 
+                                                                         11)
 
  ! named variables in varibale type structure
  type(iLook_varType), public,parameter :: iLookVarType  =ilook_varType (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

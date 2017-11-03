@@ -74,7 +74,7 @@ contains
  real(dp),parameter              :: valueMissing=-9999._dp   ! missing value
  real(dp),parameter              :: co2Factor=355.e-6_dp     ! empirical factor to obtain partial pressure of co2
  real(dp),parameter              :: o2Factor=0.209_dp        ! empirical factor to obtain partial pressure of o2
- real(dp),parameter              :: minMeasHeight=1._dp      ! minimum measurement height (m) 
+ real(dp),parameter              :: minMeasHeight=1._dp      ! minimum measurement height (m)
  real(dp)                        :: relhum                   ! relative humidity (-)
  real(dp)                        :: fracrain                 ! fraction of precipitation that falls as rain
  real(dp)                        :: maxFrozenSnowTemp        ! maximum temperature of snow when the snow is predominantely frozen (K)

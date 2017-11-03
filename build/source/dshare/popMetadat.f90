@@ -52,8 +52,8 @@ contains
  character(*),intent(out)       :: message       ! error message
  ! internals
  character(256)                 :: cmessage      ! error message
- integer,dimension(maxVarStat)  :: iMissArry     ! arry of missing integers 
- logical,dimension(maxVarStat)  :: lFalseArry    ! arry of false logicals 
+ integer,dimension(maxVarStat)  :: iMissArry     ! arry of missing integers
+ logical,dimension(maxVarStat)  :: lFalseArry    ! arry of false logicals
  ! initialize error control
  err=0; message='popMetadat/'
 
@@ -409,7 +409,7 @@ contains
  diag_meta(iLookDIAG%scalarKappa)                     = var_info('scalarKappa'                    , 'constant in the freezing curve function'                          , 'm K-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! number of function evaluations
- diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry) 
+ diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
 
  ! -----
  ! * local model fluxes...
@@ -726,10 +726,10 @@ contains
  ! read the rest of the lines
  call get_vlines(unt,charLines,err,cmessage) ! get a list of character strings from non-comment lines
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- close(unt) ! close the file 
+ close(unt) ! close the file
 
  ! **********************************************************************************************
- ! (3) loop to parse individual file lines 
+ ! (3) loop to parse individual file lines
  ! **********************************************************************************************
 
  ! initialize output frequency
@@ -766,8 +766,8 @@ contains
    ! temporally constant structures
    case('time' ); if (oFreq/=0) time_meta(vDex)%statFlag(iLookStat%inst)=.true.; time_meta(vDex)%outFreq=modelTime ! timing data
    case('bpar' ); if (oFreq/=0) bpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; bpar_meta(vDex)%outFreq=modelTime ! basin parameters
-   case('attr' ); if (oFreq/=0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes 
-   case('type' ); if (oFreq/=0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification 
+   case('attr' ); if (oFreq/=0) attr_meta(vDex)%statFlag(iLookStat%inst)=.true.; attr_meta(vDex)%outFreq=modelTime ! local attributes
+   case('type' ); if (oFreq/=0) type_meta(vDex)%statFlag(iLookStat%inst)=.true.; type_meta(vDex)%outFreq=modelTime ! local classification
    case('mpar' ); if (oFreq/=0) mpar_meta(vDex)%statFlag(iLookStat%inst)=.true.; mpar_meta(vDex)%outFreq=modelTime ! model parameters
 
    ! index structures -- can only be output at the model time step
@@ -777,11 +777,11 @@ contains
 
    ! temporally varying structures
    case('forc' ); call popStat(forc_meta(vDex) ,lineWords,err,cmessage)    ! model forcing data
-   case('prog' ); call popStat(prog_meta(vDex) ,lineWords,err,cmessage)    ! model prognostics 
+   case('prog' ); call popStat(prog_meta(vDex) ,lineWords,err,cmessage)    ! model prognostics
    case('diag' ); call popStat(diag_meta(vDex) ,lineWords,err,cmessage)    ! model diagnostics
    case('flux' ); call popStat(flux_meta(vDex) ,lineWords,err,cmessage)    ! model fluxes
    case('bvar' ); call popStat(bvar_meta(vDex) ,lineWords,err,cmessage)    ! basin variables
-   case('deriv'); call popStat(deriv_meta(vDex),lineWords,err,cmessage)    ! model derivs 
+   case('deriv'); call popStat(deriv_meta(vDex),lineWords,err,cmessage)    ! model derivs
 
    ! error control
    case default;  err=20;message=trim(message)//'unable to identify lookup structure';return
@@ -794,19 +794,19 @@ contains
  end do ! loop through file lines with vline
 
  ! **********************************************************************************************
- ! (4) see if we need any index variables 
+ ! (4) see if we need any index variables
  ! **********************************************************************************************
 
  ! force output the number of layers
  ! (snow layers)
  indx_meta(iLookINDEX%nSnow)%statFlag(iLookStat%inst)             = .true.
- indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime 
+ indx_meta(iLookINDEX%nSnow)%outFreq                              = modelTime
  ! (soil layers)
  indx_meta(iLookINDEX%nSoil)%statFlag(iLookStat%inst)             = .true.
- indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime 
+ indx_meta(iLookINDEX%nSoil)%outFreq                              = modelTime
  ! (total layers)
  indx_meta(iLookINDEX%nLayers)%statFlag(iLookStat%inst)           = .true.
- indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime 
+ indx_meta(iLookINDEX%nLayers)%outFreq                            = modelTime
 
  return
  end subroutine read_output_file
@@ -829,10 +829,10 @@ contains
  character(*),intent(in)                       :: lineWords(:) ! vector to parse textline
  integer(i4b),intent(out)                      :: err          ! error code
  character(*),intent(out)                      :: message      ! error message
- ! internals 
+ ! internals
  integer(i4b)                                  :: oFreq        ! output frequency
  integer(i4b)                                  :: nWords       ! number of words in a line
- ! indexes 
+ ! indexes
  integer(i4b) :: cFreq ! current index into frequency vector
  integer(i4b) :: iStat ! index of statistics vector
 
@@ -906,7 +906,7 @@ contains
 
   ! pull the stats flags
   do iStat = 1,maxVarStat
-   if (lineWords(freqIndex + 2*iStat)=='1') then 
+   if (lineWords(freqIndex + 2*iStat)=='1') then
     meta%statFlag(iStat)=.true.
     meta%outFreq = cFreq
    end if

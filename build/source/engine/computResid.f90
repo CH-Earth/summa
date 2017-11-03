@@ -114,7 +114,7 @@ contains
  real(dp),intent(in)             :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
  real(dp),intent(in)             :: scalarCanopyHydTrial      ! trial value for canopy water (kg m-2), either liquid water content or total water content
  real(dp),intent(in)             :: mLayerTempTrial(:)        ! trial value for temperature of each snow/soil layer (K)
- real(dp),intent(in)             :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content 
+ real(dp),intent(in)             :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content
  ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
  real(dp),intent(in)             :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)

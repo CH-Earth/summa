@@ -245,7 +245,7 @@ CONTAINS
 !   SOILM      TOTAL SOIL COLUMN MOISTURE CONTENT (FROZEN+UNFROZEN) (M)
 !   Q1         Effective mixing ratio at surface (kg kg-1), used for
 !              diagnosing the mixing ratio at 2 meter for coupled model
-!   SMAV       Soil Moisture Availability for each layer, as a fraction 
+!   SMAV       Soil Moisture Availability for each layer, as a fraction
 !              between SMCWLT and SMCMAX.
 !  Documentation for SNOTIME1 and SNOABL2 ?????
 !  What categories of arguments do these variables fall into ????
@@ -3038,10 +3038,10 @@ CONTAINS
       BURIAL = 7.0*Z0BRD - SNOWH
       IF(BURIAL.LE.0.0007) THEN
         Z0EFF = Z0S
-      ELSE      
+      ELSE
         Z0EFF = BURIAL/7.0
       ENDIF
-      
+
       Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0EFF
 
 ! ----------------------------------------------------------------------

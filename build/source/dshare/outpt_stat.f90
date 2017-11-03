@@ -28,14 +28,14 @@ public :: calcStats
 contains
 
  ! ******************************************************************************************************
- ! public subroutine calcStats is called at every model timestep to update/store output statistics 
+ ! public subroutine calcStats is called at every model timestep to update/store output statistics
  ! from model variables
  ! ******************************************************************************************************
  subroutine calcStats(stat,dat,meta,iStep,err,message)
  USE nrtype
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
- USE var_lookup,only:iLookVarType                   ! named variables for variable types 
- USE var_lookup,only:iLookStat                      ! named variables for output statistics types 
+ USE var_lookup,only:iLookVarType                   ! named variables for variable types
+ USE var_lookup,only:iLookStat                      ! named variables for output statistics types
  implicit none
 
  ! dummy variables
@@ -59,7 +59,7 @@ contains
 
   ! don't do anything if var is not requested
   if (meta(iVar)%outFreq<0) cycle
-  
+
   ! only treat stats of scalars - all others handled separately
   if (meta(iVar)%varType==iLookVarType%outstat) then
 
@@ -77,10 +77,10 @@ contains
    if (trim(meta(iVar)%varName)=='time') then
     stat(iVar)%dat(iLookStat%inst) = tdata
    else
-    call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)  
+    call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)
    end if
 
-   if(err/=0)then; message=trim(message)//trim(cmessage);return; end if  
+   if(err/=0)then; message=trim(message)//trim(cmessage);return; end if
   end if
  end do                                             ! model variables
 
@@ -90,19 +90,19 @@ contains
 
  ! ***********************************************************************************
  ! Private subroutine calc_stats is a generic fucntion to deal with any variable type.
- ! Called from compile_stats 
+ ! Called from compile_stats
  ! ***********************************************************************************
  subroutine calc_stats(meta,stat,tdata,iStep,err,message)
  USE nrtype
  ! data structures
- USE data_types,only:var_info,ilength,dlength ! type dec for meta data structures 
- USE var_lookup,only:maxVarStat       ! # of output statistics 
- USE globalData,only:outFreq          ! output frequencies 
- ! global variables 
+ USE data_types,only:var_info,ilength,dlength ! type dec for meta data structures
+ USE var_lookup,only:maxVarStat       ! # of output statistics
+ USE globalData,only:outFreq          ! output frequencies
+ ! global variables
  USE globalData,only:data_step        ! forcing timestep
  ! structures of named variables
- USE var_lookup,only:iLookVarType     ! named variables for variable types 
- USE var_lookup,only:iLookStat        ! named variables for output statistics types 
+ USE var_lookup,only:iLookVarType     ! named variables for variable types
+ USE var_lookup,only:iLookStat        ! named variables for output statistics types
  implicit none
  ! dummy variables
  class(var_info),intent(in)        :: meta        ! meta dat a structure
@@ -130,20 +130,20 @@ contains
  end select
 
  ! ---------------------------------------------
- ! reset statistics at new frequency period 
+ ! reset statistics at new frequency period
  ! ---------------------------------------------
  if ((mod(iStep,outFreq(iFreq))==1).or.(outFreq(iFreq)==1)) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! don't bother if output flag is off
-   if (meta%varType.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
-   select case(iStat)                              ! act depending on the statistic 
+   if (meta%varType.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars
+   select case(iStat)                              ! act depending on the statistic
     case (iLookStat%totl)                          ! summation over period
      tstat(iStat) = 0                              ! resets stat at beginning of period
     case (iLookStat%mean)                          ! mean over period
-     tstat(iStat) = 0. 
+     tstat(iStat) = 0.
     case (iLookStat%vari)                          ! variance over period
      tstat(iStat) = 0                              ! resets E[X^2] term in var calc
-     tstat(maxVarStat+1) = 0                       ! resets E[X]^2 term  
+     tstat(maxVarStat+1) = 0                       ! resets E[X]^2 term
     case (iLookStat%mini)                          ! minimum over period
      tstat(iStat) = huge(tstat(iStat))             ! resets stat at beginning of period
     case (iLookStat%maxi)                          ! maximum over period
@@ -151,7 +151,7 @@ contains
     case (iLookStat%mode)                          ! mode over period (does not work)
      tstat(iStat) = -9999.
    end select
-  end do ! iStat 
+  end do ! iStat
  end if
 
  ! ---------------------------------------------
@@ -159,34 +159,34 @@ contains
  ! ---------------------------------------------
  do iStat = 1,maxVarStat                           ! loop through output statistics
   if (.not.meta%statFlag(iStat)) cycle             ! do not bother if output flag is off
-  if (meta%varType.ne.iLookVarType%outstat) cycle  ! only calculate stats for scalars 
-  select case(iStat)                               ! act depending on the statistic 
+  if (meta%varType.ne.iLookVarType%outstat) cycle  ! only calculate stats for scalars
+  select case(iStat)                               ! act depending on the statistic
    case (iLookStat%totl)                           ! summation over period
     tstat(iStat) = tstat(iStat) + tdata            ! into summation
    case (iLookStat%inst)                           ! instantaneous
-    tstat(iStat) = tdata                                        
+    tstat(iStat) = tdata
    case (iLookStat%mean)                           ! mean over period
-    tstat(iStat) = tstat(iStat) + tdata            ! adds timestep to sum 
+    tstat(iStat) = tstat(iStat) + tdata            ! adds timestep to sum
    case (iLookStat%vari)                           ! variance over period
     tstat(iStat) = tstat(iStat) + tdata**2         ! sum into E[X^2] term
-    tstat(maxVarStat+1) = tstat(maxVarStat+1) + tdata  ! sum into E[X]^2 term        
+    tstat(maxVarStat+1) = tstat(maxVarStat+1) + tdata  ! sum into E[X]^2 term
    case (iLookStat%mini)                           ! minimum over period
-    if (tdata.le.tstat(iStat)) tstat(iStat) = tdata! overwrites minimum iff 
+    if (tdata.le.tstat(iStat)) tstat(iStat) = tdata! overwrites minimum iff
    case (iLookStat%maxi)                           ! maximum over period
-    if (tdata.ge.tstat(iStat)) tstat(iStat) = tdata! overwrites maximum iff 
+    if (tdata.ge.tstat(iStat)) tstat(iStat) = tdata! overwrites maximum iff
    case (iLookStat%mode)                           ! (does not work)
-    tstat(iStat) = -9999. 
+    tstat(iStat) = -9999.
   end select
- end do ! iStat 
+ end do ! iStat
 
  ! ---------------------------------------------
- ! finalize statistics at end of frequenncy period 
+ ! finalize statistics at end of frequenncy period
  ! ---------------------------------------------
  if (mod(iStep,outFreq(iFreq))==0) then
   do iStat = 1,maxVarStat                          ! loop through output statistics
    if (.not.meta%statFlag(iStat)) cycle            ! do not bother if output flag is off
-   if (meta%vartype.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars 
-   select case(iStat)                              ! act depending on the statistic 
+   if (meta%vartype.ne.iLookVarType%outstat) cycle ! only calculate stats for scalars
+   select case(iStat)                              ! act depending on the statistic
     case (iLookStat%totl)                          ! summation over period
      tstat(iStat) = tstat(iStat)*data_step         ! scale by seconds per timestep
     case (iLookStat%mean)                          ! mean over period
@@ -195,7 +195,7 @@ contains
      tstat(maxVarStat+1) = tstat(maxVarStat+1)/outFreq(iFreq) ! E[X] term
      tstat(iStat) = tstat(iStat)/outFreq(iFreq) - tstat(maxVarStat+1)**2 ! full variance
    end select
-  end do ! iStat 
+  end do ! iStat
  end if
 
  ! pack back into struc

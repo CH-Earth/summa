@@ -91,7 +91,7 @@ contains
                        scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
                        iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
                        fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
-                       fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps) 
+                       fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
                        ! input/output: data structures
                        model_decisions,   & ! intent(in)    : model decisions
                        type_data,         & ! intent(in)    : type of vegetation and soil
@@ -139,7 +139,7 @@ contains
  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote implementing the scalar solution
  integer(i4b),intent(in)         :: iStateSplit                   ! index of the state in the splitting operation
  type(var_flagVec),intent(in)    :: fluxMask                      ! flags to denote if the flux is calculated in the given state subset
- type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps) 
+ type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps)
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
@@ -174,7 +174,7 @@ contains
  ! time stepping
  real(dp)                        :: dtSum                         ! sum of time from successful steps (seconds)
  real(dp)                        :: dt_wght                       ! weight given to a given flux calculation
- real(dp)                        :: dtSubstep                     ! length of a substep (s) 
+ real(dp)                        :: dtSubstep                     ! length of a substep (s)
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
  real(dp),parameter              :: safety=0.85_dp                ! safety factor in adaptive sub-stepping
@@ -200,8 +200,8 @@ contains
  real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
  real(dp)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  real(dp)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
- real(dp)                        :: sumSoilCompress 
- real(dp),allocatable            :: sumLayerCompress(:) 
+ real(dp)                        :: sumSoilCompress
+ real(dp),allocatable            :: sumLayerCompress(:)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -257,7 +257,7 @@ contains
  sumLatHeatCanopyEvap = 0._dp  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  sumSenHeatCanopy     = 0._dp  ! sensible heat flux from the canopy to the canopy air space (W m-2)
  sumSoilCompress      = 0._dp  ! total soil compression
- allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer 
+ allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer
 
  ! define the first flux call in a splitting operation
  firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
@@ -292,7 +292,7 @@ contains
                    stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
+
   ! -----
   ! * iterative solution...
   ! -----------------------
@@ -351,7 +351,7 @@ contains
 
    ! solver failure
    if(err<0)then
-    err=0; message='varSubstep/'  ! recover from failed convergence 
+    err=0; message='varSubstep/'  ! recover from failed convergence
     dtMultiplier  = 0.5_dp        ! system failure: step halving
 
    ! nothing else defined
@@ -376,7 +376,7 @@ contains
 
   ! check if we failed the substep
   if(failedSubstep)then
-  
+
    ! check that the substep is greater than the minimum step
    if(dtSubstep*dtMultiplier<dt_min)then
     ! --> exit, and either (1) try another solution method; or (2) reduce coupled step
@@ -384,7 +384,7 @@ contains
     exit subSteps
 
    else ! step is still OK
-    dtSubstep = dtSubstep*dtMultiplier  
+    dtSubstep = dtSubstep*dtMultiplier
     cycle subSteps
    endif  ! if step is less than the minimum
 
@@ -522,7 +522,7 @@ contains
  flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
 
- ! save the soil compression diagnostics 
+ ! save the soil compression diagnostics
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
  do iSoil=1,nSoil
   if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
@@ -555,7 +555,7 @@ contains
  real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
  real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
- ! data structures 
+ ! data structures
  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
  type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
@@ -754,12 +754,12 @@ contains
     if(canopyBalance1 < 0._dp)then
      superflousWat            = -canopyBalance1/dt     ! kg m-2 s-1
      canopyBalance1          = 0._dp
-     scalarCanopyLiqDrainage = scalarCanopyLiqDrainage + superflousWat 
+     scalarCanopyLiqDrainage = scalarCanopyLiqDrainage + superflousWat
     endif
 
     ! update the trial state
     scalarCanopyWatTrial = canopyBalance1
- 
+
     ! set the modification flag
     nrgFluxModified = .true.
 
@@ -779,13 +779,13 @@ contains
    !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
    !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
    !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
-   !write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError 
+   !write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError
    if(abs(liqError) > absConvTol_liquid*10._dp)then  ! *10 because of precision issues
     waterBalanceError = .true.
     return
    endif  ! if there is a water balance error
   endif  ! if veg canopy
- 
+
   ! check mass balance for soil
   ! NOTE: fatal errors, though possible to recover using negative error codes
   if(count(ixSoilOnlyHyd/=integerMissing)>0)then
@@ -864,7 +864,7 @@ contains
     if(scalarCanopyIceTrial > -verySmall)then
      scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
      scalarCanopyIceTrial = 0._dp
-  
+
     ! encountered an inconsistency: spit the dummy
     else
      print*, 'dt = ', dt
@@ -879,7 +879,7 @@ contains
 
    ! **
    ! snow+soil within numerical precision
-   do iState=1,size(mLayerVolFracIceTrial) 
+   do iState=1,size(mLayerVolFracIceTrial)
 
     ! snow layer within numerical precision
     if(mLayerVolFracIceTrial(iState) < 0._dp)then
@@ -887,13 +887,13 @@ contains
      if(mLayerVolFracIceTrial(iState) > -verySmall)then
       mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
       mLayerVolFracIceTrial(iState) = 0._dp
-  
+
      ! encountered an inconsistency: spit the dummy
      else
       print*, 'dt = ', dt
       print*, 'untappedMelt          = ', untappedMelt
       print*, 'untappedMelt*dt       = ', untappedMelt*dt
-      print*, 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial 
+      print*, 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial
       message=trim(message)//'melted more than the available water'
       err=20; return
      endif  ! (inconsistency)
@@ -930,7 +930,7 @@ contains
     endif  ! (inconsistency)
 
    endif  ! checking the canopy
- 
+
    ! **
    ! snow+soil within numerical precision
    do iState=1,size(mLayerVolFracLiqTrial)
@@ -941,7 +941,7 @@ contains
      if(mLayerVolFracLiqTrial(iState) > -verySmall)then
       mLayerVolFracIceTrial(iState) = mLayerVolFracIceTrial(iState) - mLayerVolFracLiqTrial(iState)
       mLayerVolFracLiqTrial(iState) = 0._dp
-  
+
      ! encountered an inconsistency: spit the dummy
      else
       print*, 'dt = ', dt
@@ -961,15 +961,15 @@ contains
  endif  ! (if energy state variables exist)
 
  ! -----
- ! * update prognostic variables... 
+ ! * update prognostic variables...
  ! --------------------------------
 
  ! build elements of the state vector for the vegetation canopy
  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
  scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
- scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2) 
+ scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2)
  scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)
- scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2) 
+ scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2)
 
  ! build elements of the state vector for the snow+soil domain
  mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)

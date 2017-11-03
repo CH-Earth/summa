@@ -35,7 +35,7 @@ integer(i4b),parameter,public :: simpleResistance     =   3    ! simple resistan
 integer(i4b),parameter,public :: BallBerryFlex        =   4    ! flexible Ball-Berry scheme
 integer(i4b),parameter,public :: BallBerryTest        =   5    ! flexible Ball-Berry scheme (testing)
 ! look-up values to define leaf temperature controls on photosynthesis + stomatal resistance
-integer(i4b),parameter,public :: q10Func              =  11    ! the q10 function used in CLM4 and Noah-MP 
+integer(i4b),parameter,public :: q10Func              =  11    ! the q10 function used in CLM4 and Noah-MP
 integer(i4b),parameter,public :: Arrhenius            =  12    ! the Arrhenious functions used in CLM5 and Cable
 ! look-up values to define humidity controls on stomatal resistance
 integer(i4b),parameter,public :: humidLeafSurface     =  21    ! humidity at the leaf surface [Bonan et al., 2011]
@@ -141,7 +141,7 @@ integer(i4b),parameter,public :: timeDelay            = 301    ! time-delay hist
 integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous routing
 ! look-up values for the choice of new snow density method
 integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
-integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976 
+integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976
 integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
 integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 ! -----------------------------------------------------------------------------------------------------------
@@ -339,7 +339,7 @@ contains
     err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
   end select
  end if
- 
+
  ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
@@ -349,7 +349,7 @@ contains
     err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
   end select
  end if
- 
+
  ! identify the controls on carbon assimilation
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
@@ -363,7 +363,7 @@ contains
  ! identify the scaling of photosynthesis from the leaf to the canopy
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
-   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor 
+   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor
    case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
    case default
     err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
@@ -562,7 +562,7 @@ contains
 
  ! choice of thermal conductivity representation for soil
  select case(trim(model_decisions(iLookDECISIONS%thCondSoil)%cDecision))
-  case('funcSoilWet'); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = funcSoilWet      ! function of soil wetness 
+  case('funcSoilWet'); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = funcSoilWet      ! function of soil wetness
   case('mixConstit' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = mixConstit       ! mixture of constituents
   case('hanssonVZJ' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = hanssonVZJ       ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
   case default
@@ -676,7 +676,7 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
- integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
+ integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
  character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions

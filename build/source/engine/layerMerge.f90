@@ -471,7 +471,7 @@ contains
     if(iSnow>=ix_lower)  tempVec_dp(iSnow)              = missingDouble ! set merged layer to missing (fill in later)
     if(iSnow>ix_lower)   tempVec_dp(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
     if(iSnow+1<ix_upper) tempVec_dp(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
-    ! deallocate the data vector: strictly not necessary, but include to be safe 
+    ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(ivar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source

@@ -260,10 +260,10 @@ contains
    case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
-  
+
   ! loop through all layers, and sub-divide a given layer, if necessary
   do iLayer=1,nCheck
-  
+
    ! identify the maximum depth of the layer
    select case(ix_snowLayers)
     case(sameRulesAllLayers);    zmaxCheck = zmax
@@ -275,30 +275,30 @@ contains
      end if
     case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
    end select ! (option to combine/sub-divide snow layers)
-  
+
    ! check the need to sub-divide
    if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
-  
+
     ! flag that layers were divided
     divideLayer=.true.
-  
+
     ! add a layer to all model variables
     call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  
+
     ! define the layer depth
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
     depthOriginal = mLayerDepth(iLayer)
     mLayerDepth(iLayer)   = fracTop*depthOriginal
     mLayerDepth(iLayer+1) = (1._dp - fracTop)*depthOriginal
     end associate layerSplit
-  
+
     exit  ! NOTE: only sub-divide one layer per substep
-  
+
    end if   ! (if sub-dividing layer)
-  
+
   end do  ! (looping through layers)
 
  end if  ! if nSnow==0
@@ -388,7 +388,7 @@ contains
 
  ! ***** add a layer to each model variable
  do ivar=1,size(metaStruct)
-  
+
   ! define bounds
   select case(metaStruct(ivar)%vartype)
    case(iLookVarType%midSnow); ix_lower=1; ix_upper=nSnow
@@ -397,7 +397,7 @@ contains
    case(iLookVarType%ifcToto); ix_lower=0; ix_upper=nLayers
    case default; cycle
   end select
-  
+
   ! identify whether it is a state variable
   select case(trim(metaStruct(ivar)%varname))
    case('mLayerDepth','mLayerTemp','mLayerVolFracIce','mLayerVolFracLiq'); stateVariable=.true.

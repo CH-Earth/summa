@@ -54,7 +54,7 @@ contains
  end if
 
  ! open file
- err=nf90_open(infile, mode, ncid) 
+ err=nf90_open(infile, mode, ncid)
  if(err/=nf90_noerr) then
    message=trim(message)//"OpenError['"//trim(infile)//"']"//trim(nf90_strerror(err))
    err=20; return
@@ -75,13 +75,13 @@ contains
  ! initialize error control
  err=0; message = 'nc_file_close/'
 
- err = nf90_close(ncid); 
+ err = nf90_close(ncid);
  call netcdf_err(err,message)
 
  end subroutine nc_file_close
 
 ! ***********************************************************************************************
-! check the status of netCDF file operation and return error message 
+! check the status of netCDF file operation and return error message
 ! ***********************************************************************************************
  subroutine netcdf_err(err,message)
   ! used to handle errors for NetCDF calls

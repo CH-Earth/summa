@@ -259,7 +259,7 @@ contains
  dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)              ,&  ! intent(in):  [dp]    derivative of volumetric liquid water content w.r.t. temperature
 
  ! number of flux calls
- numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1)                    ,&  ! intent(out): [dp] number of flux calls (-) 
+ numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1)                    ,&  ! intent(out): [dp] number of flux calls (-)
 
  ! net fluxes over the vegetation domain
  scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)          ,&  ! intent(out): [dp] net energy flux for the canopy air space        (W m-2)
@@ -360,7 +360,7 @@ contains
  )  ! association to data in structures
 
  ! *****
- ! * PRELIMINARIES... 
+ ! * PRELIMINARIES...
  ! ******************
 
  !print*, '***** nSnowSoilNrg, nSnowOnlyNrg, nSoilOnlyNrg, nSnowSoilHyd, nSnowOnlyHyd, nSoilOnlyHyd = ', &
@@ -504,7 +504,7 @@ contains
                   ! output: error control
                   err,cmessage)                                ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
   ! calculate net energy fluxes for each snow and soil layer (J m-3 s-1)
   do iLayer=1,nLayers
    mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
@@ -539,13 +539,13 @@ contains
                   scalarCanopyLiqDrainageDeriv,           & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                   err,cmessage)                             ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-  
+
   ! calculate the net liquid water flux for the vegetation canopy
   scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
-  
+
   ! calculate the total derivative in the downward liquid flux
   scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
-  
+
   ! test
   if(globalPrintFlag)then
    print*, '**'
@@ -675,7 +675,7 @@ contains
    !if(iLayer<8) write(*,'(a,1x,2(i4,1x),3(e20.10),f12.7)') 'iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer), mLayerLiqFluxSoil(iLayer) = ', iLayer-1, iLayer, &
    !                                                         iLayerLiqFluxSoil(iLayer-1), iLayerLiqFluxSoil(iLayer), mLayerLiqFluxSoil(iLayer), mLayerDepth(iLayer+nSnow)
   end do
- 
+
   ! calculate the soil control on infiltration
   if(nSnow==0) then
    ! * case of infiltration into soil
@@ -688,7 +688,7 @@ contains
    ! * case of infiltration into snow
    scalarSoilControl = 1._dp
   endif
-  
+
   ! compute drainage from the soil zone (needed for mass balance checks)
   scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
 
@@ -714,16 +714,16 @@ contains
    mLayerColumnOutflow(:) = 0._dp  ! column outflow from each soil layer (m3 s-1)
    ! (variables needed for the numerical solution)
    mLayerBaseflow(:)      = 0._dp  ! baseflow from each soil layer (m s-1)
-  
+
   ! topmodel-ish shallow groundwater
   else ! local_ixGroundwater==qbaseTopmodel
-  
+
    ! check the derivative matrix is sized appropriately
    if(size(dBaseflow_dMatric,1)/=nSoil .or. size(dBaseflow_dMatric,2)/=nSoil)then
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
    endif
- 
+
    ! compute the baseflow flux
    call groundwatr(&
                    ! input: model control
@@ -749,7 +749,7 @@ contains
                    err,cmessage)                              ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif  ! computing baseflow flux
-  
+
   ! compute total baseflow from the soil zone (needed for mass balance checks)
   scalarSoilBaseflow = sum(mLayerBaseflow)
 
@@ -780,18 +780,18 @@ contains
  if(ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
  if(ixVegHyd/=integerMissing) fluxVec(ixVegHyd) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
 
- ! populate the flux vector for energy 
+ ! populate the flux vector for energy
  if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    fluxVec( ixSnowSoilNrg(iLayer) ) = mLayerNrgFlux(iLayer)
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
- ! populate the flux vector for hydrology 
+ ! populate the flux vector for hydrology
  ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
  if(nSnowSoilHyd>0)then  ! check if any hydrology states exist
   do iLayer=1,nLayers
-   if(ixSnowSoilHyd(iLayer)/=integerMissing)then   ! check if a given hydrology state exists 
+   if(ixSnowSoilHyd(iLayer)/=integerMissing)then   ! check if a given hydrology state exists
     select case( layerType(iLayer) )
      case(iname_snow); fluxVec( ixSnowSoilHyd(iLayer) ) = mLayerLiqFluxSnow(iLayer)
      case(iname_soil); fluxVec( ixSnowSoilHyd(iLayer) ) = mLayerLiqFluxSoil(iLayer-nSnow)
@@ -852,7 +852,7 @@ contains
   do iLayer=1,size(mLayerMatricHead)
    if(iLayer>=ixBeg .and. iLayer<=ixEnd)then
     ! compute the derivative for the compressibility term (m-1)
-    dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer) 
+    dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
     ! compute the compressibility term (-)
     compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)
    endif

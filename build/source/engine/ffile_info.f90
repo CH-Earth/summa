@@ -99,7 +99,7 @@ contains
  allocate(forcFileInfo(nFile), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
 
- ! poputate the forcingInfo structure with filenames 
+ ! poputate the forcingInfo structure with filenames
  do iFile=1,nFile
   ! split the line into "words" (expect one word: the file describing forcing data for that index)
   read(dataLines(iFile),*,iostat=err) filenameData
@@ -140,7 +140,7 @@ contains
    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
    err=10; return
   end if
-  
+
   ! open file
   mode=nf90_NoWrite
   call nc_file_open(trim(infile), mode, ncid, err, cmessage)
@@ -155,7 +155,7 @@ contains
 
   ! inquire nhru dimension size
   err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
-  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif 
+  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif
 
   ! inquire time dimension size
   err = nf90_inq_dimid(ncid,'time',dimId);                                     if(err/=0)then; message=trim(message)//'cannot find dimension time'; return; end if
