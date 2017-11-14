@@ -275,7 +275,8 @@ contains
  mLayerVolFracLiq     => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(nSnow+1:nLayers)  ,&  ! volumetric liquid water content in each soil layer (-)
  scalarAquiferStorage => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)            ,&  ! aquifer storage (m)
  scalarTotalSoilIce   => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)              ,&  ! total ice in the soil column (kg m-2)
- scalarTotalSoilLiq   => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)               &  ! total liquid water in the soil column (kg m-2)
+ scalarTotalSoilLiq   => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)              ,&  ! total liquid water in the soil column (kg m-2)
+ scalarTotalSoilWat   => diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1)               &  ! total water in the soil column (kg m-2)
  ) ! (association of local variables with information in the data structures
 
  ! save the liquid water and ice on the vegetation canopy
@@ -1146,7 +1147,9 @@ contains
 
  ! end association to canopy depth
  end associate canopy
-
+ 
+ ! Save the total soil water (Liquid+Ice)
+ diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1) = balanceSoilWater1
  ! save the surface temperature (just to make things easier to visualize)
  prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
 

@@ -524,6 +524,7 @@ contains
   case('scalarAquiferBalError'          ); get_ixdiag = iLookDIAG%scalarAquiferBalError            ! error in the aquifer water balance (kg m-2)
   case('scalarTotalSoilLiq'             ); get_ixdiag = iLookDIAG%scalarTotalSoilLiq               ! total mass of liquid water in the soil (kg m-2)
   case('scalarTotalSoilIce'             ); get_ixdiag = iLookDIAG%scalarTotalSoilIce               ! total mass of ice in the soil (kg m-2)
+  case('scalarTotalSoilWat'             ); get_ixdiag = iLookDIAG%scalarTotalSoilWat               ! total mass of water in the soil (kg m-2)
   ! variable shortcuts
   case('scalarVGn_m'                    ); get_ixdiag = iLookDIAG%scalarVGn_m                      ! van Genuchten "m" parameter (-)
   case('scalarKappa'                    ); get_ixdiag = iLookDIAG%scalarKappa                      ! constant in the freezing curve function (m K-1)
