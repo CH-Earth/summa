@@ -208,8 +208,8 @@ logical(lgt)                     :: printRestart               ! flag to print a
 integer(i4b),parameter           :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
 integer(i4b),parameter           :: ixRestart_im=1001          ! named variable to print a re-start file once per month
 integer(i4b),parameter           :: ixRestart_id=1002          ! named variable to print a re-start file once per day
-integer(i4b),parameter           :: ixRestart_never=1003       ! named variable to print a re-start file never
-integer(i4b),parameter           :: ixRestart_end=1004         ! named variable to print a re-start file at the end of a run
+integer(i4b),parameter           :: ixRestart_end=1003         ! named variable to print a re-start file at the end of a run
+integer(i4b),parameter           :: ixRestart_never=1004       ! named variable to print a re-start file never
 integer(i4b)                     :: ixRestart=ixRestart_never  ! define frequency to write restart files
 ! define output file
 integer(i4b)                     :: ctime1(8)                  ! initial time
@@ -1057,8 +1057,8 @@ do modelTimeStep=1,numtim
   case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_id);    printRestart = (timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixRestart_never); printRestart = .false.
   case(ixRestart_end);   printRestart = (timeStruct%var(iLookTIME%im) == finshTime%var(2) .and. timeStruct%var(iLookTIME%id) == finshTime%var(3) .and. timeStruct%var(iLookTIME%ih) == finshTime%var(4)  .and. timeStruct%var(iLookTIME%imin) == finshTime%var(5)) 
+  case(ixRestart_never); printRestart = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
 
@@ -1201,8 +1201,8 @@ contains
      case ('y' , 'year');  ixRestart = ixRestart_iy
      case ('m' , 'month'); ixRestart = ixRestart_im
      case ('d' , 'day');   ixRestart = ixRestart_id
-     case ('n' , 'never'); ixRestart = ixRestart_never
      case ('e' , 'end');   ixRestart = ixRestart_end
+     case ('n' , 'never'); ixRestart = ixRestart_never
      case default;         call handle_err(1,'unknown frequency to write restart files')
     end select
 
@@ -1241,7 +1241,7 @@ contains
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
- print "(A)",  ' -r --restart       Define frequency [y,m,d,never,e] to write restart files'
+ print "(A)",  ' -r --restart       Define frequency [y,m,d,e,never] to write restart files'
  print "(A)",  ' -p --progress      Define frequency [m,d,h,never] to print progress'
  print "(A)",  ' -v --version       Display version information of the current built'
  stop
