@@ -1116,7 +1116,11 @@ contains
 
      IF(HVT(VEGTYP)> 0. .AND. HVT(VEGTYP) <= 0.5) THEN
        SNOWHC = HVT(VEGTYP)*EXP(-SNOWH/0.1)
-       FB     = MIN(SNOWH,SNOWHC)/SNOWHC
+       IF (SNOWH>SNOWHC) THEN
+        FB = 1.
+       ELSE
+        FB = SNOWH/SNOWHC
+       ENDIF
      ENDIF
 
      ELAI =  LAI*(1.-FB)
