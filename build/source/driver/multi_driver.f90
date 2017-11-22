@@ -1059,7 +1059,7 @@ do modelTimeStep=1,numtim
   case(ixRestart_iy);    printRestart = (timeStruct%var(iLookTIME%im) == 1 .and. timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0  .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_im);    printRestart = (timeStruct%var(iLookTIME%id) == 1 .and. timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
   case(ixRestart_id);    printRestart = (timeStruct%var(iLookTIME%ih) == 0 .and. timeStruct%var(iLookTIME%imin) == 0)
-  case(ixRestart_end);   printRestart = (timeStruct%var(iLookTIME%im) == finshTime%var(2) .and. timeStruct%var(iLookTIME%id) == finshTime%var(3) .and. timeStruct%var(iLookTIME%ih) == finshTime%var(4)  .and. timeStruct%var(iLookTIME%imin) == finshTime%var(5)) 
+  case(ixRestart_end);   printRestart = (timeStruct%var(iLookTIME%im) == finshTime%var(2) .and. timeStruct%var(iLookTIME%id) == finshTime%var(3) .and. timeStruct%var(iLookTIME%ih) == finshTime%var(4)  .and. timeStruct%var(iLookTIME%imin) == finshTime%var(5))
   case(ixRestart_never); printRestart = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select

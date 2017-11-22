@@ -262,7 +262,7 @@ contains
 
       end do  ! HRU loop
      end do  ! GRU loop
- 
+
      ! get the maximum length of each data vector
      select case (meta(iVar)%varType)
       case(iLookVarType%wLength); maxLength = maxSpectral
@@ -274,7 +274,7 @@ contains
       case(iLookVarType%ifcSoil); maxLength = nSoil+1
       case default; cycle
      end select ! vartype
-     
+
      ! write the data vectors
      select case(dataType)
       case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
@@ -420,8 +420,8 @@ contains
                          nHRU,             & ! intent(in): number of HRUs
                          prog_meta,        & ! intent(in): prognostics metadata
                          prog_data,        & ! intent(in): prognostics data
-                         maxLayers,        & ! intent(in): maximum number of layers 
-                         maxSnowLayers,    & ! intent(in): maximum number of snow layers 
+                         maxLayers,        & ! intent(in): maximum number of layers
+                         maxSnowLayers,    & ! intent(in): maximum number of snow layers
                          indx_meta,        & ! intent(in): index metadata
                          indx_data,        & ! intent(in): index data
                          err,message)        ! intent(out): error control
@@ -505,10 +505,10 @@ contains
 
  ! maximum number of soil layers
  maxSoil = gru_struc(1)%hruInfo(1)%nSoil
- 
- ! maximum number of snow layers 
+
+ ! maximum number of snow layers
  maxSnow = maxSnowLayers
- 
+
  ! create file
  err = nf90_create(trim(filename),nf90_classic_model,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
