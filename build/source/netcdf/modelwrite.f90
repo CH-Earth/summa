@@ -420,6 +420,8 @@ contains
                          nHRU,             & ! intent(in): number of HRUs
                          prog_meta,        & ! intent(in): prognostics metadata
                          prog_data,        & ! intent(in): prognostics data
+                         maxLayers,        & ! intent(in): maximum number of layers
+                         maxSnowLayers,    & ! intent(in): maximum number of snow layers
                          indx_meta,        & ! intent(in): index metadata
                          indx_data,        & ! intent(in): index data
                          err,message)        ! intent(out): error control
@@ -449,6 +451,10 @@ contains
  integer(i4b),intent(out)           :: err           ! error code
  character(*),intent(out)           :: message       ! error message
  ! --------------------------------------------------------------------------------------------------------
+ ! dummy variables
+ integer(i4b), intent(in)           :: maxLayers     ! maximum number of total layers
+ integer(i4b), intent(in)           :: maxSnowLayers ! maximum number of snow layers
+
  ! local variables
  integer(i4b)                       :: ncid          ! netcdf file id
  integer(i4b),allocatable           :: ncVarID(:)    ! netcdf variable id
@@ -460,7 +466,6 @@ contains
  integer(i4b)                       :: maxSnow       ! maximum number of snow layers
  integer(i4b)                       :: maxSoil       ! maximum number of soil layers
  integer(i4b)                       :: nLayers       ! number of total layers
- integer(i4b)                       :: maxLayers     ! maximum number of total layers
  integer(i4b),parameter             :: nSpectral=2   ! number of spectal bands
  integer(i4b),parameter             :: nScalar=1     ! size of a scalar
 
@@ -499,23 +504,10 @@ contains
  allocate(ncVarID(size(prog_meta)))
 
  ! maximum number of soil layers
- maxSoil = 0
- do iGRU = 1,nGRU
-  do iHRU = 1,gru_struc(iGRU)%hruCount
-   maxSoil = max(maxSoil,gru_struc(iGRU)%hruInfo(iHRU)%nSoil)
-  end do
- end do
+ maxSoil = gru_struc(1)%hruInfo(1)%nSoil
 
  ! maximum number of snow layers
- maxSnow = 0
- do iGRU = 1,nGRU
-  do iHRU = 1,gru_struc(iGRU)%hruCount
-   maxSnow = max(maxSnow,gru_struc(iGRU)%hruInfo(iHRU)%nSnow)
-  end do
- end do
-
- ! total number of layers
- maxLayers = maxSnow+maxSoil
+ maxSnow = maxSnowLayers
 
  ! create file
  err = nf90_create(trim(filename),nf90_classic_model,ncid)
