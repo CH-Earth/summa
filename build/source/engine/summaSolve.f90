@@ -1150,8 +1150,8 @@ contains
 
   ! ** limit temperature increment to zMaxTempIncrement
   if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
-   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                            ! index of maximum temperature increment
-   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) + epsT )  ! scaling factor for the iteration increment (-)
+   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
+   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
    xInc       = xIncFactor*xInc
   end if
 
