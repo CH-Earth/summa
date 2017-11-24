@@ -314,7 +314,6 @@ contains
  ! local (aerodynamic resistance)
  real(dp)                       :: scalarCanopyStabilityCorrection_old    ! stability correction for the canopy (-)
  real(dp)                       :: scalarGroundStabilityCorrection_old    ! stability correction for the ground surface (-)
- real(dp)                       :: uHeight                          ! height of windspeed measurement adjusted to be above vegetation canopy
 
  ! local (turbulent heat transfer)
  real(dp)                       :: z0Ground                         ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
@@ -593,9 +592,6 @@ contains
  ! initialize error control
  err=0; message="vegNrgFlux/"
 
- ! set wind measurement height at distance above canopy
- uHeight = mHeight + heightCanopyTop
-
  ! initialize printflag
  printflag = .false.
 
@@ -807,7 +803,7 @@ contains
                    ix_windPrfile,                      & ! intent(in): choice of canopy wind profile
                    ix_astability,                      & ! intent(in): choice of stability function
                    ! input: above-canopy forcing data
-                   uHeight,                            & ! intent(in): measurement height (m)
+                   mHeight,                            & ! intent(in): measurement height (m)
                    airtemp,                            & ! intent(in): air temperature at some height above the surface (K)
                    windspd,                            & ! intent(in): wind speed at some height above the surface (m s-1)
                    ! input: canopy and ground temperature
@@ -1088,7 +1084,7 @@ contains
                      ix_windPrfile,                           & ! intent(in): choice of canopy wind profile
                      ix_astability,                           & ! intent(in): choice of stability function
                      ! input: above-canopy forcing data
-                     uHeight,                                 & ! intent(in): measurement height (m)
+                     mHeight,                                 & ! intent(in): measurement height (m)
                      airtemp,                                 & ! intent(in): air temperature at some height above the surface (K)
                      windspd,                                 & ! intent(in): wind speed at some height above the surface (m s-1)
                      ! input: temperature (canopy, ground, canopy air space)
