@@ -155,7 +155,7 @@ contains
  ! NOTE: could return an error or a warning
  ! NOTE: this does not need to be done every time step -- doing here for consistency with the snow adjustment
  if(mHeight < heightCanopyTop)then
-  adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the canopy
+  adjMeasHeight = heightCanopyTop+minMeasHeight  ! measurement height at least minMeasHeight above the canopy
  else
   adjMeasHeight = mHeight
  endif
