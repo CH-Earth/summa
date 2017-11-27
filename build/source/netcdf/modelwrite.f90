@@ -189,12 +189,12 @@ contains
     ! define HRUs and GRUs (only write once)
     iGRU=1; iHRU=1
     ! data bound write
-    select type(stat)
-     type is (gru_hru_doubleVec)
-      err = nf90_put_var(ncid(iFreq),ncVarID,(/stat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(iLookStat%inst)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
+    select type(dat) ! forcStruc
+     type is (gru_hru_double)   ! x%gru(:)%hru(:)%var(:)
+      err = nf90_put_var(ncid(iFreq),ncVarID,(/dat%gru(iGRU)%hru(iHRU)%var(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
       call netcdf_err(err,message); if (err/=0) return
       cycle ! move onto the next variable
-     class default; err=20; message=trim(message)//'time variable must be of type gru_hru_doubleVec (forcing statistics structure)'; return;
+     class default; err=20; message=trim(message)//'time variable must be of type gru_hru_double (forcing data structure)'; return
     end select
    end if  ! id time
 
