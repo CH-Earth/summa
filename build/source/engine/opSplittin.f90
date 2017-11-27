@@ -433,6 +433,7 @@ contains
  ! initialize the model fluxes
  do iVar=1,size(flux_meta)  ! loop through fluxes
   if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
+  if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
   flux_data%var(iVar)%dat(:) = 0._dp
  end do
 
