@@ -251,8 +251,8 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! minimum timestep
  real(dp),parameter              :: dtmin_coupled=1800._dp         ! minimum time step for the fully coupled solution (seconds)
- real(dp),parameter              :: dtmin_split=360._dp            ! minimum time step for the fully split solution (seconds)
- real(dp),parameter              :: dtmin_scalar=60._dp            ! minimum time step for the scalar solution (seconds)
+ real(dp),parameter              :: dtmin_split=60._dp             ! minimum time step for the fully split solution (seconds)
+ real(dp),parameter              :: dtmin_scalar=10._dp            ! minimum time step for the scalar solution (seconds)
  real(dp)                        :: dt_min                         ! minimum time step (seconds)
  real(dp)                        :: dtInit                         ! initial time step (seconds)
  ! explicit error tolerance (depends on state type split, so defined here)
