@@ -118,6 +118,7 @@ contains
  mHeight                 => attr_data(iLookATTR%mHeight)                          , & ! latitude (degrees north)
  adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
  scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
+ heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
  ! model forcing data
  SWRadAtm                => forc_data(iLookFORCE%SWRadAtm)                        , & ! downward shortwave radiation (W m-2)
  airtemp                 => forc_data(iLookFORCE%airtemp)                         , & ! air temperature at 2 meter height (K)
@@ -150,11 +151,18 @@ contains
   err=20; return
  end if
 
- ! compute the adjusted measurement height
- if(mHeight < scalarSnowDepth+minMeasHeight)then
-  adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the surface
+ ! adjust the measurement height for the vegetation canopy
+ ! NOTE: could return an error or a warning
+ ! NOTE: this does not need to be done every time step -- doing here for consistency with the snow adjustment
+ if(mHeight < heightCanopyTop)then
+  adjMeasHeight = heightCanopyTop+minMeasHeight  ! measurement height at least minMeasHeight above the canopy
  else
   adjMeasHeight = mHeight
+ endif
+
+ ! adjust the measurement height for snow depth
+ if(adjMeasHeight < scalarSnowDepth+minMeasHeight)then
+  adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the snow surface
  endif
 
  ! compute the partial pressure of o2 and co2
