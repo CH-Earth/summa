@@ -213,6 +213,13 @@ contains
 
  ! This is the start of a data step for a local HRU
 
+ ! initialize the numerix tracking variables
+ indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
+ indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) = 0  ! number of state splitting solutions             (-)
+ indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1) = 0  ! number of domain splitting solutions for energy (-)
+ indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) = 0  ! number of domain splitting solutions for mass   (-)
+ indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1) = 0  ! number of scalar solutions                      (-)
+
  ! link canopy depth to the information in the data structure
  canopy: associate(canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1) )  ! intent(out): [dp] canopy depth (m)
 
@@ -1147,7 +1154,7 @@ contains
 
  ! end association to canopy depth
  end associate canopy
- 
+
  ! Save the total soil water (Liquid+Ice)
  diag_data%var(iLookDIAG%scalarTotalSoilWat)%dat(1) = balanceSoilWater1
  ! save the surface temperature (just to make things easier to visualize)

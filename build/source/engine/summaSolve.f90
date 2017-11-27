@@ -102,8 +102,8 @@ contains
                        forc_data,               & ! intent(in):    model forcing data
                        bvar_data,               & ! intent(in):    average model variables for the entire basin
                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       indx_data,               & ! intent(in):    index data
                        ! input-output: data structures
+                       indx_data,               & ! intent(inout): index data
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -154,8 +154,8 @@ contains
  type(var_d),        intent(in)  :: forc_data                ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data                ! model variables for the local basin
  type(var_dlength),  intent(in)  :: prog_data                ! prognostic variables for a local HRU
- type(var_ilength),  intent(in)  :: indx_data                ! indices defining model states and layers
  ! output: data structures
+ type(var_ilength),intent(inout) :: indx_data                ! indices defining model states and layers
  type(var_dlength),intent(inout) :: diag_data                ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data               ! derivatives in model fluxes w.r.t. relevant state variables

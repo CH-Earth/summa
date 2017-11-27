@@ -312,6 +312,11 @@ contains
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
+ ! numerix tracking
+ numberStateSplit        => indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) ,& ! intent(inout): [i4b]    number of state splitting solutions             (-)
+ numberDomainSplitNrg    => indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1) ,& ! intent(inout): [i4b]    number of domain splitting solutions for energy (-)
+ numberDomainSplitMass   => indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) ,& ! intent(inout): [i4b]    number of domain splitting solutions for mass   (-)
+ numberScalarSolutions   => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1) ,& ! intent(inout): [i4b]    number of scalar solutions                      (-)
  ! domain configuration
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):    [dp]     canopy depth (m)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
@@ -453,6 +458,9 @@ contains
   dtInit = min( merge(dt,            dtmin_coupled, ixCoupling==fullyCoupled), dt) ! initial time step
   dt_min = min( merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
 
+  ! keep track of the number of state splits
+  if(ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
+
   ! define the number of operator splits for the state type
   select case(ixCoupling)
    case(fullyCoupled);   nStateTypeSplit=1
@@ -492,6 +500,10 @@ contains
    stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
 
     !print*, 'start of stateThenDomain loop'
+
+    ! keep track of the number of domain splits
+    if(iStateTypeSplit==nrgSplit  .and. ixStateThenDomain==subDomain) numberDomainSplitNrg  = numberDomainSplitNrg  + 1
+    if(iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
 
     ! define the number of domain splits for the state type
     select case(ixStateThenDomain)
@@ -737,6 +749,9 @@ contains
        ! --------------------------------------------
 
        !print*, 'nSubset = ', nSubset
+
+       ! keep track of the number of scalar solutions
+       if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
        ! solve variable subset for one full time step
        call varSubstep(&
