@@ -2068,12 +2068,14 @@ contains
  real(dp)                      :: groundExNeut                  ! surface-atmosphere exchange coefficient under neutral conditions (-)
  real(dp)                      :: sfc2AtmExchangeCoeff_canopy   ! surface-atmosphere exchange coefficient after stability corrections (-)
  real(dp)                      :: groundResistanceNeutral       ! ground resistance under neutral conditions (s m-1)
- real(dp)                      :: windConvFactorTop             ! factor to convert friction velocity to wind speed at top of canopy (-)
- real(dp)                      :: windConvFactorBottom          ! factor to convert wind speed at top of canopy to wind speed at bottom of canopy (-)
- real(dp)                      :: referenceHeight               ! reference height used to compute above-ground windspeed (m)
+ real(dp)                      :: windConvFactor_fv             ! factor to convert friction velocity to wind speed at top of canopy (-)
+ real(dp)                      :: windConvFactor                ! factor to convert wind speed at top of canopy to wind speed at a given height in the canopy (-)
+ real(dp)                      :: referenceHeight               ! z0Canopy+zeroPlaneDisplacement (m)
+ real(dp)                      :: windspdRefHeight              ! windspeed at the reference height (m/s)
  real(dp)                      :: heightAboveGround             ! height above the snow surface (m)
  real(dp)                      :: heightCanopyTopAboveSnow      ! height at the top of the vegetation canopy relative to snowpack (m)
  real(dp)                      :: heightCanopyBottomAboveSnow   ! height at the bottom of the vegetation canopy relative to snowpack (m)
+ real(dp),parameter            :: xTolerance=0.1_dp             ! tolerance to handle the transition from exponential to log-below canopy
  ! local variables: derivatives
  real(dp)                      :: dFV_dT                        ! derivative in friction velocity w.r.t. canopy air temperature
  real(dp)                      :: dED_dT                        ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -2103,8 +2105,8 @@ contains
  if(computeVegFlux) then ! (if vegetation is exposed)
 
   ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
-  ! First, calculate offset from snow depth - use these to
-  ! scale wind profiles and resistances
+  ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
+  ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
   heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
   heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0.0_dp)
   select case(ixVegTraits)
@@ -2184,17 +2186,21 @@ contains
 
   ! compute windspeed at the top of the canopy above snow depth (m s-1)
   ! NOTE: stability corrections cancel out
-  windConvFactorTop = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
-  windspdCanopyTop  = windspd*windConvFactorTop
+  windConvFactor_fv = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
+  windspdCanopyTop  = windspd*windConvFactor_fv
 
   ! compute the windspeed reduction
   ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
   windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
 
+  ! compute windspeed at the height z0Canopy+zeroPlaneDisplacement (m s-1)
+  referenceHeight   = z0Canopy+zeroPlaneDisplacement
+  windConvFactor    = exp(-windReductionFactor*(1._dp - (referenceHeight/heightCanopyTopAboveSnow)))
+  windspdRefHeight  = windspdCanopyTop*windConvFactor
+
   ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
-  referenceHeight      = max(heightCanopyBottomAboveSnow, z0Ground)
-  windConvFactorBottom = exp(-windReductionFactor*(1._dp - (referenceHeight/heightCanopyTopAboveSnow)))
-  windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
+  windConvFactor       = exp(-windReductionFactor*(1._dp - (heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)))
+  windspdCanopyBottom  = windspdCanopyTop*windConvFactor
 
   ! compute the leaf boundary layer resistance (s m-1)
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
@@ -2209,37 +2215,40 @@ contains
   eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTopAboveSnow - zeroPlaneDisplacement), mpe)
 
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
-  select case(ixWindProfile)
-   ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
-   case(exponential)
-    tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
-    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
-    groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor/heightCanopyTopAboveSnow) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
-   ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
-   case(logBelowCanopy)
-    tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTopAboveSnow)
-    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
-    if(referenceHeight > z0Ground) then  ! snow is above the bottom of the canopy -- just use the exponential profile
-     groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
-    else  ! snow is below the bottom of the canopy
-     groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
-                                  + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log(referenceHeight/z0Ground))**2._dp
-    end if
-   ! check that we identified the option
-   case default
-    err=20; message=trim(message)//'cannot identify option for canopy wind profile'; return
-   end select
+
+  ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
+  if(ixWindProfile==exponential .or. heightCanopyBottomAboveSnow<z0Ground+xTolerance)then
+
+   ! compute the neutral ground resistance
+   tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
+   tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+   groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
+
+  ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
+  ! NOTE: heightCanopyBottomAboveSnow>z0Ground+xTolerance
+  else
+
+   ! compute the neutral ground resistance
+   ! (first, component between heightCanopyBottomAboveSnow and z0Canopy+zeroPlaneDisplacement)
+   tmp1  = exp(-windReductionFactor* heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)
+   tmp2  = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+   groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)
+   ! (add log-below-canopy component)
+   groundResistanceNeutral = groundResistanceNeutral + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log(heightCanopyBottomAboveSnow/z0Ground))**2._dp
+
+  endif  ! switch between exponential profile and log-below-canopy
 
   ! compute the stability correction for resistance from the ground to the canopy air space (-)
+  ! NOTE: here we are interested in the windspeed at height z0Canopy+zeroPlaneDisplacement
   call aStability(&
                   ! input
                   derivDesired,                                     & ! input: logical flag to compute analytical derivatives
                   ixStability,                                      & ! input: choice of stability function
                   ! input: forcing data, diagnostic and state variables
-                  referenceHeight,                                  & ! input: reference height of wind within the canopy (m)
+                  referenceHeight,                                  & ! input: height of the canopy air space temperature/wind (m)
                   canairTemp,                                       & ! input: temperature of the canopy air space (K)
                   groundTemp,                                       & ! input: temperature of the ground surface (K)
-                  max(0.1_dp,windspdCanopyBottom),                  & ! input: wind speed at the reference height (m s-1)
+                  max(0.1_dp,windspdRefHeight),                     & ! input: wind speed at height z0Canopy+zeroPlaneDisplacement (m s-1)
                   ! input: stability parameters
                   critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                   Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
