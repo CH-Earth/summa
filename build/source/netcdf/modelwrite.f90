@@ -88,7 +88,7 @@ contains
  integer(i4b)  ,parameter    :: modelTime=1      ! these particular data are only output in the timestep file
 
  ! initialize error control
- err=0;message="f-writeParm/"
+ err=0;message="writeParm/"
 
  ! loop through local column model parameters
  do iVar = 1,size(meta)
@@ -99,28 +99,30 @@ contains
   ! initialize message
   message=trim(message)//trim(meta(iVar)%varName)//'/'
 
-  ! write data
-  if (iHRU.ne.integerMissing) then
+  ! HRU data
+  if (iHRU/=integerMissing) then
    select type (struct)
-    type is (var_i)
+    class is (var_i)
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
-    type is (var_d)
+    class is (var_d)
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
-    type is (var_dlength)
+    class is (var_dlength)
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)%dat/),start=(/iHRU,1/),count=(/1,size(struct%var(iVar)%dat)/))
-    class default; err=20; message=trim(message)//'unkonwn variable type (with HRU)'; return
+    class default; err=20; message=trim(message)//'unknown variable type (with HRU)'; return
    end select
+
+  ! GRU data
   else
    select type (struct)
-    type is (var_d)
+    class is (var_d)
      err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/1/),count=(/1/))
-    class default; err=20; message=trim(message)//'unkonwn variable type (no HRU)'; return
+    class default; err=20; message=trim(message)//'unknown variable type (no HRU)'; return
    end select
   end if
   call netcdf_err(err,message); if (err/=0) return
 
   ! re-initialize message
-  message="f-writeParm/"
+  message="writeParm/"
  end do  ! looping through local column model parameters
 
  end subroutine writeParm
@@ -190,7 +192,7 @@ contains
     iGRU=1; iHRU=1
     ! data bound write
     select type(dat) ! forcStruc
-     type is (gru_hru_double)   ! x%gru(:)%hru(:)%var(:)
+     class is (gru_hru_double)   ! x%gru(:)%hru(:)%var(:)
       err = nf90_put_var(ncid(iFreq),ncVarID,(/dat%gru(iGRU)%hru(iHRU)%var(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
       call netcdf_err(err,message); if (err/=0) return
       cycle ! move onto the next variable
@@ -210,7 +212,7 @@ contains
     ! stats output: only scalar variable type
     if(meta(iVar)%varType==iLookVarType%scalarv) then
      select type(stat)
-      type is (gru_hru_doubleVec)
+      class is (gru_hru_doubleVec)
        ! loop through HRUs and GRUs, and place data in the single vector
        do iGRU=1,size(gru_struc)
         do iHRU=1,gru_struc(iGRU)%hruCount
@@ -227,8 +229,8 @@ contains
 
      ! initialize the data vectors
      select type (dat)
-      type is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
-      type is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
+      class is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
+      class is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
       class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
      end select
 
@@ -255,8 +257,8 @@ contains
 
        ! get the data vectors
        select type (dat)
-        type is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-        type is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+        class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+        class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
         class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
        end select
 
