@@ -701,7 +701,8 @@ write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
                                startTime%var(iLookTIME%id), '-', &
                                startTime%var(iLookTIME%ih),  &
                                '_spinup'//trim(output_fileSuffix)
-call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+call def_output(summaVersion,buildTime,gitBranch,gitHash,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
+call handle_err(err,message)
 
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
@@ -810,7 +811,8 @@ do modelTimeStep=1,numtim
                                  trim(output_fileSuffix)
 
   ! define the file
-  call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+  call def_output(summaVersion,buildTime,gitBranch,gitHash,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
+  call handle_err(err,message)
 
   ! write parameters for each HRU, and re-set indices
   do iGRU=1,nGRU
