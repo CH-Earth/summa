@@ -701,7 +701,7 @@ write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
                                startTime%var(iLookTIME%id), '-', &
                                startTime%var(iLookTIME%ih),  &
                                '_spinup'//trim(output_fileSuffix)
-call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+call def_output(nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
@@ -710,7 +710,7 @@ do iGRU=1,nGRU
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
  enddo ! HRU
- call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
+ call writeParm(iGRU,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
 end do ! GRU
 
 ! stop
@@ -810,7 +810,7 @@ do modelTimeStep=1,numtim
                                  trim(output_fileSuffix)
 
   ! define the file
-  call def_output(nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
+  call def_output(nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message); call handle_err(err,message)
 
   ! write parameters for each HRU, and re-set indices
   do iGRU=1,nGRU
@@ -1021,7 +1021,7 @@ do modelTimeStep=1,numtim
   call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
 
   ! write basin-average variables
-  call writeBasin(waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
+  call writeBasin(iGRU,waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
 
  end do  ! (looping through GRUs)
 
