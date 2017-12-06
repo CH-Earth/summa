@@ -66,7 +66,9 @@ contains
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(nGRU,nHRU,nSoil,infile,err,message)
+
+ subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
+
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
@@ -76,7 +78,13 @@ contains
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
  ! declare dummy variables
+
  integer(i4b),intent(in)     :: nGRU                          ! number of GRUs
+ character(*),intent(in)     :: summaVersion                  ! SUMMA version
+ character(*),intent(in)     :: buildTime                     ! build time
+ character(*),intent(in)     :: gitBranch                     ! git branch
+ character(*),intent(in)     :: gitHash                       ! git hash
+
  integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
  integer(i4b),intent(in)     :: nSoil                         ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*),intent(in)     :: infile                        ! file suffix
@@ -107,6 +115,17 @@ contains
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print "(A,A)",'Created output file:',trim(fname)
+
+  ! define SUMMA version
+  do iVar=1,4
+   ! write attributes
+   if(iVar==1) call put_attrib(ncid(modelTime),'summaVersion', summaVersion, err, cmessage)  ! SUMMA version
+   if(iVar==2) call put_attrib(ncid(modelTime),'buildTime'   , buildTime   , err, cmessage)  ! build time
+   if(iVar==3) call put_attrib(ncid(modelTime),'gitBranch'   , gitBranch   , err, cmessage)  ! git branch
+   if(iVar==4) call put_attrib(ncid(modelTime),'gitHash'     , gitHash     , err, cmessage)  ! git hash
+   ! check errors
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  end do
 
   ! define model decisions
   do iVar = 1,size(model_decisions)
