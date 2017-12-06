@@ -28,6 +28,7 @@ private
 public :: def_output
 
 ! define dimension names
+character(len=32),parameter :: gru_DimName      = 'gru'              ! dimension name for the GRUs
 character(len=32),parameter :: hru_DimName      = 'hru'              ! dimension name for the HRUs
 character(len=32),parameter :: depth_DimName    = 'depth'            ! dimension name for soil depth
 character(len=32),parameter :: scalar_DimName   = 'scalar'           ! dimension name for scalar variables
@@ -42,6 +43,7 @@ character(len=32),parameter :: ifcSoil_DimName  = 'ifcSoil'          ! dimension
 character(len=32),parameter :: ifcToto_DimName  = 'ifcToto'          ! dimension name for ifcToto
 
 ! define the dimension IDs
+integer(i4b)                :: gru_DimID                             ! dimension name for the GRUs
 integer(i4b)                :: hru_DimID                             ! dimension name for the HRUs
 integer(i4b)                :: depth_DimID                           ! dimension name for the soil depth
 integer(i4b)                :: scalar_DimID                          ! dimension name for scalar variables
@@ -56,15 +58,17 @@ integer(i4b)                :: ifcSoil_DimID                         ! dimension
 integer(i4b)                :: ifcToto_DimID                         ! dimension name for ifcToto
 
 ! define named variables to specify dimensions
-integer(i4b),parameter  :: needHRU=1,noHRU=2    ! define if there is an HRU dimension
-integer(i4b),parameter  :: needTime=1,noTime=2  ! define if there is a time dimension
+integer(i4b),parameter  :: needGRU=0,needHRU=1,noHRU=2    ! define if there is an HRU dimension
+integer(i4b),parameter  :: needTime=1,noTime=2            ! define if there is a time dimension
 
 contains
 
  ! **********************************************************************************************************
  ! public subroutine def_output: define model output file
  ! **********************************************************************************************************
- subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nHRU,nSoil,infile,err,message)
+
+ subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
+
  USE globalData,only:structInfo                               ! information on the data structures
  USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
@@ -74,10 +78,13 @@ contains
  USE globalData,only:ncid
  USE globalData,only:nFreq,outFreq                            ! output frequencies
  ! declare dummy variables
+
+ integer(i4b),intent(in)     :: nGRU                          ! number of GRUs
  character(*),intent(in)     :: summaVersion                  ! SUMMA version
  character(*),intent(in)     :: buildTime                     ! build time
  character(*),intent(in)     :: gitBranch                     ! git branch
  character(*),intent(in)     :: gitHash                       ! git hash
+
  integer(i4b),intent(in)     :: nHRU                          ! number of HRUs
  integer(i4b),intent(in)     :: nSoil                         ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*),intent(in)     :: infile                        ! file suffix
@@ -105,7 +112,7 @@ contains
   write(fstring,'(i5)') outFreq(iFreq)
   fstring = adjustl(fstring)
   fname = trim(infile)//'_'//trim(fstring)//'.nc'
-  call ini_create(nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
+  call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print "(A,A)",'Created output file:',trim(fname)
 
@@ -137,7 +144,7 @@ contains
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
-    case('bpar' ); call def_variab(ncid(iFreq),iFreq,  noHRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
+    case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
     case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
     case('deriv'); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
     case('time' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta,nf90_int,    err,cmessage)  ! model derivatives
@@ -145,7 +152,7 @@ contains
     case('prog' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostics
     case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
     case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
-    case('bvar' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
+    case('bvar' ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
    end select
    ! error handling
@@ -161,7 +168,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine ini_create: initial create
  ! **********************************************************************************************************
- subroutine ini_create(nHRU,nSoil,infile,ncid,err,message)
+ subroutine ini_create(nGRU,nHRU,nSoil,infile,ncid,err,message)
  ! variables to define number of steps per file (total number of time steps, step length, etc.)
  USE multiconst,only:secprday           ! number of seconds per day
  ! model decisions
@@ -172,6 +179,7 @@ contains
   rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
  implicit none
  ! declare dummy variables
+ integer(i4b),intent(in)     :: nGRU                       ! number of GRUs
  integer(i4b),intent(in)     :: nHRU                       ! number of HRUs
  integer(i4b),intent(in)     :: nSoil                      ! number of soil layers in the first HRU (used to define fixed length dimensions)
  character(*),intent(in)     :: infile                     ! filename
@@ -197,6 +205,7 @@ contains
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
+ err = nf90_def_dim(ncid, trim(     gru_DimName), nGRU,                      gru_DimID); message='iCreate[GRU]';      call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(     hru_DimName), nHRU,                      hru_DimID); message='iCreate[HRU]';      call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(timestep_DimName), nf90_unlimited,       timestep_DimID); message='iCreate[time]';     call netcdf_err(err,message); if (err/=0) return
  err = nf90_def_dim(ncid, trim(   depth_DimName), nSoil,                   depth_DimID); message='iCreate[depth]';    call netcdf_err(err,message); if (err/=0) return
@@ -241,7 +250,7 @@ contains
  ! **********************************************************************************************************
  ! private subroutine def_variab: define variables
  ! **********************************************************************************************************
- subroutine def_variab(ncid,iFreq,hruDesire,timeDesire,metaData,ivtype,err,message)
+ subroutine def_variab(ncid,iFreq,spatialDesire,timeDesire,metaData,ivtype,err,message)
  USE var_lookup,only:iLookvarType                   ! look up structure for variable typed
  USE data_types,only:var_info                       ! derived type for metaData
  USE var_lookup,only:iLookStat                      ! index into stats structure
@@ -252,7 +261,7 @@ contains
  ! input
  integer(i4b)  ,intent(in)     :: ncid              ! netcdf file id
  integer(i4b)  ,intent(in)     :: iFreq             ! frequency of current file
- integer(i4b)  ,intent(in)     :: hruDesire         ! variable to define if we desire the HRU dimension
+ integer(i4b)  ,intent(in)     :: spatialDesire     ! variable to define if we desire the HRU dimension
  integer(i4b)  ,intent(in)     :: timeDesire        ! variable to define if we desire the time dimension
  type(var_info),intent(inout)  :: metaData(:)       ! metaData structure for a given variable
  integer(i4b)  ,intent(in)     :: ivtype            ! variable type
@@ -291,10 +300,11 @@ contains
    select case(metaData(iVar)%varType)
     ! (scalar variable -- many different types)
     case(iLookvarType%scalarv)
-     if(hruDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage)
-     if(hruDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage)
-     if(hruDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage)
-     if(hruDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
+     if(spatialDesire==needGRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage)
+     if(spatialDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage)
+     if(spatialDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage)
+     if(spatialDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage)
+     if(spatialDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
 
     ! (other variables)
     case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
