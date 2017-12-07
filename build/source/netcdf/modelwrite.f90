@@ -71,14 +71,14 @@ contains
  ! **********************************************************************************************************
  ! public subroutine writeParm: write model parameters
  ! **********************************************************************************************************
- subroutine writeParm(iHRU,struct,meta,err,message)
+ subroutine writeParm(ispatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
  USE var_lookup,only:iLookStat                   ! to index into write flag
  implicit none
 
  ! declare input variables
- integer(i4b)  ,intent(in)   :: iHRU             ! hydrologic response unit
+ integer(i4b)  ,intent(in)   :: iSpatial         ! hydrologic response unit
  class(*)      ,intent(in)   :: struct           ! data structure
  type(var_info),intent(in)   :: meta(:)          ! metadata structure
  integer(i4b)  ,intent(out)  :: err              ! error code
@@ -100,14 +100,14 @@ contains
   message=trim(message)//trim(meta(iVar)%varName)//'/'
 
   ! HRU data
-  if (iHRU/=integerMissing) then
+  if (iSpatial/=integerMissing) then
    select type (struct)
     class is (var_i)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_d)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iHRU/),count=(/1/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_dlength)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)%dat/),start=(/iHRU,1/),count=(/1,size(struct%var(iVar)%dat)/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
     class default; err=20; message=trim(message)//'unknown variable type (with HRU)'; return
    end select
 
@@ -193,7 +193,7 @@ contains
     ! data bound write
     select type(dat) ! forcStruc
      class is (gru_hru_double)   ! x%gru(:)%hru(:)%var(:)
-      err = nf90_put_var(ncid(iFreq),ncVarID,(/dat%gru(iGRU)%hru(iHRU)%var(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1,1/))
+      err = nf90_put_var(ncid(iFreq),ncVarID,(/dat%gru(iGRU)%hru(iHRU)%var(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
       call netcdf_err(err,message); if (err/=0) return
       cycle ! move onto the next variable
      class default; err=20; message=trim(message)//'time variable must be of type gru_hru_double (forcing data structure)'; return
@@ -299,7 +299,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeBasin: write basin-average variables
  ! **************************************************************************************
- subroutine writeBasin(modelTimestep,outputTimestep,meta,stat,dat,map,err,message)
+ subroutine writeBasin(iGRU,modelTimestep,outputTimestep,meta,stat,dat,map,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -309,12 +309,13 @@ contains
  implicit none
 
  ! declare dummy variables
+ integer(i4b)  ,intent(in)     :: iGRU              ! GRU index
+ integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
+ integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  type(var_info),intent(in)     :: meta(:)           ! meta data
  type(dlength) ,intent(in)     :: stat(:)           ! stats data
  type(dlength) ,intent(in)     :: dat(:)            ! timestep data
  integer(i4b)  ,intent(in)     :: map(:)            ! map into stats child struct
- integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
- integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code
  character(*)  ,intent(out)    :: message           ! error message
  ! local variables
@@ -343,7 +344,7 @@ contains
      select case (meta(iVar)%varType)
 
       case (iLookVarType%scalarv)
-       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/outputTimestep(iFreq)/),count=(/1/))
+       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iGRU,outputTimestep(iFreq)/),count=(/1,1/))
 
       case (iLookVarType%routing)
        if (modelTimestep==1) then
