@@ -817,9 +817,9 @@ do modelTimeStep=1,numtim
   ! write parameters for each HRU, and re-set indices
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
-    call writeParm(iHRU,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,message)
-    call writeParm(iHRU,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,message)
-    call writeParm(iHRU,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,message)
+     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
+     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
     ! re-initalize the indices for model writing
     waterYearTimeStep=1
     outputTimeStep=1
