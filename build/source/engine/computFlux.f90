@@ -761,7 +761,13 @@ contains
 
  ! identify modeling decision
  if(local_ixGroundwater==bigBucket)then
+
+
   ! deep aquifer is not yet transferred from old code structure
+
+
+
+
   message=trim(message)//'bigBucket groundwater parameterization is not yet transfered from old code structure'
   err=20; return
  else

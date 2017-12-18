@@ -638,6 +638,7 @@ contains
  indx_meta(iLookINDEX%ixHydCanopy)           = var_info('ixHydCanopy'          , 'indices IN THE FULL VECTOR for hydrology states in the canopy domain'    , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixNrgLayer)            = var_info('ixNrgLayer'           , 'indices IN THE FULL VECTOR for energy states in the snow+soil domain'    , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the snow+soil domain' , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixAquifer)             = var_info('ixAquifer'            , 'indices IN THE FULL VECTOR for the aquifer'                              , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
  indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixMatricHead)          = var_info('ixMatricHead'         , 'indices IN THE SOIL VECTOR for hyd states'                               , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
