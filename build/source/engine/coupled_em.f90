@@ -159,6 +159,7 @@ contains
  real(dp)                             :: minstep,maxstep        ! minimum and maximum time step length (seconds)
  integer(i4b)                         :: nsub                   ! number of substeps
  logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
+ logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
  logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
@@ -217,6 +218,16 @@ contains
  err=0; message="coupled_em/"
 
  ! This is the start of a data step for a local HRU
+
+ ! check that the decision is supported
+ if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
+    model_decisions(iLookDECISIONS%spatial_gw)%iDecision/=localColumn)then
+  message=trim(message)//'expect "spatial_gw" decision to equal localColumn when "groundwatr" decision is bigBucket'
+  err=20; return
+ endif
+
+ ! check if the aquifer is included
+ includeAquifer = (model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket)
 
  ! initialize the numerix tracking variables
  indx_data%var(iLookINDEX%numberFluxCalc       )%dat(1) = 0  ! number of flux calculations                     (-)
@@ -605,6 +616,7 @@ contains
   ! compute the indices for the model state variables
   if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
    call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                   includeAquifer,          & ! intent(in):    flag to denote if included the aquifer
                    nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                    indx_data,               & ! intent(inout): indices defining model states and layers
                    err,cmessage)              ! intent(out):   error control

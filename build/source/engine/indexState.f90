@@ -34,17 +34,19 @@ USE globalData,only:iname_cas       ! canopy air space
 USE globalData,only:iname_veg       ! vegetation
 USE globalData,only:iname_snow      ! snow
 USE globalData,only:iname_soil      ! soil
+USE globalData,only:iname_aquifer   ! aquifer
 
 ! named variables to describe the state variable type
-USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
-USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
-USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
-USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
-USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
+USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
+USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
+USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
+USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
+USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
+USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! metadata
 USE globalData,only:indx_meta       ! metadata for the variables in the index structure
@@ -65,6 +67,7 @@ contains
  ! public subroutine indexState: define list of indices for each state variable
  ! **********************************************************************************************************
  subroutine indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                       includeAquifer,          & ! intent(in):    flag to denote if an aquifer is included
                        nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                        indx_data,               & ! intent(inout): indices defining model states and layers
                        err,message)               ! intent(out):   error control
@@ -75,6 +78,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to denote if computing the vegetation flux
+ logical(lgt),intent(in)         :: includeAquifer         ! flag to denote if an aquifer is included
  integer(i4b),intent(in)         :: nSnow,nSoil,nLayers    ! number of snow and soil layers, and total number of layers
  type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
  ! output: error control
@@ -84,6 +88,7 @@ contains
  ! general local variables
  character(len=256)              :: cmessage               ! message of downwind routine
  integer(i4b),parameter          :: nVarSnowSoil=2         ! number of state variables in the snow and soil domain (energy and total water/matric head)
+ integer(i4b)                    :: nAquiferState          ! number of aquifer state variables
  ! indices of model state variables
  integer(i4b)                    :: ixTopNrg               ! index of upper-most energy state in the snow-soil subdomain
  integer(i4b)                    :: ixTopWat               ! index of upper-most total water state in the snow-soil subdomain
@@ -105,7 +110,8 @@ contains
  ixNrgCanopy   => indx_data%var(iLookINDEX%ixNrgCanopy)%dat  , & ! indices IN THE FULL VECTOR for energy states in the canopy domain
  ixHydCanopy   => indx_data%var(iLookINDEX%ixHydCanopy)%dat  , & ! indices IN THE FULL VECTOR for hydrology states in the canopy domain
  ixNrgLayer    => indx_data%var(iLookINDEX%ixNrgLayer)%dat   , & ! indices IN THE FULL VECTOR for energy states in the snow+soil domain
- ixHydLayer    => indx_data%var(iLookINDEX%ixHydLayer)%dat   , & ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+ ixHydLayer    => indx_data%var(iLookINDEX%ixHydLayer)%dat   , & ! indices IN THE FULL VECTOR for hyd states in the snow+soil domain
+ ixAquifer     => indx_data%var(iLookINDEX%ixAquifer)%dat    , & ! indices IN THE FULL VECTOR for the aquifer
  ! indices for model state variables
  ixSoilState   => indx_data%var(iLookINDEX%ixSoilState)%dat  , & ! list of indices for all soil layers
  ixLayerState  => indx_data%var(iLookINDEX%ixLayerState)%dat   & ! list of indices for all model layers
@@ -130,6 +136,9 @@ contains
   nVegMass  = 0
   nVegState = 0
  end if
+
+ ! define the number of aquifer states
+ nAquiferState = merge(1,0,includeAquifer)
 
  ! define the number state variables of different type
  nNrgState  = nCasNrg + nVegNrg + nLayers  ! number of energy state variables
@@ -163,6 +172,9 @@ contains
  ! define the indices within the snow+soil domain
  ixNrgLayer = arth(ixTopNrg,nVarSnowSoil,nLayers)  ! energy
  ixHydLayer = arth(ixTopWat,nVarSnowSoil,nLayers)  ! total water
+
+ ! define indices for the aquifer
+ ixAquifer(1) = merge(nState, integerMissing, includeAquifer)
 
  ! -----
  ! * define the type of model states...
@@ -203,6 +215,9 @@ contains
  if(nSnow>0) ixStateType( ixHydLayer(      1:nSnow)   ) = iname_watLayer
              ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
+ ! define the state type for the aquifer
+ if(includeAquifer) ixStateType( ixAquifer(1) ) = iname_watAquifer
+
  ! define the domain type for vegetation
  if(computeVegFlux)then
   ixDomainType(ixNrgCanair) = iname_cas
@@ -220,6 +235,9 @@ contains
  ixDomainType( ixNrgLayer(nSnow+1:nLayers) ) = iname_soil
  ixDomainType( ixHydLayer(nSnow+1:nLayers) ) = iname_soil
 
+ ! define the domain type for the aquifer
+ ixDomainType( ixAquifer(1) ) = iname_aquifer
+
  ! define the index of each control volume in the vegetation domains
  if(computeVegFlux)then
   ixControlVolume(ixNrgCanair) = 1  ! NOTE: assumes scalar
@@ -236,6 +254,8 @@ contains
  ! define the index of the each control volume in the soil domain
  ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
  ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
+
+ if(includeAquifer) ixControlVolume( ixAquifer(1) ) = 1
 
  !print*, 'ixControlVolume = ', ixControlVolume
  !print*, 'ixDomainType    = ', ixDomainType
