@@ -94,44 +94,45 @@ contains
  ! *********************************************************************************************************
  subroutine computFlux(&
                        ! input-output: model control
-                       nSnow,                   & ! intent(in):    number of snow layers
-                       nSoil,                   & ! intent(in):    number of soil layers
-                       nLayers,                 & ! intent(in):    total number of layers
-                       firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                       firstFluxCall,           & ! intent(inout): flag to denote the first flux call
-                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
-                       computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                       drainageMeltPond,        & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                       nSnow,                    & ! intent(in):    number of snow layers
+                       nSoil,                    & ! intent(in):    number of soil layers
+                       nLayers,                  & ! intent(in):    total number of layers
+                       firstSubStep,             & ! intent(in):    flag to indicate if we are processing the first sub-step
+                       firstFluxCall,            & ! intent(inout): flag to denote the first flux call
+                       firstSplitOper,           & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
+                       computeVegFlux,           & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                       scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
+                       drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
-                       scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
-                       scalarCanopyTempTrial,   & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                       mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                       mLayerMatricHeadLiqTrial,& ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
+                       scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
+                       scalarCanopyTempTrial,    & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
+                       mLayerTempTrial,          & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                       mLayerMatricHeadLiqTrial, & ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
+                       scalarAquiferStorageTrial,& ! intent(in):    trial value of storage of water in the aquifer (m)
                        ! input: diagnostic variables defining the liquid water and ice content
-                       scalarCanopyLiqTrial,    & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
-                       scalarCanopyIceTrial,    & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                       mLayerVolFracLiqTrial,   & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
-                       mLayerVolFracIceTrial,   & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
+                       scalarCanopyLiqTrial,     & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
+                       scalarCanopyIceTrial,     & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
+                       mLayerVolFracLiqTrial,    & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
+                       mLayerVolFracIceTrial,    & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                        ! input: data structures
-                       model_decisions,         & ! intent(in):    model decisions
-                       type_data,               & ! intent(in):    type of vegetation and soil
-                       attr_data,               & ! intent(in):    spatial attributes
-                       mpar_data,               & ! intent(in):    model parameters
-                       forc_data,               & ! intent(in):    model forcing data
-                       bvar_data,               & ! intent(in):    average model variables for the entire basin
-                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       indx_data,               & ! intent(in):    index data
+                       model_decisions,          & ! intent(in):    model decisions
+                       type_data,                & ! intent(in):    type of vegetation and soil
+                       attr_data,                & ! intent(in):    spatial attributes
+                       mpar_data,                & ! intent(in):    model parameters
+                       forc_data,                & ! intent(in):    model forcing data
+                       bvar_data,                & ! intent(in):    average model variables for the entire basin
+                       prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                       indx_data,                & ! intent(in):    index data
                        ! input-output: data structures
-                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       flux_data,               & ! intent(inout): model fluxes for a local HRU
-                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                       diag_data,                & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,                & ! intent(inout): model fluxes for a local HRU
+                       deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output: flux vector and baseflow derivatives
-                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                       fluxVec,                 & ! intent(out):   flux vector (mixed units)
+                       ixSaturation,             & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                       fluxVec,                  & ! intent(out):   flux vector (mixed units)
                        ! output: error control
-                       err,message)               ! intent(out):   error code and error message
+                       err,message)                ! intent(out):   error code and error message
  ! provide access to soil utilities
  !USE snow_utils_module,only:dFracLiq_dTk              ! differentiate the freezing curve w.r.t. temperature (snow)
  !USE soil_utils_module,only:dTheta_dPsi               ! derivative in the soil water characteristic (soil)
@@ -145,6 +146,7 @@ contains
  USE snowliqflx_module,only:snowLiqflx            ! compute liquid water fluxes through snow
  USE soilliqflx_module,only:soilLiqflx            ! compute liquid water fluxes through soil
  USE groundwatr_module,only:groundwatr            ! compute the baseflow flux
+ USE bigAquifer_module,only:bigAquifer            ! compute fluxes for the big aquifer
  ! provide access to indices that define elements of the data structures
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
  USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
@@ -173,6 +175,7 @@ contains
  real(dp),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
  real(dp),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
  real(dp),intent(in)             :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
+ real(dp),intent(in)             :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
  ! input: diagnostic variables
  real(dp),intent(in)             :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -354,9 +357,13 @@ contains
  mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta           )%dat     ,&  ! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. theta
  dCompress_dPsi               => deriv_data%var(iLookDERIV%dCompress_dPsi              )%dat     ,&  ! intent(out): [dp(:)] derivative in compressibility w.r.t matric head
 
+ ! derivative in baseflow flux w.r.t. aquifer storage
+ dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer          )%dat(1)  ,&  ! intent(out): [dp(:)] erivative in baseflow flux w.r.t. aquifer storage (s-1)
+
  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
  dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
  dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat      &  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+
  )  ! association to data in structures
 
  ! *****
@@ -762,19 +769,31 @@ contains
  ! identify modeling decision
  if(local_ixGroundwater==bigBucket)then
 
+  ! compute fluxes for the big bucket
+  call bigAquifer(&
+                  ! input: state variables and fluxes
+                  scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
+                  scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
+                  scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
+                  ! input: diagnostic variables and parameters
+                  mpar_data,                    & ! intent(in):  model parameter structure
+                  diag_data,                    & ! intent(in):  diagnostic variable structure
+                  ! output: fluxes
+                  scalarAquiferTranspire,       & ! intent(out): transpiration loss from the aquifer (m s-1)
+                  scalarAquiferRecharge,        & ! intent(out): recharge to the aquifer (m s-1)
+                  scalarAquiferBaseflow,        & ! intent(out): total baseflow from the aquifer (m s-1)
+                  dBaseflow_dAquifer,           & ! intent(out): change in baseflow flux w.r.t. aquifer storage (s-1)
+                  ! output: error control
+                  err,cmessage)                   ! intent(out): error control
 
-  ! deep aquifer is not yet transferred from old code structure
-
-
-
-
-  message=trim(message)//'bigBucket groundwater parameterization is not yet transfered from old code structure'
-  err=20; return
  else
+
   ! if no aquifer, then fluxes are zero
-  scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1
+  scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1)
   scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
   scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
+  dBaseflow_dAquifer     = 0._dp  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+
  end if
 
  ! *****

@@ -576,6 +576,8 @@ MODULE var_lookup
   integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in the soil water characteristic w.r.t. psi (m-1)
   integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in the soil water characteristic w.r.t. theta (m)
   integer(i4b)    :: dCompress_dPsi                  = integerMissing ! derivative in compressibility w.r.t matric head (m-1)
+  ! derivative in baseflow flux w.r.t. aquifer storage
+  integer(i4b)    :: dBaseflow_dAquifer              = integerMissing ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   integer(i4b)    :: dq_dNrgStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dNrgStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
@@ -798,7 +800,7 @@ MODULE var_lookup
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
