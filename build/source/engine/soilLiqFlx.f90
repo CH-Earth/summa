@@ -370,7 +370,7 @@ contains
   endif
 
   ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
-  mLayerTranspire        = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
+  mLayerTranspire = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
 
   ! special case of prescribed head -- no transpiration
   if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._dp

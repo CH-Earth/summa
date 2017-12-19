@@ -710,6 +710,8 @@ contains
   case('mLayerdTheta_dPsi'              ); get_ixderiv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
   case('mLayerdPsi_dTheta'              ); get_ixderiv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in the soil water characteristic w.r.t. theta (m)
   case('dCompress_dPsi'                 ); get_ixderiv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
+  ! derivative in baseflow flux w.r.t. aquifer storage
+  case('dBaseflow_dAquifer'             ); get_ixderiv = iLookDERIV%dBaseflow_dAquifer             ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   case('dq_dNrgStateAbove'              ); get_ixderiv = iLookDERIV%dq_dNrgStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dNrgStateBelow'              ); get_ixderiv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below

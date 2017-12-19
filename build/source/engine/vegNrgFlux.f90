@@ -2521,6 +2521,7 @@ contains
  else  ! (if there are roots in the aquifer)
   aquiferTranspireLimitFac = 0._dp
  end if
+
  ! compute the weighted average (weighted by root density)
  wAvgTranspireLimitFac = wAvgTranspireLimitFac + aquiferTranspireLimitFac*scalarAquiferRootFrac
 

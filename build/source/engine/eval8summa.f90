@@ -413,44 +413,45 @@ contains
  ! compute the fluxes for a given state vector
  call computFlux(&
                  ! input-output: model control
-                 nSnow,                   & ! intent(in):    number of snow layers
-                 nSoil,                   & ! intent(in):    number of soil layers
-                 nLayers,                 & ! intent(in):    total number of layers
-                 firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 firstFluxCall,           & ! intent(inout): flag to denote the first flux call
-                 firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
-                 computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                 scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 scalarSfcMeltPond/dt,    & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
+                 nSnow,                     & ! intent(in):    number of snow layers
+                 nSoil,                     & ! intent(in):    number of soil layers
+                 nLayers,                   & ! intent(in):    total number of layers
+                 firstSubStep,              & ! intent(in):    flag to indicate if we are processing the first sub-step
+                 firstFluxCall,             & ! intent(inout): flag to denote the first flux call
+                 firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
+                 computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                 scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
+                 scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
-                 scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
-                 scalarCanopyTempTrial,   & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                 mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                 mLayerMatricHeadLiqTrial,& ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
+                 scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
+                 scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
+                 mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                 mLayerMatricHeadLiqTrial,  & ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
+                 scalarAquiferStorageTrial, & ! intent(in):    trial value of storage of water in the aquifer (m)
                  ! input: diagnostic variables defining the liquid water and ice content
-                 scalarCanopyLiqTrial,    & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
-                 scalarCanopyIceTrial,    & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                 mLayerVolFracLiqTrial,   & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
-                 mLayerVolFracIceTrial,   & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
+                 scalarCanopyLiqTrial,      & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
+                 scalarCanopyIceTrial,      & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
+                 mLayerVolFracLiqTrial,     & ! intent(in):    trial value for the volumetric liquid water content in each snow and soil layer (-)
+                 mLayerVolFracIceTrial,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                  ! input: data structures
-                 model_decisions,         & ! intent(in):    model decisions
-                 type_data,               & ! intent(in):    type of vegetation and soil
-                 attr_data,               & ! intent(in):    spatial attributes
-                 mpar_data,               & ! intent(in):    model parameters
-                 forc_data,               & ! intent(in):    model forcing data
-                 bvar_data,               & ! intent(in):    average model variables for the entire basin
-                 prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                 indx_data,               & ! intent(in):    index data
+                 model_decisions,           & ! intent(in):    model decisions
+                 type_data,                 & ! intent(in):    type of vegetation and soil
+                 attr_data,                 & ! intent(in):    spatial attributes
+                 mpar_data,                 & ! intent(in):    model parameters
+                 forc_data,                 & ! intent(in):    model forcing data
+                 bvar_data,                 & ! intent(in):    average model variables for the entire basin
+                 prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
+                 indx_data,                 & ! intent(in):    index data
                  ! input-output: data structures
-                 diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                 flux_data,               & ! intent(inout): model fluxes for a local HRU
-                 deriv_data,              & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
+                 diag_data,                 & ! intent(inout): model diagnostic variables for a local HRU
+                 flux_data,                 & ! intent(inout): model fluxes for a local HRU
+                 deriv_data,                & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: flux vector and baseflow derivatives
-                 ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                 dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                 fluxVec,                 & ! intent(out):   flux vector (mixed units)
+                 ixSaturation,              & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                 dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                 fluxVec,                   & ! intent(out):   flux vector (mixed units)
                  ! output: error control
-                 err,cmessage)              ! intent(out):   error code and error message
+                 err,cmessage)                ! intent(out):   error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
