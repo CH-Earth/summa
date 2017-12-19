@@ -236,6 +236,7 @@ contains
  mpar_meta(iLookPARAM%kAnisotropic)          = var_info('kAnisotropic'          , 'anisotropy factor for lateral hydraulic conductivity'             , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%zScale_TOPMODEL)       = var_info('zScale_TOPMODEL'       , 'TOPMODEL scaling factor used in lower boundary condition for soil', 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%compactedDepth)        = var_info('compactedDepth'        , 'depth where k_soil reaches the compacted value given by CH78'     , 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ mpar_meta(iLookPARAM%aquiferBaseflowRate)   = var_info('aquiferBaseflowRate'   , 'baseflow rate when aquifer storage = aquiferScaleFactor'          , 'm s-1'           , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%aquiferScaleFactor)    = var_info('aquiferScaleFactor'    , 'scaling factor for aquifer storage in the big bucket'             , 'm'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%aquiferBaseflowExp)    = var_info('aquiferBaseflowExp'    , 'baseflow exponent'                                                , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  mpar_meta(iLookPARAM%qSurfScale)            = var_info('qSurfScale'            , 'scaling factor in the surface runoff parameterization'            , '-'               , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
@@ -555,6 +556,8 @@ contains
  deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , get_ixVarType('midSoil'), lFalseArry, integerMissing, iMissArry)
  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
+ ! derivative in baseflow flux w.r.t. aquifer storage
+ deriv_meta(iLookDERIV%dBaseflow_dAquifer)            = var_info('dBaseflow_dAquifer'           , 'derivative in baseflow flux w.r.t. aquifer storage'                   , 's-1'            , get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
  deriv_meta(iLookDERIV%dq_dNrgStateAbove)             = var_info('dq_dNrgStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
  deriv_meta(iLookDERIV%dq_dNrgStateBelow)             = var_info('dq_dNrgStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), lFalseArry, integerMissing, iMissArry)
@@ -620,6 +623,7 @@ contains
  indx_meta(iLookINDEX%ixVegHyd)              = var_info('ixVegHyd'             , 'index of canopy hydrology state variable (mass)'                         , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixTopNrg)              = var_info('ixTopNrg'             , 'index of upper-most energy state in the snow+soil subdomain'             , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixTopHyd)              = var_info('ixTopHyd'             , 'index of upper-most hydrology state in the snow+soil subdomain'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixAqWat)               = var_info('ixAqWat'              , 'index of storage of water in the aquifer'                                , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! vectors of indices for specific state types
  indx_meta(iLookINDEX%ixNrgOnly)             = var_info('ixNrgOnly'            , 'indices IN THE STATE SUBSET for energy states'                           , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixHydOnly)             = var_info('ixHydOnly'            , 'indices IN THE STATE SUBSET for hydrology states in the snow+soil domain', '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
@@ -638,6 +642,7 @@ contains
  indx_meta(iLookINDEX%ixHydCanopy)           = var_info('ixHydCanopy'          , 'indices IN THE FULL VECTOR for hydrology states in the canopy domain'    , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixNrgLayer)            = var_info('ixNrgLayer'           , 'indices IN THE FULL VECTOR for energy states in the snow+soil domain'    , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the snow+soil domain' , '-', get_ixVarType('midToto'), lFalseArry, integerMissing, iMissArry)
+ indx_meta(iLookINDEX%ixWatAquifer)          = var_info('ixWatAquifer'         , 'indices IN THE FULL VECTOR for storage of water in the aquifer'          , '-', get_ixVarType('scalarv'), lFalseArry, integerMissing, iMissArry)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
  indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)
  indx_meta(iLookINDEX%ixMatricHead)          = var_info('ixMatricHead'         , 'indices IN THE SOIL VECTOR for hyd states'                               , '-', get_ixVarType('unknown'), lFalseArry, integerMissing, iMissArry)

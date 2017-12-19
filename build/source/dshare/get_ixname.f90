@@ -337,6 +337,7 @@ contains
   case('kAnisotropic'             ); get_ixparam = iLookPARAM%kAnisotropic           ! anisotropy factor for lateral hydraulic conductivity (-)
   case('zScale_TOPMODEL'          ); get_ixparam = iLookPARAM%zScale_TOPMODEL        ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
   case('compactedDepth'           ); get_ixparam = iLookPARAM%compactedDepth         ! depth where k_soil reaches the compacted value given by CH78 (m)
+  case('aquiferBaseflowRate'      ); get_ixparam = iLookPARAM%aquiferBaseflowRate    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   case('aquiferScaleFactor'       ); get_ixparam = iLookPARAM%aquiferScaleFactor     ! scaling factor for aquifer storage in the big bucket (m)
   case('aquiferBaseflowExp'       ); get_ixparam = iLookPARAM%aquiferBaseflowExp     ! baseflow exponent (-)
   case('qSurfScale'               ); get_ixparam = iLookPARAM%qSurfScale             ! scaling factor in the surface runoff parameterization (-)
@@ -702,6 +703,8 @@ contains
   case('mLayerdTheta_dPsi'              ); get_ixderiv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
   case('mLayerdPsi_dTheta'              ); get_ixderiv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in the soil water characteristic w.r.t. theta (m)
   case('dCompress_dPsi'                 ); get_ixderiv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
+  ! derivative in baseflow flux w.r.t. aquifer storage
+  case('dBaseflow_dAquifer'             ); get_ixderiv = iLookDERIV%dBaseflow_dAquifer             ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   case('dq_dNrgStateAbove'              ); get_ixderiv = iLookDERIV%dq_dNrgStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dNrgStateBelow'              ); get_ixderiv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
@@ -765,6 +768,7 @@ contains
   case('ixVegHyd'             ); get_ixINDEX = iLookINDEX%ixVegHyd              ! index of canopy hydrology state variable (mass)                          (-)
   case('ixTopNrg'             ); get_ixINDEX = iLookINDEX%ixTopNrg              ! index of upper-most energy state in the snow+soil subdomain              (-)
   case('ixTopHyd'             ); get_ixINDEX = iLookINDEX%ixTopHyd              ! index of upper-most hydrology state in the snow+soil subdomain           (-)
+  case('ixAqWat'              ); get_ixINDEX = iLookINDEX%ixAqWat               ! index of storage of water in the aquifer                                 (-)
   ! vectors of indices for specific state types
   case('ixNrgOnly'            ); get_ixINDEX = iLookINDEX%ixNrgOnly             ! indices IN THE STATE SUBSET for all energy states                        (-)
   case('ixHydOnly'            ); get_ixINDEX = iLookINDEX%ixHydOnly             ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
@@ -778,11 +782,12 @@ contains
   case('ixSnowOnlyHyd'        ); get_ixINDEX = iLookINDEX%ixSnowOnlyHyd         ! indices IN THE STATE SUBSET for hydrology states in the snow domain      (-)
   case('ixSoilOnlyHyd'        ); get_ixINDEX = iLookINDEX%ixSoilOnlyHyd         ! indices IN THE STATE SUBSET for hydrology states in the soil domain      (-)
   ! vectors of indices for specfic state types within specific sub-domains
-  case('ixNrgCanair'          ); get_ixINDEX = iLookINDEX%ixNrgCanair           ! indices IN THE STATE SUBSET for energy states in canopy air space domain (-)
-  case('ixNrgCanopy'          ); get_ixINDEX = iLookINDEX%ixNrgCanopy           ! indices IN THE STATE SUBSET for energy states in the canopy domain       (-)
-  case('ixHydCanopy'          ); get_ixINDEX = iLookINDEX%ixHydCanopy           ! indices IN THE STATE SUBSET for hydrology states in the canopy domain    (-)
+  case('ixNrgCanair'          ); get_ixINDEX = iLookINDEX%ixNrgCanair           ! indices IN THE FULL VECTOR for energy states in canopy air space domain (-)
+  case('ixNrgCanopy'          ); get_ixINDEX = iLookINDEX%ixNrgCanopy           ! indices IN THE FULL VECTOR for energy states in the canopy domain       (-)
+  case('ixHydCanopy'          ); get_ixINDEX = iLookINDEX%ixHydCanopy           ! indices IN THE FULL VECTOR for hydrology states in the canopy domain    (-)
   case('ixNrgLayer'           ); get_ixINDEX = iLookINDEX%ixNrgLayer            ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
   case('ixHydLayer'           ); get_ixINDEX = iLookINDEX%ixHydLayer            ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
+  case('ixWatAquifer'         ); get_ixINDEX = iLookINDEX%ixWatAquifer          ! indices IN THE FULL VECTOR for storage of water in the aquifer           (-)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
   case('ixVolFracWat'         ); get_ixINDEX = iLookINDEX%ixVolFracWat          ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
   case('ixMatricHead'         ); get_ixINDEX = iLookINDEX%ixMatricHead          ! indices IN THE SOIL VECTOR for hyd states                                (-)
