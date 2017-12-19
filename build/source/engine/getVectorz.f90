@@ -484,6 +484,8 @@ contains
  mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of total water (-)
  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in):  [dp(:)]  total water matric potential (m)
  mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)]  liquid water matric potential (m)
+ ! model state variables for the aquifer
+ scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in):  [dp]     storage of water in the aquifer (m)
  ! model diagnostic variables from a previous solution
  scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of liquid water on the vegetation canopy (kg m-2)
  scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of ice on the vegetation canopy (kg m-2)
@@ -529,12 +531,13 @@ contains
  ! *** extract state variables from the snow+soil sub-domain
 
  ! initialize to the state variable from the last update
- mLayerTempTrial          = mLayerTemp
- mLayerVolFracWatTrial    = mLayerVolFracWat
- mLayerVolFracLiqTrial    = mLayerVolFracLiq
- mLayerVolFracIceTrial    = mLayerVolFracIce
- mLayerMatricHeadTrial    = mLayerMatricHead      ! total water matric potential
- mLayerMatricHeadLiqTrial = mLayerMatricHeadLiq   ! liquid water matric potential
+ mLayerTempTrial           = mLayerTemp
+ mLayerVolFracWatTrial     = mLayerVolFracWat
+ mLayerVolFracLiqTrial     = mLayerVolFracLiq
+ mLayerVolFracIceTrial     = mLayerVolFracIce
+ mLayerMatricHeadTrial     = mLayerMatricHead      ! total water matric potential
+ mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq   ! liquid water matric potential
+ scalarAquiferStorageTrial = scalarAquiferStorage
 
  ! overwrite with the energy values from the state vector
  if(nSnowSoilNrg>0)then

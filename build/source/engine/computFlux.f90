@@ -238,6 +238,7 @@ contains
  ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
  ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the snow+soil subdomain
  ixTopHyd                     => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow+soil subdomain
+ ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                        ,& ! intent(in): [i4b]    index of water storage in the aquifer
 
  ! indices of model state variables for the snow+soil domain
  ixSnowSoilNrg                => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                     ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
@@ -766,35 +767,39 @@ contains
  ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...
  ! ********************************************
 
- ! identify modeling decision
- if(local_ixGroundwater==bigBucket)then
+ ! check if computing aquifer fluxes
+ if(ixAqWat/=integerMissing)then
 
-  ! compute fluxes for the big bucket
-  call bigAquifer(&
-                  ! input: state variables and fluxes
-                  scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
-                  scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
-                  scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
-                  ! input: diagnostic variables and parameters
-                  mpar_data,                    & ! intent(in):  model parameter structure
-                  diag_data,                    & ! intent(in):  diagnostic variable structure
-                  ! output: fluxes
-                  scalarAquiferTranspire,       & ! intent(out): transpiration loss from the aquifer (m s-1)
-                  scalarAquiferRecharge,        & ! intent(out): recharge to the aquifer (m s-1)
-                  scalarAquiferBaseflow,        & ! intent(out): total baseflow from the aquifer (m s-1)
-                  dBaseflow_dAquifer,           & ! intent(out): change in baseflow flux w.r.t. aquifer storage (s-1)
-                  ! output: error control
-                  err,cmessage)                   ! intent(out): error control
+  ! identify modeling decision
+  if(local_ixGroundwater==bigBucket)then
 
- else
+   ! compute fluxes for the big bucket
+   call bigAquifer(&
+                   ! input: state variables and fluxes
+                   scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
+                   scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
+                   scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
+                   ! input: diagnostic variables and parameters
+                   mpar_data,                    & ! intent(in):  model parameter structure
+                   diag_data,                    & ! intent(in):  diagnostic variable structure
+                   ! output: fluxes
+                   scalarAquiferTranspire,       & ! intent(out): transpiration loss from the aquifer (m s-1)
+                   scalarAquiferRecharge,        & ! intent(out): recharge to the aquifer (m s-1)
+                   scalarAquiferBaseflow,        & ! intent(out): total baseflow from the aquifer (m s-1)
+                   dBaseflow_dAquifer,           & ! intent(out): change in baseflow flux w.r.t. aquifer storage (s-1)
+                   ! output: error control
+                   err,cmessage)                   ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! if no aquifer, then fluxes are zero
-  scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1)
-  scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
-  scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
-  dBaseflow_dAquifer     = 0._dp  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+  else
+   scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1)
+   scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer     = 0._dp  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+  end if ! no aquifer
 
- end if
+ endif  ! if computing aquifer fluxes
 
  ! *****
  ! (X) WRAP UP...
@@ -825,6 +830,9 @@ contains
    endif  ! if a given hydrology state exists
   end do ! looping through non-missing energy state variables in the snow+soil domain
  endif  ! if any hydrology states exist
+
+ ! compute the flux vector for the aquifer
+ if(ixAqWat/=integerMissing) fluxVec(ixAqWat) = scalarAquiferTranspire + scalarAquiferRecharge - scalarAquiferBaseflow
 
  ! set the first flux call to false
  firstFluxCall=.false.

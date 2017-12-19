@@ -257,6 +257,7 @@ MODULE var_lookup
   integer(i4b)    :: kAnisotropic          = integerMissing    ! anisotropy factor for lateral hydraulic conductivity (-)
   integer(i4b)    :: zScale_TOPMODEL       = integerMissing    ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
   integer(i4b)    :: compactedDepth        = integerMissing    ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: aquiferBaseflowRate   = integerMissing    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   integer(i4b)    :: aquiferScaleFactor    = integerMissing    ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: aquiferBaseflowExp    = integerMissing    ! baseflow exponent (-)
   integer(i4b)    :: qSurfScale            = integerMissing    ! scaling factor in the surface runoff parameterization (-)
@@ -768,7 +769,7 @@ MODULE var_lookup
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
-                                                                        151,152,153,154)
+                                                                        151,152,153,154,155)
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
