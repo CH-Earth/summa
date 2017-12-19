@@ -622,6 +622,7 @@ contains
  indx_meta(iLookINDEX%ixVegHyd)              = var_info('ixVegHyd'             , 'index of canopy hydrology state variable (mass)'                         , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixTopNrg)              = var_info('ixTopNrg'             , 'index of upper-most energy state in the snow+soil subdomain'             , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixTopHyd)              = var_info('ixTopHyd'             , 'index of upper-most hydrology state in the snow+soil subdomain'          , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ indx_meta(iLookINDEX%ixAqWat)               = var_info('ixAqWat'              , 'index of storage of water in the aquifer'                                , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! vectors of indices for specific state types
  indx_meta(iLookINDEX%ixNrgOnly)             = var_info('ixNrgOnly'            , 'indices IN THE STATE SUBSET for energy states'                           , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixHydOnly)             = var_info('ixHydOnly'            , 'indices IN THE STATE SUBSET for hydrology states in the snow+soil domain', '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
@@ -640,7 +641,7 @@ contains
  indx_meta(iLookINDEX%ixHydCanopy)           = var_info('ixHydCanopy'          , 'indices IN THE FULL VECTOR for hydrology states in the canopy domain'    , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixNrgLayer)            = var_info('ixNrgLayer'           , 'indices IN THE FULL VECTOR for energy states in the snow+soil domain'    , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the snow+soil domain' , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
- indx_meta(iLookINDEX%ixAquifer)             = var_info('ixAquifer'            , 'indices IN THE FULL VECTOR for the aquifer'                              , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ indx_meta(iLookINDEX%ixWatAquifer)          = var_info('ixWatAquifer'         , 'indices IN THE FULL VECTOR for storage of water in the aquifer'          , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
  indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixMatricHead)          = var_info('ixMatricHead'         , 'indices IN THE SOIL VECTOR for hyd states'                               , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
