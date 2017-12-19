@@ -35,6 +35,7 @@ USE globalData,only:iname_cas       ! named variables for canopy air space
 USE globalData,only:iname_veg       ! named variables for vegetation canopy
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_aquifer   ! named variables for the aquifer
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
@@ -271,11 +272,12 @@ contains
 
   ! get the layer index
   select case(ixDomainType)
-   case(iname_cas);  cycle ! canopy air space: do nothing
-   case(iname_veg);  iLayer = 0
-   case(iname_snow); iLayer = ixControlIndex
-   case(iname_soil); iLayer = ixControlIndex + nSnow
-   case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil'; return
+   case(iname_cas);     cycle ! canopy air space: do nothing
+   case(iname_veg);     iLayer = 0
+   case(iname_snow);    iLayer = ixControlIndex
+   case(iname_soil);    iLayer = ixControlIndex + nSnow
+   case(iname_aquifer); cycle ! aquifer: do nothing
+   case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
   end select
 
   ! get the index of the other (energy or mass) state variable within the full state vector

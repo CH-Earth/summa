@@ -195,29 +195,30 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state variables
- real(dp)                        :: scalarCanairTempTrial    ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial    ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatTrial     ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempTrial          ! trial value for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial    ! trial value for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial    ! trial value for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial ! trial value for liquid water matric potential (m)
+ real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial           ! trial value for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial     ! trial value for total water matric potential (m)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
+ real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial     ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial     ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial    ! trial value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial    ! trial value for volumetric fraction of ice (-)
+ real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
  ! other local variables
- integer(i4b)                    :: iLayer                   ! index of model layer in the snow+soil domain
- integer(i4b)                    :: jState(1)                ! index of model state for the scalar solution within the soil domain
- integer(i4b)                    :: ixBeg,ixEnd              ! index of indices for the soil compression routine
- integer(i4b),parameter          :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
- real(dp)                        :: xMin,xMax                ! minimum and maximum values for water content
- real(dp)                        :: scalarCanopyHydTrial     ! trial value for mass of water on the vegetation canopy (kg m-2)
- real(dp),parameter              :: canopyTempMax=500._dp    ! expected maximum value for the canopy temperature (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial    ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
- real(dp),dimension(nState)      :: rVecScaled               ! scaled residual vector
- character(LEN=256)              :: cmessage                 ! error message of downwind routine
+ integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
+ integer(i4b)                    :: jState(1)                 ! index of model state for the scalar solution within the soil domain
+ integer(i4b)                    :: ixBeg,ixEnd               ! index of indices for the soil compression routine
+ integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
+ real(dp)                        :: xMin,xMax                 ! minimum and maximum values for water content
+ real(dp)                        :: scalarCanopyHydTrial      ! trial value for mass of water on the vegetation canopy (kg m-2)
+ real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
+ real(dp),dimension(nState)      :: rVecScaled                ! scaled residual vector
+ character(LEN=256)              :: cmessage                  ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -352,6 +353,8 @@ contains
                  mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                 ! output: variables for the aquifer
+                 scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

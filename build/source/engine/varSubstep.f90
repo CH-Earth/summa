@@ -593,6 +593,7 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
  real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
  real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
+ real(dp)                        :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
  ! diagnostic variables
  real(dp)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
  real(dp)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -680,6 +681,8 @@ contains
                  mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                 ! output: variables for the aquifer
+                 scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

@@ -113,7 +113,7 @@ contains
  ixHydCanopy   => indx_data%var(iLookINDEX%ixHydCanopy)%dat  , & ! indices IN THE FULL VECTOR for hydrology states in the canopy domain
  ixNrgLayer    => indx_data%var(iLookINDEX%ixNrgLayer)%dat   , & ! indices IN THE FULL VECTOR for energy states in the snow+soil domain
  ixHydLayer    => indx_data%var(iLookINDEX%ixHydLayer)%dat   , & ! indices IN THE FULL VECTOR for hyd states in the snow+soil domain
- ixAquifer     => indx_data%var(iLookINDEX%ixAquifer)%dat    , & ! indices IN THE FULL VECTOR for the aquifer
+ ixWatAquifer  => indx_data%var(iLookINDEX%ixWatAquifer)%dat , & ! indices IN THE FULL VECTOR for the aquifer
  ! indices for model state variables
  ixSoilState   => indx_data%var(iLookINDEX%ixSoilState)%dat  , & ! list of indices for all soil layers
  ixLayerState  => indx_data%var(iLookINDEX%ixLayerState)%dat   & ! list of indices for all model layers
@@ -149,7 +149,7 @@ contains
  nMassState = nVegMass                     ! number of mass state variables -- currently restricted to canopy water
 
  ! define the number of model state variables
- nState = nVegState + nLayers*nVarSnowSoil   ! *nVarSnowSoil (both energy and total water)
+ nState = nVegState + nLayers*nVarSnowSoil + nAquiferState  ! *nVarSnowSoil (both energy and total water)
 
  ! -----
  ! * define the indices of state variables WITHIN THE FULL STATE VECTOR...
@@ -176,7 +176,7 @@ contains
  ixHydLayer = arth(ixTopWat,nVarSnowSoil,nLayers)  ! total water
 
  ! define indices for the aquifer
- ixAquifer(1) = merge(nState, integerMissing, includeAquifer)
+ ixWatAquifer(1) = merge(nState, integerMissing, includeAquifer)
 
  ! -----
  ! * define the type of model states...
@@ -218,7 +218,7 @@ contains
              ixStateType( ixHydLayer(nSnow+1:nLayers) ) = iname_matLayer ! refine later to be either iname_watLayer or iname_matLayer
 
  ! define the state type for the aquifer
- if(includeAquifer) ixStateType( ixAquifer(1) ) = iname_watAquifer
+ if(includeAquifer) ixStateType( ixWatAquifer(1) ) = iname_watAquifer
 
  ! define the domain type for vegetation
  if(computeVegFlux)then
@@ -238,7 +238,7 @@ contains
  ixDomainType( ixHydLayer(nSnow+1:nLayers) ) = iname_soil
 
  ! define the domain type for the aquifer
- ixDomainType( ixAquifer(1) ) = iname_aquifer
+ if(includeAquifer) ixDomainType( ixWatAquifer(1) ) = iname_aquifer
 
  ! define the index of each control volume in the vegetation domains
  if(computeVegFlux)then
@@ -257,11 +257,13 @@ contains
  ixControlVolume( ixNrgLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
  ixControlVolume( ixHydLayer(nSnow+1:nLayers) ) = ixSoilState(1:nSoil)
 
- if(includeAquifer) ixControlVolume( ixAquifer(1) ) = 1
+ ! define the index for the control volumes in the aquifer
+ if(includeAquifer) ixControlVolume( ixWatAquifer(1) ) = 1
 
- !print*, 'ixControlVolume = ', ixControlVolume
- !print*, 'ixDomainType    = ', ixDomainType
- !print*, 'ixStateType     = ', ixStateType
+ print*, 'ixControlVolume = ', ixControlVolume
+ print*, 'ixDomainType    = ', ixDomainType
+ print*, 'ixStateType     = ', ixStateType
+ print*, 'PAUSE: '; read(*,*)
 
  ! end association to the ALLOCATABLE variables in the data structures
  end associate
@@ -315,6 +317,9 @@ contains
  ! indices of the top model state variables in the snow+soil system
  ixTopNrg         => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)      ,& ! intent(in):    [i4b]    index of upper-most energy state in the snow-soil subdomain
  ixTopHyd         => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)      ,& ! intent(in):    [i4b]    index of upper-most hydrology state in the snow-soil subdomain
+
+ ! index of the storage of water in the aquifer
+ ixAqWat          => indx_data%var(iLookINDEX%ixAqWat)%dat(1)       ,& ! intent(in):    [i4b]    index of the storage of water in the aquifer
 
  ! indices of model state variables
  ixMapFull2Subset => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat ,& ! intent(in):    [i4b(:)] list of indices in the state subset (missing for values not in the subset)
@@ -433,6 +438,9 @@ contains
  else
   ixTopHyd = merge(ixTopWat, ixTopLiq, ixTopWat/=integerMissing)      ! ixTopWat is used if it is not missing
  endif
+
+ ! define index for the storage of water in the aquifer
+ ixAqWat = findIndex(ixStateType_subset, iname_watAquifer, integerMissing)
 
  ! -----
  ! - get vector of indices within the state subset state variables of a given type...

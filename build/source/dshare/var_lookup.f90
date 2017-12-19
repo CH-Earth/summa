@@ -627,6 +627,7 @@ MODULE var_lookup
  integer(i4b)     :: ixVegHyd              = integerMissing  ! index IN THE STATE SUBSET of canopy hydrology state variable (mass)      (-)
  integer(i4b)     :: ixTopNrg              = integerMissing  ! index IN THE STATE SUBSET of upper-most energy state in snow+soil domain (-)
  integer(i4b)     :: ixTopHyd              = integerMissing  ! index IN THE STATE SUBSET of upper-most hydrol state in snow+soil domain (-)
+ integer(i4b)     :: ixAqWat               = integerMissing  ! index IN THE STATE SUBSET of water storage in the aquifer                (-)
  ! vectors of indices for specific state types
  integer(i4b)     :: ixNrgOnly             = integerMissing  ! indices IN THE STATE SUBSET for all energy states                        (-)
  integer(i4b)     :: ixHydOnly             = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
@@ -645,7 +646,7 @@ MODULE var_lookup
  integer(i4b)     :: ixHydCanopy           = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the canopy domain     (-)
  integer(i4b)     :: ixNrgLayer            = integerMissing  ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
  integer(i4b)     :: ixHydLayer            = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
- integer(i4b)     :: ixAquifer             = integerMissing  ! indices IN THE FULL VECTOR for the aquifer state                         (-)
+ integer(i4b)     :: ixWatAquifer          = integerMissing  ! indices IN THE FULL VECTOR for the storage of water in the aquifer       (-)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
  integer(i4b)     :: ixVolFracWat          = integerMissing  ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
  integer(i4b)     :: ixMatricHead          = integerMissing  ! indices IN THE SOIL VECTOR for hyd states                                (-)
@@ -805,7 +806,7 @@ MODULE var_lookup
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
-                                                                         51, 52, 53, 54, 55, 56, 57, 58, 59)
+                                                                         51, 52, 53, 54, 55, 56, 57, 58, 59, 60)
 
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
