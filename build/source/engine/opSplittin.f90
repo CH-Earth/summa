@@ -27,33 +27,34 @@ USE nrtype
 USE globalData,only:globalPrintFlag
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
-USE globalData,only:quadMissing     ! missing quadruple precision number
+USE globalData,only:integerMissing   ! missing integer
+USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:quadMissing      ! missing quadruple precision number
 
 ! access matrix information
-USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
-USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
-USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
-USE globalData,only: iJac1          ! first layer of the Jacobian to print
-USE globalData,only: iJac2          ! last layer of the Jacobian to print
+USE globalData,only: nBands          ! length of the leading dimension of the band diagonal matrix
+USE globalData,only: ixFullMatrix    ! named variable for the full Jacobian matrix
+USE globalData,only: ixBandMatrix    ! named variable for the band diagonal matrix
+USE globalData,only: iJac1           ! first layer of the Jacobian to print
+USE globalData,only: iJac2           ! last layer of the Jacobian to print
 
 ! domain types
-USE globalData,only:iname_cas       ! named variables for the canopy air space
-USE globalData,only:iname_veg       ! named variables for vegetation
-USE globalData,only:iname_snow      ! named variables for snow
-USE globalData,only:iname_soil      ! named variables for soil
+USE globalData,only:iname_cas        ! named variables for the canopy air space
+USE globalData,only:iname_veg        ! named variables for vegetation
+USE globalData,only:iname_snow       ! named variables for snow
+USE globalData,only:iname_soil       ! named variables for soil
 
 ! state variable type
-USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
-USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
-USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
-USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
-USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+USE globalData,only:iname_nrgCanair  ! named variable defining the energy of the canopy air space
+USE globalData,only:iname_nrgCanopy  ! named variable defining the energy of the vegetation canopy
+USE globalData,only:iname_watCanopy  ! named variable defining the mass of total water on the vegetation canopy
+USE globalData,only:iname_liqCanopy  ! named variable defining the mass of liquid water on the vegetation canopy
+USE globalData,only:iname_nrgLayer   ! named variable defining the energy state variable for snow+soil layers
+USE globalData,only:iname_watLayer   ! named variable defining the total water state variable for snow+soil layers
+USE globalData,only:iname_liqLayer   ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_matLayer   ! named variable defining the matric head state variable for soil layers
+USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric potential state variable for soil layers
+USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! global metadata
 USE globalData,only:flux_meta                        ! metadata on the model fluxes
@@ -65,26 +66,26 @@ USE globalData,only:flux2state_liq                   ! metadata on flux-to-state
 
 ! constants
 USE multiconst,only:&
-                    gravity,      & ! acceleration of gravity              (m s-2)
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    LH_vap,       & ! latent heat of vaporization          (J kg-1)
-                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
-                    Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
-                    iden_air,     & ! intrinsic density of air             (kg m-3)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+                    gravity,       & ! acceleration of gravity              (m s-2)
+                    Tfreeze,       & ! temperature at freezing              (K)
+                    LH_fus,        & ! latent heat of fusion                (J kg-1)
+                    LH_vap,        & ! latent heat of vaporization          (J kg-1)
+                    LH_sub,        & ! latent heat of sublimation           (J kg-1)
+                    Cp_air,        & ! specific heat of air                 (J kg-1 K-1)
+                    iden_air,      & ! intrinsic density of air             (kg m-3)
+                    iden_ice,      & ! intrinsic density of ice             (kg m-3)
+                    iden_water       ! intrinsic density of liquid water    (kg m-3)
 
 ! provide access to indices that define elements of the data structures
-USE var_lookup,only:iLookATTR       ! named variables for structure elements
-USE var_lookup,only:iLookTYPE       ! named variables for structure elements
-USE var_lookup,only:iLookPROG       ! named variables for structure elements
-USE var_lookup,only:iLookDIAG       ! named variables for structure elements
-USE var_lookup,only:iLookFLUX       ! named variables for structure elements
-USE var_lookup,only:iLookFORCE      ! named variables for structure elements
-USE var_lookup,only:iLookPARAM      ! named variables for structure elements
-USE var_lookup,only:iLookINDEX      ! named variables for structure elements
-USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+USE var_lookup,only:iLookATTR        ! named variables for structure elements
+USE var_lookup,only:iLookTYPE        ! named variables for structure elements
+USE var_lookup,only:iLookPROG        ! named variables for structure elements
+USE var_lookup,only:iLookDIAG        ! named variables for structure elements
+USE var_lookup,only:iLookFLUX        ! named variables for structure elements
+USE var_lookup,only:iLookFORCE       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM       ! named variables for structure elements
+USE var_lookup,only:iLookINDEX       ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
 
 ! look up structure for variable types
 USE var_lookup,only:iLookVarType
@@ -130,6 +131,7 @@ integer(i4b),parameter  :: massSplit=2                ! order in sequence for th
 integer(i4b),parameter  :: vegSplit=1                 ! order in sequence for the vegetation split
 integer(i4b),parameter  :: snowSplit=2                ! order in sequence for the snow split
 integer(i4b),parameter  :: soilSplit=3                ! order in sequence for the soil split
+integer(i4b),parameter  :: aquiferSplit=4             ! order in sequence for the aquifer split
 
 ! named variables for the solution method
 integer(i4b),parameter  :: vector=1                   ! vector solution method
@@ -142,7 +144,7 @@ integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, a
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
-integer(i4b),parameter  :: nDomains=3                 ! number of domains (vegetation, snow, and soil)
+integer(i4b),parameter  :: nDomains=4                 ! number of domains (vegetation, snow, soil, and aquifer)
 
 ! control parameters
 real(dp),parameter      :: valueMissing=-9999._dp     ! missing value
@@ -1004,17 +1006,18 @@ contains
  ! data structures
  associate(&
  ! indices of model state variables
- ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat      ,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
- ixNrgCanair => indx_data%var(iLookINDEX%ixNrgCanair)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
- ixNrgCanopy => indx_data%var(iLookINDEX%ixNrgCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
- ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
- ixNrgLayer  => indx_data%var(iLookINDEX%ixNrgLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
- ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
- ixAllState  => indx_data%var(iLookINDEX%ixAllState)%dat       ,& ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
+ ixStateType  => indx_data%var(iLookINDEX%ixStateType)%dat      ,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
+ ixNrgCanair  => indx_data%var(iLookINDEX%ixNrgCanair)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
+ ixNrgCanopy  => indx_data%var(iLookINDEX%ixNrgCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
+ ixHydCanopy  => indx_data%var(iLookINDEX%ixHydCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+ ixNrgLayer   => indx_data%var(iLookINDEX%ixNrgLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+ ixHydLayer   => indx_data%var(iLookINDEX%ixHydLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+ ixWatAquifer => indx_data%var(iLookINDEX%ixWatAquifer)%dat     ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for water storage in the aquifer
+ ixAllState   => indx_data%var(iLookINDEX%ixAllState)%dat       ,& ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
  ! number of layers
- nSnow       => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b]    number of snow layers
- nSoil       => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b]    number of soil layers
- nLayers     => indx_data%var(iLookINDEX%nLayers)%dat(1)        & ! intent(in): [i4b]    total number of layers
+ nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b]    number of snow layers
+ nSoil        => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b]    number of soil layers
+ nLayers      => indx_data%var(iLookINDEX%nLayers)%dat(1)        & ! intent(in): [i4b]    total number of layers
  ) ! data structures
  ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -1044,7 +1047,7 @@ contains
    case(fullDomain)
     select case(iStateTypeSplit)
      case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
-     case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer)
+     case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer .or. ixStateType==iname_watAquifer)
      case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
     end select
 
@@ -1062,17 +1065,19 @@ contains
         if(ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
         if(ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
         stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
-       case(snowSplit); if(nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
-       case(soilSplit); stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
+       case(snowSplit);   if(nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
+       case(soilSplit);   stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
+       case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain
        case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
       end select
 
      ! define mask for water
      case(massSplit)
       select case(iDomainSplit)
-       case(vegSplit);  if(ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
-       case(snowSplit); stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
-       case(soilSplit); stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
+       case(vegSplit);     if(ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
+       case(snowSplit);    stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
+       case(soilSplit);    stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
+       case(aquiferSplit); if(ixWatAquifer(1)/=integerMissing) stateMask(ixWatAquifer) = .true.  ! aquifer storage
        case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
       end select
 

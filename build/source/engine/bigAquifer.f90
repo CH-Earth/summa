@@ -83,8 +83,7 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  real(dp)                         :: aquiferTranspireFrac         ! fraction of total transpiration that comes from the aquifer (-)
- real(dp)                         :: xTemp1                       ! temporary variable (m s-1)
- real(dp)                         :: xTemp2                       ! temporary variable (-)
+ real(dp)                         :: xTemp                        ! temporary variable (-)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='bigAquifer/'
@@ -96,8 +95,7 @@ contains
  scalarAquiferRootFrac  => diag_data%var(iLookDIAG%scalarAquiferRootFrac)%dat(1),  & ! intent(in): [dp] fraction of roots below the lowest soil layer (-)
  scalarTranspireLimAqfr => diag_data%var(iLookDIAG%scalarTranspireLimAqfr)%dat(1), & ! intent(in): [dp] transpiration limiting factor for the aquifer (-)
  ! model parameters: baseflow flux
- k_soil                 => mpar_data%var(iLookPARAM%k_soil)%dat(1),                & ! intent(in): [dp] hydraulic conductivity of soil (m s-1)
- kAnisotropic           => mpar_data%var(iLookPARAM%kAnisotropic)%dat(1),          & ! intent(in): [dp] anisotropy factor for lateral hydraulic conductivity (-)
+ aquiferBaseflowRate    => mpar_data%var(iLookPARAM%aquiferBaseflowRate)%dat(1),   & ! intent(in): [dp] tbaseflow rate when aquiferStorage = aquiferScaleFactor (m s-1)
  aquiferScaleFactor     => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1),    & ! intent(in): [dp] scaling factor for aquifer storage in the big bucket (m)
  aquiferBaseflowExp     => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1)     & ! intent(in): [dp] baseflow exponent (-)
  )  ! associating local variables with the information in the data structures
@@ -110,15 +108,11 @@ contains
  scalarAquiferRecharge = scalarSoilDrainage ! m s-1
 
  ! compute the aquifer baseflow (m s-1)
- xTemp1                = k_soil*kAnisotropic
- xTemp2                = scalarAquiferStorageTrial/aquiferScaleFactor
- scalarAquiferBaseflow = xTemp1*xTemp2**aquiferBaseflowExp
+ xTemp                 = scalarAquiferStorageTrial/aquiferScaleFactor
+ scalarAquiferBaseflow = aquiferBaseflowRate*(xTemp**aquiferBaseflowExp)
 
  ! compute the derivative in the net aquifer flux
- dBaseflow_dAquifer    = (aquiferBaseflowExp*xTemp1*xTemp2**(aquiferBaseflowExp - 1._dp))/aquiferScaleFactor
-
- print*, 'scalarAquiferStorageTrial, scalarAquiferBaseflow, dBaseflow_dAquifer = ', scalarAquiferStorageTrial, scalarAquiferBaseflow, dBaseflow_dAquifer
- print*, 'PAUSE: '; read(*,*)
+ dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1._dp)))/aquiferScaleFactor
 
  ! end association to data in structures
  end associate

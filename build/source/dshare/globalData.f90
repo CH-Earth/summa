@@ -152,8 +152,8 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixBandMatrix=1002       ! named variable for the band diagonal matrix
 
  ! define indices describing the first and last layers of the Jacobian to print (for debugging)
- integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
- integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac1=16                 ! first layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=20                 ! last layer of the Jacobian to print
 
  ! define indices describing the indices of the first and last HRUs in the forcing file
  integer(i4b),save,public                    :: ixHRUfile_min           ! minimum index

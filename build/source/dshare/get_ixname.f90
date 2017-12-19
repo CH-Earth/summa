@@ -340,6 +340,7 @@ contains
   case('kAnisotropic'             ); get_ixparam = iLookPARAM%kAnisotropic           ! anisotropy factor for lateral hydraulic conductivity (-)
   case('zScale_TOPMODEL'          ); get_ixparam = iLookPARAM%zScale_TOPMODEL        ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
   case('compactedDepth'           ); get_ixparam = iLookPARAM%compactedDepth         ! depth where k_soil reaches the compacted value given by CH78 (m)
+  case('aquiferBaseflowRate'      ); get_ixparam = iLookPARAM%aquiferBaseflowRate    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   case('aquiferScaleFactor'       ); get_ixparam = iLookPARAM%aquiferScaleFactor     ! scaling factor for aquifer storage in the big bucket (m)
   case('aquiferBaseflowExp'       ); get_ixparam = iLookPARAM%aquiferBaseflowExp     ! baseflow exponent (-)
   case('qSurfScale'               ); get_ixparam = iLookPARAM%qSurfScale             ! scaling factor in the surface runoff parameterization (-)

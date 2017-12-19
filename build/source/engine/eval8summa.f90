@@ -488,31 +488,32 @@ contains
  ! compute the residual vector
  call computResid(&
                   ! input: model control
-                  dt,                      & ! intent(in):    length of the time step (seconds)
-                  nSnow,                   & ! intent(in):    number of snow layers
-                  nSoil,                   & ! intent(in):    number of soil layers
-                  nLayers,                 & ! intent(in):    total number of layers
+                  dt,                        & ! intent(in):    length of the time step (seconds)
+                  nSnow,                     & ! intent(in):    number of snow layers
+                  nSoil,                     & ! intent(in):    number of soil layers
+                  nLayers,                   & ! intent(in):    total number of layers
                   ! input: flux vectors
-                  sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
-                  fluxVec,                 & ! intent(in):    flux vector
+                  sMul,                      & ! intent(in):    state vector multiplier (used in the residual calculations)
+                  fluxVec,                   & ! intent(in):    flux vector
                   ! input: state variables (already disaggregated into scalars and vectors)
-                  scalarCanairTempTrial,   & ! intent(in):    trial value for the temperature of the canopy air space (K)
-                  scalarCanopyTempTrial,   & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                  scalarCanopyHydTrial,    & ! intent(in):    trial value of canopy hydrology state variable (kg m-2)
-                  mLayerTempTrial,         & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                  mLayerVolFracHydTrial,   & ! intent(in):    trial vector of volumetric water content (-)
+                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
+                  scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
+                  scalarCanopyHydTrial,      & ! intent(in):    trial value of canopy hydrology state variable (kg m-2)
+                  mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                  mLayerVolFracHydTrial,     & ! intent(in):    trial vector of volumetric water content (-)
+                  scalarAquiferStorageTrial, & ! intent(in):    trial value of storage of water in the aquifer (m)
                   ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                  scalarCanopyIceTrial,    & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
-                  mLayerVolFracIceTrial,   & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
+                  scalarCanopyIceTrial,      & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
+                  mLayerVolFracIceTrial,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                   ! input: data structures
-                  prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
-                  flux_data,               & ! intent(in):    model fluxes for a local HRU
-                  indx_data,               & ! intent(in):    index data
+                  prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
+                  diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
+                  flux_data,                 & ! intent(in):    model fluxes for a local HRU
+                  indx_data,                 & ! intent(in):    index data
                   ! output
-                  resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                  resVec,                  & ! intent(out):   residual vector
-                  err,cmessage)              ! intent(out):   error control
+                  resSink,                   & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                  resVec,                    & ! intent(out):   residual vector
+                  err,cmessage)                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the function evaluation

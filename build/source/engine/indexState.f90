@@ -258,10 +258,10 @@ contains
  ! define the index for the control volumes in the aquifer
  if(includeAquifer) ixControlVolume( ixWatAquifer(1) ) = 1
 
- print*, 'ixControlVolume = ', ixControlVolume
- print*, 'ixDomainType    = ', ixDomainType
- print*, 'ixStateType     = ', ixStateType
- print*, 'PAUSE: '; read(*,*)
+ !print*, 'ixControlVolume = ', ixControlVolume
+ !print*, 'ixDomainType    = ', ixDomainType
+ !print*, 'ixStateType     = ', ixStateType
+ !print*, 'PAUSE: '; read(*,*)
 
  ! end association to the ALLOCATABLE variables in the data structures
  end associate
