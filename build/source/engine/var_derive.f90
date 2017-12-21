@@ -413,8 +413,6 @@ contains
  ! initialize runoffFuture
  runoffFuture(1:nTDH) = 0._dp
 
- print*, 'nTDH = ', nTDH
-
  ! select option for sub-grid routing
  select case(ixRouting)
 
