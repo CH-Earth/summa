@@ -122,6 +122,7 @@ contains
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
  USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -191,6 +192,7 @@ contains
  integer(i4b),parameter          :: ixTrustRegion=1002       ! step refinement = trust region
  integer(i4b),parameter          :: ixStepRefinement=ixLineSearch   ! decision for the numerical solution
  ! general
+ integer(i4b)                    :: mSoil                    ! number of soil layers in solution vector
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
@@ -201,6 +203,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summaSolve/'
+
+ ! get the number of soil layers in the solution vector
+ mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
 
  ! initialize the global print flag
  globalPrintFlagInit=globalPrintFlag
@@ -969,7 +974,7 @@ contains
   real(dp),intent(in)       :: xVec(:)                ! state vector (mixed units)
   logical(lgt)              :: checkConv              ! flag to denote convergence
   ! locals
-  real(dp),dimension(nSoil) :: psiScale               ! scaling factor for matric head
+  real(dp),dimension(mSoil) :: psiScale               ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp        ! a small offset
   real(dp),parameter        :: watBalTol_scalar=1.e-14_dp  ! water balance tolerance for the scalar solution (tighter tolerance)
   real(dp)                  :: soilWatbalErr          ! error in the soil water balance
