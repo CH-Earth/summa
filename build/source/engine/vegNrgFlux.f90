@@ -2142,8 +2142,15 @@ contains
 
   end select  ! vegetation traits (z0, zpd)
 
-  ! check that everything is consistent
-  if(zeroPlaneDisplacement < heightCanopyBottomAboveSnow)then; err=20; message=trim(message)//'zero plane displacement is below the canopy bottom'; return; end if
+  ! check zero plane displacement
+  if(zeroPlaneDisplacement < heightCanopyBottomAboveSnow)then
+   print*, 'heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI = ', &
+            heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI
+   message=trim(message)//'zero plane displacement is below the canopy bottom'
+   err=20; return
+  endif
+ 
+  ! check measurement height
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; end if
 
