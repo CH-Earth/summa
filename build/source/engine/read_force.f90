@@ -106,6 +106,7 @@ contains
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
  real(dp),allocatable              :: dataVec(:)       ! vector of data
  real(dp),dimension(1)             :: dataVal          ! single data value
+ real(dp),parameter                :: dataMin=-1._dp   ! minimum allowable data value (all forcing variables should be positive)
  logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
  !integer(i4b)                      :: iyyy,im,id       ! year, month, day
  !integer(i4b)                      :: ih,imin          ! hour, minute
@@ -250,6 +251,7 @@ contains
                   time_data(iLookTIME%ih),        & ! output = hour
                   time_data(iLookTIME%imin),dsec, & ! output = minute/second
                   err,cmessage)                     ! output = error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
   ! check to see if any of the time data is missing
   if(any(time_data(:)==integerMissing))then
@@ -320,12 +322,17 @@ contains
       err=20; return
      endif
 
-     ! put the data into structures
-     if(simultaneousRead)then
-      forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVec(iHRU_local)
-     else
-      forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
+     ! get individual data value
+     if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
+
+     ! check individual data value
+     if(dataVal(1)<dataMin)then
+      write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin
+      err=20; return
      endif
+
+     ! put the data into structures
+     forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
 
     end do  ! looping through HRUs within a given GRU
    end do  ! looping through GRUs
