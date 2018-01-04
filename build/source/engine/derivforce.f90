@@ -37,8 +37,10 @@ contains
  ! ************************************************************************************************
  subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,err,message)
  USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
+ USE multiconst,only:secprday                                ! number of seconds in a day
  USE multiconst,only:secprhour                               ! number of seconds in an hour
  USE multiconst,only:minprhour                               ! number of minutes in an hour
+ USE globalData,only:refJulday                               ! reference time (fractional julian days)
  USE globalData,only:data_step                               ! length of the data step (s)
  USE globalData,only:model_decisions                         ! model decision structure
  USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
@@ -50,6 +52,7 @@ contains
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
  USE snow_utils_module,only:fracliquid,templiquid            ! functions to compute temperature/liquid water
+ USE time_utils_module,only:compcalday                       ! convert julian day to calendar date
  ! compute derived forcing data variables
  implicit none
  ! input variables
@@ -63,13 +66,20 @@ contains
  type(var_dlength),intent(inout) :: flux_data                ! data structure of model fluxes for a local HRU
  integer(i4b),intent(out)        :: err                      ! error code
  character(*),intent(out)        :: message                  ! error message
- ! variables for cosine of the solar zenith angle
+ ! local time
+ integer(i4b)                    :: jyyy,jm,jd               ! year, month, day
+ integer(i4b)                    :: jh,jmin                  ! hour, minute
+ real(dp)                        :: dsec                     ! double precision seconds (not used)
+ real(dp)                        :: timeOffset               ! time offset from Grenwich (days)
+ real(dp)                        :: julianTime               ! local julian time
+ ! cosine of the solar zenith angle
  real(dp)                        :: ahour                    ! hour at start of time step
  real(dp)                        :: dataStep                 ! data step (hours)
  real(dp),parameter              :: slope=0._dp              ! terrain slope (assume flat)
  real(dp),parameter              :: azimuth=0._dp            ! terrain azimuth (assume zero)
  real(dp)                        :: hri                      ! average radiation index over time step DT
- ! local variables
+ ! general local variables
+ character(len=256)              :: cmessage                 ! error message for downwind routine
  integer(i4b),parameter          :: nBands=2                 ! number of spectral bands
  real(dp),parameter              :: valueMissing=-9999._dp   ! missing value
  real(dp),parameter              :: co2Factor=355.e-6_dp     ! empirical factor to obtain partial pressure of co2
@@ -108,17 +118,21 @@ contains
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! radiation geometry variables
+ iyyy                    => time_data(iLookTIME%iyyy)                             , & ! year
  im                      => time_data(iLookTIME%im)                               , & ! month
  id                      => time_data(iLookTIME%id)                               , & ! day
  ih                      => time_data(iLookTIME%ih)                               , & ! hour
  imin                    => time_data(iLookTIME%imin)                             , & ! minute
  latitude                => attr_data(iLookATTR%latitude)                         , & ! latitude (degrees north)
+ longitude               => attr_data(iLookATTR%longitude)                        , & ! longitude (degrees east)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
  ! measurement height
  mHeight                 => attr_data(iLookATTR%mHeight)                          , & ! latitude (degrees north)
  adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
  scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
  heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
+ ! model time
+ secondsSinceRefTime     => forc_data(iLookFORCE%time)                            , & ! time = seconds since reference time
  ! model forcing data
  SWRadAtm                => forc_data(iLookFORCE%SWRadAtm)                        , & ! downward shortwave radiation (W m-2)
  airtemp                 => forc_data(iLookFORCE%airtemp)                         , & ! air temperature at 2 meter height (K)
@@ -169,12 +183,26 @@ contains
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
  scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
 
+ ! compute the local time
+ timeOffset = longitude/360._dp  ! time offset in days
+ julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days) 
+
+ ! convert julian day to year/month/day/hour/minute
+ call compcalday(julianTime+timeOffset,          & ! input  = julian day
+                 jyyy,jm,jd,jh,jmin,dsec,        & ! output = year, month, day, hour, minute, second
+                 err,cmessage)                     ! output = error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+ !print*, 'longitude, timeOffset = ', longitude, timeOffset
+ !print*, 'Grenwich time = ', iyyy,im,id,ih,imin
+ !print*, 'Local time    = ', jyyy,jm,jd,jh,jmin
+ !print*, 'PAUSE: '; read(*,*)
+
  ! compute the decimal hour at the start of the time step
  dataStep = data_step/secprhour  ! time step (hours)
- ahour    = real(ih,kind(dp)) + real(imin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
+ ahour    = real(jh,kind(dp)) + real(jmin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
  ! compute the cosine of the solar zenith angle
- call clrsky_rad(im,id,ahour,dataStep,   &  ! intent(in): time variables
+ call clrsky_rad(jm,jd,ahour,dataStep,   &  ! intent(in): time variables
                  slope,azimuth,latitude, &  ! intent(in): location variables
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
  !write(*,'(a,1x,4(i2,1x),3(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,cosZenith = ', &
