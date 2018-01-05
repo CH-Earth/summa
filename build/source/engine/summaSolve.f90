@@ -664,8 +664,8 @@ contains
   ! check convergence
   converged = checkConv(resVecNew,xInc,stateVecNew)
 
-  !print*, 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
-  !         bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
+  !write(*,'(a,1x,2(L1,1x),5(e20.8,1x))') 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
+  !                                        bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
   !print*, 'PAUSE'; read(*,*)
 
   end subroutine safeRootfinder
@@ -976,7 +976,7 @@ contains
   ! locals
   real(dp),dimension(mSoil) :: psiScale               ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp        ! a small offset
-  real(dp),parameter        :: watBalTol_scalar=1.e-14_dp  ! water balance tolerance for the scalar solution (tighter tolerance)
+  real(dp),parameter        :: scalarTighten=0.1_dp   ! scaling factor for the scalar solution
   real(dp)                  :: soilWatbalErr          ! error in the soil water balance
   real(dp)                  :: canopy_max             ! absolute value of the residual in canopy water (kg m-2)
   real(dp),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
@@ -1031,9 +1031,9 @@ contains
    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), dp)
    ! (tighter convergence for the scalar solution)
    if(scalarSolution)then
-    liquidConv = (liquid_max(1) < watBalTol_scalar)   ! (based on the residual)
+    liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
    else
-    liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+    liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
    endif
   else
    liquid_max = realMissing
