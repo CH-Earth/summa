@@ -2144,8 +2144,8 @@ contains
 
   ! check zero plane displacement
   if(zeroPlaneDisplacement < heightCanopyBottomAboveSnow)then
-   print*, 'heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI = ', &
-            heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI
+   write(*,'(a,1x,10(f12.5,1x))') 'heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI = ', &
+                                   heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI
    message=trim(message)//'zero plane displacement is below the canopy bottom'
    err=20; return
   endif
