@@ -324,6 +324,7 @@ contains
 
      ! get individual data value
      if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
+     !print*, trim(varname)//': ', dataVal(1)
 
      ! check individual data value
      if(dataVal(1)<dataMin)then

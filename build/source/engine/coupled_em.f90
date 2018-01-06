@@ -681,7 +681,7 @@ contains
 
   ! save input step
   dtSave = dt_sub
-  write(*,'(a,1x,3(f12.5,1x))') trim(message)//'before opSplittin: dt_init, dt_sub, dt_solv = ', dt_init, dt_sub, dt_solv
+  !write(*,'(a,1x,3(f12.5,1x))') trim(message)//'before opSplittin: dt_init, dt_sub, dt_solv = ', dt_init, dt_sub, dt_solv
 
   ! get the new solution
   call opSplittin(&
@@ -713,7 +713,7 @@ contains
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-  print*, 'completed step'
+  !print*, 'completed step'
   !print*, 'PAUSE: '; read(*,*)
 
   ! process the flag for too much melt
