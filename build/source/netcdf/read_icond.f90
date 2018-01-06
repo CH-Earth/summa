@@ -25,6 +25,10 @@ implicit none
 private
 public::read_icond
 public::read_icond_nlayers
+! define single HRU restart file
+integer(i4b), parameter :: singleHRU=1001
+integer(i4b), parameter :: multiHRU=1002
+integer(i4b), parameter :: restartFileType=multiHRU
 contains
 
  ! ************************************************************************************************
@@ -88,12 +92,24 @@ contains
  ! get data
  err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)
  err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message)
+ !print*, 'snowData = ', snowData
+ !print*, 'soilData = ', soilData
 
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
-   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   
+   ! single HRU
+   if(restartFileType==singleHRU)then   
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
+
+   ! multi HRU
+   else
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   endif 
+
   end do
  end do
 
@@ -242,8 +258,14 @@ contains
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
     nToto = nSnow + nSoil
 
-    ! get the index in the file
-    ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    ! get the index in the file: single HRU
+    if(restartFileType==singleHRU)then   
+     ixFile = 1  ! use for single HRU restart file
+
+    ! get the index in the file: multi HRU
+    else
+     ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    endif
 
     ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
