@@ -809,7 +809,7 @@ contains
    if(mLayerDepth(iSnow) < verySmall)then
     stepFailure  = .true.
     doLayerMerge = .true.
-    dt_sub      = max(dt_init/2._dp, minstep)
+    dt_sub      = max(dtSave/2._dp, minstep)
     cycle substeps
    else
     stepFailure  = .false.
