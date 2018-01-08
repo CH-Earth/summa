@@ -57,6 +57,10 @@ USE data_types,only:&
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
 
+! vector lengths
+USE var_lookup, only: maxvarFreq ! number of output frequencies
+USE var_lookup, only: maxvarStat ! number of statistics
+
 implicit none
 private
 public::writeParm
@@ -94,7 +98,7 @@ contains
  do iVar = 1,size(meta)
 
   ! check that the variable is desired
-  if (.not.meta(iVar)%statFlag(iLookStat%inst)) cycle
+  if (meta(iVar)%statIndex(iLookStat%inst)==integerMissing) cycle
 
   ! initialize message
   message=trim(message)//trim(meta(iVar)%varName)//'/'
@@ -136,7 +140,7 @@ contains
  USE var_lookup,only:iLookVarType                   ! index into type structure
  USE var_lookup,only:iLookIndex                     ! index into index structure
  USE var_lookup,only:iLookStat                      ! index into stat structure
- USE globalData,only:outFreq,nFreq,ncid             ! output file information
+ USE globalData,only:outFreq,ncid                   ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
@@ -175,10 +179,13 @@ contains
  err=0;message="writeData/"
 
  ! loop through output frequencies
- do iFreq=1,nFreq
+ do iFreq=1,maxvarFreq
+
+  ! skip frequencies that are not needed
+  if(outFreq(iFreq)==integerMissing) cycle
 
   ! check that the timestep is desired
-  if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
+  if (mod(modelTimestep,outFreq(iFreq))/=0) cycle
 
   ! loop through model variables
   do iVar = 1,size(meta)
@@ -200,97 +207,96 @@ contains
     end select
    end if  ! id time
 
+   ! define the statistics index
+   iStat = meta(iVar)%statIndex(iFreq)
+
    ! check that the variable is desired
-   if(meta(iVar)%outFreq.ne.iFreq) cycle
+   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle
 
-   ! loop through output stats
-   do iStat=1,maxVarStat
+   ! stats output: only scalar variable type
+   if(meta(iVar)%varType==iLookVarType%scalarv) then
+    select type(stat)
+     class is (gru_hru_doubleVec)
 
-    ! check that the variable is desired
-    if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
-
-    ! stats output: only scalar variable type
-    if(meta(iVar)%varType==iLookVarType%scalarv) then
-     select type(stat)
-      class is (gru_hru_doubleVec)
-       ! loop through HRUs and GRUs, and place data in the single vector
-       do iGRU=1,size(gru_struc)
-        do iHRU=1,gru_struc(iGRU)%hruCount
-         realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iStat)
-        end do
+      ! loop through HRUs and GRUs, and place data in the single vector
+      do iGRU=1,size(gru_struc)
+       do iHRU=1,gru_struc(iGRU)%hruCount
+        realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
        end do
-       ! write data
-       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realVec,start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,1/))
-      class default; err=20; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec'; return
-     end select  ! stat
+      end do
 
-    ! non-scalar variables: regular data structures
-    else
+      ! write data
+      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVec,start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,1/))
 
-     ! initialize the data vectors
-     select type (dat)
-      class is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
-      class is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
-      class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
-     end select
+     class default; err=20; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec'; return
+    end select  ! stat
 
-     ! loop thru GRUs and HRUs
-     do iGRU=1,size(gru_struc)
-      do iHRU=1,gru_struc(iGRU)%hruCount
+   ! non-scalar variables: regular data structures
+   else
 
-       ! get the model layers
-       nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat(1)
-       nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat(1)
-       nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nLayers)%dat(1)
+    ! initialize the data vectors
+    select type (dat)
+     class is (gru_hru_doubleVec); realArray(:,:) = realMissing;    dataType=ixReal
+     class is (gru_hru_intVec);     intArray(:,:) = integerMissing; dataType=ixInteger
+     class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+    end select
 
-       ! get the length of each data vector
-       select case (meta(iVar)%varType)
-        case(iLookVarType%wLength); datLength = maxSpectral
-        case(iLookVarType%midToto); datLength = nLayers
-        case(iLookVarType%midSnow); datLength = nSnow
-        case(iLookVarType%midSoil); datLength = nSoil
-        case(iLookVarType%ifcToto); datLength = nLayers+1
-        case(iLookVarType%ifcSnow); datLength = nSnow+1
-        case(iLookVarType%ifcSoil); datLength = nSoil+1
-        case default; cycle
-       end select ! vartype
+    ! loop thru GRUs and HRUs
+    do iGRU=1,size(gru_struc)
+     do iHRU=1,gru_struc(iGRU)%hruCount
 
-       ! get the data vectors
-       select type (dat)
-        class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-        class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
-        class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
-       end select
+      ! get the model layers
+      nSoil   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSoil)%dat(1)
+      nSnow   = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nSnow)%dat(1)
+      nLayers = indx%gru(iGRU)%hru(iHRU)%var(iLookIndex%nLayers)%dat(1)
 
-      end do  ! HRU loop
-     end do  ! GRU loop
+      ! get the length of each data vector
+      select case (meta(iVar)%varType)
+       case(iLookVarType%wLength); datLength = maxSpectral
+       case(iLookVarType%midToto); datLength = nLayers
+       case(iLookVarType%midSnow); datLength = nSnow
+       case(iLookVarType%midSoil); datLength = nSoil
+       case(iLookVarType%ifcToto); datLength = nLayers+1
+       case(iLookVarType%ifcSnow); datLength = nSnow+1
+       case(iLookVarType%ifcSoil); datLength = nSoil+1
+       case default; cycle
+      end select ! vartype
 
-     ! get the maximum length of each data vector
-     select case (meta(iVar)%varType)
-      case(iLookVarType%wLength); maxLength = maxSpectral
-      case(iLookVarType%midToto); maxLength = maxLayers
-      case(iLookVarType%midSnow); maxLength = maxLayers-nSoil
-      case(iLookVarType%midSoil); maxLength = nSoil
-      case(iLookVarType%ifcToto); maxLength = maxLayers+1
-      case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1
-      case(iLookVarType%ifcSoil); maxLength = nSoil+1
-      case default; cycle
-     end select ! vartype
+      ! get the data vectors
+      select type (dat)
+       class is (gru_hru_doubleVec); realArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+       class is (gru_hru_intVec);     intArray(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,1:datLength) = dat%gru(iGRU)%hru(iHRU)%var(iVar)%dat(:)
+       class default; err=20; message=trim(message)//'data must not be scalarv and either of type gru_hru_doubleVec or gru_hru_intVec'; return
+      end select
 
-     ! write the data vectors
-     select case(dataType)
-      case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
-      case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),intArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
-      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
-     end select ! data type
+     end do  ! HRU loop
+    end do  ! GRU loop
 
-    end if ! not scalarv
+    ! get the maximum length of each data vector
+    select case (meta(iVar)%varType)
+     case(iLookVarType%wLength); maxLength = maxSpectral
+     case(iLookVarType%midToto); maxLength = maxLayers
+     case(iLookVarType%midSnow); maxLength = maxLayers-nSoil
+     case(iLookVarType%midSoil); maxLength = nSoil
+     case(iLookVarType%ifcToto); maxLength = maxLayers+1
+     case(iLookVarType%ifcSnow); maxLength = (maxLayers-nSoil)+1
+     case(iLookVarType%ifcSoil); maxLength = nSoil+1
+     case default; cycle
+    end select ! vartype
 
-    ! process error code
-    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
-    call netcdf_err(err,message); if (err/=0) return
+    ! write the data vectors
+    select case(dataType)
+     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+     case default; err=20; message=trim(message)//'data must be of type integer or real'; return
+    end select ! data type
 
-   end do ! iStat
+   end if ! not scalarv
+
+   ! process error code
+   if (err/=0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
+   call netcdf_err(err,message); if (err/=0) return
+
   end do ! iVar
  end do ! iFreq
 
@@ -303,7 +309,7 @@ contains
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
- USE globalData,only:outFreq,nFreq,ncid             ! output file information
+ USE globalData,only:outFreq,ncid                   ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
@@ -325,43 +331,45 @@ contains
  ! initialize error control
  err=0;message="f-writeBasin/"
 
- do iFreq = 1,nFreq
+ ! loop through output frequencies
+ do iFreq=1,maxvarFreq
+
+  ! skip frequencies that are not needed
+  if(outFreq(iFreq)==integerMissing) cycle
+
   ! check that the timestep is desired
-  if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
+  if (mod(modelTimestep,outFreq(iFreq))/=0) cycle
 
-   ! loop through model variables
-   do iVar = 1,size(meta)
+  ! loop through model variables
+  do iVar = 1,size(meta)
 
-    ! check that the variable is desired
-    if (meta(iVar)%outFreq.ne.iFreq) cycle
+   ! define the statistics index
+   iStat = meta(iVar)%statIndex(iFreq)
 
-    ! loop through output stats
-    do iStat = 1,maxVarStat
-     ! check that the variable is desired
-     if ((.not.meta(iVar)%statFlag(iStat)).or.(trim(meta(iVar)%varName)=='unknown')) cycle
+   ! check that the variable is desired
+   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle 
 
-     ! stats/dats output - select data type
-     select case (meta(iVar)%varType)
+   ! stats/dats output - select data type
+   select case (meta(iVar)%varType)
 
-      case (iLookVarType%scalarv)
-       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/stat(map(iVar))%dat(iStat)/),start=(/iGRU,outputTimestep(iFreq)/),count=(/1,1/))
+    case (iLookVarType%scalarv)
+     err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/stat(map(iVar))%dat(iFreq)/),start=(/iGRU,outputTimestep(iFreq)/),count=(/1,1/))
 
-      case (iLookVarType%routing)
-       if (modelTimestep==1) then
-        err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iStat),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
-       end if
+    case (iLookVarType%routing)
+     if (modelTimestep==1) then
+      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
+     end if
 
-      case default
-       err=40; message=trim(message)//"unknownVariableType[name='"//trim(meta(iVar)%varName)//"';type='"//trim(get_varTypeName(meta(iVar)%varType))//    "']"; return
-      end select ! variable type
+    case default
+     err=40; message=trim(message)//"unknownVariableType[name='"//trim(meta(iVar)%varName)//"';type='"//trim(get_varTypeName(meta(iVar)%varType))//    "']"; return
+   end select ! variable type
 
-     ! process error code
-     if (err.ne.0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName    (iStat))
-     call netcdf_err(err,message); if (err/=0) return
+   ! process error code
+   if (err.ne.0) message=trim(message)//trim(meta(iVar)%varName)//'_'//trim(get_statName(iStat))
+   call netcdf_err(err,message); if (err/=0) return
 
-    end do ! iStat
-   end do ! iVar
-  end do ! iFreq
+  end do ! iVar
+ end do ! iFreq
 
  end subroutine writeBasin
 
@@ -370,7 +378,7 @@ contains
  ! **************************************************************************************
  subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info                       ! metadata type
- USE globalData,only:outFreq,nFreq,ncid             ! output file information
+ USE globalData,only:outFreq,ncid                   ! output file information
  USE var_lookup,only:iLookStat                      ! index into stat structure
  implicit none
 
@@ -388,30 +396,32 @@ contains
  ! initialize error control
  err=0;message="f-writeTime/"
 
- do iFreq = 1,nFreq
+ ! loop through output frequencies
+ do iFreq=1,maxvarFreq
+
   ! check that the timestep is desired
-  if (mod(modelTimestep,outFreq(iFreq)).ne.0) cycle
+  if (mod(modelTimestep,outFreq(iFreq))/=0) cycle
 
-   ! loop through model variables
-   do iVar = 1,size(meta)
+  ! loop through model variables
+  do iVar = 1,size(meta)
 
-    ! if variable is desired
-    if (.not.meta(iVar)%statFlag(iLookStat%inst)) cycle
+   ! check instantaneous
+   if (meta(iVar)%statIndex(iFreq)/=iLookStat%inst) cycle
 
-    ! get variable id in file
-    err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
-    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
-    call netcdf_err(err,message)
-    if (err/=0) then; err=20; return; end if
+   ! get variable id in file
+   err = nf90_inq_varid(ncid(iFreq),trim(meta(iVar)%varName),ncVarID)
+   if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
+   call netcdf_err(err,message)
+   if (err/=0) then; err=20; return; end if
 
-    ! add to file
-    err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
-    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
-    call netcdf_err(err,message)
-    if (err/=0) then; err=20; return; end if
+   ! add to file
+   err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
+   if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
+   call netcdf_err(err,message)
+   if (err/=0) then; err=20; return; end if
 
-   end do ! iVar
-  end do ! iFreq
+  end do ! iVar
+ end do ! iFreq
 
  end subroutine writeTime
 

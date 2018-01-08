@@ -155,9 +155,9 @@ USE mDecisions_module,only:&
   sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
   rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
 USE output_stats,only:calcStats                             ! module for compiling output statistics
-USE globalData,only:nFreq,outFreq                           ! model output files
+USE globalData,only:outFreq                                 ! model output files
+USE var_lookup,only:maxvarFreq                              ! maximum # of output files
 USE globalData,only:ncid                                    ! file id of netcdf output file
-USE var_lookup,only:maxFreq                                 ! maximum # of output files
 implicit none
 
 ! *****************************************************************************
@@ -195,7 +195,7 @@ integer(i4b)                     :: nHRU                       ! number of globa
 integer(i4b)                     :: hruCount                   ! number of local hydrologic response units
 integer(i4b)                     :: modelTimeStep=0            ! index of model time step
 integer(i4b)                     :: waterYearTimeStep=0        ! index of water year
-integer(i4b),dimension(maxFreq)  :: outputTimeStep=0           ! timestep in output files
+integer(i4b),dimension(maxvarFreq) :: outputTimeStep=0         ! timestep in output files
 ! define the time output
 logical(lgt)                     :: printProgress              ! flag to print progress
 integer(i4b),parameter           :: ixProgress_im=1000         ! named variable to print progress once per month
@@ -416,14 +416,15 @@ maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
 ! *****************************************************************************
 ! (4d) allocate space for output statistics data structures
 ! *****************************************************************************
+
 ! child metadata structures - so that we do not carry full stats structures around everywhere
 ! only carry stats for variables with output frequency > model time step
-statForc_mask = ((forc_meta(:)%vartype==iLookVarType%scalarv).and.(forc_meta(:)%outfreq>0))
-statProg_mask = ((prog_meta(:)%vartype==iLookVarType%scalarv).and.(prog_meta(:)%outfreq>0))
-statDiag_mask = ((diag_meta(:)%vartype==iLookVarType%scalarv).and.(diag_meta(:)%outfreq>0))
-statFlux_mask = ((flux_meta(:)%vartype==iLookVarType%scalarv).and.(flux_meta(:)%outfreq>0))
-statIndx_mask = ((indx_meta(:)%vartype==iLookVarType%scalarv).and.(indx_meta(:)%outfreq>0))
-statBvar_mask = ((bvar_meta(:)%vartype==iLookVarType%scalarv).and.(bvar_meta(:)%outfreq>0))
+statForc_mask = (forc_meta(:)%vartype==iLookVarType%scalarv.and.forc_meta(:)%varDesire)
+statProg_mask = (prog_meta(:)%vartype==iLookVarType%scalarv.and.prog_meta(:)%varDesire)
+statDiag_mask = (diag_meta(:)%vartype==iLookVarType%scalarv.and.diag_meta(:)%varDesire)
+statFlux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv.and.flux_meta(:)%varDesire)
+statIndx_mask = (indx_meta(:)%vartype==iLookVarType%scalarv.and.indx_meta(:)%varDesire)
+statBvar_mask = (bvar_meta(:)%vartype==iLookVarType%scalarv.and.bvar_meta(:)%varDesire)
 
 ! create the stats metadata structures
 do iStruct=1,size(structInfo)
@@ -449,6 +450,7 @@ statBvar_meta(:)%vartype = iLookVarType%outstat
 
 ! loop through data structures
 do iStruct=1,size(structInfo)
+
  ! allocate space
  select case(trim(structInfo(iStruct)%structName))
   case('forc'); call allocGlobal(statForc_meta(:)%var_info,forcStat,err,message)   ! model forcing data
@@ -459,8 +461,10 @@ do iStruct=1,size(structInfo)
   case('bvar'); call allocGlobal(statBvar_meta(:)%var_info,bvarStat,err,message)   ! basin-average variables
   case default; cycle
  end select
+
  ! check errors
  call handle_err(err,trim(message)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']')
+
 end do ! iStruct
 
 ! *****************************************************************************
@@ -703,6 +707,7 @@ write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
                                '_spinup'//trim(output_fileSuffix)
 call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
 call handle_err(err,message)
+stop
 
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
@@ -722,7 +727,7 @@ end do ! GRU
 ! ****************************************************************************
 ! initialize time step index
 waterYearTimeStep = 1
-outputTimeStep(1:nFreq) = 1
+outputTimeStep(1:maxVarFreq) = 1
 
 do modelTimeStep=1,numtim
 
@@ -798,8 +803,8 @@ do modelTimeStep=1,numtim
     timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
 
   ! close any output files that are already open
-  do iFreq = 1,nFreq
-   if (ncid(iFreq).ne.integerMissing) then
+  do iFreq = 1,maxvarFreq
+   if (ncid(iFreq)/=integerMissing) then
     call nc_file_close(ncid(iFreq),err,message)
     call handle_err(err,message)
    end if
@@ -1041,7 +1046,7 @@ do modelTimeStep=1,numtim
  call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,message); call handle_err(err,message)
 
  ! increment output file timestep
- do iFreq = 1,nFreq
+ do iFreq = 1,maxvarFreq
   if (mod(waterYearTimeStep,outFreq(iFreq))==0) then
    outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
   end if
@@ -1077,7 +1082,7 @@ do modelTimeStep=1,numtim
 end do  ! (looping through time)
 
 ! close any remaining output files
-do iFreq = 1,nFreq
+do iFreq = 1,maxvarFreq
  if (ncid(iFreq).ne.integerMissing) then
   call nc_file_close(ncid(iFreq),err,message)
   call handle_err(err,message)
@@ -1310,7 +1315,7 @@ contains
  !write(*,'(a)') trim(message)
 
  ! close any remaining output files
- do iFreq = 1,nFreq
+ do iFreq = 1,maxvarFreq
   if (ncid(iFreq).ne.integerMissing) then
    call nc_file_close(ncid(iFreq),nc_err,cmessage)
    if(nc_err/=0) print*, trim(cmessage)
@@ -1335,7 +1340,7 @@ contains
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
- do iFreq = 1,nFreq
+ do iFreq = 1,maxvarFreq
   if (ncid(iFreq).ne.integerMissing) then
    err = nf90_close(ncid(iFreq))
   end if

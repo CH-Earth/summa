@@ -24,8 +24,6 @@ MODULE var_lookup
  implicit none
  private
  ! local variables
- integer(i4b),parameter,public     :: numStats = 7                 ! number of output stats
- integer(i4b),parameter,public     :: maxFreq = 10                 ! maximum number of output streams
  integer(i4b),parameter            :: ixVal=1                      ! an example integer
  integer(i4b),parameter            :: iLength=storage_size(ixVal)  ! size of the example integer
 
@@ -727,6 +725,16 @@ MODULE var_lookup
  endtype iLook_stat
 
  ! ***********************************************************************************************************
+ ! (12) structure for looking up output frequencies
+ ! ***********************************************************************************************************
+ type, public :: iLook_freq
+  integer(i4b)    :: day      = integerMissing ! daily aggregation
+  integer(i4b)    :: month    = integerMissing ! monthly aggregation
+  integer(i4b)    :: annual   = integerMissing ! yearly (annual) aggregation
+  integer(i4b)    :: timestep = integerMissing ! timestep-level output (no temporal aggregation)
+ endtype iLook_freq
+
+ ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
 
@@ -820,6 +828,9 @@ MODULE var_lookup
  ! number of possible output statistics
  type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
 
+ ! number of possible output frequencies
+ type(iLook_freq),    public,parameter :: iLookFreq     =ilook_freq    (  1,  2,  3,  4)
+
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength
@@ -836,6 +847,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarBvar      = storage_size(iLookBVAR)/iLength
  integer(i4b),parameter,public :: maxvarVarType   = storage_size(iLookVarType)/iLength
  integer(i4b),parameter,public :: maxvarStat      = storage_size(iLookStat)/iLength
+ integer(i4b),parameter,public :: maxvarFreq      = storage_size(iLookFreq)/iLength
 
  ! ***********************************************************************************************************
  ! (Y) define ancillary look-up structures
