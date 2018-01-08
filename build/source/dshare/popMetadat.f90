@@ -686,6 +686,7 @@ contains
  USE globalData, only: deriv_meta              ! data structure for local flux derivatives
 
  ! structures of named variables
+ USE var_lookup, only: iLookTYPE               ! named variables for categorical data
  USE var_lookup, only: iLookFORCE              ! named variables for forcing data structure
  USE var_lookup, only: iLookINDEX              ! named variables for index variable data structure
  USE var_lookup, only: iLookSTAT               ! named variables for statitics variable data structure
@@ -925,13 +926,26 @@ contains
  end do ! loop through file lines with vline
 
  ! **********************************************************************************************
- ! (4) include index variables
+ ! (4) include index variables and time
  ! **********************************************************************************************
 
  ! force output the number of layers at every time step
+ indx_meta(iLookINDEX%nSnow  )%varDesire = .true.  ! snow layers
+ indx_meta(iLookINDEX%nSoil  )%varDesire = .true.  ! soil layers
+ indx_meta(iLookINDEX%nLayers)%varDesire = .true.  ! total layers
+
+ ! output number of layers at the timestep level
  indx_meta(iLookINDEX%nSnow  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! snow layers
  indx_meta(iLookINDEX%nSoil  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! soil layers
  indx_meta(iLookINDEX%nLayers)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! total layers
+
+ ! force time to be written in every file
+ forc_meta(iLookFORCE%time)%varDesire    = .true.
+ forc_meta(iLookFORCE%time)%statIndex(:) = iLookSTAT%inst
+
+ ! force the HRU id to be written in every file
+ type_meta(iLookTYPE%hruId)%varDesire    = .true.
+ type_meta(iLookTYPE%hruId)%statIndex(:) = iLookSTAT%inst 
 
  end subroutine read_output_file
 

@@ -134,7 +134,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeData: write model time-dependent data
  ! **************************************************************************************
- subroutine writeData(modelTimestep,outputTimestep,nHRUrun,maxLayers,meta,stat,dat,map,indx,err,message)
+ subroutine writeData(finalizeStats,outputTimestep,nHRUrun,maxLayers,meta,stat,dat,map,indx,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -145,7 +145,7 @@ contains
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
  ! declare dummy variables
- integer(i4b)  ,intent(in)        :: modelTimestep     ! model time step
+ logical(lgt)  ,intent(in)        :: finalizeStats(:)  ! flags to finalize statistics
  integer(i4b)  ,intent(in)        :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(in)        :: nHRUrun           ! number of HRUs in the run domain
  integer(i4b)  ,intent(in)        :: maxLayers         ! maximum number of layers
@@ -184,8 +184,8 @@ contains
   ! skip frequencies that are not needed
   if(outFreq(iFreq)==integerMissing) cycle
 
-  ! check that the timestep is desired
-  if (mod(modelTimestep,outFreq(iFreq))/=0) cycle
+  ! check that we have finalized statistics for a given frequency
+  if(.not.finalizeStats(iFreq)) cycle
 
   ! loop through model variables
   do iVar = 1,size(meta)
@@ -305,7 +305,7 @@ contains
  ! **************************************************************************************
  ! public subroutine writeBasin: write basin-average variables
  ! **************************************************************************************
- subroutine writeBasin(iGRU,modelTimestep,outputTimestep,meta,stat,dat,map,err,message)
+ subroutine writeBasin(iGRU,finalizeStats,outputTimestep,meta,stat,dat,map,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
@@ -316,7 +316,7 @@ contains
 
  ! declare dummy variables
  integer(i4b)  ,intent(in)     :: iGRU              ! GRU index
- integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
+ logical(lgt)  ,intent(in)     :: finalizeStats(:)  ! flags to finalize statistics
  integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  type(var_info),intent(in)     :: meta(:)           ! meta data
  type(dlength) ,intent(in)     :: stat(:)           ! stats data
@@ -337,8 +337,8 @@ contains
   ! skip frequencies that are not needed
   if(outFreq(iFreq)==integerMissing) cycle
 
-  ! check that the timestep is desired
-  if (mod(modelTimestep,outFreq(iFreq))/=0) cycle
+  ! check that we have finalized statistics for a given frequency
+  if(.not.finalizeStats(iFreq)) cycle
 
   ! loop through model variables
   do iVar = 1,size(meta)
@@ -356,7 +356,7 @@ contains
      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/stat(map(iVar))%dat(iFreq)/),start=(/iGRU,outputTimestep(iFreq)/),count=(/1,1/))
 
     case (iLookVarType%routing)
-     if (modelTimestep==1) then
+     if (iFreq==1 .and. outputTimestep(iFreq)==1) then
       err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/dat(iVar)%dat/),start=(/1/),count=(/1000/))
      end if
 
@@ -376,17 +376,17 @@ contains
  ! **************************************************************************************
  ! public subroutine writeTime: write current time to all files
  ! **************************************************************************************
- subroutine writeTime(modelTimestep,outputTimestep,meta,dat,err,message)
+ subroutine writeTime(finalizeStats,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info                       ! metadata type
- USE globalData,only:outFreq,ncid                   ! output file information
+ USE globalData,only:ncid                           ! output file IDs
  USE var_lookup,only:iLookStat                      ! index into stat structure
  implicit none
 
  ! declare dummy variables
+ logical(lgt)  ,intent(in)     :: finalizeStats(:)  ! flags to finalize statistics
+ integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  type(var_info),intent(in)     :: meta(:)           ! meta data
  integer       ,intent(in)     :: dat(:)            ! timestep data
- integer(i4b)  ,intent(in)     :: modelTimestep     ! model time step
- integer(i4b)  ,intent(in)     :: outputTimestep(:) ! output time step
  integer(i4b)  ,intent(out)    :: err               ! error code
  character(*)  ,intent(out)    :: message           ! error message
  ! local variables
@@ -399,8 +399,8 @@ contains
  ! loop through output frequencies
  do iFreq=1,maxvarFreq
 
-  ! check that the timestep is desired
-  if (mod(modelTimestep,outFreq(iFreq))/=0) cycle
+  ! check that we have finalized statistics for a given frequency
+  if(.not.finalizeStats(iFreq)) cycle
 
   ! loop through model variables
   do iVar = 1,size(meta)

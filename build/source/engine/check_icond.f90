@@ -196,8 +196,6 @@ contains
      ! ***** soil
      case(iname_soil)
 
-      print*, 'mLayerVolFracLiq(iLayer), theta_res(iSoil) = ', mLayerVolFracLiq(iLayer), theta_res(iSoil)
-
       ! (check liquid water)
       if(mLayerVolFracLiq(iLayer) < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
       if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if

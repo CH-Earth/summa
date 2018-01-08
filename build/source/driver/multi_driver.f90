@@ -124,6 +124,7 @@ USE globalData,only:integerMissing                          ! missing integer va
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
 USE noahmp_globals,only:RSMIN                               ! minimum stomatal resistance (vegType)
+USE var_lookup,only:maxvarTime                              ! size of variable vectors
 USE var_lookup,only:maxvarForc,maxvarProg,maxvarDiag        ! size of variable vectors
 USE var_lookup,only:maxvarFlux,maxvarIndx,maxvarBvar        ! size of variable vectors
 ! provide access to the named variables that describe elements of parent model structures
@@ -139,6 +140,7 @@ USE var_lookup,only:iLookBVAR                               ! look-up values for
 USE var_lookup,only:iLookBPAR                               ! look-up values for basin-average model parameters
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
+USE var_lookup,only:iLookFreq                               ! look-up values for model output frequency
 ! provide access to the named variables that describe elements of child  model structures
 USE var_lookup,only:childFLUX_MEAN                          ! look-up values for timestep-average model fluxes
 ! provide access to the named variables that describe model decisions
@@ -155,7 +157,6 @@ USE mDecisions_module,only:&
   sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
   rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
 USE output_stats,only:calcStats                             ! module for compiling output statistics
-USE globalData,only:outFreq                                 ! model output files
 USE var_lookup,only:maxvarFreq                              ! maximum # of output files
 USE globalData,only:ncid                                    ! file id of netcdf output file
 implicit none
@@ -194,8 +195,11 @@ integer(i4b)                     :: nGRU                       ! number of group
 integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
 integer(i4b)                     :: hruCount                   ! number of local hydrologic response units
 integer(i4b)                     :: modelTimeStep=0            ! index of model time step
-integer(i4b)                     :: waterYearTimeStep=0        ! index of water year
+integer(i4b),dimension(maxvarTime) :: oldTimeVec               ! old time vector
+integer(i4b),dimension(maxvarFreq) :: statCounter=0            ! time counter for stats
 integer(i4b),dimension(maxvarFreq) :: outputTimeStep=0         ! timestep in output files
+logical(lgt),dimension(maxvarFreq) :: resetStats=.true.        ! flags to reset statistics
+logical(lgt),dimension(maxvarFreq) :: finalizeStats=.false.    ! flags to reset statistics
 ! define the time output
 logical(lgt)                     :: printProgress              ! flag to print progress
 integer(i4b),parameter           :: ixProgress_im=1000         ! named variable to print progress once per month
@@ -707,7 +711,6 @@ write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
                                '_spinup'//trim(output_fileSuffix)
 call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
 call handle_err(err,message)
-stop
 
 ! write local model attributes and parameters to the model output file
 do iGRU=1,nGRU
@@ -725,10 +728,16 @@ end do ! GRU
 ! ****************************************************************************
 ! (6) loop through time
 ! ****************************************************************************
+
 ! initialize time step index
-waterYearTimeStep = 1
+statCounter(1:maxVarFreq) = 1
 outputTimeStep(1:maxVarFreq) = 1
 
+! initialize flags to reset/finalize statistics
+resetStats(:)    = .true.   ! start by resetting statistics
+finalizeStats(:) = .false.  ! do not finalize stats on the first time step
+
+! loop through time
 do modelTimeStep=1,numtim
 
  ! read forcing data
@@ -747,6 +756,26 @@ do modelTimeStep=1,numtim
 
  ! set print flag
  globalPrintFlag=.false.
+
+ ! reset output counters/flags
+ if(modelTimeStep>1)then
+  do iFreq=1,maxVarFreq  ! loop through output frequencies
+
+   ! define the need to finalize statistics
+   ! NOTE: time vector is configured so that ih=0 at the start of the day, hence day in oldTime and timeStruct%var differ
+   select case(iFreq)
+    case(iLookFreq%day     ); finalizeStats(iFreq)=(oldTimeVec(iLookTime%id  )/=timeStruct%var(iLookTime%id  ))  ! daily aggregation
+    case(iLookFreq%month   ); finalizeStats(iFreq)=(oldTimeVec(iLookTime%im  )/=timeStruct%var(iLookTime%im  ))  ! monthly aggregation
+    case(iLookFreq%annual  ); finalizeStats(iFreq)=(oldTimeVec(iLookTime%iyyy)/=timeStruct%var(iLookTime%iyyy))  ! yearly (annual) aggregation
+    case(iLookFreq%timestep); finalizeStats(iFreq)=.true.          ! timestep-level output (no temporal aggregation)
+    case default; call handle_err(20,'unable to identify output frequency')
+   end select
+
+   ! reset ouput timestep
+   if(resetStats(iFreq)) statCounter(iFreq)=1
+
+  end do ! looping through output frequencies
+ endif  ! if modelTimeStep>1
 
  ! print progress
  select case(ixProgress)
@@ -822,12 +851,11 @@ do modelTimeStep=1,numtim
   ! write parameters for each HRU, and re-set indices
   do iGRU=1,nGRU
    do iHRU=1,gru_struc(iGRU)%hruCount
-     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
-     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
-     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
     ! re-initalize the indices for model writing
-    waterYearTimeStep=1
-    outputTimeStep=1
+    outputTimeStep(:)=1
    end do  ! (looping through HRUs)
    call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
   end do  ! (looping through GRUs)
@@ -993,12 +1021,18 @@ do modelTimeStep=1,numtim
             +  fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)    * fracHRU
    end if
 
+   ! print progress
+   print*, 'resetStats     = ', resetStats
+   print*, 'finalizeStats  = ', finalizeStats
+   print*, 'statsCounter   = ', statsCounter
+   print*, 'outputTimeStep = ', outputTimeStep 
+
    ! calculate output Statistics
-   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
-   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
-   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
-   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
-   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,waterYearTimeStep,err,message);       call handle_err(err,message)
+   call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)
+   call calcStats(progStat%gru(iGRU)%hru(iHRU)%var,progStruct%gru(iGRU)%hru(iHRU)%var,statProg_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)
+   call calcStats(diagStat%gru(iGRU)%hru(iHRU)%var,diagStruct%gru(iGRU)%hru(iHRU)%var,statDiag_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)
+   call calcStats(fluxStat%gru(iGRU)%hru(iHRU)%var,fluxStruct%gru(iGRU)%hru(iHRU)%var,statFlux_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)
+   call calcStats(indxStat%gru(iGRU)%hru(iHRU)%var,indxStruct%gru(iGRU)%hru(iHRU)%var,statIndx_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)
 
   end do  ! (looping through HRUs)
 
@@ -1025,38 +1059,39 @@ do modelTimeStep=1,numtim
   end associate
 
   ! calc basin stats
-  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,waterYearTimeStep,err,message); call handle_err(err,message)
+  call calcStats(bvarStat%gru(iGRU)%var(:),bvarStruct%gru(iGRU)%var(:),statBvar_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)
 
   ! write basin-average variables
-  call writeBasin(iGRU,waterYearTimeStep,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
+  call writeBasin(iGRU,finalizeStats,outputTimeStep,bvar_meta,bvarStat%gru(iGRU)%var,bvarStruct%gru(iGRU)%var,bvarChild_map,err,message); call handle_err(err,message)
 
  end do  ! (looping through GRUs)
 
- ! write current time to all files
- call WriteTime(waterYearTimeStep,outputTimeStep,time_meta,timeStruct%var,err,message)
+ call WriteTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
 
  ! write the model output to the NetCDF file
  ! Passes the full metadata structure rather than the stats metadata structure because
  !  we have the option to write out data of types other than statistics.
  !  Thus, we must also pass the stats parent->child maps from childStruct.
- call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,message); call handle_err(err,message)
- call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,message); call handle_err(err,message)
- call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,message); call handle_err(err,message)
- call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,message); call handle_err(err,message)
- call writeData(waterYearTimeStep,outputTimeStep,nHRUrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,forc_meta,forcStat,forcStruct,forcChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,prog_meta,progStat,progStruct,progChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,diag_meta,diagStat,diagStruct,diagChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,flux_meta,fluxStat,fluxStruct,fluxChild_map,indxStruct,err,message); call handle_err(err,message)
+ call writeData(finalizeStats,outputTimeStep,nHRUrun,maxLayers,indx_meta,indxStat,indxStruct,indxChild_map,indxStruct,err,message); call handle_err(err,message)
 
  ! increment output file timestep
  do iFreq = 1,maxvarFreq
-  if (mod(waterYearTimeStep,outFreq(iFreq))==0) then
-   outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
-  end if
+  statCounter(iFreq) = statCounter(iFreq)+1
+  if(finalizeStats(iFreq)) outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
  end do
 
  ! increment forcingStep
  forcingStep=forcingStep+1
 
- ! increment the time index
- waterYearTimeStep = waterYearTimeStep+1
+ ! if finalized stats, then reset stats on the next time step
+ resetStats(:) = finalizeStats(:)
+
+ ! save time vector
+ oldTimeVec(:) = timeStruct%var
 
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'

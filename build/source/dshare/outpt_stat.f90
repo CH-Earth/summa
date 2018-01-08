@@ -31,18 +31,22 @@ contains
  ! public subroutine calcStats is called at every model timestep to update/store output statistics
  ! from model variables
  ! ******************************************************************************************************
- subroutine calcStats(stat,dat,meta,iStep,err,message)
+ subroutine calcStats(stat,dat,meta,resetStats,finalizeStats,statCounter,err,message)
  USE nrtype
  USE data_types,only:extended_info,dlength,ilength  ! metadata structure type
  USE var_lookup,only:iLookVarType                   ! named variables for variable types
  USE var_lookup,only:iLookStat                      ! named variables for output statistics types
  implicit none
 
- ! dummy variables
+ ! input variables
  type(dlength) ,intent(inout)   :: stat(:)          ! statistics
  class(*)      ,intent(in)      :: dat(:)           ! data
  type(extended_info),intent(in) :: meta(:)          ! metadata
- integer(i4b)  ,intent(in)      :: iStep            ! timestep index to compare with oFreq of each variable
+ logical(lgt)  ,intent(in)      :: resetStats(:)    ! vector of flags to reset statistics
+ logical(lgt)  ,intent(in)      :: finalizeStats(:) ! vector of flags to reset statistics
+ integer(i4b)  ,intent(in)      :: statCounter(:)   ! number of time steps in each output frequency
+
+ ! output variables
  integer(i4b)  ,intent(out)     :: err              ! error code
  character(*)  ,intent(out)     :: message          ! error message
 
@@ -79,7 +83,7 @@ contains
    if (trim(meta(iVar)%varName)=='time') then
     stat(iVar)%dat(iLookStat%inst) = tdata
    else
-    call calc_stats(meta(iVar),stat(iVar),tdata,iStep,err,cmessage)
+    call calc_stats(meta(iVar),stat(iVar),tdata,resetStats,finalizeStats,statCounter,err,cmessage)
    end if
    if(err/=0)then; message=trim(message)//trim(cmessage);return; end if
 
@@ -94,30 +98,32 @@ contains
  ! Private subroutine calc_stats is a generic fucntion to deal with any variable type.
  ! Called from compile_stats
  ! ***********************************************************************************
- subroutine calc_stats(meta,stat,tdata,iStep,err,message)
+ subroutine calc_stats(meta,stat,tdata,resetStats,finalizeStats,statCounter,err,message)
  USE nrtype
  ! data structures
  USE data_types,only:var_info,ilength,dlength ! type dec for meta data structures
  USE var_lookup,only:maxVarFreq       ! # of output frequencies
- USE globalData,only:outFreq          ! output frequencies
  ! global variables
  USE globalData,only:data_step        ! forcing timestep
  ! structures of named variables
  USE var_lookup,only:iLookVarType     ! named variables for variable types
- USE var_lookup,only:iLookStat        ! named variables for output statistics types
+ USE var_lookup,only:iLookFreq        ! named variables for output frequency
+ USE var_lookup,only:iLookStat        ! named variables for output statistics
+ USE var_lookup,only:iLookTime        ! named variables for time information
  implicit none
- ! dummy variables
- class(var_info),intent(in)        :: meta        ! meta dat a structure
- class(*)       ,intent(inout)     :: stat        ! statistics structure
- real(dp)       ,intent(in)        :: tdata       ! data structure
- integer(i4b)   ,intent(in)        :: iStep       ! timestep
- integer(i4b)   ,intent(out)       :: err         ! error code
- character(*)   ,intent(out)       :: message     ! error message
+ ! input variables
+ class(var_info),intent(in)         :: meta              ! meta data structure
+ class(*)       ,intent(inout)      :: stat              ! statistics structure
+ real(dp)       ,intent(in)         :: tdata             ! data value
+ logical(lgt)   ,intent(in)         :: resetStats(:)     ! vector of flags to reset statistics
+ logical(lgt)   ,intent(in)         :: finalizeStats(:)  ! vector of flags to reset statistics
+ integer(i4b)   ,intent(in)         :: statCounter(:)   ! number of time steps in each output frequency
+ ! output variables
+ integer(i4b)   ,intent(out)        :: err               ! error code
+ character(*)   ,intent(out)        :: message           ! error message
  ! internals
- real(dp),dimension(maxvarFreq*2)  :: tstat       ! temporary stats vector
- integer(i4b)                      :: iFreq       ! statistics loop
- logical(lgt)                      :: resetStatistics     ! flag to reset the statistics
- logical(lgt)                      :: finalizeStatistics  ! flag to finalize the statistics
+ real(dp),dimension(maxvarFreq*2)   :: tstat             ! temporary stats vector
+ integer(i4b)                       :: iFreq             ! index of output frequency
  ! initialize error control
  err=0; message='calc_stats/'
 
@@ -128,17 +134,11 @@ contains
   class default;err=20;message=trim(message)//'stat type not found';return
  end select
 
- ! define the need to reset statistics
- ! NOTE: need to fix this
- resetStatistics=.true.
- finalizeStatistics=.true.
- print*, 'iStep = ', iStep
-
  ! ---------------------------------------------
  ! reset statistics at new frequency period
  ! ---------------------------------------------
- if(resetStatistics)then
-  do iFreq=1,maxVarFreq                             ! loop through output statistics
+ do iFreq=1,maxVarFreq                              ! loop through output statistics
+  if(resetStats(iFreq))then                         ! flag to reset statistics
    if(meta%statIndex(iFreq)==integerMissing) cycle  ! don't bother if output frequency is not desired for a given variab;e
    if(meta%varType/=iLookVarType%outstat) cycle     ! only calculate stats for scalars
    select case(meta%statIndex(iFreq))               ! act depending on the statistic
@@ -158,8 +158,8 @@ contains
      tstat(iFreq) = realMissing
     ! -------------------------------------------------------------------------------------
    end select
-  end do ! looping through output frequencies
- end if
+  end if
+ end do ! looping through output frequencies
 
  ! ---------------------------------------------
  ! Calculate each statistic that is requested by user
@@ -191,21 +191,21 @@ contains
  ! ---------------------------------------------
  ! finalize statistics at end of frequenncy period
  ! ---------------------------------------------
- if (finalizeStatistics) then
-  do iFreq=1,maxVarFreq                                ! loop through output statistics
-   if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variab;e
+ do iFreq=1,maxVarFreq                                ! loop through output statistics
+  if(finalizeStats(iFreq))then
+   if(meta%statIndex(iFreq)==integerMissing) cycle     ! don't bother if output frequency is not desired for a given variable
    if(meta%varType/=iLookVarType%outstat) cycle        ! only calculate stats for scalars
    select case(meta%statIndex(iFreq))                  ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
     case (iLookStat%mean)                              ! * mean over period
-     tstat(iFreq) = tstat(iFreq)/outFreq(iFreq)        !     - normalize sum into mean
+     tstat(iFreq) = tstat(iFreq)/statCounter(iFreq)    !     - normalize sum into mean
     case (iLookStat%vari)                              ! * variance over period
-     tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+1)/outFreq(iFreq)            ! E[X] term
-     tstat(iFreq) = tstat(iFreq)/outFreq(iFreq) - tstat(maxVarFreq+iFreq)**2 ! full variance
+     tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+1)/statCounter(iFreq)            ! E[X] term
+     tstat(iFreq) = tstat(iFreq)/statCounter(iFreq) - tstat(maxVarFreq+iFreq)**2 ! full variance
     ! -------------------------------------------------------------------------------------
    end select
-  end do ! looping through output frequencies
- end if
+  end if
+ end do ! looping through output frequencies
 
  ! pack back into struc
  select type (stat)
@@ -214,7 +214,6 @@ contains
   class default;err=20;message=trim(message)//'stat type not found';return
  end select
 
- return
  end subroutine calc_stats
 
 end module output_stats

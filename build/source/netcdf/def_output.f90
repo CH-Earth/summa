@@ -107,7 +107,7 @@ contains
  do iFreq=1,maxvarFreq
 
   ! skip frequencies that are not needed
-  if(outFreq(iFreq)==integerMissing) cycle
+  if(.not.outFreq(iFreq)) cycle
 
   ! create file
   fstring = get_freqName(iFreq)
@@ -270,7 +270,6 @@ contains
  integer(i4b)                  :: iVar              ! variable index
  integer(i4b)                  :: iStat             ! stat index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
- integer(i4b)                  :: iVarId            ! variable ID
  integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
