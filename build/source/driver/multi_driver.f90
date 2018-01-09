@@ -281,7 +281,7 @@ character(len=128)               :: fmtGruOutput               ! a format string
  ! version information generated during compiling
 INCLUDE 'summaversion.inc'
 ! *****************************************************************************
-! (1) inital priming -- get command line arguments, identify files, etc.
+! *** inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
 ! get the command line arguments
 call getCommandArguments()
@@ -299,13 +299,16 @@ call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(e
 ! initialize the Jacobian flag
 doJacobian=.false.
 
+! initialize netcdf file id
+ncid(:) = integerMissing
+
 ! allocate time structures
 call allocLocal(time_meta, refTime,   err=err, message=message); call handle_err(err,message)  ! reference time for the model simulation
 call allocLocal(time_meta, startTime, err=err, message=message); call handle_err(err,message)  ! start time for the model simulation
 call allocLocal(time_meta, finshTime, err=err, message=message); call handle_err(err,message)  ! end time for the model simulation
 
 ! *****************************************************************************
-! (2) populate/check metadata structures
+! *** populate/check metadata structures
 ! *****************************************************************************
 
 ! populate metadata for all model variables
@@ -325,7 +328,7 @@ call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, mes
 call handle_err(err,message)
 
 ! *****************************************************************************
-! (3a) read the number of GRUs and HRUs, and allocate the gru-hru mapping structures
+! *** read the number of GRUs and HRUs, and allocate the gru-hru mapping structures
 ! *****************************************************************************
 ! obtain the HRU and GRU dimensions in the LocalAttribute file
 attrFile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
@@ -337,7 +340,7 @@ end select
 call handle_err(err,message)
 
 ! *****************************************************************************
-! (3b) read model attributes
+! *** read model attributes
 ! *****************************************************************************
 ! read number of snow and soil layers
 restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
@@ -345,7 +348,7 @@ call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,message)
 call handle_err(err,message)
 
 ! *****************************************************************************
-! (3c) allocate space for other data structures
+! *** allocate space for other data structures
 ! *****************************************************************************
 ! loop through data structures
 do iStruct=1,size(structInfo)
@@ -370,7 +373,7 @@ do iStruct=1,size(structInfo)
 end do  ! looping through data structures
 
 ! *****************************************************************************
-! (3c) allocate space for other data structures
+! *** allocate space for other data structures
 ! allocate space for default model parameters
 ! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
 ! *****************************************************************************
@@ -389,7 +392,7 @@ do iGRU=1,nGRU
 end do
 
 ! *****************************************************************************
-! (4a) read local attributes for each HRU
+! *** read local attributes for each HRU
 ! *****************************************************************************
 call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,message)
 call handle_err(err,message)
@@ -398,12 +401,12 @@ call handle_err(err,message)
 nHRUrun = sum(gru_struc%hruCount)
 
 ! *****************************************************************************
-! (4b) read description of model forcing datafile used in each HRU
+! *** read description of model forcing datafile used in each HRU
 ! *****************************************************************************
 call ffile_info(nGRU,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (4c) read model decisions
+! *** read model decisions
 ! *****************************************************************************
 call mDecisions(err,message); call handle_err(err,message)
 
@@ -418,7 +421,7 @@ end select ! (option to combine/sub-divide snow layers)
 maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
 
 ! *****************************************************************************
-! (4d) allocate space for output statistics data structures
+! *** allocate space for output statistics data structures
 ! *****************************************************************************
 
 ! child metadata structures - so that we do not carry full stats structures around everywhere
@@ -472,14 +475,14 @@ do iStruct=1,size(structInfo)
 end do ! iStruct
 
 ! *****************************************************************************
-! (5a) read default model parameters
+! *** read default model parameters
 ! *****************************************************************************
 ! read default values and constraints for model parameters (local column, and basin-average)
 call read_pinit(LOCALPARAM_INFO,.TRUE., mpar_meta,localParFallback,err,message); call handle_err(err,message)
 call read_pinit(BASINPARAM_INFO,.FALSE.,bpar_meta,basinParFallback,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5b) read Noah vegetation and soil tables
+! *** read Noah vegetation and soil tables
 ! *****************************************************************************
 ! define monthly fraction of green vegetation
 greenVegFrac_monthly = (/0.01_dp, 0.02_dp, 0.03_dp, 0.07_dp, 0.50_dp, 0.90_dp, 0.95_dp, 0.96_dp, 0.65_dp, 0.24_dp, 0.11_dp, 0.02_dp/)
@@ -526,12 +529,12 @@ do iGRU=1,nGRU
 end do  ! looping through GRUs
 
 ! *****************************************************************************
-! (5c) read trial model parameter values for each HRU, and populate initial data structures
+! *** read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
 call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
-! (5d) compute derived model variables that are pretty much constant for the basin as a whole
+! *** compute derived model variables that are pretty much constant for the basin as a whole
 ! *****************************************************************************
 ! loop through GRUs
 do iGRU=1,nGRU
@@ -682,7 +685,7 @@ end do  ! (looping through GRUs)
 
 
 ! *****************************************************************************
-! (5e) initialize first output sequence
+! *** initialize first output sequence
 ! *****************************************************************************
 ! define the output file
 ! NOTE: currently assumes that nSoil is constant across the model domain
@@ -726,7 +729,7 @@ end do ! GRU
 !call stop_program('testing')
 
 ! ****************************************************************************
-! (6) loop through time
+! *** loop through time
 ! ****************************************************************************
 
 ! initialize time step index
@@ -736,6 +739,9 @@ outputTimeStep(1:maxVarFreq) = 1
 ! initialize flags to reset/finalize statistics
 resetStats(:)    = .true.   ! start by resetting statistics
 finalizeStats(:) = .false.  ! do not finalize stats on the first time step
+
+! set stats flag for the timestep-level output
+finalizeStats(iLookFreq%timestep)=.true.
 
 ! loop through time
 do modelTimeStep=1,numtim
@@ -822,48 +828,8 @@ do modelTimeStep=1,numtim
   end do  ! looping through GRUs
  end if  ! if the first time step
 
- ! *****************************************************************************
- ! (7) create a new NetCDF output file, and write parameters and forcing data
- ! *****************************************************************************
- ! check the start of a new water year
- if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
-    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
-    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
-    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
-
-  ! close any output files that are already open
-  do iFreq = 1,maxvarFreq
-   if (ncid(iFreq)/=integerMissing) then
-    call nc_file_close(ncid(iFreq),err,message)
-    call handle_err(err,message)
-   end if
-  end do
-
-  ! define the filename
-  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
-                                 timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
-                                 trim(output_fileSuffix)
-
-  ! define the file
-  call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
-  call handle_err(err,message)
-
-  ! write parameters for each HRU, and re-set indices
-  do iGRU=1,nGRU
-   do iHRU=1,gru_struc(iGRU)%hruCount
-    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
-    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
-    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
-    ! re-initalize the indices for model writing
-    outputTimeStep(:)=1
-   end do  ! (looping through HRUs)
-   call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
-  end do  ! (looping through GRUs)
-
- end if  ! if start of a new water year, and defining a new file
-
  ! ****************************************************************************
- ! (8) loop through HRUs and GRUs
+ ! *** loop through HRUs and GRUs
  ! ****************************************************************************
 
  ! initialize variables
@@ -939,7 +905,7 @@ do modelTimeStep=1,numtim
    call handle_err(err,message)
 
    ! ****************************************************************************
-   ! (9) run the model
+   ! *** run the model
    ! ****************************************************************************
    ! set the flag to compute the vegetation flux
    computeVegFluxFlag = (computeVegFlux(iGRU)%hru(iHRU) == yes)
@@ -1095,6 +1061,50 @@ do modelTimeStep=1,numtim
 
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
+
+ ! *****************************************************************************
+ ! *** create a new NetCDF output file, and write parameters and forcing data
+ ! *****************************************************************************
+ ! check the start of a new water year
+ if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
+    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
+    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
+    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
+
+  ! close any output files that are already open
+  do iFreq = 1,maxvarFreq
+   if (ncid(iFreq)/=integerMissing) then
+    call nc_file_close(ncid(iFreq),err,message)
+    call handle_err(err,message)
+   end if
+  end do
+
+  ! define the filename
+  write(fileout,'(a,i0,a,i0,a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX),&
+                                 timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%iyyy)+1,&
+                                 trim(output_fileSuffix)
+
+  ! define the file
+  call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
+  call handle_err(err,message)
+
+  ! write parameters for each HRU, and re-set indices
+  do iGRU=1,nGRU
+   do iHRU=1,gru_struc(iGRU)%hruCount
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
+    ! re-initalize the indices for model writing
+    outputTimeStep(:)=1
+   end do  ! (looping through HRUs)
+   call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
+  end do  ! (looping through GRUs)
+
+ end if  ! if start of a new water year, and defining a new file
+
+ ! *****************************************************************************
+ ! *** write restart file
+ ! *****************************************************************************
 
  ! query whether this timestep requires a re-start file
  select case(ixRestart)

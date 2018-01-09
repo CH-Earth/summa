@@ -812,7 +812,7 @@ contains
     ! * check that we could find the index
     if(iFreq<0 .or. iFreq>maxvarFreq)then
      message=trim(message)//'unable to identify desired output frequency for variable '//trim(varName)&
-                          //' [entered '//trim(freqName)//']'
+                          //' [entered "'//trim(freqName)//'"]'
      err=20; return
     endif
 
@@ -836,7 +836,7 @@ contains
    case(freqIndex + 2*maxVarStat); fileFormat=provideStatFlags ! provide flags defining the desired statistic
    case default
     message=trim(message)//'unexpected format for variable '//trim(varName)&
-                         //' (using output frequency '//trim(freqName)//')'
+                         //' (format = "'//trim(charLines(vLine))//'")'
     err=20; return
   end select
    
@@ -863,7 +863,8 @@ contains
     end do
     ! check actually defined the statistic (and only defined one statistic)
     if(count(statFlag)/=1)then
-     message=trim(message)//'expect only one statistic is defined when using flags to define statistics'
+     message=trim(message)//'expect only one statistic is defined when using flags to define statistics'&
+                          //': entered "'//trim(charLines(vLine))//'"'
      err=20; return
     endif
 
@@ -894,7 +895,8 @@ contains
    ! index structures -- can only be output at the model time step
    case('indx' ); indx_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; indx_meta(vDex)%varDesire=.true.
    if(iFreq/=iLookFREQ%timestep)then
-    message=trim(message)//'index variables can only be output at model timestep';
+    message=trim(message)//'index variables can only be output at model timestep'&
+                         //' [evaluating variable "'//trim(varName)//'" for output frequency "'//trim(freqName)//'"]'
     err=20; return
    endif
 
@@ -968,8 +970,8 @@ contains
 
  ! check that the variable is not already defined for a given frequency
  if(meta%statIndex(iFreq)/=integerMissing)then
-  message=trim(message)//'variable '//trim(meta%varName)//' is already defined '&
-                       //'for output frequency '//trim(get_freqName(iFreq))
+  message=trim(message)//'variable "'//trim(meta%varName)//'" is already defined '&
+                       //'for output frequency "'//trim(get_freqName(iFreq))//'"'
   err=20; return
  endif
 
