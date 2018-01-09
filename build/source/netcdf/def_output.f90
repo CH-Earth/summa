@@ -100,6 +100,9 @@ contains
  ! initialize errors
  err=0; message="def_output/"
 
+ ! initialize netcdf file id
+ ncid(:) = integerMissing
+
  ! create initial file
  ! each file will have a master name with a frequency appended at the end:
  ! e.g., xxxxxxxxx_timestep.nc  (for output at every model timestep)
@@ -268,6 +271,7 @@ contains
  character(*),intent(out)      :: message           ! error message
  ! local
  integer(i4b)                  :: iVar              ! variable index
+ integer(i4b)                  :: iVarId            ! netcdf variable index
  integer(i4b)                  :: iStat             ! stat index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
  integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index

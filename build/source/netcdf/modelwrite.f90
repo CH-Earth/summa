@@ -78,7 +78,8 @@ contains
  subroutine writeParm(ispatial,struct,meta,err,message)
  USE globalData,only:ncid                        ! netcdf file ids
  USE data_types,only:var_info                    ! metadata info
- USE var_lookup,only:iLookStat                   ! to index into write flag
+ USE var_lookup,only:iLookStat                   ! index in statistics vector
+ USE var_lookup,only:iLookFreq                   ! index in vector of model output frequencies
  implicit none
 
  ! declare input variables
@@ -102,16 +103,17 @@ contains
 
   ! initialize message
   message=trim(message)//trim(meta(iVar)%varName)//'/'
+  print*, trim(message), meta(iVar)%ncVarID(:)
 
   ! HRU data
   if (iSpatial/=integerMissing) then
    select type (struct)
     class is (var_i)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_d)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_dlength)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
     class default; err=20; message=trim(message)//'unknown variable type (with HRU)'; return
    end select
 
@@ -119,7 +121,7 @@ contains
   else
    select type (struct)
     class is (var_d)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookStat%inst),(/struct%var(iVar)/),start=(/1/),count=(/1/))
+     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
     class default; err=20; message=trim(message)//'unknown variable type (no HRU)'; return
    end select
   end if
@@ -182,7 +184,7 @@ contains
  do iFreq=1,maxvarFreq
 
   ! skip frequencies that are not needed
-  if(outFreq(iFreq)==integerMissing) cycle
+  if(.not.outFreq(iFreq)) cycle
 
   ! check that we have finalized statistics for a given frequency
   if(.not.finalizeStats(iFreq)) cycle
@@ -335,7 +337,7 @@ contains
  do iFreq=1,maxvarFreq
 
   ! skip frequencies that are not needed
-  if(outFreq(iFreq)==integerMissing) cycle
+  if(.not.outFreq(iFreq)) cycle
 
   ! check that we have finalized statistics for a given frequency
   if(.not.finalizeStats(iFreq)) cycle

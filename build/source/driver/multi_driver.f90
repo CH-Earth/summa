@@ -1022,10 +1022,10 @@ do modelTimeStep=1,numtim
    end if
 
    ! print progress
-   print*, 'resetStats     = ', resetStats
-   print*, 'finalizeStats  = ', finalizeStats
-   print*, 'statsCounter   = ', statsCounter
-   print*, 'outputTimeStep = ', outputTimeStep 
+   !print*, 'resetStats     = ', resetStats
+   !print*, 'finalizeStats  = ', finalizeStats
+   !print*, 'statCounter    = ', statCounter
+   !print*, 'outputTimeStep = ', outputTimeStep 
 
    ! calculate output Statistics
    call calcStats(forcStat%gru(iGRU)%hru(iHRU)%var,forcStruct%gru(iGRU)%hru(iHRU)%var,statForc_meta,resetStats,finalizeStats,statCounter,err,message); call handle_err(err,message)

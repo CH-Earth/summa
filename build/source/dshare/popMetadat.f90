@@ -943,9 +943,9 @@ contains
  forc_meta(iLookFORCE%time)%varDesire    = .true.
  forc_meta(iLookFORCE%time)%statIndex(:) = iLookSTAT%inst
 
- ! force the HRU id to be written in every file
+ ! force the HRU id to be written in the timestep-level file
  type_meta(iLookTYPE%hruId)%varDesire    = .true.
- type_meta(iLookTYPE%hruId)%statIndex(:) = iLookSTAT%inst 
+ type_meta(iLookTYPE%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst 
 
  end subroutine read_output_file
 
