@@ -819,7 +819,7 @@ contains
    ! temporally constant variables use timestep-level output (no aggregation)
    case default
     iFreq    = iLookFREQ%timestep
-    freqName = '[notNeeded; use timestep]'
+    freqName = 'timestep'
   end select
 
   ! --- identify the desired statistic in the metadata structure  -----------
