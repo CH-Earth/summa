@@ -25,6 +25,10 @@ implicit none
 private
 public::read_icond
 public::read_icond_nlayers
+! define single HRU restart file
+integer(i4b), parameter :: singleHRU=1001
+integer(i4b), parameter :: multiHRU=1002
+integer(i4b), parameter :: restartFileType=multiHRU
 contains
 
  ! ************************************************************************************************
@@ -88,12 +92,24 @@ contains
  ! get data
  err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)
  err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message)
+ !print*, 'snowData = ', snowData
+ !print*, 'soilData = ', soilData
 
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
-   gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   
+   ! single HRU
+   if(restartFileType==singleHRU)then   
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
+
+   ! multi HRU
+   else
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
+   endif 
+
   end do
  end do
 
@@ -110,27 +126,31 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_icond: read model initial conditions
  ! ************************************************************************************************
- subroutine read_icond(iconFile,                      & ! name of initial conditions file
-                       nGRU,                          & ! number of GRUs
-                       prog_meta,                     & ! metadata
-                       progData,                      & ! model prognostic (state) variables
-                       indxData,                      & ! layer index data
-                       err,message)                     ! error control
+ subroutine read_icond(iconFile,                      & ! intent(in):    name of initial conditions file
+                       nGRU,                          & ! intent(in):    number of GRUs
+                       mparData,                      & ! intent(in):    model parameters
+                       progData,                      & ! intent(inout): model prognostic variables
+                       indxData,                      & ! intent(inout): model indices
+                       err,message)                     ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------
  ! modules
  USE nrtype
  USE var_lookup,only:iLookVarType                       ! variable lookup structure
- USE var_lookup,only:iLookProg                          ! variable lookup structure
- USE var_lookup,only:iLookIndex                         ! variable lookup structure
+ USE var_lookup,only:iLookPROG                          ! variable lookup structure
+ USE var_lookup,only:iLookPARAM                         ! variable lookup structure
+ USE var_lookup,only:iLookINDEX                         ! variable lookup structure
+ USE globalData,only:prog_meta                          ! metadata for prognostic variables
  USE globalData,only:gru_struc                          ! gru-hru mapping structures
  USE globaldata,only:iname_soil,iname_snow              ! named variables to describe the type of layer
+ USE netcdf_util_module,only:nc_file_open               ! open netcdf file
  USE netcdf_util_module,only:nc_file_close              ! close netcdf file
- USE netcdf_util_module,only:nc_file_open               ! close netcdf file
  USE netcdf_util_module,only:netcdf_err                 ! netcdf error handling
- USE data_types,only:gru_hru_doubleVec                  ! actual data
- USE data_types,only:gru_hru_intVec                     ! actual data
+ USE data_types,only:gru_hru_doubleVec                  ! full double precision structure
+ USE data_types,only:gru_hru_intVec                     ! full integer structure
+ USE data_types,only:var_dlength                        ! double precision structure for a single HRU
  USE data_types,only:var_info                           ! metadata
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
+ USE updatState_module,only:updateSoil                  ! update soil states
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
@@ -138,9 +158,9 @@ contains
  ! dummies
  character(*)           ,intent(in)     :: iconFile     ! name of netcdf file containing the initial conditions
  integer(i4b)           ,intent(in)     :: nGRU         ! number of grouped response units in simulation domain
- type(var_info)         ,intent(in)     :: prog_meta(:) ! prognostic metadata
- type(gru_hru_doubleVec),intent(inout)  :: progData     ! prognostic vars
- type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! layer indexes
+ type(gru_hru_doubleVec),intent(in)     :: mparData     ! model parameters
+ type(gru_hru_doubleVec),intent(inout)  :: progData     ! model prognostic variables
+ type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! model indices
  integer(i4b)           ,intent(out)    :: err          ! error code
  character(*)           ,intent(out)    :: message      ! returned error message
 
@@ -158,6 +178,7 @@ contains
  integer(i4b)                           :: ixFile       ! index in file
  real(dp),allocatable                   :: varData(:,:) ! variable data storage
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
+ integer(i4b)                           :: iLayer,jLayer ! layer indices
  integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
 
  character(len=32),parameter            :: scalDimName   ='scalarv'  ! dimension name for scalar data
@@ -232,13 +253,19 @@ contains
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
 
-    ! get ther number of layers
+    ! get the number of layers
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
     nToto = nSnow + nSoil
 
-    ! get the index in the file
-    ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    ! get the index in the file: single HRU
+    if(restartFileType==singleHRU)then   
+     ixFile = 1  ! use for single HRU restart file
+
+    ! get the index in the file: multi HRU
+    else
+     ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    endif
 
     ! put the data into data structures and check that none of the values are set to nf90_fill_double
     select case (prog_meta(iVar)%varType)
@@ -260,6 +287,11 @@ contains
     end select
 
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
+
+    ! fix the snow albedo
+    if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._dp)then
+     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
+    endif
 
     ! initialize the spectral albedo
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(1:nBand) = progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1)
@@ -290,6 +322,42 @@ contains
 
   end do
  end do
+
+ ! --------------------------------------------------------------------------------------------------------
+ ! (3) update soil layers
+ ! --------------------------------------------------------------------------------------------------------
+
+ ! loop through GRUs and HRUs
+ do iGRU = 1,nGRU
+  do iHRU = 1,gru_struc(iGRU)%hruCount
+
+   ! loop through soil layers
+   do iLayer = 1,indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSoil)%dat(1)
+
+    ! get layer in the total vector
+    jLayer = iLayer+indxData%gru(iGRU)%hru(iHRU)%var(iLookINDEX%nSnow)%dat(1)
+
+    ! update soil layers
+    call updateSoil(&
+                    ! input
+                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp          )%dat(jLayer),& ! intent(in): temperature vector (K)
+                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerMatricHead    )%dat(iLayer),& ! intent(in): matric head (m)
+                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_alpha          )%dat(iLayer),& ! intent(in): van Genutchen "alpha" parameter
+                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n              )%dat(iLayer),& ! intent(in): van Genutchen "n" parameter
+                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat          )%dat(iLayer),& ! intent(in): soil porosity (-)
+                    mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res          )%dat(iLayer),& ! intent(in): soil residual volumetric water content (-)
+                    1._dp - 1._dp/mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat(iLayer),& ! intent(in): van Genutchen "m" parameter (-)
+                    ! output
+                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracWat    )%dat(jLayer),& ! intent(out): volumetric fraction of total water (-)
+                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)
+                    progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracIce    )%dat(jLayer),& ! intent(out): volumetric fraction of ice (-)
+                    err,message)                                                                   ! intent(out): error control
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+   end do  ! looping through soil layers
+
+  end do  ! looping throuygh HRUs
+ end do  ! looping through GRUs
 
  end subroutine read_icond
 

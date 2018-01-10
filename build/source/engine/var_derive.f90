@@ -159,8 +159,8 @@ contains
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
-! print*, 'nSnow   = ', nSnow
-! print*, 'nLayers = ', nLayers
+ !print*, 'nSnow   = ', nSnow
+ !print*, 'nLayers = ', nLayers
 
  ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
@@ -181,9 +181,11 @@ contains
      if(fracRootUpper>1._dp) fracRootUpper=1._dp
      ! compute the root density
      mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
-   else
-    mLayerRootDensity(iLayer-nSnow) = 0._dp
-   end if
+    else
+     mLayerRootDensity(iLayer-nSnow) = 0._dp
+    end if
+    !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
+    !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
    ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
    case(doubleExp)
@@ -192,8 +194,8 @@ contains
     fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
-    write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
-                                 mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
+    !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
+    !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
    ! ** check
    case default; err=20; message=trim(message)//'unable to identify option for rooting profile'; return
@@ -412,8 +414,6 @@ contains
 
  ! initialize runoffFuture
  runoffFuture(1:nTDH) = 0._dp
-
- print*, 'nTDH = ', nTDH
 
  ! select option for sub-grid routing
  select case(ixRouting)

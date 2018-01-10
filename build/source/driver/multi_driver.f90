@@ -559,12 +559,12 @@ do iGRU=1,nGRU
 end do ! GRU
 
 ! read description of model initial conditions -- also initializes model structure components
-call read_icond(restartFile,                   & ! name of initial conditions file
-                nGRU,                          & ! number of response units
-                prog_meta,                     & ! metadata
-                progStruct,                    & ! model prognostic (state) variables
-                indxStruct,                    & ! layer indexes
-                err,message)                     ! error control
+call read_icond(restartFile,                   & ! intent(in):    name of initial conditions file
+                nGRU,                          & ! intent(in):    number of response units
+                mparStruct,                    & ! intent(in):    model parameters
+                progStruct,                    & ! intent(inout): model prognostic variables
+                indxStruct,                    & ! intent(inout): model indices 
+                err,message)                     ! intent(out):   error control
 call handle_err(err,message)
 
 ! check initial conditions

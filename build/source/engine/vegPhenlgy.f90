@@ -174,6 +174,8 @@ contains
 
   ! determine if need to include vegetation in the energy flux routines
   computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
+  !write(*,'(a,1x,i2,1x,L1,1x,10(f12.5,1x))') 'vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth = ', &
+  !                                            vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth
 
  end if  ! (check if the snow-soil column is isolated)
 

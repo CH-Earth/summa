@@ -122,6 +122,7 @@ contains
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+ USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
  USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -191,6 +192,7 @@ contains
  integer(i4b),parameter          :: ixTrustRegion=1002       ! step refinement = trust region
  integer(i4b),parameter          :: ixStepRefinement=ixLineSearch   ! decision for the numerical solution
  ! general
+ integer(i4b)                    :: mSoil                    ! number of soil layers in solution vector
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
@@ -201,6 +203,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summaSolve/'
+
+ ! get the number of soil layers in the solution vector
+ mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
 
  ! initialize the global print flag
  globalPrintFlagInit=globalPrintFlag
@@ -659,8 +664,8 @@ contains
   ! check convergence
   converged = checkConv(resVecNew,xInc,stateVecNew)
 
-  !print*, 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
-  !         bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
+  !write(*,'(a,1x,2(L1,1x),5(e20.8,1x))') 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
+  !                                        bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
   !print*, 'PAUSE'; read(*,*)
 
   end subroutine safeRootfinder
@@ -969,9 +974,9 @@ contains
   real(dp),intent(in)       :: xVec(:)                ! state vector (mixed units)
   logical(lgt)              :: checkConv              ! flag to denote convergence
   ! locals
-  real(dp),dimension(nSoil) :: psiScale               ! scaling factor for matric head
+  real(dp),dimension(mSoil) :: psiScale               ! scaling factor for matric head
   real(dp),parameter        :: xSmall=1.e-0_dp        ! a small offset
-  real(dp),parameter        :: watBalTol_scalar=1.e-14_dp  ! water balance tolerance for the scalar solution (tighter tolerance)
+  real(dp),parameter        :: scalarTighten=0.1_dp   ! scaling factor for the scalar solution
   real(dp)                  :: soilWatbalErr          ! error in the soil water balance
   real(dp)                  :: canopy_max             ! absolute value of the residual in canopy water (kg m-2)
   real(dp),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
@@ -1026,9 +1031,9 @@ contains
    liquid_max = real(maxval(abs( rVec(ixHydOnly) ) ), dp)
    ! (tighter convergence for the scalar solution)
    if(scalarSolution)then
-    liquidConv = (liquid_max(1) < watBalTol_scalar)   ! (based on the residual)
+    liquidConv = (liquid_max(1) < absConvTol_liquid*scalarTighten)   ! (based on the residual)
    else
-    liquidConv = (liquid_max(1) < absConvTol_liquid)  ! (based on the residual)
+    liquidConv = (liquid_max(1) < absConvTol_liquid)                 ! (based on the residual)
    endif
   else
    liquid_max = realMissing
