@@ -39,6 +39,9 @@ public::get_ixbvar
 public::get_ixVarType
 public::get_varTypeName
 public::get_ixUnknown
+public::get_ixFreq
+public::get_ixStat
+public::get_freqName
 public::get_statName
 contains
 
@@ -964,6 +967,72 @@ contains
 
  end subroutine get_ixUnknown
 
+ ! *******************************************************************************************************************
+ ! public function get_ixfreq: get the index of the named variables for the output frequencies
+ ! *******************************************************************************************************************
+ function get_ixfreq(varName)
+ USE var_lookup,only:iLookFreq                       ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! variable name
+ integer(i4b)             :: get_ixfreq              ! index of the named variable
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('day'     ); get_ixFreq = iLookFreq%day      ! daily aggregation
+  case('month'   ); get_ixFreq = iLookFreq%month    ! monthly aggregation
+  case('annual'  ); get_ixFreq = iLookFreq%annual   ! yearly (annual) aggregation
+  case('timestep'); get_ixFreq = iLookFreq%timestep ! timestep-level output (no temporal aggregation)
+  ! get to here if cannot find the variable
+  case default
+   get_ixfreq = integerMissing
+ end select
+ end function get_ixfreq
+
+ ! ***************************************************************************************************************
+ ! public function get_ixStat: get the named variables for the statistics
+ ! ***************************************************************************************************************
+ function get_ixStat(varName)
+ USE var_lookup,only:iLookStat                   ! indices of the possible output statistics
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName             ! variable name
+ integer(i4b)             :: get_ixStat          ! index of the named variable
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('total'   ); get_ixStat = iLookStat%totl
+  case('instant' ); get_ixStat = iLookStat%inst
+  case('mean'    ); get_ixStat = iLookStat%mean
+  case('variance'); get_ixStat = iLookStat%vari
+  case('minimum' ); get_ixStat = iLookStat%mini
+  case('maximum' ); get_ixStat = iLookStat%maxi
+  case('mode'    ); get_ixStat = iLookStat%mode
+  ! get to here if cannot find the variable
+  case default
+   get_ixStat = integerMissing
+ end select
+ end function get_ixStat
+
+ ! ***************************************************************************************************************
+ ! public function get_freqName: get the name of the output frequency type
+ ! ***************************************************************************************************************
+ function get_freqName(ifreq)
+ USE var_lookup,only:iLookFreq                   ! indices of the possible output frequencies
+ implicit none
+ ! define dummy variables
+ integer(i4b), intent(in) :: ifreq               ! output frequency index
+ character(LEN=10)        :: get_freqName        ! name of the output frequency
+ ! get the index of the named variables
+ select case(ifreq)
+  case(iLookFreq%day);      get_freqName='day'
+  case(iLookFreq%month);    get_freqName='month'
+  case(iLookFreq%annual);   get_freqName='annual'
+  case(iLookFreq%timestep); get_freqName='timestep'
+  ! get to here if cannot find the variable
+  case default
+   get_freqName = 'unknown'
+ end select
+ end function get_freqName
+
  ! ***************************************************************************************************************
  ! public function get_statName: get the name of the output statistics type
  ! ***************************************************************************************************************
@@ -972,7 +1041,7 @@ contains
  implicit none
  ! define dummy variables
  integer(i4b), intent(in) :: istat               ! stat type name
- character(LEN=10)         :: get_statName        ! index of the named variable type list
+ character(LEN=10)         :: get_statName       ! name of the statistic
  ! get the index of the named variables
  select case(istat)
   case(iLookStat%totl);get_statName='total'

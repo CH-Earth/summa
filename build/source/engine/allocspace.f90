@@ -514,7 +514,7 @@ contains
  subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
                            varData,err,message)            ! output
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
+ USE var_lookup,only:maxvarFreq                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -544,7 +544,9 @@ contains
    err=20; return
 
   ! allocate structures
-  ! NOTE: maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
+  ! NOTE: maxvarFreq is the number of possible output frequencies
+  !        -- however, this vector must store two values for the variance calculation, thus the *2 in this allocate
+  !            (need enough space in the event that variance is the desired statistic for all output frequencies)
   else
    select case(metadata(iVar)%vartype)
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -557,7 +559,7 @@ contains
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarfreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown = special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
      err=40; message=trim(message)//"1. unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"
@@ -579,7 +581,7 @@ contains
  subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
                             varData,err,message)            ! output
  USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
+ USE var_lookup,only:maxvarFreq                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -609,7 +611,9 @@ contains
    err=20; return
 
   ! allocate structures
-  ! NOTE: maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
+  ! NOTE: maxvarFreq is the number of possible output frequencies
+  !        -- however, this vector must store two values for the variance calculation, thus the *2 in this allocate
+  !            (need enough space in the event that variance is the desired statistic for all output frequencies)
   else
    select case(metadata(iVar)%vartype)
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -621,7 +625,7 @@ contains
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
    end select
@@ -640,8 +644,8 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_flag(metadata,nSnow,nSoil,nLayers, & ! input
                              varData,err,message)            ! output
- USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
+ USE var_lookup,only:iLookVarType                 ! look up structure for variable types
+ USE var_lookup,only:maxvarFreq                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -671,7 +675,9 @@ contains
    err=20; return
 
   ! allocate structures
-  ! NOTE: maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
+  ! NOTE: maxvarFreq is the number of possible output frequencies
+  !        -- however, this vector must store two values for the variance calculation, thus the *2 in this allocate
+  !            (need enough space in the event that variance is the desired statistic for all output frequencies)
   else
    select case(metadata(iVar)%vartype)
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -683,7 +689,7 @@ contains
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
    end select
