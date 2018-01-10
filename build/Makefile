@@ -168,8 +168,11 @@ DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
 # utility modules
 SUMMA_UTILMS= \
 		time_utils.f90 \
-		matrixOper.f90 \
-		mDecisions.f90
+		mDecisions.f90 \
+		snow_utils.f90 \
+		soil_utils.f90 \
+		updatState.f90 \
+		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
 # Model guts
@@ -203,9 +206,6 @@ SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 SUMMA_PRELIM= \
 		conv_funcs.f90 \
 		sunGeomtry.f90 \
-		snow_utils.f90 \
-		soil_utils.f90 \
-		updatState.f90 \
 		convE2Temp.f90 \
 		allocspace.f90 \
 		checkStruc.f90 \
