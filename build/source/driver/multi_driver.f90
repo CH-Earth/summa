@@ -220,6 +220,10 @@ integer(i4b)                     :: ctime1(8)                  ! initial time
 character(len=256)               :: output_fileSuffix=''       ! suffix for the output file
 character(len=256)               :: summaFileManagerFile=''    ! path/name of file defining directories and files
 character(len=256)               :: fileout=''                 ! output filename
+integer(i4b),parameter           :: noNewFiles=1001            ! no new output files 
+integer(i4b),parameter           :: newFileEveryOct1=1002      ! create a new file on Oct 1 every year (start of the USA water year)
+integer(i4b)                     :: newOutputFile=noNewFiles   ! option for new output files
+logical(lgt)                     :: defNewOutputFile=.false.   ! flag to define new output files
 ! define model control structures
 integer(i4b)                     :: nLayers                    ! total number of layers
 integer(i4b),parameter           :: no=0                       ! .false.
@@ -283,6 +287,11 @@ INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! *** inital priming -- get command line arguments, identify files, etc.
 ! *****************************************************************************
+
+! initialize the Jacobian flag
+doJacobian=.false.        ! initialize the Jacobian flag
+ncid(:) = integerMissing  ! initialize netcdf file id
+
 ! get the command line arguments
 call getCommandArguments()
 
@@ -295,12 +304,6 @@ print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
 
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
-
-! initialize the Jacobian flag
-doJacobian=.false.
-
-! initialize netcdf file id
-ncid(:) = integerMissing
 
 ! allocate time structures
 call allocLocal(time_meta, refTime,   err=err, message=message); call handle_err(err,message)  ! reference time for the model simulation
@@ -705,13 +708,11 @@ select case (iRunMode)
   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
 end select
 
-!fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
-write(fileout,'(a,i0,3(a,i2.2),a)') trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX), &
-                               startTime%var(iLookTIME%iyyy), '-', &
-                               startTime%var(iLookTIME%im), '-', &
-                               startTime%var(iLookTIME%id), '-', &
-                               startTime%var(iLookTIME%ih),  &
-                               '_spinup'//trim(output_fileSuffix)
+! define file output
+select case(newOutputFile)
+ case(noNewFiles); fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
+ case default    ; fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
+end select
 call def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,gru_struc(1)%hruInfo(1)%nSoil,fileout,err,message)
 call handle_err(err,message)
 
@@ -1065,11 +1066,23 @@ do modelTimeStep=1,numtim
  ! *****************************************************************************
  ! *** create a new NetCDF output file, and write parameters and forcing data
  ! *****************************************************************************
- ! check the start of a new water year
- if(timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
-    timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
-    timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
-    timeStruct%var(iLookTIME%imin)==0)then       ! minute = 0
+
+ ! define the need to create a new output file
+ select case(newOutputFile)
+  ! (don't ever create a new output file)
+  case(noNewFiles); defNewOutputFile=.false.
+  ! (check for the start of the USA water year)
+  case(newFileEveryOct1)
+   defNewOutputFile = (timeStruct%var(iLookTIME%im)  ==10 .and. &   ! month = October
+                       timeStruct%var(iLookTIME%id)  ==1  .and. &   ! day = 1
+                       timeStruct%var(iLookTIME%ih)  ==0  .and. &   ! hour = 1
+                       timeStruct%var(iLookTIME%imin)==0)           ! minute = 0
+  ! (check that we found the option)
+  case default; call handle_err(20,'unable to identify the option to define new output files')
+ end select
+
+ ! create hte new output file
+ if(defNewOutputFile)then
 
   ! close any output files that are already open
   do iFreq = 1,maxvarFreq
@@ -1100,7 +1113,7 @@ do modelTimeStep=1,numtim
    call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,message)
   end do  ! (looping through GRUs)
 
- end if  ! if start of a new water year, and defining a new file
+ end if  ! if defining a new file
 
  ! *****************************************************************************
  ! *** write restart file
@@ -1176,8 +1189,9 @@ contains
  end do
 
  ! initialize command line argument variables
- startGRU = integerMissing; nGRU = integerMissing; checkHRU = integerMissing; nHRU = integerMissing
+ startGRU = integerMissing; checkHRU = integerMissing
  nGRU = integerMissing; nHRU = integerMissing
+ newOutputFile = noNewFiles
  iRunMode = iRunModeFull
 
  ! loop through all command arguments
@@ -1193,6 +1207,18 @@ contains
     ! get name of master control file
     summaFileManagerFile=trim(argString(iArgument+1))
     print "(A)", "file_master is '"//trim(summaFileManagerFile)//"'."
+
+   ! define the formation of new output files
+   case ('-n', '--newFile')
+    ! check that the number of command line arguments is correct
+    nLocalArgument = 1  ! expect just one argument for new output files
+    if (iArgument+nLocalArgument>nArgument) call handle_err(1,"missing argument file_suffix; type 'summa.exe --help' for correct usage")
+    ! get the decision for the formation of new output files
+    select case( trim(argString(iArgument+1)) )
+     case('noNewFiles');       newOutputFile = noNewFiles
+     case('newFileEveryOct1'); newOutputFile = newFileEveryOct1
+     case default;             call handle_err(1,'unknown option for new output file: expect "noNewFiles" or "newFileEveryOct1"')
+    end select
 
    case ('-s', '--suffix')
     ! define file suffix
@@ -1292,6 +1318,7 @@ contains
  print "(A,/)",  ' summa.exe          summa executable'
  print "(A)",  'Running options:'
  print "(A)",  ' -m --master        Define path/name of master file (required)'
+ print "(A)",  ' -n --newFile       Define frequency [noNewFiles,newFileEveryOct1] of new output files'
  print "(A)",  ' -s --suffix        Add fileSuffix to the output files'
  print "(A)",  ' -g --gru           Run a subset of countGRU GRUs starting from index startGRU'
  print "(A)",  ' -h --hru           Run a single HRU with index of iHRU'
