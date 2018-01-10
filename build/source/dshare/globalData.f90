@@ -157,6 +157,9 @@ MODULE globalData
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map
  type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map
 
+ ! define the fraction of green vegetation in each month (0-1)
+ real(dp),dimension(12),save,public          :: greenVegFrac_monthly    ! fraction of green vegetation in each month (0-1)
+
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
  real(dp),save,public                        :: data_step               ! time step of the data
