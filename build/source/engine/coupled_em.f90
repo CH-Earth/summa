@@ -31,9 +31,48 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
+! data types
+USE data_types,only:&
+                    var_i,               & ! x%var(:)            (i4b)
+                    var_d,               & ! x%var(:)            (dp)
+                    var_ilength,         & ! x%var(:)%dat        (i4b)
+                    var_dlength            ! x%var(:)%dat        (dp)
 
+! named variables for parent structures
+USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+USE var_lookup,only:iLookPROG              ! named variables for structure elements
+USE var_lookup,only:iLookDIAG              ! named variables for structure elements
+USE var_lookup,only:iLookFLUX              ! named variables for structure elements
+USE var_lookup,only:iLookPARAM             ! named variables for structure elements
+USE var_lookup,only:iLookINDEX             ! named variables for structure elements
+USE globalData,only:iname_snow             ! named variables for snow
+USE globalData,only:iname_soil             ! named variables for soil
+
+! named variables for child structures
+USE var_lookup,only:childFLUX_MEAN
+
+! metadata
+USE globalData,only:indx_meta              ! metadata on the model index variables
+USE globalData,only:diag_meta              ! metadata on the model diagnostic variables
+USE globalData,only:prog_meta              ! metadata on the model prognostic variables
+USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
+
+! global data
+USE globalData,only:data_step              ! time step of forcing data (s)
+USE globalData,only:model_decisions        ! model decision structure
+USE globalData,only:globalPrintFlag        ! the global print flag
+
+! look-up values for the numerical method
+USE mDecisions_module,only:         &
+ iterative,                         &      ! iterative
+ nonIterative,                      &      ! non-iterative
+ iterSurfEnergyBal                         ! iterate only on the surface energy balance
+
+! look-up values for the maximum interception capacity
+USE mDecisions_module,only:         &
+                      stickySnow,   &      ! maximum interception capacity an increasing function of temerature
+                      lightSnow            ! maximum interception capacity an inverse function of new snow density
+! privacy
 implicit none
 private
 public::coupled_em
@@ -71,31 +110,7 @@ contains
                        flux_data,         & ! intent(inout): model fluxes for a local HRU
                        ! error control
                        err,message)         ! intent(out):   error control
- ! data types
- USE data_types,only:&
-                     var_i,               & ! x%var(:)            (i4b)
-                     var_d,               & ! x%var(:)            (dp)
-                     var_ilength,         & ! x%var(:)%dat        (i4b)
-                     var_dlength            ! x%var(:)%dat        (dp)
- ! named variables for parent structures
- USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- USE var_lookup,only:iLookPROG              ! named variables for structure elements
- USE var_lookup,only:iLookDIAG              ! named variables for structure elements
- USE var_lookup,only:iLookFLUX              ! named variables for structure elements
- USE var_lookup,only:iLookPARAM             ! named variables for structure elements
- USE var_lookup,only:iLookINDEX             ! named variables for structure elements
- USE globalData,only:iname_snow             ! named variables for snow
- USE globalData,only:iname_soil             ! named variables for soil
- ! named variables for child structures
- USE var_lookup,only:childFLUX_MEAN
- ! global data
- USE globalData,only:data_step              ! time step of forcing data (s)
- USE globalData,only:model_decisions        ! model decision structure
  ! structure allocations
- USE globalData,only:indx_meta              ! metadata on the model index variables
- USE globalData,only:diag_meta              ! metadata on the model diagnostic variables
- USE globalData,only:prog_meta              ! metadata on the model prognostic variables
- USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
  USE allocspace_module,only:allocLocal      ! allocate local data structures
  USE allocspace_module,only:resizeData      ! clone a data structure
  ! preliminary subroutines
@@ -114,15 +129,6 @@ contains
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
- ! look-up values for the numerical method
- USE mDecisions_module,only:         &
-  iterative,                         &      ! iterative
-  nonIterative,                      &      ! non-iterative
-  iterSurfEnergyBal                         ! iterate only on the surface energy balance
- ! look-up values for the maximum interception capacity
- USE mDecisions_module,only:         &
-                       stickySnow,   &      ! maximum interception capacity an increasing function of temerature
-                       lightSnow            ! maximum interception capacity an inverse function of new snow density
  implicit none
  ! model control
  integer(i4b),intent(in)              :: hruId                  ! hruId

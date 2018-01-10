@@ -127,10 +127,11 @@ contains
  USE derivforce_module,only:derivforce                             ! module to compute derived forcing data
  USE coupled_em_module,only:coupled_em                             ! module to run the coupled energy and mass model
  USE qTimeDelay_module,only:qOverland                              ! module to route water through an "unresolved" river network
- implicit none
-
+ 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
  
+ implicit none
+
  ! model control
  integer(i4b)            , intent(in)    :: iGRU                   ! GRU index
  type(hru_d)             , intent(inout) :: dt_init(:)             ! used to initialize the length of the sub-step for each HRU

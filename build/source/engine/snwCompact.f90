@@ -19,11 +19,16 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module snwDensify_module
+
+! data types
 USE nrtype
+
+! model constants
 USE multiconst,only:&
                     Tfreeze,    &     ! freezing point of pure water (K)
                     iden_ice,   &     ! intrinsic density of ice (kg m-3)
                     iden_water        ! intrinsic density of liquid water (kg m-3)
+! privacy
 implicit none
 private
 public::snwDensify

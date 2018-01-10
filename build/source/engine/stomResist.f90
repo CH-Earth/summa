@@ -19,48 +19,74 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module stomResist_module
+
+! data types
 USE nrtype
+
 ! physical constants
 USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
 USE multiconst, only: Tfreeze  ! freezing point of pure water (K)
 USE multiconst, only: ave_slp  ! standard pressure (Pa)
-! conversion functions
-USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,            & ! data vector (i4b)
+                    var_d,            & ! data vector (dp)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! indices that define elements of the data structures
+USE var_lookup,only:iLookTYPE           ! named variables for structure elements
+USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+USE var_lookup,only:iLookFORCE          ! named variables for structure elements
+USE var_lookup,only:iLookPARAM          ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
+
 ! look-up values for the stomatal resistance formulation
 USE mDecisions_module,only:  &
  simpleResistance,           & ! simple resistance formulation
  BallBerryFlex,              & ! flexible Ball-Berry scheme
  BallBerry,                  & ! Ball-Berry (from Noah-MP)
  Jarvis                        ! Jarvis (from Noah-MP)
+
 ! look-up values for the leaf temperature controls on photosynthesis + stomatal resistance
 USE mDecisions_module,only:  &
  q10Func,                    & ! the q10 function used in CLM4 and Noah-MP
  Arrhenius                     ! the Arrhenius functions used in CLM5 and Cable
+
 ! look-up values for the humidity controls on stomatal resistance
 USE mDecisions_module,only:  &
  humidLeafSurface,           & ! humidity at the leaf surface [Bonan et al., 2011]
  scaledHyperbolic              ! scaled hyperbolic function [Leuning et al., 1995]
+
 ! look-up values for the electron transport function, dependence of photosynthesis on PAR
 USE mDecisions_module,only:  &
  linear,                     & ! linear function used in CLM4 and Noah-MP
  linearJmax,                 & ! linear jmax function used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
  quadraticJmax                 ! the quadratic Jmax function, used in SSiB and CLM5
+
 ! look-up values for the CO2 compensation point to calculate stomatal resistance
 USE mDecisions_module,only:  &
  origBWB,                    & ! the original BWB function
  Leuning                       ! the Leuning function
+
 ! look up values to define the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
 USE mDecisions_module,only:  &
  NoahMPsolution,             & ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
  newtonRaphson                 ! full Newton-Raphson iterative solution to convergence
+
 ! look up values to define the controls on carbon assimilation
 USE mDecisions_module,only:  &
  colimitation,               & ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
  minFunc                       ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+
 ! look up values to define the scaling of photosynthesis from the leaf to the canopy
 USE mDecisions_module,only:  &
  constantScaling,            & ! constant scaling factor
  laiScaling                    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
+
+! privacy
 implicit none
 private
 public::stomResist
@@ -97,19 +123,8 @@ contains
                        err,message)                           ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
+ ! conversion functions
+ USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(dp),intent(in)             :: scalarVegetationTemp      ! vegetation temperature (K)
@@ -339,17 +354,6 @@ contains
                             err,message)                           ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(dp),intent(in)             :: scalarVegetationTemp       ! vegetation temperature (K)

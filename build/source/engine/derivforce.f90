@@ -19,35 +19,47 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module derivforce_module
+
+! data types
 USE nrtype
+USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
+
+! model constants
+USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
+USE multiconst,only:secprday                                ! number of seconds in a day
+USE multiconst,only:secprhour                               ! number of seconds in an hour
+USE multiconst,only:minprhour                               ! number of minutes in an hour
+
+! global time information
+USE globalData,only:refJulday                               ! reference time (fractional julian days)
+USE globalData,only:data_step                               ! length of the data step (s)
+
+! model decisions
+USE globalData,only:model_decisions                         ! model decision structure
+USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
+
+! named variables for structure elements
+USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
+USE var_lookup,only:iLookPARAM,iLookFORCE                   ! named variables for structure elements
+USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX           ! named variables for structure elements
+
 ! look-up values for the choice of snow albedo options
 USE mDecisions_module,only:  &
  constDens,              &    ! Constant new snow density
  anderson,               &    ! Anderson 1976
  hedAndPom,              &    ! Hedstrom and Pomeroy (1998), expoential increase
  pahaut_76                    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+
+! privacy
 implicit none
 private
 public::derivforce
 contains
 
-
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
  subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,err,message)
- USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
- USE multiconst,only:secprday                                ! number of seconds in a day
- USE multiconst,only:secprhour                               ! number of seconds in an hour
- USE multiconst,only:minprhour                               ! number of minutes in an hour
- USE globalData,only:refJulday                               ! reference time (fractional julian days)
- USE globalData,only:data_step                               ! length of the data step (s)
- USE globalData,only:model_decisions                         ! model decision structure
- USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
- USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
- USE var_lookup,only:iLookPARAM,iLookFORCE                   ! named variables for structure elements
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions

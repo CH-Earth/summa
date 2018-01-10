@@ -19,26 +19,47 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module vegPhenlgy_module
+
 ! data types
 USE nrtype
+
+! global variables
+USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
+USE globalData,only:fracJulday          ! fractional julian days since the start of year
+USE globalData,only:yearLength          ! number of days in the current year
+
+! provide access to the derived types to define the data structures
+USE data_types,only:&
+                    var_i,            & ! data vector (i4b)
+                    var_d,            & ! data vector (dp)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookTYPE,iLookATTR,iLookPARAM,iLookDIAG,iLookPROG  ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
+
 ! look-up values for the boundary conditions
 USE mDecisions_module,only:      &
- prescribedHead,                  &         ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
- prescribedTemp,                  &         ! prescribed temperature
- zeroFlux                                   ! zero flux
+ prescribedHead,                 &      ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+ prescribedTemp,                 &      ! prescribed temperature
+ zeroFlux                               ! zero flux
+
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:      &
- noah_mp,                        &         ! full Noah-MP implementation (including albedo)
- CLM_2stream,                    &         ! CLM 2-stream model (see CLM documentation)
- UEB_2stream,                    &         ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
- NL_scatter,                     &         ! Simplified method Nijssen and Lettenmaier (JGR 1999)
- BeersLaw                                  ! Beer's Law (as implemented in VIC)
+ noah_mp,                        &      ! full Noah-MP implementation (including albedo)
+ CLM_2stream,                    &      ! CLM 2-stream model (see CLM documentation)
+ UEB_2stream,                    &      ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+ NL_scatter,                     &      ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+ BeersLaw                               ! Beer's Law (as implemented in VIC)
+
+! privacy
 implicit none
 private
 public::vegPhenlgy
 ! algorithmic parameters
 real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: verySmall=1.e-6_dp      ! used as an additive constant to check if substantial difference among real numbers
 contains
 
 
@@ -59,21 +80,8 @@ contains
                        exposedVAI,                  & ! intent(out): exposed vegetation area index (LAI + SAI)
                        err,message)                   ! intent(out): error control
  ! -------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookTYPE,iLookATTR,iLookPARAM,iLookDIAG,iLookPROG  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
  ! modules
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
- ! common variables
- USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
- USE globalData,only:fracJulday             ! fractional julian days since the start of year
- USE globalData,only:yearLength             ! number of days in the current year
  implicit none
  ! -------------------------------------------------------------------------------------------------
  ! input/output

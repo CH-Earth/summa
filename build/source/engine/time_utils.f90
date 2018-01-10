@@ -19,7 +19,14 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module time_utils_module
+
+! data types
 USE nrtype
+
+! model constants
+USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
+
+! privacy
 implicit none
 private
 public::extractTime
@@ -134,7 +141,6 @@ contains
  ! ***************************************************************************************
  subroutine compjulday(iyyy,mm,id,ih,imin,dsec,&  ! input
                        juldayss,err,message)      ! output
- USE multiconst,only:secprday,secprhour,secprmin  ! seconds in an (day, hour, minute)
  implicit none
  ! input variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
@@ -184,7 +190,6 @@ contains
 
  subroutine compcalday(julday,                              & !input
                        iyyy,mm,id,ih,imin,dsec,err,message)   !output
- USE multiconst,only:secprmin  ! seconds in an (day, hour, minute)
  implicit none
 
  ! input variables	
@@ -269,7 +274,6 @@ contains
  ! public function elapsedSec: calculate difference of two time marks obtained by date_and_time()
  ! ***************************************************************************************
  function elapsedSec(startTime, endTime)
- USE multiconst,only            :  secprday,secprhour,secprmin        ! seconds in an (day, hour, minute)
  integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
  real(dp)                       :: elapsedSec                         ! elapsed time in seconds
  ! local variables
