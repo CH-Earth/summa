@@ -156,6 +156,9 @@ contains
      tstat(iFreq) = -huge(tstat(iFreq))             !     - resets stat at beginning of period 
     case (iLookStat%mode)                           ! * mode over period (does not work)       
      tstat(iFreq) = realMissing
+    case default
+     message=trim(message)//'unable to identify type of statistic [reset]'
+     err=20; return
     ! -------------------------------------------------------------------------------------
    end select
   end if
@@ -184,6 +187,9 @@ contains
     if (tdata>tstat(iFreq)) tstat(iFreq) = tdata      !     - check value 
    case (iLookStat%mode)                              ! * mode over period (does not work)       
     tstat(iFreq) = realMissing
+   case default
+    message=trim(message)//'unable to identify type of statistic [calculating stats]'
+    err=20; return
    ! -------------------------------------------------------------------------------------
   end select
  end do ! looping through output frequencies
@@ -202,6 +208,7 @@ contains
     case (iLookStat%vari)                              ! * variance over period
      tstat(maxVarFreq+iFreq) = tstat(maxVarFreq+1)/statCounter(iFreq)            ! E[X] term
      tstat(iFreq) = tstat(iFreq)/statCounter(iFreq) - tstat(maxVarFreq+iFreq)**2 ! full variance
+    case default ! do nothing -- don't need finalization for most stats
     ! -------------------------------------------------------------------------------------
    end select
   end if
