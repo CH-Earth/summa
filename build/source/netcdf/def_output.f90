@@ -21,8 +21,8 @@
 module def_output_module
 USE netcdf
 USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
-USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
 USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
+USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
 implicit none
 private
 public :: def_output
@@ -74,7 +74,9 @@ contains
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
  USE globalData,only:model_decisions                          ! model decisions
  USE globalData,only:ncid
- USE globalData,only:nFreq,outFreq                            ! output frequencies
+ USE globalData,only:outFreq                                  ! output frequencies
+ USE var_lookup,only:maxVarFreq                               ! # of available output frequencies
+ USE get_ixname_module,only:get_freqName                      ! get name of frequency from frequency index
  ! declare dummy variables
  character(*),intent(in)     :: summaVersion                  ! SUMMA version
  character(*),intent(in)     :: buildTime                     ! build time
@@ -91,23 +93,28 @@ contains
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types
  integer(i4b),parameter      :: modelTime=1                   ! model timestep output frequency
- character(len=5)            :: fstring                       ! string to hold model output freuqnecy
- character(len=1000)         :: fname                         ! temporary filename
+ character(len=32)           :: fstring                       ! string to hold model output freuqnecy
+ character(len=1024)         :: fname                         ! temporary filename
  character(len=256)          :: cmessage                      ! temporary error message
 
  ! initialize errors
  err=0; message="def_output/"
 
+ ! initialize netcdf file id
+ ncid(:) = integerMissing
+
  ! create initial file
  ! each file will have a master name with a frequency appended at the end:
- ! e.g., xxxxxxxxx_1.nc  (for output at every model timestep)
- ! e.g., xxxxxxxxx_24.nc (for daily output with hourly model timestep)
- do iFreq = 1,nFreq
+ ! e.g., xxxxxxxxx_timestep.nc  (for output at every model timestep)
+ ! e.g., xxxxxxxxx_monthly.nc   (for monthly model output)
+ do iFreq=1,maxvarFreq
+
+  ! skip frequencies that are not needed
+  if(.not.outFreq(iFreq)) cycle
 
   ! create file
-  write(fstring,'(i5)') outFreq(iFreq)
-  fstring = adjustl(fstring)
-  fname = trim(infile)//'_'//trim(fstring)//'.nc'
+  fstring = get_freqName(iFreq)
+  fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   print "(A,A)",'Created output file:',trim(fname)
@@ -131,9 +138,6 @@ contains
    end if
   end do
 
-  ! ensure that all time variables are written to all files
-  time_meta(:)%outFreq = iFreq
-
   ! define variables
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
@@ -143,7 +147,7 @@ contains
     case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
     case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
     case('deriv'); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
-    case('time' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta,nf90_int,    err,cmessage)  ! model derivatives
+    case('time' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,   err,cmessage)  ! model derivatives
     case('forc' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data
     case('prog' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostics
     case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
@@ -157,6 +161,7 @@ contains
 
   ! write HRU dimension for each output file
   call write_hru_dim(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
  end do ! iFreq
 
  end subroutine def_output
@@ -250,7 +255,7 @@ contains
  USE var_lookup,only:iLookvarType                   ! look up structure for variable typed
  USE data_types,only:var_info                       ! derived type for metaData
  USE var_lookup,only:iLookStat                      ! index into stats structure
- USE var_lookup,only:maxVarStat                     ! # of available stats
+ USE var_lookup,only:maxVarFreq                     ! # of available output frequencies
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
  implicit none
@@ -266,10 +271,9 @@ contains
  character(*),intent(out)      :: message           ! error message
  ! local
  integer(i4b)                  :: iVar              ! variable index
+ integer(i4b)                  :: iVarId            ! netcdf variable index
  integer(i4b)                  :: iStat             ! stat index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
- integer(i4b)                  :: iVarId            ! variable ID
-! integer                       :: index             ! intrinsic function to find substring index
  integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
@@ -284,16 +288,19 @@ contains
 
   ! check that the variable is desired
   if (metaData(iVar)%varType==iLookvarType%unknown) cycle
-  if ((iFreq.ne.metaData(iVar)%outFreq).and.(metaData(iVar)%varName.ne.'time')) cycle
+  if (metaData(iVar)%statIndex(iFreq)==integerMissing.and.metaData(iVar)%varName/='time') cycle
+
+  ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
 
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then
    call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; end if
 
-  ! standard case
+  ! standard case (not time)
   else
    select case(metaData(iVar)%varType)
+
     ! (scalar variable -- many different types)
     case(iLookvarType%scalarv)
      if(spatialDesire==needGRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage)
@@ -326,60 +333,58 @@ contains
    err=20; return
   end if
 
-  ! loop through statistics
-  do iStat=1,maxvarStat
+  ! ---------- create variables -----------------------------------------------------------------
 
-   ! if requested
-   if ((.not.metaData(iVar)%statFlag(iStat)).and.(metaData(iVar)%varName.ne.'time'))  cycle
-   if ((metaData(iVar)%varName=='time').and.(iStat.ne.iLookStat%inst)) cycle
+  ! define statistics index
+  iStat = metaData(iVar)%statIndex(iFreq)
 
-   ! create full variable name
+  ! create full variable name (append statistics info(
+  if(iStat==iLookStat%inst)then
    catName = trim(metaData(iVar)%varName)
-   if (iStat.ne.iLookStat%inst) catName = trim(metaData(iVar)%varName)//'_'//trim(get_statName(iStat))
+  else
+   catName = trim(metaData(iVar)%varName)//'_'//trim(get_statName(iStat))
+  endif
 
-   ! define variable
-   err = nf90_def_var(ncid,trim(catName),ivtype,dimensionIDs,iVarId)
-   call netcdf_err(err,message); if (err/=0) return
+  ! define variable
+  err = nf90_def_var(ncid,trim(catName),ivtype,dimensionIDs,iVarId)
+  call netcdf_err(err,message); if (err/=0) return
 
-   ! add parameter description
-   catName = trim(metaData(iVar)%vardesc)//' ('//trim(get_statName(iStat))
-   catName = trim(catName)//')'
-   err = nf90_put_att(ncid,iVarId,'long_name',trim(catName))
-   call netcdf_err(err,message); if (err/=0) return
+  ! add parameter description
+  catName = trim(metaData(iVar)%vardesc)//' ('//trim(get_statName(iStat))//')'
+  err = nf90_put_att(ncid,iVarId,'long_name',trim(catName))
+  call netcdf_err(err,message); if (err/=0) return
 
-   ! add parameter units
-   catName = trim(metaData(iVar)%varunit)
-   if (iStat==iLookStat%totl) then
+  ! modify units for the summation
+  catName = trim(metaData(iVar)%varunit)
+  if (iStat==iLookStat%totl) then
 
-    ! make sure that the units of this varaible allow for integration
-    if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then
-     err=20
-     message=trim(message)//'trying to integrate a non-time variable: '//trim(metaData(iVar)%varName)//' - units: '//trim(catName)
-     return
-    endif
+   ! make sure that the units of this varaible allow for integration
+   if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then
+    message=trim(message)//'trying to integrate a non-time variable: '//trim(metaData(iVar)%varName)//' - units: '//trim(catName)
+    err=20; return
+   endif
 
-    ! change to integrated units
-    if (index(catName,'s-1')>0)       then
-     timePosition = index(catName,'s-1')
-     catName(timePosition:(timePosition+3)) = '   '
-    elseif (index(catName,'s-2')>0)   then
-     timePosition = index(catName,'s-2')
-     catName(timePosition:(timePosition+3)) = 's-1'
-    elseif (index(catName,'W m-2')>0) then
-     timePosition = index(catName,'W')
-     catName(timePosition:(timePosition+1)) = 'J'
-    end if
+   ! change to integrated units
+   if (index(catName,'s-1')>0)       then
+    timePosition = index(catName,'s-1')
+    catName(timePosition:(timePosition+3)) = '   '
+   elseif (index(catName,'s-2')>0)   then
+    timePosition = index(catName,'s-2')
+    catName(timePosition:(timePosition+3)) = 's-1'
+   elseif (index(catName,'W m-2')>0) then
+    timePosition = index(catName,'W')
+    catName(timePosition:(timePosition+1)) = 'J'
+   end if
 
-   end if  ! if an integrated flux
+  end if  ! if an integrated flux
 
-   ! add attribute
-   err = nf90_put_att(ncid,iVarId,'units',trim(catName))
-   call netcdf_err(err,message); if (err/=0) return
+  ! add units attribute
+  err = nf90_put_att(ncid,iVarId,'units',trim(catName))
+  call netcdf_err(err,message); if (err/=0) return
 
-   ! add file info to metadata structure
-   metaData(iVar)%ncVarID(iStat) = iVarID
+  ! add NetCDF variable ID to metadata structure
+  metaData(iVar)%ncVarID(iFreq) = iVarID
 
-  end do ! looping through statistics
  end do  ! looping through variables
 
  ! close output file

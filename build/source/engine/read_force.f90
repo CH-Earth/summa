@@ -95,6 +95,7 @@ contains
  integer(i4b)                      :: iline            ! loop through lines in the file
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
+ real(dp),parameter                :: smallOffset=1.e-8_dp ! small offset (units=days) to force ih=0 at the start of the day
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  real(dp),save                     :: refJulday_data   ! reference julian day for the data file (can differ from refJulday)
@@ -244,7 +245,8 @@ contains
   end if
 
   ! convert julian day to time vector
-  call compcalday(dataJulDay,                     & ! input  = julian day
+  ! NOTE: use small offset to force ih=0 at the start of the day
+  call compcalday(dataJulDay+smallOffset,         & ! input  = julian day
                   time_data(iLookTIME%iyyy),      & ! output = year
                   time_data(iLookTIME%im),        & ! output = month
                   time_data(iLookTIME%id),        & ! output = day
