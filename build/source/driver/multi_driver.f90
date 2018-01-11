@@ -119,6 +119,7 @@ USE globalData,only:urbanVegCategory                        ! vegetation categor
 USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
 USE globalData,only:globalPrintFlag                         ! global print flag
 USE globalData,only:integerMissing                          ! missing integer value
+USE globalData,only:yes,no                                  ! .true. and .false.
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
 USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
@@ -223,8 +224,6 @@ integer(i4b),parameter           :: newFileEveryOct1=1002      ! create a new fi
 integer(i4b)                     :: newOutputFile=noNewFiles   ! option for new output files
 logical(lgt)                     :: defNewOutputFile=.false.   ! flag to define new output files
 ! define model control structures
-integer(i4b),parameter           :: no=0                       ! .false.
-integer(i4b),parameter           :: yes=1                      ! .true.
 logical(lgt)                     :: computeVegFluxFlag         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 type(hru_i),allocatable          :: computeVegFlux(:)          ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 type(hru_d),allocatable          :: dt_init(:)                 ! used to initialize the length of the sub-step for each HRU
@@ -825,7 +824,7 @@ do modelTimeStep=1,numtim
  ! *** model simulation
  ! ****************************************************************************
 
- ! loopp through GRUs
+ ! loop through GRUs
  do iGRU=1,nGRU
 
   ! simulation for a single GRU

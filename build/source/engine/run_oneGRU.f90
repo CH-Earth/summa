@@ -27,12 +27,17 @@ USE nrtype
 USE globalData,only:realMissing            ! real missing value
 USE globalData,only:integerMissing         ! integer missing value
 
+! access integers to define "yes" and "no"
+USE globalData,only:yes,no                 ! .true. and .false.
+
 ! access the mapping betweeen GRUs and HRUs
 USE globalData,only:gru_struc              ! gru-hru mapping structures
 
 ! access vegetation data
 USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
+USE globalData,only:overwriteRSMIN         ! flag to overwrite RSMIN
+USE globalData,only:maxSoilLayers          ! Maximum Number of Soil Layers
 
 ! provide access to Noah-MP parameters
 ! NOTE: these parameters are modified
@@ -159,12 +164,8 @@ contains
  integer(i4b)                            :: iHRU                   ! HRU index
  ! HRU initialization
  real(dp)                                :: fracHRU                ! fractional area of a given HRU (-)
- logical(lgt)            , parameter     :: overwriteRSMIN=.false. ! flag to overwrite RSMIN
- integer(i4b)            , parameter     :: maxSoilLayers=10       ! Maximum Number of Soil Layers
  real(dp)                , allocatable   :: zSoilReverseSign(:)    ! height at bottom of each soil layer, negative downwards (m)
  ! run the model
- integer(i4b),parameter                  :: no=0                   ! .false.
- integer(i4b),parameter                  :: yes=1                  ! .true.
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! compute fluxes across HRUs
  integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit 
