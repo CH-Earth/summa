@@ -19,12 +19,26 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module convE2Temp_module
+
+! data types
 USE nrtype
+USE data_types,only:var_dlength                    ! data vector with variable length dimension (dp): x%var(:)%dat(:)
+
+! constants
+USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)
+                      Cp_soil,Cp_water,Cp_ice,&    ! specific heat of soil, water and ice (J kg-1 K-1)
+                      LH_fus                       ! latent heat of fusion (J kg-1)
+
+! indices within parameter structure
+USE var_lookup,only:iLookPARAM                     ! named variables to define structure element
+
+! privacy
 implicit none
 private
 public::E2T_lookup
 public::E2T_nosoil
 public::temp2ethpy
+
 ! define the look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter            :: nlook=10001       ! number of elements in the lookup table
 real(dp),dimension(nlook),public  :: E_lookup          ! enthalpy values (J kg-1)
@@ -38,9 +52,6 @@ contains
  subroutine E2T_lookup(mpar_data,err,message)
  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
- USE multiconst,only:Tfreeze                           ! freezing point (K)
- USE var_lookup,only:iLookPARAM                        ! named variables to define structure element
- USE data_types,only:var_dlength                       ! data vector with variable length dimension (dp): x%var(:)%dat(:)
  implicit none
  ! declare dummy variables
  type(var_dlength),intent(in)  :: mpar_data            ! model parameters
@@ -86,7 +97,6 @@ contains
  ! ************************************************************************************************************************
  subroutine E2T_nosoil(Ey,BulkDenWater,fc_param,Tk,err,message)
  ! compute temperature based on enthalpy -- appropriate when no dry mass, as in snow
- USE multiconst, only: Cp_ice ! specific heat of ice (J kg-1 K-1)
  implicit none
  ! declare dummy variables
  real(dp),intent(in)      :: Ey            ! total enthalpy (J m-3)
@@ -189,9 +199,6 @@ contains
  function temp2ethpy(Tk,BulkDenWater,fc_param)
  ! used to compute enthalpy based on temperature and total mass in layer (snow or soil)
  ! NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
- USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)
-                       Cp_soil,Cp_water,Cp_ice,&    ! specific heat of soil, water and ice (J kg-1 K-1)
-                       LH_fus                       ! latent heat of fusion (J kg-1)
  implicit none
  ! declare dummy variables
  real(dp),intent(in)  :: Tk            ! layer temperature (K)

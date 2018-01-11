@@ -23,6 +23,9 @@ module indexState_module
 ! data types
 USE nrtype
 
+! derived types to define the data structures
+USE data_types,only:var_ilength     ! data vector with variable length dimension (i4b)
+
 ! missing data
 USE globalData,only:integerMissing  ! missing integer
 
@@ -43,21 +46,13 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
-! provide access to the derived types to define the data structures
-USE data_types,only:var_ilength     ! data vector with variable length dimension (i4b)
-
-! provide access to the metadata
+! metadata
 USE globalData,only:indx_meta       ! metadata for the variables in the index structure
 
-! provide access to indices that define elements of the data structures
+! indices that define elements of the data structures
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
-! provide access to the missing f2008 functions
-USE f2008funcs_module,only:findIndex              ! finds the index of the first value within a vector
-
-! provide access to the numerical recipes utility modules
-USE nr_utility_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
-
+! privacy
 implicit none
 private
 public::indexState
@@ -73,6 +68,9 @@ contains
                        nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
                        indx_data,               & ! intent(inout): indices defining model states and layers
                        err,message)               ! intent(out):   error control
+ ! provide access to the numerical recipes utility modules
+ USE nr_utility_module,only:arth                           ! creates a sequence of numbers (start, incr, n)
+ implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
@@ -260,6 +258,10 @@ contains
                        nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
                        indx_data,                   & ! intent(inout) : index data structure
                        err,message)                   ! intent(out)   : error control
+ ! external modules 
+ USE f2008funcs_module,only:findIndex                 ! finds the index of the first value within a vector
+ USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
+ implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
  logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset)

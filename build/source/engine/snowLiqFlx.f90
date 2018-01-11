@@ -28,6 +28,18 @@ USE multiconst,only:iden_ice,iden_water       ! intrinsic density of ice and wat
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
+! named variables
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+
+! data types
+USE data_types,only:var_d           ! x%var(:)       (dp)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
+
+! privacy
 implicit none
 private
 public::snowLiqFlx
@@ -57,15 +69,6 @@ contains
                        iLayerLiqFluxSnowDeriv,  & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
                        ! output: error control
                        err,message)               ! intent(out):   error control
- ! named variables
- USE var_lookup,only:iLookINDEX      ! named variables for structure elements
- USE var_lookup,only:iLookPARAM      ! named variables for structure elements
- USE var_lookup,only:iLookPROG       ! named variables for structure elements
- USE var_lookup,only:iLookDIAG       ! named variables for structure elements
- ! data types
- USE data_types,only:var_d           ! x%var(:)       (dp)
- USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
- USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
  implicit none
  ! input: model control
  integer(i4b),intent(in)         :: nSnow                      ! number of snow layers

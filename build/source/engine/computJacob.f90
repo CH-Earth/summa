@@ -23,6 +23,17 @@ module computJacob_module
 ! data types
 USE nrtype
 
+! derived types to define the data structures
+USE data_types,only:&
+                    var_ilength,  & ! data vector with variable length dimension (i4b)
+                    var_dlength     ! data vector with variable length dimension (dp)
+
+! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
+
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
@@ -61,11 +72,6 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
-! provide access to the derived types to define the data structures
-USE data_types,only:&
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
-
 implicit none
 ! define constants
 real(dp),parameter     :: verySmall=tiny(1.0_dp)     ! a very small number
@@ -98,11 +104,6 @@ contains
                         aJac,                       & ! intent(out):   Jacobian matrix
                         ! output: error control
                         err,message)                  ! intent(out):   error code and error message
- ! named variables for structure elements
- USE var_lookup,only:iLookPROG                        ! named variables for structure elements
- USE var_lookup,only:iLookDIAG                        ! named variables for structure elements
- USE var_lookup,only:iLookINDEX                       ! named variables for structure elements
- USE var_lookup,only:iLookDERIV                       ! named variables for structure elements
  ! -----------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: model control

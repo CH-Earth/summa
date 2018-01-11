@@ -69,6 +69,15 @@ USE data_types,only:&
                     var_dlength,  & ! data vector with variable length dimension (dp)
                     model_options   ! defines the model decisions
 
+! indices that define elements of the data structures
+USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
+USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
+USE var_lookup,only:iLookPROG                    ! named variables for structure elements
+USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
+USE var_lookup,only:iLookDIAG                    ! named variables for structure elements
+USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
+USE var_lookup,only:iLookDERIV                   ! named variables for structure elements
+
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:  &
  localColumn,                & ! separate groundwater representation in each local soil column
@@ -140,14 +149,6 @@ contains
  USE computFlux_module, only:soilCmpres           ! compute soil compression
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
  USE computResid_module,only:computResid          ! compute residuals given a state vector
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
- USE var_lookup,only:iLookPROG                    ! named variables for structure elements
- USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
- USE var_lookup,only:iLookDIAG                    ! named variables for structure elements
- USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
- USE var_lookup,only:iLookDERIV                   ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------

@@ -23,7 +23,25 @@ module computFlux_module
 ! data types
 USE nrtype
 
-! access missing values
+! provide access to the derived types to define the data structures
+USE data_types,only:&
+                    var_i,        & ! data vector (i4b)
+                    var_d,        & ! data vector (dp)
+                    var_ilength,  & ! data vector with variable length dimension (i4b)
+                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    model_options   ! defines the model decisions
+
+! indices that define elements of the data structures
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookFORCE      ! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
+
+! missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
@@ -50,14 +68,6 @@ USE multiconst,only:&
                     iden_air,     & ! intrinsic density of air             (kg m-3)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
-
-! provide access to the derived types to define the data structures
-USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
-                    model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:       &
@@ -132,28 +142,13 @@ contains
                        fluxVec,                 & ! intent(out):   flux vector (mixed units)
                        ! output: error control
                        err,message)               ! intent(out):   error code and error message
- ! provide access to soil utilities
- !USE snow_utils_module,only:dFracLiq_dTk              ! differentiate the freezing curve w.r.t. temperature (snow)
- !USE soil_utils_module,only:dTheta_dPsi               ! derivative in the soil water characteristic (soil)
- !USE soil_utils_module,only:dPsi_dTheta               ! derivative in the soil water characteristic (soil)
- !USE soil_utils_module,only:dTheta_dTk                ! differentiate the freezing curve w.r.t. temperature (soil)
- !USE soil_utils_module,only:matricHead                ! compute the matric head based on volumetric water content
  ! provide access to flux subroutines
- USE vegnrgflux_module,only:vegNrgFlux            ! compute energy fluxes over vegetation
- USE ssdnrgflux_module,only:ssdNrgFlux            ! compute energy fluxes throughout the snow and soil subdomains
- USE vegliqflux_module,only:vegLiqFlux            ! compute liquid water fluxes through vegetation
- USE snowliqflx_module,only:snowLiqflx            ! compute liquid water fluxes through snow
- USE soilliqflx_module,only:soilLiqflx            ! compute liquid water fluxes through soil
+ USE vegNrgFlux_module,only:vegNrgFlux            ! compute energy fluxes over vegetation
+ USE ssdNrgFlux_module,only:ssdNrgFlux            ! compute energy fluxes throughout the snow and soil subdomains
+ USE vegLiqFlux_module,only:vegLiqFlux            ! compute liquid water fluxes through vegetation
+ USE snowLiqFlx_module,only:snowLiqflx            ! compute liquid water fluxes through snow
+ USE soilLiqFlx_module,only:soilLiqflx            ! compute liquid water fluxes through soil
  USE groundwatr_module,only:groundwatr            ! compute the baseflow flux
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- USE var_lookup,only:iLookPARAM                   ! named variables for structure elements
- USE var_lookup,only:iLookFORCE                   ! named variables for structure elements
- USE var_lookup,only:iLookPROG                    ! named variables for structure elements
- USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
- USE var_lookup,only:iLookDIAG                    ! named variables for structure elements
- USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
- USE var_lookup,only:iLookDERIV                   ! named variables for structure elements
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
