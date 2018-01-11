@@ -116,8 +116,8 @@ MODULE globalData
                    struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
 
  ! define named variables for "yes" and "no"
- integer(i4b),parameter                      :: no=0                    ! .false.
- integer(i4b),parameter                      :: yes=1                   ! .true.
+ integer(i4b),parameter,public               :: no=0                    ! .false.
+ integer(i4b),parameter,public               :: yes=1                   ! .true.
 
  ! define named variables to describe the domain type
  integer(i4b),parameter,public               :: iname_cas =1000         ! named variable to denote a canopy air space state variable
