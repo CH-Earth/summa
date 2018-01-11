@@ -833,6 +833,7 @@ do modelTimeStep=1,numtim
                   ! model control
                   iGRU,               & ! intent(in):    GRU index
                   dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
+                  gru_struc,          & ! intent(inout): mapping between the GRUs and the HRUs
                   computeVegFlux,     & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                   ! data structures (input)
                   timeStruct,         & ! intent(in):    model time data

@@ -27,24 +27,16 @@ USE nrtype
 USE globalData,only:realMissing            ! real missing value
 USE globalData,only:integerMissing         ! integer missing value
 
-! access the mapping betweeen GRUs and HRUs
-USE globalData,only:gru_struc              ! gru-hru mapping structures
-
 ! access vegetation data
-USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
-
-! provide access to Noah-MP parameters
-! NOTE: these parameters are modified
-USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
-USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB     ! height at the top and bottom of vegetation (vegType)
-USE noahmp_globals,only:RSMIN              ! minimum stomatal resistance (vegType)
 
 ! provide access to Noah-MP constants
 USE module_sf_noahmplsm,only:isWater       ! parameter for water land cover type
 
 ! define data types
 USE data_types,only:&
+                    ! mapping
+                    gru2hru_map,         & ! mapping between the GRUs and HRUs
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
                     var_d,               & ! x%var(:)            (dp)
@@ -90,6 +82,23 @@ USE mDecisions_module,only:&               ! look-up values for the choice of me
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
 
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+! ----- global variables that are modified ------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+
+! Noah-MP parameters
+USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
+USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB     ! height at the top and bottom of vegetation (vegType)
+USE noahmp_globals,only:RSMIN              ! minimum stomatal resistance (vegType)
+
+! urban vegetation category (could be local)
+USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
+
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
 public::run_oneGRU
@@ -105,6 +114,7 @@ contains
                        ! model control
                        iGRU,               & ! intent(in):    GRU index
                        dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
+                       gru_struc,          & ! intent(inout): mapping between the GRUs and the HRUs
                        ixComputeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                        ! data structures (input)
                        timeStruct,         & ! intent(in):    model time data
@@ -135,6 +145,7 @@ contains
  ! model control
  integer(i4b)            , intent(in)    :: iGRU                   ! GRU index
  type(hru_d)             , intent(inout) :: dt_init(:)             ! used to initialize the length of the sub-step for each HRU
+ type(gru2hru_map)       , intent(inout) :: gru_struc(:)           ! mapping between the GRUs and the HRUs
  type(hru_i)             , intent(inout) :: ixComputeVegFlux(:)    ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
 
  ! data structures (input)
