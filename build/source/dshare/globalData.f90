@@ -115,6 +115,10 @@ MODULE globalData
                    struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
                    struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
 
+ ! define named variables for "yes" and "no"
+ integer(i4b),parameter,public               :: no=0                    ! .false.
+ integer(i4b),parameter,public               :: yes=1                   ! .true.
+
  ! define named variables to describe the domain type
  integer(i4b),parameter,public               :: iname_cas =1000         ! named variable to denote a canopy air space state variable
  integer(i4b),parameter,public               :: iname_veg =1001         ! named variable to denote a vegetation state variable
@@ -156,6 +160,11 @@ MODULE globalData
  ! define mapping structures
  type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map
  type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map
+
+ ! define variables used for the vegetation phenology
+ real(dp),dimension(12), save     , public   :: greenVegFrac_monthly    ! fraction of green vegetation in each month (0-1)
+ logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.  ! flag to overwrite RSMIN
+ integer(i4b)          , parameter, public   :: maxSoilLayers=10000     ! Maximum Number of Soil Layers
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps

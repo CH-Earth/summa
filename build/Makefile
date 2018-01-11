@@ -199,7 +199,8 @@ SUMMA_SOLVER= \
 		systemSolv.f90 \
 		varSubstep.f90 \
 		opSplittin.f90 \
-		coupled_em.f90
+		coupled_em.f90 \
+		run_oneGRU.f90
 SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
 
 # Define routines for SUMMA preliminaries

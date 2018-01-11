@@ -154,8 +154,9 @@ contains
      tstat(iFreq) = huge(tstat(iFreq))              !     - resets stat at beginning of period 
     case (iLookStat%maxi)                           ! * maximum over period                    
      tstat(iFreq) = -huge(tstat(iFreq))             !     - resets stat at beginning of period 
-    case (iLookStat%mode)                           ! * mode over period (does not work)       
-     tstat(iFreq) = realMissing
+    case (iLookStat%mode)                           ! * mode over period      
+     tstat(iFreq) = realMissing                     !     - does not work
+    case (iLookStat%inst)                           ! * instantaneous -- no need to reset
     case default
      message=trim(message)//'unable to identify type of statistic [reset]'
      err=20; return
