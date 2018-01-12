@@ -53,6 +53,7 @@ USE var_lookup,only:iLookPARAM             ! look-up values for local column mod
 ! provide access to the named variables that describe elements of variable structures
 USE var_lookup,only:iLookPROG              ! look-up values for local column model prognostic (state) variables
 USE var_lookup,only:iLookDIAG              ! look-up values for local column model diagnostic variables
+USE var_lookup,only:iLookINDEX             ! look-up values for local column index variables
 
 ! provide access to model decisions
 USE globalData,only:model_decisions        ! model decision structure
@@ -215,6 +216,11 @@ contains
                  ! error control
                  err,message)        ! intent(out): error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+ ! update the number of layers
+ nSnow   = indxData%var(iLookINDEX%nSnow)%dat(1)     ! number of snow layers
+ nSoil   = indxData%var(iLookINDEX%nSoil)%dat(1)     ! number of soil layers
+ nLayers = indxData%var(iLookINDEX%nLayers)%dat(1)   ! total number of layers
 
  end subroutine run_oneHRU
 
