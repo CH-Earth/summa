@@ -830,23 +830,23 @@ do modelTimeStep=1,numtim
   ! simulation for a single GRU
   call run_oneGRU(&
                   ! model control
-                  iGRU,               & ! intent(in):    GRU index
-                  dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
-                  computeVegFlux,     & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
+                  gru_struc(iGRU),          & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers) 
+                  dt_init(iGRU)%hru,        & ! intent(inout): used to initialize the length of the sub-step for each HRU
+                  computeVegFlux(iGRU)%hru, & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                   ! data structures (input)
-                  timeStruct,         & ! intent(in):    model time data
-                  typeStruct,         & ! intent(in):    local classification of soil veg etc. for each HRU
-                  attrStruct,         & ! intent(in):    local attributes for each HRU
-                  mparStruct,         & ! intent(in):    local model parameters
+                  timeStruct%var,           & ! intent(in):    model time data
+                  typeStruct%gru(iGRU),     & ! intent(in):    local classification of soil veg etc. for each HRU
+                  attrStruct%gru(iGRU),     & ! intent(in):    local attributes for each HRU
+                  mparStruct%gru(iGRU),     & ! intent(in):    local model parameters
                   ! data structures (input-output)
-                  indxStruct,         & ! intent(inout): model indices
-                  forcStruct,         & ! intent(inout): model forcing data
-                  progStruct,         & ! intent(inout): prognostic variables for a local HRU
-                  diagStruct,         & ! intent(inout): diagnostic variables for a local HRU
-                  fluxStruct,         & ! intent(inout): model fluxes for a local HRU
-                  bvarStruct,         & ! intent(inout): basin-average variables
+                  indxStruct%gru(iGRU),     & ! intent(inout): model indices
+                  forcStruct%gru(iGRU),     & ! intent(inout): model forcing data
+                  progStruct%gru(iGRU),     & ! intent(inout): prognostic variables for a local HRU
+                  diagStruct%gru(iGRU),     & ! intent(inout): diagnostic variables for a local HRU
+                  fluxStruct%gru(iGRU),     & ! intent(inout): model fluxes for a local HRU
+                  bvarStruct%gru(iGRU),     & ! intent(inout): basin-average variables
                   ! error control
-                  err,message)         ! intent(out):   error control
+                  err,message)                ! intent(out):   error control
 
   ! error control
   call handle_err(err,message)
