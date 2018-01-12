@@ -57,20 +57,6 @@ USE mDecisions_module,only:&           ! look-up values for the choice of method
 
 ! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
-! ----- global variables that are modified ------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
-
-! Noah-MP parameters
-USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
-USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB     ! height at the top and bottom of vegetation (vegType)
-USE noahmp_globals,only:RSMIN              ! minimum stomatal resistance (vegType)
-
-! urban vegetation category (could be local)
-USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
-
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -87,7 +73,6 @@ contains
                        ! model control
                        gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers) 
                        dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
-                       gru_struc,          & ! intent(inout): mapping between the GRUs and the HRUs
                        ixComputeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                        ! data structures (input)
                        timeVec,            & ! intent(in):    model time data
@@ -108,7 +93,6 @@ contains
 
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
- implicit none
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
  
