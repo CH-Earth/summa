@@ -31,19 +31,12 @@ USE data_types,only:&
                var_dlength                 ! x%var(:)%dat        (dp)
 
 ! access vegetation data
-USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
 USE globalData,only:overwriteRSMIN         ! flag to overwrite RSMIN
 USE globalData,only:maxSoilLayers          ! Maximum Number of Soil Layers
 
 ! provide access to Noah-MP constants
 USE module_sf_noahmplsm,only:isWater       ! parameter for water land cover type
-
-! provide access to Noah-MP parameters
-! NOTE: these parameters are modified
-USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
-USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB     ! height at the top and bottom of vegetation (vegType)
-USE noahmp_globals,only:RSMIN              ! minimum stomatal resistance (vegType)
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE              ! look-up values for classification of veg, soils etc.
@@ -63,6 +56,20 @@ USE var_lookup,only:iLookDECISIONS         ! look-up values for model decisions
 USE mDecisions_module,only:&               ! look-up values for LAI decisions
  monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
  specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+! ----- global variables that are modified ------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+
+! Noah-MP parameters
+USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
+USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB     ! height at the top and bottom of vegetation (vegType)
+USE noahmp_globals,only:RSMIN              ! minimum stomatal resistance (vegType)
+
+! urban vegetation category (could be local)
+USE globalData,only:urbanVegCategory       ! vegetation category for urban areas
 
 implicit none
 private

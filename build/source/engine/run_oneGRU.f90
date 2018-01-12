@@ -55,6 +55,9 @@ USE mDecisions_module,only:&           ! look-up values for the choice of method
  localColumn, & ! separate groundwater representation in each local soil column
  singleBasin    ! single groundwater store over the entire basin
 
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
 public::run_oneGRU
@@ -90,10 +93,11 @@ contains
 
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
- implicit none
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
  
+ implicit none
+
  ! model control
  type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers) 
  real(dp)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU

@@ -37,7 +37,10 @@ USE globalData,only:iname_veg       ! named variables for vegetation
 USE globalData,only:iname_snow      ! named variables for snow
 USE globalData,only:iname_soil      ! named variables for soil
 
-! provide access to the derived types to define the data structures
+! global metadata
+USE globalData,only:flux_meta       ! metadata on the model fluxes
+
+! derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (dp)
@@ -114,7 +117,6 @@ contains
                        err,message)         ! intent(out)   : error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
- USE globalData,only:flux_meta                        ! metadata on the model fluxes
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE systemSolv_module,only:systemSolv                ! solve the system of equations for one time step

@@ -21,10 +21,13 @@
 module soilLiqFlx_module
 ! -----------------------------------------------------------------------------------------------------------
 
-! numerical recipes data types
+! data types
 USE nrtype
+USE data_types,only:var_d                  ! x%var(:)       (dp)
+USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
+USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
 
-! access missing values
+! missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
@@ -39,6 +42,16 @@ USE multiconst,only:&
                     iden_ice,& ! intrinsic density of ice      (kg m-3)
                     iden_water ! intrinsic density of water    (kg m-3)
 
+! named variables
+USE var_lookup,only:iLookPROG              ! named variables for structure elements
+USE var_lookup,only:iLookDIAG              ! named variables for structure elements
+USE var_lookup,only:iLookFLUX              ! named variables for structure elements
+USE var_lookup,only:iLookPARAM             ! named variables for structure elements
+USE var_lookup,only:iLookINDEX             ! named variables for structure elements
+
+! model decisions
+USE globalData,only:model_decisions        ! model decision structure
+USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
 
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:  &
@@ -121,19 +134,6 @@ contains
                        dq_dNrgStateBelow,            & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
                        ! output: error control
                        err,message)                    ! intent(out): error control
- ! model decisions
- USE globalData,only:model_decisions                   ! model decision structure
- USE var_lookup,only:iLookDECISIONS                    ! named variables for elements of the decision structure
- ! named variables
- USE var_lookup,only:iLookPROG              ! named variables for structure elements
- USE var_lookup,only:iLookDIAG              ! named variables for structure elements
- USE var_lookup,only:iLookFLUX              ! named variables for structure elements
- USE var_lookup,only:iLookPARAM             ! named variables for structure elements
- USE var_lookup,only:iLookINDEX             ! named variables for structure elements
- ! data types
- USE data_types,only:var_d                  ! x%var(:)       (dp)
- USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
- USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
  ! utility modules
  USE soil_utils_module,only:volFracLiq      ! compute volumetric fraction of liquid water
  USE soil_utils_module,only:matricHead      ! compute matric head (m)

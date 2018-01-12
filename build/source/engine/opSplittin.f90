@@ -55,6 +55,14 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
+! global metadata
+USE globalData,only:flux_meta                        ! metadata on the model fluxes
+USE globalData,only:diag_meta                        ! metadata on the model diagnostic variables
+USE globalData,only:prog_meta                        ! metadata on the model prognostic variables
+USE globalData,only:deriv_meta                       ! metadata on the model derivatives
+USE globalData,only:flux2state_orig                  ! metadata on flux-to-state mapping (original state variables)
+USE globalData,only:flux2state_liq                   ! metadata on flux-to-state mapping (liquid water state variables)
+
 ! constants
 USE multiconst,only:&
                     gravity,      & ! acceleration of gravity              (m s-2)
@@ -182,12 +190,6 @@ contains
                        err,message)      ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
- USE globalData,only:flux_meta                        ! metadata on the model fluxes
- USE globalData,only:diag_meta                        ! metadata on the model diagnostic variables
- USE globalData,only:prog_meta                        ! metadata on the model prognostic variables
- USE globalData,only:deriv_meta                       ! metadata on the model derivatives
- USE globalData,only:flux2state_orig                  ! metadata on flux-to-state mapping (original state variables)
- USE globalData,only:flux2state_liq                   ! metadata on flux-to-state mapping (liquid water state variables)
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE soil_utils_module,only:matricHead                ! compute the matric head based on volumetric water content

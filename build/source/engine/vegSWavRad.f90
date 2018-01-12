@@ -19,18 +19,32 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module vegSWavRad_module
-! Numerical recipes data types
+
+! data types
 USE nrtype
-! look-up values for the choice of canopy shortwave radiation method
-USE mDecisions_module,only:         &
-                      noah_mp,      & ! full Noah-MP implementation (including albedo)
-                      CLM_2stream,  & ! CLM 2-stream model (see CLM documentation)
-                      UEB_2stream,  & ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
-                      NL_scatter,   & ! Simplified method Nijssen and Lettenmaier (JGR 1999)
-                      BeersLaw        ! Beer's Law (as implemented in VIC)
+USE data_types,only:var_i            ! x%var(:)       (i4b)
+USE data_types,only:var_dlength      ! x%var(:)%dat   (dp)
+
 ! physical constants
-USE multiconst,only:Tfreeze    ! temperature at freezing              (K)
+USE multiconst,only:Tfreeze          ! temperature at freezing              (K)
+
+! named variables for structure elements
+USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
+
+! model decisions
+USE globalData,only:model_decisions  ! model decision structure
+USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
+
+! look-up values for the choice of canopy shortwave radiation method
+USE mDecisions_module,only:        &
+                      noah_mp,     & ! full Noah-MP implementation (including albedo)
+                      CLM_2stream, & ! CLM 2-stream model (see CLM documentation)
+                      UEB_2stream, & ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+                      NL_scatter,  & ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+                      BeersLaw       ! Beer's Law (as implemented in VIC)
+
 ! -------------------------------------------------------------------------------------------------
+! privacy
 implicit none
 private
 public::vegSWavRad
@@ -65,14 +79,6 @@ contains
                        diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                        flux_data,                    & ! intent(inout): model flux variables
                        err,message)                    ! intent(out): error control
- ! model decisions
- USE globalData,only:model_decisions                              ! model decision structure
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
- ! named variables for structure elements
- USE var_lookup,only:iLookTYPE,iLookPROG,iLookDIAG,iLookFLUX
- ! data types
- USE data_types,only:var_i           ! x%var(:)       (i4b)
- USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  ! external routines
  USE NOAHMP_ROUTINES,only:radiation                                ! subroutine to calculate albedo and shortwave radiaiton in the canopy
  implicit none

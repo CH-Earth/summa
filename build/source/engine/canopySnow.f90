@@ -19,14 +19,30 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module canopySnow_module
+
 ! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,       &  ! data vector (i4b)
+                    var_d,       &  ! data vector (dp)
+                    var_dlength, &  ! data vector with variable length dimension (dp)
+                    model_options   ! defines the model decisions
+
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
+
 ! model decisions
 USE mDecisions_module,only:       &
                       stickySnow, & ! maximum interception capacity an increasing function of temerature
                       lightSnow     ! maximum interception capacity an inverse function of new snow densit
+
+! privacy
 implicit none
 private
 public::canopySnow
@@ -52,15 +68,6 @@ contains
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: model control

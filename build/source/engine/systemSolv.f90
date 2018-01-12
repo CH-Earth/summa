@@ -54,6 +54,9 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
+! global metadata
+USE globalData,only:flux_meta                        ! metadata on the model fluxes
+
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J K-1)
@@ -138,7 +141,6 @@ contains
                        err,message)         ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
- USE globalData,only:flux_meta                        ! metadata on the model fluxes
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE eval8summa_module,only:eval8summa                ! simulation of fluxes and residuals given a trial state vector

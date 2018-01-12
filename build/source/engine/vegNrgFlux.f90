@@ -19,8 +19,29 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module vegNrgFlux_module
-! numerical recipes data types
+
+! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,            & ! data vector (i4b)
+                    var_d,            & ! data vector (dp)
+                    var_ilength,      & ! data vector with variable length dimension (i4b)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! indices that define elements of the data structures
+USE var_lookup,only:iLookTYPE           ! named variables for structure elements
+USE var_lookup,only:iLookPROG           ! named variables for structure elements
+USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+USE var_lookup,only:iLookFORCE          ! named variables for structure elements
+USE var_lookup,only:iLookPARAM          ! named variables for structure elements
+USE var_lookup,only:iLookINDEX          ! named variables for structure elements
+USE var_lookup,only:iLookBVAR           ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+
 ! constants
 USE multiconst,only:gravity    ! acceleration of gravity              (m s-2)
 USE multiconst,only:vkc        ! von Karman's constant                (-)
@@ -38,38 +59,47 @@ USE multiconst,only:sb         ! Stefan Boltzman constant             (W m-2 K-4
 USE multiconst,only:iden_air   ! intrinsic density of air             (kg m-3)
 USE multiconst,only:iden_ice   ! intrinsic density of ice             (kg m-3)
 USE multiconst,only:iden_water ! intrinsic density of liquid water    (kg m-3)
+
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:  &
  numerical,                  & ! numerical solution
  analytical                    ! analytical solution
+
 ! look-up values for choice of boundary conditions for thermodynamics
 USE mDecisions_module,only:  &
  prescribedTemp,             & ! prescribed temperature
  energyFlux,                 & ! energy flux
  zeroFlux                      ! zero flux
+
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 USE mDecisions_module,only:  &
  Raupach_BLM1994,            & ! Raupach (BLM 1994) "Simplified expressions..."
  CM_QJRMS1998,               & ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
  vegTypeTable                  ! constant parameters dependent on the vegetation type
+
 ! look-up values for the choice of parameterization for canopy emissivity
 USE mDecisions_module,only:  &
  simplExp,                   & ! simple exponential function
  difTrans                      ! parameterized as a function of diffuse transmissivity
+
 ! look-up values for the choice of canopy wind profile
 USE mDecisions_module,only:  &
  exponential,                & ! exponential wind profile extends to the surface
  logBelowCanopy                ! logarithmic profile below the vegetation canopy
+
 ! look-up values for choice of stability function
 USE mDecisions_module,only:  &
  standard,                   & ! standard MO similarity, a la Anderson (1976)
  louisInversePower,          & ! Louis (1979) inverse power function
  mahrtExponential              ! Mahrt (1987) exponential
+
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:  &
  localColumn,                & ! separate groundwater representation in each local soil column
  singleBasin                   ! single groundwater store over the entire basin
+
 ! -------------------------------------------------------------------------------------------------
+! privacy
 implicit none
 private
 public::vegNrgFlux
@@ -92,7 +122,6 @@ real(dp),parameter     :: dx=1.e-11_dp             ! finite difference increment
 ! control
 logical(lgt)           :: printflag            ! flag to turn on printing
 contains
-
 
  ! *******************************************************************************************************
  ! public subroutine vegNrgFlux: muster program to compute energy fluxes at vegetation and ground surfaces
@@ -165,23 +194,6 @@ contains
                        ! output: error control
                        err,message)                               ! intent(out): error control
 
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
- USE var_lookup,only:iLookPROG           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookINDEX          ! named variables for structure elements
- USE var_lookup,only:iLookBVAR           ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! utilities
  USE expIntegral_module,only:expInt                               ! function to calculate the exponential integral
  ! conversion functions

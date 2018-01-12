@@ -23,6 +23,10 @@ module summaSolve_module
 ! data types
 USE nrtype
 
+! constants
+USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
+USE multiconst,only:iden_water      ! intrinsic density of liquid water (kg m-3)
+
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
@@ -49,6 +53,13 @@ USE globalData,only:iname_watLayer  ! named variable defining the total water st
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
+
+! indices of elements of data structure
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -121,9 +132,6 @@ contains
  USE computJacob_module, only: computJacob
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
- USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- USE var_lookup,only:iLookINDEX                   ! named variables for structure elements
- USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
@@ -961,12 +969,6 @@ contains
   ! internal function checkConv: check convergence based on the residual vector
   ! *********************************************************************************************************
   function checkConv(rVec,xInc,xVec)
-  ! provide access to named variables that define elements of the structure
-  USE var_lookup,only:iLookPROG                       ! named variables for structure elements
-  USE var_lookup,only:iLookPARAM                      ! named variables for structure elements
-  USE var_lookup,only:iLookINDEX                      ! named variables for structure elements
-  ! constants
-  USE multiconst,only:iden_water                      ! intrinsic density of liquid water    (kg m-3)
   implicit none
   ! dummies
   real(qp),intent(in)       :: rVec(:)                ! residual vector (mixed units)
@@ -1081,13 +1083,6 @@ contains
   subroutine imposeConstraints(stateVecTrial,xInc,err,message)
   ! external functions
   USE snow_utils_module,only:fracliquid                           ! compute the fraction of liquid water at a given temperature (snow)
-  ! named variables
-  USE var_lookup,only:iLookPROG                                   ! named variables for elements of the prognostic structure
-  USE var_lookup,only:iLookPARAM                                  ! named variables for elements of the parameter structure
-  USE var_lookup,only:iLookINDEX                                  ! named variables for elements of the index structure
-  ! physical constants
-  USE multiconst,only:Tfreeze                                     ! temperature at freezing (K)
-  ! external functions
   USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
   implicit none
   ! dummies

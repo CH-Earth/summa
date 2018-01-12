@@ -20,8 +20,13 @@
 
 module ssdNrgFlux_module
 
-! numerical recipes data types
+! data types
 USE nrtype
+
+! data types
+USE data_types,only:var_d           ! x%var(:)       (dp)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 
 ! physical constants
 USE multiconst,only:&
@@ -38,13 +43,24 @@ USE multiconst,only:&
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
                     iden_water     ! intrinsic density of water    (kg m-3)
 
-! access missing values
+! missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
 ! named variables for snow and soil
 USE globalData,only:iname_snow     ! named variables for snow
 USE globalData,only:iname_soil     ! named variables for soil
+
+! named variables
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+
+! model decisions
+USE globalData,only:model_decisions                         ! model decision structure
+USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
 
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:      &
@@ -61,6 +77,7 @@ USE mDecisions_module,only:      &
  zeroFlux,                       & ! zero flux
  ! look-up values for choice of boundary conditions for soil hydrology
  prescribedHead                    ! prescribed head
+
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -69,7 +86,6 @@ public::ssdNrgFlux
 real(dp),parameter            :: dx=1.e-10_dp             ! finite difference increment (K)
 real(dp),parameter            :: valueMissing=-9999._dp   ! missing value parameter
 contains
-
 
  ! ************************************************************************************************
  ! public subroutine ssdNrgFlux: compute energy fluxes and derivatives at layer interfaces
@@ -97,19 +113,6 @@ contains
                        dFlux_dTempBelow,                   & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
                        ! output: error control
                        err,message)                          ! intent(out): error control
- ! model decisions
- USE globalData,only:model_decisions                         ! model decision structure
- USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
- ! named variables
- USE var_lookup,only:iLookPROG       ! named variables for structure elements
- USE var_lookup,only:iLookDIAG       ! named variables for structure elements
- USE var_lookup,only:iLookFLUX       ! named variables for structure elements
- USE var_lookup,only:iLookPARAM      ! named variables for structure elements
- USE var_lookup,only:iLookINDEX      ! named variables for structure elements
- ! data types
- USE data_types,only:var_d           ! x%var(:)       (dp)
- USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
- USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
  implicit none
  ! input: model control
  logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution

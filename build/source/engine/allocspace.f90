@@ -49,9 +49,17 @@ USE data_types,only:&
 USE data_types,only:var_info               ! data type for metadata
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:integerMissing         ! missing integer
+USE globalData,only:realMissing            ! missing double precision number
 
+! gru-hru mapping structures
+USE globalData,only: gru_struc             ! gru-hru mapping structures
+
+! access variable types
+USE var_lookup,only:iLookVarType           ! look up structure for variable typed
+USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
+
+! privacy
 implicit none
 private
 public::allocGlobal
@@ -68,7 +76,6 @@ contains
  ! public subroutine allocGlobal: allocate space for global data structures
  ! ************************************************************************************************
  subroutine allocGlobal(metaStruct,dataStruct,err,message)
- USE globalData,only: gru_struc                    ! gru-hru mapping structures
  implicit none
  ! input
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
@@ -513,8 +520,7 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
                            varData,err,message)            ! output
- USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarFreq                   ! allocation dimension (stats)
+ ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -580,8 +586,6 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
                             varData,err,message)            ! output
- USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarFreq                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -644,8 +648,6 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_flag(metadata,nSnow,nSoil,nLayers, & ! input
                              varData,err,message)            ! output
- USE var_lookup,only:iLookVarType                 ! look up structure for variable types
- USE var_lookup,only:maxvarFreq                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables

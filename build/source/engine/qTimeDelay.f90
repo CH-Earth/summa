@@ -19,7 +19,15 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module qTimeDelay_module
+
+! data types
 USE nrtype
+
+! look-up values for the sub-grid routing method
+USE mDecisions_module,only:      &
+ timeDelay,&  ! time-delay histogram
+ qInstant     ! instantaneous routing
+
 implicit none
 private
 public::qOverland
@@ -41,10 +49,6 @@ contains
                       averageInstantRunoff,  &  ! instantaneous runoff (m s-1)
                       averageRoutedRunoff,   &  ! routed runoff (m s-1)
                       err,message)              ! error control
- ! look-up values for the sub-grid routing method
- USE mDecisions_module,only:      &
-  timeDelay,&  ! time-delay histogram
-  qInstant     ! instantaneous routing
  implicit none
  ! input
  integer(i4b),intent(in)    :: ixRouting              ! index for routing method
