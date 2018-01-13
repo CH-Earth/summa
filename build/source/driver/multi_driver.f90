@@ -846,7 +846,22 @@ do modelTimeStep=1,numtim
  call indexx(totalFluxCalls, ixFluxCalls) ! ranking of each GRU w.r.t. computational expense
  ixFluxCalls=ixFluxCalls(nGRU:1:-1)       ! reverse ranking: now largest to smallest
 
- ! loop through GRUs
+ ! ----- use openMP directives to run GRUs in parallel -------------------------
+
+ ! start of parallel section: define shared and private structure elements
+ !$omp parallel private(iGRU, jGRU)   & ! GRU indices are private for a given thread
+ !$omp          shared(gru_struc, dt_init, computeVegFlux) &
+ !$omp          shared(timeStruct, typeStruct, attrStruct, mparStruct, indxStruct, &
+ !$omp                 forcStruct, progStruct, diagStruct, fluxStruct, bvarStruct) &
+ !$omp          private(err, message) &
+ !$omp          firstprivate(nGRU)
+
+ ! use dynamic parallelization with chunk size of one:
+ !  -- new chunks are assigned to threads when they become available
+ !  -- start with the more expensive GRUs, and add the less expensive GRUs as threads come available
+ !  -- dynamic scheduling has greater overhead
+
+ !$omp do ! schedule(dynamic, 1)   ! chunk size of 1
  do jGRU=1,nGRU  ! loop through GRUs
 
   ! loop through GRUs in order of computational expense from the previous time step
@@ -862,8 +877,8 @@ do modelTimeStep=1,numtim
                   timeStruct%var,           & ! intent(in):    model time data
                   typeStruct%gru(iGRU),     & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%gru(iGRU),     & ! intent(in):    local attributes for each HRU
-                  mparStruct%gru(iGRU),     & ! intent(in):    local model parameters
                   ! data structures (input-output)
+                  mparStruct%gru(iGRU),     & ! intent(inout): local model parameters
                   indxStruct%gru(iGRU),     & ! intent(inout): model indices
                   forcStruct%gru(iGRU),     & ! intent(inout): model forcing data
                   progStruct%gru(iGRU),     & ! intent(inout): prognostic variables for a local HRU
@@ -874,9 +889,13 @@ do modelTimeStep=1,numtim
                   err,message)                ! intent(out):   error control
 
   ! error control
+  !$omp critical(print_lock)
   call handle_err(err,message)
+  !$omp end critical(print_lock)
 
  end do  ! (looping through GRUs)
+ !$omp end do
+ !$omp end parallel
 
  ! deallocate space used to determine the GRU computational expense
  deallocate(totalFluxCalls, ixFluxCalls, stat=err)
