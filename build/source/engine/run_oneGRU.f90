@@ -188,7 +188,7 @@ contains
                   diagHRU%hru(iHRU),               & ! intent(inout): model diagnostic variables for a local HRU
                   fluxHRU%hru(iHRU),               & ! intent(inout): model fluxes for a local HRU
                   ! error control
-                  err,message)                       ! intent(out):   error control
+                  err,cmessage)                      ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
   ! update layer numbers that could be changed in run_oneHRU -- needed for model output
