@@ -109,10 +109,6 @@ module noahmp_globals
   ! MPC change: make variables private for a given thread
   !$omp threadprivate(BEXP, SMCDRY, F1, SMCMAX, SMCREF, PSISAT, DKSAT, DWSAT, SMCWLT, QUARTZ) 
 
-! ==================================================================================================
-!------------------------------------------------------------------------------------------!
-! Physical Constants:                                                                      !
-!------------------------------------------------------------------------------------------!
 !KWM  CHARACTER*4 SLTYPE
 !KWM  INTEGER                     :: SLCATS
 !KWM  INTEGER, PARAMETER          :: NSLTYPE=30
