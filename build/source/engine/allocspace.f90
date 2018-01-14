@@ -52,9 +52,6 @@ USE data_types,only:var_info               ! data type for metadata
 USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing double precision number
 
-! gru-hru mapping structures
-USE globalData,only: gru_struc             ! gru-hru mapping structures
-
 ! access variable types
 USE var_lookup,only:iLookVarType           ! look up structure for variable typed
 USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
@@ -76,6 +73,8 @@ contains
  ! public subroutine allocGlobal: allocate space for global data structures
  ! ************************************************************************************************
  subroutine allocGlobal(metaStruct,dataStruct,err,message)
+ ! NOTE: safety -- ensure only used in allocGlobal
+ USE globalData,only: gru_struc     ! gru-hru mapping structures
  implicit none
  ! input
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
