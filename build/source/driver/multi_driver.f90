@@ -31,6 +31,7 @@ USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories a
 USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
 USE module_sf_noahmplsm,only:isWater                        ! parameter for water land cover type
 USE nr_utility_module,only:arth                             ! get a sequence of numbers
+USE nr_utility_module,only:indexx                           ! sort vectors in ascending order
 USE ascii_util_module,only:file_open                        ! open ascii file
 USE ascii_util_module,only:get_vlines                       ! read a vector of non-comment lines from an ASCII file
 USE ascii_util_module,only:split_line                       ! extract the list of variable names from the character string
@@ -188,7 +189,7 @@ type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)
 type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 ! define indices
 integer(i4b)                     :: iStruct                    ! loop through data structures
-integer(i4b)                     :: iGRU
+integer(i4b)                     :: iGRU,jGRU                  ! index of grouped response unit
 integer(i4b)                     :: iHRU,jHRU,kHRU             ! index of the hydrologic response unit
 integer(i4b)                     :: nGRU                       ! number of grouped response units
 integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
@@ -264,6 +265,8 @@ character(len=256)               :: timeString                 ! protion of rest
 character(len=256)               :: restartFile                ! restart file name
 character(len=256)               :: attrFile                   ! attributes file name
 ! parallelize the model run
+integer(i4b), allocatable        :: ixFluxCalls(:)             ! ranked index of flux calls for each GRU
+integer(i4b), allocatable        :: totalFluxCalls(:)          ! total number of flux calls for each GRU
 integer(i4b)                     :: nHRUrun                    ! number of HRUs in the run domain
 integer(i4b)                     :: maxLayers                  ! maximum number of layers
 integer(i4b)                     :: maxSnowLayers              ! maximum number of snow layers
@@ -824,8 +827,30 @@ do modelTimeStep=1,numtim
  ! *** model simulation
  ! ****************************************************************************
 
+ ! ----- rank the GRUs in terms of their anticipated computational expense -----
+
+ ! use persistence 
+ !  -- assume that that expensive GRUs from a previous time step are also expensive in the current time step
+
+ ! get the total number of flux calls from the previous time step (for all HRUs within a GRU)
+ allocate(totalFluxCalls(nGRU), ixFluxCalls(nGRU), stat=err)
+ call handle_err(err,'unable to allocate space for totalFluxCalls')
+ do jGRU=1,nGRU
+  totalFluxCalls(jGRU) = 0._dp
+  do iHRU=1,gru_struc(jGRU)%hruCount
+   totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
+  end do
+ end do
+
+ ! get the indices that can rank the number of flux calls
+ call indexx(totalFluxCalls, ixFluxCalls) ! ranking of each GRU w.r.t. computational expense
+ ixFluxCalls=ixFluxCalls(nGRU:1:-1)       ! reverse ranking: now largest to smallest
+
  ! loop through GRUs
- do iGRU=1,nGRU
+ do jGRU=1,nGRU  ! loop through GRUs
+
+  ! loop through GRUs in order of computational expense from the previous time step
+  iGRU = ixFluxCalls(jGRU)
 
   ! simulation for a single GRU
   call run_oneGRU(&
@@ -852,6 +877,10 @@ do modelTimeStep=1,numtim
   call handle_err(err,message)
 
  end do  ! (looping through GRUs)
+
+ ! deallocate space used to determine the GRU computational expense
+ deallocate(totalFluxCalls, ixFluxCalls, stat=err)
+ call handle_err(err,'unable to deallocate space for totalFluxCalls')
 
  ! ****************************************************************************
  ! *** model calculate statistics
