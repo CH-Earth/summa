@@ -221,7 +221,7 @@ contains
                  diagData,         & ! intent(inout): model diagnostic variables for a local HRU
                  fluxData,         & ! intent(inout): model fluxes for a local HRU
                  ! error control
-                 err,message)        ! intent(out): error control
+                 err,cmessage)       ! intent(out): error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! update the number of layers
