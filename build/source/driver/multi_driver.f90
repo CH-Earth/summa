@@ -836,7 +836,10 @@ do modelTimeStep=1,numtim
  allocate(totalFluxCalls(nGRU), ixFluxCalls(nGRU), stat=err)
  call handle_err(err,'unable to allocate space for totalFluxCalls')
  do jGRU=1,nGRU
-  totalFluxCalls(jGRU) = sum(indxStruct%gru(jGRU)%hru(:)%var(iLookINDEX%numberFluxCalc)%dat(1))
+  totalFluxCalls(jGRU) = 0._dp
+  do iHRU=1,gru_struc(jGRU)%hruCount
+   totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
+  end do
  end do
 
  ! get the indices that can rank the number of flux calls
