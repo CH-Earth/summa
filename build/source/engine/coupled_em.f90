@@ -81,11 +81,6 @@ real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when dia
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
 real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
-! number of variables
-integer(i4b)           :: nSnow                ! number of snow layers
-integer(i4b)           :: nSoil                ! number of soil layers
-integer(i4b)           :: nLayers              ! total number of layers
-integer(i4b)           :: nState               ! total number of state variables
 contains
 
 
@@ -152,6 +147,10 @@ contains
  ! =====================================================================================================================================================
  ! local variables
  character(len=256)                   :: cmessage               ! error message
+ integer(i4b)                         :: nSnow                  ! number of snow layers
+ integer(i4b)                         :: nSoil                  ! number of soil layers
+ integer(i4b)                         :: nLayers                ! total number of layers
+ integer(i4b)                         :: nState                 ! total number of state variables
  real(dp)                             :: dtSave                 ! length of last input model sub-step (seconds)
  real(dp)                             :: dt_sub                 ! length of model sub-step (seconds)
  real(dp)                             :: dt_wght                ! weight applied to model sub-step (dt_sub/data_step)
@@ -597,16 +596,11 @@ contains
                   err,cmessage)                  ! intent(out): error control
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
-  ! recompute the number of snow and soil layers
-  ! NOTE: do this here for greater visibility
-  nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
-  nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
-  nLayers = nSnow+nSoil
+  ! save the number of snow and soil layers
+  nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+  nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+  nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
-  ! put the data in the structures
-  indx_data%var(iLookINDEX%nSnow)%dat(1)   = nSnow
-  indx_data%var(iLookINDEX%nSoil)%dat(1)   = nSoil
-  indx_data%var(iLookINDEX%nLayers)%dat(1) = nLayers
 
   ! compute the indices for the model state variables
   if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
@@ -953,6 +947,11 @@ contains
  end if
  !print*, 'SWE after snowfall = ',  prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
+ ! re-assign dimension lengths
+ nSnow   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
+ nLayers = nSnow+nSoil
+
  ! update coordinate variables
  call calcHeight(&
                  ! input/output: data structures
@@ -1217,8 +1216,7 @@ contains
  ! initialize error control
  err=0; message='implctMelt/'
 
- ! check for the special case of "snow without a layer"
- if (nSnow==0 .and. scalarSWE > 0._dp)then
+ if(scalarSWE > 0._dp)then
   ! only melt if temperature of the top soil layer is greater than Tfreeze
   if(soilTemp > Tfreeze)then
    ! compute the energy required to melt all the snow (J m-2)

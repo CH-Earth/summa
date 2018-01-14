@@ -30,6 +30,13 @@ USE data_types,only:&
                     var_dlength,      & ! data vector with variable length dimension (dp)
                     model_options       ! defines the model decisions
 
+! named variables for snow and soil
+USE globalData,only:iname_snow          ! named variables for snow
+USE globalData,only:iname_soil          ! named variables for soil
+
+! named variables for parent structures
+USE var_lookup,only:iLookINDEX          ! named variables for structure elements
+
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)
@@ -118,6 +125,11 @@ contains
                  mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+
+ ! update the number of layers
+ indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ indx_data%var(iLookINDEX%nSoil)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
 
  ! flag if layers were modified
  modifiedLayers = (mergedLayers .or. divideLayer)

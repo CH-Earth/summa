@@ -32,6 +32,25 @@ USE multiconst,only:&
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
 
+! access missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
+
+! access metadata
+USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
+
+! access the derived types to define the data structures
+USE data_types,only:&
+                    var_d,            & ! data vector (dp)
+                    var_ilength,      & ! data vector with variable length dimension (i4b)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! access named variables defining elements in the data structures
+USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
+USE var_lookup,only:iLookPARAM                                ! named variables for elements of the parameter structure
+
 ! define look-up values for the choice of method to combine and sub-divide snow layers
 USE mDecisions_module,only:&
  sameRulesAllLayers,       & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
@@ -50,17 +69,10 @@ USE mDecisions_module,only:& ! identify model options for snow albedo
  constantDecay,            & ! constant decay in snow albedo (e.g., VIC, CLASS)
  variableDecay               ! variable decay in snow albedo (e.g., BATS approach, with destructive metamorphism + soot content)
 
+! privacy
 implicit none
 private
 public::layerDivide
-
-! provide access to the number layers throughout the module
-integer(i4b)                    :: nSnow               ! number of snow layers
-integer(i4b)                    :: nSoil               ! number of soil layers
-integer(i4b)                    :: nLayers             ! total number of layers
-! define missing values
-real(dp)              :: missingDouble=-9999._dp  ! missing value (double precision)
-integer(i4b)          :: missingInteger=-9999     ! missing value (integer)
 
 contains
 
@@ -80,18 +92,6 @@ contains
                         err,message)                   ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
- ! access the derived types to define the data structures
- USE data_types,only:&
-                     var_d,            & ! data vector (dp)
-                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! access metadata
- USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
- ! access named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                            ! named variables for elements of the decision structure
- USE var_lookup,only:iLookPARAM                                ! named variables for elements of the parameter structure
  ! computational modules
  USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
  implicit none
@@ -110,6 +110,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
+ integer(i4b)                    :: nSnow               ! number of snow layers
+ integer(i4b)                    :: nSoil               ! number of soil layers
+ integer(i4b)                    :: nLayers             ! total number of layers
  integer(i4b)                    :: iLayer              ! layer index
  integer(i4b)                    :: jLayer              ! layer index
  real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
@@ -190,10 +193,10 @@ contains
 
    ! add a layer to all model variables
    iLayer=0 ! (layer to divide: 0 is the special case of "snow without a layer")
-   call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-   call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+   call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
    ! associate local variables to the information in the data structures
    ! NOTE: need to do this here, since state vectors have just been modified
@@ -283,10 +286,10 @@ contains
     divideLayer=.true.
 
     ! add a layer to all model variables
-    call addModelLayer(prog_data,prog_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(diag_data,diag_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(flux_data,flux_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    call addModelLayer(indx_data,indx_meta,iLayer,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(prog_data,prog_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(diag_data,diag_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(flux_data,flux_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    call addModelLayer(indx_data,indx_meta,iLayer,nSnow,nLayers,err,cmessage); if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
     ! define the layer depth
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
@@ -357,7 +360,7 @@ contains
  ! ************************************************************************************************
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
- subroutine addModelLayer(dataStruct,metaStruct,ix_divide,err,message)
+ subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,err,message)
  USE var_lookup,only:iLookVarType                  ! look up structure for variable typed
  USE get_ixName_module,only:get_varTypeName        ! to access type strings for error messages
  USE f2008funcs_module,only:cloneStruc             ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
@@ -370,6 +373,7 @@ contains
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
  ! input: snow layer indices
  integer(i4b),intent(in)         :: ix_divide      ! index of the layer to divide
+ integer(i4b),intent(in)         :: nSnow,nLayers  ! number of snow layers, total number of layers
  ! output: error control
  integer(i4b),intent(out)        :: err            ! error code
  character(*),intent(out)        :: message        ! error message
@@ -431,7 +435,7 @@ contains
      end if  ! if the vector exists
     ! not a state variable
     else
-     dataStruct%var(ivar)%dat(:) = missingDouble
+     dataStruct%var(ivar)%dat(:) = realMissing
     end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
     deallocate(tempVec_dp,stat=err)
@@ -461,7 +465,7 @@ contains
      end if  ! if the vector exists
     ! not a state variable
     else
-     dataStruct%var(ivar)%dat(:) = missingInteger
+     dataStruct%var(ivar)%dat(:) = integerMissing
     end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
     deallocate(tempVec_i4b,stat=err)
