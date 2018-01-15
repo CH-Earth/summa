@@ -47,6 +47,7 @@ USE globalData,only:refJulday                 ! reference time (fractional julia
 USE globalData,only:refJulday_data            ! reference time for data files (fractional julian days)
 USE globalData,only:fracJulDay                ! fractional julian days since the start of year
 USE globalData,only:yearLength                ! number of days in the current year
+USE globalData,only:nHRUfile                  ! number of days in the data file
 
 ! global metadata
 USE globalData,only:time_meta,forc_meta       ! metadata structures
@@ -60,6 +61,10 @@ implicit none
 private
 public::read_force
 
+! global parameters
+real(dp),parameter  :: verySmall=1e-3_dp      ! tiny number
+real(dp),parameter  :: smallOffset=1.e-8_dp   ! small offset (units=days) to force ih=0 at the start of the day
+
 contains
 
 
@@ -71,7 +76,7 @@ contains
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compJulday                 ! convert calendar date to julian day
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
- USE get_ixname_module,only:get_ixforce                ! identify index of named variable
+ USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
  implicit none
  ! define input variables
  integer(i4b),intent(in)           :: istep            ! time index AFTER the start index
@@ -85,37 +90,18 @@ contains
  integer(i4b),intent(out)          :: err              ! error code
  character(*),intent(out)          :: message          ! error message
  ! define local variables
- ! netcdf related
- integer(i4b)                      :: varId            ! variable identifier
- character(len = nf90_max_name)    :: varName          ! dimenison name
- integer(i4b),save                 :: nHRUfile         ! number of HRUs in the file
- integer(i4b),save                 :: nHRUlocal        ! number of HRUs in the local simulation
- ! other local variables
+ integer(i4b)                      :: nHRUlocal        ! number of HRUs in the local simulation
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
- integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
- integer(i4b)                      :: iHRU_local       ! index of HRU in the data subset
- real(dp),parameter                :: verySmall=1e-3   ! tiny number
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
- integer(i4b)                      :: iline            ! loop through lines in the file
- integer(i4b)                      :: iNC              ! loop through variables in forcing file
- integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
- real(dp),parameter                :: smallOffset=1.e-8_dp ! small offset (units=days) to force ih=0 at the start of the day
  real(dp)                          :: startJulDay      ! julian day at the start of the year
  real(dp)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
- real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
- real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
- real(dp),allocatable              :: dataVec(:)       ! vector of data
- real(dp),dimension(1)             :: dataVal          ! single data value
- real(dp),parameter                :: dataMin=-1._dp   ! minimum allowable data value (all forcing variables should be positive)
- logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
- !integer(i4b)                      :: iyyy,im,id       ! year, month, day
- !integer(i4b)                      :: ih,imin          ! hour, minute
- real(dp)                          :: dsec             ! double precision seconds (not used)
- logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
  ! Start procedure here
  err=0; message="read_force/"
+
+ ! get the number of HRUs in the local simulation
+ nHRUlocal = sum(gru_struc(:)%hruCount)
 
  ! determine the julDay of current model step (istep) we need to read
  if(istep==1)then
@@ -166,138 +152,9 @@ contains
 
   end if  ! if we've passed the end of the NetCDF file
 
-  ! **********************************************************************************************
-  ! ***** part 1b: read data
-  ! **********************************************************************************************
-
-  ! initialize time and forcing data structures
-  time_data(:) = integerMissing
-
-  ! read time data from iRead location in netcdf file
-  err = nf90_inq_varid(ncid,'time',varId);                   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
-  err = nf90_get_var(ncid,varId,varTime,start=(/iRead/));    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time variable/'//trim(nf90_strerror(err)); return; endif
-
-  ! check that the computed julian day matches the time information in the NetCDF file
-  dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulday_data
-  if(abs(currentJulday - dataJulDay) > verySmall)then
-   write(message,'(a,i0,f18.8,a,f18.8,a)') trim(message)//'date for time step: ',iStep,dataJulDay,' differs from the expected date: ',currentJulDay,' in file: '//trim(infile)
-   err=40; return
-  end if
-
-  ! convert julian day to time vector
-  ! NOTE: use small offset to force ih=0 at the start of the day
-  call compcalday(dataJulDay+smallOffset,         & ! input  = julian day
-                  time_data(iLookTIME%iyyy),      & ! output = year
-                  time_data(iLookTIME%im),        & ! output = month
-                  time_data(iLookTIME%id),        & ! output = day
-                  time_data(iLookTIME%ih),        & ! output = hour
-                  time_data(iLookTIME%imin),dsec, & ! output = minute/second
-                  err,cmessage)                     ! output = error control
+  ! read forcing data
+  call readForcingData(currentJulday,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
-  ! check to see if any of the time data is missing
-  if(any(time_data(:)==integerMissing))then
-   do iline=1,size(time_data)
-    if(time_data(iline)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; end if
-   end do
-  end if
-
-  ! get the number of HRUs in the local simulation
-  nHRUlocal = sum(gru_struc(:)%hruCount)
-
-  ! allocate space for data
-  allocate(dataVec(nHRUlocal), stat=err)
-  if(err/=0)then
-   message=trim(message)//'unable to allocate space for the data vector'
-   err=20; return
-  endif
-
-  ! initialize flags for forcing data
-  checkForce(:) = .false.
-  checkForce(iLookFORCE%time) = .true.  ! time is handled separately
-
-  ! loop through forcing data variables
-  do iNC=1,forcFileInfo(iFile)%nVars
-
-   ! get the variable name
-   err = nf90_inquire_variable(ncid,iNC,name=varName)
-   if(err/=nf90_noerr)then; message=trim(message)//'problem finding variable: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-
-   ! make sure the variable name is one desired
-   select case(trim(varname))
-    case('pptrate','SWRadAtm','LWRadAtm','airtemp','windspd','airpres','spechum')
-    case default; cycle  ! skip the variable, since it is not one that is desired
-   end select
-
-   ! get index of forcing variable in forcing data structure
-   ivar = get_ixforce(trim(varname))
-   if(ivar < 0)then;                                 err=40; message=trim(message)//"variableNotFound [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
-   if(ivar > size(forcFileInfo(iFile)%data_id))then; err=40; message=trim(message)//"indexOutOfRange  [var="//trim(varname)//"]"//'/'//trim(nf90_strerror(err)); return; endif
-
-   ! set flag
-   checkForce(iVar) = .true.
-
-   if(simultaneousRead)then
-    ! read forcing data for all HRUs
-    err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
-    if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-   endif
-
-   ! loop through GRUs and HRUs
-   do iGRU=1,size(gru_struc)
-    do iHRU=1,gru_struc(iGRU)%hruCount
-
-     ! define global HRU
-     iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-     iHRU_local  = (iHRU_global - ixHRUfile_min)+1
-     !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
-
-     ! read forcing data for a single HRU
-     if(.not.simultaneousRead)then
-      err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
-      if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
-     endif
-
-     ! check the number of HRUs
-     if(iHRU_global > nHRUfile)then
-      message=trim(message)//'HRU index exceeds the number of HRUs in the forcing data file'
-      err=20; return
-     endif
-
-     ! get individual data value
-     if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
-     !print*, trim(varname)//': ', dataVal(1)
-
-     ! check individual data value
-     if(dataVal(1)<dataMin)then
-      write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin
-      err=20; return
-     endif
-
-     ! put the data into structures
-     forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
-
-    end do  ! looping through HRUs within a given GRU
-   end do  ! looping through GRUs
-
-  end do  ! loop through forcing variables
-
-  ! check if any forcing data is missing
-  if(count(checkForce)<size(forc_meta))then
-   do iline=1,size(forc_meta)
-    if(.not.checkForce(iline))then
-     message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"
-     err=20; return
-    endif    ! if variable is missing
-   end do   ! looping through variables
-  end if   ! if any variables are missing
-
-  ! deallocate space for data
-  deallocate(dataVec, stat=err)
-  if(err/=0)then
-   message=trim(message)//'undable to deallocate space for the data vector'
-   err=20; return
-  endif
 
  ! check that the file was in fact open
  else
@@ -368,8 +225,9 @@ contains
  ! *************************************************************************
  ! * private subroutine: find first timestep in any of the forcing files...
  ! *************************************************************************
- subroutine getFirstTimestep(currentJulday,iFile,ncid,iRead,err,message)
+ subroutine getFirstTimestep(currentJulday,iFile,iRead,ncid,err,message)
  USE netcdf                                            ! netcdf capability
+ USE nr_utility_module,only:arth                       ! get a sequence of numbers
  implicit none
  ! define input
  real(dp),intent(in)               :: currentJulday    ! Julian day of current time step
@@ -386,11 +244,10 @@ contains
  integer(i4b)                      :: dimId            ! dimension identifier
  integer(i4b)                      :: dimLen           ! dimension length
  ! other local variables
- real(dp),parameter                :: verySmall=1e-3_dp ! tiny number
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
- real(dp),save                     :: refJulday_data   ! reference julian day for the data file (can differ from refJulday)
  integer(i4b)                      :: nFiles           ! number of forcing files
+ real(dp)                          :: timeVal(1)       ! single time value (restrict time read)
  real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
  real(dp),allocatable              :: diffTime(:)      ! array of time differences
  ! Start procedure here
@@ -413,6 +270,10 @@ contains
   err = nf90_inq_dimid(ncid,'time',dimId);             if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time dimension/'//trim(nf90_strerror(err)); return; endif
   err = nf90_inquire_dimension(ncid,dimId,len=dimLen); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time dimension size/'//trim(nf90_strerror(err)); return; endif
 
+  ! how many HRUs in current file?
+  err = nf90_inq_dimid(ncid,'hru',dimId);                if(err/=nf90_noerr)then; message=trim(message)//'trouble finding hru dimension/'//trim(nf90_strerror(err)); return; endif
+  err = nf90_inquire_dimension(ncid,dimId,len=nHRUfile); if(err/=nf90_noerr)then; message=trim(message)//'trouble reading hru dimension size/'//trim(nf90_strerror(err)); return; endif
+
   ! allocate space for time vectors
   if(allocated(fileTime)) deallocate(fileTime)
   if(allocated(diffTime)) deallocate(diffTime)
@@ -426,9 +287,12 @@ contains
   err = nf90_inq_varid(ncid,'time',varId)
   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
 
-  ! (get time data)
-  err = nf90_get_var(ncid,varId,fileTime,start=(/1/),count=(/dimLen/))
+  ! (get single time data value)
+  err = nf90_get_var(ncid,varId,timeVal,start=(/1/),count=(/1/))
   if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
+
+  ! (get time vector)
+  fileTime = arth(0,1,dimLen)*data_step/secprday + timeVal(1)
 
   ! convert time to units of days, and add reference julian day
   fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday_data
@@ -513,5 +377,150 @@ contains
  end select
 
  end subroutine openForcingFile
+
+ ! *************************************************************************
+ ! * read the NetCDF forcing data 
+ ! *************************************************************************
+ subroutine readForcingData(currentJulday,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
+ USE netcdf                                            ! netcdf capability
+ USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
+ USE time_utils_module,only:compJulday                 ! convert calendar date to julian day
+ USE get_ixname_module,only:get_ixforce                ! identify index of named variable
+ ! dummy variables
+ real(dp),intent(in)               :: currentJulday    ! Julian day of current time step
+ integer(i4b) ,intent(in)          :: ncId             ! NetCDF ID
+ integer(i4b) ,intent(in)          :: iFile            ! index of forcing file
+ integer(i4b) ,intent(in)          :: iRead            ! index in data file
+ integer(i4b) ,intent(in)          :: nHRUlocal        ! number of HRUs in the local simulation
+ integer(i4b),intent(out)          :: time_data(:)     ! vector of time data for a given time step
+ type(gru_hru_double)              :: forcStruct       ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+ integer(i4b) ,intent(out)         :: err              ! error code
+ character(*) ,intent(out)         :: message          ! error message
+ ! local variables
+ character(len=256)                :: cmessage         ! error message for downwind routine
+ integer(i4b)                      :: varId            ! variable identifier
+ character(len = nf90_max_name)    :: varName          ! dimenison name
+ real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
+ ! other local variables
+ integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
+ integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
+ integer(i4b)                      :: iHRU_local       ! index of HRU in the data subset
+ integer(i4b)                      :: iline            ! loop through lines in the file
+ integer(i4b)                      :: iNC              ! loop through variables in forcing file
+ integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
+ logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
+ real(dp)                          :: dsec             ! double precision seconds (not used)
+ real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
+ real(dp),dimension(nHRUlocal)     :: dataVec          ! vector of data
+ real(dp),dimension(1)             :: dataVal          ! single data value
+ real(dp),parameter                :: dataMin=-1._dp   ! minimum allowable data value (all forcing variables should be positive)
+ logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
+ logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
+ ! Start procedure here
+ err=0; message="readForcingData/"
+
+ ! initialize time and forcing data structures
+ time_data(:) = integerMissing
+
+ ! read time data from iRead location in netcdf file
+ err = nf90_inq_varid(ncid,'time',varId);                   if(err/=nf90_noerr)then; message=trim(message)//'trouble finding time variable/'//trim(nf90_strerror(err)); return; endif
+ err = nf90_get_var(ncid,varId,varTime,start=(/iRead/));    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time variable/'//trim(nf90_strerror(err)); return; endif
+
+ ! check that the computed julian day matches the time information in the NetCDF file
+ dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulday_data
+ if(abs(currentJulday - dataJulDay) > verySmall)then
+  write(message,'(a,f18.8,a,f18.8)') trim(message)//'date for time step: ',dataJulDay,' differs from the expected date: ',currentJulDay
+  err=40; return
+ end if
+
+ ! convert julian day to time vector
+ ! NOTE: use small offset to force ih=0 at the start of the day
+ call compcalday(dataJulDay+smallOffset,         & ! input  = julian day
+                 time_data(iLookTIME%iyyy),      & ! output = year
+                 time_data(iLookTIME%im),        & ! output = month
+                 time_data(iLookTIME%id),        & ! output = day
+                 time_data(iLookTIME%ih),        & ! output = hour
+                 time_data(iLookTIME%imin),dsec, & ! output = minute/second
+                 err,cmessage)                     ! output = error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+ ! check to see if any of the time data is missing
+ if(any(time_data(:)==integerMissing))then
+  do iline=1,size(time_data)
+   if(time_data(iline)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; end if
+  end do
+ end if
+
+ ! initialize flags for forcing data
+ checkForce(:) = .false.
+ checkForce(iLookFORCE%time) = .true.  ! time is handled separately
+
+ ! loop through forcing data variables
+ do iNC=1,forcFileInfo(iFile)%nVars
+
+  ! check variable is desired
+  if(forcFileInfo(iFile)%var_ix(iNC)==integerMissing) cycle
+
+  ! get index in forcing structure
+  iVar = forcFileInfo(iFile)%var_ix(iNC)
+  checkForce(iVar) = .true.
+
+  ! read forcing data for all HRUs
+  if(simultaneousRead)then
+   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
+   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+  endif
+
+  ! loop through GRUs and HRUs
+  do iGRU=1,size(gru_struc)
+   do iHRU=1,gru_struc(iGRU)%hruCount
+
+    ! define global HRU
+    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+    iHRU_local  = (iHRU_global - ixHRUfile_min)+1
+    !print*, 'iGRU, iHRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
+
+    ! read forcing data for a single HRU
+    if(.not.simultaneousRead)then
+     err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
+     if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+    endif
+
+    ! check the number of HRUs
+    if(iHRU_global > nHRUfile)then
+     message=trim(message)//'HRU index exceeds the number of HRUs in the forcing data file'
+     err=20; return
+    endif
+
+    ! get individual data value
+    if(simultaneousRead) dataVal(1) = dataVec(iHRU_local)
+    !print*, trim(varname)//': ', dataVal(1)
+
+    ! check individual data value
+    if(dataVal(1)<dataMin)then
+     write(message,'(a,f13.5)') trim(message)//'forcing data for variable '//trim(varname)//' is less than minimum allowable value ', dataMin
+     err=20; return
+    endif
+
+    ! put the data into structures
+    forcStruct%gru(iGRU)%hru(iHRU)%var(ivar) = dataVal(1)
+
+   end do  ! looping through HRUs within a given GRU
+  end do  ! looping through GRUs
+
+ end do  ! loop through forcing variables
+
+ ! check if any forcing data is missing
+ if(count(checkForce)<size(forc_meta))then
+  do iline=1,size(forc_meta)
+   if(.not.checkForce(iline))then
+    message=trim(message)//"variableMissing[var='"//trim(forc_meta(iline)%varname)//"']"
+    err=20; return
+   endif    ! if variable is missing
+  end do   ! looping through variables
+ end if   ! if any variables are missing
+
+ end subroutine readForcingData
+
 
 end module read_force_module

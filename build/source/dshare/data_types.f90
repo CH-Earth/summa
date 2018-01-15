@@ -45,6 +45,7 @@ MODULE data_types
   character(len=256)                     :: filenmData='notPopulatedYet' ! name of data file
   integer(i4b)                           :: nVars                    ! number of variables in the file
   integer(i4b)                           :: nTimeSteps               ! number of variables in the file
+  integer(i4b),allocatable               :: var_ix(:)                ! index of each forcing data variable in the data structure
   integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
   character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
   real(dp)                               :: firstJulDay              ! first julian day in forcing file

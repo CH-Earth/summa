@@ -174,6 +174,7 @@ MODULE globalData
  real(dp),save,public                        :: fracJulday              ! fractional julian days since the start of year
  real(dp),save,public                        :: dJulianStart            ! julian day of start time of simulation
  real(dp),save,public                        :: dJulianFinsh            ! julian day of end time of simulation
+ integer(i4b),save,public                    :: nHRUfile                ! number of HRUs in the file
  integer(i4b),save,public                    :: yearLength              ! number of days in the current year
  integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
  logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
