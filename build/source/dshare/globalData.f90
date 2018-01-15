@@ -170,6 +170,7 @@ MODULE globalData
  integer(i4b),save,public                    :: numtim                  ! number of time steps
  real(dp),save,public                        :: data_step               ! time step of the data
  real(dp),save,public                        :: refJulday               ! reference time in fractional julian days
+ real(dp),save,public                        :: refJulday_data          ! reference time in fractional julian days (data files)
  real(dp),save,public                        :: fracJulday              ! fractional julian days since the start of year
  real(dp),save,public                        :: dJulianStart            ! julian day of start time of simulation
  real(dp),save,public                        :: dJulianFinsh            ! julian day of end time of simulation
