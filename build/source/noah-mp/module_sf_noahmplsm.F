@@ -1,32 +1,33 @@
 module noahmp_globals
 
   ! Maybe most of these can be moved to a REDPRM use statement?
+  ! MPC -- yes, all of these variables can be local to REDPRM (see additional comments)
   use module_sf_noahlsm, only: &
-       &                       SLCATS,     &
-       &                       LUCATS,     &
-       &                       CSOIL_DATA, &
-       &                       BB,         &
-       &                       SATDK,      &
-       &                       SATDW,      &
-       &                       F11,        &
-       &                       SATPSI,     &
-       &                       QTZ,        &
-       &                       DRYSMC,     &
-       &                       MAXSMC,     &
-       &                       REFSMC,     &
-       &                       WLTSMC,     &
-       &                       RSTBL,      &
-       &                       RGLTBL,     &
-       &                       HSTBL,      &
-       &                       NROTBL,     &
-       &                       TOPT_DATA,  &
-       &                       RSMAX_DATA, &
-       &                       ZBOT_DATA,  &
-       &                       CZIL_DATA,  &
-       &                       FRZK_DATA,  &
-       &                       SLOPE_DATA, &
-       &                       REFDK_DATA, &
-       &                       REFKDT_DATA
+       &                       SLCATS,     &   !                               -- only used in REDPRM: number of soil categories
+       &                       LUCATS,     &   !                               -- only used in REDPRM: number of land use categories
+       &                       CSOIL_DATA, &   ! CSOIL  = CSOIL_DATA           -- only used in REDPRM: soil heat capacity [J M-3 K-1] 
+       &                       BB,         &   ! BEXP   = BB(SOILTYP)          -- only used in REDPRM: Clapp-Hornberger exponent
+       &                       SATDK,      &   ! DKSAT  = SATDK(SOILTYP)       -- only used in REDPRM: saturated soil hydraulic conductivity
+       &                       SATDW,      &   ! DWSAT  = SATDW(SOILTYP)       -- only used in REDPRM: saturated soil hydraulic diffusivity
+       &                       F11,        &   ! F1     = F11(SOILTYP)         -- only used in REDPRM: soil thermal diffusivity/conductivity coef 
+       &                       SATPSI,     &   ! PSISAT = SATPSI(SOILTYP)      -- only used in REDPRM: saturated soil matric potential
+       &                       QTZ,        &   ! QUARTZ = QTZ(SOILTYP)         -- only used in REDPRM: soil quartz content
+       &                       DRYSMC,     &   ! SMCDRY = DRYSMC(SOILTYP)      -- only used in REDPRM: dry soil moisture threshold where direct evap from top layer ends 
+       &                       MAXSMC,     &   ! SMCMAX = MAXSMC(SOILTYP)      -- only used in REDPRM: porosity, saturated value of soil moisture (volumetric)
+       &                       REFSMC,     &   ! SMCREF = REFSMC(SOILTYP)      -- only used in REDPRM: reference soil moisture (field capacity)
+       &                       WLTSMC,     &   ! SMCWLT = WLTSMC(SOILTYP)      -- only used in REDPRM: wilting point soil moisture (volumetric)
+       &                       RSTBL,      &   ! RSMIN  = RSTBL(VEGTYP)        -- only used in REDPRM: minimum Canopy Resistance [s/m]
+       &                       RGLTBL,     &   ! RGL    = RGLTBL(VEGTYP)       -- only used in REDPRM: parameter used in radiation stress function
+       &                       HSTBL,      &   ! HS     = HSTBL(VEGTYP)        -- only used in REDPRM: parameter used in vapor pressure deficit function
+       &                       NROTBL,     &   ! NROOT  = NROTBL(VEGTYP)       -- only used in REDPRM: rooting depth [as the number of layers]
+       &                       TOPT_DATA,  &   ! TOPT   = TOPT_DATA            -- only used in REDPRM: optimum transpiration air temperature
+       &                       RSMAX_DATA, &   ! RSMAX  = RSMAX_DATA           -- only used in REDPRM: maximum stomatal resistance
+       &                       ZBOT_DATA,  &   ! ZBOT   = ZBOT_DATA            -- only used in REDPRM: Depth (m) of lower boundary soil temperature
+       &                       CZIL_DATA,  &   ! CZIL   = CZIL_DATA            -- only used in REDPRM: Calculate roughness length of heat
+       &                       FRZK_DATA,  &   ! FRZK   = FRZK_DATA            -- only used in REDPRM: ** Used to get FRZX, to compute maximum infiltration rate (in INFIL)
+       &                       SLOPE_DATA, &   ! SLOPE  = SLOPE_DATA(SLOPETYP) -- only used in REDPRM: slope index (0 - 1) 
+       &                       REFDK_DATA, &   ! REFDK  = REFDK_DATA           -- only used in REDPRM: ** Used to get KDT, to compute maximum infiltration rate (in INFIL)
+       &                       REFKDT_DATA     ! REFKDT = REFKDT_DATA          -- only used in REDPRM: ** Used to get KDT, to compute maximum infiltration rate (in INFIL)
 
   implicit none
 
@@ -62,6 +63,9 @@ module noahmp_globals
   REAL    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
   REAL    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
   REAL    :: TOPT         !optimum transpiration air temperature.
+
+  ! MPC change: make variables private for a given thread
+  !$omp threadprivate(NROOT, RGL, RSMIN, HS, RSMAX, TOPT)
 
 !KWM  CHARACTER(LEN=256) ::  LUTYPE
 !KWM  INTEGER                    :: LUCATS, BARE
@@ -102,6 +106,9 @@ module noahmp_globals
   REAL    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
   REAL    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
 
+  ! MPC change: make variables private for a given thread
+  !$omp threadprivate(BEXP, SMCDRY, F1, SMCMAX, SMCREF, PSISAT, DKSAT, DWSAT, SMCWLT, QUARTZ) 
+
 !KWM  CHARACTER*4 SLTYPE
 !KWM  INTEGER                     :: SLCATS
 !KWM  INTEGER, PARAMETER          :: NSLTYPE=30
@@ -115,8 +122,15 @@ module noahmp_globals
   REAL    :: ZBOT        !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
   REAL    :: CZIL        !Calculate roughness length of heat ( Assigned in REDPRM )
 
+  ! MPC note: FRZK_DATA, REFDK_DATA, and REFKDT_DATA are used in REDPRM to compute KDT and FRZX
+  !           (FRZK, REFDK, and REFKDT are local variables within REDPRM and do not need to be thread private)
+
   REAL    :: KDT         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
   REAL    :: FRZX        !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+
+  ! MPC change: make variables private for a given thread
+  !$omp threadprivate(SLOPE, CSOIL, ZBOT, CZIL, KDT, FRZX)
+
 
 ! LSM GENERAL PARAMETERS
 
