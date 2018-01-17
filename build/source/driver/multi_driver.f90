@@ -269,9 +269,7 @@ character(len=256)               :: attrFile                   ! attributes file
 integer(i4b)                     :: omp_get_thread_num,omp_get_num_threads
 real(dp)                         :: omp_get_wtime
 ! parallelize the model run
-integer(i4b)                     :: idThread                   ! thread id
 integer(i4b)                     :: nThreads                   ! number of threads
-integer(i4b)                     :: saveThreads                ! number of threads
 integer(i4b), allocatable        :: ixExpense(:)               ! ranked index GRU w.r.t. computational expense
 integer(i4b), allocatable        :: totalFluxCalls(:)          ! total number of flux calls for each GRU
 integer(i4b)                     :: nHRUrun                    ! number of HRUs in the run domain
@@ -284,10 +282,10 @@ integer(i4b)                     :: fileHRU                    ! number of HRUs 
 integer(i4b)                     :: iRunMode                   ! define the current running mode
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
 ! timing information
-real(dp)                         :: openMPstart                ! time for the start of the parallelization section
-real(dp), allocatable            :: timeGRUstart(:)            ! time GRUs start
-real(dp), allocatable            :: timeGRU(:)                 ! time spent on each GRU
-real(dp), allocatable            :: timeGRUcompleted(:)        ! time required to complete each GRU
+integer*8                        :: openMPstart,openMPend      ! time for the start of the parallelization section
+integer*8, allocatable           :: timeGRUstart(:)            ! time GRUs start
+real(dp),  allocatable           :: timeGRUcompleted(:)        ! time required to complete each GRU
+real(dp),  allocatable           :: timeGRU(:)                 ! time spent on each GRU
 integer(i4b), dimension(8)       :: startInit,endInit          ! date/time for the start and end of the initialization
 real(dp)                         :: elapsedInit                ! elapsed time for the initialization
 integer(i4b), dimension(8)       :: startRead,endRead          ! date/time for the start and end of the data read
@@ -902,14 +900,14 @@ do modelTimeStep=1,numtim
  kGRU=0
 
  ! initialize the time that the openMP section starts
- openMPstart = omp_get_wtime()
+ call system_clock(openMPstart)
 
  ! ----- use openMP directives to run GRUs in parallel -------------------------
 
  ! start of parallel section: define shared and private structure elements
  !$omp parallel default(none) &
- !$omp          private(iGRU, jGRU, idThread)   & ! GRU indices are private for a given thread
- !$omp          shared(openMPstart, nThreads)   & ! access constant variables
+ !$omp          private(iGRU, jGRU)  & ! GRU indices are private for a given thread
+ !$omp          shared(openMPstart, openMPend, nThreads)   & ! access constant variables
  !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
  !$omp          shared(gru_struc, dt_init, computeVegFlux)       & ! subroutine inputs
  !$omp          shared(timeStruct, typeStruct, attrStruct, mparStruct, indxStruct, &
@@ -917,12 +915,12 @@ do modelTimeStep=1,numtim
  !$omp          private(err, message) &
  !$omp          firstprivate(nGRU)
 
+ nThreads = 1
+ !$ nThreads = omp_get_num_threads() 
+
  ! use static scheduling with chunk size of one:
  !  -- new chunks are assigned to threads when they become available
  !  -- start with the more expensive GRUs, and add the less expensive GRUs as threads come available
-
- ! get the number of threads
- nThreads = omp_get_num_threads()
 
  !$omp do ! schedule(static, 1)   ! chunk size of 1
  do jGRU=1,nGRU  ! loop through GRUs
@@ -936,11 +934,10 @@ do modelTimeStep=1,numtim
   iGRU=ixExpense(kGRU)
 
   ! get the time that the GRU started
-  timeGRUstart(iGRU) = omp_get_wtime()
+  call system_clock( timeGRUstart(iGRU) )
 
   ! print progress
-  idThread = omp_get_thread_num()
-  !write(*,'(a,1x,5(i4,1x),f20.10,1x)') 'iGRU, jGRU, kGRU, idThread, nThreads = ', iGRU, jGRU, kGRU, idThread, nThreads, timeGRU(iGRU)
+  !write(*,'(a,1x,5(i4,1x),f20.10,1x)') 'iGRU, jGRU, kGRU, nThreads = ', iGRU, jGRU, kGRU, nThreads, timeGRU(iGRU)
 
   !$omp end critical(setGRU)
 
@@ -974,8 +971,9 @@ do modelTimeStep=1,numtim
   call handle_err(err,message)
 
   ! save timing information
-  timeGRU(iGRU)          = omp_get_wtime() - timeGRUstart(iGRU)
-  timeGRUcompleted(iGRU) = omp_get_wtime() - openMPstart
+  call system_clock(openMPend)
+  timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(dp))
+  timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(dp))
 
   !$omp end critical(saveTiming)
 
