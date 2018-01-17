@@ -153,6 +153,16 @@ contains
   ! set nVar attribute
   forcFileInfo(iFile)%nVars = nVar
 
+  ! allocate space
+  allocate(forcFileInfo(iFile)%var_ix(nVar), stat=err)
+  if(err/=0)then
+   message=trim(message)//'problem allocating space for structure element'
+   err=20; return
+  endif
+
+  ! initialize data structure
+  forcFileInfo(iFile)%var_ix(:) = integerMissing
+
   ! inquire nhru dimension size
   err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
   err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif
@@ -164,7 +174,7 @@ contains
   ! loop through all variables in netcdf file, check to see if everything needed to run the model exists and data_step is correct
   do iNC=1,nVar
 
-   ! inqure about current variable name, type, number of dimensions
+   ! inquire about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
    if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; end if
 
@@ -183,11 +193,13 @@ contains
      err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(ivar))
      if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; end if
 
-     ! put variable name in forcing file metadata structure
-     forcFileInfo(iFile)%varName(ivar) = trim(varName)
+     ! put variable index of the forcing structure in the metadata structure
+     if(trim(varName)/='time')then
+      forcFileInfo(iFile)%var_ix(iNC)   = ivar
+      forcFileInfo(iFile)%varName(ivar) = trim(varName)
 
      ! get first time from file, place into forcFileInfo
-     if(trim(varname)=='time')then
+     else
       err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
       if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; end if
      end if  ! if the variable name is time
