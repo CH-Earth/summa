@@ -266,8 +266,7 @@ character(len=256)               :: timeString                 ! protion of rest
 character(len=256)               :: restartFile                ! restart file name
 character(len=256)               :: attrFile                   ! attributes file name
 ! open MP functions
-integer(i4b)                     :: omp_get_thread_num,omp_get_num_threads
-real(dp)                         :: omp_get_wtime
+integer(i4b)                     :: omp_get_num_threads        ! get the number of threads
 ! parallelize the model run
 integer(i4b)                     :: nThreads                   ! number of threads
 integer(i4b), allocatable        :: ixExpense(:)               ! ranked index GRU w.r.t. computational expense
