@@ -917,11 +917,11 @@ do modelTimeStep=1,numtim
  nThreads = 1
  !$ nThreads = omp_get_num_threads() 
 
- ! use static scheduling with chunk size of one:
+ ! use dynamic scheduling with chunk size of one:
  !  -- new chunks are assigned to threads when they become available
  !  -- start with the more expensive GRUs, and add the less expensive GRUs as threads come available
 
- !$omp do ! schedule(static, 1)   ! chunk size of 1
+ !$omp do schedule(dynamic, 1)   ! chunk size of 1
  do jGRU=1,nGRU  ! loop through GRUs
 
   !----- process GRUs in order of computational expense -------------------------
@@ -929,8 +929,8 @@ do modelTimeStep=1,numtim
   !$omp critical(setGRU)
 
   ! assign expensive GRUs to threads that enter first
-  kGRU=kGRU+1
-  iGRU=ixExpense(kGRU)
+  kGRU = kGRU+1
+  iGRU = ixExpense(kGRU)
 
   ! get the time that the GRU started
   call system_clock( timeGRUstart(iGRU) )
