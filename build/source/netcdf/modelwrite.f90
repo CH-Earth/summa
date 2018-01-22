@@ -99,11 +99,11 @@ contains
  do iVar = 1,size(meta)
 
   ! check that the variable is desired
-  if (meta(iVar)%statIndex(iLookStat%inst)==integerMissing) cycle
+  if (meta(iVar)%statIndex(iLookFREQ%timestep)==integerMissing) cycle
 
   ! initialize message
   message=trim(message)//trim(meta(iVar)%varName)//'/'
-  print*, trim(message), meta(iVar)%ncVarID(:)
+  print*, trim(message), meta(iVar)%ncVarID(iLookFREQ%timestep)
 
   ! HRU data
   if (iSpatial/=integerMissing) then

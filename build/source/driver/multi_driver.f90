@@ -120,6 +120,7 @@ USE globalData,only:urbanVegCategory                        ! vegetation categor
 USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
 USE globalData,only:globalPrintFlag                         ! global print flag
 USE globalData,only:integerMissing                          ! missing integer value
+USE globalData,only:realMissing                             ! missing double precision value
 USE globalData,only:yes,no                                  ! .true. and .false.
 ! provide access to Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
@@ -189,7 +190,7 @@ type(gru_doubleVec)              :: bvarStruct                 ! x%gru(:)%var(:)
 type(gru_hru_double)             :: dparStruct                 ! x%gru(:)%hru(:)%var(:)     -- default model parameters
 ! define indices
 integer(i4b)                     :: iStruct                    ! loop through data structures
-integer(i4b)                     :: iGRU,jGRU                  ! index of grouped response unit
+integer(i4b)                     :: iGRU,jGRU,kGRU             ! index of grouped response unit
 integer(i4b)                     :: iHRU,jHRU,kHRU             ! index of the hydrologic response unit
 integer(i4b)                     :: nGRU                       ! number of grouped response units
 integer(i4b)                     :: nHRU                       ! number of global hydrologic response units
@@ -264,8 +265,11 @@ type(extended_info),allocatable  :: statBvar_meta(:)           ! child metadata 
 character(len=256)               :: timeString                 ! protion of restart file name that contains the write-out time
 character(len=256)               :: restartFile                ! restart file name
 character(len=256)               :: attrFile                   ! attributes file name
+! open MP functions
+integer(i4b)                     :: omp_get_num_threads        ! get the number of threads
 ! parallelize the model run
-integer(i4b), allocatable        :: ixFluxCalls(:)             ! ranked index of flux calls for each GRU
+integer(i4b)                     :: nThreads                   ! number of threads
+integer(i4b), allocatable        :: ixExpense(:)               ! ranked index GRU w.r.t. computational expense
 integer(i4b), allocatable        :: totalFluxCalls(:)          ! total number of flux calls for each GRU
 integer(i4b)                     :: nHRUrun                    ! number of HRUs in the run domain
 integer(i4b)                     :: maxLayers                  ! maximum number of layers
@@ -276,7 +280,21 @@ integer(i4b)                     :: fileGRU                    ! number of GRUs 
 integer(i4b)                     :: fileHRU                    ! number of HRUs in the input file
 integer(i4b)                     :: iRunMode                   ! define the current running mode
 character(len=128)               :: fmtGruOutput               ! a format string used to write start and end GRU in output file names
- ! version information generated during compiling
+! timing information
+integer*8                        :: openMPstart,openMPend      ! time for the start of the parallelization section
+integer*8, allocatable           :: timeGRUstart(:)            ! time GRUs start
+real(dp),  allocatable           :: timeGRUcompleted(:)        ! time required to complete each GRU
+real(dp),  allocatable           :: timeGRU(:)                 ! time spent on each GRU
+integer(i4b), dimension(8)       :: startInit,endInit          ! date/time for the start and end of the initialization
+real(dp)                         :: elapsedInit                ! elapsed time for the initialization
+integer(i4b), dimension(8)       :: startRead,endRead          ! date/time for the start and end of the data read
+real(dp)                         :: elapsedRead                ! elapsed time for the data read
+integer(i4b), dimension(8)       :: startWrite,endWrite        ! date/time for the start and end of the stats/write
+real(dp)                         :: elapsedWrite               ! elapsed time for the stats/write
+integer(i4b), dimension(8)       :: startPhysics,endPhysics    ! date/time for the start and end of the physics
+real(dp)                         :: elapsedPhysics             ! elapsed time for the physics
+
+! version information generated during compiling
 INCLUDE 'summaversion.inc'
 ! *****************************************************************************
 ! *** inital priming -- get command line arguments, identify files, etc.
@@ -292,9 +310,17 @@ call getCommandArguments()
 ! define double precision NaNs (shared in globalData)
 dNaN = ieee_value(1._dp, ieee_quiet_nan)
 
+! initialize the elapsed time
+elapsedRead=0._dp
+elapsedWrite=0._dp
+elapsedPhysics=0._dp
+
 ! get the initial time
 call date_and_time(values=ctime1)
 print "(A,I2.2,':',I2.2,':',I2.2)", 'start at ',ctime1(5:7)
+
+! initialize the start of the initialization
+call date_and_time(values=startInit)
 
 ! set directories and files -- summaFileManager used as command-line argument
 call summa_SetDirsUndPhiles(summaFileManagerFile,err,message); call handle_err(err,message)
@@ -720,6 +746,12 @@ do iGRU=1,nGRU
  call writeParm(iGRU,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,'[bpar]/'//message)
 end do ! GRU
 
+! identify the end of the initialization
+call date_and_time(values=endInit)
+
+! aggregate the elapsed time for the initialization
+elapsedInit = elapsedSec(startInit, endInit) 
+
 ! stop
 !call stop_program('testing')
 
@@ -738,8 +770,16 @@ finalizeStats(:) = .false.  ! do not finalize stats on the first time step
 ! set stats flag for the timestep-level output
 finalizeStats(iLookFreq%timestep)=.true.
 
+! allocate space for GRU timing 
+allocate(totalFluxCalls(nGRU), timeGRU(nGRU), timeGRUstart(nGRU), timeGRUcompleted(nGRU), ixExpense(nGRU), stat=err)
+call handle_err(err,'unable to allocate space for GRU timing')
+timeGRU(:) = realMissing ! initialize because used for ranking
+
 ! loop through time
 do modelTimeStep=1,numtim
+
+ ! initialize the start of the data read
+ call date_and_time(values=startRead)
 
  ! read forcing data
  call read_force(&
@@ -754,6 +794,12 @@ do modelTimeStep=1,numtim
                  forcStruct,         & ! intent(out):   forcing data structure (double precision)
                  err, message)         ! intent(out):   error control
  call handle_err(err,message)
+
+ ! identify the end of the data read
+ call date_and_time(values=endRead)
+
+ ! aggregate the elapsed time for the data read
+ elapsedRead = elapsedRead + elapsedSec(startRead, endRead) 
 
  ! set print flag
  globalPrintFlag=.false.
@@ -827,14 +873,15 @@ do modelTimeStep=1,numtim
  ! *** model simulation
  ! ****************************************************************************
 
+ ! initialize the start of the physics
+ call date_and_time(values=startPhysics)
+
  ! ----- rank the GRUs in terms of their anticipated computational expense -----
 
- ! use persistence 
+ ! estimate computational expense based on persistence 
  !  -- assume that that expensive GRUs from a previous time step are also expensive in the current time step
 
- ! get the total number of flux calls from the previous time step (for all HRUs within a GRU)
- allocate(totalFluxCalls(nGRU), ixFluxCalls(nGRU), stat=err)
- call handle_err(err,'unable to allocate space for totalFluxCalls')
+ ! compute the total number of flux calls from the previous time step
  do jGRU=1,nGRU
   totalFluxCalls(jGRU) = 0._dp
   do iHRU=1,gru_struc(jGRU)%hruCount
@@ -842,17 +889,59 @@ do modelTimeStep=1,numtim
   end do
  end do
 
- ! get the indices that can rank the number of flux calls
- call indexx(totalFluxCalls, ixFluxCalls) ! ranking of each GRU w.r.t. computational expense
- ixFluxCalls=ixFluxCalls(nGRU:1:-1)       ! reverse ranking: now largest to smallest
+ ! get the indices that can rank the computational expense
+ !call indexx(totalFluxCalls, ixExpense) ! ranking of each GRU w.r.t. computational expense
+ call indexx(timeGRU, ixExpense) ! ranking of each GRU w.r.t. computational expense
+ ixExpense=ixExpense(nGRU:1:-1)  ! reverse ranking: now largest to smallest
 
- ! loop through GRUs
+ ! initialize the GRU count
+ ! NOTE: this needs to be outside the parallel section so it is not reinitialized by different threads
+ kGRU=0
+
+ ! initialize the time that the openMP section starts
+ call system_clock(openMPstart)
+
+ ! ----- use openMP directives to run GRUs in parallel -------------------------
+
+ ! start of parallel section: define shared and private structure elements
+ !$omp parallel default(none) &
+ !$omp          private(iGRU, jGRU)  & ! GRU indices are private for a given thread
+ !$omp          shared(openMPstart, openMPend, nThreads)   & ! access constant variables
+ !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
+ !$omp          shared(gru_struc, dt_init, computeVegFlux)       & ! subroutine inputs
+ !$omp          shared(timeStruct, typeStruct, attrStruct, mparStruct, indxStruct, &
+ !$omp                 forcStruct, progStruct, diagStruct, fluxStruct, bvarStruct) &
+ !$omp          private(err, message) &
+ !$omp          firstprivate(nGRU)
+
+ nThreads = 1
+ !$ nThreads = omp_get_num_threads() 
+
+ ! use dynamic scheduling with chunk size of one:
+ !  -- new chunks are assigned to threads when they become available
+ !  -- start with the more expensive GRUs, and add the less expensive GRUs as threads come available
+
+ !$omp do schedule(dynamic, 1)   ! chunk size of 1
  do jGRU=1,nGRU  ! loop through GRUs
 
-  ! loop through GRUs in order of computational expense from the previous time step
-  iGRU = ixFluxCalls(jGRU)
+  !----- process GRUs in order of computational expense -------------------------
 
-  ! simulation for a single GRU
+  !$omp critical(setGRU)
+
+  ! assign expensive GRUs to threads that enter first
+  kGRU = kGRU+1
+  iGRU = ixExpense(kGRU)
+
+  ! get the time that the GRU started
+  call system_clock( timeGRUstart(iGRU) )
+
+  ! print progress
+  !write(*,'(a,1x,5(i4,1x),f20.10,1x)') 'iGRU, jGRU, kGRU, nThreads = ', iGRU, jGRU, kGRU, nThreads, timeGRU(iGRU)
+
+  !$omp end critical(setGRU)
+
+  !----- run simulation for a single GRU ----------------------------------------
+
   call run_oneGRU(&
                   ! model control
                   gru_struc(iGRU),          & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers) 
@@ -862,8 +951,8 @@ do modelTimeStep=1,numtim
                   timeStruct%var,           & ! intent(in):    model time data
                   typeStruct%gru(iGRU),     & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%gru(iGRU),     & ! intent(in):    local attributes for each HRU
-                  mparStruct%gru(iGRU),     & ! intent(in):    local model parameters
                   ! data structures (input-output)
+                  mparStruct%gru(iGRU),     & ! intent(inout): local model parameters
                   indxStruct%gru(iGRU),     & ! intent(inout): model indices
                   forcStruct%gru(iGRU),     & ! intent(inout): model forcing data
                   progStruct%gru(iGRU),     & ! intent(inout): prognostic variables for a local HRU
@@ -873,18 +962,39 @@ do modelTimeStep=1,numtim
                   ! error control
                   err,message)                ! intent(out):   error control
 
-  ! error control
+  !----- save timing information ------------------------------------------------
+
+  !$omp critical(saveTiming)
+
+  ! check errors
   call handle_err(err,message)
 
- end do  ! (looping through GRUs)
+  ! save timing information
+  call system_clock(openMPend)
+  timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(dp))
+  timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(dp))
 
- ! deallocate space used to determine the GRU computational expense
- deallocate(totalFluxCalls, ixFluxCalls, stat=err)
- call handle_err(err,'unable to deallocate space for totalFluxCalls')
+  !$omp end critical(saveTiming)
+
+ end do  ! (looping through GRUs)
+ !$omp end do
+ !$omp end parallel
+
+ ! identify the end of the physics
+ call date_and_time(values=endPhysics)
+
+ ! aggregate the elapsed time for the physics
+ elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics) 
+
+ ! pause
+ !print*, 'driver/PAUSE: timestep '; read(*,*)
 
  ! ****************************************************************************
  ! *** model calculate statistics
  ! ****************************************************************************
+
+ ! initialize the start of the data write
+ call date_and_time(values=startWrite)
 
  ! loop through GRUs and HRUs
  do iGRU=1,nGRU
@@ -938,6 +1048,12 @@ do modelTimeStep=1,numtim
 
  ! save time vector
  oldTimeVec(:) = timeStruct%var
+
+ ! identify the end of the data write section
+ call date_and_time(values=endWrite)
+
+ ! aggregate the elapsed time for the stats/writing
+ elapsedWrite = elapsedWrite + elapsedSec(startWrite, endWrite) 
 
  !print*, 'PAUSE: in driver: testing differences'; read(*,*)
  !stop 'end of time step'
@@ -1025,6 +1141,10 @@ do iFreq = 1,maxvarFreq
   call handle_err(err,message)
  end if
 end do
+
+! deallocate space used to determine the GRU computational expense
+deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)
+call handle_err(err,'unable to deallocate space for GRU timing')
 
 ! deallocate space for dt_init and upArea
 deallocate(dt_init,upArea,stat=err); call handle_err(err,'unable to deallocate space for dt_init and upArea')
@@ -1277,7 +1397,7 @@ contains
  end subroutine handle_err
 
  ! **************************************************************************************************
- ! private subroutine stop_program: stop program execution
+ ! internal subroutine stop_program: stop program execution
  ! **************************************************************************************************
  subroutine stop_program(message)
  ! used to stop program execution
@@ -1303,13 +1423,27 @@ contains
  elpSec = elapsedSec(ctime1,ctime2)
 
  ! print initial and final date and time
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',ctime1(1:3),ctime1(5:8)
- write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") '  final date/time = ',ctime2(1:3),ctime2(5:8)
- ! print elapsed time
- write(outunit,"(/,A,1PG15.7,A)")                                           '     elapsed time = ', elpSec,          ' s'
- write(outunit,"(A,1PG15.7,A)")                                             '       or           ', elpSec/60_dp,    ' m'
- write(outunit,"(A,1PG15.7,A)")                                             '       or           ', elpSec/3600_dp,  ' h'
- write(outunit,"(A,1PG15.7,A/)")                                            '       or           ', elpSec/86400_dp, ' d'
+ write(outunit,"(/,A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)") 'initial date/time = ',ctime1(1:3),ctime1(5:8)
+ write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',ctime2(1:3),ctime2(5:8)
+ ! print elapsed time for the initialization
+ write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
+ write(outunit,"(A,1PG15.7,A)")                                               '    fraction init = ', elapsedInit/elpSec,    ' s'
+ ! print elapsed time for the data read
+ write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
+ write(outunit,"(A,1PG15.7,A)")                                               '    fraction read = ', elapsedRead/elpSec,    ' s'
+ ! print elapsed time for the data write
+ write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
+ write(outunit,"(A,1PG15.7,A)")                                               '   fraction write = ', elapsedWrite/elpSec,   ' s'
+ ! print elapsed time for the physics
+ write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
+ write(outunit,"(A,1PG15.7,A)")                                               ' fraction physics = ', elapsedPhysics/elpSec, ' s'
+ ! print total elapsed time
+ write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
+ write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_dp,          ' m'
+ write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_dp,        ' h'
+ write(outunit,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_dp,       ' d'
+ ! print the number of threads
+ write(outunit,"(A,i10,/)")                                                   '   number threads = ', nThreads
  ! stop with message
  print*,'FORTRAN STOP: '//trim(message)
  stop

@@ -59,15 +59,17 @@ contains
  ! *************************************************************************************************
  ! * sort function, used to sort numbers in ascending order
  ! *************************************************************************************************
- SUBROUTINE indexx(iarr,index)
+ SUBROUTINE indexx(arr,index)
  IMPLICIT NONE
- INTEGER(I4B), DIMENSION(:), INTENT(IN) :: iarr
+ !INTEGER(I4B), DIMENSION(:), INTENT(IN) :: arr
+ REAL(DP), DIMENSION(:), INTENT(IN) :: arr
  INTEGER(I4B), DIMENSION(:), INTENT(OUT) :: index
  INTEGER(I4B), PARAMETER :: NN=15, NSTACK=50
- INTEGER(I4B) :: a
+ !INTEGER(I4B) :: a
+ REAL(DP) :: a
  INTEGER(I4B) :: n,k,i,j,indext,jstack,l,r
  INTEGER(I4B), DIMENSION(NSTACK) :: istack
- n=size(iarr)
+ n=size(arr)
  index=arth(1,1,n)
  jstack=0
  l=1
@@ -76,9 +78,9 @@ contains
      if (r-l < NN) then
          do j=l+1,r
              indext=index(j)
-             a=iarr(indext)
+             a=arr(indext)
              do i=j-1,1,-1
-                 if (iarr(index(i)) <= a) exit
+                 if (arr(index(i)) <= a) exit
                  index(i+1)=index(i)
              end do
              index(i+1)=indext
@@ -96,15 +98,15 @@ contains
          i=l+1
          j=r
          indext=index(l+1)
-         a=iarr(indext)
+         a=arr(indext)
          do
              do
                  i=i+1
-                 if (iarr(index(i)) >= a) exit
+                 if (arr(index(i)) >= a) exit
              end do
              do
                  j=j-1
-                 if (iarr(index(j)) <= a) exit
+                 if (arr(index(j)) <= a) exit
              end do
              if (j < i) exit
              call swap(index(i),index(j))
@@ -128,7 +130,7 @@ contains
  SUBROUTINE icomp_xchg(i,j)
  INTEGER(I4B), INTENT(INOUT) :: i,j
  INTEGER(I4B) :: swp
- if (iarr(j) < iarr(i)) then
+ if (arr(j) < arr(i)) then
      swp=i
      i=j
      j=swp
