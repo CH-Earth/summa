@@ -217,6 +217,7 @@ contains
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(dp)                        :: rAdd(nState)                  ! additional terms in the residual vector
  real(dp)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
+ real(dp)                        :: xMin,xMax                     ! state minimum and maximum (mixed units) 
  logical(lgt)                    :: converged                     ! convergence flag
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: resSinkNew(nState)            ! additional terms in the residual vector
@@ -464,6 +465,7 @@ contains
                   scalarSolution,                & ! intent(in):    flag to indicate the scalar solution
                   ! input: state vectors
                   stateVecTrial,                 & ! intent(in):    trial state vector
+                  xMin,xMax,                     & ! intent(inout): state maximum and minimum
                   fScale,                        & ! intent(in):    function scaling vector
                   xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
                   rVec,                          & ! intent(in):    residual vector

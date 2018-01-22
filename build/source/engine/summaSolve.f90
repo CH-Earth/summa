@@ -99,6 +99,7 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
+                       xMin,xMax,               & ! intent(inout): brackets of the root
                        fScale,                  & ! intent(in):    function scaling vector
                        xScale,                  & ! intent(in):    "variable" scaling vector, i.e., for state variables
                        rVec,                    & ! intent(in):    residual vector
@@ -149,6 +150,7 @@ contains
  logical(lgt),intent(in)         :: scalarSolution           ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)         ! trial state vector
+ real(dp),intent(inout)          :: xMin,xMax                ! brackets of the root
  real(dp),intent(in)             :: fScale(:)                ! function scaling vector
  real(dp),intent(in)             :: xScale(:)                ! "variable" scaling vector, i.e., for state variables
  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
@@ -588,7 +590,6 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
   character(len=256)             :: cmessage                 ! error message of downwind routine
-  real(dp),save                  :: xMin,xMax                ! brackets of the root
   real(dp),parameter             :: relTolerance=0.005_dp    ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
   real(dp)                       :: xTolerance               ! relTolerance*(xmax-xmin)
   real(dp)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)

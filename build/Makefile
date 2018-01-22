@@ -44,44 +44,70 @@
 # Define compiler flags. If you use a different compiler,
 # you will need to figure out what the equivalent flags are
 # and may need to update this section
+
+# ------------ define compiler flags ----------------------------------------
+
+# define open MP flags
+isOpenMP = yes
+FLAGS_OMP =
+LIBOPENMP =
+
+# Define compiler flags. If you use a different compiler,
+# you will need to figure out what the equivalent flags are
+# and may need to update this section
+
+# gfortran
 ifeq "$(FC)" "gfortran"
 
- # Define the flags for openMP
- FLAGS_OMP =
- #FLAGS_OMP = -fopenmp
+ifeq "$(isOpenMP)" "yes"
+ FLAGS_OMP = -fopenmp
+endif
 
- # Production run
- FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
- FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
- FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
- # Debug run
- #FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
- #FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
- #FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+#FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+#FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+#FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 
 endif
+
+
+# ifort
 ifeq "$(FC)" "ifort"
 
- # Define the flags for openMP
- FLAGS_OMP =
- #FLAGS_OMP = -qopenmp
-
- # production run
- FLAGS_NOAH = -O3 -autodouble -noerror_limit -FR -auto -fltconsistency $(FLAGS_OMP)
- FLAGS_COMM = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
- FLAGS_SUMMA = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
-
- # debug run
- #FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
- #FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
- #FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
-
+ifeq "$(isOpenMP)" "yes"
+ FLAGS_OMP = -qopenmp
 endif
+
+FLAGS_NOAH = -O3 -autodouble -noerror_limit -FR -auto -fltconsistency $(FLAGS_OMP)
+FLAGS_COMM = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+FLAGS_SUMMA = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
+
+#FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
+#FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+#FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
+endif
+
+# pgi
 ifeq "$(FC)" "pgfortran"
  FLAGS_NOAH = -O0 -pg -g -traceback -r8 -Mfree -Mbounds
  FLAGS_COMM = -O0 -pg -g -traceback -Mfree -Mbounds
  FLAGS_SUMMA = -O0 -pg -g -traceback -Mfree -Mbounds -Minfo -Mnoautoinline -Ktrap=inv,denorm,divz,ovf,unf,inexact
+endif
+
+# ------------ define compiler libraries ------------------------------------
+
+# gfortran compiler on cheyenne
+ifeq "$(FC_ENV)" "gfortran-cheyenne"
+
+ifeq "$(isOpenMP)" "yes"
+ LIBOPENMP = -lgomp
+endif
+
+NCDF_PATH = /glade/u/apps/ch/opt/netcdf/4.4.1.1/gnu/7.1.0
+LIBLAPACK = ${NCAR_LIBS_NETLIB}
 endif
 
 # gfortran-6 compiler used in Docker builds
@@ -112,10 +138,20 @@ endif
 
 # Intel fortran compiler
 ifeq "$(FC_ENV)" "ifort"
- NCDF_PATH = /opt/netcdf4-intel
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+
+ifeq "$(isOpenMP)" "yes"
+ LIBOPENMP = -liomp5
+endif
+
+#NCDF_PATH = /opt/netcdf4-intel
+#LAPK_PATH = /usr
+NCDF_PATH = /glade/u/apps/ch/opt/netcdf/4.4.1.1/intel/17.0.1
+LAPK_PATH = /glade/u/apps/opt/intel/2017u1/compilers_and_libraries/linux/mkl/lib/intel64
+
+# define the lapack libraries
+#LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
+LIBLAPACK = $(NCAR_LIBS_MKL)
+
 endif
 
 # Portland compiler
