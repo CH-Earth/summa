@@ -48,7 +48,7 @@
 # ------------ define compiler flags ----------------------------------------
 
 # define open MP flags
-isOpenMP = yes
+isOpenMP =
 FLAGS_OMP =
 LIBOPENMP =
 
