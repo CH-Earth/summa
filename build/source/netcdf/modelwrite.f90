@@ -90,7 +90,6 @@ contains
  character(*)  ,intent(out)  :: message          ! error message
  ! local variables
  integer(i4b)                :: iVar             ! loop through variables
- integer(i4b)  ,parameter    :: modelTime=1      ! these particular data are only output in the timestep file
 
  ! initialize error control
  err=0;message="writeParm/"
@@ -109,19 +108,20 @@ contains
   if (iSpatial/=integerMissing) then
    select type (struct)
     class is (var_i)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_d)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_dlength)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
+     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)%dat/),start=(/iSpatial,1/),count=(/1,size(struct%var(iVar)%dat)/))
     class default; err=20; message=trim(message)//'unknown variable type (with HRU)'; return
    end select
+   call netcdf_err(err,message); if (err/=0) return
 
   ! GRU data
   else
    select type (struct)
     class is (var_d)
-     err = nf90_put_var(ncid(modelTime),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
+     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
     class default; err=20; message=trim(message)//'unknown variable type (no HRU)'; return
    end select
   end if
