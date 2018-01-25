@@ -36,3 +36,6 @@ In addition, an NCAR technical note describes the SUMMA implementation in detail
 
 ## License
 SUMMA is distributed under the GNU Public License Version 3. For details see the file `COPYING` in the SUMMA root directory or visit the [online version](http://www.gnu.org/licenses/gpl-3.0.html).
+
+![Analytics](https://ga-beacon-hydrology.appspot.com/UA-108421993-6/SUMMA/readme)
+![Analytics](https://ga-beacon-hydrology.appspot.com/UA-108421993-5/github/readme?pixel)
