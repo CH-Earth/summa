@@ -102,7 +102,6 @@ contains
 
   ! initialize message
   message=trim(message)//trim(meta(iVar)%varName)//'/'
-  print*, trim(message), meta(iVar)%ncVarID(iLookFREQ%timestep)
 
   ! HRU data
   if (iSpatial/=integerMissing) then
