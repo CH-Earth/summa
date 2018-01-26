@@ -92,7 +92,6 @@ contains
  integer(i4b)                :: ivar                          ! loop through model decisions
  integer(i4b)                :: iFreq                         ! loop through output frequencies
  integer(i4b)                :: iStruct                       ! loop through structure types
- integer(i4b),parameter      :: modelTime=1                   ! model timestep output frequency
  character(len=32)           :: fstring                       ! string to hold model output freuqnecy
  character(len=1024)         :: fname                         ! temporary filename
  character(len=256)          :: cmessage                      ! temporary error message
@@ -122,10 +121,10 @@ contains
   ! define SUMMA version
   do iVar=1,4
    ! write attributes
-   if(iVar==1) call put_attrib(ncid(modelTime),'summaVersion', summaVersion, err, cmessage)  ! SUMMA version
-   if(iVar==2) call put_attrib(ncid(modelTime),'buildTime'   , buildTime   , err, cmessage)  ! build time
-   if(iVar==3) call put_attrib(ncid(modelTime),'gitBranch'   , gitBranch   , err, cmessage)  ! git branch
-   if(iVar==4) call put_attrib(ncid(modelTime),'gitHash'     , gitHash     , err, cmessage)  ! git hash
+   if(iVar==1) call put_attrib(ncid(iFreq),'summaVersion', summaVersion, err, cmessage)  ! SUMMA version
+   if(iVar==2) call put_attrib(ncid(iFreq),'buildTime'   , buildTime   , err, cmessage)  ! build time
+   if(iVar==3) call put_attrib(ncid(iFreq),'gitBranch'   , gitBranch   , err, cmessage)  ! git branch
+   if(iVar==4) call put_attrib(ncid(iFreq),'gitHash'     , gitHash     , err, cmessage)  ! git hash
    ! check errors
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
   end do
@@ -133,7 +132,7 @@ contains
   ! define model decisions
   do iVar = 1,size(model_decisions)
    if(model_decisions(iVar)%iDecision.ne.integerMissing)then
-    call put_attrib(ncid(modelTime),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
+    call put_attrib(ncid(iFreq),model_decisions(iVar)%cOption,model_decisions(iVar)%cDecision,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
    end if
   end do

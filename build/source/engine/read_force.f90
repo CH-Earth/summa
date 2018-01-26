@@ -139,6 +139,10 @@ contains
 
    ! increment iFile so we open next forcing file
    iFile = iFile+1
+   if(size(forcFileInfo)<iFile)then
+    message=trim(message)//'files in list do not include desired data'
+    err=20; return
+   endif
 
    ! define new filename
    infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
