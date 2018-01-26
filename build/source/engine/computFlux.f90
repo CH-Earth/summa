@@ -303,6 +303,9 @@ contains
  scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1)           ,&  ! intent(out): [dp] recharge to the aquifer (m s-1)
  scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)           ,&  ! intent(out): [dp] total baseflow from the aquifer (m s-1)
 
+ ! total runoff
+ scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)               ,&  ! intent(out): [dp] total runoff (m s-1)
+
  ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
  dCanairNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanairTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy air space flux w.r.t. canopy air temperature
  dCanairNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanairNetFlux_dCanopyTemp  )%dat(1)  ,&  ! intent(out): [dp] derivative in net canopy air space flux w.r.t. canopy temperature
@@ -750,6 +753,7 @@ contains
 
  endif  ! if computing soil hydrology
 
+
  ! *****
  ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...
  ! ********************************************
@@ -764,6 +768,8 @@ contains
   scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1
   scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
   scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
+  ! compute total runoff
+  scalarTotalRunoff      = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow
  end if
 
  ! *****

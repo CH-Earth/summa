@@ -598,7 +598,11 @@ contains
  ! output: liquid water fluxes
  scalarCanopyTranspiration       => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1),      & ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
  scalarCanopyEvaporation         => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1),        & ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
- scalarGroundEvaporation         => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1)         & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ scalarGroundEvaporation         => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),        & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+
+ ! output: derived fluxes
+ scalarTotalET                   => flux_data%var(iLookFLUX%scalarTotalET)%dat(1),                  & ! intent(out): [dp] total ET (kg m-2 s-1)
+ scalarNetRadiation              => flux_data%var(iLookFLUX%scalarNetRadiation)%dat(1)              & ! intent(out): [dp] net radiation (W m-2)
  )
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
@@ -1430,6 +1434,10 @@ contains
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
 
+   ! compute derived fluxes
+   scalarTotalET      = scalarGroundEvaporation + scalarCanopyEvaporation + scalarCanopyTranspiration
+   scalarNetRadiation = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + scalarGroundAbsorbedSolar + scalarLWNetGround
+
    ! compute net fluxes at the canopy and ground surface
    canairNetFlux = turbFluxCanair
    canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
@@ -1500,6 +1508,7 @@ contains
 
  ! end associations
  end associate
+
 
  end subroutine vegNrgFlux
 
