@@ -623,6 +623,9 @@ contains
   ! ** prescribed temperature or zero flux at the upper boundary of the snow-soil system
   case(prescribedTemp,zeroFlux)
 
+   ! derived fluxes
+   scalarTotalET             = 0._dp    ! total ET (kg m-2 s-1) 
+   scalarNetRadiation        = 0._dp    ! net radiation (W m-2)
    ! liquid water fluxes associated with evaporation/transpiration
    scalarCanopyTranspiration = 0._dp    ! canopy transpiration (kg m-2 s-1)
    scalarCanopyEvaporation   = 0._dp    ! canopy evaporation/condensation (kg m-2 s-1)
