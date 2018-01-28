@@ -509,6 +509,10 @@ contains
  flux_meta(iLookFLUX%scalarAquiferRecharge)           = var_info('scalarAquiferRecharge'          , 'recharge to the aquifer'                                          , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  flux_meta(iLookFLUX%scalarAquiferTranspire)          = var_info('scalarAquiferTranspire'         , 'transpiration loss from the aquifer'                              , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  flux_meta(iLookFLUX%scalarAquiferBaseflow)           = var_info('scalarAquiferBaseflow'          , 'baseflow from the aquifer'                                        , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ ! derived variables
+ flux_meta(iLookFLUX%scalarTotalET)                   = var_info('scalarTotalET'                  , 'total ET'                                                         , 'kg m-2 s-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ flux_meta(iLookFLUX%scalarTotalRunoff)               = var_info('scalarTotalRunoff'              , 'total runoff'                                                     , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ flux_meta(iLookFLUX%scalarNetRadiation)              = var_info('scalarNetRadiation'             , 'net radiation'                                                    , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * local flux derivatives...

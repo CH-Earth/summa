@@ -648,6 +648,11 @@ contains
   case('scalarAquiferRecharge'          ); get_ixflux = iLookFLUX%scalarAquiferRecharge            ! recharge to the aquifer (m s-1)
   case('scalarAquiferTranspire'         ); get_ixflux = iLookFLUX%scalarAquiferTranspire           ! transpiration from the aquifer (m s-1)
   case('scalarAquiferBaseflow'          ); get_ixflux = iLookFLUX%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
+  ! derived variables
+  case('scalarTotalET'                  ); get_ixflux = iLookFLUX%scalarTotalET                    ! total ET (kg m-2 s-1)
+  case('scalarTotalRunoff'              ); get_ixflux = iLookFLUX%scalarTotalRunoff                ! total runoff (m s-1)
+  case('scalarNetRadiation'             ); get_ixflux = iLookFLUX%scalarNetRadiation               ! net radiation (W m-2)
+  ! return missing if variable not found
   case default
    get_ixflux = integerMissing
  end select

@@ -528,6 +528,10 @@ MODULE var_lookup
   integer(i4b)    :: scalarAquiferRecharge           = integerMissing ! recharge to the aquifer (m s-1)
   integer(i4b)    :: scalarAquiferTranspire          = integerMissing ! transpiration from the aquifer (m s-1)
   integer(i4b)    :: scalarAquiferBaseflow           = integerMissing ! baseflow from the aquifer (m s-1)
+  ! derived variables
+  integer(i4b)    :: scalarTotalET                   = integerMissing ! total ET (kg m-2 s-1)
+  integer(i4b)    :: scalarTotalRunoff               = integerMissing ! total runoff (m s-1)
+  integer(i4b)    :: scalarNetRadiation              = integerMissing ! net radiation (W m-2)
  endtype iLook_flux
 
  ! ***********************************************************************************************************
@@ -798,7 +802,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86)
+                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89)
 
  ! named variables: derivatives in model fluxes w.r.t. relevant state variables
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
