@@ -72,6 +72,18 @@ USE mDecisions_module,only:         &
 USE mDecisions_module,only:         &
                       stickySnow,   &      ! maximum interception capacity an increasing function of temerature
                       lightSnow            ! maximum interception capacity an inverse function of new snow density
+
+! look-up values for the groundwater parameterization
+USE mDecisions_module,only:         &
+                      qbaseTopmodel,&      ! TOPMODEL-ish baseflow parameterization
+                      bigBucket    ,&      ! a big bucket (lumped aquifer model)
+                      noExplicit           ! no explicit groundwater parameterization
+
+! look-up values for the spatial representation of groundwater
+USE mDecisions_module,only:         &
+                      localColumn  ,&      ! separate groundwater representation in each local soil column
+                      singleBasin          ! single groundwater store over the entire basin
+
 ! privacy
 implicit none
 private
