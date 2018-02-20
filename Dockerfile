@@ -1,15 +1,20 @@
-# use the zesty distribution, which has gcc-6
-FROM ubuntu:zesty
+FROM ubuntu:xenial
 
 # install only the packages that are needed
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    software-properties-common python-software-properties \
     ca-certificates \
     git \
     make \
-    gfortran-6 \
     libnetcdff-dev \
     liblapack-dev \
+    vim
+
+# install gfortran-6
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gfortran-6 \
     && apt-get clean
 
 # set environment variables for docker build

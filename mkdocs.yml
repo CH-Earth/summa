@@ -25,3 +25,4 @@ pages:
   - SUMMA and Git: 'development/SUMMA_and_git.md'
   - SUMMA Git Workflow: 'development/SUMMA_git_workflow.md'
 - References: 'references.md'
+google_analytics: ['UA-108421993-5', 'summa.readthedocs.org']
