@@ -91,7 +91,7 @@ integer(i4b),parameter,public :: funcBottomHead       = 163    ! function of mat
 integer(i4b),parameter,public :: freeDrainage         = 164    ! free drainage
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 integer(i4b),parameter,public :: Raupach_BLM1994      = 171    ! Raupach (BLM 1994) "Simplified expressions..."
-integer(i4b),parameter,public :: CM_QJRMS1998         = 172    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+integer(i4b),parameter,public :: CM_QJRMS1988         = 172    ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
 integer(i4b),parameter,public :: vegTypeTable         = 173    ! constant parameters dependent on the vegetation type
 ! look-up values for the choice of parameterization for the rooting profile
 integer(i4b),parameter,public :: powerLaw             = 181    ! simple power-law rooting profile
@@ -467,7 +467,7 @@ contains
  ! identify the choice of parameterization for vegetation roughness length and displacement height
  select case(trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision))
   case('Raupach_BLM1994'); model_decisions(iLookDECISIONS%veg_traits)%iDecision = Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
-  case('CM_QJRMS1998'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1998     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+  case('CM_QJRMS1988'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1988     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
   case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
   case default
    err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
