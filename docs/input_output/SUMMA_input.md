@@ -81,8 +81,8 @@ The model decisions and their options or values are listed in the following tabl
 |---|---|---|
 |simulStart | 'YYYY-MM-DD hh:mm' | ( 1) simulation start time
 |simulFinsh | 'YYYY-MM-DD hh:mm' | ( 2) simulation end time
-|soilCatTbl | STAS <br> STAS-RUC <br> ROSETTA | ( 3) soil-category dataset |
-|vegeParTbl | USGS <nr> MODIFIED_IGBP_MODIS_NOAH | ( 4) vegetation category dataset
+|soilCatTbl | STAS <br> STAS-RUC <br> ROSETTA | ( 3) soil-category dataset
+|vegeParTbl | USGS <br> MODIFIED_IGBP_MODIS_NOAH | ( 4) vegetation category dataset
 |soilStress | NoahType <br> CLM_Type <br> SiB_Type | ( 5) choice of function for the soil moisture control on stomatal resistance
 |stomResist | BallBerry <br> Jarvis <br> simpleResistance <br> BallBerryFlex <br> BallBerryTest | ( 6) choice of function for stomatal resistance
 |bbTempFunc | q10Func <br> Arrhenius | ( 7) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
@@ -103,7 +103,7 @@ The model decisions and their options or values are listed in the following tabl
 |bcLowrTdyn | presTemp <br> zeroFlux | (22) type of lower boundary condition for thermodynamics
 |bcUpprSoiH | presHead <br> liq_flux | (23) type of upper boundary condition for soil hydrology
 |bcLowrSoiH | presHead <br> bottmPsi <br> drainage <br> zeroFlux | (24) type of lower boundary condition for soil hydrology
-|veg_traits | Raupach_BLM1994 <br> CM_QJRMS1998 <br> vegTypeTable | (25) choice of parameterization for vegetation roughness length and displacement height
+|veg_traits | Raupach_BLM1994 <br> CM_QJRMS1988 <br> vegTypeTable | (25) choice of parameterization for vegetation roughness length and displacement height
 |rootProfil | powerLaw <br> doubleExp | (26) choice of parameterization for the rooting profile
 |canopyEmis | simplExp <br> difTrans | (27) choice of parameterization for canopy emissivity
 |snowIncept | stickySnow <br> lightSnow | (28) choice of parameterization for snow interception

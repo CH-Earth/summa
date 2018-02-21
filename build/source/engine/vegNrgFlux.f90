@@ -74,7 +74,7 @@ USE mDecisions_module,only:  &
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 USE mDecisions_module,only:  &
  Raupach_BLM1994,            & ! Raupach (BLM 1994) "Simplified expressions..."
- CM_QJRMS1998,               & ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+ CM_QJRMS1988,               & ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
  vegTypeTable                  ! constant parameters dependent on the vegetation type
 
 ! look-up values for the choice of parameterization for canopy emissivity
@@ -624,7 +624,7 @@ contains
   case(prescribedTemp,zeroFlux)
 
    ! derived fluxes
-   scalarTotalET             = 0._dp    ! total ET (kg m-2 s-1) 
+   scalarTotalET             = 0._dp    ! total ET (kg m-2 s-1)
    scalarNetRadiation        = 0._dp    ! net radiation (W m-2)
    ! liquid water fluxes associated with evaporation/transpiration
    scalarCanopyTranspiration = 0._dp    ! canopy transpiration (kg m-2 s-1)
@@ -2145,8 +2145,8 @@ contains
     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._dp), approxDragCoef_max)
     z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
 
-   ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
-   case(CM_QJRMS1998)
+   ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
+   case(CM_QJRMS1988)
     funcLAI =  cd_CM*exposedVAI
     zeroPlaneDisplacement = 1.1_dp*heightCanopyTopAboveSnow*log(1._dp + funcLAI**0.25_dp)
     if(funcLAI < 0.2_dp)then
@@ -2173,7 +2173,7 @@ contains
    message=trim(message)//'zero plane displacement is below the canopy bottom'
    err=20; return
   endif
- 
+
   ! check measurement height
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; end if
