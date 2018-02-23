@@ -17,6 +17,20 @@ Simulation end time
 
 End of the simulation specified as `'YYYY-MM-DD hh:mm'`. Note that the string needs to be enclosed in single quotes. This indicates the end of the last time step.
 
+<a id="tmZoneInfo"></a>
+##  3. tmZoneInfo
+Time zone information.
+
+Note that the time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as `localTime = inputTime + utcOffset`, where `localTime` is the time in which local noon coincides with solar noon, `inputTime` is the time in the model forcing files, and `utcOffset` is determined according to the `tmZoneInfo` option that is selected. The `simulStart` and `simulFinsh` time stamps must be consistent with the `tmZoneInfo` option. The `utcTime` option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).
+
+Time stamps in the output files will be consistent with the `tmZoneInfo` option selected.
+
+| Option | Description |
+|---|---|
+| ncTime | `utcOffset` is parsed from the `units` attribute of the `time` variable in the NetCDF file with the meteorological forcings. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html). For example, the specification: `seconds since 1992-10-8 15:15:42.5 -6:00` indicates seconds since October 8th, 1992  at  3  hours,  15 minutes  and  42.5 seconds in the afternoon in the time zone which is six hours to the west of Coordinated Universal Time (i.e.  Mountain Daylight Time).  The time zone specification can also be written without a colon using one or two-digits (indicating hours) or three or four digits (indicating hours and minutes). |
+| utcTime | `utcOffset` is calculated as `utcOffset = longitude/15` hours. In essence this assumes that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. |
+| localTime | `utcOffset` is equal to zero. |
+
 <a id="soilCatTbl"></a>
 ##  3. soilCatTbl
 Soil-category dataset
