@@ -228,8 +228,7 @@ contains
                                               dsec_tz)                        ! time zone second
   case(utcTime);   tmZoneOffsetFracDay = 0._dp
   case(localTime); tmZoneOffsetFracDay = 0._dp
-  case default
-   err=10; message=trim(message)//"unknown option for time zone info [option="//trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision)//"]"; return
+  case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
  end select ! (option time zone option)
 
 
