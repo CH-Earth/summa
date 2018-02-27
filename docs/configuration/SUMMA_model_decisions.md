@@ -17,6 +17,32 @@ Simulation end time
 
 End of the simulation specified as `'YYYY-MM-DD hh:mm'`. Note that the string needs to be enclosed in single quotes. This indicates the end of the last time step.
 
+<a id="tmZoneInfo"></a>
+##  3. tmZoneInfo
+Time zone information.
+
+The time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as `localTime = inputTime + timeOffset`, where `localTime` is the time in which local noon coincides with solar noon, `inputTime` is the time in the model forcing files, and `timeOffset` is determined according to the `tmZoneInfo` option that is selected. The `simulStart` and `simulFinsh` time stamps must be consistent with the `tmZoneInfo` option. The `utcTime` option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).
+
+Time stamps in the output files will be consistent with the `tmZoneInfo` option selected.
+
+| Option | Description |
+|---|---|
+| ncTime | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file with the meteorological forcings. The `timeOffset` is then calculated as `timeOffset = longitude/15 - ncTimeOffset`. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).  Note that the code internally uses fractional days and thus uses `longitude/360`.|
+| utcTime | `timeOffset` is calculated as `timeOffset = longitude/15` hours. In essence this assumes that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses `longitude/360`.|
+| localTime | `timeOffset` is equal to zero. |
+
+For example, assume that a model element has longitude -120º (or 120W) and the `units` attribute of the `time` variable in the NetCDF forcing file is `seconds since 1992-01-01 00:00:00 -6:00`. For each of the `tmZoneInfo` options this will be processed the following way:
+
+| Option | `timeOffset`|
+|--|--|
+|`ncTime`: | `-2:00` hours (`-120/15 - (-6)`)|
+|`utcTime`: | `-8:00` hours (`-120/15`)|
+|`localTime`: | `0:00` hours|
+
+Specifying time zone information in the NetCDF file and overriding it with the `tmZoneInfo` option can be confusing and is only provided to give the user some flexibility.
+
+
+
 <a id="soilCatTbl"></a>
 ##  3. soilCatTbl
 Soil-category dataset
