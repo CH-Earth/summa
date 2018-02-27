@@ -179,6 +179,7 @@ MODULE globalData
  integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
  logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
  logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
+ integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
 
  ! define ancillary data structures
  type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
