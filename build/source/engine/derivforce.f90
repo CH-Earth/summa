@@ -224,10 +224,6 @@ contains
                  jyyy,jm,jd,jh,jmin,dsec,        & ! output = year, month, day, hour, minute, second
                  err,cmessage)                     ! output = error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- print*, 'longitude, timeOffset = ', longitude, timeOffset
- print*, 'Grenwich time = ', iyyy,im,id,ih,imin
- print*, 'Local time    = ', jyyy,jm,jd,jh,jmin
- print*, 'PAUSE: '; read(*,*)
 
  ! compute the decimal hour at the start of the time step
  dataStep = data_step/secprhour  ! time step (hours)
