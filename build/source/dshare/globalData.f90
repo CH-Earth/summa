@@ -124,6 +124,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: iname_veg =1001         ! named variable to denote a vegetation state variable
  integer(i4b),parameter,public               :: iname_soil=1002         ! named variable to denote a soil layer
  integer(i4b),parameter,public               :: iname_snow=1003         ! named variable to denote a snow layer
+ integer(i4b),parameter,public               :: iname_aquifer=1004      ! named variable to denote a snow layer
 
  ! define named variables to describe the state varible type
  integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space
@@ -135,6 +136,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: iname_liqLayer=3003     ! named variable defining the liquid  water state variable for snow+soil layers
  integer(i4b),parameter,public               :: iname_matLayer=3004     ! named variable defining the matric head state variable for soil layers
  integer(i4b),parameter,public               :: iname_lmpLayer=3005     ! named variable defining the liquid matric potential state variable for soil layers
+ integer(i4b),parameter,public               :: iname_watAquifer=3006   ! named variable defining the water storage in the aquifer
 
  ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
  ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.
@@ -150,8 +152,8 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixBandMatrix=1002       ! named variable for the band diagonal matrix
 
  ! define indices describing the first and last layers of the Jacobian to print (for debugging)
- integer(i4b),parameter,public               :: iJac1=1                 ! first layer of the Jacobian to print
- integer(i4b),parameter,public               :: iJac2=9                 ! last layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac1=16                 ! first layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=20                 ! last layer of the Jacobian to print
 
  ! define indices describing the indices of the first and last HRUs in the forcing file
  integer(i4b),save,public                    :: ixHRUfile_min           ! minimum index
