@@ -111,15 +111,18 @@ MODULE var_lookup
  end type iLook_attr
 
  ! ***********************************************************************************************************
- ! (4) define local classification of veg, soil, etc.
+ ! (4) define local classification of veg, soil, etc.; and gru and hru IDs and associated information
  ! ***********************************************************************************************************
  type, public  ::  iLook_type
-  integer(i4b)    :: hruId         = integerMissing  ! id defining hydrologic response unit (-)
   integer(i4b)    :: vegTypeIndex  = integerMissing  ! index defining vegetation type (-)
   integer(i4b)    :: soilTypeIndex = integerMissing  ! index defining soil type (-)
   integer(i4b)    :: slopeTypeIndex= integerMissing  ! index defining slope (-)
   integer(i4b)    :: downHRUindex  = integerMissing  ! index of downslope HRU (0 = basin outlet)
  end type iLook_type
+
+ type, public  ::  iLook_id
+  integer(8)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+ end type iLook_id
 
  ! ***********************************************************************************************************
  ! (5) define model parameters
@@ -763,7 +766,10 @@ MODULE var_lookup
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
 
  ! named variables: soil and vegetation types
- type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4,  5)
+ type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
+
+ ! named variables: hru and gru IDs and associated information
+ type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1)
 
  ! named variables: model parameters
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -846,6 +852,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarForc      = storage_size(iLookFORCE)/iLength
  integer(i4b),parameter,public :: maxvarAttr      = storage_size(iLookATTR)/iLength
  integer(i4b),parameter,public :: maxvarType      = storage_size(iLookTYPE)/iLength
+ integer(i4b),parameter,public :: maxvarId        = storage_size(iLookID)/iLength
  integer(i4b),parameter,public :: maxvarMpar      = storage_size(iLookPARAM)/iLength
  integer(i4b),parameter,public :: maxvarProg      = storage_size(iLookPROG)/iLength
  integer(i4b),parameter,public :: maxvarDiag      = storage_size(iLookDIAG)/iLength

@@ -27,6 +27,7 @@ public::get_ixdecisions
 public::get_ixtime
 public::get_ixattr
 public::get_ixtype
+public::get_ixid
 public::get_ixforce
 public::get_ixparam
 public::get_ixprog
@@ -187,7 +188,6 @@ contains
  integer(i4b)             :: get_ixType              ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('hruId'          ); get_ixType = iLookTYPE%hruId              ! id defining HRU index
   case('vegTypeIndex'   ); get_ixType = iLookTYPE%vegTypeIndex       ! index defining vegetation type
   case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
   case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
@@ -197,6 +197,25 @@ contains
    get_ixType = integerMissing
  end select
  end function get_ixType
+
+
+ ! *******************************************************************************************************************
+ ! public function get_ixId: get the index of the named variables for hru and gru IDs and related information
+ ! *******************************************************************************************************************
+ function get_ixId(varName)
+ USE var_lookup,only:iLookID                         ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! variable name
+ integer(i4b)             :: get_ixId                ! index of the named variable
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('hruId'          ); get_ixId = iLookID%hruId              ! id defining HRU index
+  ! get to here if cannot find the variable
+  case default
+   get_ixId = integerMissing
+ end select
+ end function get_ixId
 
 
  ! *******************************************************************************************************************
@@ -960,6 +979,7 @@ contains
    case ('forc' ); vDex = get_ixForce(trim(varName))
    case ('attr' ); vDex = get_ixAttr(trim(varName))
    case ('type' ); vDex = get_ixType(trim(varName))
+   case ('id' );   vDex = get_ixId(trim(varName))
    case ('mpar' ); vDex = get_ixParam(trim(varName))
    case ('indx' ); vDex = get_ixIndex(trim(varName))
    case ('prog' ); vDex = get_ixProg(trim(varName))
