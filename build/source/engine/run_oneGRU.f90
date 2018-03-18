@@ -79,7 +79,7 @@ contains
                        ! data structures (input)
                        timeVec,            & ! intent(in):    model time data
                        typeHRU,            & ! intent(in):    local classification of soil veg etc. for each HRU
-                       idRU,               & ! intent(in):    local classification of hru and gru IDs
+                       idHRU,              & ! intent(in):    local classification of hru and gru IDs
                        attrHRU,            & ! intent(in):    local attributes for each HRU
                        ! data structures (input-output)
                        mparHRU,            & ! intent(inout):    local model parameters

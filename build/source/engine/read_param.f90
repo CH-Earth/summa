@@ -36,7 +36,6 @@ USE netcdf_util_module,only:netcdf_err     ! netcdf error handling function
 
 ! data types
 USE data_types,only:gru_double             ! spatial double data type:  x%gru(:)%var(:)
-USE data_types,only:gru_hru_int            ! spatial integer data type: x%gru(:)%hru(:)%var(:)
 USE data_types,only:gru_hru_int8           ! spatial integer data type: x%gru(:)%hru(:)%var(:)
 USE data_types,only:gru_hru_doubleVec      ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
 
@@ -49,7 +48,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,idStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
@@ -63,7 +62,6 @@ contains
  integer(i4b),        intent(in)       :: startGRU         ! index of single GRU if runMode = startGRU
  integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
  integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
- type(gru_hru_int),   intent(in)       :: typeStruct       ! local classification of soil veg etc. for each HRU
  type(gru_hru_int8),  intent(in)       :: idStruct         ! local labels for hru and gru IDs
  ! define output
  type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters

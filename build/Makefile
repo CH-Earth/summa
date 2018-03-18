@@ -7,35 +7,35 @@
 # At a minimum you will need to set F_MASTER and FC. You will probably
 # also have to specify the location of your netcdf and lapack libraries
 
+# on cheyenne, first need to use:  module load gnu, then lapack
+
 #========================================================================
 # PART 0: User-configurable part
 #========================================================================
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /d1/andywood/tripod/models/summa/
+F_MASTER = /glade/u/home/andywood/proj/SHARP/models/summa/
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
 # compiler flags in the ifeq statements in this Makefile. The compiler
 # executable is set separately as FC_EXE
-##FC =
-#FC = gfortran
-FC = ifort
+FC = gfortran
+#FC = ifort
 
 # Define the path for the compiler executable. This is the actual executable
 # that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin-gfortran-mp-6
 # FC and FC_EXE have to be consistent
-##FC_EXE =
-#FC_EXE = gfortran
-FC_EXE = ifort
+FC_EXE = gfortran
+#FC_EXE = ifort
 
 # Define the compiler environment. This is used in the ifeq statements in this
 # Makefile to set the include and library paths and the libraries
 ##FC_ENV =
-#FC_ENV = gfortran-cheyenne
+FC_ENV = gfortran-cheyenne
 #FC_ENV = gfortran
-FC_ENV = ifort
+#FC_ENV = ifort
 
 
 # Define the NetCDF and LAPACK libraries and path to include files. Note

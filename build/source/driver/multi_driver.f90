@@ -101,7 +101,7 @@ USE data_types,only:extended_info          ! extended metadata structure
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 ! provide access to metadata structures
 USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
-USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
+USE globalData,only:prog_meta,diag_meta,flux_meta,id_meta   ! metadata structures
 USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
 USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
@@ -269,7 +269,7 @@ character(len=256)               :: timeString                 ! protion of rest
 character(len=256)               :: restartFile                ! restart file name
 character(len=256)               :: attrFile                   ! attributes file name
 ! open MP functions
-integer(i4b)                     :: omp_get_num_threads        ! get the number of threads
+!integer(i4b)                    :: omp_get_num_threads        ! get the number of threads (not used)
 ! parallelize the model run
 integer(i4b)                     :: nThreads                   ! number of threads
 integer(i4b), allocatable        :: ixExpense(:)               ! ranked index GRU w.r.t. computational expense
@@ -384,7 +384,7 @@ do iStruct=1,size(structInfo)
   case('forc'); call allocGlobal(forc_meta,  forcStruct,  err, message)   ! model forcing data
   case('attr'); call allocGlobal(attr_meta,  attrStruct,  err, message)   ! local attributes for each HRU
   case('type'); call allocGlobal(type_meta,  typeStruct,  err, message)   ! local classification of soil veg etc. for each HRU
-  case('id'  ); call allocGlobal(type_meta,    idStruct,  err, message)   ! local values of hru and gru IDs
+  case('id'  ); call allocGlobal(id_meta,    idStruct,    err, message)   ! local values of hru and gru IDs
   case('mpar'); call allocGlobal(mpar_meta,  mparStruct,  err, message)   ! model parameters
   case('indx'); call allocGlobal(indx_meta,  indxStruct,  err, message)   ! model variables
   case('prog'); call allocGlobal(prog_meta,  progStruct,  err, message)   ! model prognostic (state) variables
@@ -558,7 +558,7 @@ end do  ! looping through GRUs
 ! *****************************************************************************
 ! *** read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
-call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,idStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
+call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! *** compute derived model variables that are pretty much constant for the basin as a whole
@@ -745,6 +745,7 @@ do iGRU=1,nGRU
  do iHRU=1,gru_struc(iGRU)%hruCount
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+  call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,message); call handle_err(err,'[type]/'//message)
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
  enddo ! HRU
  call writeParm(iGRU,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,'[bpar]/'//message)
@@ -954,6 +955,7 @@ do modelTimeStep=1,numtim
                   ! data structures (input)
                   timeStruct%var,           & ! intent(in):    model time data
                   typeStruct%gru(iGRU),     & ! intent(in):    local classification of soil veg etc. for each HRU
+                  idStruct%gru(iGRU),       & ! intent(in):    local classification of hru and gru IDs
                   attrStruct%gru(iGRU),     & ! intent(in):    local attributes for each HRU
                   ! data structures (input-output)
                   mparStruct%gru(iGRU),     & ! intent(inout): local model parameters
@@ -1105,6 +1107,7 @@ do modelTimeStep=1,numtim
    do iHRU=1,gru_struc(iGRU)%hruCount
     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,message); call handle_err(err,'[type]/'//message)
     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
     ! re-initalize the indices for model writing
     outputTimeStep(:)=1
