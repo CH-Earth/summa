@@ -25,7 +25,7 @@ implicit none
 private
 public::mDecisions
 ! look-up values for the choice of the time zone information
-integer(i4b),parameter,public :: ncTime               =   1    ! time zone information from NetCDF file (timeOffset = longitude.15. - ncTimeOffset)
+integer(i4b),parameter,public :: ncTime               =   1    ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
 integer(i4b),parameter,public :: utcTime              =   2    ! all times in UTC (timeOffset = longitude/15. hours)
 integer(i4b),parameter,public :: localTime            =   3    ! all times local (timeOffset = 0)
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance

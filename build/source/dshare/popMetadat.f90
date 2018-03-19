@@ -62,11 +62,13 @@ contains
  ! -----
  ! * model time structures...
  ! --------------------------
- time_meta(iLookTIME%iyyy)                   = var_info('iyyy', 'year'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- time_meta(iLookTIME%im)                     = var_info('im'  , 'month' , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- time_meta(iLookTIME%id)                     = var_info('id'  , 'day'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- time_meta(iLookTIME%ih)                     = var_info('ih'  , 'hour'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- time_meta(iLookTIME%imin)                   = var_info('imin', 'minute', '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%iyyy)                   = var_info('iyyy'   , 'year'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%im)                     = var_info('im'     , 'month'                      , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%id)                     = var_info('id'     , 'day'                        , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%ih)                     = var_info('ih'     , 'hour'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%imin)                   = var_info('imin'   , 'minute'                     , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%ih_tz)                  = var_info('ih_tz'  , 'hour for time zone offset'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ time_meta(iLookTIME%imin_tz)                = var_info('imin_tz', 'minute for time zone offset', '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * model forcing data...
