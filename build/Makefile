@@ -71,13 +71,13 @@ ifeq "$(isOpenMP)" "yes"
  FLAGS_OMP = -fopenmp
 endif
 
-#FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-#FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-#FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
-FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
-FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
-FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+#FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+#FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+#FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 
 endif
 
