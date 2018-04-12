@@ -196,8 +196,8 @@ contains
  scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
 
  ! compute the local time
- timeOffset = longitude/360._dp  ! time offset in days
- julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days) 
+ timeOffset = 0.0_dp ! time offset in days, set to 0 for local forcing time
+ julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days)
 
  ! convert julian day to year/month/day/hour/minute
  call compcalday(julianTime+timeOffset,          & ! input  = julian day
