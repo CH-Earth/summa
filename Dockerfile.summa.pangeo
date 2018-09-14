@@ -1,0 +1,40 @@
+FROM pangeo/notebook:92c4bfd
+
+USER root
+
+# install only the packages that are needed
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    software-properties-common \
+    ca-certificates \
+    git \
+    make \
+    libnetcdff-dev \
+    liblapack-dev \
+    vim \
+    gfortran
+
+# add code directory
+WORKDIR ${HOME}/code
+ADD . ${HOME}/code
+# fix permissions for code directory
+RUN chown -R ${NB_UID}:users ${HOME}/code
+
+USER $NB_UID
+
+# set environment variables for docker build
+ENV F_MASTER ${HOME}/code
+ENV FC gfortran
+ENV FC_EXE gfortran
+ENV FC_ENV gfortran-6-docker
+
+# fetch tags and build summa
+RUN git fetch --tags && make -C build/ -f Makefile
+
+# install pysumma and the hydroshare rest client
+RUN pip install git+https://github.com/uva-hydroinformatics/pysumma.git
+RUN pip install hs_restclient
+
+# change to home dir
+WORKDIR $HOME
+# CMD ["start.sh jupyter lab"]
