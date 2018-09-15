@@ -15,21 +15,21 @@ RUN apt-get update && \
     gfortran
 
 # add code directory
-WORKDIR ${HOME}/code
-ADD . ${HOME}/code
-# fix permissions for code directory
-RUN chown -R ${NB_UID}:users ${HOME}/code
-
-USER $NB_UID
+WORKDIR /code
+ADD . /code
 
 # set environment variables for docker build
-ENV F_MASTER ${HOME}/code
+ENV F_MASTER /code
 ENV FC gfortran
 ENV FC_EXE gfortran
 ENV FC_ENV gfortran-6-docker
 
 # fetch tags and build summa
 RUN git fetch --tags && make -C build/ -f Makefile
+
+RUN mv /code/bin/summa.exe /usr/local/bin
+
+USER $NB_UID
 
 # install pysumma and the hydroshare rest client
 RUN pip install git+https://github.com/uva-hydroinformatics/pysumma.git
