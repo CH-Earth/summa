@@ -27,7 +27,7 @@ ENV FC_ENV gfortran-6-docker
 # fetch tags and build summa
 RUN git fetch --tags && make -C build/ -f Makefile
 
-RUN mv /code/bin/summa.exe /usr/local/bin
+RUN mv /code/bin/summa.exe /usr/bin
 
 USER $NB_UID
 
