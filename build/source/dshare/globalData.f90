@@ -60,6 +60,23 @@ MODULE globalData
  integer(i4b),parameter,public               :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
  integer(i4b),parameter,public               :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
 
+ ! define progress modes
+ integer(i4b),parameter,public               :: ixProgress_im=1000         ! named variable to print progress once per month
+ integer(i4b),parameter,public               :: ixProgress_id=1001         ! named variable to print progress once per day
+ integer(i4b),parameter,public               :: ixProgress_ih=1002         ! named variable to print progress once per hour
+ integer(i4b),parameter,public               :: ixProgress_never=1003      ! named variable to print progress never
+
+ ! define restart frequency
+ integer(i4b),parameter,public               :: ixRestart_iy=1000          ! named variable to print a re-start file once per year
+ integer(i4b),parameter,public               :: ixRestart_im=1001          ! named variable to print a re-start file once per month
+ integer(i4b),parameter,public               :: ixRestart_id=1002          ! named variable to print a re-start file once per day
+ integer(i4b),parameter,public               :: ixRestart_end=1003         ! named variable to print a re-start file at the end of a run
+ integer(i4b),parameter,public               :: ixRestart_never=1004       ! named variable to print a re-start file never
+
+ ! define output file frequency
+ integer(i4b),parameter,public               :: noNewFiles=1001            ! no new output files
+ integer(i4b),parameter,public               :: newFileEveryOct1=1002      ! create a new file on Oct 1 every year (start of the USA water year)
+
  ! define limit checks
  real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
  real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
@@ -98,6 +115,22 @@ MODULE globalData
  type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
  type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
  type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
+
+ ! mapping from original to child structures
+ integer(i4b),save,public,allocatable        :: forcChild_map(:)           ! index of the child data structure: stats forc
+ integer(i4b),save,public,allocatable        :: progChild_map(:)           ! index of the child data structure: stats prog
+ integer(i4b),save,public,allocatable        :: diagChild_map(:)           ! index of the child data structure: stats diag
+ integer(i4b),save,public,allocatable        :: fluxChild_map(:)           ! index of the child data structure: stats flux
+ integer(i4b),save,public,allocatable        :: indxChild_map(:)           ! index of the child data structure: stats indx
+ integer(i4b),save,public,allocatable        :: bvarChild_map(:)           ! index of the child data structure: stats bvar
+
+ ! child metadata structures
+ type(extended_info),save,public,allocatable :: statForc_meta(:)           ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statProg_meta(:)           ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statDiag_meta(:)           ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statFlux_meta(:)           ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statIndx_meta(:)           ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statBvar_meta(:)           ! child metadata for stats
 
  ! define summary information on all data structures
  integer(i4b),parameter                      :: nStruct=12              ! number of data structures
@@ -168,6 +201,16 @@ MODULE globalData
  logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.  ! flag to overwrite RSMIN
  integer(i4b)          , parameter, public   :: maxSoilLayers=10000     ! Maximum Number of Soil Layers
 
+ ! define run-time variables
+ integer(i4b),save,public                    :: startGRU                ! index of the starting GRU for parallelization run
+ integer(i4b),save,public                    :: checkHRU                ! index of the HRU for a single HRU run
+ integer(i4b),save,public                    :: iRunMode                ! define the current running mode
+ integer(i4b),save,public                    :: nThreads=1              ! number of threads
+ integer(i4b),save,public                    :: ixProgress=ixProgress_id   ! define frequency to write progress
+ integer(i4b),save,public                    :: ixRestart=ixRestart_never  ! define frequency to write restart files
+ integer(i4b),save,public                    :: newOutputFile=noNewFiles   ! define option for new output files
+ character(len=256),save,public              :: output_fileSuffix=''       ! suffix for the output file
+
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
  real(dp),save,public                        :: data_step               ! time step of the data
@@ -181,6 +224,18 @@ MODULE globalData
  integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
  logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
  logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
+
+ ! define result from the time calls
+ integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8), save, public    :: startRead,endRead       ! date/time for the start and end of the data read
+ integer(i4b), dimension(8), save, public    :: startWrite,endWrite     ! date/time for the start and end of the stats/write
+ integer(i4b), dimension(8), save, public    :: startPhysics,endPhysics ! date/time for the start and end of the physics
+
+ ! define elapsed time
+ real(dp), save, public                      :: elapsedInit             ! elapsed time for the initialization
+ real(dp), save, public                      :: elapsedRead             ! elapsed time for the data read
+ real(dp), save, public                      :: elapsedWrite            ! elapsed time for the stats/write
+ real(dp), save, public                      :: elapsedPhysics          ! elapsed time for the physics
 
  ! define ancillary data structures
  type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
