@@ -23,11 +23,13 @@ program summa_driver
 ! *****************************************************************************
 ! * use desired modules
 ! *****************************************************************************
-! provide access to data types
+! data types
 USE nrtype                                                  ! variable types, etc.
 USE summa_type, only:summa1_type_dec                        ! master summa data type
-! provide access to subroutines and functions
+! main subroutines and functions
 USE summa_init, only:summa_initialize                       ! used to allocate/initialize summa data structures
+USE summa_setup, only:summa_paramSetup                      ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
+! utility functions
 USE summa_util, only:stop_program                           ! used to stop the summa program (with errors)
 USE summa_util, only:handle_err                             ! used to process errors
 implicit none
@@ -52,11 +54,20 @@ character(len=1024)                :: message=''                 ! error message
 allocate(summa1_struc(nInstantiation), stat=err)
 if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
-! declare and allocate summa data structures and initialize model state to known values
+! loop through model instantiations
 do n = 1, nInstantiation
+
+ ! declare and allocate summa data structures and initialize model state to known values
  call summa_initialize(summa1_struc(n), err, message)
  call handle_err(err, message)
+
+ ! initialize parameter data structures (e.g. vegetation and soil parameters)
+ call summa_paramSetup(summa1_struc(n), err, message)
+ call handle_err(err, message)
+
 end do ! loop through model instantiations
+
+
 
 ! successful end
 call stop_program(0, 'finished simulation successfully.')

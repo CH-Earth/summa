@@ -227,12 +227,14 @@ MODULE globalData
 
  ! define result from the time calls
  integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8), save, public    :: startSetup,endSetup     ! date/time for the start and end of the parameter setup
  integer(i4b), dimension(8), save, public    :: startRead,endRead       ! date/time for the start and end of the data read
  integer(i4b), dimension(8), save, public    :: startWrite,endWrite     ! date/time for the start and end of the stats/write
  integer(i4b), dimension(8), save, public    :: startPhysics,endPhysics ! date/time for the start and end of the physics
 
  ! define elapsed time
  real(dp), save, public                      :: elapsedInit             ! elapsed time for the initialization
+ real(dp), save, public                      :: elapsedSetup            ! elapsed time for the parameter setup
  real(dp), save, public                      :: elapsedRead             ! elapsed time for the data read
  real(dp), save, public                      :: elapsedWrite            ! elapsed time for the stats/write
  real(dp), save, public                      :: elapsedPhysics          ! elapsed time for the physics

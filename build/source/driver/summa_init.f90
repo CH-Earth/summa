@@ -181,7 +181,7 @@ contains
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='summa_init/'
+ err=0; message='summa_initialize/'
 
  ! initialize the start of the initialization
  call date_and_time(values=startInit)

@@ -335,6 +335,7 @@ contains
  USE globalData,only: nThreads                         ! number of threads
  USE globalData,only: startInit                        ! date/time for the start of the initialization
  USE globalData,only: elapsedInit                      ! elapsed time for the initialization
+ USE globalData,only: elapsedSetup                     ! elapsed time for the parameter setup
  USE globalData,only: elapsedRead                      ! elapsed time for the data read
  USE globalData,only: elapsedWrite                     ! elapsed time for the stats/write
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
@@ -367,19 +368,23 @@ contains
 
  ! print elapsed time for the initialization
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '    fraction init = ', elapsedInit/elpSec,    ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '    fraction init = ', elapsedInit/elpSec
+
+ ! print elapsed time for the parameter setup
+ write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed setup = ', elapsedSetup,          ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '   fraction setup = ', elapsedSetup/elpSec
 
  ! print elapsed time for the data read
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '    fraction read = ', elapsedRead/elpSec,    ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '    fraction read = ', elapsedRead/elpSec
 
  ! print elapsed time for the data write
  write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '   fraction write = ', elapsedWrite/elpSec,   ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '   fraction write = ', elapsedWrite/elpSec
 
  ! print elapsed time for the physics
  write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
- write(outunit,"(A,1PG15.7,A)")                                               ' fraction physics = ', elapsedPhysics/elpSec, ' s'
+ write(outunit,"(A,1PG15.7)")                                                 ' fraction physics = ', elapsedPhysics/elpSec
 
  ! print total elapsed time
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
