@@ -25,14 +25,19 @@ program summa_driver
 ! *****************************************************************************
 ! data types
 USE nrtype                                                  ! variable types, etc.
-USE summa_type, only:summa1_type_dec                        ! master summa data type
+USE summa_type, only: summa1_type_dec                       ! master summa data type
 ! subroutines and functions: model setup
-USE summa_init, only:summa_initialize                       ! used to allocate/initialize summa data structures
-USE summa_setup, only:summa_paramSetup                      ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
-USE summa_restart, only:summa_readRestart                   ! used to read restart data and reset the model state
+USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
+USE summa_setup, only: summa_paramSetup                     ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
+USE summa_restart, only: summa_readRestart                  ! used to read restart data and reset the model state
+! subroutines and functions: model simulation
+USE summa_forcing, only: summa_readForcing                  ! used to read forcing data
+USE summa_modelRun, only: summa_runPhysics                  ! used to run the summa physics for one time step
 ! utility functions
-USE summa_util, only:stop_program                           ! used to stop the summa program (with errors)
-USE summa_util, only:handle_err                             ! used to process errors
+USE summa_util, only: stop_program                          ! used to stop the summa program (with errors)
+USE summa_util, only: handle_err                            ! used to process errors
+! global data
+USE globalData, only: numtim                                ! number of model time steps
 implicit none
 
 ! *****************************************************************************
@@ -41,50 +46,58 @@ implicit none
 ! define the master summa data structure
 type(summa1_type_dec), allocatable :: summa1_struc(:)
 ! define parameters for the model simulation
-integer(i4b), parameter            :: nInstantiation=1           ! number of instantiations
-integer(i4b)                       :: n                          ! index of model instantiation
+integer(i4b), parameter            :: n=1                        ! number of instantiations
+! define timing information
+integer(i4b)                       :: modelTimeStep              ! index of model time step
 ! error control
 integer(i4b)                       :: err=0                      ! error code
 character(len=1024)                :: message=''                 ! error message
 
 ! *****************************************************************************
-! * main driver
+! * preliminaries
 ! *****************************************************************************
 
 ! allocate space for the master summa structure
-allocate(summa1_struc(nInstantiation), stat=err)
+allocate(summa1_struc(n), stat=err)
 if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
 ! *****************************************************************************
 ! * model setup/initialization
 ! *****************************************************************************
 
-! loop through model instantiations
-do n = 1, nInstantiation
+! declare and allocate summa data structures and initialize model state to known values
+call summa_initialize(summa1_struc(n), err, message)
+call handle_err(err, message)
 
- ! declare and allocate summa data structures and initialize model state to known values
- call summa_initialize(summa1_struc(n), err, message)
- call handle_err(err, message)
+! initialize parameter data structures (e.g. vegetation and soil parameters)
+call summa_paramSetup(summa1_struc(n), err, message)
+call handle_err(err, message)
 
- ! initialize parameter data structures (e.g. vegetation and soil parameters)
- call summa_paramSetup(summa1_struc(n), err, message)
- call handle_err(err, message)
-
- ! read restart data and reset the model state
- call summa_readRestart(summa1_struc(n), err, message)
- call handle_err(err, message)
-
-end do ! loop through model instantiations
+! read restart data and reset the model state
+call summa_readRestart(summa1_struc(n), err, message)
+call handle_err(err, message)
 
 ! *****************************************************************************
 ! * model simulation
 ! *****************************************************************************
 
-! loop through model instantiations
-do n = 1, nInstantiation
+! loop through time
+do modelTimeStep=1,numtim
+
+ ! read model forcing data
+ call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
+ call handle_err(err, message)
+
+ ! run the summa physics for one time step
+ call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
+ call handle_err(err, message)
 
 
-end do ! loop through model instantiations
+
+ call stop_program(0, 'finished simulation successfully.')
+
+
+end do  ! looping through time
 
 ! successful end
 call stop_program(0, 'finished simulation successfully.')

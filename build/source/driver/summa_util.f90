@@ -401,10 +401,11 @@ contains
  write(outunit,"(A,i10,/)")                                                   '   number threads = ', nThreads
 
  ! stop with message
- print*,'FORTRAN STOP: '//trim(message)
  if(err==0)then
+  print*,'FORTRAN STOP: '//trim(message)
   stop
  else
+  print*,'FATAL ERROR: '//trim(message)
   stop 1
  endif
 

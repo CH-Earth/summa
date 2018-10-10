@@ -28,11 +28,6 @@ USE globalData,only:realMissing      ! missing double precision number
 ! named variables for run time options
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 
-! size of data structures
-USE var_lookup,only:maxvarTime                              ! size of variable vectors
-USE var_lookup,only:maxvarForc,maxvarProg,maxvarDiag        ! size of variable vectors
-USE var_lookup,only:maxvarFlux,maxvarIndx,maxvarBvar        ! size of variable vectors
-
 ! metadata structures
 USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
 USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
@@ -47,14 +42,6 @@ USE globalData,only:statDiag_meta                           ! child metadata for
 USE globalData,only:statFlux_meta                           ! child metadata for stats
 USE globalData,only:statIndx_meta                           ! child metadata for stats
 USE globalData,only:statBvar_meta                           ! child metadata for stats
-
-! mapping from original to child structures
-USE globalData,only:forcChild_map                           ! index of the child data structure: stats forc
-USE globalData,only:progChild_map                           ! index of the child data structure: stats prog
-USE globalData,only:diagChild_map                           ! index of the child data structure: stats diag
-USE globalData,only:fluxChild_map                           ! index of the child data structure: stats flux
-USE globalData,only:indxChild_map                           ! index of the child data structure: stats indx
-USE globalData,only:bvarChild_map                           ! index of the child data structure: stats bvar
 
 ! provide access to file paths
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
@@ -77,13 +64,8 @@ contains
  ! subroutines and functions: initial priming
  USE summa_util, only:getCommandArguments                    ! process command line arguments
  USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
+ USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
- USE,intrinsic :: ieee_arithmetic                            ! IEEE arithmetic (obviously)
- ! subroutines and functions: define metadata structures
- USE popMetadat_module,only:popMetadat                       ! module to populate metadata structures
- USE flxMapping_module,only:flxMapping                       ! module to map fluxes to states
- USE checkStruc_module,only:checkStruc                       ! module to check metadata structures
- USE childStruc_module,only:childStruc                       ! module to create a child data structure
  ! subroutines and functions: read dimensions (NOTE: NetCDF)
  USE read_attrb_module,only:read_dimension                   ! module to read dimensions of GRU and HRU
  USE read_icond_module,only:read_icond_nlayers               ! module to read initial condition dimensions
@@ -93,6 +75,9 @@ contains
  ! timing variables
  USE globalData,only:startInit,endInit                       ! date/time for the start and end of the initialization
  USE globalData,only:elapsedInit                             ! elapsed time for the initialization
+ USE globalData, only: elapsedRead                           ! elapsed time for the data read
+ USE globalData, only: elapsedWrite                          ! elapsed time for the stats/write
+ USE globalData, only: elapsedPhysics                        ! elapsed time for the physics
  ! model time structures
  USE globalData,only:refTime                                 ! reference time
  USE globalData,only:startTime                               ! start time
@@ -102,14 +87,9 @@ contains
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
  USE globalData,only:iRunMode                                ! define the current running mode
  ! miscellaneous global data
- USE globalData,only:dNaN                                    ! double precision NaN
  USE globalData,only:ncid                                    ! file id of netcdf output file
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
- USE globalData,only:doJacobian                              ! flag to compute the Jacobian
  USE globalData,only:structInfo                              ! information on the data structures
- ! named variables that describe elements of child  model structures
- USE var_lookup,only:iLookVarType                            ! look-up values for variable type structure
- USE var_lookup,only:childFLUX_MEAN                          ! look-up values for timestep-average model fluxes
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -120,13 +100,6 @@ contains
  character(*),intent(out)              :: message            ! error message
  ! local variables
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
- logical(lgt), dimension(maxvarFlux)   :: flux_mask          ! mask defining desired flux variables
- logical(lgt), dimension(maxvarForc)   :: statForc_mask      ! mask defining forc stats
- logical(lgt), dimension(maxvarProg)   :: statProg_mask      ! mask defining prog stats
- logical(lgt), dimension(maxvarDiag)   :: statDiag_mask      ! mask defining diag stats
- logical(lgt), dimension(maxvarFlux)   :: statFlux_mask      ! mask defining flux stats
- logical(lgt), dimension(maxvarIndx)   :: statIndx_mask      ! mask defining indx stats
- logical(lgt), dimension(maxvarBvar)   :: statBvar_mask      ! mask defining bvar stats
  character(len=256)                    :: restartFile        ! restart file name
  character(len=256)                    :: attrFile           ! attributes file name
  integer(i4b)                          :: iStruct,iGRU       ! looping variables
@@ -191,12 +164,13 @@ contains
  ! *** inital priming -- get command line arguments, identify files, etc.
  ! *****************************************************************************
 
- ! initialize the Jacobian flag
- doJacobian=.false.        ! initialize the Jacobian flag
- ncid(:) = integerMissing  ! initialize netcdf file id
+ ! initialize the netcdf file id
+ ncid(:) = integerMissing
 
- ! define double precision NaNs (shared in globalData)
- dNaN = ieee_value(1._dp, ieee_quiet_nan)
+ ! initialize the elapsed time for cumulative quantities
+ elapsedRead=0._dp
+ elapsedWrite=0._dp
+ elapsedPhysics=0._dp
 
  ! get the command line arguments
  call getCommandArguments(summa1_struc,err,cmessage)
@@ -206,27 +180,8 @@ contains
  call summa_SetDirsUndPhiles(summaFileManagerFile,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
- ! *****************************************************************************
- ! *** populate/check metadata structures
- ! *****************************************************************************
-
- ! populate metadata for all model variables
- call popMetadat(err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! define mapping between fluxes and states
- call flxMapping(err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! check data structures
- call checkStruc(err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
- ! define the mask to identify the subset of variables in the "child" data structure (just scalar variables)
- flux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
-
- ! create the averageFlux metadata structure
- call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, cmessage)
+ ! define global data (parameters, metadata)
+ call summa_defineGlobalData(err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
@@ -283,7 +238,7 @@ contains
   end select
   ! check errors
   if(err/=0)then
-   message=trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName)//']'
+   message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName)//']'
    return
   endif
  end do  ! looping through data structures
@@ -292,14 +247,14 @@ contains
  ! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
  call allocGlobal(mpar_meta,dparStruct,err,cmessage)   ! default model parameters
  if(err/=0)then
-  message=trim(cmessage)//' [problem allocating dparStruct]'
+  message=trim(message)//trim(cmessage)//' [problem allocating dparStruct]'
   return
  endif
 
  ! allocate space for the time step and computeVegFlux flags (recycled for each GRU for subsequent model calls)
  allocate(dt_init%gru(nGRU),upArea%gru(nGRU),computeVegFlux%gru(nGRU),stat=err)
  if(err/=0)then
-  message='problem allocating space for dt_init, upArea, or computeVegFlux [GRU]'
+  message=trim(message)//'problem allocating space for dt_init, upArea, or computeVegFlux [GRU]'
   return
  endif
 
@@ -317,40 +272,6 @@ contains
  ! *** allocate space for output statistics data structures
  ! *****************************************************************************
 
- ! child metadata structures - so that we do not carry full stats structures around everywhere
- ! only carry stats for variables with output frequency > model time step
- statForc_mask = (forc_meta(:)%vartype==iLookVarType%scalarv.and.forc_meta(:)%varDesire)
- statProg_mask = (prog_meta(:)%vartype==iLookVarType%scalarv.and.prog_meta(:)%varDesire)
- statDiag_mask = (diag_meta(:)%vartype==iLookVarType%scalarv.and.diag_meta(:)%varDesire)
- statFlux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv.and.flux_meta(:)%varDesire)
- statIndx_mask = (indx_meta(:)%vartype==iLookVarType%scalarv.and.indx_meta(:)%varDesire)
- statBvar_mask = (bvar_meta(:)%vartype==iLookVarType%scalarv.and.bvar_meta(:)%varDesire)
-
- ! create the stats metadata structures
- do iStruct=1,size(structInfo)
-  select case (trim(structInfo(iStruct)%structName))
-   case('forc'); call childStruc(forc_meta,statForc_mask,statForc_meta,forcChild_map,err,cmessage)
-   case('prog'); call childStruc(prog_meta,statProg_mask,statProg_meta,progChild_map,err,cmessage)
-   case('diag'); call childStruc(diag_meta,statDiag_mask,statDiag_meta,diagChild_map,err,cmessage)
-   case('flux'); call childStruc(flux_meta,statFlux_mask,statFlux_meta,fluxChild_map,err,cmessage)
-   case('indx'); call childStruc(indx_meta,statIndx_mask,statIndx_meta,indxChild_map,err,cmessage)
-   case('bvar'); call childStruc(bvar_meta,statBvar_mask,statBvar_meta,bvarChild_map,err,cmessage)
-  end select
-  ! check errors
-  if(err/=0)then
-   message=trim(cmessage)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']'
-   return
-  endif
- end do ! iStruct
-
- ! set all stats metadata to correct var types
- statForc_meta(:)%vartype = iLookVarType%outstat
- statProg_meta(:)%vartype = iLookVarType%outstat
- statDiag_meta(:)%vartype = iLookVarType%outstat
- statFlux_meta(:)%vartype = iLookVarType%outstat
- statIndx_meta(:)%vartype = iLookVarType%outstat
- statBvar_meta(:)%vartype = iLookVarType%outstat
-
  ! loop through data structures
  do iStruct=1,size(structInfo)
 
@@ -367,7 +288,7 @@ contains
 
   ! check errors
   if(err/=0)then
-   message=trim(cmessage)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']'
+   message=trim(message)//trim(cmessage)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']'
    return
   endif
 
@@ -383,4 +304,5 @@ contains
  end associate summaVars
 
  end subroutine summa_initialize
+
 end module summa_init
