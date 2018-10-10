@@ -26,9 +26,10 @@ program summa_driver
 ! data types
 USE nrtype                                                  ! variable types, etc.
 USE summa_type, only:summa1_type_dec                        ! master summa data type
-! main subroutines and functions
+! subroutines and functions: model setup
 USE summa_init, only:summa_initialize                       ! used to allocate/initialize summa data structures
 USE summa_setup, only:summa_paramSetup                      ! used to initialize parameter data structures (e.g. vegetation and soil parameters)
+USE summa_restart, only:summa_readRestart                   ! used to read restart data and reset the model state
 ! utility functions
 USE summa_util, only:stop_program                           ! used to stop the summa program (with errors)
 USE summa_util, only:handle_err                             ! used to process errors
@@ -54,6 +55,10 @@ character(len=1024)                :: message=''                 ! error message
 allocate(summa1_struc(nInstantiation), stat=err)
 if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
+! *****************************************************************************
+! * model setup/initialization
+! *****************************************************************************
+
 ! loop through model instantiations
 do n = 1, nInstantiation
 
@@ -65,9 +70,21 @@ do n = 1, nInstantiation
  call summa_paramSetup(summa1_struc(n), err, message)
  call handle_err(err, message)
 
+ ! read restart data and reset the model state
+ call summa_readRestart(summa1_struc(n), err, message)
+ call handle_err(err, message)
+
 end do ! loop through model instantiations
 
+! *****************************************************************************
+! * model simulation
+! *****************************************************************************
 
+! loop through model instantiations
+do n = 1, nInstantiation
+
+
+end do ! loop through model instantiations
 
 ! successful end
 call stop_program(0, 'finished simulation successfully.')

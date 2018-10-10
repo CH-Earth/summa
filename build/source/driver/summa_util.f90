@@ -336,6 +336,7 @@ contains
  USE globalData,only: startInit                        ! date/time for the start of the initialization
  USE globalData,only: elapsedInit                      ! elapsed time for the initialization
  USE globalData,only: elapsedSetup                     ! elapsed time for the parameter setup
+ USE globalData,only: elapsedRestart                   ! elapsed time to read the restart data
  USE globalData,only: elapsedRead                      ! elapsed time for the data read
  USE globalData,only: elapsedWrite                     ! elapsed time for the stats/write
  USE globalData,only: elapsedPhysics                   ! elapsed time for the physics
@@ -373,6 +374,10 @@ contains
  ! print elapsed time for the parameter setup
  write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed setup = ', elapsedSetup,          ' s'
  write(outunit,"(A,1PG15.7)")                                                 '   fraction setup = ', elapsedSetup/elpSec
+
+ ! print elapsed time to read the restart data
+ write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed restart = ', elapsedRestart,        ' s'
+ write(outunit,"(A,1PG15.7)")                                                 ' fraction restart = ', elapsedRestart/elpSec
 
  ! print elapsed time for the data read
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
