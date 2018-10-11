@@ -27,6 +27,7 @@ private
 public::summa_readForcing
 contains
 
+ ! used to read model forcing data
  subroutine summa_readForcing(modelTimeStep, summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules

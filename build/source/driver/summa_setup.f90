@@ -25,12 +25,34 @@ module summa_setup
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing double precision number
 
+! named variables
+USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
+USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
+USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
+USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
+USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
+USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
+
+! metadata structures
+USE globalData,only:mpar_meta,bpar_meta                     ! parameter metadata structures
+
+! named variables to define the decisions for snow layers
+USE mDecisions_module,only:&
+  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+
+! named variables to define LAI decisions
+USE mDecisions_module,only:&
+ monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
+ specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+
 ! safety: set private unless specified otherwise
 implicit none
 private
 public::summa_paramSetup
 contains
 
+ ! initializes parameter data structures (e.g. vegetation and soil parameters).
  subroutine summa_paramSetup(summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
@@ -49,24 +71,18 @@ contains
  USE ConvE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
- ! named variables
- USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
- USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
- USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
- USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
- USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
- USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
  ! global data structures
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:localParFallback                        ! local column default parameters
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
- ! metadata structures
- USE globalData,only:mpar_meta,bpar_meta                     ! parameter metadata structures
  ! run time options
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
  USE globalData,only:iRunMode                                ! define the current running mode
+ ! output constraints
+ USE globalData,only:maxLayers                               ! maximum number of layers
+ USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
  ! timing variables
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
@@ -77,10 +93,6 @@ contains
  ! Noah-MP parameters
  USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM                    ! 2-d tables for stem area index and leaf area index (vegType,month)
  USE NOAHMP_VEG_PARAMETERS,only:HVT,HVB                      ! height at the top and bottom of vegetation (vegType)
- ! model decisions
- USE mDecisions_module,only:&                                ! look-up values for LAI decisions
-  monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
-  specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -137,6 +149,16 @@ contains
  ! NOTE: Must be after ffile_info because mDecisions uses the data_step
  call mDecisions(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+ ! get the maximum number of snow layers
+ select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
+  case(sameRulesAllLayers);    maxSnowLayers = 100
+  case(rulesDependLayerIndex); maxSnowLayers = 5
+  case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+ end select ! (option to combine/sub-divide snow layers)
+
+ ! get the maximum number of layers
+ maxLayers = gru_struc(1)%hruInfo(1)%nSoil + maxSnowLayers
 
  ! *****************************************************************************
  ! *** read local attributes for each HRU

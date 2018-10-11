@@ -198,10 +198,10 @@ MODULE globalData
  ! * part 3: run time variables
  ! ----------------------------------------------------------------------------------------------------------------
 
- ! Define the model decisions
+ ! define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 
- ! Define metadata for model forcing datafile
+ ! define metadata for model forcing datafile
  type(file_info),save,public,allocatable     :: forcFileInfo(:)                   ! file info for model forcing data
 
  ! define indices describing the indices of the first and last HRUs in the forcing file
@@ -220,6 +220,18 @@ MODULE globalData
  ! define variables used for the vegetation phenology
  real(dp),dimension(12), save     , public   :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
 
+ ! define the model output file
+ character(len=256),save,public              :: fileout=''                        ! output filename
+ character(len=256),save,public              :: output_fileSuffix=''              ! suffix for the output file
+
+ ! define controls on model output
+ integer(i4b),dimension(maxvarFreq),save,public :: statCounter=0                  ! time counter for stats
+ integer(i4b),dimension(maxvarFreq),save,public :: outputTimeStep=0               ! timestep in output files
+ logical(lgt),dimension(maxvarFreq),save,public :: resetStats=.true.              ! flags to reset statistics
+ logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.          ! flags to reset statistics
+ integer(i4b),save,public                       :: maxLayers                      ! maximum number of layers
+ integer(i4b),save,public                       :: maxSnowLayers                  ! maximum number of snow layers
+
  ! define control variables
  integer(i4b),save,public                    :: startGRU                          ! index of the starting GRU for parallelization run
  integer(i4b),save,public                    :: checkHRU                          ! index of the HRU for a single HRU run
@@ -228,7 +240,6 @@ MODULE globalData
  integer(i4b),save,public                    :: ixProgress=ixProgress_id          ! define frequency to write progress
  integer(i4b),save,public                    :: ixRestart=ixRestart_never         ! define frequency to write restart files
  integer(i4b),save,public                    :: newOutputFile=noNewFiles          ! define option for new output files
- character(len=256),save,public              :: output_fileSuffix=''              ! suffix for the output file
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
@@ -261,9 +272,10 @@ MODULE globalData
  real(dp), save, public                      :: elapsedPhysics          ! elapsed time for the physics
 
  ! define ancillary data structures
- type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
  type(var_i),save,public                     :: startTime               ! start time for the model simulation
  type(var_i),save,public                     :: finshTime               ! end time for the model simulation
+ type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
+ type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
  ! output file information
  logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the outut frequency is desired

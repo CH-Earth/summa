@@ -37,6 +37,7 @@ private
 public::summa_runPhysics
 contains
 
+ ! calls the model physics
  subroutine summa_runPhysics(modelTimeStep, summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
@@ -271,6 +272,10 @@ contains
 
  ! aggregate the elapsed time for the physics
  elapsedPhysics = elapsedPhysics + elapsedSec(startPhysics, endPhysics)
+
+ ! deallocate space used to determine the GRU computational expense
+ deallocate(totalFluxCalls, ixExpense, timeGRU, stat=err)
+ if(err/=0)then; message=trim(message)//'unable to deallocate space for GRU timing'; return; endif
 
  ! end associate statements
  end associate summaVars

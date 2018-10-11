@@ -47,6 +47,7 @@ USE globalData,only:statBvar_meta                           ! child metadata for
 USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model initial attributes file
+USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -54,6 +55,7 @@ private
 public::summa_initialize
 contains
 
+ ! used to declare and allocate summa data structures and initialize model state to known values
  subroutine summa_initialize(summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
@@ -75,13 +77,14 @@ contains
  ! timing variables
  USE globalData,only:startInit,endInit                       ! date/time for the start and end of the initialization
  USE globalData,only:elapsedInit                             ! elapsed time for the initialization
- USE globalData, only: elapsedRead                           ! elapsed time for the data read
- USE globalData, only: elapsedWrite                          ! elapsed time for the stats/write
- USE globalData, only: elapsedPhysics                        ! elapsed time for the physics
+ USE globalData,only:elapsedRead                             ! elapsed time for the data read
+ USE globalData,only:elapsedWrite                            ! elapsed time for the stats/write
+ USE globalData,only:elapsedPhysics                          ! elapsed time for the physics
  ! model time structures
- USE globalData,only:refTime                                 ! reference time
  USE globalData,only:startTime                               ! start time
  USE globalData,only:finshTime                               ! end time
+ USE globalData,only:refTime                                 ! reference time
+ USE globalData,only:oldTime                                 ! time from previous step
  ! run time options
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
@@ -90,6 +93,7 @@ contains
  USE globalData,only:ncid                                    ! file id of netcdf output file
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:structInfo                              ! information on the data structures
+ USE globalData,only:output_fileSuffix                       ! suffix for the output file
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -102,6 +106,7 @@ contains
  character(LEN=256)                    :: cmessage           ! error message of downwind routine
  character(len=256)                    :: restartFile        ! restart file name
  character(len=256)                    :: attrFile           ! attributes file name
+ character(len=128)                    :: fmtGruOutput       ! a format string used to write start and end GRU in output file names
  integer(i4b)                          :: iStruct,iGRU       ! looping variables
  integer(i4b)                          :: fileGRU            ! [used for filenames] number of GRUs in the input file
  integer(i4b)                          :: fileHRU            ! [used for filenames] number of HRUs in the input file
@@ -209,11 +214,12 @@ contains
  ! *****************************************************************************
 
  ! allocate time structures
- do iStruct=1,3
+ do iStruct=1,4
   select case(iStruct)
-   case(1); call allocLocal(time_meta, refTime,   err=err, message=cmessage)  ! reference time for the model simulation
-   case(2); call allocLocal(time_meta, startTime, err=err, message=cmessage)  ! start time for the model simulation
-   case(3); call allocLocal(time_meta, finshTime, err=err, message=cmessage)  ! end time for the model simulation
+   case(1); call allocLocal(time_meta, startTime, err=err, message=cmessage)  ! start time for the model simulation
+   case(2); call allocLocal(time_meta, finshTime, err=err, message=cmessage)  ! end time for the model simulation
+   case(3); call allocLocal(time_meta, refTime,   err=err, message=cmessage)  ! reference time for the model simulation
+   case(4); call allocLocal(time_meta, oldTime,   err=err, message=cmessage)  ! time from the previous step
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through time structures
@@ -293,6 +299,25 @@ contains
   endif
 
  end do ! iStruct
+
+ ! *****************************************************************************
+ ! *** define the suffix for the model output file
+ ! *****************************************************************************
+
+ ! set up the output file names as: OUTPUT_PREFIX_spinup|waterYear_output_fileSuffix_startGRU-endGRU_outfreq.nc or OUTPUT_PREFIX_spinup|waterYear_output_fileSuffix_HRU_outfreq.nc;
+ if (OUTPUT_PREFIX(len_trim(OUTPUT_PREFIX):len_trim(OUTPUT_PREFIX)) /= '_') OUTPUT_PREFIX=trim(OUTPUT_PREFIX)//'_' ! separate OUTPUT_PREFIX from others by underscore
+ if (output_fileSuffix(1:1) /= '_') output_fileSuffix='_'//trim(output_fileSuffix)                                 ! separate output_fileSuffix from others by underscores
+ if (output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) == '_') output_fileSuffix(len_trim(output_fileSuffix):len_trim(output_fileSuffix)) = ' '
+ select case (iRunMode)
+  case(iRunModeGRU)
+   ! left zero padding for startGRU and endGRU
+   write(fmtGruOutput,"(i0)") ceiling(log10(real(fileGRU)+0.1))              ! maximum width of startGRU and endGRU
+   fmtGruOutput = "i"//trim(fmtGruOutput)//"."//trim(fmtGruOutput)           ! construct the format string for startGRU and endGRU
+   fmtGruOutput = "('_G',"//trim(fmtGruOutput)//",'-',"//trim(fmtGruOutput)//")"
+   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),fmtGruOutput) startGRU,startGRU+nGRU-1
+  case(iRunModeHRU)
+   write(output_fileSuffix((len_trim(output_fileSuffix)+1):len(output_fileSuffix)),"('_H',i0)") checkHRU
+ end select
 
  ! identify the end of the initialization
  call date_and_time(values=endInit)

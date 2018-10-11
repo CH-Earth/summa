@@ -25,12 +25,20 @@ module summa_restart
 USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing double precision number
 
+! named variables
+USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables
+USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables
+USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes
+USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
+USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
+
 ! safety: set private unless specified otherwise
 implicit none
 private
 public::summa_readRestart
 contains
 
+ ! read restart data and reset the model state
  subroutine summa_readRestart(summa1_struc, err, message)
  ! ---------------------------------------------------------------------------------------
  ! * desired modules
@@ -46,21 +54,15 @@ contains
  USE var_derive_module,only:v_shortcut                       ! module to calculate "short-cut" variables
  USE var_derive_module,only:rootDensty                       ! module to calculate the vertical distribution of roots
  USE var_derive_module,only:satHydCond                       ! module to calculate the saturated hydraulic conductivity in each soil layer
- ! named variables
- USE var_lookup,only:iLookPROG                               ! look-up values for local column model prognostic (state) variables
- USE var_lookup,only:iLookDIAG                               ! look-up values for local column model diagnostic variables
- USE var_lookup,only:iLookFLUX                               ! look-up values for local column model fluxes
- USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
- USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
  ! global data structures
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:model_decisions                         ! model decision structure
- ! timing variables
- USE globalData,only:startRestart,endRestart                 ! date/time for the start and end of the read restart
- USE globalData,only:elapsedRestart                          ! elapsed time to read restart files
  ! file paths
  USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
  USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
+ ! timing variables
+ USE globalData,only:startRestart,endRestart                 ! date/time for the start and end of reading model restart files
+ USE globalData,only:elapsedRestart                          ! elapsed time to read model restart files
  ! model decisions
  USE mDecisions_module,only:&                                ! look-up values for the choice of method for the spatial representation of groundwater
   localColumn, & ! separate groundwater representation in each local soil column
@@ -102,7 +104,7 @@ contains
  ! initialize error control
  err=0; message='summa_readRestart/'
 
- ! initialize the start of the initialization
+ ! identify the start of the writing
  call date_and_time(values=startRestart)
 
  ! *****************************************************************************
@@ -220,10 +222,14 @@ contains
 
  end do  ! (looping through GRUs)
 
- ! identify the end of the initialization
+ ! *****************************************************************************
+ ! *** finalize
+ ! *****************************************************************************
+
+ ! identify the end of the writing
  call date_and_time(values=endRestart)
 
- ! aggregate the elapsed time for the initialization
+ ! aggregate the elapsed time for model writing
  elapsedRestart = elapsedSec(startRestart, endRestart)
 
  ! end associate statements

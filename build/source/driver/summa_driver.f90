@@ -33,6 +33,7 @@ USE summa_restart, only: summa_readRestart                  ! used to read resta
 ! subroutines and functions: model simulation
 USE summa_forcing, only: summa_readForcing                  ! used to read forcing data
 USE summa_modelRun, only: summa_runPhysics                  ! used to run the summa physics for one time step
+USE summa_writeOutput, only: summa_writeOutputFiles         ! used to write the summa output files
 ! utility functions
 USE summa_util, only: stop_program                          ! used to stop the summa program (with errors)
 USE summa_util, only: handle_err                            ! used to process errors
@@ -92,10 +93,9 @@ do modelTimeStep=1,numtim
  call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
 
-
-
- call stop_program(0, 'finished simulation successfully.')
-
+ ! write the model output
+ call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
+ call handle_err(err, message)
 
 end do  ! looping through time
 

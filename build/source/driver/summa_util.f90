@@ -354,9 +354,7 @@ contains
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
  do iFreq = 1,size(ncid)
-  if (ncid(iFreq)/=integerMissing) then
-   localErr = nf90_close(ncid(iFreq))
-  end if
+  if (ncid(iFreq)/=integerMissing) localErr = nf90_close(ncid(iFreq))
  end do
 
  ! get the final date and time
