@@ -295,11 +295,8 @@ contains
   err = nf90_get_var(ncid,varId,timeVal,start=(/1/),count=(/1/))
   if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
 
-  ! (get time vector)
-  fileTime = arth(0,1,dimLen)*data_step/secprday + timeVal(1)
-
-  ! convert time to units of days, and add reference julian day
-  fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday_data
+  ! (get time vector in units of days since refJulday_data)
+  fileTime = arth(0,1,dimLen)*data_step/secprday + timeVal(1)/forcFileInfo(iFile)%convTime2Days + refJulday_data
 
   ! find difference of fileTime from currentJulday
   diffTime=abs(fileTime-currentJulday)
@@ -405,6 +402,7 @@ contains
  integer(i4b)                      :: varId            ! variable identifier
  character(len = nf90_max_name)    :: varName          ! dimenison name
  real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
+ integer*8                         :: iTime0,iTime1    ! times
  ! other local variables
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
@@ -463,7 +461,7 @@ contains
  do iNC=1,forcFileInfo(iFile)%nVars
 
   ! check variable is desired
-  if(forcFileInfo(iFile)%var_ix(iNC)==integerMissing) cycle
+  if(forcFileInfo(iFile)%var_ix(iNC)==integerMissing .or. forcFileInfo(iFile)%var_ix(iNC)==iLookFORCE%time) cycle
 
   ! get index in forcing structure
   iVar = forcFileInfo(iFile)%var_ix(iNC)
@@ -471,8 +469,14 @@ contains
 
   ! read forcing data for all HRUs
   if(simultaneousRead)then
-   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
+   !call system_clock(iTime0)
+   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iNC),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
+   if(err/=nf90_noerr)then
+    message=trim(message)//'problem reading forcing data: '//trim(forcFileInfo(iFile)%varName(iNC))//'/'//trim(nf90_strerror(err))
+    return
+   endif
+   !call system_clock(iTime1)
+   !print*, 'Read time '//trim(forcFileInfo(iFile)%varname(iNC))//' = ', iTime1 - iTime0
   endif
 
   ! loop through GRUs and HRUs

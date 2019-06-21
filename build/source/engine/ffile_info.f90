@@ -21,6 +21,7 @@
 module ffile_info_module
 USE nrtype
 USE netcdf
+USE globalData,only:realMissing
 USE globalData,only:integerMissing
 USE globalData,only:ixHRUfile_min,ixHRUfile_max
 implicit none
@@ -46,6 +47,7 @@ contains
  USE get_ixname_module,only:get_ixtime,get_ixforce  ! identify index of named variable
  USE ascii_util_module,only:get_vlines       ! get a vector of non-comment lines
  USE ascii_util_module,only:split_line       ! split a line into words
+ USE f2008funcs_module,only:findIndex        ! find index within vector
  USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
@@ -118,19 +120,11 @@ contains
  ! get the number of forcing variables
  nForcing = size(forc_meta)
 
+ ! initialize data_step
+ data_step = realMissing
+
  ! loop through files, and read descriptive information from each file
  do iFile=1,nFile
-
-  ! ensure allocatable structure components are deallocated
-  if(allocated(forcFileInfo(iFile)%data_id)) deallocate(forcFileInfo(iFile)%data_id)
-  if(allocated(forcFileInfo(iFile)%varName)) deallocate(forcFileInfo(iFile)%varName)
-
-  ! allocate space for structure components
-  allocate(forcFileInfo(iFile)%data_id(nForcing), forcFileInfo(iFile)%varName(nForcing), stat=err)
-  if(err/=0)then; err=41; message=trim(message)//"problemAllocateStructureElement"; return; end if
-
-  ! initialize variable ids to missing
-  forcFileInfo(iFile)%data_id(:) = integerMissing
 
   ! build filename for actual forcing file
   infile = trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
@@ -153,15 +147,19 @@ contains
   ! set nVar attribute
   forcFileInfo(iFile)%nVars = nVar
 
-  ! allocate space
-  allocate(forcFileInfo(iFile)%var_ix(nVar), stat=err)
-  if(err/=0)then
-   message=trim(message)//'problem allocating space for structure element'
-   err=20; return
-  endif
+  ! ensure allocatable structure components are deallocated
+  if(allocated(forcFileInfo(iFile)%var_ix))  deallocate(forcFileInfo(iFile)%var_ix)
+  if(allocated(forcFileInfo(iFile)%data_id)) deallocate(forcFileInfo(iFile)%data_id)
+  if(allocated(forcFileInfo(iFile)%varName)) deallocate(forcFileInfo(iFile)%varName)
 
-  ! initialize data structure
-  forcFileInfo(iFile)%var_ix(:) = integerMissing
+  ! allocate space for structure components
+  allocate(forcFileInfo(iFile)%data_id(nVar), forcFileInfo(iFile)%varName(nVar), forcFileInfo(iFile)%var_ix(nVar), stat=err)
+  if(err/=0)then; err=41; message=trim(message)//"problemAllocateStructureElement"; return; end if
+
+  ! initialize variable ids to missing
+  forcFileInfo(iFile)%var_ix(:)  = integerMissing
+  forcFileInfo(iFile)%data_id(:) = integerMissing
+  forcFileInfo(iFile)%varname(:) = 'notYetDefined'
 
   ! inquire nhru dimension size
   err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
@@ -171,12 +169,19 @@ contains
   err = nf90_inq_dimid(ncid,'time',dimId);                                     if(err/=0)then; message=trim(message)//'cannot find dimension time'; return; end if
   err = nf90_inquire_dimension(ncid,dimId,len=forcFileInfo(iFile)%nTimeSteps); if(err/=0)then; message=trim(message)//'cannot read dimension time'; return; end if
 
+  ! check to see if hruId exists as a variable, this is a required variable
+  err = nf90_inq_varid(ncid,'hruId',varId)
+  if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
+
   ! loop through all variables in netcdf file, check to see if everything needed to run the model exists and data_step is correct
   do iNC=1,nVar
 
    ! inquire about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
    if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; end if
+
+   ! put the variable name in the forcing structure
+   forcFileInfo(iFile)%varName(iNC) = trim(varName)
 
    ! process variable
    select case(trim(varName))
@@ -190,17 +195,15 @@ contains
      if(ivar>size(forcFileInfo(iFile)%data_id))then; err=35; message=trim(message)//"indexOutOfRange[var="//trim(varname)//"]"; return; end if
 
      ! put netcdf file variable index in the forcing file metadata structure
-     err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(ivar))
+     err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(iNC))
      if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; end if
 
      ! put variable index of the forcing structure in the metadata structure
-     if(trim(varName)/='time')then
-      forcFileInfo(iFile)%var_ix(iNC)   = ivar
-      forcFileInfo(iFile)%varName(ivar) = trim(varName)
+     forcFileInfo(iFile)%var_ix(iNC) = ivar
 
      ! get first time from file, place into forcFileInfo
-     else
-      err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
+     if(trim(varName)=='time')then
+      err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iNC),forcFileInfo(iFile)%firstJulDay,start=(/1/))
       if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; end if
      end if  ! if the variable name is time
 
@@ -224,9 +227,9 @@ contains
     ! HRU id -- required
     case('hruId')
 
-     ! check to see if hruId exists as a variable, this is a required variable
-     err = nf90_inq_varid(ncid,trim(varname),varId)
-     if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
+     ! get varId for hruId
+     err = nf90_inq_varid(ncid,'hruId',varId)
+     if(err/=0)then; message=trim(message)//'problem getting varId for hruID'; return; endif
 
      ixHRUfile_min=huge(1)
      ixHRUfile_max=0
@@ -251,20 +254,34 @@ contains
     ! OK to have additional variables in the forcing file that are not used
     case default; cycle
    end select  ! select variable name
+
+   ! check
+   !print*, iNC, forcFileInfo(iFile)%nVars 
+   !print*, trim(forcFileInfo(iFile)%varname(iNC)), forcFileInfo(iFile)%var_ix(iNC) 
+
   end do ! (end of netcdf file variable loop)
 
   ! check to see if any forcing variables are missed
-  if(any(forcFileInfo(iFile)%data_id(:)==integerMissing))then
-   do iVar=1,size(forcFileInfo(iFile)%data_id)
-    if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
-   end do
-  end if
+  do iVar=1,nForcing
+   if(findIndex(forcFileInfo(iFile)%var_ix, iVar, integerMissing)==integerMissing)then
+    message=trim(message)//"variable missing [var='"//trim(forc_meta(iVar)%varname)//"']"
+    err=40; return
+   endif
+  end do
 
   ! close file
   err = nf90_close(ncid)
   if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
  end do ! (loop through files)
+
+ ! check data step
+ if(data_step < 0._dp)then
+  message=trim(message)//'variable "data_step" is not defined'
+  err=20;  return
+ endif
+ !print*, 'data_step = ', data_step
+ !print*, trim(message)//'PAUSE : '; read(*,*)
 
  end subroutine ffile_info
 
