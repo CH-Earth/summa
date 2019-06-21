@@ -35,12 +35,14 @@ USE data_types,only:&
                     var_dlength,     & ! x%var(:)%dat        (dp)
                     ! hru dimension
                     hru_int,         & ! x%hru(:)%var(:)     (i4b)
+                    hru_int8,        & ! x%hru(:)%var(:)     integer(8)
                     hru_double,      & ! x%hru(:)%var(:)     (dp)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
                     hru_doubleVec      ! x%hru(:)%var(:)%dat (dp)
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE          ! look-up values for classification of veg, soils etc.
+USE var_lookup,only:iLookID            ! look-up values for hru and gru IDs
 USE var_lookup,only:iLookATTR          ! look-up values for local attributes
 USE var_lookup,only:iLookINDEX         ! look-up values for local column index variables
 USE var_lookup,only:iLookFLUX          ! look-up values for local column model fluxes
@@ -77,6 +79,7 @@ contains
                        ! data structures (input)
                        timeVec,            & ! intent(in):    model time data
                        typeHRU,            & ! intent(in):    local classification of soil veg etc. for each HRU
+                       idHRU,              & ! intent(in):    local classification of hru and gru IDs
                        attrHRU,            & ! intent(in):    local attributes for each HRU
                        ! data structures (input-output)
                        mparHRU,            & ! intent(inout):    local model parameters
@@ -105,6 +108,7 @@ contains
  ! data structures (input)
  integer(i4b)        , intent(in)    :: timeVec(:)           ! integer vector      -- model time data
  type(hru_int)       , intent(in)    :: typeHRU              ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+ type(hru_int8)      , intent(in)    :: idHRU                ! x%hru(:)%var(:)     -- local classification of hru and gru IDs
  type(hru_double)    , intent(in)    :: attrHRU              ! x%hru(:)%var(:)     -- local attributes for each HRU
  ! data structures (input-output)
  type(hru_doubleVec) , intent(inout) :: mparHRU              ! x%hru(:)%var(:)%dat -- local (HRU) model parameters
@@ -207,7 +211,7 @@ contains
   kHRU = 0
   ! identify the downslope HRU
   dsHRU: do jHRU=1,gruInfo%hruCount
-   if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeHRU%hru(jHRU)%var(iLookTYPE%hruId))then
+   if(typeHRU%hru(iHRU)%var(iLookTYPE%downHRUindex) == idHRU%hru(jHRU)%var(iLookID%hruId))then
     if(kHRU==0)then  ! check there is a unique match
      kHRU=jHRU
      exit dsHRU

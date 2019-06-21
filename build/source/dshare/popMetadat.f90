@@ -21,6 +21,7 @@ contains
  USE globalData, only: time_meta  ! data structure for time metadata
  USE globalData, only: forc_meta  ! data structure for forcing metadata
  USE globalData, only: type_meta  ! data structure for categorical metadata
+ USE globalData, only: id_meta    ! data structure for hru and gru ID metadata
  USE globalData, only: attr_meta  ! data structure for attribute metadata
  USE globalData, only: mpar_meta  ! data structure for local parameter metadata
  USE globalData, only: bpar_meta  ! data structure for basin parameter metadata
@@ -34,6 +35,7 @@ contains
  USE var_lookup, only: iLookTIME  ! named variables for time data structure
  USE var_lookup, only: iLookFORCE ! named variables for forcing data structure
  USE var_lookup, only: iLookTYPE  ! named variables for categorical attribute data structure
+ USE var_lookup, only: iLookID    ! named variables for hru and gru ID metadata
  USE var_lookup, only: iLookATTR  ! named variables for real valued attribute data structure
  USE var_lookup, only: iLookPARAM ! named variables for local parameter data structure
  USE var_lookup, only: iLookBPAR  ! named variables for basin parameter data structure
@@ -83,11 +85,15 @@ contains
  ! -----
  ! * categorical data...
  ! ---------------------
- type_meta(iLookTYPE%hruId)                  = var_info('hruId'         , 'id defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%vegTypeIndex)           = var_info('vegTypeIndex'  , 'index defining vegetation type'             , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%soilTypeIndex)          = var_info('soilTypeIndex' , 'index defining soil type'                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%slopeTypeIndex)         = var_info('slopeTypeIndex', 'index defining slope'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%downHRUindex)           = var_info('downHRUindex'  , 'index of downslope HRU (0 = basin outlet)'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+
+ ! -----
+ ! * hru and gru ID data...
+ ! ---------------------
+ id_meta(iLookID%hruId)                      = var_info('hruId'         , 'ID defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * site characteristics...
@@ -684,6 +690,7 @@ contains
  USE globalData, only: time_meta               ! data structure for time metadata
  USE globalData, only: forc_meta               ! data structure for forcing metadata
  USE globalData, only: type_meta               ! data structure for categorical metadata
+ USE globalData, only: id_meta                 ! data structure for hru and gru ID metadata
  USE globalData, only: attr_meta               ! data structure for attribute metadata
  USE globalData, only: mpar_meta               ! data structure for local parameter metadata
  USE globalData, only: bpar_meta               ! data structure for basin parameter metadata
@@ -696,6 +703,7 @@ contains
 
  ! structures of named variables
  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
+ USE var_lookup, only: iLookID                 ! named variables for hru and gru ID metadata
  USE var_lookup, only: iLookFORCE              ! named variables for forcing data structure
  USE var_lookup, only: iLookINDEX              ! named variables for index variable data structure
  USE var_lookup, only: iLookSTAT               ! named variables for statitics variable data structure
@@ -899,6 +907,7 @@ contains
    case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
    case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
    case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
+   case('id' );     id_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst;   id_meta(vDex)%varDesire=.true.   ! local hru/gru IDs
    case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
 
    ! index structures -- can only be output at the model time step
@@ -955,8 +964,8 @@ contains
  forc_meta(iLookFORCE%time)%statIndex(:) = iLookSTAT%inst
 
  ! force the HRU id to be written in the timestep-level file
- type_meta(iLookTYPE%hruId)%varDesire    = .true.
- type_meta(iLookTYPE%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst 
+ id_meta(iLookID%hruId)%varDesire    = .true.
+ id_meta(iLookID%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst 
 
  end subroutine read_output_file
 

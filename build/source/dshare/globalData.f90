@@ -37,6 +37,7 @@ MODULE globalData
  USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
  USE var_lookup,only:maxvarAttr      ! attributes:               maximum number variables
  USE var_lookup,only:maxvarType      ! type index:               maximum number variables
+ USE var_lookup,only:maxvarId        ! IDs index:                maximum number variables
  USE var_lookup,only:maxvarProg      ! prognostic variables:     maximum number variables
  USE var_lookup,only:maxvarDiag      ! diagnostic variables:     maximum number variables
  USE var_lookup,only:maxvarFlux      ! model fluxes:             maximum number variables
@@ -85,6 +86,7 @@ MODULE globalData
  type(var_info),save,public                  :: forc_meta(maxvarForc)   ! model forcing data
  type(var_info),save,public                  :: attr_meta(maxvarAttr)   ! local attributes
  type(var_info),save,public                  :: type_meta(maxvarType)   ! local classification of veg, soil, etc.
+ type(var_info),save,public                  :: id_meta(maxvarId)       ! local labels of hru and gru IDs
  type(var_info),save,public                  :: mpar_meta(maxvarMpar)   ! local model parameters for each HRU
  type(var_info),save,public                  :: indx_meta(maxvarIndx)   ! local model indices for each HRU
  type(var_info),save,public                  :: prog_meta(maxvarProg)   ! local state variables for each HRU
@@ -100,12 +102,13 @@ MODULE globalData
  type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
 
  ! define summary information on all data structures
- integer(i4b),parameter                      :: nStruct=12              ! number of data structures
+ integer(i4b),parameter                      :: nStruct=13              ! number of data structures
  type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
                    struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
                    struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
                    struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
                    struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
+                   struct_info('id',    'ID'   , maxvarId   ), &        ! the IDs data structure
                    struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
                    struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
                    struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure

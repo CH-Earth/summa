@@ -138,7 +138,7 @@ contains
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
  implicit none
  ! model control
- integer(i4b),intent(in)              :: hruId                  ! hruId
+ integer(8),intent(in)                :: hruId                  ! hruId
  real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! data structures (input)

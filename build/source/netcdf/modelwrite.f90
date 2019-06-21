@@ -40,6 +40,7 @@ USE data_types,only:&
                     ilength,             & ! var%dat
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
+                    var_i8,              & ! x%var(:)            integer(8)
                     var_d,               & ! x%var(:)            (dp)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
                     var_dlength,         & ! x%var(:)%dat        (dp)
@@ -53,6 +54,7 @@ USE data_types,only:&
                     gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
@@ -108,6 +110,8 @@ contains
    select type (struct)
     class is (var_i)
      err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
+    class is (var_i8)
+     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_d)
      err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/iSpatial/),count=(/1/))
     class is (var_dlength)
@@ -120,6 +124,8 @@ contains
   else
    select type (struct)
     class is (var_d)
+     err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
+    class is (var_i8)
      err = nf90_put_var(ncid(iLookFreq%timestep),meta(iVar)%ncVarID(iLookFreq%timestep),(/struct%var(iVar)/),start=(/1/),count=(/1/))
     class default; err=20; message=trim(message)//'unknown variable type (no HRU)'; return
    end select
@@ -158,8 +164,8 @@ contains
  integer(i4b)  ,intent(out)       :: err               ! error code
  character(*)  ,intent(out)       :: message           ! error message
  ! local variables
- integer(i4b)                     :: iGRU              ! grouped response unit
- integer(i4b)                     :: iHRU              ! hydrologic response unit
+ integer(i4b)                     :: iGRU              ! grouped response unit counter
+ integer(i4b)                     :: iHRU              ! hydrologic response unit counter
  integer(i4b)                     :: iVar              ! variable index
  integer(i4b)                     :: iStat             ! statistics index
  integer(i4b)                     :: iFreq             ! frequency index

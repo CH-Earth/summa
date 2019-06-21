@@ -92,6 +92,7 @@ USE data_types,only:&
                     gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
@@ -100,7 +101,7 @@ USE data_types,only:extended_info          ! extended metadata structure
 USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
 ! provide access to metadata structures
 USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
-USE globalData,only:prog_meta,diag_meta,flux_meta           ! metadata structures
+USE globalData,only:prog_meta,diag_meta,flux_meta,id_meta   ! metadata structures
 USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
 USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
@@ -131,6 +132,7 @@ USE var_lookup,only:maxvarFlux,maxvarIndx,maxvarBvar        ! size of variable v
 ! provide access to the named variables that describe elements of parent model structures
 USE var_lookup,only:iLookTIME,iLookFORCE                    ! look-up values for time and forcing data structures
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
+USE var_lookup,only:iLookID                                 ! look-up values for hru and gru IDs
 USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
 USE var_lookup,only:iLookINDEX                              ! look-up values for local column index variables
@@ -177,6 +179,7 @@ type(var_i)                      :: timeStruct                 ! x%var(:)       
 type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
 type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
 type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:)     -- local values of hru and gru IDs
 ! define the primary data structures (variable length vectors)
 type(gru_hru_intVec)             :: indxStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model indices
 type(gru_hru_doubleVec)          :: mparStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
@@ -266,7 +269,7 @@ character(len=256)               :: timeString                 ! protion of rest
 character(len=256)               :: restartFile                ! restart file name
 character(len=256)               :: attrFile                   ! attributes file name
 ! open MP functions
-integer(i4b)                     :: omp_get_num_threads        ! get the number of threads
+!integer(i4b)                    :: omp_get_num_threads        ! get the number of threads (not used)
 ! parallelize the model run
 integer(i4b)                     :: nThreads                   ! number of threads
 integer(i4b), allocatable        :: ixExpense(:)               ! ranked index GRU w.r.t. computational expense
@@ -381,6 +384,7 @@ do iStruct=1,size(structInfo)
   case('forc'); call allocGlobal(forc_meta,  forcStruct,  err, message)   ! model forcing data
   case('attr'); call allocGlobal(attr_meta,  attrStruct,  err, message)   ! local attributes for each HRU
   case('type'); call allocGlobal(type_meta,  typeStruct,  err, message)   ! local classification of soil veg etc. for each HRU
+  case('id'  ); call allocGlobal(id_meta,    idStruct,    err, message)   ! local values of hru and gru IDs
   case('mpar'); call allocGlobal(mpar_meta,  mparStruct,  err, message)   ! model parameters
   case('indx'); call allocGlobal(indx_meta,  indxStruct,  err, message)   ! model variables
   case('prog'); call allocGlobal(prog_meta,  progStruct,  err, message)   ! model prognostic (state) variables
@@ -417,7 +421,7 @@ end do
 ! *****************************************************************************
 ! *** read local attributes for each HRU
 ! *****************************************************************************
-call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,message)
+call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,message)
 call handle_err(err,message)
 
 ! get the number of HRUs in the run domain
@@ -554,7 +558,7 @@ end do  ! looping through GRUs
 ! *****************************************************************************
 ! *** read trial model parameter values for each HRU, and populate initial data structures
 ! *****************************************************************************
-call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
+call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message); call handle_err(err,message)
 
 ! *****************************************************************************
 ! *** compute derived model variables that are pretty much constant for the basin as a whole
@@ -574,7 +578,7 @@ do iGRU=1,nGRU
   kHRU=0
   ! check the network topology (only expect there to be one downslope HRU)
   do jHRU=1,gru_struc(iGRU)%hruCount
-   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruId))then
+   if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
     if(kHRU==0)then  ! check there is a unique match
      kHRU=jHRU
     else
@@ -664,7 +668,7 @@ do iGRU=1,nGRU
   upArea(iGRU)%hru(iHRU) = 0._dp
   do jHRU=1,gru_struc(iGRU)%hruCount
    ! check if jHRU flows into iHRU; assume no exchange between GRUs
-   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId))then
+   if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
     upArea(iGRU)%hru(iHRU) = upArea(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
    endif   ! (if jHRU is an upstream HRU)
   end do  ! jHRU
@@ -741,6 +745,7 @@ do iGRU=1,nGRU
  do iHRU=1,gru_struc(iGRU)%hruCount
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+  call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,message); call handle_err(err,'[type]/'//message)
   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
  enddo ! HRU
  call writeParm(iGRU,bparStruct%gru(iGRU),bpar_meta,err,message); call handle_err(err,'[bpar]/'//message)
@@ -950,6 +955,7 @@ do modelTimeStep=1,numtim
                   ! data structures (input)
                   timeStruct%var,           & ! intent(in):    model time data
                   typeStruct%gru(iGRU),     & ! intent(in):    local classification of soil veg etc. for each HRU
+                  idStruct%gru(iGRU),       & ! intent(in):    local classification of hru and gru IDs
                   attrStruct%gru(iGRU),     & ! intent(in):    local attributes for each HRU
                   ! data structures (input-output)
                   mparStruct%gru(iGRU),     & ! intent(inout): local model parameters
@@ -1101,6 +1107,7 @@ do modelTimeStep=1,numtim
    do iHRU=1,gru_struc(iGRU)%hruCount
     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,message); call handle_err(err,'[attr]/'//message)
     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,message); call handle_err(err,'[type]/'//message)
+    call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,message); call handle_err(err,'[type]/'//message)
     call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,message); call handle_err(err,'[mpar]'//message)
     ! re-initalize the indices for model writing
     outputTimeStep(:)=1
@@ -1358,7 +1365,7 @@ contains
   if(iGRU<=nGRU)then
    if(iHRU<=gru_struc(iGRU)%hruCount)then
     print*, 'initial time step  = ', dt_init(iGRU)%hru(iHRU)
-    print*, 'HRU index          = ', typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId)
+    print*, 'HRU index          = ', idStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId)
     print*, 'pptrate            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%pptrate)
     print*, 'airtemp            = ', forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%airtemp)
     print*, 'theta_res          = ', mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res)%dat(1)            ! soil residual volumetric water content (-)
