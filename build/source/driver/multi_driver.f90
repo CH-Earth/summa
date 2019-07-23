@@ -117,6 +117,7 @@ USE globalData,only:localParFallback                        ! local column defau
 USE globalData,only:basinParFallback                        ! basin-average default parameters
 USE globalData,only:structInfo                              ! information on the data structures
 USE globalData,only:numtim                                  ! number of time steps
+USE globalData,only:chunksize                               ! chunk size for netcdf read/write
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
 USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
 USE globalData,only:globalPrintFlag                         ! global print flag
@@ -426,6 +427,9 @@ call handle_err(err,message)
 
 ! get the number of HRUs in the run domain
 nHRUrun = sum(gru_struc%hruCount)
+
+! define the chunksize (for netcdf read/write)
+chunksize=8*nHRUrun
 
 ! *****************************************************************************
 ! *** read description of model forcing datafile used in each HRU
@@ -837,7 +841,7 @@ do modelTimeStep=1,numtim
   case(ixProgress_never); printProgress = .false.
   case default; call handle_err(20,'unable to identify option for the restart file')
  end select
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ if(printProgress) write(*,'(i4,1x,4(i2,1x),a,1x,i5)') timeStruct%var, 'chunksize = ', chunksize
 ! write(*,'(i4,1x,5(i2,1x))') timeStruct%var
 
  ! NOTE: this is done because of the check in coupled_em if computeVegFlux changes in subsequent time steps
@@ -1434,16 +1438,16 @@ contains
  write(outunit,"(A,I4,'-',I2.2,'-',I2.2,2x,I2,':',I2.2,':',I2.2,'.',I3.3)")   '  final date/time = ',ctime2(1:3),ctime2(5:8)
  ! print elapsed time for the initialization
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed init = ', elapsedInit,           ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '    fraction init = ', elapsedInit/elpSec,    ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '    fraction init = ', elapsedInit/elpSec
  ! print elapsed time for the data read
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed read = ', elapsedRead,           ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '    fraction read = ', elapsedRead/elpSec,    ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '    fraction read = ', elapsedRead/elpSec
  ! print elapsed time for the data write
  write(outunit,"(/,A,1PG15.7,A)")                                             '    elapsed write = ', elapsedWrite,          ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '   fraction write = ', elapsedWrite/elpSec,   ' s'
+ write(outunit,"(A,1PG15.7)")                                                 '   fraction write = ', elapsedWrite/elpSec
  ! print elapsed time for the physics
  write(outunit,"(/,A,1PG15.7,A)")                                             '  elapsed physics = ', elapsedPhysics,        ' s'
- write(outunit,"(A,1PG15.7,A)")                                               ' fraction physics = ', elapsedPhysics/elpSec, ' s'
+ write(outunit,"(A,1PG15.7)")                                                 ' fraction physics = ', elapsedPhysics/elpSec
  ! print total elapsed time
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
  write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_dp,          ' m'
