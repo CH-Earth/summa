@@ -76,6 +76,7 @@ contains
  USE globalData,only:localParFallback                        ! local column default parameters
  USE globalData,only:basinParFallback                        ! basin-average default parameters
  USE globalData,only:model_decisions                         ! model decision structure
+ USE globalData,only:greenVegFrac_monthly                    ! fraction of green vegetation in each month (0-1)
  ! run time options
  USE globalData,only:startGRU                                ! index of the starting GRU for parallelization run
  USE globalData,only:checkHRU                                ! index of the HRU for a single HRU run
@@ -126,8 +127,7 @@ contains
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
-  nHRU                 => summa1_struc%nHRU                , & ! number of global hydrologic response units
-  greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly  & ! fraction of green vegetation in each month (0-1)
+  nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
 
  ) ! assignment to variables in the data structures
  ! ---------------------------------------------------------------------------------------
