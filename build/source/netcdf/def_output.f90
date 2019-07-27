@@ -69,7 +69,7 @@ contains
  ! **********************************************************************************************************
  subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
- USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
+ USE globalData,only:forc_meta,attr_meta,type_meta,id_meta    ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
@@ -151,6 +151,7 @@ contains
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
+    case('id' );   call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,id_meta,   nf90_int64, err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
     case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
     case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
@@ -210,7 +211,8 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! create output file
- err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
+ !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
+ err = nf90_create(trim(infile),NF90_HDF5,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
@@ -413,7 +415,7 @@ contains
  ! define local variables
  integer(i4b)                :: iHRU              ! local HRU index
  integer(i4b)                :: iGRU              ! GRU index
- integer(i4b)                :: hruVarID          ! HRU varID in netcdf
+ integer(i4b)                :: hruVarID          ! HRU varID in netcdf file
 
  ! initialize error control
  err=0; message='write_hru_dim/'
@@ -422,7 +424,7 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
 

@@ -92,6 +92,7 @@ contains
   forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
 
   ! primary data structures (variable length vectors)
   indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
@@ -237,6 +238,7 @@ contains
                   ! data structures (input)
                   timeStruct%var,               & ! intent(in):    model time data
                   typeStruct%gru(iGRU),         & ! intent(in):    local classification of soil veg etc. for each HRU
+                  idStruct%gru(iGRU),           & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrStruct%gru(iGRU),         & ! intent(in):    local attributes for each HRU
                   ! data structures (input-output)
                   mparStruct%gru(iGRU),         & ! intent(inout): local model parameters

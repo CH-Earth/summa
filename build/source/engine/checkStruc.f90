@@ -36,15 +36,15 @@ contains
  ! summary of data structures
  USE globalData,only:structInfo
  ! metadata structures
- USE globalData,only:time_meta,forc_meta,attr_meta,type_meta        ! metadata structures
- USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta       ! metadata structures
- USE globalData,only:mpar_meta,indx_meta                            ! metadata structures
- USE globalData,only:bpar_meta,bvar_meta                            ! metadata structures
+ USE globalData,only:time_meta,forc_meta,attr_meta,type_meta,id_meta  ! metadata structures
+ USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta         ! metadata structures
+ USE globalData,only:mpar_meta,indx_meta                              ! metadata structures
+ USE globalData,only:bpar_meta,bvar_meta                              ! metadata structures
  ! named variables defining strructure elements
- USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE       ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV       ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookPARAM,iLookINDEX                          ! named variables showing the elements of each data structure
- USE var_lookup,only:iLookBPAR,iLookBVAR                            ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV         ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookPARAM,iLookINDEX                            ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookBPAR,iLookBVAR                              ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -74,6 +74,7 @@ contains
    case('forc');  write(longString,*) iLookFORCE
    case('attr');  write(longString,*) iLookATTR
    case('type');  write(longString,*) iLookTYPE
+   case('id');    write(longString,*) iLookID
    case('mpar');  write(longString,*) iLookPARAM
    case('bpar');  write(longString,*) iLookBPAR
    case('bvar');  write(longString,*) iLookBVAR
@@ -105,11 +106,13 @@ contains
  ! loop through data structures
  do iStruct=1,nStruct
   ! check that the metadata is fully populated
+  write(*,*) trim(structInfo(iStruct)%structName)
   select case(trim(structInfo(iStruct)%structName))
    case('time');  call checkPopulated(iStruct,time_meta,err,cmessage)
    case('forc');  call checkPopulated(iStruct,forc_meta,err,cmessage)
    case('attr');  call checkPopulated(iStruct,attr_meta,err,cmessage)
    case('type');  call checkPopulated(iStruct,type_meta,err,cmessage)
+   case('id');    call checkPopulated(iStruct,id_meta,  err,cmessage)
    case('mpar');  call checkPopulated(iStruct,mpar_meta,err,cmessage)
    case('bpar');  call checkPopulated(iStruct,bpar_meta,err,cmessage)
    case('bvar');  call checkPopulated(iStruct,bvar_meta,err,cmessage)
@@ -120,6 +123,7 @@ contains
    case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
+  write(*,*) ''
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  end do  ! looping through data structures
 
@@ -152,6 +156,7 @@ contains
   do iVar=1,size(metadata)
 
    ! check that this variable is populated
+   write(*, *) trim(metadata(iVar)%varname), ' of ', size(metadata)
    if (trim(metadata(iVar)%varname)=='empty') then
     write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar, ' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return

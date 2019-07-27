@@ -597,10 +597,10 @@ contains
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   logical(lgt)                   :: doBisection              ! flag to do the bi-section
   logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
-  integer(i4b)                   :: iCheck                   ! check the model state variables
+  !integer(i4b)                  :: iCheck                   ! check the model state variables (not used)
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   real(dp),parameter             :: delX=1._dp               ! trial increment
-  real(dp)                       :: xIncrement(nState)       ! trial increment
+  !real(dp)                      :: xIncrement(nState)       ! trial increment (not used)
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
 

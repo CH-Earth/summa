@@ -42,6 +42,7 @@ USE data_types,only:&
                     gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_int8,         & ! x%gru(:)%hru(:)%var(:)     (i8b)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
@@ -66,6 +67,7 @@ type, public :: summa1_type_dec
     type(gru_hru_double)             :: forcStruct                 ! x%gru(:)%hru(:)%var(:)     -- model forcing data
     type(gru_hru_double)             :: attrStruct                 ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
     type(gru_hru_int)                :: typeStruct                 ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+    type(gru_hru_int8)               :: idStruct                   ! x%gru(:)%hru(:)%var(:)     --
 
     ! define the primary data structures (variable length vectors)
     type(gru_hru_intVec)             :: indxStruct                 ! x%gru(:)%hru(:)%var(:)%dat -- model indices

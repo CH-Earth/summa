@@ -37,6 +37,7 @@ MODULE globalData
  USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
  USE var_lookup,only:maxvarAttr      ! attributes:               maximum number variables
  USE var_lookup,only:maxvarType      ! type index:               maximum number variables
+ USE var_lookup,only:maxvarId        ! IDs index:                maximum number variables
  USE var_lookup,only:maxvarProg      ! prognostic variables:     maximum number variables
  USE var_lookup,only:maxvarDiag      ! diagnostic variables:     maximum number variables
  USE var_lookup,only:maxvarFlux      ! model fluxes:             maximum number variables
@@ -80,6 +81,44 @@ MODULE globalData
  ! define output file frequency
  integer(i4b),parameter,public               :: noNewFiles=1001         ! no new output files
  integer(i4b),parameter,public               :: newFileEveryOct1=1002   ! create a new file on Oct 1 every year (start of the USA water year)
+! =======-------
+ ! define vectors of metadata
+ !type(var_info),save,public                  :: time_meta(maxvarTime)   ! model time information
+ !type(var_info),save,public                  :: forc_meta(maxvarForc)   ! model forcing data
+ !type(var_info),save,public                  :: attr_meta(maxvarAttr)   ! local attributes
+ !type(var_info),save,public                  :: type_meta(maxvarType)   ! local classification of veg, soil, etc.
+ !type(var_info),save,public                  :: id_meta(maxvarId)       ! local labels of hru and gru IDs
+ !type(var_info),save,public                  :: mpar_meta(maxvarMpar)   ! local model parameters for each HRU
+ !type(var_info),save,public                  :: indx_meta(maxvarIndx)   ! local model indices for each HRU
+ !type(var_info),save,public                  :: prog_meta(maxvarProg)   ! local state variables for each HRU
+ !type(var_info),save,public                  :: diag_meta(maxvarDiag)   ! local diagnostic variables for each HRU
+ !type(var_info),save,public                  :: flux_meta(maxvarFlux)   ! local model fluxes for each HRU
+ !type(var_info),save,public                  :: deriv_meta(maxvarDeriv) ! local model derivatives for each HRU
+ !type(var_info),save,public                  :: bpar_meta(maxvarBpar)   ! basin parameters for aggregated processes
+ !type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
+
+ ! ancillary metadata structures
+ !type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
+ !type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
+ !type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
+
+ ! define summary information on all data structures
+ !integer(i4b),parameter                      :: nStruct=13              ! number of data structures
+ !type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
+ !                  struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
+ !                  struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
+ !                  struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
+ !                  struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
+ !                  struct_info('id',    'ID'   , maxvarId   ), &        ! the IDs data structure
+ !                  struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
+ !                  struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
+ !                  struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
+ !                  struct_info('indx',  'INDEX', maxvarIndx ), &        ! the model index data structure
+ !                  struct_info('prog',  'PROG',  maxvarProg ), &        ! the prognostic (state) variable data structure
+ !                  struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
+ !                  struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
+ !                  struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
+!   >>>>>>> ncar/develop
 
  ! define named variables for "yes" and "no"
  integer(i4b),parameter,public               :: no=0                    ! .false.
@@ -129,12 +168,13 @@ MODULE globalData
  real(dp),parameter,public                   :: dx = 1.e-8_dp           ! finite difference increment
 
  ! define summary information on all data structures
- integer(i4b),parameter                      :: nStruct=12              ! number of data structures
+ integer(i4b),parameter                      :: nStruct=13              ! number of data structures
  type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
                    struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
                    struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
                    struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
                    struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
+                   struct_info('id'  ,  'ID'   , maxvarId   ), &        ! the type data structure
                    struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
                    struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
                    struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
@@ -164,6 +204,7 @@ MODULE globalData
  type(var_info),save,public                  :: forc_meta(maxvarForc)        ! model forcing data
  type(var_info),save,public                  :: attr_meta(maxvarAttr)        ! local attributes
  type(var_info),save,public                  :: type_meta(maxvarType)        ! local classification of veg, soil, etc.
+ type(var_info),save,public                  :: id_meta(maxvarId)        ! local classification of veg, soil, etc.
  type(var_info),save,public                  :: mpar_meta(maxvarMpar)        ! local model parameters for each HRU
  type(var_info),save,public                  :: indx_meta(maxvarIndx)        ! local model indices for each HRU
  type(var_info),save,public                  :: prog_meta(maxvarProg)        ! local state variables for each HRU
@@ -254,6 +295,7 @@ MODULE globalData
  integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
  logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
  logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
+ integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
 
  ! define result from the time calls
  integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization

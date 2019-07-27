@@ -49,33 +49,33 @@ contains
  USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
- integer(i4b),intent(in)              :: nGRU           ! number of grouped response units
- integer(i4b),intent(out)             :: err            ! error code
- character(*),intent(out)             :: message        ! error message
+ integer(i4b),intent(in)              :: nGRU             ! number of grouped response units
+ integer(i4b),intent(out)             :: err              ! error code
+ character(*),intent(out)             :: message          ! error message
  ! define local variables
  ! netcdf file i/o related
- integer(i4b)                         :: ncid           ! netcdf file id
- integer(i4b)                         :: mode           ! netCDF file open mode
- integer(i4b)                         :: varid          ! netcdf variable id
- integer(i4b)                         :: dimId          ! netcdf dimension id
- character(LEN=nf90_max_name)         :: varName        ! character array of netcdf variable name
- integer(i4b)                         :: iNC            ! index of a variable in netcdf file
- integer(i4b)                         :: nvar           ! number of variables in netcdf local attribute file
+ integer(i4b)                         :: ncid             ! netcdf file id
+ integer(i4b)                         :: mode             ! netCDF file open mode
+ integer(i4b)                         :: varid            ! netcdf variable id
+ integer(i4b)                         :: dimId            ! netcdf dimension id
+ character(LEN=nf90_max_name)         :: varName          ! character array of netcdf variable name
+ integer(i4b)                         :: iNC              ! index of a variable in netcdf file
+ integer(i4b)                         :: nvar             ! number of variables in netcdf local attribute file
  ! the rest
- character(LEN=linewidth),allocatable :: dataLines(:)   ! vector of lines of information (non-comment lines)
- character(len=256)                   :: cmessage       ! error message for downwind routine
- character(LEN=256)                   :: infile         ! input filename
- integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
- character(LEN=256)                   :: filenameData   ! name of forcing datafile
- integer(i4b)                         :: ivar           ! index of model variable
- integer(i4b)                         :: iFile          ! counter for forcing files
- integer(i4b)                         :: nFile          ! number of forcing files in forcing file list
- integer(i4b)                         :: file_nHRU      ! number of HRUs in current forcing file
- integer(i4b)                         :: nForcing       ! number of forcing variables
- integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
- integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
- real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
- logical(lgt)                         :: xist           ! .TRUE. if the file exists
+ character(LEN=linewidth),allocatable :: dataLines(:)     ! vector of lines of information (non-comment lines)
+ character(len=256)                   :: cmessage         ! error message for downwind routine
+ character(LEN=256)                   :: infile           ! input filename
+ integer(i4b)                         :: unt              ! file unit (free unit output from file_open)
+ character(LEN=256)                   :: filenameData     ! name of forcing datafile
+ integer(i4b)                         :: ivar             ! index of model variable
+ integer(i4b)                         :: iFile            ! counter for forcing files
+ integer(i4b)                         :: nFile            ! number of forcing files in forcing file list
+ integer(i4b)                         :: file_nHRU        ! number of HRUs in current forcing file
+ integer(i4b)                         :: nForcing         ! number of forcing variables
+ integer(i4b)                         :: iGRU,localHRU_ix ! index of GRU and HRU
+ integer(8)                           :: ncHruId(1)       ! hruID from the forcing files
+ real(dp)                             :: dataStep_iFile   ! data step for a given forcing data file
+ logical(lgt)                         :: xist             ! .TRUE. if the file exists
 
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -233,18 +233,18 @@ contains
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
-      do localHRU=1,gru_struc(iGRU)%hruCount
+      do localHRU_ix=1,gru_struc(iGRU)%hruCount
        ! check the HRU is what we expect
-       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
-       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
-        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_nc,' - ',  &
-            ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_id, ' in file ', trim(infile)
+       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc/),count=(/1/))
+       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_id /= ncHruId(1))then
+        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc,' - ',  &
+            ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_id, ' in file ', trim(infile)
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
        ! save the index of the minimum and maximum HRUs in the file
-       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
-       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
+       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
       end do
      end do
 

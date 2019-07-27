@@ -29,6 +29,7 @@ USE globalData,only:realMissing      ! missing double precision number
 USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
 USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
 USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
+USE var_lookup,only:iLookID                              ! look-up values for local column model parameters
 USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
 USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
 USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
@@ -115,6 +116,7 @@ contains
   ! primary data structures (scalars)
   attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
 
   ! primary data structures (variable length vectors)
   mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
@@ -168,7 +170,7 @@ contains
  attrFile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
- call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,err,cmessage)
+ call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
@@ -243,7 +245,7 @@ contains
  ! *****************************************************************************
  ! *** read trial model parameter values for each HRU, and populate initial data structures
  ! *****************************************************************************
- call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,cmessage)
+ call read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! *****************************************************************************
@@ -264,7 +266,7 @@ contains
    kHRU=0
    ! check the network topology (only expect there to be one downslope HRU)
    do jHRU=1,gru_struc(iGRU)%hruCount
-    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%hruId))then
+    if(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%downHRUindex) == idStruct%gru(iGRU)%hru(jHRU)%var(iLookID%hruId))then
      if(kHRU==0)then  ! check there is a unique match
       kHRU=jHRU
      else
@@ -298,7 +300,7 @@ contains
    upArea%gru(iGRU)%hru(iHRU) = 0._dp
    do jHRU=1,gru_struc(iGRU)%hruCount
     ! check if jHRU flows into iHRU; assume no exchange between GRUs
-    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%hruId))then
+    if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
      upArea%gru(iGRU)%hru(iHRU) = upArea%gru(iGRU)%hru(iHRU) + attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%HRUarea)
     endif   ! (if jHRU is an upstream HRU)
    end do  ! jHRU
