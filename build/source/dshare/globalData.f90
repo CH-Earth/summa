@@ -51,72 +51,73 @@ MODULE globalData
  implicit none
  private
 
+ ! ----------------------------------------------------------------------------------------------------------------
+ ! * part 1: parameters that are fixed across multiple instantiations
+ ! ----------------------------------------------------------------------------------------------------------------
+
  ! define missing values
  real(qp),parameter,public                   :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
  real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
  integer(i4b),parameter,public               :: integerMissing = nr_integerMissing ! (from nrtype) missing integer
 
  ! define run modes
- integer(i4b),parameter,public               :: iRunModeFull=1             ! named variable defining running mode as full run (all GRUs)
- integer(i4b),parameter,public               :: iRunModeGRU=2              ! named variable defining running mode as GRU-parallelization run (GRU subset)
- integer(i4b),parameter,public               :: iRunModeHRU=3              ! named variable defining running mode as single-HRU run (ONE HRU)
+ integer(i4b),parameter,public               :: iRunModeFull=1          ! named variable defining running mode as full run (all GRUs)
+ integer(i4b),parameter,public               :: iRunModeGRU=2           ! named variable defining running mode as GRU-parallelization run (GRU subset)
+ integer(i4b),parameter,public               :: iRunModeHRU=3           ! named variable defining running mode as single-HRU run (ONE HRU)
 
- ! define limit checks
- real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
- real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
+ ! define progress modes
+ integer(i4b),parameter,public               :: ixProgress_im=1000      ! named variable to print progress once per month
+ integer(i4b),parameter,public               :: ixProgress_id=1001      ! named variable to print progress once per day
+ integer(i4b),parameter,public               :: ixProgress_ih=1002      ! named variable to print progress once per hour
+ integer(i4b),parameter,public               :: ixProgress_never=1003   ! named variable to print progress never
 
- ! define Indian bread (NaN)
- real(dp),save,public                        :: dNaN
+ ! define restart frequency
+ integer(i4b),parameter,public               :: ixRestart_iy=1000       ! named variable to print a re-start file once per year
+ integer(i4b),parameter,public               :: ixRestart_im=1001       ! named variable to print a re-start file once per month
+ integer(i4b),parameter,public               :: ixRestart_id=1002       ! named variable to print a re-start file once per day
+ integer(i4b),parameter,public               :: ixRestart_end=1003      ! named variable to print a re-start file at the end of a run
+ integer(i4b),parameter,public               :: ixRestart_never=1004    ! named variable to print a re-start file never
 
- ! define algorithmic control parameters
- real(dp),parameter,public                   :: dx = 1.e-8_dp            ! finite difference increment
-
- ! Define the model decisions
- type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
-
- ! Define metadata for model forcing datafile
- type(file_info),save,public,allocatable     :: forcFileInfo(:)         ! file info for model forcing data
-
- ! define default parameter values and parameter bounds
- type(par_info),save,public                  :: localParFallback(maxvarMpar) ! local column default parameters
- type(par_info),save,public                  :: basinParFallback(maxvarBpar) ! basin-average default parameters
-
+ ! define output file frequency
+ integer(i4b),parameter,public               :: noNewFiles=1001         ! no new output files
+ integer(i4b),parameter,public               :: newFileEveryOct1=1002   ! create a new file on Oct 1 every year (start of the USA water year)
+! =======-------
  ! define vectors of metadata
- type(var_info),save,public                  :: time_meta(maxvarTime)   ! model time information
- type(var_info),save,public                  :: forc_meta(maxvarForc)   ! model forcing data
- type(var_info),save,public                  :: attr_meta(maxvarAttr)   ! local attributes
- type(var_info),save,public                  :: type_meta(maxvarType)   ! local classification of veg, soil, etc.
- type(var_info),save,public                  :: id_meta(maxvarId)       ! local labels of hru and gru IDs
- type(var_info),save,public                  :: mpar_meta(maxvarMpar)   ! local model parameters for each HRU
- type(var_info),save,public                  :: indx_meta(maxvarIndx)   ! local model indices for each HRU
- type(var_info),save,public                  :: prog_meta(maxvarProg)   ! local state variables for each HRU
- type(var_info),save,public                  :: diag_meta(maxvarDiag)   ! local diagnostic variables for each HRU
- type(var_info),save,public                  :: flux_meta(maxvarFlux)   ! local model fluxes for each HRU
- type(var_info),save,public                  :: deriv_meta(maxvarDeriv) ! local model derivatives for each HRU
- type(var_info),save,public                  :: bpar_meta(maxvarBpar)   ! basin parameters for aggregated processes
- type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
+ !type(var_info),save,public                  :: time_meta(maxvarTime)   ! model time information
+ !type(var_info),save,public                  :: forc_meta(maxvarForc)   ! model forcing data
+ !type(var_info),save,public                  :: attr_meta(maxvarAttr)   ! local attributes
+ !type(var_info),save,public                  :: type_meta(maxvarType)   ! local classification of veg, soil, etc.
+ !type(var_info),save,public                  :: id_meta(maxvarId)       ! local labels of hru and gru IDs
+ !type(var_info),save,public                  :: mpar_meta(maxvarMpar)   ! local model parameters for each HRU
+ !type(var_info),save,public                  :: indx_meta(maxvarIndx)   ! local model indices for each HRU
+ !type(var_info),save,public                  :: prog_meta(maxvarProg)   ! local state variables for each HRU
+ !type(var_info),save,public                  :: diag_meta(maxvarDiag)   ! local diagnostic variables for each HRU
+ !type(var_info),save,public                  :: flux_meta(maxvarFlux)   ! local model fluxes for each HRU
+ !type(var_info),save,public                  :: deriv_meta(maxvarDeriv) ! local model derivatives for each HRU
+ !type(var_info),save,public                  :: bpar_meta(maxvarBpar)   ! basin parameters for aggregated processes
+ !type(var_info),save,public                  :: bvar_meta(maxvarBvar)   ! basin variables for aggregated processes
 
  ! ancillary metadata structures
- type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
- type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
- type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
+ !type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
+ !type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
+ !type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
 
  ! define summary information on all data structures
- integer(i4b),parameter                      :: nStruct=13              ! number of data structures
- type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
-                   struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
-                   struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
-                   struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
-                   struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
-                   struct_info('id',    'ID'   , maxvarId   ), &        ! the IDs data structure
-                   struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
-                   struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
-                   struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
-                   struct_info('indx',  'INDEX', maxvarIndx ), &        ! the model index data structure
-                   struct_info('prog',  'PROG',  maxvarProg ), &        ! the prognostic (state) variable data structure
-                   struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
-                   struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
-                   struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
+ !integer(i4b),parameter                      :: nStruct=13              ! number of data structures
+ !type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
+ !                  struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
+ !                  struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
+ !                  struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
+ !                  struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
+ !                  struct_info('id',    'ID'   , maxvarId   ), &        ! the IDs data structure
+ !                  struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
+ !                  struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
+ !                  struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
+ !                  struct_info('indx',  'INDEX', maxvarIndx ), &        ! the model index data structure
+ !                  struct_info('prog',  'PROG',  maxvarProg ), &        ! the prognostic (state) variable data structure
+ !                  struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
+ !                  struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
+ !                  struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
 
  ! define named variables for "yes" and "no"
  integer(i4b),parameter,public               :: no=0                    ! .false.
@@ -155,21 +156,130 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixBandMatrix=1002       ! named variable for the band diagonal matrix
 
  ! define indices describing the first and last layers of the Jacobian to print (for debugging)
- integer(i4b),parameter,public               :: iJac1=16                 ! first layer of the Jacobian to print
- integer(i4b),parameter,public               :: iJac2=20                 ! last layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac1=16                ! first layer of the Jacobian to print
+ integer(i4b),parameter,public               :: iJac2=20                ! last layer of the Jacobian to print
 
- ! define indices describing the indices of the first and last HRUs in the forcing file
- integer(i4b),save,public                    :: ixHRUfile_min           ! minimum index
- integer(i4b),save,public                    :: ixHRUfile_max           ! maximum index
+ ! define limit checks
+ real(dp),parameter,public                   :: verySmall=tiny(1.0_dp)  ! a very small number
+ real(dp),parameter,public                   :: veryBig=1.e+20_dp       ! a very big number
 
- ! define mapping structures
- type(gru2hru_map),allocatable,save,public   :: gru_struc(:)            ! gru2hru map
- type(hru2gru_map),allocatable,save,public   :: index_map(:)            ! hru2gru map
+ ! define algorithmic control parameters
+ real(dp),parameter,public                   :: dx = 1.e-8_dp           ! finite difference increment
 
- ! define variables used for the vegetation phenology
- real(dp),dimension(12), save     , public   :: greenVegFrac_monthly    ! fraction of green vegetation in each month (0-1)
+ ! define summary information on all data structures
+ integer(i4b),parameter                      :: nStruct=13              ! number of data structures
+ type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
+                   struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
+                   struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
+                   struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
+                   struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
+                   struct_info('id'  ,  'ID'   , maxvarId   ), &        ! the type data structure
+                   struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
+                   struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
+                   struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
+                   struct_info('indx',  'INDEX', maxvarIndx ), &        ! the model index data structure
+                   struct_info('prog',  'PROG',  maxvarProg ), &        ! the prognostic (state) variable data structure
+                   struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
+                   struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
+                   struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
+
+ ! fixed model decisions
  logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.  ! flag to overwrite RSMIN
  integer(i4b)          , parameter, public   :: maxSoilLayers=10000     ! Maximum Number of Soil Layers
+
+ ! ----------------------------------------------------------------------------------------------------------------
+ ! * part 2: globally constant variables/structures that require initialization
+ ! ----------------------------------------------------------------------------------------------------------------
+
+ ! define Indian bread (NaN)
+ real(dp),save,public                        :: dNaN
+
+ ! define default parameter values and parameter bounds
+ type(par_info),save,public                  :: localParFallback(maxvarMpar) ! local column default parameters
+ type(par_info),save,public                  :: basinParFallback(maxvarBpar) ! basin-average default parameters
+
+ ! define vectors of metadata
+ type(var_info),save,public                  :: time_meta(maxvarTime)        ! model time information
+ type(var_info),save,public                  :: forc_meta(maxvarForc)        ! model forcing data
+ type(var_info),save,public                  :: attr_meta(maxvarAttr)        ! local attributes
+ type(var_info),save,public                  :: type_meta(maxvarType)        ! local classification of veg, soil, etc.
+ type(var_info),save,public                  :: id_meta(maxvarId)        ! local classification of veg, soil, etc.
+ type(var_info),save,public                  :: mpar_meta(maxvarMpar)        ! local model parameters for each HRU
+ type(var_info),save,public                  :: indx_meta(maxvarIndx)        ! local model indices for each HRU
+ type(var_info),save,public                  :: prog_meta(maxvarProg)        ! local state variables for each HRU
+ type(var_info),save,public                  :: diag_meta(maxvarDiag)        ! local diagnostic variables for each HRU
+ type(var_info),save,public                  :: flux_meta(maxvarFlux)        ! local model fluxes for each HRU
+ type(var_info),save,public                  :: deriv_meta(maxvarDeriv)      ! local model derivatives for each HRU
+ type(var_info),save,public                  :: bpar_meta(maxvarBpar)        ! basin parameters for aggregated processes
+ type(var_info),save,public                  :: bvar_meta(maxvarBvar)        ! basin variables for aggregated processes
+
+ ! ancillary metadata structures
+ type(flux2state),   save,public             :: flux2state_orig(maxvarFlux)  ! named variables for the states affected by each flux (original)
+ type(flux2state),   save,public             :: flux2state_liq(maxvarFlux)   ! named variables for the states affected by each flux (liquid water)
+ type(extended_info),save,public,allocatable :: averageFlux_meta(:)          ! timestep-average model fluxes
+
+ ! mapping from original to child structures
+ integer(i4b),save,public,allocatable        :: forcChild_map(:)             ! index of the child data structure: stats forc
+ integer(i4b),save,public,allocatable        :: progChild_map(:)             ! index of the child data structure: stats prog
+ integer(i4b),save,public,allocatable        :: diagChild_map(:)             ! index of the child data structure: stats diag
+ integer(i4b),save,public,allocatable        :: fluxChild_map(:)             ! index of the child data structure: stats flux
+ integer(i4b),save,public,allocatable        :: indxChild_map(:)             ! index of the child data structure: stats indx
+ integer(i4b),save,public,allocatable        :: bvarChild_map(:)             ! index of the child data structure: stats bvar
+
+ ! child metadata structures
+ type(extended_info),save,public,allocatable :: statForc_meta(:)             ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statProg_meta(:)             ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statDiag_meta(:)             ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statFlux_meta(:)             ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statIndx_meta(:)             ! child metadata for stats
+ type(extended_info),save,public,allocatable :: statBvar_meta(:)             ! child metadata for stats
+
+ ! ----------------------------------------------------------------------------------------------------------------
+ ! * part 3: run time variables
+ ! ----------------------------------------------------------------------------------------------------------------
+
+ ! define the model decisions
+ type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
+
+ ! define metadata for model forcing datafile
+ type(file_info),save,public,allocatable     :: forcFileInfo(:)                   ! file info for model forcing data
+
+ ! define indices describing the indices of the first and last HRUs in the forcing file
+ integer(i4b),save,public                    :: ixHRUfile_min                     ! minimum index
+ integer(i4b),save,public                    :: ixHRUfile_max                     ! maximum index
+
+ ! define indices in the forcing data files
+ integer(i4b),save,public                    :: iFile=1                           ! index of current forcing file from forcing file list
+ integer(i4b),save,public                    :: forcingStep=integerMissing        ! index of current time step in current forcing file
+ integer(i4b),save,public                    :: forcNcid=integerMissing           ! netcdf id for current netcdf forcing file
+
+ ! define mapping structures
+ type(gru2hru_map),allocatable,save,public   :: gru_struc(:)                      ! gru2hru map
+ type(hru2gru_map),allocatable,save,public   :: index_map(:)                      ! hru2gru map
+
+ ! define variables used for the vegetation phenology
+ real(dp),dimension(12), save     , public   :: greenVegFrac_monthly              ! fraction of green vegetation in each month (0-1)
+
+ ! define the model output file
+ character(len=256),save,public              :: fileout=''                        ! output filename
+ character(len=256),save,public              :: output_fileSuffix=''              ! suffix for the output file
+
+ ! define controls on model output
+ integer(i4b),dimension(maxvarFreq),save,public :: statCounter=0                  ! time counter for stats
+ integer(i4b),dimension(maxvarFreq),save,public :: outputTimeStep=0               ! timestep in output files
+ logical(lgt),dimension(maxvarFreq),save,public :: resetStats=.true.              ! flags to reset statistics
+ logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.          ! flags to reset statistics
+ integer(i4b),save,public                       :: maxLayers                      ! maximum number of layers
+ integer(i4b),save,public                       :: maxSnowLayers                  ! maximum number of snow layers
+
+ ! define control variables
+ integer(i4b),save,public                    :: startGRU                          ! index of the starting GRU for parallelization run
+ integer(i4b),save,public                    :: checkHRU                          ! index of the HRU for a single HRU run
+ integer(i4b),save,public                    :: iRunMode                          ! define the current running mode
+ integer(i4b),save,public                    :: nThreads=1                        ! number of threads
+ integer(i4b),save,public                    :: ixProgress=ixProgress_id          ! define frequency to write progress
+ integer(i4b),save,public                    :: ixRestart=ixRestart_never         ! define frequency to write restart files
+ integer(i4b),save,public                    :: newOutputFile=noNewFiles          ! define option for new output files
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
@@ -186,10 +296,27 @@ MODULE globalData
  logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
  integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
 
+ ! define result from the time calls
+ integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization
+ integer(i4b), dimension(8), save, public    :: startSetup,endSetup     ! date/time for the start and end of the parameter setup
+ integer(i4b), dimension(8), save, public    :: startRestart,endRestart ! date/time for the start and end to read restart data
+ integer(i4b), dimension(8), save, public    :: startRead,endRead       ! date/time for the start and end of the data read
+ integer(i4b), dimension(8), save, public    :: startWrite,endWrite     ! date/time for the start and end of the stats/write
+ integer(i4b), dimension(8), save, public    :: startPhysics,endPhysics ! date/time for the start and end of the physics
+
+ ! define elapsed time
+ real(dp), save, public                      :: elapsedInit             ! elapsed time for the initialization
+ real(dp), save, public                      :: elapsedSetup            ! elapsed time for the parameter setup
+ real(dp), save, public                      :: elapsedRestart          ! elapsed time to read restart data
+ real(dp), save, public                      :: elapsedRead             ! elapsed time for the data read
+ real(dp), save, public                      :: elapsedWrite            ! elapsed time for the stats/write
+ real(dp), save, public                      :: elapsedPhysics          ! elapsed time for the physics
+
  ! define ancillary data structures
- type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
  type(var_i),save,public                     :: startTime               ! start time for the model simulation
  type(var_i),save,public                     :: finshTime               ! end time for the model simulation
+ type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
+ type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
  ! output file information
  logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the outut frequency is desired

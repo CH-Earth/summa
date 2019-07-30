@@ -73,7 +73,7 @@ MODULE data_types
   integer(i4b)                           :: vartype   = integerMissing  ! variable type
   integer(i4b),dimension(maxvarFreq)     :: ncVarID   = integerMissing  ! netcdf variable id (missing if frequency is not desired)
   integer(i4b),dimension(maxvarFreq)     :: statIndex = integerMissing  ! index of desired statistic for temporal aggregation
-  logical(lgt)                           :: varDesire = .false.         ! flag to denote if the variable is desired for model output 
+  logical(lgt)                           :: varDesire = .false.         ! flag to denote if the variable is desired for model output
  endtype var_info
 
  ! define extended data type (include indices to map onto parent data type)
@@ -268,6 +268,14 @@ MODULE data_types
  type, public :: gru_hru_int8
   type(hru_int8),allocatable         :: gru(:)     ! gru(:)%hru(:)%var(:)
  endtype gru_hru_int8
+ ! ** double precision type of fixed length
+ type, public :: gru_d
+  type(hru_d),allocatable            :: gru(:)    ! gru(:)%hru(:)
+ endtype gru_d
+ ! ** integer type of fixed length
+ type, public :: gru_i
+  type(hru_i),allocatable            :: gru(:)    ! gru(:)%hru(:)
+ endtype gru_i
 
 END MODULE data_types
 

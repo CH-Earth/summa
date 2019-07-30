@@ -60,7 +60,6 @@ contains
 
  ! init arrays for structure constructors
  iMissVec(:) = integerMissing
-
  ! -----
  ! * model time structures...
  ! --------------------------
@@ -85,6 +84,7 @@ contains
  ! -----
  ! * categorical data...
  ! ---------------------
+ !type_meta(iLookTYPE%hruId)                  = var_info('hruId'         , 'ID defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%vegTypeIndex)           = var_info('vegTypeIndex'  , 'index defining vegetation type'             , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%soilTypeIndex)          = var_info('soilTypeIndex' , 'index defining soil type'                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%slopeTypeIndex)         = var_info('slopeTypeIndex', 'index defining slope'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -856,7 +856,7 @@ contains
                          //' (format = "'//trim(charLines(vLine))//'")'
     err=20; return
   end select
-   
+
   ! * extract the statistic name
   select case(fileFormat)
 
@@ -865,7 +865,7 @@ contains
 
    ! provide the name of the desired statistic
    case(provideStatName); statName = trim(lineWords(freqIndex+2))
-  
+
    ! extract the statistic name from the flags
    ! NOTE: cannot imagine why someone would want to do this now since the other option is easier
    !         --> included for backwards compatibility
@@ -888,7 +888,7 @@ contains
    ! check: should not get here since checked above
    case default; err=20; message=trim(message)//'unexpected file format'; return
   end select
-  
+
   ! * get the statistics index
   iStat = get_ixStat(trim(statName))
   if(iStat<0 .or. iStat>maxvarStat)then
@@ -899,7 +899,7 @@ contains
 
   ! --- populate the metadata that controls the model output  ---------------
 
-  ! identify data structure 
+  ! identify data structure
   select case (trim(structName))
 
    ! temporally constant structures -- request instantaneous timestep-level output (no aggregation)
@@ -934,7 +934,7 @@ contains
   ! error control from popStat
   if (err/=0) then; message=trim(message)//trim(cmessage);return; end if
 
-  ! Ensure that time is turned on 
+  ! Ensure that time is turned on
   forc_meta(iLookForce%time)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
 
   ! set desired output frequency
@@ -965,7 +965,7 @@ contains
 
  ! force the HRU id to be written in the timestep-level file
  id_meta(iLookID%hruId)%varDesire    = .true.
- id_meta(iLookID%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst 
+ id_meta(iLookID%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
 
  end subroutine read_output_file
 

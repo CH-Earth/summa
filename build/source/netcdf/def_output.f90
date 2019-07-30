@@ -21,6 +21,7 @@
 module def_output_module
 USE netcdf
 USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
+USE netcdf_util_module,only:nc_file_close     ! close NetCDF files
 USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
 implicit none
@@ -99,6 +100,14 @@ contains
  ! initialize errors
  err=0; message="def_output/"
 
+ ! close files if already open
+ do iFreq=1,maxvarFreq
+  if (ncid(iFreq)/=integerMissing) then
+   call nc_file_close(ncid(iFreq),err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  endif
+ end do
+
  ! initialize netcdf file id
  ncid(:) = integerMissing
 
@@ -116,7 +125,7 @@ contains
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  print "(A,A)",'Created output file:',trim(fname)
+  print*,'Created output file: '//trim(fname)//'; ncid = ', ncid(iFreq)
 
   ! define SUMMA version
   do iVar=1,4

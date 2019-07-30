@@ -328,7 +328,18 @@ SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
 
 # Define the driver routine
 SUMMA_DRIVER= \
-		multi_driver.f90
+		summa_type.f90 \
+		summa_util.f90 \
+		summa_alarms.f90 \
+		summa_globalData.f90 \
+		summa_defineOutput.f90 \
+		summa_init.f90 \
+		summa_setup.f90 \
+		summa_restart.f90 \
+		summa_forcing.f90 \
+		summa_modelRun.f90 \
+		summa_writeOutput.f90 \
+		summa_driver.f90
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 
 # Define the executable

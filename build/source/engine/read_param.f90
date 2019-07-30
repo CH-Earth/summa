@@ -170,8 +170,6 @@ contains
   err=nf90_inquire_variable(ncid, ivarid, name=parName)
   call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
 
-  print*, trim(parName)
-
   ! special case of the HRU id
   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
 
