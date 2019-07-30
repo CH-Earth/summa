@@ -120,26 +120,21 @@ contains
  ! populate metadata for all model variables
  call popMetadat(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) 'popmetadat'
 
  ! define mapping between fluxes and states
  call flxMapping(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) 'flxmapping'
 
  ! check data structures
  call checkStruc(err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) 'checkstruct'
 
  ! define the mask to identify the subset of variables in the "child" data structure (just scalar variables)
  flux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv)
- write(*,*) 'flux_maxk'
 
  ! create the averageFlux metadata structure
  call childStruc(flux_meta, flux_mask, averageFlux_meta, childFLUX_MEAN, err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) 'childstruct'
 
  ! child metadata structures - so that we do not carry full stats structures around everywhere
  ! only carry stats for variables with output frequency > model time step
@@ -149,7 +144,6 @@ contains
  statFlux_mask = (flux_meta(:)%vartype==iLookVarType%scalarv.and.flux_meta(:)%varDesire)
  statIndx_mask = (indx_meta(:)%vartype==iLookVarType%scalarv.and.indx_meta(:)%varDesire)
  statBvar_mask = (bvar_meta(:)%vartype==iLookVarType%scalarv.and.bvar_meta(:)%varDesire)
- write(*,*) 'masking'
 
  ! create the stats metadata structures
  do iStruct=1,size(structInfo)
@@ -164,7 +158,6 @@ contains
   ! check errors
   if(err/=0)then; message=trim(message)//trim(cmessage)//'[statistics for =  '//trim(structInfo(iStruct)%structName)//']'; return; endif
  end do ! iStruct
- write(*,*) 'statistics'
 
  ! set all stats metadata to correct var types
  statForc_meta(:)%vartype = iLookVarType%outstat
@@ -173,7 +166,6 @@ contains
  statFlux_meta(:)%vartype = iLookVarType%outstat
  statIndx_meta(:)%vartype = iLookVarType%outstat
  statBvar_meta(:)%vartype = iLookVarType%outstat
- write(*,*) 'meta'
 
  end subroutine summa_defineGlobalData
 

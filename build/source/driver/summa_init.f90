@@ -181,17 +181,14 @@ contains
  ! get the command line arguments
  call getCommandArguments(summa1_struc,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) "set up args"
 
  ! set directories and files -- summaFileManager used as command-line argument
  call summa_SetDirsUndPhiles(summaFileManagerFile,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) "set up dirs"
 
  ! define global data (parameters, metadata)
  call summa_defineGlobalData(err, cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) "set up global data"
 
  ! *****************************************************************************
  ! *** read the number of GRUs and HRUs
@@ -204,7 +201,6 @@ contains
   case(iRunModeHRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,checkHRU=checkHRU)
  end select
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) "read number of hru"
 
  ! *****************************************************************************
  ! *** read the number of snow and soil layers
@@ -213,7 +209,6 @@ contains
  restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
  call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- write(*,*) "read icond"
 
  ! *****************************************************************************
  ! *** allocate space for data structures
@@ -229,7 +224,6 @@ contains
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end do  ! looping through time structures
- write(*,*) "alloc local"
 
  ! allocate other data structures
  do iStruct=1,size(structInfo)
@@ -256,12 +250,10 @@ contains
    return
   endif
  end do  ! looping through data structures
- write(*,*) "alloc global1"
 
  ! allocate space for default model parameters
  ! NOTE: This is done here, rather than in the loop above, because dpar is not one of the "standard" data structures
  call allocGlobal(mpar_meta,dparStruct,err,cmessage)   ! default model parameters
- write(*,*) "alloc global2"
  if(err/=0)then
   message=trim(message)//trim(cmessage)//' [problem allocating dparStruct]'
   return
@@ -273,7 +265,6 @@ contains
   message=trim(message)//'problem allocating space for dt_init, upArea, or computeVegFlux [GRU]'
   return
  endif
- write(*,*) "alloc global3"
 
  ! allocate space for the HRUs
  do iGRU=1,nGRU
@@ -284,7 +275,6 @@ contains
    return
   endif
  end do
- write(*,*) "alloc global4"
 
  ! *****************************************************************************
  ! *** allocate space for output statistics data structures

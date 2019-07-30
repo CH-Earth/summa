@@ -32,6 +32,7 @@ USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every
 ! metadata structures
 USE globalData,only:attr_meta                 ! attributes metadata structure
 USE globalData,only:type_meta                 ! veg/soil type metadata structure
+USE globalData,only:id_meta                   ! veg/soil type metadata structure
 USE globalData,only:mpar_meta                 ! local parameter metadata structure
 USE globalData,only:bpar_meta                 ! basin parameter metadata structure
 
@@ -86,6 +87,7 @@ contains
   timeStruct           => summa1_struc%timeStruct        , & ! x%var(:)                   -- model time data
   attrStruct           => summa1_struc%attrStruct        , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
   typeStruct           => summa1_struc%typeStruct        , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
   mparStruct           => summa1_struc%mparStruct        , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
   bparStruct           => summa1_struc%bparStruct        , & ! x%gru(:)%var(:)            -- basin-average parameters
   nGRU                 => summa1_struc%nGRU              , & ! number of grouped response units
@@ -131,6 +133,7 @@ contains
     select case(trim(structInfo(iStruct)%structName))
      case('attr'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
      case('type'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
+     case('id');   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,cmessage)
      case('mpar'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,cmessage)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif

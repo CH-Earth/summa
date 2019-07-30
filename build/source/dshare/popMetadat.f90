@@ -60,7 +60,6 @@ contains
 
  ! init arrays for structure constructors
  iMissVec(:) = integerMissing
- write(*,*) 'popmetadat'
  ! -----
  ! * model time structures...
  ! --------------------------
@@ -69,7 +68,6 @@ contains
  time_meta(iLookTIME%id)                     = var_info('id'  , 'day'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  time_meta(iLookTIME%ih)                     = var_info('ih'  , 'hour'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  time_meta(iLookTIME%imin)                   = var_info('imin', 'minute', '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- write(*,*) 'time'
 
  ! -----
  ! * model forcing data...
@@ -83,7 +81,6 @@ contains
  forc_meta(iLookFORCE%airpres)               = var_info('airpres' , 'air pressure at the the measurement height'        , 'Pa'                                  , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  forc_meta(iLookFORCE%spechum)               = var_info('spechum' , 'specific humidity at the measurement height'       , 'g g-1'                               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
- write(*,*) 'forcing'
  ! -----
  ! * categorical data...
  ! ---------------------
@@ -93,12 +90,10 @@ contains
  type_meta(iLookTYPE%slopeTypeIndex)         = var_info('slopeTypeIndex', 'index defining slope'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%downHRUindex)           = var_info('downHRUindex'  , 'index of downslope HRU (0 = basin outlet)'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
- write(*,*) 'category'
  ! -----
  ! * hru and gru ID data...
  ! ---------------------
  id_meta(iLookID%hruId)                      = var_info('hruId'         , 'ID defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- write(*,*) 'hru/gruid'
 
  ! -----
  ! * site characteristics...
@@ -110,7 +105,6 @@ contains
  attr_meta(iLookATTR%contourLength)          = var_info('contourLength' , 'length of contour at downslope edge of HRU'            , 'm'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  attr_meta(iLookATTR%HRUarea)                = var_info('HRUarea'       , 'area of each HRU'                                      , 'm2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  attr_meta(iLookATTR%mHeight)                = var_info('mHeight'       , 'measurement height above bare ground'                  , 'm'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- write(*,*) 'character'
 
  ! -----
  ! * local parameter data...
@@ -285,7 +279,6 @@ contains
  mpar_meta(iLookPARAM%zmaxLayer3_upper)      = var_info('zmaxLayer3_upper'      , 'maximum layer depth for the 3rd layer when > 3 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  mpar_meta(iLookPARAM%zmaxLayer4_upper)      = var_info('zmaxLayer4_upper'      , 'maximum layer depth for the 4th layer when > 4 layers'            , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
- write(*,*) 'paramater'
  ! -----
  ! * basin parameter data...
  ! -------------------------
