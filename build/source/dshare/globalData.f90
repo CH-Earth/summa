@@ -118,7 +118,6 @@ MODULE globalData
  !                  struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
  !                  struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
  !                  struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
-!   >>>>>>> ncar/develop
 
  ! define named variables for "yes" and "no"
  integer(i4b),parameter,public               :: no=0                    ! .false.
