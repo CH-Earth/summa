@@ -21,6 +21,7 @@ contains
  USE globalData, only: time_meta  ! data structure for time metadata
  USE globalData, only: forc_meta  ! data structure for forcing metadata
  USE globalData, only: type_meta  ! data structure for categorical metadata
+ USE globalData, only: id_meta    ! data structure for hru and gru ID metadata
  USE globalData, only: attr_meta  ! data structure for attribute metadata
  USE globalData, only: mpar_meta  ! data structure for local parameter metadata
  USE globalData, only: bpar_meta  ! data structure for basin parameter metadata
@@ -34,6 +35,7 @@ contains
  USE var_lookup, only: iLookTIME  ! named variables for time data structure
  USE var_lookup, only: iLookFORCE ! named variables for forcing data structure
  USE var_lookup, only: iLookTYPE  ! named variables for categorical attribute data structure
+ USE var_lookup, only: iLookID    ! named variables for hru and gru ID metadata
  USE var_lookup, only: iLookATTR  ! named variables for real valued attribute data structure
  USE var_lookup, only: iLookPARAM ! named variables for local parameter data structure
  USE var_lookup, only: iLookBPAR  ! named variables for basin parameter data structure
@@ -58,7 +60,6 @@ contains
 
  ! init arrays for structure constructors
  iMissVec(:) = integerMissing
-
  ! -----
  ! * model time structures...
  ! --------------------------
@@ -83,11 +84,16 @@ contains
  ! -----
  ! * categorical data...
  ! ---------------------
- type_meta(iLookTYPE%hruId)                  = var_info('hruId'         , 'id defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ !type_meta(iLookTYPE%hruId)                  = var_info('hruId'         , 'ID defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%vegTypeIndex)           = var_info('vegTypeIndex'  , 'index defining vegetation type'             , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%soilTypeIndex)          = var_info('soilTypeIndex' , 'index defining soil type'                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%slopeTypeIndex)         = var_info('slopeTypeIndex', 'index defining slope'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%downHRUindex)           = var_info('downHRUindex'  , 'index of downslope HRU (0 = basin outlet)'  , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+
+ ! -----
+ ! * hru and gru ID data...
+ ! ---------------------
+ id_meta(iLookID%hruId)                      = var_info('hruId'         , 'ID defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * site characteristics...
@@ -234,6 +240,7 @@ contains
  mpar_meta(iLookPARAM%kAnisotropic)          = var_info('kAnisotropic'          , 'anisotropy factor for lateral hydraulic conductivity'             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  mpar_meta(iLookPARAM%zScale_TOPMODEL)       = var_info('zScale_TOPMODEL'       , 'TOPMODEL scaling factor used in lower boundary condition for soil', 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  mpar_meta(iLookPARAM%compactedDepth)        = var_info('compactedDepth'        , 'depth where k_soil reaches the compacted value given by CH78'     , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ mpar_meta(iLookPARAM%aquiferBaseflowRate)   = var_info('aquiferBaseflowRate'   , 'baseflow rate when aquifer storage = aquiferScaleFactor'          , 'm s-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  mpar_meta(iLookPARAM%aquiferScaleFactor)    = var_info('aquiferScaleFactor'    , 'scaling factor for aquifer storage in the big bucket'             , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  mpar_meta(iLookPARAM%aquiferBaseflowExp)    = var_info('aquiferBaseflowExp'    , 'baseflow exponent'                                                , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  mpar_meta(iLookPARAM%qSurfScale)            = var_info('qSurfScale'            , 'scaling factor in the surface runoff parameterization'            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -557,6 +564,8 @@ contains
  deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dq_dHydStateAbove)             = var_info('dq_dHydStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dq_dHydStateBelow)             = var_info('dq_dHydStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
+ ! derivative in baseflow flux w.r.t. aquifer storage
+ deriv_meta(iLookDERIV%dBaseflow_dAquifer)            = var_info('dBaseflow_dAquifer'           , 'derivative in baseflow flux w.r.t. aquifer storage'                   , 's-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
  deriv_meta(iLookDERIV%dq_dNrgStateAbove)             = var_info('dq_dNrgStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dq_dNrgStateBelow)             = var_info('dq_dNrgStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
@@ -622,6 +631,7 @@ contains
  indx_meta(iLookINDEX%ixVegHyd)              = var_info('ixVegHyd'             , 'index of canopy hydrology state variable (mass)'                         , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixTopNrg)              = var_info('ixTopNrg'             , 'index of upper-most energy state in the snow+soil subdomain'             , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixTopHyd)              = var_info('ixTopHyd'             , 'index of upper-most hydrology state in the snow+soil subdomain'          , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ indx_meta(iLookINDEX%ixAqWat)               = var_info('ixAqWat'              , 'index of storage of water in the aquifer'                                , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! vectors of indices for specific state types
  indx_meta(iLookINDEX%ixNrgOnly)             = var_info('ixNrgOnly'            , 'indices IN THE STATE SUBSET for energy states'                           , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixHydOnly)             = var_info('ixHydOnly'            , 'indices IN THE STATE SUBSET for hydrology states in the snow+soil domain', '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
@@ -640,6 +650,7 @@ contains
  indx_meta(iLookINDEX%ixHydCanopy)           = var_info('ixHydCanopy'          , 'indices IN THE FULL VECTOR for hydrology states in the canopy domain'    , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixNrgLayer)            = var_info('ixNrgLayer'           , 'indices IN THE FULL VECTOR for energy states in the snow+soil domain'    , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixHydLayer)            = var_info('ixHydLayer'           , 'indices IN THE FULL VECTOR for hydrology states in the snow+soil domain' , '-', get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ indx_meta(iLookINDEX%ixWatAquifer)          = var_info('ixWatAquifer'         , 'indices IN THE FULL VECTOR for storage of water in the aquifer'          , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
  indx_meta(iLookINDEX%ixVolFracWat)          = var_info('ixVolFracWat'         , 'indices IN THE SNOW+SOIL VECTOR for hyd states'                          , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
  indx_meta(iLookINDEX%ixMatricHead)          = var_info('ixMatricHead'         , 'indices IN THE SOIL VECTOR for hyd states'                               , '-', get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
@@ -679,6 +690,7 @@ contains
  USE globalData, only: time_meta               ! data structure for time metadata
  USE globalData, only: forc_meta               ! data structure for forcing metadata
  USE globalData, only: type_meta               ! data structure for categorical metadata
+ USE globalData, only: id_meta                 ! data structure for hru and gru ID metadata
  USE globalData, only: attr_meta               ! data structure for attribute metadata
  USE globalData, only: mpar_meta               ! data structure for local parameter metadata
  USE globalData, only: bpar_meta               ! data structure for basin parameter metadata
@@ -691,6 +703,7 @@ contains
 
  ! structures of named variables
  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
+ USE var_lookup, only: iLookID                 ! named variables for hru and gru ID metadata
  USE var_lookup, only: iLookFORCE              ! named variables for forcing data structure
  USE var_lookup, only: iLookINDEX              ! named variables for index variable data structure
  USE var_lookup, only: iLookSTAT               ! named variables for statitics variable data structure
@@ -843,7 +856,7 @@ contains
                          //' (format = "'//trim(charLines(vLine))//'")'
     err=20; return
   end select
-   
+
   ! * extract the statistic name
   select case(fileFormat)
 
@@ -852,7 +865,7 @@ contains
 
    ! provide the name of the desired statistic
    case(provideStatName); statName = trim(lineWords(freqIndex+2))
-  
+
    ! extract the statistic name from the flags
    ! NOTE: cannot imagine why someone would want to do this now since the other option is easier
    !         --> included for backwards compatibility
@@ -875,7 +888,7 @@ contains
    ! check: should not get here since checked above
    case default; err=20; message=trim(message)//'unexpected file format'; return
   end select
-  
+
   ! * get the statistics index
   iStat = get_ixStat(trim(statName))
   if(iStat<0 .or. iStat>maxvarStat)then
@@ -886,7 +899,7 @@ contains
 
   ! --- populate the metadata that controls the model output  ---------------
 
-  ! identify data structure 
+  ! identify data structure
   select case (trim(structName))
 
    ! temporally constant structures -- request instantaneous timestep-level output (no aggregation)
@@ -894,6 +907,7 @@ contains
    case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
    case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
    case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
+   case('id' );     id_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst;   id_meta(vDex)%varDesire=.true.   ! local hru/gru IDs
    case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
 
    ! index structures -- can only be output at the model time step
@@ -920,7 +934,7 @@ contains
   ! error control from popStat
   if (err/=0) then; message=trim(message)//trim(cmessage);return; end if
 
-  ! Ensure that time is turned on 
+  ! Ensure that time is turned on
   forc_meta(iLookForce%time)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
 
   ! set desired output frequency
@@ -950,8 +964,8 @@ contains
  forc_meta(iLookFORCE%time)%statIndex(:) = iLookSTAT%inst
 
  ! force the HRU id to be written in the timestep-level file
- type_meta(iLookTYPE%hruId)%varDesire    = .true.
- type_meta(iLookTYPE%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst 
+ id_meta(iLookID%hruId)%varDesire    = .true.
+ id_meta(iLookID%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
 
  end subroutine read_output_file
 

@@ -601,6 +601,7 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
  real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
  real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
+ real(dp)                        :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
  ! diagnostic variables
  real(dp)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
  real(dp)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -650,6 +651,8 @@ contains
  mLayerVolFracWat          => prog_data%var(iLookPROG%mLayerVolFracWat)%dat              ,& ! intent(inout) : [dp(:)]  volumetric fraction of total water (-)
  mLayerMatricHead          => prog_data%var(iLookPROG%mLayerMatricHead)%dat              ,& ! intent(inout) : [dp(:)]  matric head (m)
  mLayerMatricHeadLiq       => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat           ,& ! intent(inout) : [dp(:)]  matric potential of liquid water (m)
+ ! model state variables (aquifer)
+ scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout) : [dp(:)]  storage of water in the aquifer (m)
  ! error tolerance
  absConvTol_liquid         => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)          & ! intent(in)    : [dp]     absolute convergence tolerance for vol frac liq water (-)
  ) ! associating flux variables in the data structure
@@ -688,6 +691,8 @@ contains
                  mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                 ! output: variables for the aquifer
+                 scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -972,20 +977,23 @@ contains
  ! * update prognostic variables...
  ! --------------------------------
 
- ! build elements of the state vector for the vegetation canopy
+ ! update state variables for the vegetation canopy
  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
  scalarCanopyTemp    = scalarCanopyTempTrial    ! trial value of canopy temperature (K)
  scalarCanopyWat     = scalarCanopyWatTrial     ! trial value of canopy total water (kg m-2)
  scalarCanopyLiq     = scalarCanopyLiqTrial     ! trial value of canopy liquid water (kg m-2)
  scalarCanopyIce     = scalarCanopyIceTrial     ! trial value of canopy ice content (kg m-2)
 
- ! build elements of the state vector for the snow+soil domain
+ ! update state variables for the snow+soil domain
  mLayerTemp          = mLayerTempTrial          ! trial vector of layer temperature (K)
  mLayerVolFracWat    = mLayerVolFracWatTrial    ! trial vector of volumetric total water content (-)
  mLayerVolFracLiq    = mLayerVolFracLiqTrial    ! trial vector of volumetric liquid water content (-)
  mLayerVolFracIce    = mLayerVolFracIceTrial    ! trial vector of volumetric ice water content (-)
  mLayerMatricHead    = mLayerMatricHeadTrial    ! trial vector of matric head (m)
  mLayerMatricHeadLiq = mLayerMatricHeadLiqTrial ! trial vector of matric head (m)
+
+ ! update state variables for the aquifer
+ scalarAquiferStorage = scalarAquiferStorageTrial
 
  ! end associations to info in the data structures
  end associate

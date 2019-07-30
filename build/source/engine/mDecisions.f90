@@ -156,6 +156,7 @@ contains
  USE multiconst,only:secprday               ! number of seconds in a day
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
  USE globalData,only:refTime,refJulday      ! reference time
+ USE globalData,only:oldTime                ! time from the previous time step
  USE globalData,only:startTime,finshTime    ! start/end time of simulation
  USE globalData,only:dJulianStart           ! julian day of start time of simulation
  USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
@@ -269,8 +270,12 @@ contains
  ! check that simulation end time is > start time
  if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
+ ! initialize the old time vector (time from the previous time step)
+ oldTime%var(:) = startTime%var(:)
+
  ! compute the number of time steps
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+ write(*,'(a,1x,i10)') 'number of time steps = ', numtim
 
  ! -------------------------------------------------------------------------------------------------
 

@@ -24,8 +24,10 @@ MODULE var_lookup
  implicit none
  private
  ! local variables
- integer(i4b),parameter            :: ixVal=1                      ! an example integer
- integer(i4b),parameter            :: iLength=storage_size(ixVal)  ! size of the example integer
+ integer(i4b),parameter            :: ixVal =1                      ! an example 4 byte integer
+ integer(8),parameter              :: ix8Val=2                      ! an example 8 byte integer
+ integer(i4b),parameter            :: iLength =storage_size(ixVal)   ! size of the example 4 byte integer
+ integer(i4b),parameter            :: i8Length=storage_size(ix8Val)  ! size of the example 8 byte integer
 
  ! ***************************************************************************************
  ! (0) define model decisions
@@ -111,15 +113,19 @@ MODULE var_lookup
  end type iLook_attr
 
  ! ***********************************************************************************************************
- ! (4) define local classification of veg, soil, etc.
+ ! (4) define local classification of veg, soil, etc.; and gru and hru IDs and associated information
  ! ***********************************************************************************************************
  type, public  ::  iLook_type
-  integer(i4b)    :: hruId         = integerMissing  ! id defining hydrologic response unit (-)
+  !integer(i4b)    :: hruId         = integerMissing  ! id defining hydrologic response unit (-)
   integer(i4b)    :: vegTypeIndex  = integerMissing  ! index defining vegetation type (-)
   integer(i4b)    :: soilTypeIndex = integerMissing  ! index defining soil type (-)
   integer(i4b)    :: slopeTypeIndex= integerMissing  ! index defining slope (-)
   integer(i4b)    :: downHRUindex  = integerMissing  ! index of downslope HRU (0 = basin outlet)
  end type iLook_type
+
+ type, public  ::  iLook_id
+  integer(8)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+ end type iLook_id
 
  ! ***********************************************************************************************************
  ! (5) define model parameters
@@ -255,6 +261,7 @@ MODULE var_lookup
   integer(i4b)    :: kAnisotropic          = integerMissing    ! anisotropy factor for lateral hydraulic conductivity (-)
   integer(i4b)    :: zScale_TOPMODEL       = integerMissing    ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
   integer(i4b)    :: compactedDepth        = integerMissing    ! depth where k_soil reaches the compacted value given by CH78 (m)
+  integer(i4b)    :: aquiferBaseflowRate   = integerMissing    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   integer(i4b)    :: aquiferScaleFactor    = integerMissing    ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: aquiferBaseflowExp    = integerMissing    ! baseflow exponent (-)
   integer(i4b)    :: qSurfScale            = integerMissing    ! scaling factor in the surface runoff parameterization (-)
@@ -578,6 +585,8 @@ MODULE var_lookup
   integer(i4b)    :: mLayerdTheta_dPsi               = integerMissing ! derivative in the soil water characteristic w.r.t. psi (m-1)
   integer(i4b)    :: mLayerdPsi_dTheta               = integerMissing ! derivative in the soil water characteristic w.r.t. theta (m)
   integer(i4b)    :: dCompress_dPsi                  = integerMissing ! derivative in compressibility w.r.t matric head (m-1)
+  ! derivative in baseflow flux w.r.t. aquifer storage
+  integer(i4b)    :: dBaseflow_dAquifer              = integerMissing ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   integer(i4b)    :: dq_dNrgStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dNrgStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
@@ -629,6 +638,7 @@ MODULE var_lookup
  integer(i4b)     :: ixVegHyd              = integerMissing  ! index IN THE STATE SUBSET of canopy hydrology state variable (mass)      (-)
  integer(i4b)     :: ixTopNrg              = integerMissing  ! index IN THE STATE SUBSET of upper-most energy state in snow+soil domain (-)
  integer(i4b)     :: ixTopHyd              = integerMissing  ! index IN THE STATE SUBSET of upper-most hydrol state in snow+soil domain (-)
+ integer(i4b)     :: ixAqWat               = integerMissing  ! index IN THE STATE SUBSET of water storage in the aquifer                (-)
  ! vectors of indices for specific state types
  integer(i4b)     :: ixNrgOnly             = integerMissing  ! indices IN THE STATE SUBSET for all energy states                        (-)
  integer(i4b)     :: ixHydOnly             = integerMissing  ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
@@ -647,6 +657,7 @@ MODULE var_lookup
  integer(i4b)     :: ixHydCanopy           = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the canopy domain     (-)
  integer(i4b)     :: ixNrgLayer            = integerMissing  ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
  integer(i4b)     :: ixHydLayer            = integerMissing  ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
+ integer(i4b)     :: ixWatAquifer          = integerMissing  ! indices IN THE FULL VECTOR for the storage of water in the aquifer       (-)
  ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
  integer(i4b)     :: ixVolFracWat          = integerMissing  ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
  integer(i4b)     :: ixMatricHead          = integerMissing  ! indices IN THE SOIL VECTOR for hyd states                                (-)
@@ -758,7 +769,10 @@ MODULE var_lookup
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
 
  ! named variables: soil and vegetation types
- type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4,  5)
+ type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
+
+ ! named variables: hru and gru IDs and associated information
+ type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1)
 
  ! named variables: model parameters
  type(iLook_param),   public,parameter :: iLookPARAM    =iLook_param   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -776,7 +790,7 @@ MODULE var_lookup
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
-                                                                        151,152,153,154)
+                                                                        151,152,153,154,155)
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -808,7 +822,7 @@ MODULE var_lookup
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
@@ -816,7 +830,7 @@ MODULE var_lookup
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
-                                                                         51, 52, 53, 54, 55, 56, 57, 58)
+                                                                         51, 52, 53, 54, 55, 56, 57, 58, 59, 60)
 
  ! named variables: basin-average parameters
  type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
@@ -841,6 +855,7 @@ MODULE var_lookup
  integer(i4b),parameter,public :: maxvarForc      = storage_size(iLookFORCE)/iLength
  integer(i4b),parameter,public :: maxvarAttr      = storage_size(iLookATTR)/iLength
  integer(i4b),parameter,public :: maxvarType      = storage_size(iLookTYPE)/iLength
+ integer(i4b),parameter,public :: maxvarId        = storage_size(iLookID)/i8Length
  integer(i4b),parameter,public :: maxvarMpar      = storage_size(iLookPARAM)/iLength
  integer(i4b),parameter,public :: maxvarProg      = storage_size(iLookPROG)/iLength
  integer(i4b),parameter,public :: maxvarDiag      = storage_size(iLookDIAG)/iLength

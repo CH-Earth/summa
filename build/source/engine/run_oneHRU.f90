@@ -113,7 +113,7 @@ contains
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
  
  ! model control
- integer(i4b)      , intent(in)    :: hruId               ! hruId
+ integer(8)        , intent(in)    :: hruId               ! hruId
  real(dp)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers

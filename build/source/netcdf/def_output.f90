@@ -21,6 +21,7 @@
 module def_output_module
 USE netcdf
 USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
+USE netcdf_util_module,only:nc_file_close     ! close NetCDF files
 USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
 implicit none
@@ -68,7 +69,7 @@ contains
  ! **********************************************************************************************************
  subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
- USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
+ USE globalData,only:forc_meta,attr_meta,type_meta,id_meta    ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
@@ -99,6 +100,14 @@ contains
  ! initialize errors
  err=0; message="def_output/"
 
+ ! close files if already open
+ do iFreq=1,maxvarFreq
+  if (ncid(iFreq)/=integerMissing) then
+   call nc_file_close(ncid(iFreq),err,cmessage)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+  endif
+ end do
+
  ! initialize netcdf file id
  ncid(:) = integerMissing
 
@@ -116,7 +125,7 @@ contains
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  print "(A,A)",'Created output file:',trim(fname)
+  print*,'Created output file: '//trim(fname)//'; ncid = ', ncid(iFreq)
 
   ! define SUMMA version
   do iVar=1,4
@@ -142,6 +151,7 @@ contains
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
+    case('id' );   call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,id_meta,   nf90_int64, err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
     case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
     case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
@@ -201,7 +211,8 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! create output file
- err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
+ !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
+ err = nf90_create(trim(infile),NF90_HDF5,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
@@ -404,7 +415,7 @@ contains
  ! define local variables
  integer(i4b)                :: iHRU              ! local HRU index
  integer(i4b)                :: iGRU              ! GRU index
- integer(i4b)                :: hruVarID          ! HRU varID in netcdf
+ integer(i4b)                :: hruVarID          ! HRU varID in netcdf file
 
  ! initialize error control
  err=0; message='write_hru_dim/'
@@ -413,7 +424,7 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
 

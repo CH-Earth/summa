@@ -597,10 +597,10 @@ contains
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   logical(lgt)                   :: doBisection              ! flag to do the bi-section
   logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
-  integer(i4b)                   :: iCheck                   ! check the model state variables
+  !integer(i4b)                  :: iCheck                   ! check the model state variables (not used)
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   real(dp),parameter             :: delX=1._dp               ! trial increment
-  real(dp)                       :: xIncrement(nState)       ! trial increment
+  !real(dp)                      :: xIncrement(nState)       ! trial increment (not used)
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
 
@@ -680,7 +680,7 @@ contains
   end subroutine safeRootfinder
 
   ! *********************************************************************************************************
-  ! * internal subroutine numJacobian: get the brackets
+  ! * internal subroutine getBrackets: get the brackets
   ! *********************************************************************************************************
   subroutine getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
@@ -985,11 +985,13 @@ contains
   real(dp),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
   real(dp),dimension(1)     :: liquid_max             ! maximum absolute value of the volumetric liquid water content residual (-)
   real(dp),dimension(1)     :: matric_max             ! maximum absolute value of the matric head iteration increment (m)
+  real(dp)                  :: aquifer_max            ! absolute value of the residual in aquifer water (m)
   logical(lgt)              :: canopyConv             ! flag for canopy water balance convergence
   logical(lgt)              :: watbalConv             ! flag for soil water balance convergence
   logical(lgt)              :: liquidConv             ! flag for residual convergence
   logical(lgt)              :: matricConv             ! flag for matric head convergence
   logical(lgt)              :: energyConv             ! flag for energy convergence
+  logical(lgt)              :: aquiferConv            ! flag for aquifer water balance convergence
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&
@@ -1000,6 +1002,7 @@ contains
   ! layer depth
   mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in): [dp(:)] depth of each layer in the snow-soil sub-domain (m)
   ! model indices
+  ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,&  ! intent(in): [i4b]    index of aquifer storage state variable
   ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy air space energy state variable
   ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy energy state variable
   ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,&  ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
@@ -1063,13 +1066,22 @@ contains
    watbalConv    = .true.
   endif
 
+  ! check convergence based on the aquifer storage
+  if(ixAqWat/=integerMissing)then
+   aquifer_max = real(abs(rVec(ixAqWat)), dp)*iden_water
+   aquiferConv = (aquifer_max    < absConvTol_liquid)  ! absolute error in aquifer water balance (mm)
+  else
+   aquifer_max = realMissing
+   aquiferConv = .true.
+  endif
+
   ! final convergence check
-  checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv)
+  checkConv = (canopyConv .and. watbalConv .and. matricConv .and. liquidConv .and. energyConv .and. aquiferConv)
 
   ! print progress towards solution
   if(globalPrintFlag)then
-   write(*,'(a,1x,i4,1x,6(e15.5,1x),6(L1,1x))') 'check convergence: ', iter, &
-    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, watbalConv
+   write(*,'(a,1x,i4,1x,7(e15.5,1x),7(L1,1x))') 'check convergence: ', iter, &
+    fNew, matric_max(1), liquid_max(1), energy_max(1), canopy_max, aquifer_max, soilWatBalErr, matricConv, liquidConv, energyConv, watbalConv, canopyConv, aquiferConv, watbalConv
   endif
 
   ! end associations with variables in the data structures
