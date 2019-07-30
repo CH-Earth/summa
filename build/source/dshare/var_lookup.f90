@@ -769,7 +769,7 @@ MODULE var_lookup
  type(iLook_attr),    public,parameter :: iLookATTR     =iLook_attr    (  1,  2,  3,  4,  5,  6,  7)
 
  ! named variables: soil and vegetation types
- type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)!,  5)
+ type(iLook_type),    public,parameter :: iLookTYPE     =iLook_type    (  1,  2,  3,  4)
 
  ! named variables: hru and gru IDs and associated information
  type(iLook_id),      public,parameter :: iLookID       =iLook_id      (  1)

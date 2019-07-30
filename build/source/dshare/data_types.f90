@@ -268,7 +268,6 @@ MODULE data_types
  type, public :: gru_hru_int8
   type(hru_int8),allocatable         :: gru(:)     ! gru(:)%hru(:)%var(:)
  endtype gru_hru_int8
-
  ! ** double precision type of fixed length
  type, public :: gru_d
   type(hru_d),allocatable            :: gru(:)    ! gru(:)%hru(:)
