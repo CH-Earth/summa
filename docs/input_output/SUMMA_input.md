@@ -133,8 +133,8 @@ At a minimum, each line in the output control file will contain two fields, sepa
 
 For most variables you can also output a statistical summary if you output variables at a lower frequency than your forcing frequency. To do this, you extend the number of fields you specify in the output control file, with all fields separated by a `|`. For the fields after the first two, you specify a series of 0's and 1's, which indicate that a specific statistic should not (0) or should be stored (1). The available statistics are (in order) the instantaneous value, the sum over the interval, the mean, the variance, the minimum, the maximum and the mode. So, a complete line in the output control file would be
 ```
-! varName          | outFreq | inst | sum | mean | var | min | max | mode
-scalarSenHeatTotal | 24      | 0    | 1   | 1    | 0   | 1   | 1   | 0
+! varName          | outFreq | sum | inst | mean | var | min | max | mode
+scalarSenHeatTotal | 24      | 0   | 1    | 1    | 0   | 1   | 1   | 0
 ```
 In this example, the first line is a comment (starts with `!`) and then the sum, mean, min, max are calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file.
 
