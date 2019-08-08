@@ -31,6 +31,7 @@ USE multiconst,only:&
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
+USE globalData,only:maxSnowLayers     ! maximum number of snow layers
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -259,8 +260,8 @@ contains
 
   ! identify the number of layers to check for need for sub-division
   select case(ix_snowLayers)
-   case(sameRulesAllLayers);    nCheck = nSnow
-   case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
+   case(sameRulesAllLayers);    nCheck = min(nSnow, maxSnowLayers)
+   case(rulesDependLayerIndex); nCheck = min(nSnow, maxSnowLayers)  ! the depth of the 5th layer, if it exists, does not have a maximum value
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
 
