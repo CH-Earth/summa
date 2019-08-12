@@ -94,6 +94,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! computational modules
  USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
+ USE globalData,only:maxSnowLayers, &    ! maximum number of snow layers
+                     veryBig
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
@@ -258,18 +260,20 @@ contains
  else ! if nSnow>0
 
   ! identify the number of layers to check for need for sub-division
-  select case(ix_snowLayers)
-   case(sameRulesAllLayers);    nCheck = nSnow
-   case(rulesDependLayerIndex); nCheck = min(nSnow,4)  ! the depth of the 5th layer, if it exists, does not have a maximum value
-   case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-  end select ! (option to combine/sub-divide snow layers)
-
+  nCheck = min(nSnow, maxSnowLayers-1) ! the depth of the last layer, if it exists, does not have a maximum value
   ! loop through all layers, and sub-divide a given layer, if necessary
   do iLayer=1,nCheck
+   divideLayer=.false.
 
    ! identify the maximum depth of the layer
    select case(ix_snowLayers)
-    case(sameRulesAllLayers);    zmaxCheck = zmax
+    case(sameRulesAllLayers)
+     if (nCheck >= maxSnowLayers-1) then
+      ! make sure we don't divide so make very big
+      zmaxCheck = veryBig
+     else
+      zmaxCheck = zmax
+     end if
     case(rulesDependLayerIndex)
      if(iLayer == nSnow)then
       zmaxCheck = zmax_lower(iLayer)
