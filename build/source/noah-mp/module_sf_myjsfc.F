@@ -4,6 +4,7 @@
 !
 !----------------------------------------------------------------------
 !
+      use nrtype
       USE MODULE_MODEL_CONSTANTS
 #ifdef DM_PARALLEL
       USE MODULE_DM, ONLY : WRF_DM_MAXVAL
@@ -22,22 +23,22 @@
 !
       INTEGER :: ITRMX=5 ! Iteration count for sfc layer computations
 !
-      REAL,PARAMETER :: VKARMAN=0.4
-      REAL,PARAMETER :: CAPA=R_D/CP,ELOCP=2.72E6/CP,RCAP=1./CAPA
-      REAL,PARAMETER :: GOCP02=G/CP*2.,GOCP10=G/CP*10.
-!      REAL,PARAMETER :: EPSU2=1.E-4,EPSUST=0.07,EPSZT=1.E-5
+      REAL(DP),PARAMETER :: VKARMAN=0.4
+      REAL(DP),PARAMETER :: CAPA=R_D/CP,ELOCP=2.72E6/CP,RCAP=1./CAPA
+      REAL(DP),PARAMETER :: GOCP02=G/CP*2.,GOCP10=G/CP*10.
+!      REAL(DP),PARAMETER :: EPSU2=1.E-4,EPSUST=0.07,EPSZT=1.E-5
 !	ECMWF sets lower limit on ln(Z0h)=-20 --> EPSZT=2.e-9
-      REAL,PARAMETER :: EPSU2=1.E-6,EPSUST=1.e-9,EPSZT=1.E-28
-      REAL,PARAMETER :: A2S=17.2693882,A3S=273.16,A4S=35.86
-      REAL,PARAMETER :: SEAFC=0.98,PQ0SEA=PQ0*SEAFC
-      REAL,PARAMETER :: BETA=1./273.,EXCML=0.0001,EXCMS=0.0001         &
-     &                 ,GLKBR=10.,GLKBS=30.,PI=3.1415926               &
+      REAL(DP),PARAMETER :: EPSU2=1.E-6,EPSUST=1.e-9,EPSZT=1.E-28
+      REAL(DP),PARAMETER :: A2S=17.2693882,A3S=273.16,A4S=35.86
+      REAL(DP),PARAMETER :: SEAFC=0.98,PQ0SEA=PQ0*SEAFC
+      REAL(DP),PARAMETER :: BETA=1./273.,EXCML=0.0001,EXCMS=0.0001         &
+     &                 ,GLKBR=10.,GLKBS=30.,PI_re=3.1415926               &
      &                 ,QVISC=2.1E-5,RIC=0.505,SMALL=0.35              &
      &                 ,SQPR=0.84,SQSC=0.84,SQVISC=258.2,TVISC=2.1E-5  &
      &                 ,USTC=0.7,USTR=0.225,VISC=1.5E-5,FH=1.01        &
      &                 ,WWST=1.2,ZTFC=1.,TOPOFAC=9.0e-6
 !
-      REAL,PARAMETER :: BTG=BETA*G,CZIV=SMALL*GLKBS                    &
+      REAL(DP),PARAMETER :: BTG=BETA*G,CZIV=SMALL*GLKBS                    &
      &                 ,GRRS=GLKBR/GLKBS                               &
      &                 ,RTVISC=1./TVISC,RVISC=1./VISC                  &
      &                 ,ZQRZT=SQSC/SQPR                                &
@@ -46,7 +47,7 @@
      &                 ,FZT1=RVISC *TVISC*SQPR                         &
      &                 ,FZT2=CZIV*GRRS*TVISC*SQPR                      &
      &                 ,FZU1=CZIV*VISC                                 &
-     &                 ,PIHF=0.5*PI                                    &
+     &                 ,PIHF=0.5*PI_re                                    &
      &                 ,RQVISC=1./QVISC                                &
      &                 ,USTFC=0.018/G                                  &
      &                 ,WWST2=WWST*WWST
@@ -54,9 +55,9 @@
 !----------------------------------------------------------------------
       INTEGER, PARAMETER :: KZTM=10001,KZTM2=KZTM-2
 !
-      REAL :: DZETA1,DZETA2,FH01,FH02,ZTMAX1,ZTMAX2,ZTMIN1,ZTMIN2
+      REAL(DP) :: DZETA1,DZETA2,FH01,FH02,ZTMAX1,ZTMAX2,ZTMIN1,ZTMIN2
 !
-      REAL,DIMENSION(KZTM) :: PSIH1,PSIH2,PSIM1,PSIM2
+      REAL(DP),DIMENSION(KZTM) :: PSIH1,PSIH2,PSIM1,PSIM2
 !
 !----------------------------------------------------------------------
 !
@@ -90,10 +91,10 @@ CONTAINS
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: LOWLYR
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,MAVAIL,TSK      &
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: HT,MAVAIL,TSK      &
      &                                             ,XLAND,Z0BASE
 !
-      REAL,DIMENSION(IMS:IME,KMS:KME,JMS:JME),INTENT(IN) :: DZ         &
+      REAL(DP),DIMENSION(IMS:IME,KMS:KME,JMS:JME),INTENT(IN) :: DZ         &
      &                                                     ,PMID,PINT  &
      &                                                     ,Q2,QC,QV   &
      &                                                     ,T,TH       &
@@ -102,31 +103,31 @@ CONTAINS
       INTEGER,                           INTENT(IN) :: ISURBAN
       INTEGER,                           INTENT(IN) :: IZ0TLND
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: FLX_LH,HFX,PSHLTR &
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: FLX_LH,HFX,PSHLTR &
      &                                              ,QFX,Q10,QSHLTR    &
      &                                              ,TH10,TSHLTR,T02   &
      &                                              ,U10,V10,TH02,Q02
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS       &
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: AKHS,AKMS       &
      &                                                ,PBLH,QSFC
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT)   :: RIB
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT)   :: RIB
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: QZ0,RMOL,THZ0   &
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: QZ0,RMOL,THZ0   &
      &                                                ,USTAR,UZ0,VZ0   &
      &                                                ,ZNT
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: CHS,CHS2,CQS2     &
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(OUT) :: CHS,CHS2,CQS2     &
      &                                              ,CPM,CT,FLHC,FLQC  &
      &                                              ,QGH
 !
-      REAL,INTENT(IN) :: P1000mb
+      REAL(DP),INTENT(IN) :: P1000mb
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
       INTEGER :: I,J,K,KFLIP,LMH,LPBL,NTSD
 !
-      REAL :: APESFC,BTGX,CWMLOW                                       &
+      REAL(DP) :: APESFC,BTGX,CWMLOW                                       &
      &       ,DQDT,DTDIF,DTDT,DUDT,DVDT                                &
      &       ,FIS                                                      &
      &       ,P02P,P10P,PLOW,PSFC,PTOP,QLOW,QS02,QS10                  &
@@ -134,15 +135,15 @@ CONTAINS
      &       ,T02P,T10P,TH02P,TH10P,THLOW,THvLOW                       &
      &       ,TLOW,TZ0,ULOW,VLOW,ZSL
 !
-      REAL,DIMENSION(KTS:KTE) :: CWMK,PK,Q2K,QK,THvK,THK,TK,UK,VK
+      REAL(DP),DIMENSION(KTS:KTE) :: CWMK,PK,Q2K,QK,THvK,THK,TK,UK,VK
 !
-      REAL,DIMENSION(KTS:KTE-1) :: EL,ELM
+      REAL(DP),DIMENSION(KTS:KTE-1) :: EL,ELM
 !
-      REAL,DIMENSION(KTS:KTE+1) :: ZHK
+      REAL(DP),DIMENSION(KTS:KTE+1) :: ZHK
 !
-      REAL,DIMENSION(ITS:ITE,JTS:JTE) :: THSK
+      REAL(DP),DIMENSION(ITS:ITE,JTS:JTE) :: THSK
 !
-      REAL,DIMENSION(ITS:ITE,KTS:KTE+1,JTS:JTE) :: ZINT
+      REAL(DP),DIMENSION(ITS:ITE,KTS:KTE+1,JTS:JTE) :: ZINT
 !
 !----------------------------------------------------------------------
 !**********************************************************************
@@ -383,24 +384,24 @@ CONTAINS
 !
       INTEGER,INTENT(IN) :: NTSD
 !
-      REAL,INTENT(IN) :: CWMLOW,PBLH,PLOW,QLOW,PSFC,SEAMASK,ZSFC       &
+      REAL(DP),INTENT(IN) :: CWMLOW,PBLH,PLOW,QLOW,PSFC,SEAMASK,ZSFC       &
      &                  ,THvLOW,THLOW,THS,TSK,TLOW,TZ0                 &
      &                  ,ULOW,VLOW,WETM,ZSL                            &
      &                  ,Z0BASE
       INTEGER, INTENT(IN) :: VEGTYP, ISURBAN, IZ0TLND
 !
-      REAL,INTENT(OUT) :: CHS,CHS2,CPM,CQS2,CT,FLHC,FLQC,FLX_LH,HFX    &
+      REAL(DP),INTENT(OUT) :: CHS,CHS2,CPM,CQS2,CT,FLHC,FLQC,FLX_LH,HFX    &
      &                   ,PSHLTR,Q02,Q10,QFX,QGH,RIB,RLMO              &
      &                   ,TH02,TH10,U10,V10
 !
-      REAL,INTENT(INOUT) :: AKHS,AKMS,QZ0,THZ0,USTAR,UZ0,VZ0,Z0,QS
+      REAL(DP),INTENT(INOUT) :: AKHS,AKMS,QZ0,THZ0,USTAR,UZ0,VZ0,Z0,QS
 !----------------------------------------------------------------------
 !***
 !***  LOCAL VARIABLES
 !***
       INTEGER :: ITR,K
 !
-      REAL :: BTGH,BTGX,CXCHL,CXCHS,CZETMAX,DTHV,DU2,ELFC,FCT          &
+      REAL(DP) :: BTGH,BTGX,CXCHL,CXCHS,CZETMAX,DTHV,DU2,ELFC,FCT          &
      &       ,HLFLX,HSFLX,HV,PSH02,PSH10,PSHZ,PSHZL,PSM10,PSMZ,PSMZL   &
      &       ,RDZ,RDZT,RLMA,RLMN,RLMP                                  &
      &       ,RLOGT,RLOGU,RWGH,RZ,RZST,RZSU,SIMH,SIMM                  &
@@ -410,13 +411,13 @@ CONTAINS
 !
 !***  DIAGNOSTICS
 !
-      REAL :: AKHS02,AKHS10,AKMS02,AKMS10,EKMS10,QSAT10,QSAT2          &
+      REAL(DP) :: AKHS02,AKHS10,AKMS02,AKMS10,EKMS10,QSAT10,QSAT2          &
      &       ,RLNT02,RLNT10,RLNU10,SIMH02,SIMH10,SIMM10,T02,T10        &
      &       ,TERM1,RLOW,U10E,V10E,WSTAR,XLT02,XLT024,XLT10            &
      &       ,XLT104,XLU10,XLU104,XU10,XU104,ZT02,ZT10,ZTAT02,ZTAT10   &
      &       ,ZTAU,ZTAU10,ZU10,ZUUZ
-      REAL :: CZIL
-      REAL :: ZILFC
+      REAL(DP) :: CZIL
+      REAL(DP) :: ZILFC
 !----------------------------------------------------------------------
 !**********************************************************************
 !----------------------------------------------------------------------
@@ -683,7 +684,7 @@ CONTAINS
 !----------------------------------------------------------------------
 !
 !mp   Topo modification of ZILFC term
-!	
+!
 !         TOPOTERM=TOPOFAC*ZSFC**2.
 !         TOPOTERM=MAX(TOPOTERM,3.0)
 !
@@ -1058,21 +1059,21 @@ CONTAINS
 !
       INTEGER,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: LOWLYR
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SEAMASK,XICE
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(IN) :: SEAMASK,XICE
 !
-      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: USTAR,Z0
+      REAL(DP),DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: USTAR,Z0
 !
-      REAL,DIMENSION(0:30) :: VZ0TBL
-      REAL,DIMENSION(0:30) :: VZ0TBL_24
+      REAL(DP),DIMENSION(0:30) :: VZ0TBL
+      REAL(DP),DIMENSION(0:30) :: VZ0TBL_24
 !
       INTEGER :: I,IDUM,IRECV,J,JDUM,K,ITF,JTF,KTF,MAXGBL_IVGTYP       &
      &,          MAXLOC_IVGTYP,MPI_COMM_COMP
 !
 !     INTEGER :: MPI_INTEGER,MPI_MAX
 !
-      REAL :: SM,X,ZETA1,ZETA2,ZRNG1,ZRNG2
+      REAL(DP) :: SM,X,ZETA1,ZETA2,ZRNG1,ZRNG2
 !
-      REAL :: PIHF=3.1415926/2.,EPS=1.E-6
+      REAL(DP) :: PIHF=3.1415926/2.,EPS=1.E-6
 !----------------------------------------------------------------------
       VZ0TBL=                                                          &
      &  (/0.,                                                          &

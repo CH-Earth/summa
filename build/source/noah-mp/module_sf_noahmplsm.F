@@ -2,17 +2,18 @@ module noahmp_globals
 
   ! Maybe most of these can be moved to a REDPRM use statement?
   ! MPC -- yes, all of these variables can be local to REDPRM (see additional comments)
+  use nrtype
   use module_sf_noahlsm, only: &
        &                       SLCATS,     &   !                               -- only used in REDPRM: number of soil categories
        &                       LUCATS,     &   !                               -- only used in REDPRM: number of land use categories
-       &                       CSOIL_DATA, &   ! CSOIL  = CSOIL_DATA           -- only used in REDPRM: soil heat capacity [J M-3 K-1] 
+       &                       CSOIL_DATA, &   ! CSOIL  = CSOIL_DATA           -- only used in REDPRM: soil heat capacity [J M-3 K-1]
        &                       BB,         &   ! BEXP   = BB(SOILTYP)          -- only used in REDPRM: Clapp-Hornberger exponent
        &                       SATDK,      &   ! DKSAT  = SATDK(SOILTYP)       -- only used in REDPRM: saturated soil hydraulic conductivity
        &                       SATDW,      &   ! DWSAT  = SATDW(SOILTYP)       -- only used in REDPRM: saturated soil hydraulic diffusivity
-       &                       F11,        &   ! F1     = F11(SOILTYP)         -- only used in REDPRM: soil thermal diffusivity/conductivity coef 
+       &                       F11,        &   ! F1     = F11(SOILTYP)         -- only used in REDPRM: soil thermal diffusivity/conductivity coef
        &                       SATPSI,     &   ! PSISAT = SATPSI(SOILTYP)      -- only used in REDPRM: saturated soil matric potential
        &                       QTZ,        &   ! QUARTZ = QTZ(SOILTYP)         -- only used in REDPRM: soil quartz content
-       &                       DRYSMC,     &   ! SMCDRY = DRYSMC(SOILTYP)      -- only used in REDPRM: dry soil moisture threshold where direct evap from top layer ends 
+       &                       DRYSMC,     &   ! SMCDRY = DRYSMC(SOILTYP)      -- only used in REDPRM: dry soil moisture threshold where direct evap from top layer ends
        &                       MAXSMC,     &   ! SMCMAX = MAXSMC(SOILTYP)      -- only used in REDPRM: porosity, saturated value of soil moisture (volumetric)
        &                       REFSMC,     &   ! SMCREF = REFSMC(SOILTYP)      -- only used in REDPRM: reference soil moisture (field capacity)
        &                       WLTSMC,     &   ! SMCWLT = WLTSMC(SOILTYP)      -- only used in REDPRM: wilting point soil moisture (volumetric)
@@ -25,7 +26,7 @@ module noahmp_globals
        &                       ZBOT_DATA,  &   ! ZBOT   = ZBOT_DATA            -- only used in REDPRM: Depth (m) of lower boundary soil temperature
        &                       CZIL_DATA,  &   ! CZIL   = CZIL_DATA            -- only used in REDPRM: Calculate roughness length of heat
        &                       FRZK_DATA,  &   ! FRZK   = FRZK_DATA            -- only used in REDPRM: ** Used to get FRZX, to compute maximum infiltration rate (in INFIL)
-       &                       SLOPE_DATA, &   ! SLOPE  = SLOPE_DATA(SLOPETYP) -- only used in REDPRM: slope index (0 - 1) 
+       &                       SLOPE_DATA, &   ! SLOPE  = SLOPE_DATA(SLOPETYP) -- only used in REDPRM: slope index (0 - 1)
        &                       REFDK_DATA, &   ! REFDK  = REFDK_DATA           -- only used in REDPRM: ** Used to get KDT, to compute maximum infiltration rate (in INFIL)
        &                       REFKDT_DATA     ! REFKDT = REFKDT_DATA          -- only used in REDPRM: ** Used to get KDT, to compute maximum infiltration rate (in INFIL)
 
@@ -36,33 +37,33 @@ module noahmp_globals
 ! Physical Constants:                                                                      !
 !------------------------------------------------------------------------------------------!
 
-  REAL, PARAMETER :: GRAV   = 9.80616   !acceleration due to gravity (m/s2)
-  REAL, PARAMETER :: SB     = 5.67E-08  !Stefan-Boltzmann constant (w/m2/k4)
-  REAL, PARAMETER :: VKC    = 0.40      !von Karman constant
-  REAL, PARAMETER :: TFRZ   = 273.16    !freezing/melting point (k)
-  REAL, PARAMETER :: HSUB   = 2.8440E06 !latent heat of sublimation (j/kg)
-  REAL, PARAMETER :: HVAP   = 2.5104E06 !latent heat of vaporization (j/kg)
-  REAL, PARAMETER :: HFUS   = 0.3336E06 !latent heat of fusion (j/kg)
-  REAL, PARAMETER :: CWAT   = 4.188E06  !specific heat capacity of water (j/m3/k)
-  REAL, PARAMETER :: CICE   = 2.094E06  !specific heat capacity of ice (j/m3/k)
-  REAL, PARAMETER :: CPAIR  = 1004.64   !heat capacity dry air at const pres (j/kg/k)
-  REAL, PARAMETER :: TKWAT  = 0.6       !thermal conductivity of water (w/m/k)
-  REAL, PARAMETER :: TKICE  = 2.2       !thermal conductivity of ice (w/m/k)
-  REAL, PARAMETER :: TKAIR  = 0.023     !thermal conductivity of air (w/m/k)
-  REAL, PARAMETER :: RAIR   = 287.04    !gas constant for dry air (j/kg/k)
-  REAL, PARAMETER :: RW     = 461.269   !gas constant for  water vapor (j/kg/k)
-  REAL, PARAMETER :: DENH2O = 1000.     !density of water (kg/m3)
-  REAL, PARAMETER :: DENICE = 917.      !density of ice (kg/m3)
+  REAL(DP), PARAMETER :: GRAV   = 9.80616   !acceleration due to gravity (m/s2)
+  REAL(DP), PARAMETER :: SB     = 5.67E-08  !Stefan-Boltzmann constant (w/m2/k4)
+  REAL(DP), PARAMETER :: VKC    = 0.40      !von Karman constant
+  REAL(DP), PARAMETER :: TFRZ   = 273.16    !freezing/melting point (k)
+  REAL(DP), PARAMETER :: HSUB   = 2.8440E06 !latent heat of sublimation (j/kg)
+  REAL(DP), PARAMETER :: HVAP   = 2.5104E06 !latent heat of vaporization (j/kg)
+  REAL(DP), PARAMETER :: HFUS   = 0.3336E06 !latent heat of fusion (j/kg)
+  REAL(DP), PARAMETER :: CWAT   = 4.188E06  !specific heat capacity of water (j/m3/k)
+  REAL(DP), PARAMETER :: CICE   = 2.094E06  !specific heat capacity of ice (j/m3/k)
+  REAL(DP), PARAMETER :: CPAIR  = 1004.64   !heat capacity dry air at const pres (j/kg/k)
+  REAL(DP), PARAMETER :: TKWAT  = 0.6       !thermal conductivity of water (w/m/k)
+  REAL(DP), PARAMETER :: TKICE  = 2.2       !thermal conductivity of ice (w/m/k)
+  REAL(DP), PARAMETER :: TKAIR  = 0.023     !thermal conductivity of air (w/m/k)
+  REAL(DP), PARAMETER :: RAIR   = 287.04    !gas constant for dry air (j/kg/k)
+  REAL(DP), PARAMETER :: RW     = 461.269   !gas constant for  water vapor (j/kg/k)
+  REAL(DP), PARAMETER :: DENH2O = 1000.     !density of water (kg/m3)
+  REAL(DP), PARAMETER :: DENICE = 917.      !density of ice (kg/m3)
 
 !------------------------------------------------------------------------------------------!
 ! From the VEGPARM.TBL tables, as functions of vegetation category.
 !------------------------------------------------------------------------------------------!
   INTEGER :: NROOT        !rooting depth [as the number of layers] ( Assigned in REDPRM )
-  REAL    :: RGL          !parameter used in radiation stress function ( Assigned in REDPRM )
-  REAL    :: RSMIN        !minimum Canopy Resistance [s/m] ( Assigned in REDPRM )
-  REAL    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
-  REAL    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
-  REAL    :: TOPT         !optimum transpiration air temperature.
+  REAL(DP)    :: RGL          !parameter used in radiation stress function ( Assigned in REDPRM )
+  REAL(DP)    :: RSMIN        !minimum Canopy Resistance [s/m] ( Assigned in REDPRM )
+  REAL(DP)    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
+  REAL(DP)    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
+  REAL(DP)    :: TOPT         !optimum transpiration air temperature.
 
   ! MPC change: make variables private for a given thread
   !$omp threadprivate(NROOT, RGL, RSMIN, HS, RSMAX, TOPT)
@@ -71,62 +72,62 @@ module noahmp_globals
 !KWM  INTEGER                    :: LUCATS, BARE
 !KWM  INTEGER, PARAMETER         :: NLUS=50
 !KWM  INTEGER, DIMENSION(1:NLUS) :: NROTBL
-!KWM  REAL,    DIMENSION(1:NLUS) :: RSTBL, RGLTBL, HSTBL
-!KWM  REAL                       :: TOPT_DATA,RSMAX_DATA
+!KWM  REAL(DP),    DIMENSION(1:NLUS) :: RSTBL, RGLTBL, HSTBL
+!KWM  REAL(DP)                       :: TOPT_DATA,RSMAX_DATA
 
 ! not further used in this version (niu):
 
-!KWM  REAL,    DIMENSION(1:NLUS) ::  SNUPTBL, LAITBL,        &
+!KWM  REAL(DP),    DIMENSION(1:NLUS) ::  SNUPTBL, LAITBL,        &
 !KWM                                 ALBTBL, SHDTBL, MAXALB
-!KWM  REAL                       ::  CMCMAX_DATA,CFACTR_DATA,SBETA_DATA,&
+!KWM  REAL(DP)                       ::  CMCMAX_DATA,CFACTR_DATA,SBETA_DATA,&
 !KWM                                 SALP_DATA  ,SMLOW_DATA ,SMHIGH_DATA
 
-!KWM  REAL,    DIMENSION(NLUS)   ::  LAIMINTBL    !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  LAIMAXTBL    !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  EMISSMINTBL  !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  EMISSMAXTBL  !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  ALBEDOMINTBL !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  ALBEDOMAXTBL !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  Z0MINTBL     !KWM
-!KWM  REAL,    DIMENSION(NLUS)   ::  Z0MAXTBL     !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  LAIMINTBL    !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  LAIMAXTBL    !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  EMISSMINTBL  !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  EMISSMAXTBL  !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  ALBEDOMINTBL !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  ALBEDOMAXTBL !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  Z0MINTBL     !KWM
+!KWM  REAL(DP),    DIMENSION(NLUS)   ::  Z0MAXTBL     !KWM
 
 
 !------------------------------------------------------------------------------------------!
 ! From the SOILPARM.TBL tables, as functions of soil category.
 !------------------------------------------------------------------------------------------!
-  REAL    :: BEXP         !B parameter ( Assigned in REDPRM )
-  REAL    :: SMCDRY       !dry soil moisture threshold where direct evap from top
+  REAL(DP)    :: BEXP         !B parameter ( Assigned in REDPRM )
+  REAL(DP)    :: SMCDRY       !dry soil moisture threshold where direct evap from top
                           !layer ends (volumetric) ( Assigned in REDPRM )
-  REAL    :: F1           !soil thermal diffusivity/conductivity coef ( Assigned in REDPRM )
-  REAL    :: SMCMAX       !porosity, saturated value of soil moisture (volumetric)
-  REAL    :: SMCREF       !reference soil moisture (field capacity) (volumetric) ( Assigned in REDPRM )
-  REAL    :: PSISAT       !saturated soil matric potential ( Assigned in REDPRM )
-  REAL    :: DKSAT        !saturated soil hydraulic conductivity ( Assigned in REDPRM )
-  REAL    :: DWSAT        !saturated soil hydraulic diffusivity ( Assigned in REDPRM )
-  REAL    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
-  REAL    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
+  REAL(DP)    :: F1           !soil thermal diffusivity/conductivity coef ( Assigned in REDPRM )
+  REAL(DP)    :: SMCMAX       !porosity, saturated value of soil moisture (volumetric)
+  REAL(DP)    :: SMCREF       !reference soil moisture (field capacity) (volumetric) ( Assigned in REDPRM )
+  REAL(DP)    :: PSISAT       !saturated soil matric potential ( Assigned in REDPRM )
+  REAL(DP)    :: DKSAT        !saturated soil hydraulic conductivity ( Assigned in REDPRM )
+  REAL(DP)    :: DWSAT        !saturated soil hydraulic diffusivity ( Assigned in REDPRM )
+  REAL(DP)    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
+  REAL(DP)    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
 
   ! MPC change: make variables private for a given thread
-  !$omp threadprivate(BEXP, SMCDRY, F1, SMCMAX, SMCREF, PSISAT, DKSAT, DWSAT, SMCWLT, QUARTZ) 
+  !$omp threadprivate(BEXP, SMCDRY, F1, SMCMAX, SMCREF, PSISAT, DKSAT, DWSAT, SMCWLT, QUARTZ)
 
 !KWM  CHARACTER*4 SLTYPE
 !KWM  INTEGER                     :: SLCATS
 !KWM  INTEGER, PARAMETER          :: NSLTYPE=30
-!KWM  REAL, DIMENSION (1:NSLTYPE) :: BB,DRYSMC,F11,                           &
+!KWM  REAL(DP), DIMENSION (1:NSLTYPE) :: BB,DRYSMC,F11,                           &
 !KWM        MAXSMC, REFSMC,SATPSI,SATDK,SATDW, WLTSMC,QTZ
 !------------------------------------------------------------------------------------------!
 ! From the GENPARM.TBL file
 !------------------------------------------------------------------------------------------!
-  REAL    :: SLOPE       !slope index (0 - 1) ( Assigned in REDPRM )
-  REAL    :: CSOIL       !vol. soil heat capacity [j/m3/K] ( Assigned in REDPRM )
-  REAL    :: ZBOT        !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
-  REAL    :: CZIL        !Calculate roughness length of heat ( Assigned in REDPRM )
+  REAL(DP)    :: SLOPE       !slope index (0 - 1) ( Assigned in REDPRM )
+  REAL(DP)    :: CSOIL       !vol. soil heat capacity [j/m3/K] ( Assigned in REDPRM )
+  REAL(DP)    :: ZBOT        !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
+  REAL(DP)    :: CZIL        !Calculate roughness length of heat ( Assigned in REDPRM )
 
   ! MPC note: FRZK_DATA, REFDK_DATA, and REFKDT_DATA are used in REDPRM to compute KDT and FRZX
   !           (FRZK, REFDK, and REFKDT are local variables within REDPRM and do not need to be thread private)
 
-  REAL    :: KDT         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
-  REAL    :: FRZX        !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+  REAL(DP)    :: KDT         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+  REAL(DP)    :: FRZX        !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
 
   ! MPC change: make variables private for a given thread
   !$omp threadprivate(SLOPE, CSOIL, ZBOT, CZIL, KDT, FRZX)
@@ -136,8 +137,8 @@ module noahmp_globals
 
 !KWM  INTEGER :: SLPCATS
 !KWM  INTEGER, PARAMETER :: NSLOPE=30
-!KWM  REAL, DIMENSION (1:NSLOPE) :: SLOPE_DATA
-!KWM  REAL ::  FXEXP_DATA,CSOIL_DATA,REFDK_DATA ,         &
+!KWM  REAL(DP), DIMENSION (1:NSLOPE) :: SLOPE_DATA
+!KWM  REAL(DP) ::  FXEXP_DATA,CSOIL_DATA,REFDK_DATA ,         &
 !KWM           REFKDT_DATA,FRZK_DATA ,ZBOT_DATA ,CZIL_DATA
 
 ! =====================================options for different schemes================================
@@ -214,15 +215,15 @@ module noahmp_globals
   INTEGER :: OPT_STC != 1    !(suggested 1)
 ! ==================================================================================================
 ! runoff parameters used for SIMTOP and SIMGM:
-  REAL, PARAMETER :: TIMEAN = 10.5   !gridcell mean topgraphic index (global mean)
-  REAL, PARAMETER :: FSATMX = 0.38   !maximum surface saturated fraction (global mean)
+  REAL(DP), PARAMETER :: TIMEAN = 10.5   !gridcell mean topgraphic index (global mean)
+  REAL(DP), PARAMETER :: FSATMX = 0.38   !maximum surface saturated fraction (global mean)
 
 ! adjustable parameters for snow processes
 
-  REAL, PARAMETER :: M      = 1.0 ! 2.50   !melting factor (-)
-  REAL, PARAMETER :: Z0SNO  = 0.002  !snow surface roughness length (m) (0.002)
-  REAL, PARAMETER :: SSI    = 0.03   !liquid water holding capacity for snowpack (m3/m3) (0.03)
-  REAL, PARAMETER :: SWEMX  = 1.00   !new snow mass to fully cover old snow (mm)
+  REAL(DP), PARAMETER :: M      = 1.0 ! 2.50   !melting factor (-)
+  REAL(DP), PARAMETER :: Z0SNO  = 0.002  !snow surface roughness length (m) (0.002)
+  REAL(DP), PARAMETER :: SSI    = 0.03   !liquid water holding capacity for snowpack (m3/m3) (0.03)
+  REAL(DP), PARAMETER :: SWEMX  = 1.00   !new snow mass to fully cover old snow (mm)
                                      !equivalent to 10mm depth (density = 100 kg/m3)
 
 ! NOTES: things to add or improve
@@ -236,6 +237,7 @@ END MODULE NOAHMP_GLOBALS
 !------------------------------------------------------------------------------------------!
 !------------------------------------------------------------------------------------------!
 MODULE NOAHMP_VEG_PARAMETERS
+    use nrtype
 
     IMPLICIT NONE
 
@@ -249,60 +251,60 @@ MODULE NOAHMP_VEG_PARAMETERS
     INTEGER :: ISSNOW
     INTEGER :: EBLFOREST
 
-    REAL :: CH2OP(MVT)       !maximum intercepted h2o per unit lai+sai (mm)
-    REAL :: DLEAF(MVT)       !characteristic leaf dimension (m)
-    REAL :: Z0MVT(MVT)       !momentum roughness length (m)
-    REAL :: HVT(MVT)         !top of canopy (m)
-    REAL :: HVB(MVT)         !bottom of canopy (m)
-    REAL :: DEN(MVT)         !tree density (no. of trunks per m2)
-    REAL :: RC(MVT)          !tree crown radius (m)
-    REAL :: SAIM(MVT,12)     !monthly stem area index, one-sided
-    REAL :: LAIM(MVT,12)     !monthly leaf area index, one-sided
-    REAL :: SLA(MVT)         !single-side leaf area per Kg [m2/kg]
-    REAL :: DILEFC(MVT)      !coeficient for leaf stress death [1/s]
-    REAL :: DILEFW(MVT)      !coeficient for leaf stress death [1/s]
-    REAL :: FRAGR(MVT)       !fraction of growth respiration  !original was 0.3
-    REAL :: LTOVRC(MVT)      !leaf turnover [1/s]
+    REAL(DP) :: CH2OP(MVT)       !maximum intercepted h2o per unit lai+sai (mm)
+    REAL(DP) :: DLEAF(MVT)       !characteristic leaf dimension (m)
+    REAL(DP) :: Z0MVT(MVT)       !momentum roughness length (m)
+    REAL(DP) :: HVT(MVT)         !top of canopy (m)
+    REAL(DP) :: HVB(MVT)         !bottom of canopy (m)
+    REAL(DP) :: DEN(MVT)         !tree density (no. of trunks per m2)
+    REAL(DP) :: RC(MVT)          !tree crown radius (m)
+    REAL(DP) :: SAIM(MVT,12)     !monthly stem area index, one-sided
+    REAL(DP) :: LAIM(MVT,12)     !monthly leaf area index, one-sided
+    REAL(DP) :: SLA(MVT)         !single-side leaf area per Kg [m2/kg]
+    REAL(DP) :: DILEFC(MVT)      !coeficient for leaf stress death [1/s]
+    REAL(DP) :: DILEFW(MVT)      !coeficient for leaf stress death [1/s]
+    REAL(DP) :: FRAGR(MVT)       !fraction of growth respiration  !original was 0.3
+    REAL(DP) :: LTOVRC(MVT)      !leaf turnover [1/s]
 
-    REAL :: C3PSN(MVT)       !photosynthetic pathway: 0. = c4, 1. = c3
-    REAL :: KC25(MVT)        !co2 michaelis-menten constant at 25c (pa)
-    REAL :: AKC(MVT)         !q10 for kc25
-    REAL :: KO25(MVT)        !o2 michaelis-menten constant at 25c (pa)
-    REAL :: AKO(MVT)         !q10 for ko25
-    REAL :: VCMX25(MVT)      !maximum rate of carboxylation at 25c (umol co2/m**2/s)
-    REAL :: AVCMX(MVT)       !q10 for vcmx25
-    REAL :: BP(MVT)          !minimum leaf conductance (umol/m**2/s)
-    REAL :: MP(MVT)          !slope of conductance-to-photosynthesis relationship
-    REAL :: QE25(MVT)        !quantum efficiency at 25c (umol co2 / umol photon)
-    REAL :: AQE(MVT)         !q10 for qe25
-    REAL :: RMF25(MVT)       !leaf maintenance respiration at 25c (umol co2/m**2/s)
-    REAL :: RMS25(MVT)       !stem maintenance respiration at 25c (umol co2/kg bio/s)
-    REAL :: RMR25(MVT)       !root maintenance respiration at 25c (umol co2/kg bio/s)
-    REAL :: ARM(MVT)         !q10 for maintenance respiration
-    REAL :: FOLNMX(MVT)      !foliage nitrogen concentration when f(n)=1 (%)
-    REAL :: TMIN(MVT)        !minimum temperature for photosynthesis (k)
+    REAL(DP) :: C3PSN(MVT)       !photosynthetic pathway: 0. = c4, 1. = c3
+    REAL(DP) :: KC25(MVT)        !co2 michaelis-menten constant at 25c (pa)
+    REAL(DP) :: AKC(MVT)         !q10 for kc25
+    REAL(DP) :: KO25(MVT)        !o2 michaelis-menten constant at 25c (pa)
+    REAL(DP) :: AKO(MVT)         !q10 for ko25
+    REAL(DP) :: VCMX25(MVT)      !maximum rate of carboxylation at 25c (umol co2/m**2/s)
+    REAL(DP) :: AVCMX(MVT)       !q10 for vcmx25
+    REAL(DP) :: BP(MVT)          !minimum leaf conductance (umol/m**2/s)
+    REAL(DP) :: MP(MVT)          !slope of conductance-to-photosynthesis relationship
+    REAL(DP) :: QE25(MVT)        !quantum efficiency at 25c (umol co2 / umol photon)
+    REAL(DP) :: AQE(MVT)         !q10 for qe25
+    REAL(DP) :: RMF25(MVT)       !leaf maintenance respiration at 25c (umol co2/m**2/s)
+    REAL(DP) :: RMS25(MVT)       !stem maintenance respiration at 25c (umol co2/kg bio/s)
+    REAL(DP) :: RMR25(MVT)       !root maintenance respiration at 25c (umol co2/kg bio/s)
+    REAL(DP) :: ARM(MVT)         !q10 for maintenance respiration
+    REAL(DP) :: FOLNMX(MVT)      !foliage nitrogen concentration when f(n)=1 (%)
+    REAL(DP) :: TMIN(MVT)        !minimum temperature for photosynthesis (k)
 
-    REAL :: XL(MVT)          !leaf/stem orientation index
-    REAL :: RHOL(MVT,MBAND)  !leaf reflectance: 1=vis, 2=nir
-    REAL :: RHOS(MVT,MBAND)  !stem reflectance: 1=vis, 2=nir
-    REAL :: TAUL(MVT,MBAND)  !leaf transmittance: 1=vis, 2=nir
-    REAL :: TAUS(MVT,MBAND)  !stem transmittance: 1=vis, 2=nir
+    REAL(DP) :: XL(MVT)          !leaf/stem orientation index
+    REAL(DP) :: RHOL(MVT,MBAND)  !leaf reflectance: 1=vis, 2=nir
+    REAL(DP) :: RHOS(MVT,MBAND)  !stem reflectance: 1=vis, 2=nir
+    REAL(DP) :: TAUL(MVT,MBAND)  !leaf transmittance: 1=vis, 2=nir
+    REAL(DP) :: TAUS(MVT,MBAND)  !stem transmittance: 1=vis, 2=nir
 
-    REAL :: MRP(MVT)         !microbial respiration parameter (umol co2 /kg c/ s)
-    REAL :: CWPVT(MVT)       !empirical canopy wind parameter
+    REAL(DP) :: MRP(MVT)         !microbial respiration parameter (umol co2 /kg c/ s)
+    REAL(DP) :: CWPVT(MVT)       !empirical canopy wind parameter
 
-    REAL :: WRRAT(MVT)       !wood to non-wood ratio
-    REAL :: WDPOOL(MVT)      !wood pool (switch 1 or 0) depending on woody or not [-]
-    REAL :: TDLEF(MVT)       !characteristic T for leaf freezing [K]
+    REAL(DP) :: WRRAT(MVT)       !wood to non-wood ratio
+    REAL(DP) :: WDPOOL(MVT)      !wood pool (switch 1 or 0) depending on woody or not [-]
+    REAL(DP) :: TDLEF(MVT)       !characteristic T for leaf freezing [K]
 
     INTEGER :: IK,IM
-    REAL :: TMP10(MVT*MBAND)
-    REAL :: TMP11(MVT*MBAND)
-    REAL :: TMP12(MVT*MBAND)
-    REAL :: TMP13(MVT*MBAND)
-    REAL :: TMP14(MVT*12)
-    REAL :: TMP15(MVT*12)
-    REAL :: TMP16(MVT*5)
+    REAL(DP) :: TMP10(MVT*MBAND)
+    REAL(DP) :: TMP11(MVT*MBAND)
+    REAL(DP) :: TMP12(MVT*MBAND)
+    REAL(DP) :: TMP13(MVT*MBAND)
+    REAL(DP) :: TMP14(MVT*12)
+    REAL(DP) :: TMP15(MVT*12)
+    REAL(DP) :: TMP16(MVT*5)
 
     real slarea(MVT)
     real eps(MVT,5)
@@ -315,13 +317,13 @@ CONTAINS
     integer :: ierr
 
     ! Temporary arrays used in reshaping namelist arrays
-    REAL :: TMP10(MVT*MBAND)
-    REAL :: TMP11(MVT*MBAND)
-    REAL :: TMP12(MVT*MBAND)
-    REAL :: TMP13(MVT*MBAND)
-    REAL :: TMP14(MVT*12)
-    REAL :: TMP15(MVT*12)
-    REAL :: TMP16(MVT*5)
+    REAL(DP) :: TMP10(MVT*MBAND)
+    REAL(DP) :: TMP11(MVT*MBAND)
+    REAL(DP) :: TMP12(MVT*MBAND)
+    REAL(DP) :: TMP13(MVT*MBAND)
+    REAL(DP) :: TMP14(MVT*12)
+    REAL(DP) :: TMP15(MVT*12)
+    REAL(DP) :: TMP16(MVT*5)
 
     integer :: NVEG
     character(len=256) :: VEG_DATASET_DESCRIPTION
@@ -475,6 +477,7 @@ END MODULE NOAHMP_VEG_PARAMETERS
 ! ==================================================================================================
 ! ==================================================================================================
 MODULE NOAHMP_RAD_PARAMETERS
+    use nrtype
 
     IMPLICIT NONE
 
@@ -482,14 +485,14 @@ MODULE NOAHMP_RAD_PARAMETERS
     INTEGER, PARAMETER :: MSC   = 9
     INTEGER, PARAMETER :: MBAND = 2
 
-    REAL :: ALBSAT(MSC,MBAND)   !saturated soil albedos: 1=vis, 2=nir
-    REAL :: ALBDRY(MSC,MBAND)   !dry soil albedos: 1=vis, 2=nir
-    REAL :: ALBICE(MBAND)       !albedo land ice: 1=vis, 2=nir
-    REAL :: ALBLAK(MBAND)       !albedo frozen lakes: 1=vis, 2=nir
-    REAL :: OMEGAS(MBAND)       !two-stream parameter omega for snow
-    REAL :: BETADS              !two-stream parameter betad for snow
-    REAL :: BETAIS              !two-stream parameter betad for snow
-    REAL :: EG(2)               !emissivity
+    REAL(DP) :: ALBSAT(MSC,MBAND)   !saturated soil albedos: 1=vis, 2=nir
+    REAL(DP) :: ALBDRY(MSC,MBAND)   !dry soil albedos: 1=vis, 2=nir
+    REAL(DP) :: ALBICE(MBAND)       !albedo land ice: 1=vis, 2=nir
+    REAL(DP) :: ALBLAK(MBAND)       !albedo frozen lakes: 1=vis, 2=nir
+    REAL(DP) :: OMEGAS(MBAND)       !two-stream parameter omega for snow
+    REAL(DP) :: BETADS              !two-stream parameter betad for snow
+    REAL(DP) :: BETAIS              !two-stream parameter betad for snow
+    REAL(DP) :: EG(2)               !emissivity
 
 ! saturated soil albedos: 1=vis, 2=nir
     DATA(ALBSAT(I,1),I=1,8)/0.15,0.11,0.10,0.09,0.08,0.07,0.06,0.05/
@@ -517,6 +520,7 @@ END MODULE NOAHMP_RAD_PARAMETERS
 
 MODULE NOAHMP_ROUTINES
   USE NOAHMP_GLOBALS
+  use nrtype
   IMPLICIT NONE
 
   public  :: noahmp_options
@@ -631,199 +635,199 @@ contains
   INTEGER                        , INTENT(IN)    :: NSOIL  !no. of soil layers
   INTEGER                        , INTENT(IN)    :: ILOC   !grid index
   INTEGER                        , INTENT(IN)    :: JLOC   !grid index
-  REAL                           , INTENT(IN)    :: DT     !time step [sec]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !layer-bottom depth from soil surf (m)
-  REAL                           , INTENT(IN)    :: Q2     !mixing ratio (kg/kg) lowest model layer
-  REAL                           , INTENT(IN)    :: SFCTMP !surface air temperature [K]
-  REAL                           , INTENT(IN)    :: UU     !wind speed in eastward dir (m/s)
-  REAL                           , INTENT(IN)    :: VV     !wind speed in northward dir (m/s)
-  REAL                           , INTENT(IN)    :: SOLDN  !downward shortwave radiation (w/m2)
-  REAL                           , INTENT(IN)    :: PRCP   !precipitation rate (kg m-2 s-1)
-  REAL                           , INTENT(IN)    :: LWDN   !downward longwave radiation (w/m2)
-  REAL                           , INTENT(IN)    :: SFCPRS !pressure (pa)
-  REAL                           , INTENT(INOUT) :: ZLVL   !reference height (m)
-  REAL                           , INTENT(IN)    :: COSZ   !cosine solar zenith angle [0-1]
-  REAL                           , INTENT(IN)    :: TBOT   !bottom condition for soil temp. [K]
-  REAL                           , INTENT(IN)    :: FOLN   !foliage nitrogen (%) [1-saturated]
-  REAL                           , INTENT(IN)    :: SHDFAC !green vegetation fraction [0.0-1.0]
+  REAL(DP)                           , INTENT(IN)    :: DT     !time step [sec]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !layer-bottom depth from soil surf (m)
+  REAL(DP)                           , INTENT(IN)    :: Q2     !mixing ratio (kg/kg) lowest model layer
+  REAL(DP)                           , INTENT(IN)    :: SFCTMP !surface air temperature [K]
+  REAL(DP)                           , INTENT(IN)    :: UU     !wind speed in eastward dir (m/s)
+  REAL(DP)                           , INTENT(IN)    :: VV     !wind speed in northward dir (m/s)
+  REAL(DP)                           , INTENT(IN)    :: SOLDN  !downward shortwave radiation (w/m2)
+  REAL(DP)                           , INTENT(IN)    :: PRCP   !precipitation rate (kg m-2 s-1)
+  REAL(DP)                           , INTENT(IN)    :: LWDN   !downward longwave radiation (w/m2)
+  REAL(DP)                           , INTENT(IN)    :: SFCPRS !pressure (pa)
+  REAL(DP)                           , INTENT(INOUT) :: ZLVL   !reference height (m)
+  REAL(DP)                           , INTENT(IN)    :: COSZ   !cosine solar zenith angle [0-1]
+  REAL(DP)                           , INTENT(IN)    :: TBOT   !bottom condition for soil temp. [K]
+  REAL(DP)                           , INTENT(IN)    :: FOLN   !foliage nitrogen (%) [1-saturated]
+  REAL(DP)                           , INTENT(IN)    :: SHDFAC !green vegetation fraction [0.0-1.0]
   INTEGER                        , INTENT(IN)    :: YEARLEN!Number of days in the particular year.
-  REAL                           , INTENT(IN)    :: JULIAN !Julian day of year (floating point)
-  REAL                           , INTENT(IN)    :: LAT    !latitude (radians)
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD!ice fraction at last timestep
+  REAL(DP)                           , INTENT(IN)    :: JULIAN !Julian day of year (floating point)
+  REAL(DP)                           , INTENT(IN)    :: LAT    !latitude (radians)
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD!ice fraction at last timestep
 
 !jref:start; in
   INTEGER                        , INTENT(IN)    :: ISURBAN
   INTEGER                        , INTENT(IN)    :: IZ0TLND
-  REAL                           , INTENT(IN)    :: QC     !cloud water mixing ratio
-  REAL                           , INTENT(IN)    :: PBLH   !planetary boundary layer height
-  REAL                           , INTENT(INOUT)    :: QSFC   !mixing ratio at lowest model layer
-  REAL                           , INTENT(IN)    :: PSFC   !pressure at lowest model layer
-  REAL                           , INTENT(IN)    :: DZ8W   !thickness of lowest layer
-  REAL                           , INTENT(IN)    :: DX
-  REAL                           , INTENT(IN)    :: SHDMAX  !yearly max vegetation fraction
+  REAL(DP)                           , INTENT(IN)    :: QC     !cloud water mixing ratio
+  REAL(DP)                           , INTENT(IN)    :: PBLH   !planetary boundary layer height
+  REAL(DP)                           , INTENT(INOUT)    :: QSFC   !mixing ratio at lowest model layer
+  REAL(DP)                           , INTENT(IN)    :: PSFC   !pressure at lowest model layer
+  REAL(DP)                           , INTENT(IN)    :: DZ8W   !thickness of lowest layer
+  REAL(DP)                           , INTENT(IN)    :: DX
+  REAL(DP)                           , INTENT(IN)    :: SHDMAX  !yearly max vegetation fraction
 !jref:end
 
 ! input/output : need arbitary intial values
-  REAL                           , INTENT(INOUT) :: QSNOW  !snowfall [mm/s]
-  REAL                           , INTENT(INOUT) :: FWET   !wetted or snowed fraction of canopy (-)
-  REAL                           , INTENT(INOUT) :: SNEQVO !snow mass at last time step (mm)
-  REAL                           , INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
-  REAL                           , INTENT(INOUT) :: TAH    !canopy air tmeperature (k)
-  REAL                           , INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
-  REAL                           , INTENT(INOUT) :: CM     !momentum drag coefficient
-  REAL                           , INTENT(INOUT) :: CH     !sensible heat exchange coefficient
-  REAL                           , INTENT(INOUT) :: TAUSS  !non-dimensional snow age
+  REAL(DP)                           , INTENT(INOUT) :: QSNOW  !snowfall [mm/s]
+  REAL(DP)                           , INTENT(INOUT) :: FWET   !wetted or snowed fraction of canopy (-)
+  REAL(DP)                           , INTENT(INOUT) :: SNEQVO !snow mass at last time step (mm)
+  REAL(DP)                           , INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
+  REAL(DP)                           , INTENT(INOUT) :: TAH    !canopy air tmeperature (k)
+  REAL(DP)                           , INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL(DP)                           , INTENT(INOUT) :: CM     !momentum drag coefficient
+  REAL(DP)                           , INTENT(INOUT) :: CH     !sensible heat exchange coefficient
+  REAL(DP)                           , INTENT(INOUT) :: TAUSS  !non-dimensional snow age
 
 ! prognostic variables
   INTEGER                        , INTENT(INOUT) :: ISNOW  !actual no. of snow layers [-]
-  REAL                           , INTENT(INOUT) :: CANLIQ !intercepted liquid water (mm)
-  REAL                           , INTENT(INOUT) :: CANICE !intercepted ice mass (mm)
-  REAL                           , INTENT(INOUT) :: SNEQV  !snow water eqv. [mm]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SMC    !soil moisture (ice + liq.) [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO  !layer-bottom depth from snow surf [m]
-  REAL                           , INTENT(INOUT) :: SNOWH  !snow height [m]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow layer ice [mm]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
-  REAL                           , INTENT(INOUT) :: TV     !vegetation temperature (k)
-  REAL                           , INTENT(INOUT) :: TG     !ground temperature (k)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow/soil temperature [k]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !liquid soil moisture [m3/m3]
-  REAL                           , INTENT(INOUT) :: ZWT    !depth to water table [m]
-  REAL                           , INTENT(INOUT) :: WA     !water storage in aquifer [mm]
-  REAL                           , INTENT(INOUT) :: WT     !water in aquifer&saturated soil [mm]
-  REAL                           , INTENT(INOUT) :: WSLAKE !lake water storage (can be neg.) (mm)
+  REAL(DP)                           , INTENT(INOUT) :: CANLIQ !intercepted liquid water (mm)
+  REAL(DP)                           , INTENT(INOUT) :: CANICE !intercepted ice mass (mm)
+  REAL(DP)                           , INTENT(INOUT) :: SNEQV  !snow water eqv. [mm]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SMC    !soil moisture (ice + liq.) [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO  !layer-bottom depth from snow surf [m]
+  REAL(DP)                           , INTENT(INOUT) :: SNOWH  !snow height [m]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow layer ice [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
+  REAL(DP)                           , INTENT(INOUT) :: TV     !vegetation temperature (k)
+  REAL(DP)                           , INTENT(INOUT) :: TG     !ground temperature (k)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow/soil temperature [k]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !liquid soil moisture [m3/m3]
+  REAL(DP)                           , INTENT(INOUT) :: ZWT    !depth to water table [m]
+  REAL(DP)                           , INTENT(INOUT) :: WA     !water storage in aquifer [mm]
+  REAL(DP)                           , INTENT(INOUT) :: WT     !water in aquifer&saturated soil [mm]
+  REAL(DP)                           , INTENT(INOUT) :: WSLAKE !lake water storage (can be neg.) (mm)
 
 ! output
-  REAL                           , INTENT(OUT)   :: FSA    !total absorbed solar radiation (w/m2)
-  REAL                           , INTENT(OUT)   :: FSR    !total reflected solar radiation (w/m2)
-  REAL                           , INTENT(OUT)   :: FIRA   !total net LW rad (w/m2)  [+ to atm]
-  REAL                           , INTENT(OUT)   :: FSH    !total sensible heat (w/m2) [+ to atm]
-  REAL                           , INTENT(OUT)   :: FCEV   !canopy evap heat (w/m2) [+ to atm]
-  REAL                           , INTENT(OUT)   :: FGEV   !ground evap heat (w/m2) [+ to atm]
-  REAL                           , INTENT(OUT)   :: FCTR   !transpiration heat (w/m2) [+ to atm]
-  REAL                           , INTENT(OUT)   :: SSOIL  !ground heat flux (w/m2)   [+ to soil]
-  REAL                           , INTENT(OUT)   :: TRAD   !surface radiative temperature (k)
-  REAL                                           :: TS     !surface temperature (k)
-  REAL                           , INTENT(OUT)   :: ECAN   !evaporation of intercepted water (mm/s)
-  REAL                           , INTENT(OUT)   :: ETRAN  !transpiration rate (mm/s)
-  REAL                           , INTENT(OUT)   :: EDIR   !soil surface evaporation rate (mm/s]
-  REAL                           , INTENT(OUT)   :: RUNSRF !surface runoff [mm/s]
-  REAL                           , INTENT(OUT)   :: RUNSUB !baseflow (saturation excess) [mm/s]
-  REAL                           , INTENT(OUT)   :: PSN    !total photosynthesis (umol co2/m2/s) [+]
-  REAL                           , INTENT(OUT)   :: APAR   !photosyn active energy by canopy (w/m2)
-  REAL                           , INTENT(OUT)   :: SAV    !solar rad absorbed by veg. (w/m2)
-  REAL                           , INTENT(OUT)   :: SAG    !solar rad absorbed by ground (w/m2)
-  REAL                           , INTENT(OUT)   :: FSNO   !snow cover fraction on the ground (-)
-  REAL                           , INTENT(OUT)   :: FVEG   !green vegetation fraction [0.0-1.0]
-  REAL                           , INTENT(OUT)   :: ALBEDO !surface albedo [-]
-  REAL                                           :: ERRWAT !water error [kg m{-2}]
-  REAL                           , INTENT(OUT)   :: QSNBOT !snowmelt out bottom of pack [mm/s]
-  REAL                           , INTENT(OUT)   :: PONDING!surface ponding [mm]
-  REAL                           , INTENT(OUT)   :: PONDING1!surface ponding [mm]
-  REAL                           , INTENT(OUT)   :: PONDING2!surface ponding [mm]
+  REAL(DP)                           , INTENT(OUT)   :: FSA    !total absorbed solar radiation (w/m2)
+  REAL(DP)                           , INTENT(OUT)   :: FSR    !total reflected solar radiation (w/m2)
+  REAL(DP)                           , INTENT(OUT)   :: FIRA   !total net LW rad (w/m2)  [+ to atm]
+  REAL(DP)                           , INTENT(OUT)   :: FSH    !total sensible heat (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(OUT)   :: FCEV   !canopy evap heat (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(OUT)   :: FGEV   !ground evap heat (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(OUT)   :: FCTR   !transpiration heat (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(OUT)   :: SSOIL  !ground heat flux (w/m2)   [+ to soil]
+  REAL(DP)                           , INTENT(OUT)   :: TRAD   !surface radiative temperature (k)
+  REAL(DP)                                           :: TS     !surface temperature (k)
+  REAL(DP)                           , INTENT(OUT)   :: ECAN   !evaporation of intercepted water (mm/s)
+  REAL(DP)                           , INTENT(OUT)   :: ETRAN  !transpiration rate (mm/s)
+  REAL(DP)                           , INTENT(OUT)   :: EDIR   !soil surface evaporation rate (mm/s]
+  REAL(DP)                           , INTENT(OUT)   :: RUNSRF !surface runoff [mm/s]
+  REAL(DP)                           , INTENT(OUT)   :: RUNSUB !baseflow (saturation excess) [mm/s]
+  REAL(DP)                           , INTENT(OUT)   :: PSN    !total photosynthesis (umol co2/m2/s) [+]
+  REAL(DP)                           , INTENT(OUT)   :: APAR   !photosyn active energy by canopy (w/m2)
+  REAL(DP)                           , INTENT(OUT)   :: SAV    !solar rad absorbed by veg. (w/m2)
+  REAL(DP)                           , INTENT(OUT)   :: SAG    !solar rad absorbed by ground (w/m2)
+  REAL(DP)                           , INTENT(OUT)   :: FSNO   !snow cover fraction on the ground (-)
+  REAL(DP)                           , INTENT(OUT)   :: FVEG   !green vegetation fraction [0.0-1.0]
+  REAL(DP)                           , INTENT(OUT)   :: ALBEDO !surface albedo [-]
+  REAL(DP)                                           :: ERRWAT !water error [kg m{-2}]
+  REAL(DP)                           , INTENT(OUT)   :: QSNBOT !snowmelt out bottom of pack [mm/s]
+  REAL(DP)                           , INTENT(OUT)   :: PONDING!surface ponding [mm]
+  REAL(DP)                           , INTENT(OUT)   :: PONDING1!surface ponding [mm]
+  REAL(DP)                           , INTENT(OUT)   :: PONDING2!surface ponding [mm]
 
 !jref:start; output
-  REAL                           , INTENT(OUT)     :: T2MV   !2-m air temperature over vegetated part [k]
-  REAL                           , INTENT(OUT)     :: T2MB   !2-m air temperature over bare ground part [k]
-  REAL, INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
-  REAL, INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
-  REAL, INTENT(OUT) :: BGAP
-  REAL, INTENT(OUT) :: WGAP
-  REAL, INTENT(OUT) :: TGV
-  REAL, INTENT(OUT) :: TGB
-  REAL              :: Q1
-  REAL, INTENT(OUT) :: EMISSI
+  REAL(DP)                           , INTENT(OUT)     :: T2MV   !2-m air temperature over vegetated part [k]
+  REAL(DP)                           , INTENT(OUT)     :: T2MB   !2-m air temperature over bare ground part [k]
+  REAL(DP), INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
+  REAL(DP), INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
+  REAL(DP), INTENT(OUT) :: BGAP
+  REAL(DP), INTENT(OUT) :: WGAP
+  REAL(DP), INTENT(OUT) :: TGV
+  REAL(DP), INTENT(OUT) :: TGB
+  REAL(DP)              :: Q1
+  REAL(DP), INTENT(OUT) :: EMISSI
 !jref:end
 
 ! local
   INTEGER                                        :: IZ     !do-loop index
   INTEGER, DIMENSION(-NSNOW+1:NSOIL)             :: IMELT  !phase change index [1-melt; 2-freeze]
-  REAL                                           :: CMC    !intercepted water (CANICE+CANLIQ) (mm)
-  REAL                                           :: TAUX   !wind stress: e-w (n/m2)
-  REAL                                           :: TAUY   !wind stress: n-s (n/m2)
-  REAL                                           :: RHOAIR !density air (kg/m3)
-!  REAL, DIMENSION(       1:    5)                :: VOCFLX !voc fluxes [ug C m-2 h-1]
-  REAL, DIMENSION(-NSNOW+1:NSOIL)                :: DZSNSO !snow/soil layer thickness [m]
-  REAL                                           :: THAIR  !potential temperature (k)
-  REAL                                           :: QAIR   !specific humidity (kg/kg) (q2/(1+q2))
-  REAL                                           :: EAIR   !vapor pressure air (pa)
-  REAL, DIMENSION(       1:    2)                :: SOLAD  !incoming direct solar rad (w/m2)
-  REAL, DIMENSION(       1:    2)                :: SOLAI  !incoming diffuse solar rad (w/m2)
-  REAL                                           :: QPRECC !convective precipitation (mm/s)
-  REAL                                           :: QPRECL !large-scale precipitation (mm/s)
-  REAL                                           :: IGS    !growing season index (0=off, 1=on)
-  REAL                                           :: ELAI   !leaf area index, after burying by snow
-  REAL                                           :: ESAI   !stem area index, after burying by snow
-  REAL                                           :: BEVAP  !soil water evaporation factor (0 - 1)
-  REAL, DIMENSION(       1:NSOIL)                :: BTRANI !Soil water transpiration factor (0 - 1)
-  REAL                                           :: BTRAN  !soil water transpiration factor (0 - 1)
-  REAL                                           :: HTOP   !top of canopy layer (m)
-  REAL                                           :: QIN    !groundwater recharge [mm/s]
-  REAL                                           :: QDIS   !groundwater discharge [mm/s]
-  REAL, DIMENSION(       1:NSOIL)                :: SICE   !soil ice content (m3/m3)
-  REAL, DIMENSION(-NSNOW+1:    0)                :: SNICEV !partial volume ice of snow [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:    0)                :: SNLIQV !partial volume liq of snow [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:    0)                :: EPORE  !effective porosity [m3/m3]
-  REAL                                           :: TOTSC  !total soil carbon (g/m2)
-  REAL                                           :: TOTLB  !total living carbon (g/m2)
-  REAL                                           :: T2M    !2-meter air temperature (k)
-  REAL                                           :: QDEW   !ground surface dew rate [mm/s]
-  REAL                                           :: QVAP   !ground surface evap. rate [mm/s]
-  REAL                                           :: LATHEA !latent heat [j/kg]
-  REAL                                           :: SWDOWN !downward solar [w/m2]
-  REAL                                           :: QMELT  !snowmelt [mm/s]
-  REAL                                           :: BEG_WB !water storage at begin of a step [mm]
-  REAL,INTENT(OUT)                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
-  REAL,INTENT(OUT)                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
-  REAL,INTENT(OUT)                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
-  REAL,INTENT(OUT)                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
-  REAL,INTENT(OUT)                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
-  REAL,INTENT(OUT)                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
-  REAL,INTENT(OUT)                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
-  REAL,INTENT(OUT)                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
-  REAL,INTENT(OUT)                                              :: TR     !transpiration heat [w/m2] [+ to atm]
-  REAL, INTENT(OUT)   :: FPICE   !snow fraction in precipitation
+  REAL(DP)                                           :: CMC    !intercepted water (CANICE+CANLIQ) (mm)
+  REAL(DP)                                           :: TAUX   !wind stress: e-w (n/m2)
+  REAL(DP)                                           :: TAUY   !wind stress: n-s (n/m2)
+  REAL(DP)                                           :: RHOAIR !density air (kg/m3)
+!  REAL(DP), DIMENSION(       1:    5)                :: VOCFLX !voc fluxes [ug C m-2 h-1]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP)                                           :: THAIR  !potential temperature (k)
+  REAL(DP)                                           :: QAIR   !specific humidity (kg/kg) (q2/(1+q2))
+  REAL(DP)                                           :: EAIR   !vapor pressure air (pa)
+  REAL(DP), DIMENSION(       1:    2)                :: SOLAD  !incoming direct solar rad (w/m2)
+  REAL(DP), DIMENSION(       1:    2)                :: SOLAI  !incoming diffuse solar rad (w/m2)
+  REAL(DP)                                           :: QPRECC !convective precipitation (mm/s)
+  REAL(DP)                                           :: QPRECL !large-scale precipitation (mm/s)
+  REAL(DP)                                           :: IGS    !growing season index (0=off, 1=on)
+  REAL(DP)                                           :: ELAI   !leaf area index, after burying by snow
+  REAL(DP)                                           :: ESAI   !stem area index, after burying by snow
+  REAL(DP)                                           :: BEVAP  !soil water evaporation factor (0 - 1)
+  REAL(DP), DIMENSION(       1:NSOIL)                :: BTRANI !Soil water transpiration factor (0 - 1)
+  REAL(DP)                                           :: BTRAN  !soil water transpiration factor (0 - 1)
+  REAL(DP)                                           :: HTOP   !top of canopy layer (m)
+  REAL(DP)                                           :: QIN    !groundwater recharge [mm/s]
+  REAL(DP)                                           :: QDIS   !groundwater discharge [mm/s]
+  REAL(DP), DIMENSION(       1:NSOIL)                :: SICE   !soil ice content (m3/m3)
+  REAL(DP), DIMENSION(-NSNOW+1:    0)                :: SNICEV !partial volume ice of snow [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0)                :: SNLIQV !partial volume liq of snow [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0)                :: EPORE  !effective porosity [m3/m3]
+  REAL(DP)                                           :: TOTSC  !total soil carbon (g/m2)
+  REAL(DP)                                           :: TOTLB  !total living carbon (g/m2)
+  REAL(DP)                                           :: T2M    !2-meter air temperature (k)
+  REAL(DP)                                           :: QDEW   !ground surface dew rate [mm/s]
+  REAL(DP)                                           :: QVAP   !ground surface evap. rate [mm/s]
+  REAL(DP)                                           :: LATHEA !latent heat [j/kg]
+  REAL(DP)                                           :: SWDOWN !downward solar [w/m2]
+  REAL(DP)                                           :: QMELT  !snowmelt [mm/s]
+  REAL(DP)                                           :: BEG_WB !water storage at begin of a step [mm]
+  REAL(DP),INTENT(OUT)                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
+  REAL(DP),INTENT(OUT)                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
+  REAL(DP),INTENT(OUT)                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: TR     !transpiration heat [w/m2] [+ to atm]
+  REAL(DP), INTENT(OUT)   :: FPICE   !snow fraction in precipitation
 
 !jref:start
-  REAL                                           :: FSRV
-  REAL                                           :: FSRG
-  REAL,INTENT(OUT)                               :: Q2V
-  REAL,INTENT(OUT)                               :: Q2B
-  REAL :: Q2E
-  REAL :: QFX
-  REAL,INTENT(OUT)                               :: CHV    !sensible heat exchange coefficient over vegetated fraction
-  REAL,INTENT(OUT)                               :: CHB    !sensible heat exchange coefficient over bare-ground
-  REAL,INTENT(OUT)                               :: CHLEAF !leaf exchange coefficient
-  REAL,INTENT(OUT)                               :: CHUC   !under canopy exchange coefficient
-  REAL,INTENT(OUT)                               :: CHV2    !sensible heat exchange coefficient over vegetated fraction
-  REAL,INTENT(OUT)                               :: CHB2    !sensible heat exchange coefficient over bare-ground
+  REAL(DP)                                           :: FSRV
+  REAL(DP)                                           :: FSRG
+  REAL(DP),INTENT(OUT)                               :: Q2V
+  REAL(DP),INTENT(OUT)                               :: Q2B
+  REAL(DP) :: Q2E
+  REAL(DP) :: QFX
+  REAL(DP),INTENT(OUT)                               :: CHV    !sensible heat exchange coefficient over vegetated fraction
+  REAL(DP),INTENT(OUT)                               :: CHB    !sensible heat exchange coefficient over bare-ground
+  REAL(DP),INTENT(OUT)                               :: CHLEAF !leaf exchange coefficient
+  REAL(DP),INTENT(OUT)                               :: CHUC   !under canopy exchange coefficient
+  REAL(DP),INTENT(OUT)                               :: CHV2    !sensible heat exchange coefficient over vegetated fraction
+  REAL(DP),INTENT(OUT)                               :: CHB2    !sensible heat exchange coefficient over bare-ground
 !jref:end
 
 ! carbon
 ! inputs
-  REAL                           , INTENT(IN)    :: CO2AIR !atmospheric co2 concentration (pa)
-  REAL                           , INTENT(IN)    :: O2AIR  !atmospheric o2 concentration (pa)
+  REAL(DP)                           , INTENT(IN)    :: CO2AIR !atmospheric co2 concentration (pa)
+  REAL(DP)                           , INTENT(IN)    :: O2AIR  !atmospheric o2 concentration (pa)
 
 ! inputs and outputs : prognostic variables
-  REAL                        , INTENT(INOUT)    :: LFMASS !leaf mass [g/m2]
-  REAL                        , INTENT(INOUT)    :: RTMASS !mass of fine roots [g/m2]
-  REAL                        , INTENT(INOUT)    :: STMASS !stem mass [g/m2]
-  REAL                        , INTENT(INOUT)    :: WOOD   !mass of wood (incl. woody roots) [g/m2]
-  REAL                        , INTENT(INOUT)    :: STBLCP !stable carbon in deep soil [g/m2]
-  REAL                        , INTENT(INOUT)    :: FASTCP !short-lived carbon, shallow soil [g/m2]
-  REAL                        , INTENT(INOUT)    :: LAI    !leaf area index [-]
-  REAL                        , INTENT(INOUT)    :: SAI    !stem area index [-]
+  REAL(DP)                        , INTENT(INOUT)    :: LFMASS !leaf mass [g/m2]
+  REAL(DP)                        , INTENT(INOUT)    :: RTMASS !mass of fine roots [g/m2]
+  REAL(DP)                        , INTENT(INOUT)    :: STMASS !stem mass [g/m2]
+  REAL(DP)                        , INTENT(INOUT)    :: WOOD   !mass of wood (incl. woody roots) [g/m2]
+  REAL(DP)                        , INTENT(INOUT)    :: STBLCP !stable carbon in deep soil [g/m2]
+  REAL(DP)                        , INTENT(INOUT)    :: FASTCP !short-lived carbon, shallow soil [g/m2]
+  REAL(DP)                        , INTENT(INOUT)    :: LAI    !leaf area index [-]
+  REAL(DP)                        , INTENT(INOUT)    :: SAI    !stem area index [-]
 
 ! outputs
-  REAL                          , INTENT(OUT)    :: NEE    !net ecosys exchange (g/m2/s CO2)
-  REAL                          , INTENT(OUT)    :: GPP    !net instantaneous assimilation [g/m2/s C]
-  REAL                          , INTENT(OUT)    :: NPP    !net primary productivity [g/m2/s C]
-  REAL                                           :: AUTORS !net ecosystem respiration (g/m2/s C)
-  REAL                                           :: HETERS !organic respiration (g/m2/s C)
-  REAL                                           :: TROOT  !root-zone averaged temperature (k)
+  REAL(DP)                          , INTENT(OUT)    :: NEE    !net ecosys exchange (g/m2/s CO2)
+  REAL(DP)                          , INTENT(OUT)    :: GPP    !net instantaneous assimilation [g/m2/s C]
+  REAL(DP)                          , INTENT(OUT)    :: NPP    !net primary productivity [g/m2/s C]
+  REAL(DP)                                           :: AUTORS !net ecosystem respiration (g/m2/s C)
+  REAL(DP)                                           :: HETERS !organic respiration (g/m2/s C)
+  REAL(DP)                                           :: TROOT  !root-zone averaged temperature (k)
 
   ! INTENT (OUT) variables need to be assigned a value.  These normally get assigned values
   ! only if DVEG == 2.
@@ -850,7 +854,7 @@ contains
 
 ! root-zone temperature
 
-     TROOT  = 0.
+     TROOT  = 0._dp
      DO IZ=1,NROOT
         TROOT = TROOT + STC(IZ)*DZSNSO(IZ)/(-ZSOIL(NROOT))
      ENDDO
@@ -1000,28 +1004,28 @@ contains
 ! --------------------------------------------------------------------------------------------------
 ! inputs
 
-  REAL                          , INTENT(IN)  :: SFCPRS !pressure (pa)
-  REAL                          , INTENT(IN)  :: SFCTMP !surface air temperature [k]
-  REAL                          , INTENT(IN)  :: Q2     !mixing ratio (kg/kg)
-  REAL                          , INTENT(IN)  :: SOLDN  !downward shortwave radiation (w/m2)
-  REAL                          , INTENT(IN)  :: PRCP   !precipitation rate (kg m-2 s-1)
-  REAL                          , INTENT(IN)  :: COSZ   !cosine solar zenith angle [0-1]
+  REAL(DP)                          , INTENT(IN)  :: SFCPRS !pressure (pa)
+  REAL(DP)                          , INTENT(IN)  :: SFCTMP !surface air temperature [k]
+  REAL(DP)                          , INTENT(IN)  :: Q2     !mixing ratio (kg/kg)
+  REAL(DP)                          , INTENT(IN)  :: SOLDN  !downward shortwave radiation (w/m2)
+  REAL(DP)                          , INTENT(IN)  :: PRCP   !precipitation rate (kg m-2 s-1)
+  REAL(DP)                          , INTENT(IN)  :: COSZ   !cosine solar zenith angle [0-1]
 
 ! outputs
 
-  REAL                          , INTENT(OUT) :: THAIR  !potential temperature (k)
-  REAL                          , INTENT(OUT) :: QAIR   !specific humidity (kg/kg) (q2/(1+q2))
-  REAL                          , INTENT(OUT) :: EAIR   !vapor pressure air (pa)
-  REAL, DIMENSION(       1:   2), INTENT(OUT) :: SOLAD  !incoming direct solar radiation (w/m2)
-  REAL, DIMENSION(       1:   2), INTENT(OUT) :: SOLAI  !incoming diffuse solar radiation (w/m2)
-  REAL                          , INTENT(OUT) :: QPRECC !convective precipitation (mm/s)
-  REAL                          , INTENT(OUT) :: QPRECL !large-scale precipitation (mm/s)
-  REAL                          , INTENT(OUT) :: RHOAIR !density air (kg/m3)
-  REAL                          , INTENT(OUT) :: SWDOWN !downward solar filtered by sun angle [w/m2]
+  REAL(DP)                          , INTENT(OUT) :: THAIR  !potential temperature (k)
+  REAL(DP)                          , INTENT(OUT) :: QAIR   !specific humidity (kg/kg) (q2/(1+q2))
+  REAL(DP)                          , INTENT(OUT) :: EAIR   !vapor pressure air (pa)
+  REAL(DP), DIMENSION(       1:   2), INTENT(OUT) :: SOLAD  !incoming direct solar radiation (w/m2)
+  REAL(DP), DIMENSION(       1:   2), INTENT(OUT) :: SOLAI  !incoming diffuse solar radiation (w/m2)
+  REAL(DP)                          , INTENT(OUT) :: QPRECC !convective precipitation (mm/s)
+  REAL(DP)                          , INTENT(OUT) :: QPRECL !large-scale precipitation (mm/s)
+  REAL(DP)                          , INTENT(OUT) :: RHOAIR !density air (kg/m3)
+  REAL(DP)                          , INTENT(OUT) :: SWDOWN !downward solar filtered by sun angle [w/m2]
 
 !locals
 
-  REAL                                        :: PAIR   !atm bottom level pressure (pa)
+  REAL(DP)                                        :: PAIR   !atm bottom level pressure (pa)
 ! --------------------------------------------------------------------------------------------------
 
 !jref: seems like PAIR should be P1000mb??
@@ -1064,33 +1068,33 @@ contains
 ! inputs
   INTEGER                , INTENT(IN   ) :: VEGTYP !vegetation type
   INTEGER                , INTENT(IN   ) :: ISURBAN!urban category
-  REAL                   , INTENT(IN   ) :: SNOWH  !snow height [m]
-  REAL                   , INTENT(IN   ) :: TV     !vegetation temperature (k)
-  REAL                   , INTENT(IN   ) :: LAT    !latitude (radians)
+  REAL(DP)                   , INTENT(IN   ) :: SNOWH  !snow height [m]
+  REAL(DP)                   , INTENT(IN   ) :: TV     !vegetation temperature (k)
+  REAL(DP)                   , INTENT(IN   ) :: LAT    !latitude (radians)
   INTEGER                , INTENT(IN   ) :: YEARLEN!Number of days in the particular year
-  REAL                   , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
-  real                   , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
-  REAL                   , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
-  REAL                   , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
+  REAL(DP)                   , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
+  REAL(DP)                   , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
+  REAL(DP)                   , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
+  REAL(DP)                   , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
 
 ! outputs
-  REAL                   , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
-  REAL                   , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
-  REAL                   , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
-  REAL                   , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
+  REAL(DP)                   , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
+  REAL(DP)                   , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
+  REAL(DP)                   , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
+  REAL(DP)                   , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
 
 ! locals
 
-  REAL                                   :: DB     !thickness of canopy buried by snow (m)
-  REAL                                   :: FB     !fraction of canopy buried by snow
-  REAL                                   :: SNOWHC !critical snow depth at which short vege
+  REAL(DP)                                   :: DB     !thickness of canopy buried by snow (m)
+  REAL(DP)                                   :: FB     !fraction of canopy buried by snow
+  REAL(DP)                                   :: SNOWHC !critical snow depth at which short vege
                                                    !is fully covered by snow
 
   INTEGER                                :: K       !index
   INTEGER                                :: IT1,IT2 !interpolation months
-  REAL                                   :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
-  REAL                                   :: WT1,WT2 !interpolation weights
-  REAL                                   :: T       !current month (1.00, ..., 12.00)
+  REAL(DP)                                   :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
+  REAL(DP)                                   :: WT1,WT2 !interpolation weights
+  REAL(DP)                                   :: T       !current month (1.00, ..., 12.00)
 ! --------------------------------------------------------------------------------------------------
 
   IF ( DVEG == 1 .or. DVEG == 3 .or. DVEG == 4 ) THEN
@@ -1169,47 +1173,47 @@ contains
   INTEGER                        , INTENT(IN) :: IST    !surface type 1->soil; 2->lake
   INTEGER                        , INTENT(IN) :: ILOC   !grid index
   INTEGER                        , INTENT(IN) :: JLOC   !grid index
-  REAL                           , INTENT(IN) :: SWDOWN !downward solar filtered by sun angle [w/m2]
-  REAL                           , INTENT(IN) :: FSA    !total absorbed solar radiation (w/m2)
-  REAL                           , INTENT(IN) :: FSR    !total reflected solar radiation (w/m2)
-  REAL                           , INTENT(IN) :: FIRA   !total net longwave rad (w/m2)  [+ to atm]
-  REAL                           , INTENT(IN) :: FSH    !total sensible heat (w/m2)     [+ to atm]
-  REAL                           , INTENT(IN) :: FCEV   !canopy evaporation heat (w/m2) [+ to atm]
-  REAL                           , INTENT(IN) :: FGEV   !ground evaporation heat (w/m2) [+ to atm]
-  REAL                           , INTENT(IN) :: FCTR   !transpiration heat flux (w/m2) [+ to atm]
-  REAL                           , INTENT(IN) :: SSOIL  !ground heat flux (w/m2)        [+ to soil]
-  REAL                           , INTENT(IN) :: FVEG
-  REAL                           , INTENT(IN) :: SAV
-  REAL                           , INTENT(IN) :: SAG
-  REAL                           , INTENT(IN) :: FSRV
-  REAL                           , INTENT(IN) :: FSRG
-  REAL                           , INTENT(IN) :: ELAI
-  REAL                           , INTENT(IN) :: ESAI
-  REAL                           , INTENT(IN) :: LAI
-  REAL                           , INTENT(IN) :: SAI
+  REAL(DP)                           , INTENT(IN) :: SWDOWN !downward solar filtered by sun angle [w/m2]
+  REAL(DP)                           , INTENT(IN) :: FSA    !total absorbed solar radiation (w/m2)
+  REAL(DP)                           , INTENT(IN) :: FSR    !total reflected solar radiation (w/m2)
+  REAL(DP)                           , INTENT(IN) :: FIRA   !total net longwave rad (w/m2)  [+ to atm]
+  REAL(DP)                           , INTENT(IN) :: FSH    !total sensible heat (w/m2)     [+ to atm]
+  REAL(DP)                           , INTENT(IN) :: FCEV   !canopy evaporation heat (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(IN) :: FGEV   !ground evaporation heat (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(IN) :: FCTR   !transpiration heat flux (w/m2) [+ to atm]
+  REAL(DP)                           , INTENT(IN) :: SSOIL  !ground heat flux (w/m2)        [+ to soil]
+  REAL(DP)                           , INTENT(IN) :: FVEG
+  REAL(DP)                           , INTENT(IN) :: SAV
+  REAL(DP)                           , INTENT(IN) :: SAG
+  REAL(DP)                           , INTENT(IN) :: FSRV
+  REAL(DP)                           , INTENT(IN) :: FSRG
+  REAL(DP)                           , INTENT(IN) :: ELAI
+  REAL(DP)                           , INTENT(IN) :: ESAI
+  REAL(DP)                           , INTENT(IN) :: LAI
+  REAL(DP)                           , INTENT(IN) :: SAI
 
-  REAL                           , INTENT(IN) :: PRCP   !precipitation rate (kg m-2 s-1)
-  REAL                           , INTENT(IN) :: ECAN   !evaporation of intercepted water (mm/s)
-  REAL                           , INTENT(IN) :: ETRAN  !transpiration rate (mm/s)
-  REAL                           , INTENT(IN) :: EDIR   !soil surface evaporation rate[mm/s]
-  REAL                           , INTENT(IN) :: RUNSRF !surface runoff [mm/s]
-  REAL                           , INTENT(IN) :: RUNSUB !baseflow (saturation excess) [mm/s]
-  REAL                           , INTENT(IN) :: CANLIQ !intercepted liquid water (mm)
-  REAL                           , INTENT(IN) :: CANICE !intercepted ice mass (mm)
-  REAL                           , INTENT(IN) :: SNEQV  !snow water eqv. [mm]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: SMC    !soil moisture (ice + liq.) [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
-  REAL                           , INTENT(IN) :: WA     !water storage in aquifer [mm]
-  REAL                           , INTENT(IN) :: DT     !time step [sec]
-  REAL                           , INTENT(IN) :: BEG_WB !water storage at begin of a timesetp [mm]
-  REAL                           , INTENT(OUT) :: ERRWAT !error in water balance [mm/timestep]
+  REAL(DP)                           , INTENT(IN) :: PRCP   !precipitation rate (kg m-2 s-1)
+  REAL(DP)                           , INTENT(IN) :: ECAN   !evaporation of intercepted water (mm/s)
+  REAL(DP)                           , INTENT(IN) :: ETRAN  !transpiration rate (mm/s)
+  REAL(DP)                           , INTENT(IN) :: EDIR   !soil surface evaporation rate[mm/s]
+  REAL(DP)                           , INTENT(IN) :: RUNSRF !surface runoff [mm/s]
+  REAL(DP)                           , INTENT(IN) :: RUNSUB !baseflow (saturation excess) [mm/s]
+  REAL(DP)                           , INTENT(IN) :: CANLIQ !intercepted liquid water (mm)
+  REAL(DP)                           , INTENT(IN) :: CANICE !intercepted ice mass (mm)
+  REAL(DP)                           , INTENT(IN) :: SNEQV  !snow water eqv. [mm]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: SMC    !soil moisture (ice + liq.) [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP)                           , INTENT(IN) :: WA     !water storage in aquifer [mm]
+  REAL(DP)                           , INTENT(IN) :: DT     !time step [sec]
+  REAL(DP)                           , INTENT(IN) :: BEG_WB !water storage at begin of a timesetp [mm]
+  REAL(DP)                           , INTENT(OUT) :: ERRWAT !error in water balance [mm/timestep]
 
   INTEGER                                     :: IZ     !do-loop index
-  REAL                                        :: END_WB !water storage at end of a timestep [mm]
-  !KWM REAL                                        :: ERRWAT !error in water balance [mm/timestep]
-  REAL                                        :: ERRENG !error in surface energy balance [w/m2]
-  REAL                                        :: ERRSW  !error in shortwave radiation balance [w/m2]
-  REAL                                        :: FSRVG
+  REAL(DP)                                        :: END_WB !water storage at end of a timestep [mm]
+  !KWM REAL(DP)                                        :: ERRWAT !error in water balance [mm/timestep]
+  REAL(DP)                                        :: ERRENG !error in surface energy balance [w/m2]
+  REAL(DP)                                        :: ERRSW  !error in shortwave radiation balance [w/m2]
+  REAL(DP)                                        :: FSRVG
   CHARACTER(len=256)                          :: message
 ! --------------------------------------------------------------------------------------------------
 !jref:start
@@ -1356,205 +1360,205 @@ contains
   INTEGER                           , INTENT(IN)    :: NSOIL  !number of soil layers
   INTEGER                           , INTENT(IN)    :: NROOT  !number of root layers
   INTEGER                           , INTENT(IN)    :: ISNOW  !actual no. of snow layers
-  REAL                              , INTENT(IN)    :: DT     !time step [sec]
-  REAL                              , INTENT(IN)    :: QSNOW  !snowfall on the ground (mm/s)
-  REAL                              , INTENT(IN)    :: RHOAIR !density air (kg/m3)
-  REAL                              , INTENT(IN)    :: EAIR   !vapor pressure air (pa)
-  REAL                              , INTENT(IN)    :: SFCPRS !pressure (pa)
-  REAL                              , INTENT(IN)    :: QAIR   !specific humidity (kg/kg)
-  REAL                              , INTENT(IN)    :: SFCTMP !air temperature (k)
-  REAL                              , INTENT(IN)    :: THAIR  !potential temperature (k)
-  REAL                              , INTENT(IN)    :: LWDN   !downward longwave radiation (w/m2)
-  REAL                              , INTENT(IN)    :: UU     !wind speed in e-w dir (m/s)
-  REAL                              , INTENT(IN)    :: VV     !wind speed in n-s dir (m/s)
-  REAL   , DIMENSION(       1:    2), INTENT(IN)    :: SOLAD  !incoming direct solar rad. (w/m2)
-  REAL   , DIMENSION(       1:    2), INTENT(IN)    :: SOLAI  !incoming diffuse solar rad. (w/m2)
-  REAL                              , INTENT(IN)    :: COSZ   !cosine solar zenith angle (0-1)
-  REAL                              , INTENT(IN)    :: ELAI   !LAI adjusted for burying by snow
-  REAL                              , INTENT(IN)    :: ESAI   !LAI adjusted for burying by snow
-  REAL                              , INTENT(IN)    :: CSOIL  !vol. soil heat capacity [j/m3/k]
-  REAL                              , INTENT(IN)    :: FWET   !fraction of canopy that is wet [-]
-  REAL                              , INTENT(IN)    :: HTOP   !top of canopy layer (m)
-  REAL                              , INTENT(IN)    :: FVEG   !greeness vegetation fraction (-)
-  REAL                              , INTENT(IN)    :: LAT    !latitude (radians)
-  REAL                              , INTENT(IN)    :: CANLIQ !canopy-intercepted liquid water (mm)
-  REAL                              , INTENT(IN)    :: CANICE !canopy-intercepted ice mass (mm)
-  REAL                              , INTENT(IN)    :: FOLN   !foliage nitrogen (%)
-  REAL                              , INTENT(IN)    :: CO2AIR !atmospheric co2 concentration (pa)
-  REAL                              , INTENT(IN)    :: O2AIR  !atmospheric o2 concentration (pa)
-  REAL                              , INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
+  REAL(DP)                              , INTENT(IN)    :: DT     !time step [sec]
+  REAL(DP)                              , INTENT(IN)    :: QSNOW  !snowfall on the ground (mm/s)
+  REAL(DP)                              , INTENT(IN)    :: RHOAIR !density air (kg/m3)
+  REAL(DP)                              , INTENT(IN)    :: EAIR   !vapor pressure air (pa)
+  REAL(DP)                              , INTENT(IN)    :: SFCPRS !pressure (pa)
+  REAL(DP)                              , INTENT(IN)    :: QAIR   !specific humidity (kg/kg)
+  REAL(DP)                              , INTENT(IN)    :: SFCTMP !air temperature (k)
+  REAL(DP)                              , INTENT(IN)    :: THAIR  !potential temperature (k)
+  REAL(DP)                              , INTENT(IN)    :: LWDN   !downward longwave radiation (w/m2)
+  REAL(DP)                              , INTENT(IN)    :: UU     !wind speed in e-w dir (m/s)
+  REAL(DP)                              , INTENT(IN)    :: VV     !wind speed in n-s dir (m/s)
+  REAL(DP)   , DIMENSION(       1:    2), INTENT(IN)    :: SOLAD  !incoming direct solar rad. (w/m2)
+  REAL(DP)   , DIMENSION(       1:    2), INTENT(IN)    :: SOLAI  !incoming diffuse solar rad. (w/m2)
+  REAL(DP)                              , INTENT(IN)    :: COSZ   !cosine solar zenith angle (0-1)
+  REAL(DP)                              , INTENT(IN)    :: ELAI   !LAI adjusted for burying by snow
+  REAL(DP)                              , INTENT(IN)    :: ESAI   !LAI adjusted for burying by snow
+  REAL(DP)                              , INTENT(IN)    :: CSOIL  !vol. soil heat capacity [j/m3/k]
+  REAL(DP)                              , INTENT(IN)    :: FWET   !fraction of canopy that is wet [-]
+  REAL(DP)                              , INTENT(IN)    :: HTOP   !top of canopy layer (m)
+  REAL(DP)                              , INTENT(IN)    :: FVEG   !greeness vegetation fraction (-)
+  REAL(DP)                              , INTENT(IN)    :: LAT    !latitude (radians)
+  REAL(DP)                              , INTENT(IN)    :: CANLIQ !canopy-intercepted liquid water (mm)
+  REAL(DP)                              , INTENT(IN)    :: CANICE !canopy-intercepted ice mass (mm)
+  REAL(DP)                              , INTENT(IN)    :: FOLN   !foliage nitrogen (%)
+  REAL(DP)                              , INTENT(IN)    :: CO2AIR !atmospheric co2 concentration (pa)
+  REAL(DP)                              , INTENT(IN)    :: O2AIR  !atmospheric o2 concentration (pa)
+  REAL(DP)                              , INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
 
-  REAL                              , INTENT(IN)    :: ZREF   !reference height (m)
-  REAL                              , INTENT(IN)    :: TBOT   !bottom condition for soil temp. (k)
-  REAL                              , INTENT(IN)    :: ZBOT   !depth for TBOT [m]
-  REAL   , DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)    :: ZSNSO  !layer-bottom depth from snow surf [m]
-  REAL   , DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !layer-bottom depth from soil surf [m]
-  REAL   , DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)    :: DZSNSO !depth of snow & soil layer-bottom [m]
+  REAL(DP)                              , INTENT(IN)    :: ZREF   !reference height (m)
+  REAL(DP)                              , INTENT(IN)    :: TBOT   !bottom condition for soil temp. (k)
+  REAL(DP)                              , INTENT(IN)    :: ZBOT   !depth for TBOT [m]
+  REAL(DP)   , DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)    :: ZSNSO  !layer-bottom depth from snow surf [m]
+  REAL(DP)   , DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !layer-bottom depth from soil surf [m]
+  REAL(DP)   , DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)    :: DZSNSO !depth of snow & soil layer-bottom [m]
 
 !jref:start; in
   INTEGER                           , INTENT(IN)    :: ISURBAN
   INTEGER                           , INTENT(IN)    :: IZ0TLND
-  REAL                              , INTENT(IN)    :: QC     !cloud water mixing ratio
-  REAL                              , INTENT(IN)    :: PBLH   !planetary boundary layer height
-  REAL                              , INTENT(INOUT) :: QSFC   !mixing ratio at lowest model layer
-  REAL                              , INTENT(IN)    :: PSFC   !pressure at lowest model layer
-  REAL                              , INTENT(IN)    :: DX     !horisontal resolution
-  REAL                              , INTENT(IN)    :: DZ8W   !thickness of lowest layer
-  REAL                              , INTENT(IN)    :: Q2     !mixing ratio (kg/kg)
+  REAL(DP)                              , INTENT(IN)    :: QC     !cloud water mixing ratio
+  REAL(DP)                              , INTENT(IN)    :: PBLH   !planetary boundary layer height
+  REAL(DP)                              , INTENT(INOUT) :: QSFC   !mixing ratio at lowest model layer
+  REAL(DP)                              , INTENT(IN)    :: PSFC   !pressure at lowest model layer
+  REAL(DP)                              , INTENT(IN)    :: DX     !horisontal resolution
+  REAL(DP)                              , INTENT(IN)    :: DZ8W   !thickness of lowest layer
+  REAL(DP)                              , INTENT(IN)    :: Q2     !mixing ratio (kg/kg)
 !jref:end
 
 ! outputs
   INTEGER, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT)   :: IMELT  !phase change index [1-melt; 2-freeze]
-  REAL   , DIMENSION(-NSNOW+1:    0), INTENT(OUT)   :: SNICEV !partial volume ice [m3/m3]
-  REAL   , DIMENSION(-NSNOW+1:    0), INTENT(OUT)   :: SNLIQV !partial volume liq. water [m3/m3]
-  REAL   , DIMENSION(-NSNOW+1:    0), INTENT(OUT)   :: EPORE  !effective porosity [m3/m3]
-  REAL                              , INTENT(OUT)   :: FSNO   !snow cover fraction (-)
-  REAL                              , INTENT(OUT)   :: QMELT  !snowmelt [mm/s]
-  REAL                              , INTENT(OUT)   :: PONDING!pounding at ground [mm]
-  REAL                              , INTENT(OUT)   :: SAV    !solar rad. absorbed by veg. (w/m2)
-  REAL                              , INTENT(OUT)   :: SAG    !solar rad. absorbed by ground (w/m2)
-  REAL                              , INTENT(OUT)   :: FSA    !tot. absorbed solar radiation (w/m2)
-  REAL                              , INTENT(OUT)   :: FSR    !tot. reflected solar radiation (w/m2)
-  REAL                              , INTENT(OUT)   :: TAUX   !wind stress: e-w (n/m2)
-  REAL                              , INTENT(OUT)   :: TAUY   !wind stress: n-s (n/m2)
-  REAL                              , INTENT(OUT)   :: FIRA   !total net LW. rad (w/m2)   [+ to atm]
-  REAL                              , INTENT(OUT)   :: FSH    !total sensible heat (w/m2) [+ to atm]
-  REAL                              , INTENT(OUT)   :: FCEV   !canopy evaporation (w/m2)  [+ to atm]
-  REAL                              , INTENT(OUT)   :: FGEV   !ground evaporation (w/m2)  [+ to atm]
-  REAL                              , INTENT(OUT)   :: FCTR   !transpiration (w/m2)       [+ to atm]
-  REAL                              , INTENT(OUT)   :: TRAD   !radiative temperature (k)
-  REAL                              , INTENT(OUT)   :: T2M    !2 m height air temperature (k)
-  REAL                              , INTENT(OUT)   :: PSN    !total photosyn. (umolco2/m2/s) [+]
-  REAL                              , INTENT(OUT)   :: APAR   !total photosyn. active energy (w/m2)
-  REAL                              , INTENT(OUT)   :: SSOIL  !ground heat flux (w/m2)   [+ to soil]
-  REAL   , DIMENSION(       1:NSOIL), INTENT(OUT)   :: BTRANI !soil water transpiration factor (0-1)
-  REAL                              , INTENT(OUT)   :: BTRAN  !soil water transpiration factor (0-1)
-  REAL                              , INTENT(OUT)   :: LATHEA !latent heat vap./sublimation (j/kg)
+  REAL(DP)   , DIMENSION(-NSNOW+1:    0), INTENT(OUT)   :: SNICEV !partial volume ice [m3/m3]
+  REAL(DP)   , DIMENSION(-NSNOW+1:    0), INTENT(OUT)   :: SNLIQV !partial volume liq. water [m3/m3]
+  REAL(DP)   , DIMENSION(-NSNOW+1:    0), INTENT(OUT)   :: EPORE  !effective porosity [m3/m3]
+  REAL(DP)                              , INTENT(OUT)   :: FSNO   !snow cover fraction (-)
+  REAL(DP)                              , INTENT(OUT)   :: QMELT  !snowmelt [mm/s]
+  REAL(DP)                              , INTENT(OUT)   :: PONDING!pounding at ground [mm]
+  REAL(DP)                              , INTENT(OUT)   :: SAV    !solar rad. absorbed by veg. (w/m2)
+  REAL(DP)                              , INTENT(OUT)   :: SAG    !solar rad. absorbed by ground (w/m2)
+  REAL(DP)                              , INTENT(OUT)   :: FSA    !tot. absorbed solar radiation (w/m2)
+  REAL(DP)                              , INTENT(OUT)   :: FSR    !tot. reflected solar radiation (w/m2)
+  REAL(DP)                              , INTENT(OUT)   :: TAUX   !wind stress: e-w (n/m2)
+  REAL(DP)                              , INTENT(OUT)   :: TAUY   !wind stress: n-s (n/m2)
+  REAL(DP)                              , INTENT(OUT)   :: FIRA   !total net LW. rad (w/m2)   [+ to atm]
+  REAL(DP)                              , INTENT(OUT)   :: FSH    !total sensible heat (w/m2) [+ to atm]
+  REAL(DP)                              , INTENT(OUT)   :: FCEV   !canopy evaporation (w/m2)  [+ to atm]
+  REAL(DP)                              , INTENT(OUT)   :: FGEV   !ground evaporation (w/m2)  [+ to atm]
+  REAL(DP)                              , INTENT(OUT)   :: FCTR   !transpiration (w/m2)       [+ to atm]
+  REAL(DP)                              , INTENT(OUT)   :: TRAD   !radiative temperature (k)
+  REAL(DP)                              , INTENT(OUT)   :: T2M    !2 m height air temperature (k)
+  REAL(DP)                              , INTENT(OUT)   :: PSN    !total photosyn. (umolco2/m2/s) [+]
+  REAL(DP)                              , INTENT(OUT)   :: APAR   !total photosyn. active energy (w/m2)
+  REAL(DP)                              , INTENT(OUT)   :: SSOIL  !ground heat flux (w/m2)   [+ to soil]
+  REAL(DP)   , DIMENSION(       1:NSOIL), INTENT(OUT)   :: BTRANI !soil water transpiration factor (0-1)
+  REAL(DP)                              , INTENT(OUT)   :: BTRAN  !soil water transpiration factor (0-1)
+  REAL(DP)                              , INTENT(OUT)   :: LATHEA !latent heat vap./sublimation (j/kg)
 
 !jref:start
-  REAL                              , INTENT(OUT)   :: FSRV    !veg. reflected solar radiation (w/m2)
-  REAL                              , INTENT(OUT)   :: FSRG    !ground reflected solar radiation (w/m2)
-  REAL, INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
-  REAL, INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
+  REAL(DP)                              , INTENT(OUT)   :: FSRV    !veg. reflected solar radiation (w/m2)
+  REAL(DP)                              , INTENT(OUT)   :: FSRG    !ground reflected solar radiation (w/m2)
+  REAL(DP), INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
+  REAL(DP), INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
 !jref:end - out for debug
 
 !jref:start; output
-  REAL                              , INTENT(OUT)   :: T2MV   !2-m air temperature over vegetated part [k]
-  REAL                              , INTENT(OUT)   :: T2MB   !2-m air temperature over bare ground part [k]
-  REAL                              , INTENT(OUT)   :: BGAP
-  REAL                              , INTENT(OUT)   :: WGAP
+  REAL(DP)                              , INTENT(OUT)   :: T2MV   !2-m air temperature over vegetated part [k]
+  REAL(DP)                              , INTENT(OUT)   :: T2MB   !2-m air temperature over bare ground part [k]
+  REAL(DP)                              , INTENT(OUT)   :: BGAP
+  REAL(DP)                              , INTENT(OUT)   :: WGAP
 !jref:end
 
 ! input & output
-  REAL                              , INTENT(INOUT) :: TS     !surface temperature (k)
-  REAL                              , INTENT(INOUT) :: TV     !vegetation temperature (k)
-  REAL                              , INTENT(INOUT) :: TG     !ground temperature (k)
-  REAL   , DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow/soil temperature [k]
-  REAL                              , INTENT(INOUT) :: SNOWH  !snow height [m]
-  REAL                              , INTENT(INOUT) :: SNEQV  !snow mass (mm)
-  REAL                              , INTENT(INOUT) :: SNEQVO !snow mass at last time step (mm)
-  REAL   , DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !liquid soil moisture [m3/m3]
-  REAL   , DIMENSION(       1:NSOIL), INTENT(INOUT) :: SMC    !soil moisture (ice + liq.) [m3/m3]
-  REAL   , DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow ice mass (kg/m2)
-  REAL   , DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow liq mass (kg/m2)
-  REAL                              , INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
-  REAL                              , INTENT(INOUT) :: TAH    !canopy air temperature (k)
-  REAL                              , INTENT(INOUT) :: ALBOLD !snow albedo at last time step(CLASS type)
-  REAL                              , INTENT(INOUT) :: TAUSS  !non-dimensional snow age
-  REAL                              , INTENT(INOUT) :: CM     !momentum drag coefficient
-  REAL                              , INTENT(INOUT) :: CH     !sensible heat exchange coefficient
-  REAL                              , INTENT(INOUT) :: Q1
-!  REAL                                              :: Q2E
-  REAL,                               INTENT(OUT)   :: EMISSI
+  REAL(DP)                              , INTENT(INOUT) :: TS     !surface temperature (k)
+  REAL(DP)                              , INTENT(INOUT) :: TV     !vegetation temperature (k)
+  REAL(DP)                              , INTENT(INOUT) :: TG     !ground temperature (k)
+  REAL(DP)   , DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow/soil temperature [k]
+  REAL(DP)                              , INTENT(INOUT) :: SNOWH  !snow height [m]
+  REAL(DP)                              , INTENT(INOUT) :: SNEQV  !snow mass (mm)
+  REAL(DP)                              , INTENT(INOUT) :: SNEQVO !snow mass at last time step (mm)
+  REAL(DP)   , DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !liquid soil moisture [m3/m3]
+  REAL(DP)   , DIMENSION(       1:NSOIL), INTENT(INOUT) :: SMC    !soil moisture (ice + liq.) [m3/m3]
+  REAL(DP)   , DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow ice mass (kg/m2)
+  REAL(DP)   , DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow liq mass (kg/m2)
+  REAL(DP)                              , INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
+  REAL(DP)                              , INTENT(INOUT) :: TAH    !canopy air temperature (k)
+  REAL(DP)                              , INTENT(INOUT) :: ALBOLD !snow albedo at last time step(CLASS type)
+  REAL(DP)                              , INTENT(INOUT) :: TAUSS  !non-dimensional snow age
+  REAL(DP)                              , INTENT(INOUT) :: CM     !momentum drag coefficient
+  REAL(DP)                              , INTENT(INOUT) :: CH     !sensible heat exchange coefficient
+  REAL(DP)                              , INTENT(INOUT) :: Q1
+!  REAL(DP)                                              :: Q2E
+  REAL(DP),                               INTENT(OUT)   :: EMISSI
 
 ! local
   INTEGER                                           :: IZ     !do-loop index
   LOGICAL                                           :: VEG    !true if vegetated surface
-  REAL                                              :: UR     !wind speed at height ZLVL (m/s)
-  REAL                                              :: ZLVL   !reference height (m)
-  REAL                                              :: FSUN   !sunlit fraction of canopy [-]
-  REAL                                              :: RB     !leaf boundary layer resistance (s/m)
-  REAL                                              :: RSURF  !ground surface resistance (s/m)
-  REAL                                              :: L_RSURF!Dry-layer thickness for computing RSURF (Sakaguchi and Zeng, 2009)
-  REAL                                              :: D_RSURF!Reduced vapor diffusivity in soil for computing RSURF (SZ09)
-  REAL                                              :: BEVAP  !soil water evaporation factor (0- 1)
-  REAL                                              :: MOL    !Monin-Obukhov length (m)
-  REAL                                              :: VAI    !sum of LAI  + stem area index [m2/m2]
-  REAL                                              :: CWP    !canopy wind extinction parameter
-  REAL                                              :: ZPD    !zero plane displacement (m)
-  REAL                                              :: Z0M    !z0 momentum (m)
-  REAL                                              :: ZPDG   !zero plane displacement (m)
-  REAL                                              :: Z0MG   !z0 momentum, ground (m)
-  REAL                                              :: EMV    !vegetation emissivity
-  REAL                                              :: EMG    !ground emissivity
-  REAL                                              :: FIRE   !emitted IR (w/m2)
+  REAL(DP)                                              :: UR     !wind speed at height ZLVL (m/s)
+  REAL(DP)                                              :: ZLVL   !reference height (m)
+  REAL(DP)                                              :: FSUN   !sunlit fraction of canopy [-]
+  REAL(DP)                                              :: RB     !leaf boundary layer resistance (s/m)
+  REAL(DP)                                              :: RSURF  !ground surface resistance (s/m)
+  REAL(DP)                                              :: L_RSURF!Dry-layer thickness for computing RSURF (Sakaguchi and Zeng, 2009)
+  REAL(DP)                                              :: D_RSURF!Reduced vapor diffusivity in soil for computing RSURF (SZ09)
+  REAL(DP)                                              :: BEVAP  !soil water evaporation factor (0- 1)
+  REAL(DP)                                              :: MOL    !Monin-Obukhov length (m)
+  REAL(DP)                                              :: VAI    !sum of LAI  + stem area index [m2/m2]
+  REAL(DP)                                              :: CWP    !canopy wind extinction parameter
+  REAL(DP)                                              :: ZPD    !zero plane displacement (m)
+  REAL(DP)                                              :: Z0M    !z0 momentum (m)
+  REAL(DP)                                              :: ZPDG   !zero plane displacement (m)
+  REAL(DP)                                              :: Z0MG   !z0 momentum, ground (m)
+  REAL(DP)                                              :: EMV    !vegetation emissivity
+  REAL(DP)                                              :: EMG    !ground emissivity
+  REAL(DP)                                              :: FIRE   !emitted IR (w/m2)
 
-  REAL                                              :: LAISUN !sunlit leaf area index (m2/m2)
-  REAL                                              :: LAISHA !shaded leaf area index (m2/m2)
-  REAL                                              :: PSNSUN !sunlit photosynthesis (umolco2/m2/s)
-  REAL                                              :: PSNSHA !shaded photosynthesis (umolco2/m2/s)
+  REAL(DP)                                              :: LAISUN !sunlit leaf area index (m2/m2)
+  REAL(DP)                                              :: LAISHA !shaded leaf area index (m2/m2)
+  REAL(DP)                                              :: PSNSUN !sunlit photosynthesis (umolco2/m2/s)
+  REAL(DP)                                              :: PSNSHA !shaded photosynthesis (umolco2/m2/s)
 !jref:start - for debug
-!  REAL                                              :: RSSUN  !sunlit stomatal resistance (s/m)
-!  REAL                                              :: RSSHA  !shaded stomatal resistance (s/m)
+!  REAL(DP)                                              :: RSSUN  !sunlit stomatal resistance (s/m)
+!  REAL(DP)                                              :: RSSHA  !shaded stomatal resistance (s/m)
 !jref:end - for debug
-  REAL                                              :: PARSUN !par absorbed per sunlit LAI (w/m2)
-  REAL                                              :: PARSHA !par absorbed per shaded LAI (w/m2)
+  REAL(DP)                                              :: PARSUN !par absorbed per sunlit LAI (w/m2)
+  REAL(DP)                                              :: PARSHA !par absorbed per shaded LAI (w/m2)
 
-  REAL, DIMENSION(-NSNOW+1:NSOIL)                   :: FACT   !temporary used in phase change
-  REAL, DIMENSION(-NSNOW+1:NSOIL)                   :: DF     !thermal conductivity [w/m/k]
-  REAL, DIMENSION(-NSNOW+1:NSOIL)                   :: HCPCT  !heat capacity [j/m3/k]
-  REAL                                              :: BDSNO  !bulk density of snow (kg/m3)
-  REAL                                              :: FMELT  !melting factor for snow cover frac
-  REAL                                              :: GX     !temporary variable
-  REAL, DIMENSION(-NSNOW+1:NSOIL)                   :: PHI    !light through water (w/m2)
-  REAL                                              :: GAMMA  !psychrometric constant (pa/k)
-  REAL                                              :: PSI    !surface layer soil matrix potential (m)
-  REAL                                              :: RHSUR  !raltive humidity in surface soil/snow air space (-)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                   :: FACT   !temporary used in phase change
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                   :: DF     !thermal conductivity [w/m/k]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                   :: HCPCT  !heat capacity [j/m3/k]
+  REAL(DP)                                              :: BDSNO  !bulk density of snow (kg/m3)
+  REAL(DP)                                              :: FMELT  !melting factor for snow cover frac
+  REAL(DP)                                              :: GX     !temporary variable
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                   :: PHI    !light through water (w/m2)
+  REAL(DP)                                              :: GAMMA  !psychrometric constant (pa/k)
+  REAL(DP)                                              :: PSI    !surface layer soil matrix potential (m)
+  REAL(DP)                                              :: RHSUR  !raltive humidity in surface soil/snow air space (-)
 
 ! temperature and fluxes over vegetated fraction
 
-  REAL                                              :: TAUXV  !wind stress: e-w dir [n/m2]
-  REAL                                              :: TAUYV  !wind stress: n-s dir [n/m2]
-  REAL,INTENT(OUT)                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
-  REAL,INTENT(OUT)                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
+  REAL(DP)                                              :: TAUXV  !wind stress: e-w dir [n/m2]
+  REAL(DP)                                              :: TAUYV  !wind stress: n-s dir [n/m2]
+  REAL(DP),INTENT(OUT)                                              :: IRC    !canopy net LW rad. [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: IRG    !ground net LW rad. [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: SHC    !canopy sen. heat [w/m2]   [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: SHG    !ground sen. heat [w/m2]   [+ to atm]
 !jref:start
-  REAL,INTENT(OUT)                                  :: Q2V
-  REAL,INTENT(OUT)                                  :: Q2B
-  REAL,INTENT(OUT)                                  :: Q2E
+  REAL(DP),INTENT(OUT)                                  :: Q2V
+  REAL(DP),INTENT(OUT)                                  :: Q2B
+  REAL(DP),INTENT(OUT)                                  :: Q2E
 !jref:end
-  REAL,INTENT(OUT)                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
-  REAL,INTENT(OUT)                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
-  REAL,INTENT(OUT)                                              :: TR     !transpiration heat [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
-  REAL,INTENT(OUT)                                  :: TGV    !ground surface temp. [k]
-  REAL                                              :: CMV    !momentum drag coefficient
-  REAL,INTENT(OUT)                                  :: CHV    !sensible heat exchange coefficient
+  REAL(DP),INTENT(OUT)                                              :: EVC    !canopy evap. heat [w/m2]  [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: EVG    !ground evap. heat [w/m2]  [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: TR     !transpiration heat [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: GHV    !ground heat flux [w/m2]  [+ to soil]
+  REAL(DP),INTENT(OUT)                                  :: TGV    !ground surface temp. [k]
+  REAL(DP)                                              :: CMV    !momentum drag coefficient
+  REAL(DP),INTENT(OUT)                                  :: CHV    !sensible heat exchange coefficient
 
 ! temperature and fluxes over bare soil fraction
 
-  REAL                                              :: TAUXB  !wind stress: e-w dir [n/m2]
-  REAL                                              :: TAUYB  !wind stress: n-s dir [n/m2]
-  REAL,INTENT(OUT)                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
-  REAL,INTENT(OUT)                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
-  REAL,INTENT(OUT)                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
-  REAL,INTENT(OUT)                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
-  REAL,INTENT(OUT)                                  :: TGB    !ground surface temp. [k]
-  REAL                                              :: CMB    !momentum drag coefficient
-  REAL,INTENT(OUT)                                  :: CHB    !sensible heat exchange coefficient
-  REAL,INTENT(OUT)                                  :: CHLEAF !leaf exchange coefficient
-  REAL,INTENT(OUT)                                  :: CHUC   !under canopy exchange coefficient
+  REAL(DP)                                              :: TAUXB  !wind stress: e-w dir [n/m2]
+  REAL(DP)                                              :: TAUYB  !wind stress: n-s dir [n/m2]
+  REAL(DP),INTENT(OUT)                                              :: IRB    !net longwave rad. [w/m2] [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: SHB    !sensible heat [w/m2]     [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: EVB    !evaporation heat [w/m2]  [+ to atm]
+  REAL(DP),INTENT(OUT)                                              :: GHB    !ground heat flux [w/m2] [+ to soil]
+  REAL(DP),INTENT(OUT)                                  :: TGB    !ground surface temp. [k]
+  REAL(DP)                                              :: CMB    !momentum drag coefficient
+  REAL(DP),INTENT(OUT)                                  :: CHB    !sensible heat exchange coefficient
+  REAL(DP),INTENT(OUT)                                  :: CHLEAF !leaf exchange coefficient
+  REAL(DP),INTENT(OUT)                                  :: CHUC   !under canopy exchange coefficient
 !jref:start
-  REAL,INTENT(OUT)                                  :: CHV2    !sensible heat conductance, canopy air to ZLVL air (m/s)
-  REAL,INTENT(OUT)                                  :: CHB2    !sensible heat conductance, canopy air to ZLVL air (m/s)
-  REAL                                  :: noahmpres
+  REAL(DP),INTENT(OUT)                                  :: CHV2    !sensible heat conductance, canopy air to ZLVL air (m/s)
+  REAL(DP),INTENT(OUT)                                  :: CHB2    !sensible heat conductance, canopy air to ZLVL air (m/s)
+  REAL(DP)                                  :: noahmpres
 
 !jref:end
 
-  REAL, PARAMETER                   :: MPE    = 1.E-6
-  REAL, PARAMETER                   :: PSIWLT = -150.  !metric potential for wilting point (m)
-  REAL, PARAMETER                   :: Z0     = 0.01   ! Bare-soil roughness length (m) (i.e., under the canopy)
+  REAL(DP), PARAMETER                   :: MPE    = 1.E-6
+  REAL(DP), PARAMETER                   :: PSIWLT = -150.  !metric potential for wilting point (m)
+  REAL(DP), PARAMETER                   :: Z0     = 0.01   ! Bare-soil roughness length (m) (i.e., under the canopy)
 
 ! ---------------------------------------------------------------------------------------------------
 ! initialize fluxes from veg. fraction
@@ -1886,37 +1890,37 @@ contains
   INTEGER                        , INTENT(IN)  :: NSNOW   !maximum no. of snow layers
   INTEGER                        , INTENT(IN)  :: ISNOW   !actual no. of snow layers
   INTEGER                        , INTENT(IN)  :: IST     !surface type
-  REAL                           , INTENT(IN)  :: DT      !time step [s]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)  :: SNICE   !snow ice mass (kg/m2)
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)  :: SNLIQ   !snow liq mass (kg/m2)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DZSNSO  !thickness of snow/soil layers [m]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN)  :: SMC     !soil moisture (ice + liq.) [m3/m3]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN)  :: SH2O    !liquid soil moisture [m3/m3]
-  REAL                           , INTENT(IN)  :: SNOWH   !snow height [m]
-  REAL                           , INTENT(IN)  :: CSOIL   !vol. soil heat capacity [j/m3/k]
-  REAL,                            INTENT(IN)  :: TG      !surface temperature (k)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: STC     !snow/soil/lake temp. (k)
-  REAL,                            INTENT(IN)  :: UR      !wind speed at ZLVL (m/s)
-  REAL,                            INTENT(IN)  :: LAT     !latitude (radians)
-  REAL,                            INTENT(IN)  :: Z0M     !roughness length (m)
-  REAL,                            INTENT(IN)  :: ZLVL    !reference height (m)
+  REAL(DP)                           , INTENT(IN)  :: DT      !time step [s]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)  :: SNICE   !snow ice mass (kg/m2)
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)  :: SNLIQ   !snow liq mass (kg/m2)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DZSNSO  !thickness of snow/soil layers [m]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)  :: SMC     !soil moisture (ice + liq.) [m3/m3]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)  :: SH2O    !liquid soil moisture [m3/m3]
+  REAL(DP)                           , INTENT(IN)  :: SNOWH   !snow height [m]
+  REAL(DP)                           , INTENT(IN)  :: CSOIL   !vol. soil heat capacity [j/m3/k]
+  REAL(DP),                            INTENT(IN)  :: TG      !surface temperature (k)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: STC     !snow/soil/lake temp. (k)
+  REAL(DP),                            INTENT(IN)  :: UR      !wind speed at ZLVL (m/s)
+  REAL(DP),                            INTENT(IN)  :: LAT     !latitude (radians)
+  REAL(DP),                            INTENT(IN)  :: Z0M     !roughness length (m)
+  REAL(DP),                            INTENT(IN)  :: ZLVL    !reference height (m)
   INTEGER                        , INTENT(IN)  :: VEGTYP  !vegtyp type
   INTEGER                        , INTENT(IN)  :: ISURBAN !urban type
 
 ! outputs
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: DF      !thermal conductivity [w/m/k]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: HCPCT   !heat capacity [j/m3/k]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNICEV  !partial volume of ice [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNLIQV  !partial volume of liquid water [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: EPORE   !effective porosity [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: FACT    !computing energy for phase change
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: DF      !thermal conductivity [w/m/k]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: HCPCT   !heat capacity [j/m3/k]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNICEV  !partial volume of ice [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNLIQV  !partial volume of liquid water [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: EPORE   !effective porosity [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: FACT    !computing energy for phase change
 ! --------------------------------------------------------------------------------------------------
 ! locals
 
   INTEGER :: IZ
-  REAL, DIMENSION(-NSNOW+1:    0)              :: CVSNO   !volumetric specific heat (j/m3/k)
-  REAL, DIMENSION(-NSNOW+1:    0)              :: TKSNO   !snow thermal conductivity (j/m3/k)
-  REAL, DIMENSION(       1:NSOIL)              :: SICE    !soil ice content
+  REAL(DP), DIMENSION(-NSNOW+1:    0)              :: CVSNO   !volumetric specific heat (j/m3/k)
+  REAL(DP), DIMENSION(-NSNOW+1:    0)              :: TKSNO   !snow thermal conductivity (j/m3/k)
+  REAL(DP), DIMENSION(       1:NSOIL)              :: SICE    !soil ice content
 ! --------------------------------------------------------------------------------------------------
 
 ! compute snow thermal conductivity and heat capacity
@@ -1995,22 +1999,22 @@ contains
   INTEGER,                          INTENT(IN) :: ISNOW  !number of snow layers (-)
   INTEGER                        ,  INTENT(IN) :: NSNOW  !maximum no. of snow layers
   INTEGER                        ,  INTENT(IN) :: NSOIL  !number of soil layers
-  REAL, DIMENSION(-NSNOW+1:    0),  INTENT(IN) :: SNICE  !snow ice mass (kg/m2)
-  REAL, DIMENSION(-NSNOW+1:    0),  INTENT(IN) :: SNLIQ  !snow liq mass (kg/m2)
-  REAL, DIMENSION(-NSNOW+1:NSOIL),  INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP), DIMENSION(-NSNOW+1:    0),  INTENT(IN) :: SNICE  !snow ice mass (kg/m2)
+  REAL(DP), DIMENSION(-NSNOW+1:    0),  INTENT(IN) :: SNLIQ  !snow liq mass (kg/m2)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL),  INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
 
 ! outputs
 
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: CVSNO  !volumetric specific heat (j/m3/k)
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: TKSNO  !thermal conductivity (w/m/k)
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNICEV !partial volume of ice [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNLIQV !partial volume of liquid water [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: EPORE  !effective porosity [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: CVSNO  !volumetric specific heat (j/m3/k)
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: TKSNO  !thermal conductivity (w/m/k)
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNICEV !partial volume of ice [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: SNLIQV !partial volume of liquid water [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(OUT) :: EPORE  !effective porosity [m3/m3]
 
 ! locals
 
   INTEGER :: IZ
-  REAL, DIMENSION(-NSNOW+1:    0) :: BDSNOI  !bulk density of snow(kg/m3)
+  REAL(DP), DIMENSION(-NSNOW+1:    0) :: BDSNOI  !bulk density of snow(kg/m3)
 
 !---------------------------------------------------------------------------------------------------
 ! thermal capacity of snow
@@ -2049,22 +2053,22 @@ contains
 ! June 2001 changes: frozen soil condition.
 ! --------------------------------------------------------------------------------------------------
     IMPLICIT NONE
-    REAL, INTENT(IN)       :: SMC    ! total soil water
-    REAL, INTENT(IN)       :: SH2O   ! liq. soil water
-    REAL, INTENT(OUT)      :: DF     ! thermal diffusivity
+    REAL(DP), INTENT(IN)       :: SMC    ! total soil water
+    REAL(DP), INTENT(IN)       :: SH2O   ! liq. soil water
+    REAL(DP), INTENT(OUT)      :: DF     ! thermal diffusivity
 
 ! local variables
-    REAL  :: AKE
-    REAL  :: GAMMD
-    REAL  :: THKDRY
-    REAL  :: THKO     ! thermal conductivity for other soil components
-    REAL  :: THKQTZ   ! thermal conductivity for quartz
-    REAL  :: THKSAT   !
-    REAL  :: THKS     ! thermal conductivity for the solids
-    REAL  :: THKW     ! water thermal conductivity
-    REAL  :: SATRATIO
-    REAL  :: XU
-    REAL  :: XUNFROZ
+    REAL(DP)  :: AKE
+    REAL(DP)  :: GAMMD
+    REAL(DP)  :: THKDRY
+    REAL(DP)  :: THKO     ! thermal conductivity for other soil components
+    REAL(DP)  :: THKQTZ   ! thermal conductivity for quartz
+    REAL(DP)  :: THKSAT   !
+    REAL(DP)  :: THKS     ! thermal conductivity for the solids
+    REAL(DP)  :: THKW     ! water thermal conductivity
+    REAL(DP)  :: SATRATIO
+    REAL(DP)  :: XU
+    REAL(DP)  :: XUNFROZ
 ! --------------------------------------------------------------------------------------------------
 ! We now get quartz as an input argument (set in routine redprm):
 !      DATA QUARTZ /0.82, 0.10, 0.25, 0.60, 0.52,
@@ -2167,67 +2171,67 @@ contains
   INTEGER, INTENT(IN)                  :: ICE    !ice (ice = 1)
   INTEGER, INTENT(IN)                  :: NSOIL  !number of soil layers
 
-  REAL, INTENT(IN)                     :: DT     !time step [s]
-  REAL, INTENT(IN)                     :: QSNOW  !snowfall (mm/s)
-  REAL, INTENT(IN)                     :: SNEQVO !snow mass at last time step(mm)
-  REAL, INTENT(IN)                     :: SNEQV  !snow mass (mm)
-  REAL, INTENT(IN)                     :: SNOWH  !snow height (mm)
-  REAL, INTENT(IN)                     :: COSZ   !cosine solar zenith angle (0-1)
-  REAL, INTENT(IN)                     :: TG     !ground temperature (k)
-  REAL, INTENT(IN)                     :: TV     !vegetation temperature (k)
-  REAL, INTENT(IN)                     :: ELAI   !LAI, one-sided, adjusted for burying by snow
-  REAL, INTENT(IN)                     :: ESAI   !SAI, one-sided, adjusted for burying by snow
-  REAL, INTENT(IN)                     :: FWET   !fraction of canopy that is wet
-  REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SMC    !volumetric soil water [m3/m3]
-  REAL, DIMENSION(1:2)    , INTENT(IN) :: SOLAD  !incoming direct solar radiation (w/m2)
-  REAL, DIMENSION(1:2)    , INTENT(IN) :: SOLAI  !incoming diffuse solar radiation (w/m2)
-  REAL, INTENT(IN)                     :: FSNO   !snow cover fraction (-)
-  REAL, INTENT(IN)                     :: FVEG   !green vegetation fraction [0.0-1.0]
+  REAL(DP), INTENT(IN)                     :: DT     !time step [s]
+  REAL(DP), INTENT(IN)                     :: QSNOW  !snowfall (mm/s)
+  REAL(DP), INTENT(IN)                     :: SNEQVO !snow mass at last time step(mm)
+  REAL(DP), INTENT(IN)                     :: SNEQV  !snow mass (mm)
+  REAL(DP), INTENT(IN)                     :: SNOWH  !snow height (mm)
+  REAL(DP), INTENT(IN)                     :: COSZ   !cosine solar zenith angle (0-1)
+  REAL(DP), INTENT(IN)                     :: TG     !ground temperature (k)
+  REAL(DP), INTENT(IN)                     :: TV     !vegetation temperature (k)
+  REAL(DP), INTENT(IN)                     :: ELAI   !LAI, one-sided, adjusted for burying by snow
+  REAL(DP), INTENT(IN)                     :: ESAI   !SAI, one-sided, adjusted for burying by snow
+  REAL(DP), INTENT(IN)                     :: FWET   !fraction of canopy that is wet
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN) :: SMC    !volumetric soil water [m3/m3]
+  REAL(DP), DIMENSION(1:2)    , INTENT(IN) :: SOLAD  !incoming direct solar radiation (w/m2)
+  REAL(DP), DIMENSION(1:2)    , INTENT(IN) :: SOLAI  !incoming diffuse solar radiation (w/m2)
+  REAL(DP), INTENT(IN)                     :: FSNO   !snow cover fraction (-)
+  REAL(DP), INTENT(IN)                     :: FVEG   !green vegetation fraction [0.0-1.0]
 
 ! inout
-  REAL,                  INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
-  REAL,                  INTENT(INOUT) :: TAUSS  !non-dimensional snow age.
+  REAL(DP),                  INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL(DP),                  INTENT(INOUT) :: TAUSS  !non-dimensional snow age.
 
 ! output
-  REAL, INTENT(OUT)                    :: FSUN   !sunlit fraction of canopy (-)
-  REAL, INTENT(OUT)                    :: LAISUN !sunlit leaf area (-)
-  REAL, INTENT(OUT)                    :: LAISHA !shaded leaf area (-)
-  REAL, INTENT(OUT)                    :: PARSUN !average absorbed par for sunlit leaves (w/m2)
-  REAL, INTENT(OUT)                    :: PARSHA !average absorbed par for shaded leaves (w/m2)
-  REAL, INTENT(OUT)                    :: SAV    !solar radiation absorbed by vegetation (w/m2)
-  REAL, INTENT(OUT)                    :: SAG    !solar radiation absorbed by ground (w/m2)
-  REAL, INTENT(OUT)                    :: FSA    !total absorbed solar radiation (w/m2)
-  REAL, INTENT(OUT)                    :: FSR    !total reflected solar radiation (w/m2)
+  REAL(DP), INTENT(OUT)                    :: FSUN   !sunlit fraction of canopy (-)
+  REAL(DP), INTENT(OUT)                    :: LAISUN !sunlit leaf area (-)
+  REAL(DP), INTENT(OUT)                    :: LAISHA !shaded leaf area (-)
+  REAL(DP), INTENT(OUT)                    :: PARSUN !average absorbed par for sunlit leaves (w/m2)
+  REAL(DP), INTENT(OUT)                    :: PARSHA !average absorbed par for shaded leaves (w/m2)
+  REAL(DP), INTENT(OUT)                    :: SAV    !solar radiation absorbed by vegetation (w/m2)
+  REAL(DP), INTENT(OUT)                    :: SAG    !solar radiation absorbed by ground (w/m2)
+  REAL(DP), INTENT(OUT)                    :: FSA    !total absorbed solar radiation (w/m2)
+  REAL(DP), INTENT(OUT)                    :: FSR    !total reflected solar radiation (w/m2)
 
 !jref:start
-  REAL, INTENT(OUT)                    :: FSRV    !veg. reflected solar radiation (w/m2)
-  REAL, INTENT(OUT)                    :: FSRG    !ground reflected solar radiation (w/m2)
-  REAL, INTENT(OUT)                    :: BGAP
-  REAL, INTENT(OUT)                    :: WGAP
+  REAL(DP), INTENT(OUT)                    :: FSRV    !veg. reflected solar radiation (w/m2)
+  REAL(DP), INTENT(OUT)                    :: FSRG    !ground reflected solar radiation (w/m2)
+  REAL(DP), INTENT(OUT)                    :: BGAP
+  REAL(DP), INTENT(OUT)                    :: WGAP
 !jref:end
 
 ! local
-  REAL                                 :: FAGE   !snow age function (0 - new snow)
-  REAL, DIMENSION(1:2)                 :: ALBGRD !ground albedo (direct)
-  REAL, DIMENSION(1:2)                 :: ALBGRI !ground albedo (diffuse)
-  REAL, DIMENSION(1:2)                 :: ALBD   !surface albedo (direct)
-  REAL, DIMENSION(1:2)                 :: ALBI   !surface albedo (diffuse)
-  REAL, DIMENSION(1:2)                 :: FABD   !flux abs by veg (per unit direct flux)
-  REAL, DIMENSION(1:2)                 :: FABI   !flux abs by veg (per unit diffuse flux)
-  REAL, DIMENSION(1:2)                 :: FTDD   !down direct flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:2)                 :: FTID   !down diffuse flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:2)                 :: FTII   !down diffuse flux below veg (per unit dif flux)
+  REAL(DP)                                 :: FAGE   !snow age function (0 - new snow)
+  REAL(DP), DIMENSION(1:2)                 :: ALBGRD !ground albedo (direct)
+  REAL(DP), DIMENSION(1:2)                 :: ALBGRI !ground albedo (diffuse)
+  REAL(DP), DIMENSION(1:2)                 :: ALBD   !surface albedo (direct)
+  REAL(DP), DIMENSION(1:2)                 :: ALBI   !surface albedo (diffuse)
+  REAL(DP), DIMENSION(1:2)                 :: FABD   !flux abs by veg (per unit direct flux)
+  REAL(DP), DIMENSION(1:2)                 :: FABI   !flux abs by veg (per unit diffuse flux)
+  REAL(DP), DIMENSION(1:2)                 :: FTDD   !down direct flux below veg (per unit dir flux)
+  REAL(DP), DIMENSION(1:2)                 :: FTID   !down diffuse flux below veg (per unit dir flux)
+  REAL(DP), DIMENSION(1:2)                 :: FTII   !down diffuse flux below veg (per unit dif flux)
 !jref:start
-  REAL, DIMENSION(1:2)                 :: FREVI
-  REAL, DIMENSION(1:2)                 :: FREVD
-  REAL, DIMENSION(1:2)                 :: FREGI
-  REAL, DIMENSION(1:2)                 :: FREGD
+  REAL(DP), DIMENSION(1:2)                 :: FREVI
+  REAL(DP), DIMENSION(1:2)                 :: FREVD
+  REAL(DP), DIMENSION(1:2)                 :: FREGI
+  REAL(DP), DIMENSION(1:2)                 :: FREGD
 !jref:end
 
-  REAL                                 :: FSHA   !shaded fraction of canopy
-  REAL                                 :: VAI    !total LAI + stem area index, one sided
+  REAL(DP)                                 :: FSHA   !shaded fraction of canopy
+  REAL(DP)                                 :: VAI    !total LAI + stem area index, one sided
 
-  REAL,PARAMETER :: MPE = 1.E-6
+  REAL(DP),PARAMETER :: MPE = 1.E-6
   LOGICAL VEG  !true: vegetated for surface temperature calculation
 
 ! --------------------------------------------------------------------------------------------------
@@ -2298,67 +2302,67 @@ contains
   INTEGER,                  INTENT(IN)  :: ISC    !soil color type (1-lighest; 8-darkest)
   INTEGER,                  INTENT(IN)  :: ICE    !ice (ice = 1)
 
-  REAL,                     INTENT(IN)  :: DT     !time step [sec]
-  REAL,                     INTENT(IN)  :: QSNOW  !snowfall
-  REAL,                     INTENT(IN)  :: COSZ   !cosine solar zenith angle for next time step
-  REAL,                     INTENT(IN)  :: SNOWH  !snow height (mm)
-  REAL,                     INTENT(IN)  :: TG     !ground temperature (k)
-  REAL,                     INTENT(IN)  :: TV     !vegetation temperature (k)
-  REAL,                     INTENT(IN)  :: ELAI   !LAI, one-sided, adjusted for burying by snow
-  REAL,                     INTENT(IN)  :: ESAI   !SAI, one-sided, adjusted for burying by snow
-  REAL,                     INTENT(IN)  :: FSNO   !fraction of grid covered by snow
-  REAL,                     INTENT(IN)  :: FWET   !fraction of canopy that is wet
-  REAL,                     INTENT(IN)  :: SNEQVO !snow mass at last time step(mm)
-  REAL,                     INTENT(IN)  :: SNEQV  !snow mass (mm)
-  REAL,                     INTENT(IN)  :: FVEG   !green vegetation fraction [0.0-1.0]
-  REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water (m3/m3)
+  REAL(DP),                     INTENT(IN)  :: DT     !time step [sec]
+  REAL(DP),                     INTENT(IN)  :: QSNOW  !snowfall
+  REAL(DP),                     INTENT(IN)  :: COSZ   !cosine solar zenith angle for next time step
+  REAL(DP),                     INTENT(IN)  :: SNOWH  !snow height (mm)
+  REAL(DP),                     INTENT(IN)  :: TG     !ground temperature (k)
+  REAL(DP),                     INTENT(IN)  :: TV     !vegetation temperature (k)
+  REAL(DP),                     INTENT(IN)  :: ELAI   !LAI, one-sided, adjusted for burying by snow
+  REAL(DP),                     INTENT(IN)  :: ESAI   !SAI, one-sided, adjusted for burying by snow
+  REAL(DP),                     INTENT(IN)  :: FSNO   !fraction of grid covered by snow
+  REAL(DP),                     INTENT(IN)  :: FWET   !fraction of canopy that is wet
+  REAL(DP),                     INTENT(IN)  :: SNEQVO !snow mass at last time step(mm)
+  REAL(DP),                     INTENT(IN)  :: SNEQV  !snow mass (mm)
+  REAL(DP),                     INTENT(IN)  :: FVEG   !green vegetation fraction [0.0-1.0]
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water (m3/m3)
 
 ! inout
-  REAL,                  INTENT(INOUT)  :: ALBOLD !snow albedo at last time step (CLASS type)
-  REAL,                  INTENT(INOUT)  :: TAUSS  !non-dimensional snow age
+  REAL(DP),                  INTENT(INOUT)  :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL(DP),                  INTENT(INOUT)  :: TAUSS  !non-dimensional snow age
 
 ! output
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBD   !surface albedo (direct)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBI   !surface albedo (diffuse)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FABD   !flux abs by veg (per unit direct flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FABI   !flux abs by veg (per unit diffuse flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FTDD   !down direct flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FTID   !down diffuse flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FTII   !down diffuse flux below veg (per unit dif flux)
-  REAL,                     INTENT(OUT) :: FSUN   !sunlit fraction of canopy (-)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: ALBD   !surface albedo (direct)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: ALBI   !surface albedo (diffuse)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FABD   !flux abs by veg (per unit direct flux)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FABI   !flux abs by veg (per unit diffuse flux)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FTDD   !down direct flux below veg (per unit dir flux)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FTID   !down diffuse flux below veg (per unit dir flux)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FTII   !down diffuse flux below veg (per unit dif flux)
+  REAL(DP),                     INTENT(OUT) :: FSUN   !sunlit fraction of canopy (-)
 !jref:start
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREVD
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREVI
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREGD
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREGI
-  REAL, INTENT(OUT) :: BGAP
-  REAL, INTENT(OUT) :: WGAP
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FREVD
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FREVI
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FREGD
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: FREGI
+  REAL(DP), INTENT(OUT) :: BGAP
+  REAL(DP), INTENT(OUT) :: WGAP
 !jref:end
 
 ! ------------------------------------------------------------------------
 ! ------------------------ local variables -------------------------------
 ! local
-  REAL                 :: FAGE     !snow age function
-  REAL                 :: ALB
+  REAL(DP)                 :: FAGE     !snow age function
+  REAL(DP)                 :: ALB
   INTEGER              :: IB       !indices
   INTEGER              :: NBAND    !number of solar radiation wave bands
   INTEGER              :: IC       !direct beam: ic=0; diffuse: ic=1
 
-  REAL                 :: WL       !fraction of LAI+SAI that is LAI
-  REAL                 :: WS       !fraction of LAI+SAI that is SAI
-  REAL                 :: MPE      !prevents overflow for division by zero
+  REAL(DP)                 :: WL       !fraction of LAI+SAI that is LAI
+  REAL(DP)                 :: WS       !fraction of LAI+SAI that is SAI
+  REAL(DP)                 :: MPE      !prevents overflow for division by zero
 
-  REAL, DIMENSION(1:2) :: RHO      !leaf/stem reflectance weighted by fraction LAI and SAI
-  REAL, DIMENSION(1:2) :: TAU      !leaf/stem transmittance weighted by fraction LAI and SAI
-  REAL, DIMENSION(1:2) :: FTDI     !down direct flux below veg per unit dif flux = 0
-  REAL, DIMENSION(1:2) :: ALBSND   !snow albedo (direct)
-  REAL, DIMENSION(1:2) :: ALBSNI   !snow albedo (diffuse)
+  REAL(DP), DIMENSION(1:2) :: RHO      !leaf/stem reflectance weighted by fraction LAI and SAI
+  REAL(DP), DIMENSION(1:2) :: TAU      !leaf/stem transmittance weighted by fraction LAI and SAI
+  REAL(DP), DIMENSION(1:2) :: FTDI     !down direct flux below veg per unit dif flux = 0
+  REAL(DP), DIMENSION(1:2) :: ALBSND   !snow albedo (direct)
+  REAL(DP), DIMENSION(1:2) :: ALBSNI   !snow albedo (diffuse)
 
-  REAL                 :: VAI      !ELAI+ESAI
-  REAL                 :: GDIR     !average projected leaf/stem area in solar direction
-  REAL                 :: EXT      !optical depth direct beam per unit leaf + stem area
+  REAL(DP)                 :: VAI      !ELAI+ESAI
+  REAL(DP)                 :: GDIR     !average projected leaf/stem area in solar direction
+  REAL(DP)                 :: EXT      !optical depth direct beam per unit leaf + stem area
 
 ! --------------------------------------------------------------------------------------------------
 
@@ -2469,55 +2473,55 @@ contains
 
   INTEGER, INTENT(IN)              :: ILOC
   INTEGER, INTENT(IN)              :: JLOC
-  REAL, INTENT(IN)                 :: MPE     !prevents underflow errors if division by zero
+  REAL(DP), INTENT(IN)                 :: MPE     !prevents underflow errors if division by zero
 
-  REAL, INTENT(IN)                 :: FSUN    !sunlit fraction of canopy
-  REAL, INTENT(IN)                 :: FSHA    !shaded fraction of canopy
-  REAL, INTENT(IN)                 :: ELAI    !leaf area, one-sided
-  REAL, INTENT(IN)                 :: VAI     !leaf + stem area, one-sided
-  REAL, INTENT(IN)                 :: LAISUN  !sunlit leaf area index, one-sided
-  REAL, INTENT(IN)                 :: LAISHA  !shaded leaf area index, one-sided
+  REAL(DP), INTENT(IN)                 :: FSUN    !sunlit fraction of canopy
+  REAL(DP), INTENT(IN)                 :: FSHA    !shaded fraction of canopy
+  REAL(DP), INTENT(IN)                 :: ELAI    !leaf area, one-sided
+  REAL(DP), INTENT(IN)                 :: VAI     !leaf + stem area, one-sided
+  REAL(DP), INTENT(IN)                 :: LAISUN  !sunlit leaf area index, one-sided
+  REAL(DP), INTENT(IN)                 :: LAISHA  !shaded leaf area index, one-sided
 
-  REAL, DIMENSION(1:2), INTENT(IN) :: SOLAD   !incoming direct solar radiation (w/m2)
-  REAL, DIMENSION(1:2), INTENT(IN) :: SOLAI   !incoming diffuse solar radiation (w/m2)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FABD    !flux abs by veg (per unit incoming direct flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FABI    !flux abs by veg (per unit incoming diffuse flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FTDD    !down dir flux below veg (per incoming dir flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FTID    !down dif flux below veg (per incoming dir flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FTII    !down dif flux below veg (per incoming dif flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBGRD  !ground albedo (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBGRI  !ground albedo (diffuse)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBD    !overall surface albedo (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBI    !overall surface albedo (diffuse)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: SOLAD   !incoming direct solar radiation (w/m2)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: SOLAI   !incoming diffuse solar radiation (w/m2)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FABD    !flux abs by veg (per unit incoming direct flux)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FABI    !flux abs by veg (per unit incoming diffuse flux)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FTDD    !down dir flux below veg (per incoming dir flux)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FTID    !down dif flux below veg (per incoming dir flux)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FTII    !down dif flux below veg (per incoming dif flux)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: ALBGRD  !ground albedo (direct)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: ALBGRI  !ground albedo (diffuse)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: ALBD    !overall surface albedo (direct)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: ALBI    !overall surface albedo (diffuse)
 
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREVD    !overall surface albedo veg (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREVI    !overall surface albedo veg (diffuse)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREGD    !overall surface albedo grd (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREGI    !overall surface albedo grd (diffuse)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FREVD    !overall surface albedo veg (direct)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FREVI    !overall surface albedo veg (diffuse)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FREGD    !overall surface albedo grd (direct)
+  REAL(DP), DIMENSION(1:2), INTENT(IN) :: FREGI    !overall surface albedo grd (diffuse)
 
 ! output
 
-  REAL, INTENT(OUT)                :: PARSUN  !average absorbed par for sunlit leaves (w/m2)
-  REAL, INTENT(OUT)                :: PARSHA  !average absorbed par for shaded leaves (w/m2)
-  REAL, INTENT(OUT)                :: SAV     !solar radiation absorbed by vegetation (w/m2)
-  REAL, INTENT(OUT)                :: SAG     !solar radiation absorbed by ground (w/m2)
-  REAL, INTENT(OUT)                :: FSA     !total absorbed solar radiation (w/m2)
-  REAL, INTENT(OUT)                :: FSR     !total reflected solar radiation (w/m2)
-  REAL, INTENT(OUT)                :: FSRV    !reflected solar radiation by vegetation
-  REAL, INTENT(OUT)                :: FSRG    !reflected solar radiation by ground
+  REAL(DP), INTENT(OUT)                :: PARSUN  !average absorbed par for sunlit leaves (w/m2)
+  REAL(DP), INTENT(OUT)                :: PARSHA  !average absorbed par for shaded leaves (w/m2)
+  REAL(DP), INTENT(OUT)                :: SAV     !solar radiation absorbed by vegetation (w/m2)
+  REAL(DP), INTENT(OUT)                :: SAG     !solar radiation absorbed by ground (w/m2)
+  REAL(DP), INTENT(OUT)                :: FSA     !total absorbed solar radiation (w/m2)
+  REAL(DP), INTENT(OUT)                :: FSR     !total reflected solar radiation (w/m2)
+  REAL(DP), INTENT(OUT)                :: FSRV    !reflected solar radiation by vegetation
+  REAL(DP), INTENT(OUT)                :: FSRG    !reflected solar radiation by ground
 
 ! ------------------------ local variables ----------------------------------------------------
   INTEGER                          :: IB      !waveband number (1=vis, 2=nir)
   INTEGER                          :: NBAND   !number of solar radiation waveband classes
 
-  REAL                             :: ABS     !absorbed solar radiation (w/m2)
-  REAL                             :: RNIR    !reflected solar radiation [nir] (w/m2)
-  REAL                             :: RVIS    !reflected solar radiation [vis] (w/m2)
-  REAL                             :: LAIFRA  !leaf area fraction of canopy
-  REAL                             :: TRD     !transmitted solar radiation: direct (w/m2)
-  REAL                             :: TRI     !transmitted solar radiation: diffuse (w/m2)
-  REAL, DIMENSION(1:2)             :: CAD     !direct beam absorbed by canopy (w/m2)
-  REAL, DIMENSION(1:2)             :: CAI     !diffuse radiation absorbed by canopy (w/m2)
+  REAL(DP)                             :: ABS     !absorbed solar radiation (w/m2)
+  REAL(DP)                             :: RNIR    !reflected solar radiation [nir] (w/m2)
+  REAL(DP)                             :: RVIS    !reflected solar radiation [vis] (w/m2)
+  REAL(DP)                             :: LAIFRA  !leaf area fraction of canopy
+  REAL(DP)                             :: TRD     !transmitted solar radiation: direct (w/m2)
+  REAL(DP)                             :: TRI     !transmitted solar radiation: diffuse (w/m2)
+  REAL(DP), DIMENSION(1:2)             :: CAD     !direct beam absorbed by canopy (w/m2)
+  REAL(DP), DIMENSION(1:2)             :: CAI     !diffuse radiation absorbed by canopy (w/m2)
 ! ---------------------------------------------------------------------------------------------
    NBAND = 2
 
@@ -2582,26 +2586,26 @@ contains
 ! from BATS
 ! ------------------------ input/output variables --------------------------------------------------
 !input
-   REAL, INTENT(IN) :: DT        !main time step (s)
-   REAL, INTENT(IN) :: TG        !ground temperature (k)
-   REAL, INTENT(IN) :: SNEQVO    !snow mass at last time step(mm)
-   REAL, INTENT(IN) :: SNEQV     !snow water per unit ground area (mm)
+   REAL(DP), INTENT(IN) :: DT        !main time step (s)
+   REAL(DP), INTENT(IN) :: TG        !ground temperature (k)
+   REAL(DP), INTENT(IN) :: SNEQVO    !snow mass at last time step(mm)
+   REAL(DP), INTENT(IN) :: SNEQV     !snow water per unit ground area (mm)
 
 !output
-   REAL, INTENT(OUT) :: FAGE     !snow age
+   REAL(DP), INTENT(OUT) :: FAGE     !snow age
 
 !input/output
-   REAL, INTENT(INOUT) :: TAUSS      !non-dimensional snow age
+   REAL(DP), INTENT(INOUT) :: TAUSS      !non-dimensional snow age
 !local
-   REAL            :: TAGE       !total aging effects
-   REAL            :: AGE1       !effects of grain growth due to vapor diffusion
-   REAL            :: AGE2       !effects of grain growth at freezing of melt water
-   REAL            :: AGE3       !effects of soot
-   REAL            :: DELA       !temporary variable
-   REAL            :: SGE        !temporary variable
-   REAL            :: DELS       !temporary variable
-   REAL            :: DELA0      !temporary variable
-   REAL            :: ARG        !temporary variable
+   REAL(DP)            :: TAGE       !total aging effects
+   REAL(DP)            :: AGE1       !effects of grain growth due to vapor diffusion
+   REAL(DP)            :: AGE2       !effects of grain growth at freezing of melt water
+   REAL(DP)            :: AGE3       !effects of soot
+   REAL(DP)            :: DELA       !temporary variable
+   REAL(DP)            :: SGE        !temporary variable
+   REAL(DP)            :: DELS       !temporary variable
+   REAL(DP)            :: DELA0      !temporary variable
+   REAL(DP)            :: ARG        !temporary variable
 ! See Yang et al. (1997) J.of Climate for detail.
 !---------------------------------------------------------------------------------------------------
 
@@ -2636,28 +2640,28 @@ contains
 
   INTEGER,INTENT(IN) :: NBAND  !number of waveband classes
 
-  REAL,INTENT(IN) :: COSZ    !cosine solar zenith angle
-  REAL,INTENT(IN) :: FSNO    !snow cover fraction (-)
-  REAL,INTENT(IN) :: FAGE    !snow age correction
+  REAL(DP),INTENT(IN) :: COSZ    !cosine solar zenith angle
+  REAL(DP),INTENT(IN) :: FSNO    !snow cover fraction (-)
+  REAL(DP),INTENT(IN) :: FAGE    !snow age correction
 
 ! output
 
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
+  REAL(DP), DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
+  REAL(DP), DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
   INTEGER :: IB          !waveband class
 
-  REAL :: FZEN                 !zenith angle correction
-  REAL :: CF1                  !temperary variable
-  REAL :: SL2                  !2.*SL
-  REAL :: SL1                  !1/SL
-  REAL :: SL                   !adjustable parameter
-  REAL, PARAMETER :: C1 = 0.2  !default in BATS
-  REAL, PARAMETER :: C2 = 0.5  !default in BATS
-!  REAL, PARAMETER :: C1 = 0.2 * 2. ! double the default to match Sleepers River's
-!  REAL, PARAMETER :: C2 = 0.5 * 2. ! snow surface albedo (double aging effects)
+  REAL(DP) :: FZEN                 !zenith angle correction
+  REAL(DP) :: CF1                  !temperary variable
+  REAL(DP) :: SL2                  !2.*SL
+  REAL(DP) :: SL1                  !1/SL
+  REAL(DP) :: SL                   !adjustable parameter
+  REAL(DP), PARAMETER :: C1 = 0.2  !default in BATS
+  REAL(DP), PARAMETER :: C2 = 0.5  !default in BATS
+!  REAL(DP), PARAMETER :: C1 = 0.2 * 2. ! double the default to match Sleepers River's
+!  REAL(DP), PARAMETER :: C2 = 0.5 * 2. ! snow surface albedo (double aging effects)
 ! ---------------------------------------------------------------------------------------------
 ! zero albedos for all points
 
@@ -2691,17 +2695,17 @@ contains
   INTEGER,INTENT(IN) :: JLOC !grid index
   INTEGER,INTENT(IN) :: NBAND  !number of waveband classes
 
-  REAL,INTENT(IN) :: QSNOW     !snowfall (mm/s)
-  REAL,INTENT(IN) :: DT        !time step (sec)
-  REAL,INTENT(IN) :: ALBOLD    !snow albedo at last time step
+  REAL(DP),INTENT(IN) :: QSNOW     !snowfall (mm/s)
+  REAL(DP),INTENT(IN) :: DT        !time step (sec)
+  REAL(DP),INTENT(IN) :: ALBOLD    !snow albedo at last time step
 
 ! in & out
 
-  REAL,                INTENT(INOUT) :: ALB        !
+  REAL(DP),                INTENT(INOUT) :: ALB        !
 ! output
 
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
+  REAL(DP), DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
+  REAL(DP), DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
@@ -2751,24 +2755,24 @@ contains
   INTEGER,                  INTENT(IN)  :: ICE    !value of ist for land ice
   INTEGER,                  INTENT(IN)  :: IST    !surface type
   INTEGER,                  INTENT(IN)  :: ISC    !soil color class (1-lighest; 8-darkest)
-  REAL,                     INTENT(IN)  :: FSNO   !fraction of surface covered with snow (-)
-  REAL,                     INTENT(IN)  :: TG     !ground temperature (k)
-  REAL,                     INTENT(IN)  :: COSZ   !cosine solar zenith angle (0-1)
-  REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water content (m3/m3)
-  REAL, DIMENSION(1:    2), INTENT(IN)  :: ALBSND !direct beam snow albedo (vis, nir)
-  REAL, DIMENSION(1:    2), INTENT(IN)  :: ALBSNI !diffuse snow albedo (vis, nir)
+  REAL(DP),                     INTENT(IN)  :: FSNO   !fraction of surface covered with snow (-)
+  REAL(DP),                     INTENT(IN)  :: TG     !ground temperature (k)
+  REAL(DP),                     INTENT(IN)  :: COSZ   !cosine solar zenith angle (0-1)
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water content (m3/m3)
+  REAL(DP), DIMENSION(1:    2), INTENT(IN)  :: ALBSND !direct beam snow albedo (vis, nir)
+  REAL(DP), DIMENSION(1:    2), INTENT(IN)  :: ALBSNI !diffuse snow albedo (vis, nir)
 
 !output
 
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct beam: vis, nir)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse: vis, nir)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct beam: vis, nir)
+  REAL(DP), DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse: vis, nir)
 
 !local
 
   INTEGER                               :: IB     !waveband number (1=vis, 2=nir)
-  REAL                                  :: INC    !soil water correction factor for soil albedo
-  REAL                                  :: ALBSOD !soil albedo (direct)
-  REAL                                  :: ALBSOI !soil albedo (diffuse)
+  REAL(DP)                                  :: INC    !soil water correction factor for soil albedo
+  REAL(DP)                                  :: ALBSOD !soil albedo (direct)
+  REAL(DP)                                  :: ALBSOI !soil albedo (diffuse)
 ! --------------------------------------------------------------------------------------------------
 
   DO IB = 1, NBAND
@@ -2825,68 +2829,68 @@ contains
    INTEGER,              INTENT(IN)  :: IC      !0=unit incoming direct; 1=unit incoming diffuse
    INTEGER,              INTENT(IN)  :: VEGTYP  !vegetation type
 
-   REAL,                 INTENT(IN)  :: COSZ    !cosine of direct zenith angle (0-1)
-   REAL,                 INTENT(IN)  :: VAI     !one-sided leaf+stem area index (m2/m2)
-   REAL,                 INTENT(IN)  :: FWET    !fraction of lai, sai that is wetted (-)
-   REAL,                 INTENT(IN)  :: T       !surface temperature (k)
+   REAL(DP),                 INTENT(IN)  :: COSZ    !cosine of direct zenith angle (0-1)
+   REAL(DP),                 INTENT(IN)  :: VAI     !one-sided leaf+stem area index (m2/m2)
+   REAL(DP),                 INTENT(IN)  :: FWET    !fraction of lai, sai that is wetted (-)
+   REAL(DP),                 INTENT(IN)  :: T       !surface temperature (k)
 
-   REAL, DIMENSION(1:2), INTENT(IN)  :: ALBGRD  !direct  albedo of underlying surface (-)
-   REAL, DIMENSION(1:2), INTENT(IN)  :: ALBGRI  !diffuse albedo of underlying surface (-)
-   REAL, DIMENSION(1:2), INTENT(IN)  :: RHO     !leaf+stem reflectance
-   REAL, DIMENSION(1:2), INTENT(IN)  :: TAU     !leaf+stem transmittance
-   REAL,                 INTENT(IN)  :: FVEG    !green vegetation fraction [0.0-1.0]
+   REAL(DP), DIMENSION(1:2), INTENT(IN)  :: ALBGRD  !direct  albedo of underlying surface (-)
+   REAL(DP), DIMENSION(1:2), INTENT(IN)  :: ALBGRI  !diffuse albedo of underlying surface (-)
+   REAL(DP), DIMENSION(1:2), INTENT(IN)  :: RHO     !leaf+stem reflectance
+   REAL(DP), DIMENSION(1:2), INTENT(IN)  :: TAU     !leaf+stem transmittance
+   REAL(DP),                 INTENT(IN)  :: FVEG    !green vegetation fraction [0.0-1.0]
 
 ! output
 
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FAB     !flux abs by veg layer (per unit incoming flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FRE     !flux refl above veg layer (per unit incoming flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FTD     !down dir flux below veg layer (per unit in flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FTI     !down dif flux below veg layer (per unit in flux)
-   REAL,                 INTENT(OUT) :: GDIR    !projected leaf+stem area in solar direction
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FREV    !flux reflected by veg layer   (per unit incoming flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FREG    !flux reflected by ground (per unit incoming flux)
+   REAL(DP), DIMENSION(1:2), INTENT(OUT) :: FAB     !flux abs by veg layer (per unit incoming flux)
+   REAL(DP), DIMENSION(1:2), INTENT(OUT) :: FRE     !flux refl above veg layer (per unit incoming flux)
+   REAL(DP), DIMENSION(1:2), INTENT(OUT) :: FTD     !down dir flux below veg layer (per unit in flux)
+   REAL(DP), DIMENSION(1:2), INTENT(OUT) :: FTI     !down dif flux below veg layer (per unit in flux)
+   REAL(DP),                 INTENT(OUT) :: GDIR    !projected leaf+stem area in solar direction
+   REAL(DP), DIMENSION(1:2), INTENT(OUT) :: FREV    !flux reflected by veg layer   (per unit incoming flux)
+   REAL(DP), DIMENSION(1:2), INTENT(OUT) :: FREG    !flux reflected by ground (per unit incoming flux)
 
 ! local
-   REAL                              :: OMEGA   !fraction of intercepted radiation that is scattered
-   REAL                              :: OMEGAL  !omega for leaves
-   REAL                              :: BETAI   !upscatter parameter for diffuse radiation
-   REAL                              :: BETAIL  !betai for leaves
-   REAL                              :: BETAD   !upscatter parameter for direct beam radiation
-   REAL                              :: BETADL  !betad for leaves
-   REAL                              :: EXT     !optical depth of direct beam per unit leaf area
-   REAL                              :: AVMU    !average diffuse optical depth
+   REAL(DP)                              :: OMEGA   !fraction of intercepted radiation that is scattered
+   REAL(DP)                              :: OMEGAL  !omega for leaves
+   REAL(DP)                              :: BETAI   !upscatter parameter for diffuse radiation
+   REAL(DP)                              :: BETAIL  !betai for leaves
+   REAL(DP)                              :: BETAD   !upscatter parameter for direct beam radiation
+   REAL(DP)                              :: BETADL  !betad for leaves
+   REAL(DP)                              :: EXT     !optical depth of direct beam per unit leaf area
+   REAL(DP)                              :: AVMU    !average diffuse optical depth
 
-   REAL                              :: COSZI   !0.001 <= cosz <= 1.000
-   REAL                              :: ASU     !single scattering albedo
-   REAL                              :: CHIL    ! -0.4 <= xl <= 0.6
+   REAL(DP)                              :: COSZI   !0.001 <= cosz <= 1.000
+   REAL(DP)                              :: ASU     !single scattering albedo
+   REAL(DP)                              :: CHIL    ! -0.4 <= xl <= 0.6
 
-   REAL                              :: TMP0,TMP1,TMP2,TMP3,TMP4,TMP5,TMP6,TMP7,TMP8,TMP9
-   REAL                              :: P1,P2,P3,P4,S1,S2,U1,U2,U3
-   REAL                              :: B,C,D,D1,D2,F,H,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10
-   REAL                              :: PHI1,PHI2,SIGMA
-   REAL                              :: FTDS,FTIS,FRES
-   REAL                              :: DENFVEG
-   REAL                              :: VAI_SPREAD
+   REAL(DP)                              :: TMP0,TMP1,TMP2,TMP3,TMP4,TMP5,TMP6,TMP7,TMP8,TMP9
+   REAL(DP)                              :: P1,P2,P3,P4,S1,S2,U1,U2,U3
+   REAL(DP)                              :: B,C,D,D1,D2,F,H,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10
+   REAL(DP)                              :: PHI1,PHI2,SIGMA
+   REAL(DP)                              :: FTDS,FTIS,FRES
+   REAL(DP)                              :: DENFVEG
+   REAL(DP)                              :: VAI_SPREAD
 !jref:start
-   REAL                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
-   REAL                              :: THETAZ
+   REAL(DP)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
+   REAL(DP)                              :: THETAZ
 !jref:end
 
 !  variables for the modified two-stream scheme
 !  Niu and Yang (2004), JGR
 
-   REAL, PARAMETER :: PAI = 3.14159265
-   REAL :: HD       !crown depth (m)
-   REAL :: BB       !vertical crown radius (m)
-   REAL :: THETAP   !angle conversion from SZA
-   REAL :: FA       !foliage volume density (m-1)
-   REAL :: NEWVAI   !effective LSAI (-)
+   REAL(DP), PARAMETER :: PAI = 3.14159265
+   REAL(DP) :: HD       !crown depth (m)
+   REAL(DP) :: BB       !vertical crown radius (m)
+   REAL(DP) :: THETAP   !angle conversion from SZA
+   REAL(DP) :: FA       !foliage volume density (m-1)
+   REAL(DP) :: NEWVAI   !effective LSAI (-)
 
-   REAL,INTENT(INOUT) :: BGAP     !between canopy gap fraction for beam (-)
-   REAL,INTENT(INOUT) :: WGAP     !within canopy gap fraction for beam (-)
+   REAL(DP),INTENT(INOUT) :: BGAP     !between canopy gap fraction for beam (-)
+   REAL(DP),INTENT(INOUT) :: WGAP     !within canopy gap fraction for beam (-)
 
-   REAL :: KOPEN    !gap fraction for diffue light (-)
-   REAL :: GAP      !total gap fraction for beam ( <=1-shafac )
+   REAL(DP) :: KOPEN    !gap fraction for diffue light (-)
+   REAL(DP) :: GAP      !total gap fraction for beam ( <=1-shafac )
 
 ! -----------------------------------------------------------------
 ! compute within and between gaps
@@ -2970,7 +2974,7 @@ contains
      TMP1 = B*B - C*C
      H = SQRT(TMP1) / AVMU
      SIGMA = TMP0*TMP0 - TMP1
-     if ( ABS (SIGMA) < 1.e-6 ) SIGMA = SIGN(1.e-6,SIGMA)
+     if ( ABS (SIGMA) < 1.e-6_dp) SIGMA = SIGN(1.e-6_dp,SIGMA)
      P1 = B + AVMU*H
      P2 = B - AVMU*H
      P3 = B + TMP0
@@ -3078,6 +3082,7 @@ contains
 ! --------------------------------------------------------------------------------------------------
   USE NOAHMP_VEG_PARAMETERS
   USE MODULE_MODEL_CONSTANTS
+  use nrtype
 ! --------------------------------------------------------------------------------------------------
   IMPLICIT NONE
 ! --------------------------------------------------------------------------------------------------
@@ -3089,173 +3094,173 @@ contains
   INTEGER,                         INTENT(IN) :: NSOIL  !number of soil layers
   INTEGER,                         INTENT(IN) :: ISNOW  !actual no. of snow layers
   INTEGER,                         INTENT(IN) :: VEGTYP !vegetation physiology type
-  REAL,                            INTENT(IN) :: FVEG   !greeness vegetation fraction (-)
-  REAL,                            INTENT(IN) :: SAV    !solar rad absorbed by veg (w/m2)
-  REAL,                            INTENT(IN) :: SAG    !solar rad absorbed by ground (w/m2)
-  REAL,                            INTENT(IN) :: LWDN   !atmospheric longwave radiation (w/m2)
-  REAL,                            INTENT(IN) :: UR     !wind speed at height zlvl (m/s)
-  REAL,                            INTENT(IN) :: UU     !wind speed in eastward dir (m/s)
-  REAL,                            INTENT(IN) :: VV     !wind speed in northward dir (m/s)
-  REAL,                            INTENT(IN) :: SFCTMP !air temperature at reference height (k)
-  REAL,                            INTENT(IN) :: THAIR  !potential temp at reference height (k)
-  REAL,                            INTENT(IN) :: EAIR   !vapor pressure air at zlvl (pa)
-  REAL,                            INTENT(IN) :: QAIR   !specific humidity at zlvl (kg/kg)
-  REAL,                            INTENT(IN) :: RHOAIR !density air (kg/m**3)
-  REAL,                            INTENT(IN) :: DT     !time step (s)
+  REAL(DP),                            INTENT(IN) :: FVEG   !greeness vegetation fraction (-)
+  REAL(DP),                            INTENT(IN) :: SAV    !solar rad absorbed by veg (w/m2)
+  REAL(DP),                            INTENT(IN) :: SAG    !solar rad absorbed by ground (w/m2)
+  REAL(DP),                            INTENT(IN) :: LWDN   !atmospheric longwave radiation (w/m2)
+  REAL(DP),                            INTENT(IN) :: UR     !wind speed at height zlvl (m/s)
+  REAL(DP),                            INTENT(IN) :: UU     !wind speed in eastward dir (m/s)
+  REAL(DP),                            INTENT(IN) :: VV     !wind speed in northward dir (m/s)
+  REAL(DP),                            INTENT(IN) :: SFCTMP !air temperature at reference height (k)
+  REAL(DP),                            INTENT(IN) :: THAIR  !potential temp at reference height (k)
+  REAL(DP),                            INTENT(IN) :: EAIR   !vapor pressure air at zlvl (pa)
+  REAL(DP),                            INTENT(IN) :: QAIR   !specific humidity at zlvl (kg/kg)
+  REAL(DP),                            INTENT(IN) :: RHOAIR !density air (kg/m**3)
+  REAL(DP),                            INTENT(IN) :: DT     !time step (s)
 
-  REAL,                            INTENT(IN) :: SNOWH  !actual snow depth [m]
-  REAL,                            INTENT(IN) :: FWET   !wetted fraction of canopy
-  REAL,                            INTENT(IN) :: HTOP   !top of canopy layer (m)
-  REAL,                            INTENT(IN) :: CWP    !canopy wind parameter
+  REAL(DP),                            INTENT(IN) :: SNOWH  !actual snow depth [m]
+  REAL(DP),                            INTENT(IN) :: FWET   !wetted fraction of canopy
+  REAL(DP),                            INTENT(IN) :: HTOP   !top of canopy layer (m)
+  REAL(DP),                            INTENT(IN) :: CWP    !canopy wind parameter
 
-  REAL,                            INTENT(IN) :: VAI    !total leaf area index + stem area index
-  REAL,                            INTENT(IN) :: LAISUN !sunlit leaf area index, one-sided (m2/m2)
-  REAL,                            INTENT(IN) :: LAISHA !shaded leaf area index, one-sided (m2/m2)
-  REAL,                            INTENT(IN) :: ZLVL   !reference height (m)
-  REAL,                            INTENT(IN) :: ZPD    !zero plane displacement (m)
-  REAL,                            INTENT(IN) :: Z0M    !roughness length, momentum (m)
-  REAL,                            INTENT(IN) :: Z0MG   !roughness length, momentum, ground (m)
-  REAL,                            INTENT(IN) :: EMV    !vegetation emissivity
-  REAL,                            INTENT(IN) :: EMG    !ground emissivity
+  REAL(DP),                            INTENT(IN) :: VAI    !total leaf area index + stem area index
+  REAL(DP),                            INTENT(IN) :: LAISUN !sunlit leaf area index, one-sided (m2/m2)
+  REAL(DP),                            INTENT(IN) :: LAISHA !shaded leaf area index, one-sided (m2/m2)
+  REAL(DP),                            INTENT(IN) :: ZLVL   !reference height (m)
+  REAL(DP),                            INTENT(IN) :: ZPD    !zero plane displacement (m)
+  REAL(DP),                            INTENT(IN) :: Z0M    !roughness length, momentum (m)
+  REAL(DP),                            INTENT(IN) :: Z0MG   !roughness length, momentum, ground (m)
+  REAL(DP),                            INTENT(IN) :: EMV    !vegetation emissivity
+  REAL(DP),                            INTENT(IN) :: EMG    !ground emissivity
 
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !soil/snow temperature (k)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DF     !thermal conductivity of snow/soil (w/m/k)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !thinkness of snow/soil layers (m)
-  REAL,                            INTENT(IN) :: CANLIQ !intercepted liquid water (mm)
-  REAL,                            INTENT(IN) :: CANICE !intercepted ice mass (mm)
-  REAL,                            INTENT(IN) :: RSURF  !ground surface resistance (s/m)
-  REAL,                            INTENT(IN) :: GAMMA  !psychrometric constant (pa/K)
-  REAL,                            INTENT(IN) :: LATHEA !latent heat of vaporization/subli (j/kg)
-  REAL,                            INTENT(IN) :: PARSUN !par absorbed per unit sunlit lai (w/m2)
-  REAL,                            INTENT(IN) :: PARSHA !par absorbed per unit shaded lai (w/m2)
-  REAL,                            INTENT(IN) :: FOLN   !foliage nitrogen (%)
-  REAL,                            INTENT(IN) :: CO2AIR !atmospheric co2 concentration (pa)
-  REAL,                            INTENT(IN) :: O2AIR  !atmospheric o2 concentration (pa)
-  REAL,                            INTENT(IN) :: IGS    !growing season index (0=off, 1=on)
-  REAL,                            INTENT(IN) :: SFCPRS !pressure (pa)
-  REAL,                            INTENT(IN) :: BTRAN  !soil water transpiration factor (0 to 1)
-  REAL,                            INTENT(IN) :: RHSUR  !raltive humidity in surface soil/snow air space (-)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !soil/snow temperature (k)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DF     !thermal conductivity of snow/soil (w/m/k)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !thinkness of snow/soil layers (m)
+  REAL(DP),                            INTENT(IN) :: CANLIQ !intercepted liquid water (mm)
+  REAL(DP),                            INTENT(IN) :: CANICE !intercepted ice mass (mm)
+  REAL(DP),                            INTENT(IN) :: RSURF  !ground surface resistance (s/m)
+  REAL(DP),                            INTENT(IN) :: GAMMA  !psychrometric constant (pa/K)
+  REAL(DP),                            INTENT(IN) :: LATHEA !latent heat of vaporization/subli (j/kg)
+  REAL(DP),                            INTENT(IN) :: PARSUN !par absorbed per unit sunlit lai (w/m2)
+  REAL(DP),                            INTENT(IN) :: PARSHA !par absorbed per unit shaded lai (w/m2)
+  REAL(DP),                            INTENT(IN) :: FOLN   !foliage nitrogen (%)
+  REAL(DP),                            INTENT(IN) :: CO2AIR !atmospheric co2 concentration (pa)
+  REAL(DP),                            INTENT(IN) :: O2AIR  !atmospheric o2 concentration (pa)
+  REAL(DP),                            INTENT(IN) :: IGS    !growing season index (0=off, 1=on)
+  REAL(DP),                            INTENT(IN) :: SFCPRS !pressure (pa)
+  REAL(DP),                            INTENT(IN) :: BTRAN  !soil water transpiration factor (0 to 1)
+  REAL(DP),                            INTENT(IN) :: RHSUR  !raltive humidity in surface soil/snow air space (-)
 
   INTEGER                        , INTENT(IN) :: ISURBAN
   INTEGER                        , INTENT(IN) :: IZ0TLND
-  REAL                           , INTENT(IN) :: QC     !cloud water mixing ratio
-  REAL                           , INTENT(IN) :: PBLH   !planetary boundary layer height
-  REAL                           , INTENT(IN) :: PSFC   !pressure at lowest model layer
-  REAL                           , INTENT(IN) :: DX     !grid spacing
-  REAL                           , INTENT(IN) :: Q2     !mixing ratio (kg/kg)
-  REAL                           , INTENT(IN) :: DZ8W   !thickness of lowest layer
-  REAL                           , INTENT(INOUT) :: QSFC   !mixing ratio at lowest model layer
+  REAL(DP)                           , INTENT(IN) :: QC     !cloud water mixing ratio
+  REAL(DP)                           , INTENT(IN) :: PBLH   !planetary boundary layer height
+  REAL(DP)                           , INTENT(IN) :: PSFC   !pressure at lowest model layer
+  REAL(DP)                           , INTENT(IN) :: DX     !grid spacing
+  REAL(DP)                           , INTENT(IN) :: Q2     !mixing ratio (kg/kg)
+  REAL(DP)                           , INTENT(IN) :: DZ8W   !thickness of lowest layer
+  REAL(DP)                           , INTENT(INOUT) :: QSFC   !mixing ratio at lowest model layer
 
 ! input/output
-  REAL,                         INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
-  REAL,                         INTENT(INOUT) :: TAH    !canopy air temperature (k)
-  REAL,                         INTENT(INOUT) :: TV     !vegetation temperature (k)
-  REAL,                         INTENT(INOUT) :: TG     !ground temperature (k)
-  REAL,                         INTENT(INOUT) :: CM     !momentum drag coefficient
-  REAL,                         INTENT(INOUT) :: CH     !sensible heat exchange coefficient
+  REAL(DP),                         INTENT(INOUT) :: EAH    !canopy air vapor pressure (pa)
+  REAL(DP),                         INTENT(INOUT) :: TAH    !canopy air temperature (k)
+  REAL(DP),                         INTENT(INOUT) :: TV     !vegetation temperature (k)
+  REAL(DP),                         INTENT(INOUT) :: TG     !ground temperature (k)
+  REAL(DP),                         INTENT(INOUT) :: CM     !momentum drag coefficient
+  REAL(DP),                         INTENT(INOUT) :: CH     !sensible heat exchange coefficient
 
 ! output
 ! -FSA + FIRA + FSH + (FCEV + FCTR + FGEV) + FCST + SSOIL = 0
-  REAL,                           INTENT(OUT) :: TAUXV  !wind stress: e-w (n/m2)
-  REAL,                           INTENT(OUT) :: TAUYV  !wind stress: n-s (n/m2)
-  REAL,                           INTENT(OUT) :: IRC    !net longwave radiation (w/m2) [+= to atm]
-  REAL,                           INTENT(OUT) :: SHC    !sensible heat flux (w/m2)     [+= to atm]
-  REAL,                           INTENT(OUT) :: EVC    !evaporation heat flux (w/m2)  [+= to atm]
-  REAL,                           INTENT(OUT) :: IRG    !net longwave radiation (w/m2) [+= to atm]
-  REAL,                           INTENT(OUT) :: SHG    !sensible heat flux (w/m2)     [+= to atm]
-  REAL,                           INTENT(OUT) :: EVG    !evaporation heat flux (w/m2)  [+= to atm]
-  REAL,                           INTENT(OUT) :: TR     !transpiration heat flux (w/m2)[+= to atm]
-  REAL,                           INTENT(OUT) :: GH     !ground heat (w/m2) [+ = to soil]
-  REAL,                           INTENT(OUT) :: T2MV   !2 m height air temperature (k)
-  REAL,                           INTENT(OUT) :: PSNSUN !sunlit leaf photosynthesis (umolco2/m2/s)
-  REAL,                           INTENT(OUT) :: PSNSHA !shaded leaf photosynthesis (umolco2/m2/s)
-  REAL,                           INTENT(OUT) :: CHLEAF !leaf exchange coefficient
-  REAL,                           INTENT(OUT) :: CHUC   !under canopy exchange coefficient
+  REAL(DP),                           INTENT(OUT) :: TAUXV  !wind stress: e-w (n/m2)
+  REAL(DP),                           INTENT(OUT) :: TAUYV  !wind stress: n-s (n/m2)
+  REAL(DP),                           INTENT(OUT) :: IRC    !net longwave radiation (w/m2) [+= to atm]
+  REAL(DP),                           INTENT(OUT) :: SHC    !sensible heat flux (w/m2)     [+= to atm]
+  REAL(DP),                           INTENT(OUT) :: EVC    !evaporation heat flux (w/m2)  [+= to atm]
+  REAL(DP),                           INTENT(OUT) :: IRG    !net longwave radiation (w/m2) [+= to atm]
+  REAL(DP),                           INTENT(OUT) :: SHG    !sensible heat flux (w/m2)     [+= to atm]
+  REAL(DP),                           INTENT(OUT) :: EVG    !evaporation heat flux (w/m2)  [+= to atm]
+  REAL(DP),                           INTENT(OUT) :: TR     !transpiration heat flux (w/m2)[+= to atm]
+  REAL(DP),                           INTENT(OUT) :: GH     !ground heat (w/m2) [+ = to soil]
+  REAL(DP),                           INTENT(OUT) :: T2MV   !2 m height air temperature (k)
+  REAL(DP),                           INTENT(OUT) :: PSNSUN !sunlit leaf photosynthesis (umolco2/m2/s)
+  REAL(DP),                           INTENT(OUT) :: PSNSHA !shaded leaf photosynthesis (umolco2/m2/s)
+  REAL(DP),                           INTENT(OUT) :: CHLEAF !leaf exchange coefficient
+  REAL(DP),                           INTENT(OUT) :: CHUC   !under canopy exchange coefficient
 
-  REAL,                           INTENT(OUT) :: Q2V
-  REAL :: CAH    !sensible heat conductance, canopy air to ZLVL air (m/s)
-  REAL :: U10V    !10 m wind speed in eastward dir (m/s)
-  REAL :: V10V    !10 m wind speed in eastward dir (m/s)
-  REAL :: WSPD
+  REAL(DP),                           INTENT(OUT) :: Q2V
+  REAL(DP) :: CAH    !sensible heat conductance, canopy air to ZLVL air (m/s)
+  REAL(DP) :: U10V    !10 m wind speed in eastward dir (m/s)
+  REAL(DP) :: V10V    !10 m wind speed in eastward dir (m/s)
+  REAL(DP) :: WSPD
 
 ! ------------------------ local variables ----------------------------------------------------
-  REAL :: CW           !water vapor exchange coefficient
-  REAL :: FV           !friction velocity (m/s)
-  REAL :: WSTAR        !friction velocity n vertical direction (m/s) (only for SFCDIF2)
-  REAL :: Z0H          !roughness length, sensible heat (m)
-  REAL :: Z0HG         !roughness length, sensible heat (m)
-  REAL :: RB           !bulk leaf boundary layer resistance (s/m)
-  REAL :: RAMC         !aerodynamic resistance for momentum (s/m)
-  REAL :: RAHC         !aerodynamic resistance for sensible heat (s/m)
-  REAL :: RAWC         !aerodynamic resistance for water vapor (s/m)
-  REAL :: RAMG         !aerodynamic resistance for momentum (s/m)
-  REAL :: RAHG         !aerodynamic resistance for sensible heat (s/m)
-  REAL :: RAWG         !aerodynamic resistance for water vapor (s/m)
+  REAL(DP) :: CW           !water vapor exchange coefficient
+  REAL(DP) :: FV           !friction velocity (m/s)
+  REAL(DP) :: WSTAR        !friction velocity n vertical direction (m/s) (only for SFCDIF2)
+  REAL(DP) :: Z0H          !roughness length, sensible heat (m)
+  REAL(DP) :: Z0HG         !roughness length, sensible heat (m)
+  REAL(DP) :: RB           !bulk leaf boundary layer resistance (s/m)
+  REAL(DP) :: RAMC         !aerodynamic resistance for momentum (s/m)
+  REAL(DP) :: RAHC         !aerodynamic resistance for sensible heat (s/m)
+  REAL(DP) :: RAWC         !aerodynamic resistance for water vapor (s/m)
+  REAL(DP) :: RAMG         !aerodynamic resistance for momentum (s/m)
+  REAL(DP) :: RAHG         !aerodynamic resistance for sensible heat (s/m)
+  REAL(DP) :: RAWG         !aerodynamic resistance for water vapor (s/m)
 
-  REAL, INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
-  REAL, INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
+  REAL(DP), INTENT(OUT) :: RSSUN        !sunlit leaf stomatal resistance (s/m)
+  REAL(DP), INTENT(OUT) :: RSSHA        !shaded leaf stomatal resistance (s/m)
 
-  REAL :: MOL          !Monin-Obukhov length (m)
-  REAL :: DTV          !change in tv, last iteration (k)
-  REAL :: DTG          !change in tg, last iteration (k)
+  REAL(DP) :: MOL          !Monin-Obukhov length (m)
+  REAL(DP) :: DTV          !change in tv, last iteration (k)
+  REAL(DP) :: DTG          !change in tg, last iteration (k)
 
-  REAL :: AIR,CIR      !coefficients for ir as function of ts**4
-  REAL :: CSH          !coefficients for sh as function of ts
-  REAL :: CEV          !coefficients for ev as function of esat[ts]
-  REAL :: CGH          !coefficients for st as function of ts
-  REAL :: ATR,CTR      !coefficients for tr as function of esat[ts]
-  REAL :: ATA,BTA      !coefficients for tah as function of ts
-  REAL :: AEA,BEA      !coefficients for eah as function of esat[ts]
+  REAL(DP) :: AIR,CIR      !coefficients for ir as function of ts**4
+  REAL(DP) :: CSH          !coefficients for sh as function of ts
+  REAL(DP) :: CEV          !coefficients for ev as function of esat[ts]
+  REAL(DP) :: CGH          !coefficients for st as function of ts
+  REAL(DP) :: ATR,CTR      !coefficients for tr as function of esat[ts]
+  REAL(DP) :: ATA,BTA      !coefficients for tah as function of ts
+  REAL(DP) :: AEA,BEA      !coefficients for eah as function of esat[ts]
 
-  REAL :: ESTV         !saturation vapor pressure at tv (pa)
-  REAL :: ESTG         !saturation vapor pressure at tg (pa)
-  REAL :: DESTV        !d(es)/dt at ts (pa/k)
-  REAL :: DESTG        !d(es)/dt at tg (pa/k)
-  REAL :: ESATW        !es for water
-  REAL :: ESATI        !es for ice
-  REAL :: DSATW        !d(es)/dt at tg (pa/k) for water
-  REAL :: DSATI        !d(es)/dt at tg (pa/k) for ice
+  REAL(DP) :: ESTV         !saturation vapor pressure at tv (pa)
+  REAL(DP) :: ESTG         !saturation vapor pressure at tg (pa)
+  REAL(DP) :: DESTV        !d(es)/dt at ts (pa/k)
+  REAL(DP) :: DESTG        !d(es)/dt at tg (pa/k)
+  REAL(DP) :: ESATW        !es for water
+  REAL(DP) :: ESATI        !es for ice
+  REAL(DP) :: DSATW        !d(es)/dt at tg (pa/k) for water
+  REAL(DP) :: DSATI        !d(es)/dt at tg (pa/k) for ice
 
-  REAL :: FM           !momentum stability correction, weighted by prior iters
-  REAL :: FH           !sen heat stability correction, weighted by prior iters
-  REAL :: FHG          !sen heat stability correction, ground
-  REAL :: HCAN         !canopy height (m) [note: hcan >= z0mg]
+  REAL(DP) :: FM           !momentum stability correction, weighted by prior iters
+  REAL(DP) :: FH           !sen heat stability correction, weighted by prior iters
+  REAL(DP) :: FHG          !sen heat stability correction, ground
+  REAL(DP) :: HCAN         !canopy height (m) [note: hcan >= z0mg]
 
-  REAL :: A            !temporary calculation
-  REAL :: B            !temporary calculation
-  REAL :: CVH          !sensible heat conductance, leaf surface to canopy air (m/s)
-  REAL :: CAW          !latent heat conductance, canopy air ZLVL air (m/s)
-  REAL :: CTW          !transpiration conductance, leaf to canopy air (m/s)
-  REAL :: CEW          !evaporation conductance, leaf to canopy air (m/s)
-  REAL :: CGW          !latent heat conductance, ground to canopy air (m/s)
-  REAL :: COND         !sum of conductances (s/m)
-  REAL :: UC           !wind speed at top of canopy (m/s)
-  REAL :: KH           !turbulent transfer coefficient, sensible heat, (m2/s)
-  REAL :: H            !temporary sensible heat flux (w/m2)
-  REAL :: HG           !temporary sensible heat flux (w/m2)
-  REAL :: MOZ          !Monin-Obukhov stability parameter
-  REAL :: MOZG         !Monin-Obukhov stability parameter
-  REAL :: MOZOLD       !Monin-Obukhov stability parameter from prior iteration
-  REAL :: FM2          !Monin-Obukhov momentum adjustment at 2m
-  REAL :: FH2          !Monin-Obukhov heat adjustment at 2m
-  REAL :: CH2          !Surface exchange at 2m
-  REAL :: THSTAR          !Surface exchange at 2m
+  REAL(DP) :: A            !temporary calculation
+  REAL(DP) :: B            !temporary calculation
+  REAL(DP) :: CVH          !sensible heat conductance, leaf surface to canopy air (m/s)
+  REAL(DP) :: CAW          !latent heat conductance, canopy air ZLVL air (m/s)
+  REAL(DP) :: CTW          !transpiration conductance, leaf to canopy air (m/s)
+  REAL(DP) :: CEW          !evaporation conductance, leaf to canopy air (m/s)
+  REAL(DP) :: CGW          !latent heat conductance, ground to canopy air (m/s)
+  REAL(DP) :: COND         !sum of conductances (s/m)
+  REAL(DP) :: UC           !wind speed at top of canopy (m/s)
+  REAL(DP) :: KH           !turbulent transfer coefficient, sensible heat, (m2/s)
+  REAL(DP) :: H            !temporary sensible heat flux (w/m2)
+  REAL(DP) :: HG           !temporary sensible heat flux (w/m2)
+  REAL(DP) :: MOZ          !Monin-Obukhov stability parameter
+  REAL(DP) :: MOZG         !Monin-Obukhov stability parameter
+  REAL(DP) :: MOZOLD       !Monin-Obukhov stability parameter from prior iteration
+  REAL(DP) :: FM2          !Monin-Obukhov momentum adjustment at 2m
+  REAL(DP) :: FH2          !Monin-Obukhov heat adjustment at 2m
+  REAL(DP) :: CH2          !Surface exchange at 2m
+  REAL(DP) :: THSTAR          !Surface exchange at 2m
 
-  REAL :: THVAIR
-  REAL :: THAH
-  REAL :: RAHC2        !aerodynamic resistance for sensible heat (s/m)
-  REAL :: RAWC2        !aerodynamic resistance for water vapor (s/m)
-  REAL, INTENT(OUT):: CAH2         !sensible heat conductance for diagnostics
-  REAL :: CH2V         !exchange coefficient for 2m over vegetation.
-  REAL :: CQ2V         !exchange coefficient for 2m over vegetation.
-  REAL :: EAH2         !2m vapor pressure over canopy
-  REAL :: QFX        !moisture flux
-  REAL :: E1
+  REAL(DP) :: THVAIR
+  REAL(DP) :: THAH
+  REAL(DP) :: RAHC2        !aerodynamic resistance for sensible heat (s/m)
+  REAL(DP) :: RAWC2        !aerodynamic resistance for water vapor (s/m)
+  REAL(DP), INTENT(OUT):: CAH2         !sensible heat conductance for diagnostics
+  REAL(DP) :: CH2V         !exchange coefficient for 2m over vegetation.
+  REAL(DP) :: CQ2V         !exchange coefficient for 2m over vegetation.
+  REAL(DP) :: EAH2         !2m vapor pressure over canopy
+  REAL(DP) :: QFX        !moisture flux
+  REAL(DP) :: E1
 
 
-  REAL :: VAIE         !total leaf area index + stem area index,effective
-  REAL :: LAISUNE      !sunlit leaf area index, one-sided (m2/m2),effective
-  REAL :: LAISHAE      !shaded leaf area index, one-sided (m2/m2),effective
+  REAL(DP) :: VAIE         !total leaf area index + stem area index,effective
+  REAL(DP) :: LAISUNE      !sunlit leaf area index, one-sided (m2/m2),effective
+  REAL(DP) :: LAISHAE      !shaded leaf area index, one-sided (m2/m2),effective
 
   INTEGER :: K         !index
   INTEGER :: ITER      !iteration index
@@ -3265,12 +3270,12 @@ contains
 !jref - NITERG test from 3-5
   INTEGER, PARAMETER :: NITERG = 5   !number of iterations for ground temperature
   INTEGER :: MOZSGN    !number of times MOZ changes sign
-  REAL    :: MPE       !prevents overflow error if division by zero
+  REAL(DP)    :: MPE       !prevents overflow error if division by zero
 
   INTEGER :: LITER     !Last iteration
 
 
-  REAL :: T, TDC       !Kelvin to degree Celsius with limit -50 to +50
+  REAL(DP) :: T, TDC       !Kelvin to degree Celsius with limit -50 to +50
 
   character(len=80) ::  message
 
@@ -3635,6 +3640,7 @@ contains
 ! ----------------------------------------------------------------------
   USE NOAHMP_VEG_PARAMETERS
   USE MODULE_MODEL_CONSTANTS
+  use nrtype
 ! ----------------------------------------------------------------------
   IMPLICIT NONE
 ! ----------------------------------------------------------------------
@@ -3644,137 +3650,137 @@ contains
   INTEGER,                         INTENT(IN) :: NSNOW  !maximum no. of snow layers
   INTEGER,                         INTENT(IN) :: NSOIL  !number of soil layers
   INTEGER,                         INTENT(IN) :: ISNOW  !actual no. of snow layers
-  REAL,                            INTENT(IN) :: DT     !time step (s)
-  REAL,                            INTENT(IN) :: SAG    !solar radiation absorbed by ground (w/m2)
-  REAL,                            INTENT(IN) :: LWDN   !atmospheric longwave radiation (w/m2)
-  REAL,                            INTENT(IN) :: UR     !wind speed at height zlvl (m/s)
-  REAL,                            INTENT(IN) :: UU     !wind speed in eastward dir (m/s)
-  REAL,                            INTENT(IN) :: VV     !wind speed in northward dir (m/s)
-  REAL,                            INTENT(IN) :: SFCTMP !air temperature at reference height (k)
-  REAL,                            INTENT(IN) :: THAIR  !potential temperature at height zlvl (k)
-  REAL,                            INTENT(IN) :: QAIR   !specific humidity at height zlvl (kg/kg)
-  REAL,                            INTENT(IN) :: EAIR   !vapor pressure air at height (pa)
-  REAL,                            INTENT(IN) :: RHOAIR !density air (kg/m3)
-  REAL,                            INTENT(IN) :: SNOWH  !actual snow depth [m]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !thickness of snow/soil layers (m)
-  REAL,                            INTENT(IN) :: ZLVL   !reference height (m)
-  REAL,                            INTENT(IN) :: ZPD    !zero plane displacement (m)
-  REAL,                            INTENT(IN) :: Z0M    !roughness length, momentum, ground (m)
-  REAL,                            INTENT(IN) :: EMG    !ground emissivity
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !soil/snow temperature (k)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DF     !thermal conductivity of snow/soil (w/m/k)
-  REAL,                            INTENT(IN) :: RSURF  !ground surface resistance (s/m)
-  REAL,                            INTENT(IN) :: LATHEA !latent heat of vaporization/subli (j/kg)
-  REAL,                            INTENT(IN) :: GAMMA  !psychrometric constant (pa/k)
-  REAL,                            INTENT(IN) :: RHSUR  !raltive humidity in surface soil/snow air space (-)
+  REAL(DP),                            INTENT(IN) :: DT     !time step (s)
+  REAL(DP),                            INTENT(IN) :: SAG    !solar radiation absorbed by ground (w/m2)
+  REAL(DP),                            INTENT(IN) :: LWDN   !atmospheric longwave radiation (w/m2)
+  REAL(DP),                            INTENT(IN) :: UR     !wind speed at height zlvl (m/s)
+  REAL(DP),                            INTENT(IN) :: UU     !wind speed in eastward dir (m/s)
+  REAL(DP),                            INTENT(IN) :: VV     !wind speed in northward dir (m/s)
+  REAL(DP),                            INTENT(IN) :: SFCTMP !air temperature at reference height (k)
+  REAL(DP),                            INTENT(IN) :: THAIR  !potential temperature at height zlvl (k)
+  REAL(DP),                            INTENT(IN) :: QAIR   !specific humidity at height zlvl (kg/kg)
+  REAL(DP),                            INTENT(IN) :: EAIR   !vapor pressure air at height (pa)
+  REAL(DP),                            INTENT(IN) :: RHOAIR !density air (kg/m3)
+  REAL(DP),                            INTENT(IN) :: SNOWH  !actual snow depth [m]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !thickness of snow/soil layers (m)
+  REAL(DP),                            INTENT(IN) :: ZLVL   !reference height (m)
+  REAL(DP),                            INTENT(IN) :: ZPD    !zero plane displacement (m)
+  REAL(DP),                            INTENT(IN) :: Z0M    !roughness length, momentum, ground (m)
+  REAL(DP),                            INTENT(IN) :: EMG    !ground emissivity
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !soil/snow temperature (k)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DF     !thermal conductivity of snow/soil (w/m/k)
+  REAL(DP),                            INTENT(IN) :: RSURF  !ground surface resistance (s/m)
+  REAL(DP),                            INTENT(IN) :: LATHEA !latent heat of vaporization/subli (j/kg)
+  REAL(DP),                            INTENT(IN) :: GAMMA  !psychrometric constant (pa/k)
+  REAL(DP),                            INTENT(IN) :: RHSUR  !raltive humidity in surface soil/snow air space (-)
 
 !jref:start; in
   INTEGER                        , INTENT(IN) :: ISURBAN
   INTEGER                        , INTENT(IN) :: IVGTYP
   INTEGER                        , INTENT(IN) :: IZ0TLND
-  REAL                           , INTENT(IN) :: QC     !cloud water mixing ratio
-  REAL                           , INTENT(IN) :: PBLH   !planetary boundary layer height
-  REAL                           , INTENT(INOUT) :: QSFC   !mixing ratio at lowest model layer
-  REAL                           , INTENT(IN) :: PSFC   !pressure at lowest model layer
-  REAL                           , INTENT(IN) :: SFCPRS !pressure at lowest model layer
-  REAL                           , INTENT(IN) :: DX     !horisontal grid spacing
-  REAL                           , INTENT(IN) :: Q2     !mixing ratio (kg/kg)
-  REAL                           , INTENT(IN) :: DZ8W   !thickness of lowest layer
+  REAL(DP)                           , INTENT(IN) :: QC     !cloud water mixing ratio
+  REAL(DP)                           , INTENT(IN) :: PBLH   !planetary boundary layer height
+  REAL(DP)                           , INTENT(INOUT) :: QSFC   !mixing ratio at lowest model layer
+  REAL(DP)                           , INTENT(IN) :: PSFC   !pressure at lowest model layer
+  REAL(DP)                           , INTENT(IN) :: SFCPRS !pressure at lowest model layer
+  REAL(DP)                           , INTENT(IN) :: DX     !horisontal grid spacing
+  REAL(DP)                           , INTENT(IN) :: Q2     !mixing ratio (kg/kg)
+  REAL(DP)                           , INTENT(IN) :: DZ8W   !thickness of lowest layer
 !jref:end
 
 ! input/output
-  REAL,                         INTENT(INOUT) :: TGB    !ground temperature (k)
-  REAL,                         INTENT(INOUT) :: CM     !momentum drag coefficient
-  REAL,                         INTENT(INOUT) :: CH     !sensible heat exchange coefficient
+  REAL(DP),                         INTENT(INOUT) :: TGB    !ground temperature (k)
+  REAL(DP),                         INTENT(INOUT) :: CM     !momentum drag coefficient
+  REAL(DP),                         INTENT(INOUT) :: CH     !sensible heat exchange coefficient
 
 ! output
 ! -SAB + IRB[TG] + SHB[TG] + EVB[TG] + GHB[TG] = 0
 
-  REAL,                           INTENT(OUT) :: TAUXB  !wind stress: e-w (n/m2)
-  REAL,                           INTENT(OUT) :: TAUYB  !wind stress: n-s (n/m2)
-  REAL,                           INTENT(OUT) :: IRB    !net longwave rad (w/m2)   [+ to atm]
-  REAL,                           INTENT(OUT) :: SHB    !sensible heat flux (w/m2) [+ to atm]
-  REAL,                           INTENT(OUT) :: EVB    !latent heat flux (w/m2)   [+ to atm]
-  REAL,                           INTENT(OUT) :: GHB    !ground heat flux (w/m2)  [+ to soil]
-  REAL,                           INTENT(OUT) :: T2MB   !2 m height air temperature (k)
+  REAL(DP),                           INTENT(OUT) :: TAUXB  !wind stress: e-w (n/m2)
+  REAL(DP),                           INTENT(OUT) :: TAUYB  !wind stress: n-s (n/m2)
+  REAL(DP),                           INTENT(OUT) :: IRB    !net longwave rad (w/m2)   [+ to atm]
+  REAL(DP),                           INTENT(OUT) :: SHB    !sensible heat flux (w/m2) [+ to atm]
+  REAL(DP),                           INTENT(OUT) :: EVB    !latent heat flux (w/m2)   [+ to atm]
+  REAL(DP),                           INTENT(OUT) :: GHB    !ground heat flux (w/m2)  [+ to soil]
+  REAL(DP),                           INTENT(OUT) :: T2MB   !2 m height air temperature (k)
 !jref:start
-  REAL,                           INTENT(OUT) :: Q2B    !bare ground heat conductance
-  REAL :: EHB    !bare ground heat conductance
-  REAL :: U10B    !10 m wind speed in eastward dir (m/s)
-  REAL :: V10B    !10 m wind speed in eastward dir (m/s)
-  REAL :: WSPD
+  REAL(DP),                           INTENT(OUT) :: Q2B    !bare ground heat conductance
+  REAL(DP) :: EHB    !bare ground heat conductance
+  REAL(DP) :: U10B    !10 m wind speed in eastward dir (m/s)
+  REAL(DP) :: V10B    !10 m wind speed in eastward dir (m/s)
+  REAL(DP) :: WSPD
 !jref:end
 
 ! local variables
 
-  REAL :: TAUX       !wind stress: e-w (n/m2)
-  REAL :: TAUY       !wind stress: n-s (n/m2)
-  REAL :: FIRA       !total net longwave rad (w/m2)      [+ to atm]
-  REAL :: FSH        !total sensible heat flux (w/m2)    [+ to atm]
-  REAL :: FGEV       !ground evaporation heat flux (w/m2)[+ to atm]
-  REAL :: SSOIL      !soil heat flux (w/m2)             [+ to soil]
-  REAL :: FIRE       !emitted ir (w/m2)
-  REAL :: TRAD       !radiative temperature (k)
-  REAL :: TAH        !"surface" temperature at height z0h+zpd (k)
+  REAL(DP) :: TAUX       !wind stress: e-w (n/m2)
+  REAL(DP) :: TAUY       !wind stress: n-s (n/m2)
+  REAL(DP) :: FIRA       !total net longwave rad (w/m2)      [+ to atm]
+  REAL(DP) :: FSH        !total sensible heat flux (w/m2)    [+ to atm]
+  REAL(DP) :: FGEV       !ground evaporation heat flux (w/m2)[+ to atm]
+  REAL(DP) :: SSOIL      !soil heat flux (w/m2)             [+ to soil]
+  REAL(DP) :: FIRE       !emitted ir (w/m2)
+  REAL(DP) :: TRAD       !radiative temperature (k)
+  REAL(DP) :: TAH        !"surface" temperature at height z0h+zpd (k)
 
-  REAL :: CW         !water vapor exchange coefficient
-  REAL :: FV         !friction velocity (m/s)
-  REAL :: WSTAR      !friction velocity n vertical direction (m/s) (only for SFCDIF2)
-  REAL :: Z0H        !roughness length, sensible heat, ground (m)
-  REAL :: RB         !bulk leaf boundary layer resistance (s/m)
-  REAL :: RAMB       !aerodynamic resistance for momentum (s/m)
-  REAL :: RAHB       !aerodynamic resistance for sensible heat (s/m)
-  REAL :: RAWB       !aerodynamic resistance for water vapor (s/m)
-  REAL :: MOL        !Monin-Obukhov length (m)
-  REAL :: DTG        !change in tg, last iteration (k)
+  REAL(DP) :: CW         !water vapor exchange coefficient
+  REAL(DP) :: FV         !friction velocity (m/s)
+  REAL(DP) :: WSTAR      !friction velocity n vertical direction (m/s) (only for SFCDIF2)
+  REAL(DP) :: Z0H        !roughness length, sensible heat, ground (m)
+  REAL(DP) :: RB         !bulk leaf boundary layer resistance (s/m)
+  REAL(DP) :: RAMB       !aerodynamic resistance for momentum (s/m)
+  REAL(DP) :: RAHB       !aerodynamic resistance for sensible heat (s/m)
+  REAL(DP) :: RAWB       !aerodynamic resistance for water vapor (s/m)
+  REAL(DP) :: MOL        !Monin-Obukhov length (m)
+  REAL(DP) :: DTG        !change in tg, last iteration (k)
 
-  REAL :: CIR        !coefficients for ir as function of ts**4
-  REAL :: CSH        !coefficients for sh as function of ts
-  REAL :: CEV        !coefficients for ev as function of esat[ts]
-  REAL :: CGH        !coefficients for st as function of ts
+  REAL(DP) :: CIR        !coefficients for ir as function of ts**4
+  REAL(DP) :: CSH        !coefficients for sh as function of ts
+  REAL(DP) :: CEV        !coefficients for ev as function of esat[ts]
+  REAL(DP) :: CGH        !coefficients for st as function of ts
 
 !jref:start
-  REAL :: RAHB2      !aerodynamic resistance for sensible heat 2m (s/m)
-  REAL :: RAWB2      !aerodynamic resistance for water vapor 2m (s/m)
-  REAL,INTENT(OUT) :: EHB2       !sensible heat conductance for diagnostics
-  REAL :: CH2B       !exchange coefficient for 2m temp.
-  REAL :: CQ2B       !exchange coefficient for 2m temp.
-  REAL :: THVAIR     !virtual potential air temp
-  REAL :: THGH       !potential ground temp
-  REAL :: EMB        !momentum conductance
-  REAL :: QFX        !moisture flux
-  REAL :: ESTG2      !saturation vapor pressure at 2m (pa)
+  REAL(DP) :: RAHB2      !aerodynamic resistance for sensible heat 2m (s/m)
+  REAL(DP) :: RAWB2      !aerodynamic resistance for water vapor 2m (s/m)
+  REAL(DP),INTENT(OUT) :: EHB2       !sensible heat conductance for diagnostics
+  REAL(DP) :: CH2B       !exchange coefficient for 2m temp.
+  REAL(DP) :: CQ2B       !exchange coefficient for 2m temp.
+  REAL(DP) :: THVAIR     !virtual potential air temp
+  REAL(DP) :: THGH       !potential ground temp
+  REAL(DP) :: EMB        !momentum conductance
+  REAL(DP) :: QFX        !moisture flux
+  REAL(DP) :: ESTG2      !saturation vapor pressure at 2m (pa)
   INTEGER :: VEGTYP     !vegetation type set to isbarren
-  REAL :: E1
+  REAL(DP) :: E1
 !jref:end
 
-  REAL :: ESTG       !saturation vapor pressure at tg (pa)
-  REAL :: DESTG      !d(es)/dt at tg (pa/K)
-  REAL :: ESATW      !es for water
-  REAL :: ESATI      !es for ice
-  REAL :: DSATW      !d(es)/dt at tg (pa/K) for water
-  REAL :: DSATI      !d(es)/dt at tg (pa/K) for ice
+  REAL(DP) :: ESTG       !saturation vapor pressure at tg (pa)
+  REAL(DP) :: DESTG      !d(es)/dt at tg (pa/K)
+  REAL(DP) :: ESATW      !es for water
+  REAL(DP) :: ESATI      !es for ice
+  REAL(DP) :: DSATW      !d(es)/dt at tg (pa/K) for water
+  REAL(DP) :: DSATI      !d(es)/dt at tg (pa/K) for ice
 
-  REAL :: A          !temporary calculation
-  REAL :: B          !temporary calculation
-  REAL :: H          !temporary sensible heat flux (w/m2)
-  REAL :: MOZ        !Monin-Obukhov stability parameter
-  REAL :: MOZOLD     !Monin-Obukhov stability parameter from prior iteration
-  REAL :: FM         !momentum stability correction, weighted by prior iters
-  REAL :: FH         !sen heat stability correction, weighted by prior iters
+  REAL(DP) :: A          !temporary calculation
+  REAL(DP) :: B          !temporary calculation
+  REAL(DP) :: H          !temporary sensible heat flux (w/m2)
+  REAL(DP) :: MOZ        !Monin-Obukhov stability parameter
+  REAL(DP) :: MOZOLD     !Monin-Obukhov stability parameter from prior iteration
+  REAL(DP) :: FM         !momentum stability correction, weighted by prior iters
+  REAL(DP) :: FH         !sen heat stability correction, weighted by prior iters
   INTEGER :: MOZSGN  !number of times MOZ changes sign
-  REAL :: FM2          !Monin-Obukhov momentum adjustment at 2m
-  REAL :: FH2          !Monin-Obukhov heat adjustment at 2m
-  REAL :: CH2          !Surface exchange at 2m
+  REAL(DP) :: FM2          !Monin-Obukhov momentum adjustment at 2m
+  REAL(DP) :: FH2          !Monin-Obukhov heat adjustment at 2m
+  REAL(DP) :: CH2          !Surface exchange at 2m
 
   INTEGER :: ITER    !iteration index
   INTEGER :: NITERB  !number of iterations for surface temperature
-  REAL    :: MPE     !prevents overflow error if division by zero
+  REAL(DP)    :: MPE     !prevents overflow error if division by zero
 !jref:start
 !  DATA NITERB /3/
   DATA NITERB /5/
   SAVE NITERB
-  REAL :: T, TDC     !Kelvin to degree Celsius with limit -50 to +50
+  REAL(DP) :: T, TDC     !Kelvin to degree Celsius with limit -50 to +50
   TDC(T)   = MIN( 50., MAX(-50.,(T-TFRZ)) )
 
 ! -----------------------------------------------------------------
@@ -4002,38 +4008,38 @@ contains
   INTEGER,              INTENT(IN) :: JLOC   !grid index
   INTEGER,              INTENT(IN) :: ITER   !iteration index
   INTEGER,              INTENT(IN) :: VEGTYP !vegetation physiology type
-  REAL,                 INTENT(IN) :: VAI    !total LAI + stem area index, one sided
-  REAL,                 INTENT(IN) :: RHOAIR !density air (kg/m3)
-  REAL,                 INTENT(IN) :: HG     !ground sensible heat flux (w/m2)
-  REAL,                 INTENT(IN) :: TV     !vegetation temperature (k)
-  REAL,                 INTENT(IN) :: TAH    !air temperature at height z0h+zpd (k)
-  REAL,                 INTENT(IN) :: ZPD    !zero plane displacement (m)
-  REAL,                 INTENT(IN) :: Z0MG   !roughness length, momentum, ground (m)
-  REAL,                 INTENT(IN) :: HCAN   !canopy height (m) [note: hcan >= z0mg]
-  REAL,                 INTENT(IN) :: UC     !wind speed at top of canopy (m/s)
-  REAL,                 INTENT(IN) :: Z0H    !roughness length, sensible heat (m)
-  REAL,                 INTENT(IN) :: Z0HG   !roughness length, sensible heat, ground (m)
-  REAL,                 INTENT(IN) :: FV     !friction velocity (m/s)
-  REAL,                 INTENT(IN) :: CWP    !canopy wind parameter
-  REAL,                 INTENT(IN) :: MPE    !prevents overflow error if division by zero
+  REAL(DP),                 INTENT(IN) :: VAI    !total LAI + stem area index, one sided
+  REAL(DP),                 INTENT(IN) :: RHOAIR !density air (kg/m3)
+  REAL(DP),                 INTENT(IN) :: HG     !ground sensible heat flux (w/m2)
+  REAL(DP),                 INTENT(IN) :: TV     !vegetation temperature (k)
+  REAL(DP),                 INTENT(IN) :: TAH    !air temperature at height z0h+zpd (k)
+  REAL(DP),                 INTENT(IN) :: ZPD    !zero plane displacement (m)
+  REAL(DP),                 INTENT(IN) :: Z0MG   !roughness length, momentum, ground (m)
+  REAL(DP),                 INTENT(IN) :: HCAN   !canopy height (m) [note: hcan >= z0mg]
+  REAL(DP),                 INTENT(IN) :: UC     !wind speed at top of canopy (m/s)
+  REAL(DP),                 INTENT(IN) :: Z0H    !roughness length, sensible heat (m)
+  REAL(DP),                 INTENT(IN) :: Z0HG   !roughness length, sensible heat, ground (m)
+  REAL(DP),                 INTENT(IN) :: FV     !friction velocity (m/s)
+  REAL(DP),                 INTENT(IN) :: CWP    !canopy wind parameter
+  REAL(DP),                 INTENT(IN) :: MPE    !prevents overflow error if division by zero
 
 ! in & out
 
-  REAL,              INTENT(INOUT) :: MOZG   !Monin-Obukhov stability parameter
-  REAL,              INTENT(INOUT) :: FHG    !stability correction
+  REAL(DP),              INTENT(INOUT) :: MOZG   !Monin-Obukhov stability parameter
+  REAL(DP),              INTENT(INOUT) :: FHG    !stability correction
 
 ! outputs
-  REAL                             :: RAMG   !aerodynamic resistance for momentum (s/m)
-  REAL                             :: RAHG   !aerodynamic resistance for sensible heat (s/m)
-  REAL                             :: RAWG   !aerodynamic resistance for water vapor (s/m)
-  REAL                             :: RB     !bulk leaf boundary layer resistance (s/m)
+  REAL(DP)                             :: RAMG   !aerodynamic resistance for momentum (s/m)
+  REAL(DP)                             :: RAHG   !aerodynamic resistance for sensible heat (s/m)
+  REAL(DP)                             :: RAWG   !aerodynamic resistance for water vapor (s/m)
+  REAL(DP)                             :: RB     !bulk leaf boundary layer resistance (s/m)
 
 
-  REAL :: KH           !turbulent transfer coefficient, sensible heat, (m2/s)
-  REAL :: TMP1         !temporary calculation
-  REAL :: TMP2         !temporary calculation
-  REAL :: TMPRAH2      !temporary calculation for aerodynamic resistances
-  REAL :: TMPRB        !temporary calculation for rb
+  REAL(DP) :: KH           !turbulent transfer coefficient, sensible heat, (m2/s)
+  REAL(DP) :: TMP1         !temporary calculation
+  REAL(DP) :: TMP2         !temporary calculation
+  REAL(DP) :: TMPRAH2      !temporary calculation for aerodynamic resistances
+  REAL(DP) :: TMPRB        !temporary calculation for rb
   real :: MOLG,FHGNEW,CWPC
 ! --------------------------------------------------------------------------------------------------
 ! stability correction to below canopy resistance
@@ -4099,49 +4105,49 @@ contains
     INTEGER,              INTENT(IN) :: ILOC   !grid index
     INTEGER,              INTENT(IN) :: JLOC   !grid index
     INTEGER,              INTENT(IN) :: ITER   !iteration index
-    REAL,                 INTENT(IN) :: SFCTMP !temperature at reference height (k)
-    REAL,                 INTENT(IN) :: RHOAIR !density air (kg/m**3)
-    REAL,                 INTENT(IN) :: H      !sensible heat flux (w/m2) [+ to atm]
-    REAL,                 INTENT(IN) :: QAIR   !specific humidity at reference height (kg/kg)
-    REAL,                 INTENT(IN) :: ZLVL   !reference height  (m)
-    REAL,                 INTENT(IN) :: ZPD    !zero plane displacement (m)
-    REAL,                 INTENT(IN) :: Z0H    !roughness length, sensible heat, ground (m)
-    REAL,                 INTENT(IN) :: Z0M    !roughness length, momentum, ground (m)
-    REAL,                 INTENT(IN) :: UR     !wind speed (m/s)
-    REAL,                 INTENT(IN) :: MPE    !prevents overflow error if division by zero
+    REAL(DP),                 INTENT(IN) :: SFCTMP !temperature at reference height (k)
+    REAL(DP),                 INTENT(IN) :: RHOAIR !density air (kg/m**3)
+    REAL(DP),                 INTENT(IN) :: H      !sensible heat flux (w/m2) [+ to atm]
+    REAL(DP),                 INTENT(IN) :: QAIR   !specific humidity at reference height (kg/kg)
+    REAL(DP),                 INTENT(IN) :: ZLVL   !reference height  (m)
+    REAL(DP),                 INTENT(IN) :: ZPD    !zero plane displacement (m)
+    REAL(DP),                 INTENT(IN) :: Z0H    !roughness length, sensible heat, ground (m)
+    REAL(DP),                 INTENT(IN) :: Z0M    !roughness length, momentum, ground (m)
+    REAL(DP),                 INTENT(IN) :: UR     !wind speed (m/s)
+    REAL(DP),                 INTENT(IN) :: MPE    !prevents overflow error if division by zero
 ! in & out
 
     INTEGER,           INTENT(INOUT) :: MOZSGN !number of times moz changes sign
-    REAL,              INTENT(INOUT) :: MOZ    !Monin-Obukhov stability (z/L)
-    REAL,              INTENT(INOUT) :: FM     !momentum stability correction, weighted by prior iters
-    REAL,              INTENT(INOUT) :: FH     !sen heat stability correction, weighted by prior iters
-    REAL,              INTENT(INOUT) :: FM2    !sen heat stability correction, weighted by prior iters
-    REAL,              INTENT(INOUT) :: FH2    !sen heat stability correction, weighted by prior iters
+    REAL(DP),              INTENT(INOUT) :: MOZ    !Monin-Obukhov stability (z/L)
+    REAL(DP),              INTENT(INOUT) :: FM     !momentum stability correction, weighted by prior iters
+    REAL(DP),              INTENT(INOUT) :: FH     !sen heat stability correction, weighted by prior iters
+    REAL(DP),              INTENT(INOUT) :: FM2    !sen heat stability correction, weighted by prior iters
+    REAL(DP),              INTENT(INOUT) :: FH2    !sen heat stability correction, weighted by prior iters
 
 ! outputs
 
-    REAL,                INTENT(OUT) :: CM     !drag coefficient for momentum
-    REAL,                INTENT(OUT) :: CH     !drag coefficient for heat
-    REAL,                INTENT(OUT) :: FV     !friction velocity (m/s)
-    REAL,                INTENT(OUT) :: CH2    !drag coefficient for heat
+    REAL(DP),                INTENT(OUT) :: CM     !drag coefficient for momentum
+    REAL(DP),                INTENT(OUT) :: CH     !drag coefficient for heat
+    REAL(DP),                INTENT(OUT) :: FV     !friction velocity (m/s)
+    REAL(DP),                INTENT(OUT) :: CH2    !drag coefficient for heat
 
 ! locals
-    REAL    :: MOL                      !Monin-Obukhov length (m)
-    REAL    :: TMPCM                    !temporary calculation for CM
-    REAL    :: TMPCH                    !temporary calculation for CH
-    REAL    :: FMNEW                    !stability correction factor, momentum, for current moz
-    REAL    :: FHNEW                    !stability correction factor, sen heat, for current moz
-    REAL    :: MOZOLD                   !Monin-Obukhov stability parameter from prior iteration
-    REAL    :: TMP1,TMP2,TMP3,TMP4,TMP5 !temporary calculation
-    REAL    :: TVIR                     !temporary virtual temperature (k)
-    REAL    :: MOZ2                     !2/L
-    REAL    :: TMPCM2                   !temporary calculation for CM2
-    REAL    :: TMPCH2                   !temporary calculation for CH2
-    REAL    :: FM2NEW                   !stability correction factor, momentum, for current moz
-    REAL    :: FH2NEW                   !stability correction factor, sen heat, for current moz
-    REAL    :: TMP12,TMP22,TMP32        !temporary calculation
+    REAL(DP)    :: MOL                      !Monin-Obukhov length (m)
+    REAL(DP)    :: TMPCM                    !temporary calculation for CM
+    REAL(DP)    :: TMPCH                    !temporary calculation for CH
+    REAL(DP)    :: FMNEW                    !stability correction factor, momentum, for current moz
+    REAL(DP)    :: FHNEW                    !stability correction factor, sen heat, for current moz
+    REAL(DP)    :: MOZOLD                   !Monin-Obukhov stability parameter from prior iteration
+    REAL(DP)    :: TMP1,TMP2,TMP3,TMP4,TMP5 !temporary calculation
+    REAL(DP)    :: TVIR                     !temporary virtual temperature (k)
+    REAL(DP)    :: MOZ2                     !2/L
+    REAL(DP)    :: TMPCM2                   !temporary calculation for CM2
+    REAL(DP)    :: TMPCH2                   !temporary calculation for CH2
+    REAL(DP)    :: FM2NEW                   !stability correction factor, momentum, for current moz
+    REAL(DP)    :: FH2NEW                   !stability correction factor, sen heat, for current moz
+    REAL(DP)    :: TMP12,TMP22,TMP32        !temporary calculation
 
-    REAL    :: CMFM, CHFH, CM2FM2, CH2FH2
+    REAL(DP)    :: CMFM, CHFH, CM2FM2, CH2FH2
 ! -------------------------------------------------------------------------------------------------
 ! Monin-Obukhov stability parameter moz for next iteration
 
@@ -4263,48 +4269,48 @@ contains
     INTEGER, INTENT(IN) :: ILOC
     INTEGER, INTENT(IN) :: JLOC
     INTEGER, INTENT(IN) :: ITER
-    REAL,    INTENT(IN) :: ZLM, Z0, THZ0, THLM, SFCSPD, CZIL
-    REAL, intent(INOUT) :: AKMS
-    REAL, intent(INOUT) :: AKHS
-    REAL, intent(INOUT) :: RLMO
-    REAL, intent(INOUT) :: WSTAR2
-    REAL,   intent(OUT) :: USTAR
+    REAL(DP),    INTENT(IN) :: ZLM, Z0, THZ0, THLM, SFCSPD, CZIL
+    REAL(DP), intent(INOUT) :: AKMS
+    REAL(DP), intent(INOUT) :: AKHS
+    REAL(DP), intent(INOUT) :: RLMO
+    REAL(DP), intent(INOUT) :: WSTAR2
+    REAL(DP),   intent(OUT) :: USTAR
 
-    REAL     ZZ, PSLMU, PSLMS, PSLHU, PSLHS
-    REAL     XX, PSPMU, YY, PSPMS, PSPHU, PSPHS
-    REAL     ZILFC, ZU, ZT, RDZ, CXCH
-    REAL     DTHV, DU2, BTGH, ZSLU, ZSLT, RLOGU, RLOGT
-    REAL     ZETALT, ZETALU, ZETAU, ZETAT, XLU4, XLT4, XU4, XT4
+    REAL(DP)     ZZ, PSLMU, PSLMS, PSLHU, PSLHS
+    REAL(DP)     XX, PSPMU, YY, PSPMS, PSPHU, PSPHS
+    REAL(DP)     ZILFC, ZU, ZT, RDZ, CXCH
+    REAL(DP)     DTHV, DU2, BTGH, ZSLU, ZSLT, RLOGU, RLOGT
+    REAL(DP)     ZETALT, ZETALU, ZETAU, ZETAT, XLU4, XLT4, XU4, XT4
 
-    REAL     XLU, XLT, XU, XT, PSMZ, SIMM, PSHZ, SIMH, USTARK, RLMN,  &
+    REAL(DP)     XLU, XLT, XU, XT, PSMZ, SIMM, PSHZ, SIMH, USTARK, RLMN,  &
          &         RLMA
 
     INTEGER  ILECH, ITR
 
     INTEGER, PARAMETER :: ITRMX  = 5
-    REAL,    PARAMETER :: WWST   = 1.2
-    REAL,    PARAMETER :: WWST2  = WWST * WWST
-    REAL,    PARAMETER :: VKRM   = 0.40
-    REAL,    PARAMETER :: EXCM   = 0.001
-    REAL,    PARAMETER :: BETA   = 1.0 / 270.0
-    REAL,    PARAMETER :: BTG    = BETA * GRAV
-    REAL,    PARAMETER :: ELFC   = VKRM * BTG
-    REAL,    PARAMETER :: WOLD   = 0.15
-    REAL,    PARAMETER :: WNEW   = 1.0 - WOLD
-    REAL,    PARAMETER :: PIHF   = 3.14159265 / 2.
-    REAL,    PARAMETER :: EPSU2  = 1.E-4
-    REAL,    PARAMETER :: EPSUST = 0.07
-    REAL,    PARAMETER :: EPSIT  = 1.E-4
-    REAL,    PARAMETER :: EPSA   = 1.E-8
-    REAL,    PARAMETER :: ZTMIN  = -5.0
-    REAL,    PARAMETER :: ZTMAX  = 1.0
-    REAL,    PARAMETER :: HPBL   = 1000.0
-    REAL,    PARAMETER :: SQVISC = 258.2
-    REAL,    PARAMETER :: RIC    = 0.183
-    REAL,    PARAMETER :: RRIC   = 1.0 / RIC
-    REAL,    PARAMETER :: FHNEU  = 0.8
-    REAL,    PARAMETER :: RFC    = 0.191
-    REAL,    PARAMETER :: RFAC   = RIC / ( FHNEU * RFC * RFC )
+    REAL(DP),    PARAMETER :: WWST   = 1.2
+    REAL(DP),    PARAMETER :: WWST2  = WWST * WWST
+    REAL(DP),    PARAMETER :: VKRM   = 0.40
+    REAL(DP),    PARAMETER :: EXCM   = 0.001
+    REAL(DP),    PARAMETER :: BETA   = 1.0 / 270.0
+    REAL(DP),    PARAMETER :: BTG    = BETA * GRAV
+    REAL(DP),    PARAMETER :: ELFC   = VKRM * BTG
+    REAL(DP),    PARAMETER :: WOLD   = 0.15
+    REAL(DP),    PARAMETER :: WNEW   = 1.0 - WOLD
+    REAL(DP),    PARAMETER :: PIHF   = 3.14159265 / 2.
+    REAL(DP),    PARAMETER :: EPSU2  = 1.E-4
+    REAL(DP),    PARAMETER :: EPSUST = 0.07
+    REAL(DP),    PARAMETER :: EPSIT  = 1.E-4
+    REAL(DP),    PARAMETER :: EPSA   = 1.E-8
+    REAL(DP),    PARAMETER :: ZTMIN  = -5.0
+    REAL(DP),    PARAMETER :: ZTMAX  = 1.0
+    REAL(DP),    PARAMETER :: HPBL   = 1000.0
+    REAL(DP),    PARAMETER :: SQVISC = 258.2
+    REAL(DP),    PARAMETER :: RIC    = 0.183
+    REAL(DP),    PARAMETER :: RRIC   = 1.0 / RIC
+    REAL(DP),    PARAMETER :: FHNEU  = 0.8
+    REAL(DP),    PARAMETER :: RFC    = 0.191
+    REAL(DP),    PARAMETER :: RFAC   = RIC / ( FHNEU * RFC * RFC )
 
 ! ----------------------------------------------------------------------
 ! NOTE: THE TWO CODE BLOCKS BELOW DEFINE FUNCTIONS
@@ -4454,6 +4460,7 @@ contains
                      THLOW  ,QLOW   ,CWMLOW ,ZSL    ,        &  !in
                      PLOW   ,USTAR  ,AKMS   ,AKHS   ,CHS2   ,&  !inout
                      CQS2   ,RLMO   )                           !out
+  use nrtype
 
   USE MODULE_SF_MYJSFC, ONLY :   &
      &                         EPSU2  , &
@@ -4496,97 +4503,97 @@ contains
 ! input
     INTEGER,INTENT(IN) :: ILOC
     INTEGER,INTENT(IN) :: JLOC
-    REAL   ,INTENT(IN) :: TSK
-    REAL   ,INTENT(IN) :: PSFC
-    REAL   ,INTENT(IN) :: PBLH
+    REAL(DP)   ,INTENT(IN) :: TSK
+    REAL(DP)   ,INTENT(IN) :: PSFC
+    REAL(DP)   ,INTENT(IN) :: PBLH
     INTEGER,INTENT(IN) :: VEGTYP  !in routine
     INTEGER,INTENT(IN) :: ISURBAN !in veg_parm
     INTEGER,INTENT(IN) :: IZ0TLND
-    REAL   ,INTENT(IN) :: QLOW
-    REAL   ,INTENT(IN) :: THLOW
-    REAL   ,INTENT(IN) :: TLOW
-    REAL   ,INTENT(IN) :: CWMLOW
-    REAL   ,INTENT(IN) :: SFCSPD
-    REAL   ,INTENT(IN) :: PLOW
-    REAL   ,INTENT(IN) :: ZSL
-    REAL   ,INTENT(IN) :: Z0BASE
+    REAL(DP)   ,INTENT(IN) :: QLOW
+    REAL(DP)   ,INTENT(IN) :: THLOW
+    REAL(DP)   ,INTENT(IN) :: TLOW
+    REAL(DP)   ,INTENT(IN) :: CWMLOW
+    REAL(DP)   ,INTENT(IN) :: SFCSPD
+    REAL(DP)   ,INTENT(IN) :: PLOW
+    REAL(DP)   ,INTENT(IN) :: ZSL
+    REAL(DP)   ,INTENT(IN) :: Z0BASE
     INTEGER,INTENT(IN) :: ITER
     INTEGER,INTENT(IN) :: ITRMX
 
 ! output
-    REAL   ,INTENT(OUT) :: CHS2
-    REAL   ,INTENT(OUT) :: CQS2
-    REAL   ,INTENT(OUT) :: RLMO
+    REAL(DP)   ,INTENT(OUT) :: CHS2
+    REAL(DP)   ,INTENT(OUT) :: CQS2
+    REAL(DP)   ,INTENT(OUT) :: RLMO
 
 ! input/output
-    REAL   ,INTENT(INOUT) :: AKHS
-    REAL   ,INTENT(INOUT) :: AKMS
-    REAL   :: QZ0
-    REAL   ,INTENT(INOUT) :: USTAR
-    REAL   ,INTENT(IN) :: Z0
-    REAL   ,INTENT(INOUT):: QS
-    REAL                :: RIB
+    REAL(DP)   ,INTENT(INOUT) :: AKHS
+    REAL(DP)   ,INTENT(INOUT) :: AKMS
+    REAL(DP)   :: QZ0
+    REAL(DP)   ,INTENT(INOUT) :: USTAR
+    REAL(DP)   ,INTENT(IN) :: Z0
+    REAL(DP)   ,INTENT(INOUT):: QS
+    REAL(DP)                :: RIB
 
 ! local
     INTEGER :: ITR,K
-    REAL :: THZ0
-    REAL :: THVLOW
-    REAL :: CT
-    REAL :: BTGH
-    REAL :: BTGX
-    REAL :: CXCHL
-    REAL :: DTHV
-    REAL :: DU2
-    REAL :: ELFC
-    REAL :: PSH02
-    REAL :: PSH10
-    REAL :: PSHZ
-    REAL :: PSHZL
-    REAL :: PSM10
-    REAL :: PSMZ
-    REAL :: PSMZL
-    REAL :: RDZ
-    REAL :: RDZT
-    REAL :: RLMA !???
-    REAL :: RLMN !???
-    REAL :: RLOGT
-    REAL :: RLOGU
-    REAL :: RZ
-    REAL :: SIMH
-    REAL :: SIMM
-    REAL :: USTARK
-    REAL :: WSTAR2
-    REAL :: WSTAR
-    REAL :: CHS
-    REAL :: RZSU
-    REAL :: RZST
-    REAL :: X,XLT,XLT4,XLU,XLU4,XT,XT4,XU,XU4,ZETALT,ZETALU         , &
+    REAL(DP) :: THZ0
+    REAL(DP) :: THVLOW
+    REAL(DP) :: CT
+    REAL(DP) :: BTGH
+    REAL(DP) :: BTGX
+    REAL(DP) :: CXCHL
+    REAL(DP) :: DTHV
+    REAL(DP) :: DU2
+    REAL(DP) :: ELFC
+    REAL(DP) :: PSH02
+    REAL(DP) :: PSH10
+    REAL(DP) :: PSHZ
+    REAL(DP) :: PSHZL
+    REAL(DP) :: PSM10
+    REAL(DP) :: PSMZ
+    REAL(DP) :: PSMZL
+    REAL(DP) :: RDZ
+    REAL(DP) :: RDZT
+    REAL(DP) :: RLMA !???
+    REAL(DP) :: RLMN !???
+    REAL(DP) :: RLOGT
+    REAL(DP) :: RLOGU
+    REAL(DP) :: RZ
+    REAL(DP) :: SIMH
+    REAL(DP) :: SIMM
+    REAL(DP) :: USTARK
+    REAL(DP) :: WSTAR2
+    REAL(DP) :: WSTAR
+    REAL(DP) :: CHS
+    REAL(DP) :: RZSU
+    REAL(DP) :: RZST
+    REAL(DP) :: X,XLT,XLT4,XLU,XLU4,XT,XT4,XU,XU4,ZETALT,ZETALU         , &
             ZETAT,ZETAU,ZQ,ZSLT,ZSLU,ZT,ZU,TOPOTERM,ZZIL
-    REAL :: AKHS02,AKHS10,AKMS02,AKMS10
-    REAL :: ZU10
-    REAL :: ZT02
-    REAL :: ZT10
-    REAL :: RLNU10
-    REAL :: RLNT02
-    REAL :: RLNT10
-    REAL :: ZTAU10
-    REAL :: ZTAT02
-    REAL :: ZTAT10
-    REAL :: SIMM10
-    REAL :: SIMH02
-    REAL :: SIMH10
-    REAL :: ZUUZ
-    REAL :: EKMS10
-    REAL :: test
-    REAL :: E1
+    REAL(DP) :: AKHS02,AKHS10,AKMS02,AKMS10
+    REAL(DP) :: ZU10
+    REAL(DP) :: ZT02
+    REAL(DP) :: ZT10
+    REAL(DP) :: RLNU10
+    REAL(DP) :: RLNT02
+    REAL(DP) :: RLNT10
+    REAL(DP) :: ZTAU10
+    REAL(DP) :: ZTAT02
+    REAL(DP) :: ZTAT10
+    REAL(DP) :: SIMM10
+    REAL(DP) :: SIMH02
+    REAL(DP) :: SIMH10
+    REAL(DP) :: ZUUZ
+    REAL(DP) :: EKMS10
+    REAL(DP) :: test
+    REAL(DP) :: E1
 
-   REAL,    PARAMETER :: VKRM    = 0.40
-   REAL,    PARAMETER :: CZETMAX = 10.
+   REAL(DP),    PARAMETER :: VKRM    = 0.40
+   REAL(DP),    PARAMETER :: CZETMAX = 10.
 
 ! diagnostic terms
 
-   REAL :: CZIL
-   REAL :: ZILFC
+   REAL(DP) :: CZIL
+   REAL(DP) :: ZILFC
 
 ! KTMZ,KTMZ2,DZETA1,DZETA2,FH01,FH02,ZTMAX1,ZTMAX2,ZTMIN1,ZTMIN2,
 ! PSIH1,PSIH2,PSIM1,PSIM2 ARE DEFINED IN MODULE_SF_MYJSFC
@@ -4920,87 +4927,87 @@ contains
    IMPLICIT NONE
 !-------------------------------------------------------------------
 ! parameters
-   REAL,   PARAMETER     :: XKA=2.4E-5
-   REAL,   PARAMETER     :: PRT=1.     !prandtl number
+   REAL(DP),   PARAMETER     :: XKA=2.4E-5
+   REAL(DP),   PARAMETER     :: PRT=1.     !prandtl number
 
 ! input
    INTEGER,INTENT(IN )   :: ILOC
    INTEGER,INTENT(IN )   :: JLOC
 
-   REAL,   INTENT(IN )   :: PBLH      ! planetary boundary layer height
-   REAL,   INTENT(IN )   :: TSK       ! skin temperature
-   REAL,   INTENT(IN )   :: PSFCPA    ! pressure in pascal
-   REAL,   INTENT(IN )   :: P1D       !lowest model layer pressure (Pa)
-   REAL,   INTENT(IN )   :: T1D       !lowest model layer temperature
-!   REAL,   INTENT(IN )   :: QX        !water vapor mixing ratio (kg/kg)
-   REAL,   INTENT(IN )   :: QX        !water vapor specific humidity (kg/kg)
-   REAL,   INTENT(IN )   :: ZLVL      ! thickness of lowest full level layer
-   REAL,   INTENT(IN )   :: HFX       ! sensible heat flux
-   REAL,   INTENT(IN )   :: QFX       ! moisture flux
-   REAL,   INTENT(IN )   :: DX        ! horisontal grid spacing
-   REAL,   INTENT(IN )   :: UX
-   REAL,   INTENT(IN )   :: VX
-   REAL,   INTENT(IN )   :: ZNT
-   REAL,   INTENT(INOUT ) :: QSFC
+   REAL(DP),   INTENT(IN )   :: PBLH      ! planetary boundary layer height
+   REAL(DP),   INTENT(IN )   :: TSK       ! skin temperature
+   REAL(DP),   INTENT(IN )   :: PSFCPA    ! pressure in pascal
+   REAL(DP),   INTENT(IN )   :: P1D       !lowest model layer pressure (Pa)
+   REAL(DP),   INTENT(IN )   :: T1D       !lowest model layer temperature
+!   REAL(DP),   INTENT(IN )   :: QX        !water vapor mixing ratio (kg/kg)
+   REAL(DP),   INTENT(IN )   :: QX        !water vapor specific humidity (kg/kg)
+   REAL(DP),   INTENT(IN )   :: ZLVL      ! thickness of lowest full level layer
+   REAL(DP),   INTENT(IN )   :: HFX       ! sensible heat flux
+   REAL(DP),   INTENT(IN )   :: QFX       ! moisture flux
+   REAL(DP),   INTENT(IN )   :: DX        ! horisontal grid spacing
+   REAL(DP),   INTENT(IN )   :: UX
+   REAL(DP),   INTENT(IN )   :: VX
+   REAL(DP),   INTENT(IN )   :: ZNT
+   REAL(DP),   INTENT(INOUT ) :: QSFC
 
-   REAL,   INTENT(INOUT) :: RMOL
-   REAL,   INTENT(INOUT) :: UST
-   REAL,   INTENT(INOUT) :: CHS2
-   REAL,   INTENT(INOUT) :: CQS2
-   REAL,   INTENT(INOUT) :: CHS
-   REAL,   INTENT(INOUT) :: CM
+   REAL(DP),   INTENT(INOUT) :: RMOL
+   REAL(DP),   INTENT(INOUT) :: UST
+   REAL(DP),   INTENT(INOUT) :: CHS2
+   REAL(DP),   INTENT(INOUT) :: CQS2
+   REAL(DP),   INTENT(INOUT) :: CHS
+   REAL(DP),   INTENT(INOUT) :: CM
 
 ! diagnostics out
-   REAL,   INTENT(OUT)   :: U10
-   REAL,   INTENT(OUT)   :: V10
-!   REAL,   INTENT(OUT)   :: TH2
-!   REAL,   INTENT(OUT)   :: T2
-!   REAL,   INTENT(OUT)   :: Q2
-!   REAL,   INTENT(OUT)   :: QSFC
+   REAL(DP),   INTENT(OUT)   :: U10
+   REAL(DP),   INTENT(OUT)   :: V10
+!   REAL(DP),   INTENT(OUT)   :: TH2
+!   REAL(DP),   INTENT(OUT)   :: T2
+!   REAL(DP),   INTENT(OUT)   :: Q2
+!   REAL(DP),   INTENT(OUT)   :: QSFC
 
 ! optional vars
    INTEGER,OPTIONAL,INTENT(IN ) :: IZ0TLND
 
 ! local
    INTEGER :: REGIME  ! Stability regime
-   REAL    :: ZA      ! Height of full-sigma level
-   REAL    :: THVX    ! Virtual potential temperature
-   REAL    :: ZQKL    ! Height of upper half level
-   REAL    :: ZQKLP1  ! Height of lower half level (surface)
-   REAL    :: THX     ! Potential temperature
-   REAL    :: PSIH    ! similarity function for heat
-   REAL    :: PSIH2   ! Similarity function for heat 2m
-   REAL    :: PSIH10  ! Similarity function for heat 10m
-   REAL    :: PSIM    ! similarity function for momentum
-   REAL    :: PSIM2   ! Similarity function for momentum 2m
-   REAL    :: PSIM10  ! Similarity function for momentum 10m
-   REAL    :: DENOMQ  ! Denominator used for flux calc.
-   REAL    :: DENOMQ2 ! Denominator used for flux calc.
-   REAL    :: DENOMT2 ! Denominator used for flux calc.
-   REAL    :: WSPDI   ! Initial wind speed
-   REAL    :: GZ1OZ0  ! log(za/z0)
-   REAL    :: GZ2OZ0  ! log(z2/z0)
-   REAL    :: GZ10OZ0 ! log(z10/z0)
-   REAL    :: RHOX    ! density
-   REAL    :: GOVRTH  ! g/theta for stability L
-   REAL    :: TGDSA   ! tsk
-!   REAL    :: SCR3    ! temporal variable -> input variable T1D
-   REAL    :: TVIR    ! temporal variable SRC4 -> TVIR
-   REAL    :: THGB    ! Potential temperature ground
-   REAL    :: PSFC    ! Surface pressure
-   REAL    :: BR      ! bulk richardson number
-   REAL    :: CPM
-   REAL    :: MOL
-   REAL    :: ZOL
-   REAL    :: QGH
-   REAL    :: WSPD
+   REAL(DP)    :: ZA      ! Height of full-sigma level
+   REAL(DP)    :: THVX    ! Virtual potential temperature
+   REAL(DP)    :: ZQKL    ! Height of upper half level
+   REAL(DP)    :: ZQKLP1  ! Height of lower half level (surface)
+   REAL(DP)    :: THX     ! Potential temperature
+   REAL(DP)    :: PSIH    ! similarity function for heat
+   REAL(DP)    :: PSIH2   ! Similarity function for heat 2m
+   REAL(DP)    :: PSIH10  ! Similarity function for heat 10m
+   REAL(DP)    :: PSIM    ! similarity function for momentum
+   REAL(DP)    :: PSIM2   ! Similarity function for momentum 2m
+   REAL(DP)    :: PSIM10  ! Similarity function for momentum 10m
+   REAL(DP)    :: DENOMQ  ! Denominator used for flux calc.
+   REAL(DP)    :: DENOMQ2 ! Denominator used for flux calc.
+   REAL(DP)    :: DENOMT2 ! Denominator used for flux calc.
+   REAL(DP)    :: WSPDI   ! Initial wind speed
+   REAL(DP)    :: GZ1OZ0  ! log(za/z0)
+   REAL(DP)    :: GZ2OZ0  ! log(z2/z0)
+   REAL(DP)    :: GZ10OZ0 ! log(z10/z0)
+   REAL(DP)    :: RHOX    ! density
+   REAL(DP)    :: GOVRTH  ! g/theta for stability L
+   REAL(DP)    :: TGDSA   ! tsk
+!   REAL(DP)    :: SCR3    ! temporal variable -> input variable T1D
+   REAL(DP)    :: TVIR    ! temporal variable SRC4 -> TVIR
+   REAL(DP)    :: THGB    ! Potential temperature ground
+   REAL(DP)    :: PSFC    ! Surface pressure
+   REAL(DP)    :: BR      ! bulk richardson number
+   REAL(DP)    :: CPM
+   REAL(DP)    :: MOL
+   REAL(DP)    :: ZOL
+   REAL(DP)    :: QGH
+   REAL(DP)    :: WSPD
 
    INTEGER :: N,I,K,KK,L,NZOL,NK,NZOL2,NZOL10
 
-   REAL    ::  PL,THCON,TVCON,E1
-   REAL    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
-   REAL    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
-   REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,RESTAR2
+   REAL(DP)    ::  PL,THCON,TVCON,E1
+   REAL(DP)    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
+   REAL(DP)    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
+   REAL(DP)    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,RESTAR2
 !-------------------------------------------------------------------
 
    MOL = 1./RMOL
@@ -5042,9 +5049,9 @@ contains
 
 ! calculate bulk richardson no. of surface layer,
 ! according to akb(1976), eq(12).
-   GZ1OZ0=ALOG(ZA/ZNT)
-   GZ2OZ0=ALOG(2./ZNT)
-   GZ10OZ0=ALOG(10./ZNT)
+   GZ1OZ0=log(ZA/ZNT)
+   GZ2OZ0=log(2./ZNT)
+   GZ10OZ0=log(10./ZNT)
    WSPD=SQRT(UX*UX+VX*VX)
 
 ! virtual pot. temperature difference between input layer and lowest model layer
@@ -5219,11 +5226,11 @@ contains
 ! lower limit added to prevent large flhc in soil model
 ! activates in unstable conditions with thin layers or high z0
    PSIT=AMAX1(GZ1OZ0-PSIH,2.) !does this still apply???? jref
-   PSIQ=ALOG(KARMAN*UST*ZA/XKA+ZA/ZL)-PSIH
+   PSIQ=log(KARMAN*UST*ZA/XKA+ZA/ZL)-PSIH
    PSIT2=GZ2OZ0-PSIH2
-   PSIQ2=ALOG(KARMAN*UST*2./XKA+2./ZL)-PSIH2
+   PSIQ2=log(KARMAN*UST*2./XKA+2./ZL)-PSIH2
 ! AHW: mods to compute ck, cd
-   PSIQ10=ALOG(KARMAN*UST*10./XKA+10./ZL)-PSIH10
+   PSIQ10=log(KARMAN*UST*10./XKA+10./ZL)-PSIH10
 
 !jref:start - commented out since these values can be produced by sfclay routine
 !   IF(PRESENT(ck) .and. PRESENT(cd) .and. PRESENT(cka) .and. PRESENT(cda)) THEN
@@ -5276,7 +5283,7 @@ contains
    CM =KARMAN*KARMAN/(PSIX*PSIX)
 !jref:end
    CHS=UST*KARMAN/DENOMQ
-!        GZ2OZ0=ALOG(2./ZNT)
+!        GZ2OZ0=log(2./ZNT)
 !        PSIM2=-10.*GZ2OZ0
 !        PSIM2=AMAX1(PSIM2,-10.)
 !        PSIH2=PSIM2
@@ -5303,21 +5310,21 @@ contains
 !---------------------------------------------------------------------------------------------------
 ! in
 
-  REAL, intent(in)  :: T              !temperature
+  REAL(DP), intent(in)  :: T              !temperature
 
 !out
 
-  REAL, intent(out) :: ESW            !saturation vapor pressure over water (pa)
-  REAL, intent(out) :: ESI            !saturation vapor pressure over ice (pa)
-  REAL, intent(out) :: DESW           !d(esat)/dt over water (pa/K)
-  REAL, intent(out) :: DESI           !d(esat)/dt over ice (pa/K)
+  REAL(DP), intent(out) :: ESW            !saturation vapor pressure over water (pa)
+  REAL(DP), intent(out) :: ESI            !saturation vapor pressure over ice (pa)
+  REAL(DP), intent(out) :: DESW           !d(esat)/dt over water (pa/K)
+  REAL(DP), intent(out) :: DESI           !d(esat)/dt over ice (pa/K)
 
 ! local
 
-  REAL :: A0,A1,A2,A3,A4,A5,A6  !coefficients for esat over water
-  REAL :: B0,B1,B2,B3,B4,B5,B6  !coefficients for esat over ice
-  REAL :: C0,C1,C2,C3,C4,C5,C6  !coefficients for dsat over water
-  REAL :: D0,D1,D2,D3,D4,D5,D6  !coefficients for dsat over ice
+  REAL(DP) :: A0,A1,A2,A3,A4,A5,A6  !coefficients for esat over water
+  REAL(DP) :: B0,B1,B2,B3,B4,B5,B6  !coefficients for esat over ice
+  REAL(DP) :: C0,C1,C2,C3,C4,C5,C6  !coefficients for dsat over water
+  REAL(DP) :: D0,D1,D2,D3,D4,D5,D6  !coefficients for dsat over ice
 
   PARAMETER (A0=6.107799961    , A1=4.436518521E-01,  &
              A2=1.428945805E-02, A3=2.650648471E-04,  &
@@ -5361,27 +5368,27 @@ contains
       INTEGER,INTENT(IN)  :: JLOC   !grid index
       INTEGER,INTENT(IN)  :: VEGTYP !vegetation physiology type
 
-      REAL, INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
-      REAL, INTENT(IN)    :: MPE    !prevents division by zero errors
+      REAL(DP), INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
+      REAL(DP), INTENT(IN)    :: MPE    !prevents division by zero errors
 
-      REAL, INTENT(IN)    :: TV     !foliage temperature (k)
-      REAL, INTENT(IN)    :: EI     !vapor pressure inside leaf (sat vapor press at tv) (pa)
-      REAL, INTENT(IN)    :: EA     !vapor pressure of canopy air (pa)
-      REAL, INTENT(IN)    :: APAR   !par absorbed per unit lai (w/m2)
-      REAL, INTENT(IN)    :: O2     !atmospheric o2 concentration (pa)
-      REAL, INTENT(IN)    :: CO2    !atmospheric co2 concentration (pa)
-      REAL, INTENT(IN)    :: SFCPRS !air pressure at reference height (pa)
-      REAL, INTENT(IN)    :: SFCTMP !air temperature at reference height (k)
-      REAL, INTENT(IN)    :: BTRAN  !soil water transpiration factor (0 to 1)
-      REAL, INTENT(IN)    :: FOLN   !foliage nitrogen concentration (%)
-      REAL, INTENT(IN)    :: RB     !boundary layer resistance (s/m)
+      REAL(DP), INTENT(IN)    :: TV     !foliage temperature (k)
+      REAL(DP), INTENT(IN)    :: EI     !vapor pressure inside leaf (sat vapor press at tv) (pa)
+      REAL(DP), INTENT(IN)    :: EA     !vapor pressure of canopy air (pa)
+      REAL(DP), INTENT(IN)    :: APAR   !par absorbed per unit lai (w/m2)
+      REAL(DP), INTENT(IN)    :: O2     !atmospheric o2 concentration (pa)
+      REAL(DP), INTENT(IN)    :: CO2    !atmospheric co2 concentration (pa)
+      REAL(DP), INTENT(IN)    :: SFCPRS !air pressure at reference height (pa)
+      REAL(DP), INTENT(IN)    :: SFCTMP !air temperature at reference height (k)
+      REAL(DP), INTENT(IN)    :: BTRAN  !soil water transpiration factor (0 to 1)
+      REAL(DP), INTENT(IN)    :: FOLN   !foliage nitrogen concentration (%)
+      REAL(DP), INTENT(IN)    :: RB     !boundary layer resistance (s/m)
 
 ! output
-      REAL, INTENT(OUT)   :: RS     !leaf stomatal resistance (s/m)
-      REAL, INTENT(OUT)   :: PSN    !foliage photosynthesis (umol co2 /m2/ s) [always +]
+      REAL(DP), INTENT(OUT)   :: RS     !leaf stomatal resistance (s/m)
+      REAL(DP), INTENT(OUT)   :: PSN    !foliage photosynthesis (umol co2 /m2/ s) [always +]
 
 ! in&out
-      REAL                :: RLB    !boundary layer resistance (s m2 / umol)
+      REAL(DP)                :: RLB    !boundary layer resistance (s m2 / umol)
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
@@ -5391,32 +5398,32 @@ contains
       DATA NITER /3/
       SAVE NITER
 
-      REAL :: AB          !used in statement functions
-      REAL :: BC          !used in statement functions
-      REAL :: F1          !generic temperature response (statement function)
-      REAL :: F2          !generic temperature inhibition (statement function)
-      REAL :: TC          !foliage temperature (degree Celsius)
-      REAL :: CS          !co2 concentration at leaf surface (pa)
-      REAL :: KC          !co2 Michaelis-Menten constant (pa)
-      REAL :: KO          !o2 Michaelis-Menten constant (pa)
-      REAL :: A,B,C,Q     !intermediate calculations for RS
-      REAL :: R1,R2       !roots for RS
-      REAL :: FNF         !foliage nitrogen adjustment factor (0 to 1)
-      REAL :: PPF         !absorb photosynthetic photon flux (umol photons/m2/s)
-      REAL :: WC          !Rubisco limited photosynthesis (umol co2/m2/s)
-      REAL :: WJ          !light limited photosynthesis (umol co2/m2/s)
-      REAL :: WE          !export limited photosynthesis (umol co2/m2/s)
-      REAL :: CP          !co2 compensation point (pa)
-      REAL :: CI          !internal co2 (pa)
-      REAL :: AWC         !intermediate calculation for wc
-      REAL :: VCMX        !maximum rate of carbonylation (umol co2/m2/s)
-      REAL :: J           !electron transport (umol co2/m2/s)
-      REAL :: CEA         !constrain ea or else model blows up
-      REAL :: CF          !s m2/umol -> s/m
+      REAL(DP) :: AB          !used in statement functions
+      REAL(DP) :: BC          !used in statement functions
+      REAL(DP) :: F1          !generic temperature response (statement function)
+      REAL(DP) :: F2          !generic temperature inhibition (statement function)
+      REAL(DP) :: TC          !foliage temperature (degree Celsius)
+      REAL(DP) :: CS          !co2 concentration at leaf surface (pa)
+      REAL(DP) :: KC          !co2 Michaelis-Menten constant (pa)
+      REAL(DP) :: KO          !o2 Michaelis-Menten constant (pa)
+      REAL(DP) :: A,B,C,Q     !intermediate calculations for RS
+      REAL(DP) :: R1,R2       !roots for RS
+      REAL(DP) :: FNF         !foliage nitrogen adjustment factor (0 to 1)
+      REAL(DP) :: PPF         !absorb photosynthetic photon flux (umol photons/m2/s)
+      REAL(DP) :: WC          !Rubisco limited photosynthesis (umol co2/m2/s)
+      REAL(DP) :: WJ          !light limited photosynthesis (umol co2/m2/s)
+      REAL(DP) :: WE          !export limited photosynthesis (umol co2/m2/s)
+      REAL(DP) :: CP          !co2 compensation point (pa)
+      REAL(DP) :: CI          !internal co2 (pa)
+      REAL(DP) :: AWC         !intermediate calculation for wc
+      REAL(DP) :: VCMX        !maximum rate of carbonylation (umol co2/m2/s)
+      REAL(DP) :: J           !electron transport (umol co2/m2/s)
+      REAL(DP) :: CEA         !constrain ea or else model blows up
+      REAL(DP) :: CF          !s m2/umol -> s/m
 
       F1(AB,BC) = AB**((BC-25.)/10.)
       F2(AB) = 1. + EXP((-2.2E05+710.*(AB+273.16))/(8.314*(AB+273.16)))
-      REAL :: T
+      REAL(DP) :: T
 ! ---------------------------------------------------------------------------------------------
 
 ! MPC change
@@ -5523,26 +5530,26 @@ contains
 
     INTEGER,                  INTENT(IN)  :: ILOC   !grid index
     INTEGER,                  INTENT(IN)  :: JLOC   !grid index
-    REAL,                     INTENT(IN)  :: PAR    !par absorbed per unit sunlit lai (w/m2)
-    REAL,                     INTENT(IN)  :: SFCTMP !canopy air temperature
-    REAL,                     INTENT(IN)  :: SFCPRS !surface pressure (pa)
-    REAL,                     INTENT(IN)  :: EAH    !water vapor pressure (pa)
-    REAL,                     INTENT(IN)  :: RCSOIL !soil moisture stress factor
+    REAL(DP),                     INTENT(IN)  :: PAR    !par absorbed per unit sunlit lai (w/m2)
+    REAL(DP),                     INTENT(IN)  :: SFCTMP !canopy air temperature
+    REAL(DP),                     INTENT(IN)  :: SFCPRS !surface pressure (pa)
+    REAL(DP),                     INTENT(IN)  :: EAH    !water vapor pressure (pa)
+    REAL(DP),                     INTENT(IN)  :: RCSOIL !soil moisture stress factor
 
 !outputs
 
-    REAL,                     INTENT(OUT) :: RC     !canopy resistance per unit LAI
-    REAL,                     INTENT(OUT) :: PSN    !foliage photosynthesis (umolco2/m2/s)
+    REAL(DP),                     INTENT(OUT) :: RC     !canopy resistance per unit LAI
+    REAL(DP),                     INTENT(OUT) :: PSN    !foliage photosynthesis (umolco2/m2/s)
 
 !local
 
-    REAL                                  :: RCQ
-    REAL                                  :: RCS
-    REAL                                  :: RCT
-    REAL                                  :: FF
-    REAL                                  :: Q2     !water vapor mixing ratio (kg/kg)
-    REAL                                  :: Q2SAT  !saturation Q2
-    REAL                                  :: DQSDT2 !d(Q2SAT)/d(T)
+    REAL(DP)                                  :: RCQ
+    REAL(DP)                                  :: RCS
+    REAL(DP)                                  :: RCT
+    REAL(DP)                                  :: FF
+    REAL(DP)                                  :: Q2     !water vapor mixing ratio (kg/kg)
+    REAL(DP)                                  :: Q2SAT  !saturation Q2
+    REAL(DP)                                  :: DQSDT2 !d(Q2SAT)/d(T)
 
 ! RSMIN, RSMAX, TOPT, RGL, HS are canopy stress parameters set in REDPRM
 ! ----------------------------------------------------------------------
@@ -5587,12 +5594,12 @@ contains
 
         IMPLICIT NONE
 
-        REAL, INTENT(IN)       :: SFCTMP, SFCPRS
-        REAL, INTENT(OUT)      :: Q2SAT, DQSDT2
-        REAL, PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,         &
+        REAL(DP), INTENT(IN)       :: SFCTMP, SFCPRS
+        REAL(DP), INTENT(OUT)      :: Q2SAT, DQSDT2
+        REAL(DP), PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,         &
                                   A23M4=A2*(A3-A4), E0=0.611, RV=461.0,             &
                                   EPSILON=0.622
-        REAL                   :: ES, SFCPRSX
+        REAL(DP)                   :: ES, SFCPRSX
 
 ! Q2SAT: saturated mixing ratio
         ES = E0 * EXP ( ELWV/RV*(1./A3 - 1./SFCTMP) )
@@ -5633,34 +5640,34 @@ contains
     INTEGER,                         INTENT(IN)  :: ISNOW  !actual no of snow layers
     INTEGER,                         INTENT(IN)  :: IST    !surface type
 
-    REAL,                            INTENT(IN)  :: DT     !time step (s)
-    REAL,                            INTENT(IN)  :: TBOT   !
-    REAL,                            INTENT(IN)  :: SSOIL  !ground heat flux (w/m2)
-    REAL,                            INTENT(IN)  :: SAG    !solar rad. absorbed by ground (w/m2)
-    REAL,                            INTENT(IN)  :: SNOWH  !snow depth (m)
-    REAL,                            INTENT(IN)  :: ZBOT   !from soil surface (m)
-    REAL,                            INTENT(IN)  :: TG     !ground temperature (k)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: ZSNSO  !layer-bot. depth from snow surf.(m)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DZSNSO !snow/soil layer thickness (m)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DF     !thermal conductivity
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: HCPCT  !heat capacity (J/m3/k)
+    REAL(DP),                            INTENT(IN)  :: DT     !time step (s)
+    REAL(DP),                            INTENT(IN)  :: TBOT   !
+    REAL(DP),                            INTENT(IN)  :: SSOIL  !ground heat flux (w/m2)
+    REAL(DP),                            INTENT(IN)  :: SAG    !solar rad. absorbed by ground (w/m2)
+    REAL(DP),                            INTENT(IN)  :: SNOWH  !snow depth (m)
+    REAL(DP),                            INTENT(IN)  :: ZBOT   !from soil surface (m)
+    REAL(DP),                            INTENT(IN)  :: TG     !ground temperature (k)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: ZSNSO  !layer-bot. depth from snow surf.(m)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DZSNSO !snow/soil layer thickness (m)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DF     !thermal conductivity
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: HCPCT  !heat capacity (J/m3/k)
 
 !input and output
 
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC
 
 !local
 
     INTEGER                                      :: IZ
-    REAL                                         :: ZBOTSNO   !ZBOT from snow surface
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: AI, BI, CI, RHSTS
-    REAL                                         :: EFLXB !energy influx from soil bottom (w/m2)
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: PHI   !light through water (w/m2)
+    REAL(DP)                                         :: ZBOTSNO   !ZBOT from snow surface
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: AI, BI, CI, RHSTS
+    REAL(DP)                                         :: EFLXB !energy influx from soil bottom (w/m2)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: PHI   !light through water (w/m2)
 
-    REAL, DIMENSION(-NSNOW+1:NSOIL) :: TBEG
-    REAL                            :: ERR_EST !heat storage error  (w/m2)
-    REAL                            :: SSOIL2  !ground heat flux (w/m2) (for energy check)
-    REAL                            :: EFLXB2  !heat flux from the bottom (w/m2) (for energy check)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: TBEG
+    REAL(DP)                            :: ERR_EST !heat storage error  (w/m2)
+    REAL(DP)                            :: SSOIL2  !ground heat flux (w/m2) (for energy check)
+    REAL(DP)                            :: EFLXB2  !heat flux from the bottom (w/m2) (for energy check)
     character(len=256)              :: message
 ! ----------------------------------------------------------------------
 ! compute solar penetration through water, needs more work
@@ -5747,34 +5754,34 @@ contains
     INTEGER,                         INTENT(IN)  :: NSOIL  !no of soil layers (4)
     INTEGER,                         INTENT(IN)  :: NSNOW  !maximum no of snow layers (3)
     INTEGER,                         INTENT(IN)  :: ISNOW  !actual no of snow layers
-    REAL,                            INTENT(IN)  :: TBOT   !bottom soil temp. at ZBOT (k)
-    REAL,                            INTENT(IN)  :: ZBOT   !depth of lower boundary condition (m)
+    REAL(DP),                            INTENT(IN)  :: TBOT   !bottom soil temp. at ZBOT (k)
+    REAL(DP),                            INTENT(IN)  :: ZBOT   !depth of lower boundary condition (m)
                                                            !from soil surface not snow surface
-    REAL,                            INTENT(IN)  :: DT     !time step (s)
-    REAL,                            INTENT(IN)  :: SSOIL  !ground heat flux (w/m2)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: ZSNSO  !depth of layer-bottom of snow/soil (m)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: STC    !snow/soil temperature (k)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DF     !thermal conductivity [w/m/k]
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: HCPCT  !heat capacity [j/m3/k]
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: PHI    !light through water (w/m2)
+    REAL(DP),                            INTENT(IN)  :: DT     !time step (s)
+    REAL(DP),                            INTENT(IN)  :: SSOIL  !ground heat flux (w/m2)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: ZSNSO  !depth of layer-bottom of snow/soil (m)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: STC    !snow/soil temperature (k)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: DF     !thermal conductivity [w/m/k]
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: HCPCT  !heat capacity [j/m3/k]
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)  :: PHI    !light through water (w/m2)
 
 ! output
 
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: RHSTS  !right-hand side of the matrix
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: AI     !left-hand side coefficient
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: BI     !left-hand side coefficient
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: CI     !left-hand side coefficient
-    REAL,                            INTENT(OUT) :: BOTFLX !energy influx from soil bottom (w/m2)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: RHSTS  !right-hand side of the matrix
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: AI     !left-hand side coefficient
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: BI     !left-hand side coefficient
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: CI     !left-hand side coefficient
+    REAL(DP),                            INTENT(OUT) :: BOTFLX !energy influx from soil bottom (w/m2)
 
 ! local
 
     INTEGER                                      :: K
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: DDZ
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: DZ
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: DENOM
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: DTSDZ
-    REAL, DIMENSION(-NSNOW+1:NSOIL)              :: EFLUX
-    REAL                                         :: TEMP1
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: DDZ
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: DZ
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: DENOM
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: DTSDZ
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)              :: EFLUX
+    REAL(DP)                                         :: TEMP1
 ! ----------------------------------------------------------------------
 
     DO K = ISNOW+1, NSOIL
@@ -5842,19 +5849,19 @@ contains
     INTEGER,                         INTENT(IN)    :: NSOIL
     INTEGER,                         INTENT(IN)    :: NSNOW
     INTEGER,                         INTENT(IN)    :: ISNOW
-    REAL,                            INTENT(IN)    :: DT
+    REAL(DP),                            INTENT(IN)    :: DT
 
 ! output & input
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: RHSTS
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: AI
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: BI
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: CI
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: RHSTS
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: AI
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: BI
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: CI
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC
 
 ! local
     INTEGER                                        :: K
-    REAL, DIMENSION(-NSNOW+1:NSOIL)                :: RHSTSIN
-    REAL, DIMENSION(-NSNOW+1:NSOIL)                :: CIIN
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                :: RHSTSIN
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL)                :: CIIN
 ! ----------------------------------------------------------------------
 
     DO K = ISNOW+1,NSOIL
@@ -5908,8 +5915,8 @@ contains
     INTEGER, INTENT(IN)   :: NSOIL,NSNOW
     INTEGER               :: K, KK
 
-    REAL, DIMENSION(-NSNOW+1:NSOIL),INTENT(IN):: A, B, D
-    REAL, DIMENSION(-NSNOW+1:NSOIL),INTENT(INOUT):: C,P,DELTA
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL),INTENT(IN):: A, B, D
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL),INTENT(INOUT):: C,P,DELTA
 
 ! ----------------------------------------------------------------------
 ! INITIALIZE EQN COEF C FOR THE LOWEST SOIL LAYER
@@ -5961,42 +5968,42 @@ contains
   INTEGER, INTENT(IN)                             :: NSOIL  !No. of soil layers [=4]
   INTEGER, INTENT(IN)                             :: ISNOW  !actual no. of snow layers [<=3]
   INTEGER, INTENT(IN)                             :: IST    !surface type: 1->soil; 2->lake
-  REAL, INTENT(IN)                                :: DT     !land model time step (sec)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)     :: FACT   !temporary
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)     :: DZSNSO !snow/soil layer thickness [m]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)     :: HCPCT  !heat capacity (J/m3/k)
+  REAL(DP), INTENT(IN)                                :: DT     !land model time step (sec)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)     :: FACT   !temporary
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)     :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)     :: HCPCT  !heat capacity (J/m3/k)
 
 ! outputs
   INTEGER, DIMENSION(-NSNOW+1:NSOIL), INTENT(OUT) :: IMELT  !phase change index
-  REAL,                               INTENT(OUT) :: QMELT  !snowmelt rate [mm/s]
-  REAL,                               INTENT(OUT) :: PONDING!snowmelt when snow has no layer [mm]
+  REAL(DP),                               INTENT(OUT) :: QMELT  !snowmelt rate [mm/s]
+  REAL(DP),                               INTENT(OUT) :: PONDING!snowmelt when snow has no layer [mm]
 
 ! inputs and outputs
 
-  REAL, INTENT(INOUT) :: SNEQV
-  REAL, INTENT(INOUT) :: SNOWH
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT)  :: STC    !snow/soil layer temperature [k]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT)  :: SH2O   !soil liquid water [m3/m3]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT)  :: SMC    !total soil water [m3/m3]
-  REAL, DIMENSION(-NSNOW+1:0)    , INTENT(INOUT)  :: SNICE  !snow layer ice [mm]
-  REAL, DIMENSION(-NSNOW+1:0)    , INTENT(INOUT)  :: SNLIQ  !snow layer liquid water [mm]
+  REAL(DP), INTENT(INOUT) :: SNEQV
+  REAL(DP), INTENT(INOUT) :: SNOWH
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT)  :: STC    !snow/soil layer temperature [k]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT)  :: SH2O   !soil liquid water [m3/m3]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT)  :: SMC    !total soil water [m3/m3]
+  REAL(DP), DIMENSION(-NSNOW+1:0)    , INTENT(INOUT)  :: SNICE  !snow layer ice [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:0)    , INTENT(INOUT)  :: SNLIQ  !snow layer liquid water [mm]
 
 ! local
 
   INTEGER                         :: J         !do loop index
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: HM        !energy residual [w/m2]
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: XM        !melting or freezing water [kg/m2]
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: WMASS0
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: WICE0
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: WLIQ0
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: MICE      !soil/snow ice mass [mm]
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: MLIQ      !soil/snow liquid water mass [mm]
-  REAL, DIMENSION(-NSNOW+1:NSOIL) :: SUPERCOOL !supercooled water in soil (kg/m2)
-  REAL                            :: HEATR     !energy residual or loss after melting/freezing
-  REAL                            :: TEMP1     !temporary variables [kg/m2]
-  REAL                            :: PROPOR
-  REAL                            :: SMP       !frozen water potential (mm)
-  REAL                            :: XMF       !total latent heat of phase change
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: HM        !energy residual [w/m2]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: XM        !melting or freezing water [kg/m2]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: WMASS0
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: WICE0
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: WLIQ0
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: MICE      !soil/snow ice mass [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: MLIQ      !soil/snow liquid water mass [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL) :: SUPERCOOL !supercooled water in soil (kg/m2)
+  REAL(DP)                            :: HEATR     !energy residual or loss after melting/freezing
+  REAL(DP)                            :: TEMP1     !temporary variables [kg/m2]
+  REAL(DP)                            :: PROPOR
+  REAL(DP)                            :: SMP       !frozen water potential (mm)
+  REAL(DP)                            :: XMF       !total latent heat of phase change
 
 ! ----------------------------------------------------------------------
 ! Initialization
@@ -6181,19 +6188,19 @@ contains
 !   FREE..........SUPERCOOLED LIQUID WATER CONTENT [m3/m3]
 ! ----------------------------------------------------------------------
     IMPLICIT NONE
-    REAL, INTENT(IN)     :: SH2O,SMC,TKELV
-    REAL, INTENT(OUT)    :: FREE
-    REAL                 :: BX,DENOM,DF,DSWL,FK,SWL,SWLK
+    REAL(DP), INTENT(IN)     :: SH2O,SMC,TKELV
+    REAL(DP), INTENT(OUT)    :: FREE
+    REAL(DP)                 :: BX,DENOM,DF,DSWL,FK,SWL,SWLK
     INTEGER              :: NLOG,KCOUNT
 !      PARAMETER(CK = 0.0)
-    REAL, PARAMETER      :: CK = 8.0, BLIM = 5.5, ERROR = 0.005,       &
+    REAL(DP), PARAMETER      :: CK = 8.0, BLIM = 5.5, ERROR = 0.005,       &
          DICE = 920.0
     CHARACTER(LEN=80)    :: message
 
 ! ----------------------------------------------------------------------
 ! LIMITS ON PARAMETER B: B < 5.5  (use parameter BLIM)
 ! SIMULATIONS SHOWED IF B > 5.5 UNFROZEN WATER CONTENT IS
-! NON-REALISTICALLY HIGH AT VERY LOW TEMPERATURES.
+! NON-REAL(DP)ISTICALLY HIGH AT VERY LOW TEMPERATURES.
 ! ----------------------------------------------------------------------
     BX = BEXP
 ! ----------------------------------------------------------------------
@@ -6229,8 +6236,8 @@ contains
 1001      Continue
           IF (.NOT.( (NLOG < 10) .AND. (KCOUNT == 0)))   goto 1002
           NLOG = NLOG +1
-          DF = ALOG ( ( PSISAT * GRAV / hfus ) * ( ( 1. + CK * SWL )**2.) * &
-               ( SMCMAX / (SMC - SWL) )** BX) - ALOG ( - (               &
+          DF = log ( ( PSISAT * GRAV / hfus ) * ( ( 1. + CK * SWL )**2.) * &
+               ( SMCMAX / (SMC - SWL) )** BX) - log ( - (               &
                TKELV - TFRZ)/ TKELV)
           DENOM = 2. * CK / ( 1. + CK * SWL ) + BX / ( SMC - SWL )
           SWLK = SWL - DF / DENOM
@@ -6310,80 +6317,80 @@ contains
   INTEGER                        , INTENT(IN)    :: IST     !surface type 1-soil; 2-lake
   INTEGER,                         INTENT(IN)    :: NSOIL   !no. of soil layers
   INTEGER, DIMENSION(-NSNOW+1:0) , INTENT(IN)    :: IMELT   !melting state index [1-melt; 2-freeze]
-  REAL,                            INTENT(IN)    :: DT      !main time step (s)
-  REAL,                            INTENT(IN)    :: UU      !u-direction wind speed [m/s]
-  REAL,                            INTENT(IN)    :: VV      !v-direction wind speed [m/s]
-  REAL,                            INTENT(IN)    :: FCEV    !canopy evaporation (w/m2) [+ to atm ]
-  REAL,                            INTENT(IN)    :: FCTR    !transpiration (w/m2) [+ to atm]
-  REAL,                            INTENT(IN)    :: QPRECC  !convective precipitation (mm/s)
-  REAL,                            INTENT(IN)    :: QPRECL  !large-scale precipitation (mm/s)
-  REAL,                            INTENT(IN)    :: ELAI    !leaf area index, after burying by snow
-  REAL,                            INTENT(IN)    :: ESAI    !stem area index, after burying by snow
-  REAL,                            INTENT(IN)    :: SFCTMP  !surface air temperature [k]
-  REAL,                            INTENT(IN)    :: QVAP    !soil surface evaporation rate[mm/s]
-  REAL,                            INTENT(IN)    :: QDEW    !soil surface dew rate[mm/s]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL   !depth of layer-bottom from soil surface
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN)    :: BTRANI  !soil water stress factor (0 to 1)
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD !ice fraction at last timestep
-!  REAL                           , INTENT(IN)    :: PONDING ![mm]
-  REAL                           , INTENT(IN)    :: TG      !ground temperature (k)
-  REAL                           , INTENT(IN)    :: FVEG    !greeness vegetation fraction (-)
+  REAL(DP),                            INTENT(IN)    :: DT      !main time step (s)
+  REAL(DP),                            INTENT(IN)    :: UU      !u-direction wind speed [m/s]
+  REAL(DP),                            INTENT(IN)    :: VV      !v-direction wind speed [m/s]
+  REAL(DP),                            INTENT(IN)    :: FCEV    !canopy evaporation (w/m2) [+ to atm ]
+  REAL(DP),                            INTENT(IN)    :: FCTR    !transpiration (w/m2) [+ to atm]
+  REAL(DP),                            INTENT(IN)    :: QPRECC  !convective precipitation (mm/s)
+  REAL(DP),                            INTENT(IN)    :: QPRECL  !large-scale precipitation (mm/s)
+  REAL(DP),                            INTENT(IN)    :: ELAI    !leaf area index, after burying by snow
+  REAL(DP),                            INTENT(IN)    :: ESAI    !stem area index, after burying by snow
+  REAL(DP),                            INTENT(IN)    :: SFCTMP  !surface air temperature [k]
+  REAL(DP),                            INTENT(IN)    :: QVAP    !soil surface evaporation rate[mm/s]
+  REAL(DP),                            INTENT(IN)    :: QDEW    !soil surface dew rate[mm/s]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL   !depth of layer-bottom from soil surface
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)    :: BTRANI  !soil water stress factor (0 to 1)
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD !ice fraction at last timestep
+!  REAL(DP)                           , INTENT(IN)    :: PONDING ![mm]
+  REAL(DP)                           , INTENT(IN)    :: TG      !ground temperature (k)
+  REAL(DP)                           , INTENT(IN)    :: FVEG    !greeness vegetation fraction (-)
 
 ! input/output
   INTEGER,                         INTENT(INOUT) :: ISNOW   !actual no. of snow layers
-  REAL,                            INTENT(INOUT) :: CANLIQ  !intercepted liquid water (mm)
-  REAL,                            INTENT(INOUT) :: CANICE  !intercepted ice mass (mm)
-  REAL,                            INTENT(INOUT) :: TV      !vegetation temperature (k)
-  REAL,                            INTENT(INOUT) :: SNOWH   !snow height [m]
-  REAL,                            INTENT(INOUT) :: SNEQV   !snow water eqv. [mm]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE   !snow layer ice [mm]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ   !snow layer liquid water [mm]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC     !snow/soil layer temperature [k]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO   !depth of snow/soil layer-bottom
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO  !snow/soil layer thickness [m]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O    !soil liquid water content [m3/m3]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE    !soil ice content [m3/m3]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SMC     !total soil water content [m3/m3]
-  REAL,                            INTENT(INOUT) :: ZWT     !the depth to water table [m]
-  REAL,                            INTENT(INOUT) :: WA      !water storage in aquifer [mm]
-  REAL,                            INTENT(INOUT) :: WT      !water storage in aquifer
+  REAL(DP),                            INTENT(INOUT) :: CANLIQ  !intercepted liquid water (mm)
+  REAL(DP),                            INTENT(INOUT) :: CANICE  !intercepted ice mass (mm)
+  REAL(DP),                            INTENT(INOUT) :: TV      !vegetation temperature (k)
+  REAL(DP),                            INTENT(INOUT) :: SNOWH   !snow height [m]
+  REAL(DP),                            INTENT(INOUT) :: SNEQV   !snow water eqv. [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE   !snow layer ice [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ   !snow layer liquid water [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC     !snow/soil layer temperature [k]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO   !depth of snow/soil layer-bottom
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO  !snow/soil layer thickness [m]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O    !soil liquid water content [m3/m3]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE    !soil ice content [m3/m3]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SMC     !total soil water content [m3/m3]
+  REAL(DP),                            INTENT(INOUT) :: ZWT     !the depth to water table [m]
+  REAL(DP),                            INTENT(INOUT) :: WA      !water storage in aquifer [mm]
+  REAL(DP),                            INTENT(INOUT) :: WT      !water storage in aquifer
                                                             !+ stuarated soil [mm]
-  REAL,                            INTENT(INOUT) :: WSLAKE  !water storage in lake (can be -) (mm)
-  REAL                           , INTENT(INOUT) :: PONDING ![mm]
+  REAL(DP),                            INTENT(INOUT) :: WSLAKE  !water storage in lake (can be -) (mm)
+  REAL(DP)                           , INTENT(INOUT) :: PONDING ![mm]
 
 ! output
-  REAL,                            INTENT(OUT)   :: CMC     !intercepted water per ground area (mm)
-  REAL,                            INTENT(OUT)   :: ECAN    !evap of intercepted water (mm/s) [+]
-  REAL,                            INTENT(OUT)   :: ETRAN   !transpiration rate (mm/s) [+]
-  REAL,                            INTENT(OUT)   :: FWET    !wetted/snowed fraction of canopy (-)
-  REAL,                            INTENT(OUT)   :: RUNSRF  !surface runoff [mm/s]
-  REAL,                            INTENT(OUT)   :: RUNSUB  !baseflow (sturation excess) [mm/s]
-  REAL,                            INTENT(OUT)   :: QIN     !groundwater recharge [mm/s]
-  REAL,                            INTENT(OUT)   :: QDIS    !groundwater discharge [mm/s]
-  REAL,                            INTENT(OUT)   :: QSNOW   !snow at ground srf (mm/s) [+]
-  REAL,                            INTENT(OUT)   :: PONDING1
-  REAL,                            INTENT(OUT)   :: PONDING2
-  REAL,                            INTENT(OUT)   :: QSNBOT  !melting water out of snow bottom [mm/s]
-  REAL,                            INTENT(OUT)   :: FPICE   !snow fraction in precipitation
+  REAL(DP),                            INTENT(OUT)   :: CMC     !intercepted water per ground area (mm)
+  REAL(DP),                            INTENT(OUT)   :: ECAN    !evap of intercepted water (mm/s) [+]
+  REAL(DP),                            INTENT(OUT)   :: ETRAN   !transpiration rate (mm/s) [+]
+  REAL(DP),                            INTENT(OUT)   :: FWET    !wetted/snowed fraction of canopy (-)
+  REAL(DP),                            INTENT(OUT)   :: RUNSRF  !surface runoff [mm/s]
+  REAL(DP),                            INTENT(OUT)   :: RUNSUB  !baseflow (sturation excess) [mm/s]
+  REAL(DP),                            INTENT(OUT)   :: QIN     !groundwater recharge [mm/s]
+  REAL(DP),                            INTENT(OUT)   :: QDIS    !groundwater discharge [mm/s]
+  REAL(DP),                            INTENT(OUT)   :: QSNOW   !snow at ground srf (mm/s) [+]
+  REAL(DP),                            INTENT(OUT)   :: PONDING1
+  REAL(DP),                            INTENT(OUT)   :: PONDING2
+  REAL(DP),                            INTENT(OUT)   :: QSNBOT  !melting water out of snow bottom [mm/s]
+  REAL(DP),                            INTENT(OUT)   :: FPICE   !snow fraction in precipitation
 
   INTEGER,                         INTENT(IN)    :: ISURBAN
 
 ! local
   INTEGER                                        :: IZ
-  REAL                                           :: QINSUR  !water input on soil surface [m/s]
-  REAL                                           :: QRAIN   !rain at ground srf (mm) [+]
-  REAL                                           :: QSEVA   !soil surface evap rate [mm/s]
-  REAL                                           :: QSDEW   !soil surface dew rate [mm/s]
-  REAL                                           :: QSNFRO  !snow surface frost rate[mm/s]
-  REAL                                           :: QSNSUB  !snow surface sublimation rate [mm/s]
-  REAL                                           :: SNOWHIN !snow depth increasing rate (m/s)
-  REAL, DIMENSION(       1:NSOIL)                :: ETRANI  !transpiration rate (mm/s) [+]
-  REAL, DIMENSION(       1:NSOIL)                :: WCND   !hydraulic conductivity (m/s)
-  REAL                                           :: QDRAIN  !soil-bottom free drainage [mm/s]
-  REAL                                           :: SNOFLOW !glacier flow [mm/s]
-  REAL                                           :: FCRMAX !maximum of FCR (-)
+  REAL(DP)                                           :: QINSUR  !water input on soil surface [m/s]
+  REAL(DP)                                           :: QRAIN   !rain at ground srf (mm) [+]
+  REAL(DP)                                           :: QSEVA   !soil surface evap rate [mm/s]
+  REAL(DP)                                           :: QSDEW   !soil surface dew rate [mm/s]
+  REAL(DP)                                           :: QSNFRO  !snow surface frost rate[mm/s]
+  REAL(DP)                                           :: QSNSUB  !snow surface sublimation rate [mm/s]
+  REAL(DP)                                           :: SNOWHIN !snow depth increasing rate (m/s)
+  REAL(DP), DIMENSION(       1:NSOIL)                :: ETRANI  !transpiration rate (mm/s) [+]
+  REAL(DP), DIMENSION(       1:NSOIL)                :: WCND   !hydraulic conductivity (m/s)
+  REAL(DP)                                           :: QDRAIN  !soil-bottom free drainage [mm/s]
+  REAL(DP)                                           :: SNOFLOW !glacier flow [mm/s]
+  REAL(DP)                                           :: FCRMAX !maximum of FCR (-)
 
-  REAL, PARAMETER ::  WSLMAX = 5000.      !maximum lake water storage (mm)
+  REAL(DP), PARAMETER ::  WSLMAX = 5000.      !maximum lake water storage (mm)
 ! ----------------------------------------------------------------------
 ! initialize
 
@@ -6491,58 +6498,58 @@ contains
   INTEGER,INTENT(IN)  :: ILOC    !grid index
   INTEGER,INTENT(IN)  :: JLOC    !grid index
   INTEGER,INTENT(IN)  :: VEGTYP  !vegetation type
-  REAL,   INTENT(IN)  :: DT      !main time step (s)
-  REAL,   INTENT(IN)  :: SFCTMP  !air temperature (k)
-  REAL,   INTENT(IN)  :: UU      !u-direction wind speed [m/s]
-  REAL,   INTENT(IN)  :: VV      !v-direction wind speed [m/s]
-  REAL,   INTENT(IN)  :: FCEV    !canopy evaporation (w/m2) [+ = to atm]
-  REAL,   INTENT(IN)  :: FCTR    !transpiration (w/m2) [+ = to atm]
-  REAL,   INTENT(IN)  :: QPRECC  !convective precipitation (mm/s)
-  REAL,   INTENT(IN)  :: QPRECL  !large-scale precipitation (mm/s)
-  REAL,   INTENT(IN)  :: ELAI    !leaf area index, after burying by snow
-  REAL,   INTENT(IN)  :: ESAI    !stem area index, after burying by snow
+  REAL(DP),   INTENT(IN)  :: DT      !main time step (s)
+  REAL(DP),   INTENT(IN)  :: SFCTMP  !air temperature (k)
+  REAL(DP),   INTENT(IN)  :: UU      !u-direction wind speed [m/s]
+  REAL(DP),   INTENT(IN)  :: VV      !v-direction wind speed [m/s]
+  REAL(DP),   INTENT(IN)  :: FCEV    !canopy evaporation (w/m2) [+ = to atm]
+  REAL(DP),   INTENT(IN)  :: FCTR    !transpiration (w/m2) [+ = to atm]
+  REAL(DP),   INTENT(IN)  :: QPRECC  !convective precipitation (mm/s)
+  REAL(DP),   INTENT(IN)  :: QPRECL  !large-scale precipitation (mm/s)
+  REAL(DP),   INTENT(IN)  :: ELAI    !leaf area index, after burying by snow
+  REAL(DP),   INTENT(IN)  :: ESAI    !stem area index, after burying by snow
   INTEGER,INTENT(IN)  :: IST     !surface type 1-soil; 2-lake
-  REAL,   INTENT(IN)  :: TG      !ground temperature (k)
-  REAL,   INTENT(IN)  :: FVEG    !greeness vegetation fraction (-)
+  REAL(DP),   INTENT(IN)  :: TG      !ground temperature (k)
+  REAL(DP),   INTENT(IN)  :: FVEG    !greeness vegetation fraction (-)
 
 ! input & output
-  REAL, INTENT(INOUT) :: CANLIQ  !intercepted liquid water (mm)
-  REAL, INTENT(INOUT) :: CANICE  !intercepted ice mass (mm)
-  REAL, INTENT(INOUT) :: TV      !vegetation temperature (k)
+  REAL(DP), INTENT(INOUT) :: CANLIQ  !intercepted liquid water (mm)
+  REAL(DP), INTENT(INOUT) :: CANICE  !intercepted ice mass (mm)
+  REAL(DP), INTENT(INOUT) :: TV      !vegetation temperature (k)
 
 ! output
-  REAL, INTENT(OUT)   :: CMC     !intercepted water (mm)
-  REAL, INTENT(OUT)   :: ECAN    !evaporation of intercepted water (mm/s) [+]
-  REAL, INTENT(OUT)   :: ETRAN   !transpiration rate (mm/s) [+]
-  REAL, INTENT(OUT)   :: QRAIN   !rain at ground srf (mm/s) [+]
-  REAL, INTENT(OUT)   :: QSNOW   !snow at ground srf (mm/s) [+]
-  REAL, INTENT(OUT)   :: SNOWHIN !snow depth increasing rate (m/s)
-  REAL, INTENT(OUT)   :: FWET    !wetted or snowed fraction of the canopy (-)
-  REAL, INTENT(OUT)   :: FPICE   !snow fraction in precipitation
+  REAL(DP), INTENT(OUT)   :: CMC     !intercepted water (mm)
+  REAL(DP), INTENT(OUT)   :: ECAN    !evaporation of intercepted water (mm/s) [+]
+  REAL(DP), INTENT(OUT)   :: ETRAN   !transpiration rate (mm/s) [+]
+  REAL(DP), INTENT(OUT)   :: QRAIN   !rain at ground srf (mm/s) [+]
+  REAL(DP), INTENT(OUT)   :: QSNOW   !snow at ground srf (mm/s) [+]
+  REAL(DP), INTENT(OUT)   :: SNOWHIN !snow depth increasing rate (m/s)
+  REAL(DP), INTENT(OUT)   :: FWET    !wetted or snowed fraction of the canopy (-)
+  REAL(DP), INTENT(OUT)   :: FPICE   !snow fraction in precipitation
 ! --------------------------------------------------------------------
 
 ! ------------------------ local variables ---------------------------
-  REAL                :: MAXSNO  !canopy capacity for snow interception (mm)
-  REAL                :: MAXLIQ  !canopy capacity for rain interception (mm)
-  REAL                :: FP      !fraction of the gridcell that receives precipitation
-  REAL                :: BDFALL  !bulk density of snowfall (kg/m3)
-  REAL                :: QINTR   !interception rate for rain (mm/s)
-  REAL                :: QDRIPR  !drip rate for rain (mm/s)
-  REAL                :: QTHROR  !throughfall for rain (mm/s)
-  REAL                :: QINTS   !interception (loading) rate for snowfall (mm/s)
-  REAL                :: QDRIPS  !drip (unloading) rate for intercepted snow (mm/s)
-  REAL                :: QTHROS  !throughfall of snowfall (mm/s)
-  REAL                :: QEVAC   !evaporation rate (mm/s)
-  REAL                :: QDEWC   !dew rate (mm/s)
-  REAL                :: QFROC   !frost rate (mm/s)
-  REAL                :: QSUBC   !sublimation rate (mm/s)
-  REAL                :: FT      !temperature factor for unloading rate
-  REAL                :: FV      !wind factor for unloading rate
-  REAL                :: QMELTC  !melting rate of canopy snow (mm/s)
-  REAL                :: QFRZC   !refreezing rate of canopy liquid water (mm/s)
-  REAL                :: RAIN    !rainfall (mm/s)
-  REAL                :: SNOW    !snowfall (mm/s)
-  REAL                :: CANMAS  !total canopy mass (kg/m2)
+  REAL(DP)                :: MAXSNO  !canopy capacity for snow interception (mm)
+  REAL(DP)                :: MAXLIQ  !canopy capacity for rain interception (mm)
+  REAL(DP)                :: FP      !fraction of the gridcell that receives precipitation
+  REAL(DP)                :: BDFALL  !bulk density of snowfall (kg/m3)
+  REAL(DP)                :: QINTR   !interception rate for rain (mm/s)
+  REAL(DP)                :: QDRIPR  !drip rate for rain (mm/s)
+  REAL(DP)                :: QTHROR  !throughfall for rain (mm/s)
+  REAL(DP)                :: QINTS   !interception (loading) rate for snowfall (mm/s)
+  REAL(DP)                :: QDRIPS  !drip (unloading) rate for intercepted snow (mm/s)
+  REAL(DP)                :: QTHROS  !throughfall of snowfall (mm/s)
+  REAL(DP)                :: QEVAC   !evaporation rate (mm/s)
+  REAL(DP)                :: QDEWC   !dew rate (mm/s)
+  REAL(DP)                :: QFROC   !frost rate (mm/s)
+  REAL(DP)                :: QSUBC   !sublimation rate (mm/s)
+  REAL(DP)                :: FT      !temperature factor for unloading rate
+  REAL(DP)                :: FV      !wind factor for unloading rate
+  REAL(DP)                :: QMELTC  !melting rate of canopy snow (mm/s)
+  REAL(DP)                :: QFRZC   !refreezing rate of canopy liquid water (mm/s)
+  REAL(DP)                :: RAIN    !rainfall (mm/s)
+  REAL(DP)                :: SNOW    !snowfall (mm/s)
+  REAL(DP)                :: CANMAS  !total canopy mass (kg/m2)
 ! --------------------------------------------------------------------
 ! initialization
 
@@ -6739,37 +6746,37 @@ contains
   INTEGER,                         INTENT(IN)    :: NSNOW  !maximum no. of snow layers
   INTEGER,                         INTENT(IN)    :: NSOIL  !no. of soil layers
   INTEGER, DIMENSION(-NSNOW+1:0) , INTENT(IN)    :: IMELT  !melting state index [0-no melt;1-melt]
-  REAL,                            INTENT(IN)    :: DT     !time step (s)
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !depth of layer-bottom from soil surface
-  REAL,                            INTENT(IN)    :: SFCTMP !surface air temperature [k]
-  REAL,                            INTENT(IN)    :: SNOWHIN!snow depth increasing rate (m/s)
-  REAL,                            INTENT(IN)    :: QSNOW  !snow at ground srf (mm/s) [+]
-  REAL,                            INTENT(IN)    :: QSNFRO !snow surface frost rate[mm/s]
-  REAL,                            INTENT(IN)    :: QSNSUB !snow surface sublimation rate[mm/s]
-  REAL,                            INTENT(IN)    :: QRAIN  !snow surface rain rate[mm/s]
-  REAL, DIMENSION(-NSNOW+1:0)    , INTENT(IN)    :: FICEOLD!ice fraction at last timestep
+  REAL(DP),                            INTENT(IN)    :: DT     !time step (s)
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !depth of layer-bottom from soil surface
+  REAL(DP),                            INTENT(IN)    :: SFCTMP !surface air temperature [k]
+  REAL(DP),                            INTENT(IN)    :: SNOWHIN!snow depth increasing rate (m/s)
+  REAL(DP),                            INTENT(IN)    :: QSNOW  !snow at ground srf (mm/s) [+]
+  REAL(DP),                            INTENT(IN)    :: QSNFRO !snow surface frost rate[mm/s]
+  REAL(DP),                            INTENT(IN)    :: QSNSUB !snow surface sublimation rate[mm/s]
+  REAL(DP),                            INTENT(IN)    :: QRAIN  !snow surface rain rate[mm/s]
+  REAL(DP), DIMENSION(-NSNOW+1:0)    , INTENT(IN)    :: FICEOLD!ice fraction at last timestep
 
 ! input & output
   INTEGER,                         INTENT(INOUT) :: ISNOW  !actual no. of snow layers
-  REAL,                            INTENT(INOUT) :: SNOWH  !snow height [m]
-  REAL,                            INTENT(INOUT) :: SNEQV  !snow water eqv. [mm]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow layer ice [mm]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !soil liquid moisture (m3/m3)
-  REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE   !soil ice moisture (m3/m3)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow layer temperature [k]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO  !depth of snow/soil layer-bottom
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP),                            INTENT(INOUT) :: SNOWH  !snow height [m]
+  REAL(DP),                            INTENT(INOUT) :: SNEQV  !snow water eqv. [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow layer ice [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !soil liquid moisture (m3/m3)
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE   !soil ice moisture (m3/m3)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow layer temperature [k]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO  !depth of snow/soil layer-bottom
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO !snow/soil layer thickness [m]
 
 ! output
-  REAL,                              INTENT(OUT) :: QSNBOT !melting water out of snow bottom [mm/s]
-  REAL,                              INTENT(OUT) :: SNOFLOW!glacier flow [mm]
-  REAL,                              INTENT(OUT) :: PONDING1
-  REAL,                              INTENT(OUT) :: PONDING2
+  REAL(DP),                              INTENT(OUT) :: QSNBOT !melting water out of snow bottom [mm/s]
+  REAL(DP),                              INTENT(OUT) :: SNOFLOW!glacier flow [mm]
+  REAL(DP),                              INTENT(OUT) :: PONDING1
+  REAL(DP),                              INTENT(OUT) :: PONDING2
 
 ! local
   INTEGER :: IZ,i
-  REAL    :: BDSNOW  !bulk density of snow (kg/m3)
+  REAL(DP)    :: BDSNOW  !bulk density of snow (kg/m3)
 ! ----------------------------------------------------------------------
    SNOFLOW = 0.0
    PONDING1 = 0.0
@@ -6870,20 +6877,20 @@ contains
   INTEGER,                            INTENT(IN) :: JLOC   !grid index
   INTEGER,                            INTENT(IN) :: NSOIL  !no. of soil layers
   INTEGER,                            INTENT(IN) :: NSNOW  !maximum no. of snow layers
-  REAL,                               INTENT(IN) :: DT     !main time step (s)
-  REAL,                               INTENT(IN) :: QSNOW  !snow at ground srf (mm/s) [+]
-  REAL,                               INTENT(IN) :: SNOWHIN!snow depth increasing rate (m/s)
-  REAL,                               INTENT(IN) :: SFCTMP !surface air temperature [k]
+  REAL(DP),                               INTENT(IN) :: DT     !main time step (s)
+  REAL(DP),                               INTENT(IN) :: QSNOW  !snow at ground srf (mm/s) [+]
+  REAL(DP),                               INTENT(IN) :: SNOWHIN!snow depth increasing rate (m/s)
+  REAL(DP),                               INTENT(IN) :: SFCTMP !surface air temperature [k]
 
 ! input and output
 
   INTEGER,                         INTENT(INOUT) :: ISNOW  !actual no. of snow layers
-  REAL,                            INTENT(INOUT) :: SNOWH  !snow depth [m]
-  REAL,                            INTENT(INOUT) :: SNEQV  !swow water equivalent [m]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO !thickness of snow/soil layers (m)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow layer temperature [k]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow layer ice [mm]
-  REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
+  REAL(DP),                            INTENT(INOUT) :: SNOWH  !snow depth [m]
+  REAL(DP),                            INTENT(INOUT) :: SNEQV  !swow water equivalent [m]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO !thickness of snow/soil layers (m)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow layer temperature [k]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE  !snow layer ice [mm]
+  REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
 
 ! local
 
@@ -6938,16 +6945,16 @@ contains
 ! input and output
 
     INTEGER,                         INTENT(INOUT) :: ISNOW !actual no. of snow layers
-    REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O  !soil liquid moisture (m3/m3)
-    REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE  !soil ice moisture (m3/m3)
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC   !snow layer temperature [k]
-    REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE !snow layer ice [mm]
-    REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ !snow layer liquid water [mm]
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO!snow layer depth [m]
-    REAL,                            INTENT(INOUT) :: sneqv !snow water equivalent [m]
-    REAL,                            INTENT(INOUT) :: snowh !snow depth [m]
-    REAL,                            INTENT(OUT) :: PONDING1
-    REAL,                            INTENT(OUT) :: PONDING2
+    REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O  !soil liquid moisture (m3/m3)
+    REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE  !soil ice moisture (m3/m3)
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC   !snow layer temperature [k]
+    REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE !snow layer ice [mm]
+    REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ !snow layer liquid water [mm]
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO!snow layer depth [m]
+    REAL(DP),                            INTENT(INOUT) :: sneqv !snow water equivalent [m]
+    REAL(DP),                            INTENT(INOUT) :: snowh !snow depth [m]
+    REAL(DP),                            INTENT(OUT) :: PONDING1
+    REAL(DP),                            INTENT(OUT) :: PONDING2
 
 ! local variables:
 
@@ -6955,10 +6962,10 @@ contains
     INTEGER :: ISNOW_OLD             ! number of top snow layer
     INTEGER :: MSSI                  ! node index
     INTEGER :: NEIBOR                ! adjacent node selected for combination
-    REAL    :: ZWICE                 ! total ice mass in snow
-    REAL    :: ZWLIQ                 ! total liquid water in snow
+    REAL(DP)    :: ZWICE                 ! total ice mass in snow
+    REAL(DP)    :: ZWLIQ                 ! total liquid water in snow
 
-    REAL    :: DZMIN(3)              ! minimum of top snow layer
+    REAL(DP)    :: DZMIN(3)              ! minimum of top snow layer
 !    DATA DZMIN /0.045, 0.05, 0.2/
     DATA DZMIN /0.025, 0.025, 0.1/  ! MB: change limit
 !-----------------------------------------------------------------------
@@ -7107,24 +7114,24 @@ contains
 ! input and output
 
     INTEGER                        , INTENT(INOUT) :: ISNOW !actual no. of snow layers
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC   !snow layer temperature [k]
-    REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE !snow layer ice [mm]
-    REAL, DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ !snow layer liquid water [mm]
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO!snow layer depth [m]
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC   !snow layer temperature [k]
+    REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNICE !snow layer ice [mm]
+    REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(INOUT) :: SNLIQ !snow layer liquid water [mm]
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO!snow layer depth [m]
 
 ! local variables:
 
     INTEGER                                        :: J     !indices
     INTEGER                                        :: MSNO  !number of layer (top) to MSNO (bot)
-    REAL                                           :: DRR   !thickness of the combined [m]
-    REAL, DIMENSION(       1:NSNOW)                :: DZ    !snow layer thickness [m]
-    REAL, DIMENSION(       1:NSNOW)                :: SWICE !partial volume of ice [m3/m3]
-    REAL, DIMENSION(       1:NSNOW)                :: SWLIQ !partial volume of liquid water [m3/m3]
-    REAL, DIMENSION(       1:NSNOW)                :: TSNO  !node temperature [k]
-    REAL                                           :: ZWICE !temporary
-    REAL                                           :: ZWLIQ !temporary
-    REAL                                           :: PROPOR!temporary
-    REAL                                           :: DTDZ  !temporary
+    REAL(DP)                                           :: DRR   !thickness of the combined [m]
+    REAL(DP), DIMENSION(       1:NSNOW)                :: DZ    !snow layer thickness [m]
+    REAL(DP), DIMENSION(       1:NSNOW)                :: SWICE !partial volume of ice [m3/m3]
+    REAL(DP), DIMENSION(       1:NSNOW)                :: SWLIQ !partial volume of liquid water [m3/m3]
+    REAL(DP), DIMENSION(       1:NSNOW)                :: TSNO  !node temperature [k]
+    REAL(DP)                                           :: ZWICE !temporary
+    REAL(DP)                                           :: ZWLIQ !temporary
+    REAL(DP)                                           :: PROPOR!temporary
+    REAL(DP)                                           :: DTDZ  !temporary
 ! ----------------------------------------------------------------------
 
     DO J = 1,NSNOW
@@ -7229,24 +7236,24 @@ contains
 ! ----------------------------------------------------------------------s
 ! input
 
-    REAL, INTENT(IN)    :: DZ2   !nodal thickness of 2 elements being combined [m]
-    REAL, INTENT(IN)    :: WLIQ2 !liquid water of element 2 [kg/m2]
-    REAL, INTENT(IN)    :: WICE2 !ice of element 2 [kg/m2]
-    REAL, INTENT(IN)    :: T2    !nodal temperature of element 2 [k]
-    REAL, INTENT(INOUT) :: DZ    !nodal thickness of 1 elements being combined [m]
-    REAL, INTENT(INOUT) :: WLIQ  !liquid water of element 1
-    REAL, INTENT(INOUT) :: WICE  !ice of element 1 [kg/m2]
-    REAL, INTENT(INOUT) :: T     !node temperature of element 1 [k]
+    REAL(DP), INTENT(IN)    :: DZ2   !nodal thickness of 2 elements being combined [m]
+    REAL(DP), INTENT(IN)    :: WLIQ2 !liquid water of element 2 [kg/m2]
+    REAL(DP), INTENT(IN)    :: WICE2 !ice of element 2 [kg/m2]
+    REAL(DP), INTENT(IN)    :: T2    !nodal temperature of element 2 [k]
+    REAL(DP), INTENT(INOUT) :: DZ    !nodal thickness of 1 elements being combined [m]
+    REAL(DP), INTENT(INOUT) :: WLIQ  !liquid water of element 1
+    REAL(DP), INTENT(INOUT) :: WICE  !ice of element 1 [kg/m2]
+    REAL(DP), INTENT(INOUT) :: T     !node temperature of element 1 [k]
 
 ! local
 
-    REAL                :: DZC   !total thickness of nodes 1 and 2 (DZC=DZ+DZ2).
-    REAL                :: WLIQC !combined liquid water [kg/m2]
-    REAL                :: WICEC !combined ice [kg/m2]
-    REAL                :: TC    !combined node temperature [k]
-    REAL                :: H     !enthalpy of element 1 [J/m2]
-    REAL                :: H2    !enthalpy of element 2 [J/m2]
-    REAL                :: HC    !temporary
+    REAL(DP)                :: DZC   !total thickness of nodes 1 and 2 (DZC=DZ+DZ2).
+    REAL(DP)                :: WLIQC !combined liquid water [kg/m2]
+    REAL(DP)                :: WICEC !combined ice [kg/m2]
+    REAL(DP)                :: TC    !combined node temperature [k]
+    REAL(DP)                :: H     !enthalpy of element 1 [J/m2]
+    REAL(DP)                :: H2    !enthalpy of element 2 [J/m2]
+    REAL(DP)                :: HC    !temporary
 
 !-----------------------------------------------------------------------
 
@@ -7286,37 +7293,37 @@ contains
    INTEGER,                         INTENT(IN)    :: NSOIL  !no. of soil layers [ =4]
    INTEGER,                         INTENT(IN)    :: NSNOW  !maximum no. of snow layers [ =3]
    INTEGER, DIMENSION(-NSNOW+1:0) , INTENT(IN)    :: IMELT  !melting state index [0-no melt;1-melt]
-   REAL,                            INTENT(IN)    :: DT     !time step (sec)
-   REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)    :: STC    !snow layer temperature [k]
-   REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: SNICE  !snow layer ice [mm]
-   REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: SNLIQ  !snow layer liquid water [mm]
-   REAL, DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !depth of layer-bottom from soil srf
-   REAL, DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD!ice fraction at last timestep
+   REAL(DP),                            INTENT(IN)    :: DT     !time step (sec)
+   REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN)    :: STC    !snow layer temperature [k]
+   REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: SNICE  !snow layer ice [mm]
+   REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: SNLIQ  !snow layer liquid water [mm]
+   REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN)    :: ZSOIL  !depth of layer-bottom from soil srf
+   REAL(DP), DIMENSION(-NSNOW+1:    0), INTENT(IN)    :: FICEOLD!ice fraction at last timestep
 
 ! input and output
    INTEGER,                         INTENT(INOUT) :: ISNOW  ! actual no. of snow layers
-   REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO ! snow layer thickness [m]
-   REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO  ! depth of snow/soil layer-bottom
+   REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO ! snow layer thickness [m]
+   REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: ZSNSO  ! depth of snow/soil layer-bottom
 
 ! local
-   REAL, PARAMETER     :: C2 = 21.e-3   ![m3/kg] ! default 21.e-3
-   REAL, PARAMETER     :: C3 = 2.5e-6   ![1/s]
-   REAL, PARAMETER     :: C4 = 0.04     ![1/k]
-   REAL, PARAMETER     :: C5 = 2.0      !
-   REAL, PARAMETER     :: DM = 100.0    !upper Limit on destructive metamorphism compaction [kg/m3]
-   REAL, PARAMETER     :: ETA0 = 0.8e+6 !viscosity coefficient [kg-s/m2]
+   REAL(DP), PARAMETER     :: C2 = 21.e-3   ![m3/kg] ! default 21.e-3
+   REAL(DP), PARAMETER     :: C3 = 2.5e-6   ![1/s]
+   REAL(DP), PARAMETER     :: C4 = 0.04     ![1/k]
+   REAL(DP), PARAMETER     :: C5 = 2.0      !
+   REAL(DP), PARAMETER     :: DM = 100.0    !upper Limit on destructive metamorphism compaction [kg/m3]
+   REAL(DP), PARAMETER     :: ETA0 = 0.8e+6 !viscosity coefficient [kg-s/m2]
                                         !according to Anderson, it is between 0.52e6~1.38e6
-   REAL :: BURDEN !pressure of overlying snow [kg/m2]
-   REAL :: DDZ1   !rate of settling of snow pack due to destructive metamorphism.
-   REAL :: DDZ2   !rate of compaction of snow pack due to overburden.
-   REAL :: DDZ3   !rate of compaction of snow pack due to melt [1/s]
-   REAL :: DEXPF  !EXPF=exp(-c4*(273.15-STC)).
-   REAL :: TD     !STC - TFRZ [K]
-   REAL :: PDZDTC !nodal rate of change in fractional-thickness due to compaction [fraction/s]
-   REAL :: VOID   !void (1 - SNICE - SNLIQ)
-   REAL :: WX     !water mass (ice + liquid) [kg/m2]
-   REAL :: BI     !partial density of ice [kg/m3]
-   REAL, DIMENSION(-NSNOW+1:0) :: FICE   !fraction of ice at current time step
+   REAL(DP) :: BURDEN !pressure of overlying snow [kg/m2]
+   REAL(DP) :: DDZ1   !rate of settling of snow pack due to destructive metamorphism.
+   REAL(DP) :: DDZ2   !rate of compaction of snow pack due to overburden.
+   REAL(DP) :: DDZ3   !rate of compaction of snow pack due to melt [1/s]
+   REAL(DP) :: DEXPF  !EXPF=exp(-c4*(273.15-STC)).
+   REAL(DP) :: TD     !STC - TFRZ [K]
+   REAL(DP) :: PDZDTC !nodal rate of change in fractional-thickness due to compaction [fraction/s]
+   REAL(DP) :: VOID   !void (1 - SNICE - SNLIQ)
+   REAL(DP) :: WX     !water mass (ice + liquid) [kg/m2]
+   REAL(DP) :: BI     !partial density of ice [kg/m3]
+   REAL(DP), DIMENSION(-NSNOW+1:0) :: FICE   !fraction of ice at current time step
 
    INTEGER  :: J
 
@@ -7393,38 +7400,38 @@ contains
    INTEGER,                         INTENT(IN)    :: JLOC   !grid index
    INTEGER,                         INTENT(IN)    :: NSNOW  !maximum no. of snow layers[=3]
    INTEGER,                         INTENT(IN)    :: NSOIL  !No. of soil layers[=4]
-   REAL,                            INTENT(IN)    :: DT     !time step
-   REAL,                            INTENT(IN)    :: QSNFRO !snow surface frost rate[mm/s]
-   REAL,                            INTENT(IN)    :: QSNSUB !snow surface sublimation rate[mm/s]
-   REAL,                            INTENT(IN)    :: QRAIN  !snow surface rain rate[mm/s]
+   REAL(DP),                            INTENT(IN)    :: DT     !time step
+   REAL(DP),                            INTENT(IN)    :: QSNFRO !snow surface frost rate[mm/s]
+   REAL(DP),                            INTENT(IN)    :: QSNSUB !snow surface sublimation rate[mm/s]
+   REAL(DP),                            INTENT(IN)    :: QRAIN  !snow surface rain rate[mm/s]
 
 ! output
 
-   REAL,                            INTENT(OUT)   :: QSNBOT !melting water out of snow bottom [mm/s]
+   REAL(DP),                            INTENT(OUT)   :: QSNBOT !melting water out of snow bottom [mm/s]
 
 ! input and output
 
    INTEGER,                         INTENT(INOUT) :: ISNOW  !actual no. of snow layers
-   REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO ! snow layer depth [m]
-   REAL,                            INTENT(INOUT) :: SNOWH  !snow height [m]
-   REAL,                            INTENT(INOUT) :: SNEQV  !snow water eqv. [mm]
-   REAL, DIMENSION(-NSNOW+1:0),     INTENT(INOUT) :: SNICE  !snow layer ice [mm]
-   REAL, DIMENSION(-NSNOW+1:0),     INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
-   REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !soil liquid moisture (m3/m3)
-   REAL, DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE   !soil ice moisture (m3/m3)
-   REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow layer temperature [k]
+   REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: DZSNSO ! snow layer depth [m]
+   REAL(DP),                            INTENT(INOUT) :: SNOWH  !snow height [m]
+   REAL(DP),                            INTENT(INOUT) :: SNEQV  !snow water eqv. [mm]
+   REAL(DP), DIMENSION(-NSNOW+1:0),     INTENT(INOUT) :: SNICE  !snow layer ice [mm]
+   REAL(DP), DIMENSION(-NSNOW+1:0),     INTENT(INOUT) :: SNLIQ  !snow layer liquid water [mm]
+   REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SH2O   !soil liquid moisture (m3/m3)
+   REAL(DP), DIMENSION(       1:NSOIL), INTENT(INOUT) :: SICE   !soil ice moisture (m3/m3)
+   REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(INOUT) :: STC    !snow layer temperature [k]
 
 ! local variables:
 
    INTEGER                     :: J         !do loop/array indices
-   REAL                        :: QIN       !water flow into the element (mm/s)
-   REAL                        :: QOUT      !water flow out of the element (mm/s)
-   REAL                        :: WGDIF     !ice mass after minus sublimation
-   REAL, DIMENSION(-NSNOW+1:0) :: VOL_LIQ   !partial volume of liquid water in layer
-   REAL, DIMENSION(-NSNOW+1:0) :: VOL_ICE   !partial volume of ice lens in layer
-   REAL, DIMENSION(-NSNOW+1:0) :: EPORE     !effective porosity = porosity - VOL_ICE
-   REAL :: PROPOR, TEMP
-   REAL :: PONDING1, PONDING2
+   REAL(DP)                        :: QIN       !water flow into the element (mm/s)
+   REAL(DP)                        :: QOUT      !water flow out of the element (mm/s)
+   REAL(DP)                        :: WGDIF     !ice mass after minus sublimation
+   REAL(DP), DIMENSION(-NSNOW+1:0) :: VOL_LIQ   !partial volume of liquid water in layer
+   REAL(DP), DIMENSION(-NSNOW+1:0) :: VOL_ICE   !partial volume of ice lens in layer
+   REAL(DP), DIMENSION(-NSNOW+1:0) :: EPORE     !effective porosity = porosity - VOL_ICE
+   REAL(DP) :: PROPOR, TEMP
+   REAL(DP) :: PONDING1, PONDING2
 ! ----------------------------------------------------------------------
 
 !for the case when SNEQV becomes '0' after 'COMBINE'
@@ -7535,58 +7542,58 @@ contains
   INTEGER,                     INTENT(IN) :: JLOC   !grid index
   INTEGER,                     INTENT(IN) :: NSOIL  !no. of soil layers
   INTEGER,                     INTENT(IN) :: NSNOW  !maximum no. of snow layers
-  REAL,                        INTENT(IN) :: DT     !time step (sec)
-  REAL, INTENT(IN)                        :: QINSUR !water input on soil surface [mm/s]
-  REAL, INTENT(IN)                        :: QSEVA  !evap from soil surface [mm/s]
-  REAL, DIMENSION(1:NSOIL),    INTENT(IN) :: ZSOIL  !depth of soil layer-bottom [m]
-  REAL, DIMENSION(1:NSOIL),    INTENT(IN) :: ETRANI !evapotranspiration from soil layers [mm/s]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer depth [m]
-  REAL, DIMENSION(1:NSOIL), INTENT(IN)   :: SICE   !soil ice content [m3/m3]
+  REAL(DP),                        INTENT(IN) :: DT     !time step (sec)
+  REAL(DP), INTENT(IN)                        :: QINSUR !water input on soil surface [mm/s]
+  REAL(DP), INTENT(IN)                        :: QSEVA  !evap from soil surface [mm/s]
+  REAL(DP), DIMENSION(1:NSOIL),    INTENT(IN) :: ZSOIL  !depth of soil layer-bottom [m]
+  REAL(DP), DIMENSION(1:NSOIL),    INTENT(IN) :: ETRANI !evapotranspiration from soil layers [mm/s]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer depth [m]
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)   :: SICE   !soil ice content [m3/m3]
 
   INTEGER,                     INTENT(IN) :: VEGTYP
   INTEGER,                     INTENT(IN) :: ISURBAN
 
 ! input & output
-  REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O   !soil liquid water content [m3/m3]
-  REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC    !total soil water content [m3/m3]
-  REAL, INTENT(INOUT)                     :: ZWT    !water table depth [m]
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O   !soil liquid water content [m3/m3]
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC    !total soil water content [m3/m3]
+  REAL(DP), INTENT(INOUT)                     :: ZWT    !water table depth [m]
 
 ! output
-  REAL, INTENT(OUT)                       :: QDRAIN !soil-bottom free drainage [mm/s]
-  REAL, INTENT(OUT)                       :: RUNSRF !surface runoff [mm/s]
-  REAL, INTENT(OUT)                       :: RUNSUB !subsurface runoff [mm/s]
-  REAL, INTENT(OUT)                       :: FCRMAX !maximum of FCR (-)
-  REAL, DIMENSION(1:NSOIL), INTENT(OUT)   :: WCND   !hydraulic conductivity (m/s)
+  REAL(DP), INTENT(OUT)                       :: QDRAIN !soil-bottom free drainage [mm/s]
+  REAL(DP), INTENT(OUT)                       :: RUNSRF !surface runoff [mm/s]
+  REAL(DP), INTENT(OUT)                       :: RUNSUB !subsurface runoff [mm/s]
+  REAL(DP), INTENT(OUT)                       :: FCRMAX !maximum of FCR (-)
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(OUT)   :: WCND   !hydraulic conductivity (m/s)
 
 ! local
   INTEGER                                 :: K,IZ   !do-loop index
   INTEGER                                 :: ITER   !iteration index
-  REAl                                    :: DTFINE !fine time step (s)
-  REAL, DIMENSION(1:NSOIL)                :: RHSTT  !right-hand side term of the matrix
-  REAL, DIMENSION(1:NSOIL)                :: AI     !left-hand side term
-  REAL, DIMENSION(1:NSOIL)                :: BI     !left-hand side term
-  REAL, DIMENSION(1:NSOIL)                :: CI     !left-hand side term
+  REAL(DP)                                    :: DTFINE !fine time step (s)
+  REAL(DP), DIMENSION(1:NSOIL)                :: RHSTT  !right-hand side term of the matrix
+  REAL(DP), DIMENSION(1:NSOIL)                :: AI     !left-hand side term
+  REAL(DP), DIMENSION(1:NSOIL)                :: BI     !left-hand side term
+  REAL(DP), DIMENSION(1:NSOIL)                :: CI     !left-hand side term
 
-  REAL                                    :: FFF    !runoff decay factor (m-1)
-  REAL                                    :: RSBMX  !baseflow coefficient [mm/s]
-  REAL                                    :: PDDUM  !infiltration rate at surface (m/s)
-  REAL                                    :: FICE   !ice fraction in frozen soil
-  REAL                                    :: WPLUS  !saturation excess of the total soil [m]
-  REAL                                    :: RSAT   !accumulation of WPLUS (saturation excess) [m]
-  REAL                                    :: SICEMAX!maximum soil ice content (m3/m3)
-  REAL                                    :: SH2OMIN!minimum soil liquid water content (m3/m3)
-  REAL                                    :: WTSUB  !sum of WCND(K)*DZSNSO(K)
-  REAL                                    :: MH2O   !water mass removal (mm)
-  REAL                                    :: FSAT   !fractional saturated area (-)
-  REAL, DIMENSION(1:NSOIL)                :: MLIQ   !
-  REAL                                    :: XS     !
-  REAL                                    :: WATMIN !
-  REAL                                    :: EPORE  !effective porosity [m3/m3]
-  REAL, DIMENSION(1:NSOIL)                :: FCR    !impermeable fraction due to frozen soil
+  REAL(DP)                                    :: FFF    !runoff decay factor (m-1)
+  REAL(DP)                                    :: RSBMX  !baseflow coefficient [mm/s]
+  REAL(DP)                                    :: PDDUM  !infiltration rate at surface (m/s)
+  REAL(DP)                                    :: FICE   !ice fraction in frozen soil
+  REAL(DP)                                    :: WPLUS  !saturation excess of the total soil [m]
+  REAL(DP)                                    :: RSAT   !accumulation of WPLUS (saturation excess) [m]
+  REAL(DP)                                    :: SICEMAX!maximum soil ice content (m3/m3)
+  REAL(DP)                                    :: SH2OMIN!minimum soil liquid water content (m3/m3)
+  REAL(DP)                                    :: WTSUB  !sum of WCND(K)*DZSNSO(K)
+  REAL(DP)                                    :: MH2O   !water mass removal (mm)
+  REAL(DP)                                    :: FSAT   !fractional saturated area (-)
+  REAL(DP), DIMENSION(1:NSOIL)                :: MLIQ   !
+  REAL(DP)                                    :: XS     !
+  REAL(DP)                                    :: WATMIN !
+  REAL(DP)                                    :: EPORE  !effective porosity [m3/m3]
+  REAL(DP), DIMENSION(1:NSOIL)                :: FCR    !impermeable fraction due to frozen soil
   INTEGER                                 :: NITER  !iteration times soil moisture (-)
-  REAL                                    :: SMCTOT !2-m averaged soil moisture (m3/m3)
-  REAL                                    :: DZTOT  !2-m soil depth (m)
-  REAL, PARAMETER :: A = 4.0
+  REAL(DP)                                    :: SMCTOT !2-m averaged soil moisture (m3/m3)
+  REAL(DP)                                    :: DZTOT  !2-m soil depth (m)
+  REAL(DP), PARAMETER :: A = 4.0
 ! ----------------------------------------------------------------------
     RUNSRF = 0.0
     PDDUM  = 0.0
@@ -7676,7 +7683,7 @@ contains
 
 ! determine iteration times and finer time step
 
-    NITER = 1
+    NITER = 1_dp
 
     IF(OPT_INF == 1) THEN    !OPT_INF =2 may cause water imbalance
        NITER = 3
@@ -7766,23 +7773,23 @@ contains
 
   INTEGER,                         INTENT(IN) :: NSOIL  !no. of soil layers
   INTEGER,                         INTENT(IN) :: NSNOW  !maximum no. of snow layers
-  REAL, DIMENSION(1:NSOIL),        INTENT(IN) :: ZSOIL  !depth of soil layer-bottom [m]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer depth [m]
-  REAL, DIMENSION(1:NSOIL),        INTENT(IN) :: SH2O   !soil liquid water content [m3/m3]
+  REAL(DP), DIMENSION(1:NSOIL),        INTENT(IN) :: ZSOIL  !depth of soil layer-bottom [m]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer depth [m]
+  REAL(DP), DIMENSION(1:NSOIL),        INTENT(IN) :: SH2O   !soil liquid water content [m3/m3]
 
 ! output
 
-  REAL,                           INTENT(OUT) :: ZWT    !water table depth [m]
+  REAL(DP),                           INTENT(OUT) :: ZWT    !water table depth [m]
 
 ! locals
 
   INTEGER :: K                      !do-loop index
   INTEGER, PARAMETER :: NFINE = 100 !no. of fine soil layers of 6m soil
-  REAL    :: WD1                    !water deficit from coarse (4-L) soil moisture profile
-  REAL    :: WD2                    !water deficit from fine (100-L) soil moisture profile
-  REAL    :: DZFINE                 !layer thickness of the 100-L soil layers to 6.0 m
-  REAL    :: TEMP                   !temporary variable
-  REAL, DIMENSION(1:NFINE) :: ZFINE !layer-bottom depth of the 100-L soil layers to 6.0 m
+  REAL(DP)    :: WD1                    !water deficit from coarse (4-L) soil moisture profile
+  REAL(DP)    :: WD2                    !water deficit from fine (100-L) soil moisture profile
+  REAL(DP)    :: DZFINE                 !layer thickness of the 100-L soil layers to 6.0 m
+  REAL(DP)    :: TEMP                   !temporary variable
+  REAL(DP), DIMENSION(1:NFINE) :: ZFINE !layer-bottom depth of the 100-L soil layers to 6.0 m
 ! ----------------------------------------------------------------------
 
    WD1 = 0.
@@ -7820,31 +7827,31 @@ contains
 ! --------------------------------------------------------------------------------
 ! inputs
   INTEGER,                  INTENT(IN) :: NSOIL  !no. of soil layers
-  REAL,                     INTENT(IN) :: DT     !time step (sec)
-  REAL, DIMENSION(1:NSOIL), INTENT(IN) :: ZSOIL  !depth of soil layer-bottom [m]
-  REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SH2O   !soil liquid water content [m3/m3]
-  REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SICE   !soil ice content [m3/m3]
-  REAL,                     INTENT(IN) :: QINSUR !water input on soil surface [mm/s]
-  REAL,                     INTENT(IN) :: SICEMAX!maximum soil ice content (m3/m3)
+  REAL(DP),                     INTENT(IN) :: DT     !time step (sec)
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN) :: ZSOIL  !depth of soil layer-bottom [m]
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN) :: SH2O   !soil liquid water content [m3/m3]
+  REAL(DP), DIMENSION(1:NSOIL), INTENT(IN) :: SICE   !soil ice content [m3/m3]
+  REAL(DP),                     INTENT(IN) :: QINSUR !water input on soil surface [mm/s]
+  REAL(DP),                     INTENT(IN) :: SICEMAX!maximum soil ice content (m3/m3)
 
 ! outputs
-  REAL,                    INTENT(OUT) :: RUNSRF !surface runoff [mm/s]
-  REAL,                    INTENT(OUT) :: PDDUM  !infiltration rate at surface
+  REAL(DP),                    INTENT(OUT) :: RUNSRF !surface runoff [mm/s]
+  REAL(DP),                    INTENT(OUT) :: PDDUM  !infiltration rate at surface
 
 ! locals
   INTEGER :: IALP1, J, JJ,  K
-  REAL                     :: VAL
-  REAL                     :: DDT
-  REAL                     :: PX
-  REAL                     :: DT1, DD, DICE
-  REAL                     :: FCR
-  REAL                     :: SUM
-  REAL                     :: ACRT
-  REAL                     :: WDF
-  REAL                     :: WCND
-  REAL                     :: SMCAV
-  REAL                     :: INFMAX
-  REAL, DIMENSION(1:NSOIL) :: DMAX
+  REAL(DP)                     :: VAL
+  REAL(DP)                     :: DDT
+  REAL(DP)                     :: PX
+  REAL(DP)                     :: DT1, DD, DICE
+  REAL(DP)                     :: FCR
+  REAL(DP)                     :: SUM
+  REAL(DP)                     :: ACRT
+  REAL(DP)                     :: WDF
+  REAL(DP)                     :: WCND
+  REAL(DP)                     :: SMCAV
+  REAL(DP)                     :: INFMAX
+  REAL(DP), DIMENSION(1:NSOIL) :: DMAX
   INTEGER, PARAMETER       :: CVFRZ = 3
 ! --------------------------------------------------------------------------------
 
@@ -7924,36 +7931,36 @@ contains
     INTEGER,                  INTENT(IN)  :: ILOC   !grid index
     INTEGER,                  INTENT(IN)  :: JLOC   !grid index
     INTEGER,                  INTENT(IN)  :: NSOIL
-    REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: ZSOIL
-    REAL,                     INTENT(IN)  :: DT
-    REAL,                     INTENT(IN)  :: PDDUM
-    REAL,                     INTENT(IN)  :: QSEVA
-    REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: ETRANI
-    REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: SH2O
-    REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: SMC
-    REAL,                     INTENT(IN)  :: ZWT    ! water table depth [m]
-    REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: FCR
-    REAL, INTENT(IN)                      :: FCRMAX !maximum of FCR (-)
-    REAL,                     INTENT(IN)  :: SICEMAX!maximum soil ice content (m3/m3)
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: ZSOIL
+    REAL(DP),                     INTENT(IN)  :: DT
+    REAL(DP),                     INTENT(IN)  :: PDDUM
+    REAL(DP),                     INTENT(IN)  :: QSEVA
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: ETRANI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: SH2O
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: SMC
+    REAL(DP),                     INTENT(IN)  :: ZWT    ! water table depth [m]
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)  :: FCR
+    REAL(DP), INTENT(IN)                      :: FCRMAX !maximum of FCR (-)
+    REAL(DP),                     INTENT(IN)  :: SICEMAX!maximum soil ice content (m3/m3)
 
 ! output
 
-    REAL, DIMENSION(1:NSOIL), INTENT(OUT) :: RHSTT
-    REAL, DIMENSION(1:NSOIL), INTENT(OUT) :: AI
-    REAL, DIMENSION(1:NSOIL), INTENT(OUT) :: BI
-    REAL, DIMENSION(1:NSOIL), INTENT(OUT) :: CI
-    REAL, DIMENSION(1:NSOIL), INTENT(OUT) :: WCND    !hydraulic conductivity (m/s)
-    REAL,                     INTENT(OUT) :: QDRAIN  !bottom drainage (m/s)
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(OUT) :: RHSTT
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(OUT) :: AI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(OUT) :: BI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(OUT) :: CI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(OUT) :: WCND    !hydraulic conductivity (m/s)
+    REAL(DP),                     INTENT(OUT) :: QDRAIN  !bottom drainage (m/s)
 
 ! local
     INTEGER                               :: K
-    REAL, DIMENSION(1:NSOIL)              :: DDZ
-    REAL, DIMENSION(1:NSOIL)              :: DENOM
-    REAL, DIMENSION(1:NSOIL)              :: DSMDZ
-    REAL, DIMENSION(1:NSOIL)              :: WFLUX
-    REAL, DIMENSION(1:NSOIL)              :: WDF
-    REAL, DIMENSION(1:NSOIL)              :: SMX
-    REAL                                  :: TEMP1
+    REAL(DP), DIMENSION(1:NSOIL)              :: DDZ
+    REAL(DP), DIMENSION(1:NSOIL)              :: DENOM
+    REAL(DP), DIMENSION(1:NSOIL)              :: DSMDZ
+    REAL(DP), DIMENSION(1:NSOIL)              :: WFLUX
+    REAL(DP), DIMENSION(1:NSOIL)              :: WDF
+    REAL(DP), DIMENSION(1:NSOIL)              :: SMX
+    REAL(DP)                                  :: TEMP1
 
 ! Niu and Yang (2006), J. of Hydrometeorology
 ! ----------------------------------------------------------------------
@@ -8039,28 +8046,28 @@ contains
     INTEGER,                         INTENT(IN) :: JLOC   !grid index
     INTEGER,                         INTENT(IN) :: NSOIL  !
     INTEGER,                         INTENT(IN) :: NSNOW  !
-    REAL, INTENT(IN)                            :: DT
-    REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: ZSOIL
-    REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: SICE
-    REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO ! snow/soil layer thickness [m]
+    REAL(DP), INTENT(IN)                            :: DT
+    REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: ZSOIL
+    REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: SICE
+    REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO ! snow/soil layer thickness [m]
 
 !input and output
-    REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O
-    REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC
-    REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: AI
-    REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: BI
-    REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: CI
-    REAL, DIMENSION(1:NSOIL), INTENT(INOUT) :: RHSTT
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: SMC
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: AI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: BI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: CI
+    REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: RHSTT
 
 !output
-    REAL, INTENT(OUT)                       :: WPLUS     !saturation excess water (m)
+    REAL(DP), INTENT(OUT)                       :: WPLUS     !saturation excess water (m)
 
 !local
     INTEGER                                 :: K
-    REAL, DIMENSION(1:NSOIL)                :: RHSTTIN
-    REAL, DIMENSION(1:NSOIL)                :: CIIN
-    REAL                                    :: STOT
-    REAL                                    :: EPORE
+    REAL(DP), DIMENSION(1:NSOIL)                :: RHSTTIN
+    REAL(DP), DIMENSION(1:NSOIL)                :: CIIN
+    REAL(DP)                                    :: STOT
+    REAL(DP)                                    :: EPORE
 ! ----------------------------------------------------------------------
     WPLUS = 0.0
 
@@ -8109,17 +8116,17 @@ contains
     IMPLICIT NONE
 ! ----------------------------------------------------------------------
 ! input
-    REAL,INTENT(IN)  :: SMC
-    REAL,INTENT(IN)  :: FCR
+    REAL(DP),INTENT(IN)  :: SMC
+    REAL(DP),INTENT(IN)  :: FCR
 
 ! output
-    REAL,INTENT(OUT) :: WCND
-    REAL,INTENT(OUT) :: WDF
+    REAL(DP),INTENT(OUT) :: WCND
+    REAL(DP),INTENT(OUT) :: WDF
 
 ! local
-    REAL :: EXPON
-    REAL :: FACTR
-    REAL :: VKWGT
+    REAL(DP) :: EXPON
+    REAL(DP) :: FACTR
+    REAL(DP) :: VKWGT
 ! ----------------------------------------------------------------------
 
 ! soil water diffusivity
@@ -8144,17 +8151,17 @@ contains
     IMPLICIT NONE
 ! ----------------------------------------------------------------------
 ! input
-    REAL,INTENT(IN)  :: SMC
-    REAL,INTENT(IN)  :: SICE
+    REAL(DP),INTENT(IN)  :: SMC
+    REAL(DP),INTENT(IN)  :: SICE
 
 ! output
-    REAL,INTENT(OUT) :: WCND
-    REAL,INTENT(OUT) :: WDF
+    REAL(DP),INTENT(OUT) :: WCND
+    REAL(DP),INTENT(OUT) :: WDF
 
 ! local
-    REAL :: EXPON
-    REAL :: FACTR
-    REAL :: VKWGT
+    REAL(DP) :: EXPON
+    REAL(DP) :: FACTR
+    REAL(DP) :: VKWGT
 ! ----------------------------------------------------------------------
 
 ! soil water diffusivity
@@ -8188,46 +8195,46 @@ contains
   INTEGER,                         INTENT(IN) :: JLOC  !grid index
   INTEGER,                         INTENT(IN) :: NSNOW !maximum no. of snow layers
   INTEGER,                         INTENT(IN) :: NSOIL !no. of soil layers
-  REAL,                            INTENT(IN) :: DT    !timestep [sec]
-  REAL,                            INTENT(IN) :: FCRMAX!maximum FCR (-)
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: SICE  !soil ice content [m3/m3]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: ZSOIL !depth of soil layer-bottom [m]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: WCND  !hydraulic conductivity (m/s)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC   !snow/soil temperature (k)
+  REAL(DP),                            INTENT(IN) :: DT    !timestep [sec]
+  REAL(DP),                            INTENT(IN) :: FCRMAX!maximum FCR (-)
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: SICE  !soil ice content [m3/m3]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: ZSOIL !depth of soil layer-bottom [m]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: WCND  !hydraulic conductivity (m/s)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC   !snow/soil temperature (k)
 
 ! input and output
-  REAL, DIMENSION(    1:NSOIL), INTENT(INOUT) :: SH2O  !liquid soil water [m3/m3]
-  REAL,                         INTENT(INOUT) :: ZWT   !the depth to water table [m]
-  REAL,                         INTENT(INOUT) :: WA    !water storage in aquifer [mm]
-  REAL,                         INTENT(INOUT) :: WT    !water storage in aquifer
+  REAL(DP), DIMENSION(    1:NSOIL), INTENT(INOUT) :: SH2O  !liquid soil water [m3/m3]
+  REAL(DP),                         INTENT(INOUT) :: ZWT   !the depth to water table [m]
+  REAL(DP),                         INTENT(INOUT) :: WA    !water storage in aquifer [mm]
+  REAL(DP),                         INTENT(INOUT) :: WT    !water storage in aquifer
                                                            !+ saturated soil [mm]
 ! output
-  REAL,                           INTENT(OUT) :: QIN   !groundwater recharge [mm/s]
-  REAL,                           INTENT(OUT) :: QDIS  !groundwater discharge [mm/s]
+  REAL(DP),                           INTENT(OUT) :: QIN   !groundwater recharge [mm/s]
+  REAL(DP),                           INTENT(OUT) :: QDIS  !groundwater discharge [mm/s]
 
 ! local
-  REAL                                        :: FFF   !runoff decay factor (m-1)
-  REAL                                        :: RSBMX !baseflow coefficient [mm/s]
+  REAL(DP)                                        :: FFF   !runoff decay factor (m-1)
+  REAL(DP)                                        :: RSBMX !baseflow coefficient [mm/s]
   INTEGER                                     :: IZ    !do-loop index
   INTEGER                                     :: IWT   !layer index above water table layer
-  REAL,  DIMENSION(    1:NSOIL)               :: DZMM  !layer thickness [mm]
-  REAL,  DIMENSION(    1:NSOIL)               :: ZNODE !node depth [m]
-  REAL,  DIMENSION(    1:NSOIL)               :: MLIQ  !liquid water mass [kg/m2 or mm]
-  REAL,  DIMENSION(    1:NSOIL)               :: EPORE !effective porosity [-]
-  REAL,  DIMENSION(    1:NSOIL)               :: HK    !hydraulic conductivity [mm/s]
-  REAL,  DIMENSION(    1:NSOIL)               :: SMC   !total soil water  content [m3/m3]
-  REAL(KIND=8)                                :: S_NODE!degree of saturation of IWT layer
-  REAL                                        :: DZSUM !cumulative depth above water table [m]
-  REAL                                        :: SMPFZ !matric potential (frozen effects) [mm]
-  REAL                                        :: KA    !aquifer hydraulic conductivity [mm/s]
-  REAL                                        :: WH_ZWT!water head at water table [mm]
-  REAL                                        :: WH    !water head at layer above ZWT [mm]
-  REAL                                        :: WS    !water used to fill air pore [mm]
-  REAL                                        :: WTSUB !sum of HK*DZMM
-  REAL                                        :: WATMIN!minimum soil vol soil moisture [m3/m3]
-  REAL                                        :: XS    !excessive water above saturation [mm]
-  REAL, PARAMETER                             :: ROUS = 0.2    !specific yield [-]
-  REAL, PARAMETER                             :: CMIC = 0.20   !microprore content (0.0-1.0)
+  REAL(DP),  DIMENSION(    1:NSOIL)               :: DZMM  !layer thickness [mm]
+  REAL(DP),  DIMENSION(    1:NSOIL)               :: ZNODE !node depth [m]
+  REAL(DP),  DIMENSION(    1:NSOIL)               :: MLIQ  !liquid water mass [kg/m2 or mm]
+  REAL(DP),  DIMENSION(    1:NSOIL)               :: EPORE !effective porosity [-]
+  REAL(DP),  DIMENSION(    1:NSOIL)               :: HK    !hydraulic conductivity [mm/s]
+  REAL(DP),  DIMENSION(    1:NSOIL)               :: SMC   !total soil water  content [m3/m3]
+  REAL(DP)                                :: S_NODE!degree of saturation of IWT layer
+  REAL(DP)                                        :: DZSUM !cumulative depth above water table [m]
+  REAL(DP)                                        :: SMPFZ !matric potential (frozen effects) [mm]
+  REAL(DP)                                        :: KA    !aquifer hydraulic conductivity [mm/s]
+  REAL(DP)                                        :: WH_ZWT!water head at water table [mm]
+  REAL(DP)                                        :: WH    !water head at layer above ZWT [mm]
+  REAL(DP)                                        :: WS    !water used to fill air pore [mm]
+  REAL(DP)                                        :: WTSUB !sum of HK*DZMM
+  REAL(DP)                                        :: WATMIN!minimum soil vol soil moisture [m3/m3]
+  REAL(DP)                                        :: XS    !excessive water above saturation [mm]
+  REAL(DP), PARAMETER                             :: ROUS = 0.2    !specific yield [-]
+  REAL(DP), PARAMETER                             :: CMIC = 0.20   !microprore content (0.0-1.0)
                                                                !0.0-close to free drainage
 ! -------------------------------------------------------------
       QDIS      = 0.0
@@ -8383,52 +8390,52 @@ contains
   INTEGER                        , INTENT(IN) :: NSNOW  !number of snow layers
   INTEGER                        , INTENT(IN) :: NSOIL  !number of soil layers
   INTEGER                        , INTENT(IN) :: NROOT  !no. of root layers
-  REAL                           , INTENT(IN) :: LAT    !latitude (radians)
-  REAL                           , INTENT(IN) :: DT     !time step (s)
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: ZSOIL  !depth of layer-bottom from soil surface
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !snow/soil temperature [k]
-  REAL, DIMENSION(       1:NSOIL), INTENT(IN) :: SMC    !soil moisture (ice + liq.) [m3/m3]
-  REAL                           , INTENT(IN) :: TV     !vegetation temperature (k)
-  REAL                           , INTENT(IN) :: TG     !ground temperature (k)
-  REAL                           , INTENT(IN) :: FOLN   !foliage nitrogen (%)
-  REAL                           , INTENT(IN) :: SMCMAX !soil porosity (m3/m3)
-  REAL                           , INTENT(IN) :: BTRAN  !soil water transpiration factor (0 to 1)
-  REAL                           , INTENT(IN) :: PSN    !total leaf photosyn (umolco2/m2/s) [+]
-  REAL                           , INTENT(IN) :: APAR   !PAR by canopy (w/m2)
-  REAL                           , INTENT(IN) :: IGS    !growing season index (0=off, 1=on)
-  REAL                           , INTENT(IN) :: FVEG   !vegetation greenness fraction
-  REAL                           , INTENT(IN) :: TROOT  !root-zone averaged temperature (k)
+  REAL(DP)                           , INTENT(IN) :: LAT    !latitude (radians)
+  REAL(DP)                           , INTENT(IN) :: DT     !time step (s)
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: ZSOIL  !depth of layer-bottom from soil surface
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !snow/soil temperature [k]
+  REAL(DP), DIMENSION(       1:NSOIL), INTENT(IN) :: SMC    !soil moisture (ice + liq.) [m3/m3]
+  REAL(DP)                           , INTENT(IN) :: TV     !vegetation temperature (k)
+  REAL(DP)                           , INTENT(IN) :: TG     !ground temperature (k)
+  REAL(DP)                           , INTENT(IN) :: FOLN   !foliage nitrogen (%)
+  REAL(DP)                           , INTENT(IN) :: SMCMAX !soil porosity (m3/m3)
+  REAL(DP)                           , INTENT(IN) :: BTRAN  !soil water transpiration factor (0 to 1)
+  REAL(DP)                           , INTENT(IN) :: PSN    !total leaf photosyn (umolco2/m2/s) [+]
+  REAL(DP)                           , INTENT(IN) :: APAR   !PAR by canopy (w/m2)
+  REAL(DP)                           , INTENT(IN) :: IGS    !growing season index (0=off, 1=on)
+  REAL(DP)                           , INTENT(IN) :: FVEG   !vegetation greenness fraction
+  REAL(DP)                           , INTENT(IN) :: TROOT  !root-zone averaged temperature (k)
   INTEGER                        , INTENT(IN) :: IST    !surface type 1->soil; 2->lake
 
 ! input & output (carbon)
 
-  REAL                        , INTENT(INOUT) :: LFMASS !leaf mass [g/m2]
-  REAL                        , INTENT(INOUT) :: RTMASS !mass of fine roots [g/m2]
-  REAL                        , INTENT(INOUT) :: STMASS !stem mass [g/m2]
-  REAL                        , INTENT(INOUT) :: WOOD   !mass of wood (incl. woody roots) [g/m2]
-  REAL                        , INTENT(INOUT) :: STBLCP !stable carbon in deep soil [g/m2]
-  REAL                        , INTENT(INOUT) :: FASTCP !short-lived carbon in shallow soil [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: LFMASS !leaf mass [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: RTMASS !mass of fine roots [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: STMASS !stem mass [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: WOOD   !mass of wood (incl. woody roots) [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: STBLCP !stable carbon in deep soil [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: FASTCP !short-lived carbon in shallow soil [g/m2]
 
 ! outputs: (carbon)
 
-  REAL                          , INTENT(OUT) :: GPP    !net instantaneous assimilation [g/m2/s C]
-  REAL                          , INTENT(OUT) :: NPP    !net primary productivity [g/m2/s C]
-  REAL                          , INTENT(OUT) :: NEE    !net ecosystem exchange [g/m2/s CO2]
-  REAL                          , INTENT(OUT) :: AUTORS !net ecosystem respiration [g/m2/s C]
-  REAL                          , INTENT(OUT) :: HETERS !organic respiration [g/m2/s C]
-  REAL                          , INTENT(OUT) :: TOTSC  !total soil carbon [g/m2 C]
-  REAL                          , INTENT(OUT) :: TOTLB  !total living carbon ([g/m2 C]
-  REAL                          , INTENT(OUT) :: XLAI   !leaf area index [-]
-  REAL                          , INTENT(OUT) :: XSAI   !stem area index [-]
-!  REAL                          , INTENT(OUT) :: VOCFLX(5) ! voc fluxes [ug C m-2 h-1]
+  REAL(DP)                          , INTENT(OUT) :: GPP    !net instantaneous assimilation [g/m2/s C]
+  REAL(DP)                          , INTENT(OUT) :: NPP    !net primary productivity [g/m2/s C]
+  REAL(DP)                          , INTENT(OUT) :: NEE    !net ecosystem exchange [g/m2/s CO2]
+  REAL(DP)                          , INTENT(OUT) :: AUTORS !net ecosystem respiration [g/m2/s C]
+  REAL(DP)                          , INTENT(OUT) :: HETERS !organic respiration [g/m2/s C]
+  REAL(DP)                          , INTENT(OUT) :: TOTSC  !total soil carbon [g/m2 C]
+  REAL(DP)                          , INTENT(OUT) :: TOTLB  !total living carbon ([g/m2 C]
+  REAL(DP)                          , INTENT(OUT) :: XLAI   !leaf area index [-]
+  REAL(DP)                          , INTENT(OUT) :: XSAI   !stem area index [-]
+!  REAL(DP)                          , INTENT(OUT) :: VOCFLX(5) ! voc fluxes [ug C m-2 h-1]
 
 ! local variables
 
   INTEGER :: J         !do-loop index
-  REAL    :: WROOT     !root zone soil water [-]
-  REAL    :: WSTRES    !water stress coeficient [-]  (1. for wilting )
-  REAL    :: LAPM      !leaf area per unit mass [m2/g]
+  REAL(DP)    :: WROOT     !root zone soil water [-]
+  REAL(DP)    :: WSTRES    !water stress coeficient [-]  (1. for wilting )
+  REAL(DP)    :: LAPM      !leaf area per unit mass [m2/g]
 ! ------------------------------------------------------------------------------------------
 
    IF ( ( VEGTYP == ISWATER ) .OR. ( VEGTYP == ISBARREN ) .OR. ( VEGTYP == ISSNOW ) .or. (VEGTYP == ISURBAN) ) THEN
@@ -8499,103 +8506,103 @@ contains
   INTEGER                        , INTENT(IN) :: VEGTYP !vegetation physiology type
   INTEGER                        , INTENT(IN) :: NSNOW  !number of snow layers
   INTEGER                        , INTENT(IN) :: NSOIL  !number of soil layers
-  REAL                           , INTENT(IN) :: DT     !time step (s)
-  REAL                           , INTENT(IN) :: LAT    !latitude (radians)
-  REAL                           , INTENT(IN) :: IGS    !growing season index (0=off, 1=on)
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
-  REAL, DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !snow/soil temperature [k]
-  REAL                           , INTENT(IN) :: PSN    !total leaf photosynthesis (umolco2/m2/s)
-  REAL                           , INTENT(IN) :: TROOT  !root-zone averaged temperature (k)
-  REAL                           , INTENT(IN) :: TV     !leaf temperature (k)
-  REAL                           , INTENT(IN) :: WROOT  !root zone soil water
-  REAL                           , INTENT(IN) :: WSTRES !soil water stress
-  REAL                           , INTENT(IN) :: FOLN   !foliage nitrogen (%)
-  REAL                           , INTENT(IN) :: LAPM   !leaf area per unit mass [m2/g]
-  REAL                           , INTENT(IN) :: FVEG   !vegetation greenness fraction
+  REAL(DP)                           , INTENT(IN) :: DT     !time step (s)
+  REAL(DP)                           , INTENT(IN) :: LAT    !latitude (radians)
+  REAL(DP)                           , INTENT(IN) :: IGS    !growing season index (0=off, 1=on)
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: DZSNSO !snow/soil layer thickness [m]
+  REAL(DP), DIMENSION(-NSNOW+1:NSOIL), INTENT(IN) :: STC    !snow/soil temperature [k]
+  REAL(DP)                           , INTENT(IN) :: PSN    !total leaf photosynthesis (umolco2/m2/s)
+  REAL(DP)                           , INTENT(IN) :: TROOT  !root-zone averaged temperature (k)
+  REAL(DP)                           , INTENT(IN) :: TV     !leaf temperature (k)
+  REAL(DP)                           , INTENT(IN) :: WROOT  !root zone soil water
+  REAL(DP)                           , INTENT(IN) :: WSTRES !soil water stress
+  REAL(DP)                           , INTENT(IN) :: FOLN   !foliage nitrogen (%)
+  REAL(DP)                           , INTENT(IN) :: LAPM   !leaf area per unit mass [m2/g]
+  REAL(DP)                           , INTENT(IN) :: FVEG   !vegetation greenness fraction
 
 ! input and output
 
-  REAL                        , INTENT(INOUT) :: XLAI   !leaf  area index from leaf carbon [-]
-  REAL                        , INTENT(INOUT) :: XSAI   !stem area index from leaf carbon [-]
-  REAL                        , INTENT(INOUT) :: LFMASS !leaf mass [g/m2]
-  REAL                        , INTENT(INOUT) :: RTMASS !mass of fine roots [g/m2]
-  REAL                        , INTENT(INOUT) :: STMASS !stem mass [g/m2]
-  REAL                        , INTENT(INOUT) :: FASTCP !short lived carbon [g/m2]
-  REAL                        , INTENT(INOUT) :: STBLCP !stable carbon pool [g/m2]
-  REAL                        , INTENT(INOUT) :: WOOD   !mass of wood (incl. woody roots) [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: XLAI   !leaf  area index from leaf carbon [-]
+  REAL(DP)                        , INTENT(INOUT) :: XSAI   !stem area index from leaf carbon [-]
+  REAL(DP)                        , INTENT(INOUT) :: LFMASS !leaf mass [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: RTMASS !mass of fine roots [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: STMASS !stem mass [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: FASTCP !short lived carbon [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: STBLCP !stable carbon pool [g/m2]
+  REAL(DP)                        , INTENT(INOUT) :: WOOD   !mass of wood (incl. woody roots) [g/m2]
 
 ! output
 
-  REAL                          , INTENT(OUT) :: GPP    !net instantaneous assimilation [g/m2/s]
-  REAL                          , INTENT(OUT) :: NPP    !net primary productivity [g/m2]
-  REAL                          , INTENT(OUT) :: NEE    !net ecosystem exchange (autors+heters-gpp)
-  REAL                          , INTENT(OUT) :: AUTORS !net ecosystem resp. (maintance and growth)
-  REAL                          , INTENT(OUT) :: HETERS !organic respiration
-  REAL                          , INTENT(OUT) :: TOTSC  !total soil carbon (g/m2)
-  REAL                          , INTENT(OUT) :: TOTLB  !total living carbon (g/m2)
+  REAL(DP)                          , INTENT(OUT) :: GPP    !net instantaneous assimilation [g/m2/s]
+  REAL(DP)                          , INTENT(OUT) :: NPP    !net primary productivity [g/m2]
+  REAL(DP)                          , INTENT(OUT) :: NEE    !net ecosystem exchange (autors+heters-gpp)
+  REAL(DP)                          , INTENT(OUT) :: AUTORS !net ecosystem resp. (maintance and growth)
+  REAL(DP)                          , INTENT(OUT) :: HETERS !organic respiration
+  REAL(DP)                          , INTENT(OUT) :: TOTSC  !total soil carbon (g/m2)
+  REAL(DP)                          , INTENT(OUT) :: TOTLB  !total living carbon (g/m2)
 
 ! local
 
-  REAL                   :: CFLUX    !carbon flux to atmosphere [g/m2/s]
-  REAL                   :: LFMSMN   !minimum leaf mass [g/m2]
-  REAL                   :: RSWOOD   !wood respiration [g/m2]
-  REAL                   :: RSLEAF   !leaf maintenance respiration per timestep [g/m2]
-  REAL                   :: RSROOT   !fine root respiration per time step [g/m2]
-  REAL                   :: NPPL     !leaf net primary productivity [g/m2/s]
-  REAL                   :: NPPR     !root net primary productivity [g/m2/s]
-  REAL                   :: NPPW     !wood net primary productivity [g/m2/s]
-  REAL                   :: NPPS     !wood net primary productivity [g/m2/s]
-  REAL                   :: DIELF    !death of leaf mass per time step [g/m2]
+  REAL(DP)                   :: CFLUX    !carbon flux to atmosphere [g/m2/s]
+  REAL(DP)                   :: LFMSMN   !minimum leaf mass [g/m2]
+  REAL(DP)                   :: RSWOOD   !wood respiration [g/m2]
+  REAL(DP)                   :: RSLEAF   !leaf maintenance respiration per timestep [g/m2]
+  REAL(DP)                   :: RSROOT   !fine root respiration per time step [g/m2]
+  REAL(DP)                   :: NPPL     !leaf net primary productivity [g/m2/s]
+  REAL(DP)                   :: NPPR     !root net primary productivity [g/m2/s]
+  REAL(DP)                   :: NPPW     !wood net primary productivity [g/m2/s]
+  REAL(DP)                   :: NPPS     !wood net primary productivity [g/m2/s]
+  REAL(DP)                   :: DIELF    !death of leaf mass per time step [g/m2]
 
-  REAL                   :: ADDNPPLF !leaf assimil after resp. losses removed [g/m2]
-  REAL                   :: ADDNPPST !stem assimil after resp. losses removed [g/m2]
-  REAL                   :: CARBFX   !carbon assimilated per model step [g/m2]
-  REAL                   :: GRLEAF   !growth respiration rate for leaf [g/m2/s]
-  REAL                   :: GRROOT   !growth respiration rate for root [g/m2/s]
-  REAL                   :: GRWOOD   !growth respiration rate for wood [g/m2/s]
-  REAL                   :: GRSTEM   !growth respiration rate for stem [g/m2/s]
-  REAL                   :: LEAFPT   !fraction of carbon allocated to leaves [-]
-  REAL                   :: LFDEL    !maximum  leaf mass  available to change [g/m2/s]
-  REAL                   :: LFTOVR   !stem turnover per time step [g/m2]
-  REAL                   :: STTOVR   !stem turnover per time step [g/m2]
-  REAL                   :: WDTOVR   !wood turnover per time step [g/m2]
-  REAL                   :: RSSOIL   !soil respiration per time step [g/m2]
-  REAL                   :: RTTOVR   !root carbon loss per time step by turnover [g/m2]
-  REAL                   :: STABLC   !decay rate of fast carbon to slow carbon [g/m2/s]
-  REAL                   :: WOODF    !calculated wood to root ratio [-]
-  REAL                   :: NONLEF   !fraction of carbon to root and wood [-]
-  REAL                   :: ROOTPT   !fraction of carbon flux to roots [-]
-  REAL                   :: WOODPT   !fraction of carbon flux to wood [-]
-  REAL                   :: STEMPT   !fraction of carbon flux to stem [-]
-  REAL                   :: RESP     !leaf respiration [umol/m2/s]
-  REAL                   :: RSSTEM   !stem respiration [g/m2/s]
+  REAL(DP)                   :: ADDNPPLF !leaf assimil after resp. losses removed [g/m2]
+  REAL(DP)                   :: ADDNPPST !stem assimil after resp. losses removed [g/m2]
+  REAL(DP)                   :: CARBFX   !carbon assimilated per model step [g/m2]
+  REAL(DP)                   :: GRLEAF   !growth respiration rate for leaf [g/m2/s]
+  REAL(DP)                   :: GRROOT   !growth respiration rate for root [g/m2/s]
+  REAL(DP)                   :: GRWOOD   !growth respiration rate for wood [g/m2/s]
+  REAL(DP)                   :: GRSTEM   !growth respiration rate for stem [g/m2/s]
+  REAL(DP)                   :: LEAFPT   !fraction of carbon allocated to leaves [-]
+  REAL(DP)                   :: LFDEL    !maximum  leaf mass  available to change [g/m2/s]
+  REAL(DP)                   :: LFTOVR   !stem turnover per time step [g/m2]
+  REAL(DP)                   :: STTOVR   !stem turnover per time step [g/m2]
+  REAL(DP)                   :: WDTOVR   !wood turnover per time step [g/m2]
+  REAL(DP)                   :: RSSOIL   !soil respiration per time step [g/m2]
+  REAL(DP)                   :: RTTOVR   !root carbon loss per time step by turnover [g/m2]
+  REAL(DP)                   :: STABLC   !decay rate of fast carbon to slow carbon [g/m2/s]
+  REAL(DP)                   :: WOODF    !calculated wood to root ratio [-]
+  REAL(DP)                   :: NONLEF   !fraction of carbon to root and wood [-]
+  REAL(DP)                   :: ROOTPT   !fraction of carbon flux to roots [-]
+  REAL(DP)                   :: WOODPT   !fraction of carbon flux to wood [-]
+  REAL(DP)                   :: STEMPT   !fraction of carbon flux to stem [-]
+  REAL(DP)                   :: RESP     !leaf respiration [umol/m2/s]
+  REAL(DP)                   :: RSSTEM   !stem respiration [g/m2/s]
 
-  REAL                   :: FSW      !soil water factor for microbial respiration
-  REAL                   :: FST      !soil temperature factor for microbial respiration
-  REAL                   :: FNF      !foliage nitrogen adjustemt to respiration (<= 1)
-  REAL                   :: TF       !temperature factor
-  REAL                   :: RF       !respiration reduction factor (<= 1)
-  REAL                   :: STDEL
-  REAL                   :: STMSMN
-  REAL                   :: SAPM     !stem area per unit mass (m2/g)
-  REAL                   :: DIEST
+  REAL(DP)                   :: FSW      !soil water factor for microbial respiration
+  REAL(DP)                   :: FST      !soil temperature factor for microbial respiration
+  REAL(DP)                   :: FNF      !foliage nitrogen adjustemt to respiration (<= 1)
+  REAL(DP)                   :: TF       !temperature factor
+  REAL(DP)                   :: RF       !respiration reduction factor (<= 1)
+  REAL(DP)                   :: STDEL
+  REAL(DP)                   :: STMSMN
+  REAL(DP)                   :: SAPM     !stem area per unit mass (m2/g)
+  REAL(DP)                   :: DIEST
 ! -------------------------- constants -------------------------------
-  REAL                   :: BF       !parameter for present wood allocation [-]
-  REAL                   :: RSWOODC  !wood respiration coeficient [1/s]
-  REAL                   :: STOVRC   !stem turnover coefficient [1/s]
-  REAL                   :: RSDRYC   !degree of drying that reduces soil respiration [-]
-  REAL                   :: RTOVRC   !root turnover coefficient [1/s]
-  REAL                   :: WSTRC    !water stress coeficient [-]
-  REAL                   :: LAIMIN   !minimum leaf area index [m2/m2]
-  REAL                   :: XSAMIN   !minimum leaf area index [m2/m2]
-  REAL                   :: SC
-  REAL                   :: SD
-  REAL                   :: VEGFRAC
+  REAL(DP)                   :: BF       !parameter for present wood allocation [-]
+  REAL(DP)                   :: RSWOODC  !wood respiration coeficient [1/s]
+  REAL(DP)                   :: STOVRC   !stem turnover coefficient [1/s]
+  REAL(DP)                   :: RSDRYC   !degree of drying that reduces soil respiration [-]
+  REAL(DP)                   :: RTOVRC   !root turnover coefficient [1/s]
+  REAL(DP)                   :: WSTRC    !water stress coeficient [-]
+  REAL(DP)                   :: LAIMIN   !minimum leaf area index [m2/m2]
+  REAL(DP)                   :: XSAMIN   !minimum leaf area index [m2/m2]
+  REAL(DP)                   :: SC
+  REAL(DP)                   :: SD
+  REAL(DP)                   :: VEGFRAC
 
 ! Respiration as a function of temperature
 
-  real :: r,x
-          r(x) = exp(0.08*(x-298.16))
+  real(dp) :: r,x
+              r(x) = exp(0.08*(x-298.16))
 ! ---------------------------------------------------------------------------------
 
 ! constants
@@ -8865,7 +8872,7 @@ contains
 !  Modified By F. Chen (01/22/00)  to include PLaya, Lava, and White San
 !  Modified By F. Chen (08/05/02)  to include additional parameters for the Noah
 ! NOTE: SATDW = BB*SATDK*(SATPSI/MAXSMC)
-!         F11 = ALOG10(SATPSI) + BB*ALOG10(MAXSMC) + 2.0
+!         F11 = log10(SATPSI) + BB*log10(MAXSMC) + 2.0
 !       REFSMC1=MAXSMC*(5.79E-9/SATDK)**(1/(2*BB+3)) 5.79E-9 m/s= 0.5 mm
 !       REFSMC=REFSMC1+1./3.(MAXSMC-REFSMC1)
 !       WLTSMC1=MAXSMC*(200./SATPSI)**(-1./BB)    (Wetzel and Chang, 198
@@ -8894,13 +8901,13 @@ contains
 ! General parameters
     INTEGER, INTENT(IN)    :: NSOIL
 ! Layer parameters
-    REAL,DIMENSION(NSOIL),INTENT(IN) :: ZSOIL
+    REAL(DP),DIMENSION(NSOIL),INTENT(IN) :: ZSOIL
 
 ! Locals
-    REAL    :: REFDK
-    REAL    :: REFKDT
-    REAL    :: FRZK
-    REAL                   :: FRZFACT
+    REAL(DP)    :: REFDK
+    REAL(DP)    :: REFKDT
+    REAL(DP)    :: FRZK
+    REAL(DP)                   :: FRZFACT
     INTEGER                :: I
     CHARACTER(len=256)     :: message
 ! ----------------------------------------------------------------------

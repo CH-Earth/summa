@@ -1,12 +1,13 @@
 !WRF:MODEL_LAYER:PHYSICS
 !
 MODULE module_sf_sfclay
+ use nrtype
 
- REAL    , PARAMETER ::  VCONVC=1.
- REAL    , PARAMETER ::  CZO=0.0185
- REAL    , PARAMETER ::  OZO=1.59E-5
+ REAL(DP)    , PARAMETER ::  VCONVC=1.
+ REAL(DP)    , PARAMETER ::  CZO=0.0185
+ REAL(DP)    , PARAMETER ::  OZO=1.59E-5
 
- REAL,   DIMENSION(0:1000 ),SAVE          :: PSIMTB,PSIHTB
+ REAL(DP),   DIMENSION(0:1000 ),SAVE          :: PSIMTB,PSIHTB
 
 CONTAINS
 
@@ -110,24 +111,24 @@ CONTAINS
                                         its,ite, jts,jte, kts,kte
 !
       INTEGER,  INTENT(IN )   ::        ISFFLX
-      REAL,     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
-      REAL,     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
-      REAL,     INTENT(IN )   ::        P1000mb
+      REAL(DP),     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
+      REAL(DP),     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
+      REAL(DP),     INTENT(IN )   ::        P1000mb
 !
-      REAL,     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
+      REAL(DP),     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
                 INTENT(IN   )   ::                           dz8w
 
-      REAL,     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
+      REAL(DP),     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
                 INTENT(IN   )   ::                           QV3D, &
                                                               P3D, &
                                                               T3D
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(IN   )               ::             MAVAIL, &
                                                              PBLH, &
                                                             XLAND, &
                                                               TSK
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(OUT  )               ::                U10, &
                                                               V10, &
                                                               TH2, &
@@ -136,7 +137,7 @@ CONTAINS
                                                              QSFC
 
 !
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)               ::             REGIME, &
                                                               HFX, &
                                                               QFX, &
@@ -144,18 +145,18 @@ CONTAINS
                                                           MOL,RMOL
 !m the following 5 are change to memory size
 !
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                 GZ1OZ0,WSPD,BR, &
                                                         PSIM,PSIH
 
-      REAL,     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
+      REAL(DP),     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
                 INTENT(IN   )   ::                            U3D, &
                                                               V3D
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(IN   )               ::               PSFC
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                            ZNT, &
                                                               ZOL, &
                                                               UST, &
@@ -164,31 +165,31 @@ CONTAINS
                                                              CQS2, &
                                                               CHS
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                      FLHC,FLQC
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                                 &
                                                               QGH
 
 
 
-      REAL,     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
+      REAL(DP),     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
 
-      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme )              , &
+      REAL(DP), OPTIONAL, DIMENSION( ims:ime, jms:jme )              , &
                 INTENT(OUT)     ::              ck,cka,cd,cda,ustm
 
       INTEGER,  OPTIONAL,  INTENT(IN )   ::     ISFTCFLX, IZ0TLND
 
 ! LOCAL VARS
 
-      REAL,     DIMENSION( its:ite ) ::                       U1D, &
+      REAL(DP),     DIMENSION( its:ite ) ::                       U1D, &
                                                               V1D, &
                                                              QV1D, &
                                                               P1D, &
                                                               T1D
 
-      REAL,     DIMENSION( its:ite ) ::                    dz8w1d
+      REAL(DP),     DIMENSION( its:ite ) ::                    dz8w1d
 
       INTEGER ::  I,J
 
@@ -253,8 +254,8 @@ CONTAINS
 !-------------------------------------------------------------------
       IMPLICIT NONE
 !-------------------------------------------------------------------
-      REAL,     PARAMETER     ::        XKA=2.4E-5
-      REAL,     PARAMETER     ::        PRT=1.
+      REAL(DP),     PARAMETER     ::        XKA=2.4E-5
+      REAL(DP),     PARAMETER     ::        PRT=1.
 
       INTEGER,  INTENT(IN )   ::        ids,ide, jds,jde, kds,kde, &
                                         ims,ime, jms,jme, kms,kme, &
@@ -262,32 +263,32 @@ CONTAINS
                                         J
 !
       INTEGER,  INTENT(IN )   ::        ISFFLX
-      REAL,     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
-      REAL,     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
-      REAL,     INTENT(IN )   ::        P1000mb
+      REAL(DP),     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
+      REAL(DP),     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
+      REAL(DP),     INTENT(IN )   ::        P1000mb
 
 !
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(IN   )               ::             MAVAIL, &
                                                              PBLH, &
                                                             XLAND, &
                                                               TSK
 !
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(IN   )               ::             PSFCPA
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)               ::             REGIME, &
                                                               HFX, &
                                                               QFX, &
                                                          MOL,RMOL
 !m the following 5 are changed to memory size---
 !
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                 GZ1OZ0,WSPD,BR, &
                                                         PSIM,PSIH
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                            ZNT, &
                                                               ZOL, &
                                                               UST, &
@@ -296,37 +297,37 @@ CONTAINS
                                                              CQS2, &
                                                               CHS
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                      FLHC,FLQC
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                                 &
                                                               QGH
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(OUT)     ::                        U10,V10, &
                                                 TH2,T2,Q2,QSFC,LH
 
 
-      REAL,     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
+      REAL(DP),     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
 
 ! MODULE-LOCAL VARIABLES, DEFINED IN SUBROUTINE SFCLAY
-      REAL,     DIMENSION( its:ite ),  INTENT(IN   )   ::  dz8w1d
+      REAL(DP),     DIMENSION( its:ite ),  INTENT(IN   )   ::  dz8w1d
 
-      REAL,     DIMENSION( its:ite ),  INTENT(IN   )   ::      UX, &
+      REAL(DP),     DIMENSION( its:ite ),  INTENT(IN   )   ::      UX, &
                                                                VX, &
                                                              QV1D, &
                                                               P1D, &
                                                               T1D
 
-      REAL, OPTIONAL, DIMENSION( ims:ime )                       , &
+      REAL(DP), OPTIONAL, DIMENSION( ims:ime )                       , &
                 INTENT(OUT)     ::              ck,cka,cd,cda,ustm
 
       INTEGER,  OPTIONAL,  INTENT(IN )   ::     ISFTCFLX, IZ0TLND
 
 ! LOCAL VARS
 
-      REAL,     DIMENSION( its:ite )        ::                 ZA, &
+      REAL(DP),     DIMENSION( its:ite )        ::                 ZA, &
                                                         THVX,ZQKL, &
                                                            ZQKLP1, &
                                                            THX,QX, &
@@ -341,21 +342,21 @@ CONTAINS
                                                            GZ2OZ0, &
                                                            GZ10OZ0
 !
-      REAL,     DIMENSION( its:ite )        ::                     &
+      REAL(DP),     DIMENSION( its:ite )        ::                     &
                                                       RHOX,GOVRTH, &
                                                             TGDSA
 !
-      REAL,     DIMENSION( its:ite)         ::          SCR3,SCR4
-      REAL,     DIMENSION( its:ite )        ::         THGB, PSFC
+      REAL(DP),     DIMENSION( its:ite)         ::          SCR3,SCR4
+      REAL(DP),     DIMENSION( its:ite )        ::         THGB, PSFC
 !
       INTEGER                               ::                 KL
 
       INTEGER ::  N,I,K,KK,L,NZOL,NK,NZOL2,NZOL10
 
-      REAL    ::  PL,THCON,TVCON,E1
-      REAL    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
-      REAL    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
-      REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,RESTAR2
+      REAL(DP)    ::  PL,THCON,TVCON,E1
+      REAL(DP)    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
+      REAL(DP)    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
+      REAL(DP)    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,RESTAR2
 !-------------------------------------------------------------------
       KL=kte
 
@@ -457,9 +458,9 @@ CONTAINS
 !     AKB(1976), EQ(12).
 
       DO 260 I=its,ite
-        GZ1OZ0(I)=ALOG(ZA(I)/ZNT(I))
-        GZ2OZ0(I)=ALOG(2./ZNT(I))
-        GZ10OZ0(I)=ALOG(10./ZNT(I))
+        GZ1OZ0(I)=log(ZA(I)/ZNT(I))
+        GZ2OZ0(I)=log(2./ZNT(I))
+        GZ10OZ0(I)=log(10./ZNT(I))
         IF((XLAND(I)-1.5).GE.0)THEN
           ZL=ZNT(I)
         ELSE
@@ -674,11 +675,11 @@ CONTAINS
         ELSE
           ZL=0.01
         ENDIF
-        PSIQ=ALOG(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I)
+        PSIQ=log(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I)
         PSIT2=GZ2OZ0(I)-PSIH2(I)
-        PSIQ2=ALOG(KARMAN*UST(I)*2./XKA+2./ZL)-PSIH2(I)
+        PSIQ2=log(KARMAN*UST(I)*2./XKA+2./ZL)-PSIH2(I)
 ! AHW: mods to compute ck, cd
-        PSIQ10=ALOG(KARMAN*UST(I)*10./XKA+10./ZL)-PSIH10(I)
+        PSIQ10=log(KARMAN*UST(I)*10./XKA+10./ZL)-PSIH10(I)
         IF ( PRESENT(ISFTCFLX) ) THEN
            IF ( ISFTCFLX.EQ.1 .AND. (XLAND(I)-1.5).GE.0. ) THEN
 ! v3.1
@@ -687,10 +688,10 @@ CONTAINS
 !             Z0Q = 0.62*2.0E-5/UST(I) + 1.E-3*(MAX(0.,UST(I)-1.5))**2
 ! v3.2
               Z0Q = 1.e-4
-              PSIQ=ALOG(ZA(I)/Z0Q)-PSIH(I)
+              PSIQ=log(ZA(I)/Z0Q)-PSIH(I)
               PSIT=PSIQ
-              PSIQ2=ALOG(2./Z0Q)-PSIH2(I)
-              PSIQ10=ALOG(10./Z0Q)-PSIH10(I)
+              PSIQ2=log(2./Z0Q)-PSIH2(I)
+              PSIQ10=log(10./Z0Q)-PSIH10(I)
               PSIT2=PSIQ2
            ENDIF
            IF ( ISFTCFLX.EQ.2 .AND. (XLAND(I)-1.5).GE.0. ) THEN
@@ -791,7 +792,7 @@ CONTAINS
         ENDIF
         FLQC(I)=RHOX(I)*MAVAIL(I)*UST(I)*KARMAN/DENOMQ(I)
 !       FLQC(I)=RHOX(I)*MAVAIL(I)*UST(I)*KARMAN/(   &
-!               ALOG(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I))
+!               log(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I))
         DTTHX=ABS(THX(I)-THGB(I))
         IF(DTTHX.GT.1.E-5)THEN
           FLHC(I)=CPM(I)*RHOX(I)*UST(I)*MOL(I)/(THX(I)-THGB(I))
@@ -838,7 +839,7 @@ CONTAINS
            ZL=0.01
          ENDIF
          CHS(I)=UST(I)*KARMAN/DENOMQ(I)
-!        GZ2OZ0(I)=ALOG(2./ZNT(I))
+!        GZ2OZ0(I)=log(2./ZNT(I))
 !        PSIM2(I)=-10.*GZ2OZ0(I)
 !        PSIM2(I)=AMAX1(PSIM2(I),-10.)
 !        PSIH2(I)=PSIM2(I)
@@ -865,15 +866,15 @@ CONTAINS
 
    LOGICAL , INTENT(IN)      ::      allowed_to_read
    INTEGER                   ::      N
-   REAL                      ::      ZOLN,X,Y
+   REAL(DP)                      ::      ZOLN,X,Y
 
    DO N=0,1000
       ZOLN=-FLOAT(N)*0.01
       X=(1-16.*ZOLN)**0.25
-      PSIMTB(N)=2*ALOG(0.5*(1+X))+ALOG(0.5*(1+X*X))- &
+      PSIMTB(N)=2*log(0.5*(1+X))+log(0.5*(1+X*X))- &
                 2.*ATAN(X)+2.*ATAN(1.)
       Y=(1-16*ZOLN)**0.5
-      PSIHTB(N)=2*ALOG(0.5*(1+Y))
+      PSIHTB(N)=2*log(0.5*(1+Y))
    ENDDO
 
    END SUBROUTINE sfclayinit
