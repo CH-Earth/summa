@@ -31,7 +31,6 @@ USE multiconst,only:&
 ! access named variables for snow and soil
 USE globalData,only:iname_snow        ! named variables for snow
 USE globalData,only:iname_soil        ! named variables for soil
-USE globalData,only:maxSnowLayers     ! maximum number of snow layers
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -95,6 +94,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! computational modules
  USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
+ USE globalData,only:maxSnowLayers     ! maximum number of snow layers
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
@@ -260,17 +260,23 @@ contains
 
   ! identify the number of layers to check for need for sub-division
   select case(ix_snowLayers)
-   case(sameRulesAllLayers);    nCheck = min(nSnow, maxSnowLayers)
-   case(rulesDependLayerIndex); nCheck = min(nSnow, maxSnowLayers)  ! the depth of the 5th layer, if it exists, does not have a maximum value
+   case(sameRulesAllLayers);    nCheck = min(nSnow, maxSnowLayers-1)
+   case(rulesDependLayerIndex); nCheck = min(nSnow, maxSnowLayers-1)  ! the depth of the 5th layer, if it exists, does not have a maximum value
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
 
   ! loop through all layers, and sub-divide a given layer, if necessary
   do iLayer=1,nCheck
+   divideLayer=.false.
 
    ! identify the maximum depth of the layer
    select case(ix_snowLayers)
-    case(sameRulesAllLayers);    zmaxCheck = zmax
+    case(sameRulesAllLayers)
+     if (nCheck >= 99) then
+      zmaxCheck = 99999.
+     else
+      zmaxCheck = zmax
+     end if
     case(rulesDependLayerIndex)
      if(iLayer == nSnow)then
       zmaxCheck = zmax_lower(iLayer)
