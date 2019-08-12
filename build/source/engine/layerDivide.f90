@@ -273,6 +273,7 @@ contains
    select case(ix_snowLayers)
     case(sameRulesAllLayers)
      if (nCheck >= 99) then
+      ! make sure we don't divide so make very big
       zmaxCheck = 99999.
      else
       zmaxCheck = zmax
