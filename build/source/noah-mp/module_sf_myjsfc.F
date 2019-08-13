@@ -23,20 +23,20 @@
 !
       INTEGER :: ITRMX=5 ! Iteration count for sfc layer computations
 !
-      REAL(DP),PARAMETER :: VKARMAN=0.4
+      REAL(DP),PARAMETER :: VKARMAN=0.4d0
       REAL(DP),PARAMETER :: CAPA=R_D/CP,ELOCP=2.72E6/CP,RCAP=1./CAPA
       REAL(DP),PARAMETER :: GOCP02=G/CP*2.,GOCP10=G/CP*10.
-!      REAL(DP),PARAMETER :: EPSU2=1.E-4,EPSUST=0.07,EPSZT=1.E-5
+!      REAL(DP),PARAMETER :: EPSU2=1.E-4,EPSUST=0.07d0,EPSZT=1.E-5
 !	ECMWF sets lower limit on ln(Z0h)=-20 --> EPSZT=2.e-9
       REAL(DP),PARAMETER :: EPSU2=1.E-6,EPSUST=1.e-9,EPSZT=1.E-28
-      REAL(DP),PARAMETER :: A2S=17.2693882,A3S=273.16,A4S=35.86
-      REAL(DP),PARAMETER :: SEAFC=0.98,PQ0SEA=PQ0*SEAFC
-      REAL(DP),PARAMETER :: BETA=1./273.,EXCML=0.0001,EXCMS=0.0001         &
-     &                 ,GLKBR=10.,GLKBS=30.,PI_re=3.1415926               &
-     &                 ,QVISC=2.1E-5,RIC=0.505,SMALL=0.35              &
-     &                 ,SQPR=0.84,SQSC=0.84,SQVISC=258.2,TVISC=2.1E-5  &
-     &                 ,USTC=0.7,USTR=0.225,VISC=1.5E-5,FH=1.01        &
-     &                 ,WWST=1.2,ZTFC=1.,TOPOFAC=9.0e-6
+      REAL(DP),PARAMETER :: A2S=17.2693882d0,A3S=273.16d0,A4S=35.86d0
+      REAL(DP),PARAMETER :: SEAFC=0.98d0,PQ0SEA=PQ0*SEAFC
+      REAL(DP),PARAMETER :: BETA=1./273.,EXCML=0.0001d0,EXCMS=0.0001d0         &
+     &                 ,GLKBR=10.,GLKBS=30.,PI_re=3.1415926d0               &
+     &                 ,QVISC=2.1E-5,RIC=0.505d0,SMALL=0.35d0              &
+     &                 ,SQPR=0.84d0,SQSC=0.84d0,SQVISC=258.2d0,TVISC=2.1E-5  &
+     &                 ,USTC=0.7d0,USTR=0.225d0,VISC=1.5E-5,FH=1.01d0        &
+     &                 ,WWST=1.2d0,ZTFC=1.,TOPOFAC=9.0E-6
 !
       REAL(DP),PARAMETER :: BTG=BETA*G,CZIV=SMALL*GLKBS                    &
      &                 ,GRRS=GLKBR/GLKBS                               &
@@ -47,9 +47,9 @@
      &                 ,FZT1=RVISC *TVISC*SQPR                         &
      &                 ,FZT2=CZIV*GRRS*TVISC*SQPR                      &
      &                 ,FZU1=CZIV*VISC                                 &
-     &                 ,PIHF=0.5*PI_re                                    &
+     &                 ,PIHF=0.5d0*PI_re                                    &
      &                 ,RQVISC=1./QVISC                                &
-     &                 ,USTFC=0.018/G                                  &
+     &                 ,USTFC=0.018d0/G                                  &
      &                 ,WWST2=WWST*WWST
 !
 !----------------------------------------------------------------------
@@ -193,7 +193,7 @@ CONTAINS
 !tgs       IF(NTSD==1)THEN
         DO J=JTS,JTE
         DO I=ITS,ITE
-          USTAR(I,J)=0.1
+          USTAR(I,J)=0.1d0
           FIS=HT(I,J)*G
           SM=XLAND(I,J)-1.
 !!!       Z0(I,J)=SM*Z0SEA+(1.-SM)*(Z0(I,J)*Z0MAX+FIS*FCM+Z0LAND)
@@ -242,7 +242,7 @@ CONTAINS
             QK(K)=RATIOMX/(1.+RATIOMX)
             PK(K)=PMID(I,KFLIP,J)
             CWMK(K)=QC(I,KFLIP,J)
-            THvK(K)=(qk(k)*0.608+(1.-CWMK(K)))*THK(K)
+            THvK(K)=(qk(k)*0.608d0+(1.-CWMK(K)))*THK(K)
             Q2K(K)=2.*Q2(I,KFLIP,J)
 !
 !***  COMPUTE THE HEIGHTS OF THE LAYER INTERFACES
@@ -289,7 +289,7 @@ CONTAINS
           CWMLOW=CWMK(LMH)
           ULOW=UK(LMH)
           VLOW=VK(LMH)
-          ZSL=(ZHK(LMH)-ZHK(LMH+1))*0.5
+          ZSL=(ZHK(LMH)-ZHK(LMH+1))*0.5d0
 !          APESFC=(PSFC*1.E-5)**CAPA
           APESFC=(PSFC/P1000mb)**CAPA
 !tgs - in ARW THZ0 is not initialized when MYJSFC is called first time
@@ -441,7 +441,7 @@ CONTAINS
 !
 !----------------------------------------------------------------------
 !
-      IF(SEAMASK>0.5)THEN
+      IF(SEAMASK>0.5d0)THEN
 !
 !----------------------------------------------------------------------
         DO ITR=1,ITRMX
@@ -470,8 +470,8 @@ CONTAINS
               ZU=FZU1*SQRT(SQRT(Z0*USTAR*RVISC))/USTAR
               WGHT=AKMS*ZU*RVISC
               RWGH=WGHT/(WGHT+1.)
-              UZ0=(ULOW*RWGH+UZ0)*0.5
-              VZ0=(VLOW*RWGH+VZ0)*0.5
+              UZ0=(ULOW*RWGH+UZ0)*0.5d0
+              VZ0=(VLOW*RWGH+VZ0)*0.5d0
 !
               ZT=FZT1*ZU
               ZQ=FZQ1*ZT
@@ -484,8 +484,8 @@ CONTAINS
      IF(NTSD>1)THEN
 #endif
 !tgs              IF(NTSD>1)THEN
-                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.)+THZ0)*0.5
-                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.)+QZ0)*0.5
+                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.)+THZ0)*0.5d0
+                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.)+QZ0)*0.5d0
               ELSE
                 THZ0=(WGHTT*THLOW+THS)/(WGHTT+1.)
                 QZ0=(WGHTQ*QLOW+QS)/(WGHTQ+1.)
@@ -510,8 +510,8 @@ CONTAINS
 #endif
 
 !tgs              IF(NTSD>1)THEN
-                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.)+THZ0)*0.5
-                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.)+QZ0)*0.5
+                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.)+THZ0)*0.5d0
+                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.)+QZ0)*0.5d0
               ELSE
                 THZ0=(WGHTT*THLOW+THS)/(WGHTT+1.)
                 QZ0=(WGHTQ*QLOW+QS)/(WGHTQ+1.)
@@ -533,7 +533,7 @@ CONTAINS
 !----------------------------------------------------------------------
           ENDIF
 !----------------------------------------------------------------------
-          dthv=thvlow-thz0*(0.608*qz0+1.)
+          dthv=thvlow-thz0*(0.608d0*qz0+1.)
 !
           DU2=MAX((ULOW-UZ0)**2+(VLOW-VZ0)**2,EPSU2)
           RIB=BTGX*DTHV*ZSL/DU2
@@ -652,7 +652,7 @@ CONTAINS
         ZQ=ZT
         QZ0=QS
 !----------------------------------------------------------------------
-        dthv=thvlow-thz0*(0.608*qz0+1.)
+        dthv=thvlow-thz0*(0.608d0*qz0+1.)
 !
         DU2=MAX((ULOW-UZ0)**2+(VLOW-VZ0)**2,EPSU2)
         RIB=BTGX*DTHV*ZSL/DU2
@@ -673,11 +673,11 @@ CONTAINS
 
           IF ( (IZ0TLND==0) .or. (VEGTYP == ISURBAN) ) THEN
              ! Just use the original CZIL value.
-             CZIL = 0.1
+             CZIL = 0.1d0
           ELSE
              ! Modify CZIL according to Chen & Zhang, 2009
-             ! CZIL = 10 ** -0.40 H, ( where H = 10*Zo )
-             CZIL = 10.0 ** ( -0.40 * ( Z0 / 0.07 ) )
+             ! CZIL = 10 ** -0.40d0 H, ( where H = 10*Zo )
+             CZIL = 10.0d0 ** ( -0.40d0 * ( Z0 / 0.07d0 ) )
           ENDIF
           ZILFC=-CZIL*VKARMAN*SQVISC
 
@@ -686,7 +686,7 @@ CONTAINS
 !mp   Topo modification of ZILFC term
 !
 !         TOPOTERM=TOPOFAC*ZSFC**2.
-!         TOPOTERM=MAX(TOPOTERM,3.0)
+!         TOPOTERM=MAX(TOPOTERM,3.0d0)
 !
 !  RIB modification to ZILFC term
 !
@@ -696,9 +696,9 @@ CONTAINS
           IF(DTHV>0.)THEN
 !            ZZIL=ZILFC*TOPOTERM
             IF (RIB<RIC) THEN
-              ZZIL=ZILFC*(1.0+(RIB/RIC)*(RIB/RIC)*CZETMAX)
+              ZZIL=ZILFC*(1.0d0+(RIB/RIC)*(RIB/RIC)*CZETMAX)
             ELSE
-              ZZIL=ZILFC*(1.0+CZETMAX)
+              ZZIL=ZILFC*(1.0d0+CZETMAX)
             ENDIF
 ! unstable
           ELSE
@@ -826,7 +826,7 @@ CONTAINS
 !----------------------------------------------------------------------
 !     IF(RIB>=RIC)THEN
 !----------------------------------------------------------------------
-!       IF(SEAMASK>0.5)THEN
+!       IF(SEAMASK>0.5d0)THEN
 !         AKMS10=MAX( VISC/10.,CXCHS)
 !         AKHS02=MAX(TVISC/02.,CXCHS)
 !         AKHS10=MAX(TVISC/10.,CXCHS)
@@ -854,7 +854,7 @@ CONTAINS
 !***  SEA
 !----------------------------------------------------------------------
 !
-        IF(SEAMASK>0.5)THEN
+        IF(SEAMASK>0.5d0)THEN
 !
 !----------------------------------------------------------------------
           ZTAU10=MIN(MAX(ZTAU10,ZTMIN1),ZTMAX1)
@@ -959,7 +959,7 @@ CONTAINS
 !
       Q02 =HLFLX/AKHS02+QZ0
       Q10 =HLFLX/AKHS10+QZ0
-      TERM1=-0.068283/TLOW
+      TERM1=-0.068283d0/TLOW
       PSHLTR=PSFC*EXP(TERM1)
 !
 !----------------------------------------------------------------------
@@ -969,15 +969,15 @@ CONTAINS
       U10E=U10
       V10E=V10
 !
-      IF(SEAMASK<0.5)THEN
+      IF(SEAMASK<0.5d0)THEN
 
-!1st        ZUUZ=MIN(0.5*ZU,0.1)
-!1st        ZU=MAX(0.1*ZU,ZUUZ)
-!tst        ZUUZ=amin1(ZU*0.50,0.3)
-!tst        ZU=amax1(ZU*0.3,ZUUZ)
+!1st        ZUUZ=MIN(0.5d0*ZU,0.1d0)
+!1st        ZU=MAX(0.1d0*ZU,ZUUZ)
+!tst        ZUUZ=amin1(ZU*0.50d0,0.3d0)
+!tst        ZU=amax1(ZU*0.3d0,ZUUZ)
 
-        ZUUZ=AMIN1(ZU*0.50,0.18)
-        ZU=AMAX1(ZU*0.35,ZUUZ)
+        ZUUZ=AMIN1(ZU*0.50d0,0.18d0)
+        ZU=AMAX1(ZU*0.35d0,ZUUZ)
 !
         ZU10=ZU+10.
         RZSU=ZU10/ZU
@@ -1023,14 +1023,14 @@ CONTAINS
       QGH=((1.-SEAMASK)*PQ0+SEAMASK*PQ0SEA)                            &
      &     /PLOW*EXP(A2S*(TLOW-A3S)/(TLOW-A4S))
       QGH=QGH/(1.-QGH)    !Convert to mixing ratio
-      CPM=CP*(1.+0.8*QLOW)
+      CPM=CP*(1.+0.8d0*QLOW)
 !
 !***  DO NOT COMPUTE QS OVER LAND POINTS HERE SINCE IT IS
 !***  A PROGNOSTIC VARIABLE THERE.  IT IS OKAY TO USE IT
 !***  AS A DIAGNOSTIC OVER WATER SINCE IT WILL CAUSE NO
 !***  INTERFERENCE BEFORE BEING RECOMPUTED IN MYJPBL.
 !
-      IF(SEAMASK>0.5)THEN
+      IF(SEAMASK>0.5d0)THEN
           QS=PQ0SEA/PSFC                                      &
      &         *EXP(A2S*(TSK-A3S)/(TSK-A4S))
         QS=QS/(1.-QS)
@@ -1073,20 +1073,20 @@ CONTAINS
 !
       REAL(DP) :: SM,X,ZETA1,ZETA2,ZRNG1,ZRNG2
 !
-      REAL(DP) :: PIHF=3.1415926/2.,EPS=1.E-6
+      REAL(DP) :: PIHF=3.1415926d0/2.,EPS=1.E-6
 !----------------------------------------------------------------------
       VZ0TBL=                                                          &
-     &  (/0.,                                                          &
-     &    2.653,0.826,0.563,1.089,0.854,0.856,0.035,0.238,0.065,0.076  &
-     &   ,0.011,0.035,0.011,0.000,0.000,0.000,0.000,0.000,0.000,0.000  &
-     &   ,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000/)
+     &  (/0.0d0,                                                          &
+     &    2.653d0,0.826d0,0.563d0,1.089d0,0.854d0,0.856d0,0.035d0,0.238d0,0.065d0,0.076d0  &
+     &   ,0.011d0,0.035d0,0.011d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0  &
+     &   ,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0,0.000d0/)
 
-      VZ0TBL_24= (/0.,                                                 &
-     &            1.00,  0.07,  0.07,  0.07,  0.07,  0.15,             &
-     &            0.08,  0.03,  0.05,  0.86,  0.80,  0.85,             &
-     &            2.65,  1.09,  0.80,  0.001, 0.04,  0.05,             &
-     &            0.01,  0.04,  0.06,  0.05,  0.03,  0.001,            &
-     &            0.000, 0.000, 0.000, 0.000, 0.000, 0.000 /)
+      VZ0TBL_24= (/0.0d0,                                                 &
+     &            1.00d0,  0.07d0,  0.07d0,  0.07d0,  0.07d0,  0.15d0,             &
+     &            0.08d0,  0.03d0,  0.05d0,  0.86d0,  0.80d0,  0.85d0,             &
+     &            2.65d0,  1.09d0,  0.80d0,  0.001d0, 0.04d0,  0.05d0,             &
+     &            0.01d0,  0.04d0,  0.06d0,  0.05d0,  0.03d0,  0.001d0,            &
+     &            0.000d0, 0.000d0, 0.000d0, 0.000d0, 0.000d0, 0.000d0 /)
 
 !----------------------------------------------------------------------
 !
@@ -1120,7 +1120,7 @@ CONTAINS
           DO J=JTS,JTE
           DO I=ITS,ITE
             SM=SEAMASK(I,J)-1.
-            IF(SM+XICE(I,J)<0.5)THEN
+            IF(SM+XICE(I,J)<0.5d0)THEN
               Z0(I,J)=VZ0TBL(IVGTYP(I,J))
             ENDIF
           ENDDO
@@ -1131,7 +1131,7 @@ CONTAINS
           DO J=JTS,JTE
           DO I=ITS,ITE
             SM=SEAMASK(I,J)-1.
-            IF(SM+XICE(I,J)<0.5)THEN
+            IF(SM+XICE(I,J)<0.5d0)THEN
               Z0(I,J)=VZ0TBL_24(IVGTYP(I,J))
             ENDIF
           ENDDO
@@ -1146,7 +1146,7 @@ CONTAINS
       IF(.NOT.RESTART)THEN
         DO J=JTS,JTE
         DO I=ITS,ITF
-          USTAR(I,J)=0.1
+          USTAR(I,J)=0.1d0
         ENDDO
         ENDDO
       ENDIF
@@ -1158,14 +1158,14 @@ CONTAINS
       FH01=1.
       FH02=1.
 !
-!      ZTMIN1=-10.0
-!      ZTMAX1=2.0
-!      ZTMIN2=-10.0
-!      ZTMAX2=2.0
-      ZTMIN1=-5.0
-      ZTMAX1=1.0
-      ZTMIN2=-5.0
-      ZTMAX2=1.0
+!      ZTMIN1=-10.0d0
+!      ZTMAX1=2.0d0
+!      ZTMIN2=-10.0d0
+!      ZTMAX2=2.0d0
+      ZTMIN1=-5.0d0
+      ZTMAX1=1.0d0
+      ZTMIN2=-5.0d0
+      ZTMAX2=1.0d0
 !
       ZRNG1=ZTMAX1-ZTMIN1
       ZRNG2=ZTMAX2-ZTMIN2
@@ -1212,8 +1212,8 @@ CONTAINS
 !***   HOLTSLAG AND DE BRUIN 1988
 !----------------------------------------------------------------------
 !
-          PSIM1(K)=0.7*ZETA1+0.75*ZETA1*(6.-0.35*ZETA1)*EXP(-0.35*ZETA1)
-          PSIH1(K)=0.7*ZETA1+0.75*ZETA1*(6.-0.35*ZETA1)*EXP(-0.35*ZETA1)
+          PSIM1(K)=0.7d0*ZETA1+0.75d0*ZETA1*(6.-0.35d0*ZETA1)*EXP(-0.35d0*ZETA1)
+          PSIH1(K)=0.7d0*ZETA1+0.75d0*ZETA1*(6.-0.35d0*ZETA1)*EXP(-0.35d0*ZETA1)
 !----------------------------------------------------------------------
 !
         ENDIF
@@ -1249,8 +1249,8 @@ CONTAINS
 !***  HOLTSLAG AND DE BRUIN 1988
 !----------------------------------------------------------------------
 !
-          PSIM2(K)=0.7*ZETA2+0.75*ZETA2*(6.-0.35*ZETA2)*EXP(-0.35*ZETA2)
-          PSIH2(K)=0.7*ZETA2+0.75*ZETA2*(6.-0.35*ZETA2)*EXP(-0.35*ZETA2)
+          PSIM2(K)=0.7d0*ZETA2+0.75d0*ZETA2*(6.-0.35d0*ZETA2)*EXP(-0.35d0*ZETA2)
+          PSIH2(K)=0.7d0*ZETA2+0.75d0*ZETA2*(6.-0.35d0*ZETA2)*EXP(-0.35d0*ZETA2)
 !----------------------------------------------------------------------
 !
         ENDIF

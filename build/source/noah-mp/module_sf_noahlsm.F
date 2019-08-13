@@ -2,11 +2,11 @@ MODULE module_sf_noahlsm
   use nrtype
   USE module_model_constants
 
-!   REAL(DP), PARAMETER    :: CP = 1004.5
-  REAL(DP), PARAMETER      :: RD = 287.04, SIGMA = 5.67E-8,                 &
+!   REAL(DP), PARAMETER    :: CP = 1004.5d0
+  REAL(DP), PARAMETER      :: RD = 287.04d0, SIGMA = 5.67E-8,                 &
                           CPH2O = 4.218E+3,CPICE = 2.106E+3,            &
                           LSUBF = 3.335E+5,                             &
-                          EMISSI_S = 0.95
+                          EMISSI_S = 0.95d0
 
 ! VEGETATION PARAMETERS
         INTEGER :: LUCATS , BARE
@@ -75,7 +75,7 @@ CONTAINS
                        RIBB,                                            &
                        SMCWLT,SMCDRY,SMCREF,SMCMAX,NROOT)                    !P
 ! ----------------------------------------------------------------------
-! SUBROUTINE SFLX - UNIFIED NOAHLSM VERSION 1.0 JULY 2007
+! SUBROUTINE SFLX - UNIFIED NOAHLSM VERSION 1.0d0 JULY 2007
 ! ----------------------------------------------------------------------
 ! SUB-DRIVER FOR "Noah LSM" FAMILY OF PHYSICS SUBROUTINES FOR A
 ! SOIL/VEG/SNOWPACK LAND-SURFACE MODEL TO UPDATE SOIL MOISTURE, SOIL
@@ -146,9 +146,9 @@ CONTAINS
 !   SOILTYP    SOIL TYPE (INTEGER INDEX)
 !   SLOPETYP   CLASS OF SFC SLOPE (INTEGER INDEX)
 !   SHDFAC     AREAL(DP) FRACTIONAL COVERAGE OF GREEN VEGETATION
-!                (FRACTION= 0.0-1.0)
+!                (FRACTION= 0.0d0-1.0d0)
 !   SHDMIN     MINIMUM AREAL(DP) FRACTIONAL COVERAGE OF GREEN VEGETATION
-!                (FRACTION= 0.0-1.0) <= SHDFAC
+!                (FRACTION= 0.0d0-1.0d0) <= SHDFAC
 !   PTU        PHOTO THERMAL UNIT (PLANT PHENOLOGY FOR ANNUALS/CROPS)
 !                (NOT YET USED, BUT PASSED TO REDPRM FOR FUTURE USE IN
 !                VEG PARMS)
@@ -209,7 +209,7 @@ CONTAINS
 !                (W m-2)
 !   DRIP       THROUGH-FALL OF PRECIP AND/OR DEW IN EXCESS OF CANOPY
 !                WATER-HOLDING CAPACITY (M)
-!   DEW        DEWFALL (OR FROSTFALL FOR T<273.15) (M)
+!   DEW        DEWFALL (OR FROSTFALL FOR T<273.15d0) (M)
 ! ----------------------------------------------------------------------
 !   BETA       RATIO OF ACTUAL/POTENTIAL EVAP (DIMENSIONLESS)
 !   ETP        POTENTIAL EVAPORATION (W m-2)
@@ -330,20 +330,20 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! DECLARATIONS - PARAMETERS
 ! ----------------------------------------------------------------------
-      PARAMETER (TFREEZ = 273.15)
+      PARAMETER (TFREEZ = 273.15d0)
       PARAMETER (LVH2O = 2.501E+6)
       PARAMETER (LSUBS = 2.83E+6)
-      PARAMETER (R = 287.04)
+      PARAMETER (R = 287.04d0)
 
       iloc = iiloc
       jloc = jjloc
 ! ----------------------------------------------------------------------
 !   INITIALIZATION
 ! ----------------------------------------------------------------------
-         RUNOFF1 = 0.0
-         RUNOFF2 = 0.0
-         RUNOFF3 = 0.0
-         SNOMLT = 0.0
+         RUNOFF1 = 0.0d0
+         RUNOFF2 = 0.0d0
+         RUNOFF3 = 0.0d0
+         SNOMLT = 0.0d0
 
 ! ----------------------------------------------------------------------
 ! ----------------------------------------------------------------------
@@ -373,12 +373,12 @@ CONTAINS
 
 !urban
          IF(VEGTYP==ISURBAN)THEN
-              SHDFAC=0.05
-              RSMIN=400.0
-              SMCMAX = 0.45
-              SMCREF = 0.42
-              SMCWLT = 0.40
-              SMCDRY = 0.40
+              SHDFAC=0.05d0
+              RSMIN=400.0d0
+              SMCMAX = 0.45d0
+              SMCREF = 0.42d0
+              SMCWLT = 0.40d0
+              SMCDRY = 0.40d0
          ENDIF
 
          IF ( SHDFAC >= SHDMAX ) THEN
@@ -405,28 +405,28 @@ CONTAINS
 
                INTERP_FRACTION = ( SHDFAC - SHDMIN ) / ( SHDMAX - SHDMIN )
                ! Bound INTERP_FRACTION between 0 and 1
-               INTERP_FRACTION = MIN ( INTERP_FRACTION, 1.0 )
-               INTERP_FRACTION = MAX ( INTERP_FRACTION, 0.0 )
+               INTERP_FRACTION = MIN ( INTERP_FRACTION, 1.0d0 )
+               INTERP_FRACTION = MAX ( INTERP_FRACTION, 0.0d0 )
                ! Scale Emissivity and LAI between EMISSMIN and EMISSMAX by INTERP_FRACTION
-               EMBRD = ( ( 1.0 - INTERP_FRACTION ) * EMISSMIN  ) + ( INTERP_FRACTION * EMISSMAX  )
+               EMBRD = ( ( 1.0d0 - INTERP_FRACTION ) * EMISSMIN  ) + ( INTERP_FRACTION * EMISSMAX  )
                IF (.NOT. RDLAI2D) THEN
-                  XLAI  = ( ( 1.0 - INTERP_FRACTION ) * LAIMIN    ) + ( INTERP_FRACTION * LAIMAX    )
+                  XLAI  = ( ( 1.0d0 - INTERP_FRACTION ) * LAIMIN    ) + ( INTERP_FRACTION * LAIMAX    )
                ENDIF
                if (.not. USEMONALB) then
-                  ALB   = ( ( 1.0 - INTERP_FRACTION ) * ALBEDOMAX ) + ( INTERP_FRACTION * ALBEDOMIN )
+                  ALB   = ( ( 1.0d0 - INTERP_FRACTION ) * ALBEDOMAX ) + ( INTERP_FRACTION * ALBEDOMIN )
                endif
-               Z0BRD = ( ( 1.0 - INTERP_FRACTION ) * Z0MIN     ) + ( INTERP_FRACTION * Z0MAX     )
+               Z0BRD = ( ( 1.0d0 - INTERP_FRACTION ) * Z0MIN     ) + ( INTERP_FRACTION * Z0MAX     )
 
             ELSE
 
-               EMBRD = 0.5 * EMISSMIN  + 0.5 * EMISSMAX
+               EMBRD = 0.5d0 * EMISSMIN  + 0.5d0 * EMISSMAX
                IF (.NOT. RDLAI2D) THEN
-                  XLAI  = 0.5 * LAIMIN    + 0.5 * LAIMAX
+                  XLAI  = 0.5d0 * LAIMIN    + 0.5d0 * LAIMAX
                ENDIF
                if (.not. USEMONALB) then
-                  ALB   = 0.5 * ALBEDOMIN + 0.5 * ALBEDOMAX
+                  ALB   = 0.5d0 * ALBEDOMIN + 0.5d0 * ALBEDOMAX
                endif
-               Z0BRD = 0.5 * Z0MIN     + 0.5 * Z0MAX
+               Z0BRD = 0.5d0 * Z0MIN     + 0.5d0 * Z0MAX
 
             ENDIF
 
@@ -443,13 +443,13 @@ CONTAINS
 !   SUBROUTINE)
 ! ----------------------------------------------------------------------
          IF ( SNEQV <= 1.E-7 ) THEN ! safer IF	kmh (2008/03/25)
-            SNEQV = 0.0
-            SNDENS = 0.0
-            SNOWH = 0.0
-            SNCOND = 1.0
+            SNEQV = 0.0d0
+            SNDENS = 0.0d0
+            SNOWH = 0.0d0
+            SNCOND = 1.0d0
          ELSE
             SNDENS = SNEQV / SNOWH
-            IF(SNDENS > 1.0) THEN
+            IF(SNDENS > 1.0d0) THEN
              CALL wrf_error_fatal ( 'Physical snow depth is less than snow water equiv.' )
             ENDIF
             CALL CSNOW (SNCOND,SNDENS)
@@ -460,10 +460,10 @@ CONTAINS
 ! IF IT'S PRCPING AND THE AIR TEMP IS WARMER THAN 0 C, BUT THE GRND
 ! TEMP IS COLDER THAN 0 C, FREEZING RAIN IS PRESUMED TO BE FALLING.
 ! ----------------------------------------------------------------------
-         IF (PRCP > 0.0) THEN
-! snow defined when fraction of frozen precip (FFROZP) > 0.5,
+         IF (PRCP > 0.0d0) THEN
+! snow defined when fraction of frozen precip (FFROZP) > 0.5d0,
 ! passed in from model microphysics.
-            IF (FFROZP .GT. 0.5) THEN
+            IF (FFROZP .GT. 0.5d0) THEN
                SNOWNG = .TRUE.
             ELSE
                IF (T1 <= TFREEZ) FRZGRA = .TRUE.
@@ -477,9 +477,9 @@ CONTAINS
 ! INTO THE SOIL SO THAT PRCP1 IS SET TO ZERO.
 ! ----------------------------------------------------------------------
          IF ( (SNOWNG) .OR. (FRZGRA) ) THEN
-            SN_NEW = PRCP * DT * 0.001
+            SN_NEW = PRCP * DT * 0.001d0
             SNEQV = SNEQV + SN_NEW
-            PRCPF = 0.0
+            PRCPF = 0.0d0
 
 ! ----------------------------------------------------------------------
 ! UPDATE SNOW DENSITY BASED ON NEW SNOWFALL, USING OLD AND NEW SNOW.
@@ -503,8 +503,8 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! IF SNOW DEPTH=0, SET SNOW FRACTION=0, ALBEDO=SNOW FREE ALBEDO.
 ! ----------------------------------------------------------------------
-            IF (SNEQV  == 0.0) THEN
-               SNCOVR = 0.0
+            IF (SNEQV  == 0.0d0) THEN
+               SNCOVR = 0.0d0
                ALBEDO = ALB
                EMISSI = EMBRD
             ELSE
@@ -514,7 +514,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
               CALL SNFRAC (SNEQV,SNUP,SALP,SNOWH,SNCOVR)
 
-              SNCOVR = MIN(SNCOVR,0.98)
+              SNCOVR = MIN(SNCOVR,0.98d0)
 
               CALL ALCALC (ALB,SNOALB,EMBRD,SHDFAC,SHDMIN,SNCOVR,T1,ALBEDO,EMISSI,   &
                          DT,SNOWNG,SNOTIME1,LVCOEF)
@@ -543,20 +543,20 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! ----------------------------------------------------------------------
 ! NEXT ADD SUBSURFACE HEAT FLUX REDUCTION EFFECT FROM THE
-! OVERLYING GREEN CANOPY, ADAPTED FROM SECTION 2.1.2 OF
+! OVERLYING GREEN CANOPY, ADAPTED FROM SECTION 2.1d0.2 OF
 ! PETERS-LIDARD ET AL. (1997, JGR, VOL 102(D4))
 ! ----------------------------------------------------------------------
             CALL TDFCND (DF1,SMC (1),QUARTZ,SMCMAX,SH2O (1))
 
 !urban
-            IF ( VEGTYP == ISURBAN ) DF1=3.24
+            IF ( VEGTYP == ISURBAN ) DF1=3.24d0
 
             DF1 = DF1 * EXP (SBETA * SHDFAC)
 !
 ! kmh 09/03/2006
-! kmh 03/25/2008  change SNCOVR threshold to 0.97
+! kmh 03/25/2008  change SNCOVR threshold to 0.97d0
 !
-            IF (  SNCOVR .GT. 0.97 ) THEN
+            IF (  SNCOVR .GT. 0.97d0 ) THEN
                DF1 = SNCOND
             ENDIF
 !
@@ -566,7 +566,7 @@ CONTAINS
 ! COMBINED DEPTH OF SNOWDEPTH AND THICKNESS OF FIRST SOIL LAYER
 ! ----------------------------------------------------------------------
 
-         DSOIL = - (0.5 * ZSOIL (1))
+         DSOIL = - (0.5d0 * ZSOIL (1))
          IF (SNEQV == 0.) THEN
             SSOIL = DF1 * (T1- STC (1) ) / DSOIL
          ELSE
@@ -583,8 +583,8 @@ CONTAINS
 ! 3. GEOMETRIC MEAN (INTERMEDIATE BETWEEN HARMONIC AND ARITHMETIC MEAN)
 !        DF1 = (SNCOND**FRCSNO)*(DF1**FRCSOI)
 ! weigh DF by snow fraction
-!        DF1 = DF1H*SNCOVR + DF1A*(1.0-SNCOVR)
-!        DF1 = DF1H*SNCOVR + DF1*(1.0-SNCOVR)
+!        DF1 = DF1H*SNCOVR + DF1A*(1.0d0-SNCOVR)
+!        DF1 = DF1H*SNCOVR + DF1*(1.0d0-SNCOVR)
             DF1A = FRCSNO * SNCOND+ FRCSOI * DF1
 
 ! ----------------------------------------------------------------------
@@ -592,7 +592,7 @@ CONTAINS
 ! OF SURFACE MEDIUMS, DF1 ABOVE, AND SKIN TEMPERATURE AND TOP
 ! MID-LAYER SOIL TEMPERATURE
 ! ----------------------------------------------------------------------
-            DF1 = DF1A * SNCOVR + DF1* (1.0- SNCOVR)
+            DF1 = DF1A * SNCOVR + DF1* (1.0d0- SNCOVR)
             SSOIL = DF1 * (T1- STC (1) ) / DTOT
          END IF
 ! ----------------------------------------------------------------------
@@ -628,8 +628,8 @@ CONTAINS
 ! for iterative/implicit solution of CH in SFCDIF
 ! ----------------------------------------------------------------------
 !        IF(.NOT.LCH) THEN
-!          T1V = T1 * (1.0+ 0.61 * Q2)
-!          TH2V = TH2 * (1.0+ 0.61 * Q2)
+!          T1V = T1 * (1.0d0+ 0.61d0 * Q2)
+!          TH2V = TH2 * (1.0d0+ 0.61d0 * Q2)
 !          CALL SFCDIF_off (ZLVL,Z0,T1V,TH2V,SFCSPD,CZIL,CM,CH)
 !        ENDIF
 
@@ -642,12 +642,12 @@ CONTAINS
 ! CALCULATE TOTAL DOWNWARD RADIATION (SOLAR PLUS LONGWAVE) NEEDED IN
 ! PENMAN EP SUBROUTINE THAT FOLLOWS
 ! ----------------------------------------------------------------------
-!         FDOWN = SOLDN * (1.0- ALBEDO) + LWDN
+!         FDOWN = SOLDN * (1.0d0- ALBEDO) + LWDN
          FDOWN =  SOLNET + LWDN
 ! ----------------------------------------------------------------------
 ! CALC VIRTUAL TEMPS AND VIRTUAL POTENTIAL TEMPS NEEDED BY SUBROUTINES
 ! PENMAN.
-         T2V = SFCTMP * (1.0+ 0.61 * Q2 )
+         T2V = SFCTMP * (1.0d0+ 0.61d0 * Q2 )
 
          iout=0
          if(iout.eq.1) then
@@ -684,14 +684,14 @@ CONTAINS
                           TOPT,RSMAX,RGL,HS,XLAI,                        &
                           RCS,RCT,RCQ,RCSOIL,EMISSI)
          ELSE
-            RC = 0.0
+            RC = 0.0d0
          END IF
 ! ----------------------------------------------------------------------
 ! NOW DECIDE MAJOR PATHWAY BRANCH TO TAKE DEPENDING ON WHETHER SNOWPACK
 ! EXISTS OR NOT:
 ! ----------------------------------------------------------------------
-         ESNOW = 0.0
-         IF (SNEQV  == 0.0) THEN
+         ESNOW = 0.0d0
+         IF (SNEQV  == 0.0d0) THEN
             CALL NOPAC (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                  &
                             SMCREF,SMCDRY,CMC,CMCMAX,NSOIL,DT,           &
                             SHDFAC,                                      &
@@ -750,8 +750,8 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! DETERMINE BETA (RATIO OF ACTUAL TO POTENTIAL EVAP)
 ! ----------------------------------------------------------------------
-      IF (ETP == 0.0) THEN
-        BETA = 0.0
+      IF (ETP == 0.0d0) THEN
+        BETA = 0.0d0
       ELSE
         BETA = ETA/ETP
       ENDIF
@@ -761,7 +761,7 @@ CONTAINS
 !   SSOIL>0: WARM THE SURFACE  (NIGHT TIME)
 !   SSOIL<0: COOL THE SURFACE  (DAY TIME)
 ! ----------------------------------------------------------------------
-         SSOIL = -1.0* SSOIL
+         SSOIL = -1.0d0* SSOIL
 
 ! ----------------------------------------------------------------------
 !  CONVERT RUNOFF3 (INTERNAL LAYER RUNOFF FROM SUPERSAT) FROM M TO M S-1
@@ -770,12 +770,12 @@ CONTAINS
 ! ----------------------------------------------------------------------
             RUNOFF3 = RUNOFF3/ DT
             RUNOFF2 = RUNOFF2+ RUNOFF3
-            SOILM = -1.0* SMC (1)* ZSOIL (1)
+            SOILM = -1.0d0* SMC (1)* ZSOIL (1)
             DO K = 2,NSOIL
               SOILM = SOILM + SMC (K)* (ZSOIL (K -1) - ZSOIL (K))
             END DO
-            SOILWM = -1.0* (SMCMAX - SMCWLT)* ZSOIL (1)
-            SOILWW = -1.0* (SMC (1) - SMCWLT)* ZSOIL (1)
+            SOILWM = -1.0d0* (SMCMAX - SMCWLT)* ZSOIL (1)
+            SOILWW = -1.0d0* (SMC (1) - SMCWLT)* ZSOIL (1)
 !
             DO K = 1,NSOIL
                SMAV(K)=(SMC(K) - SMCWLT)/(SMCMAX - SMCWLT)
@@ -788,9 +788,9 @@ CONTAINS
               END DO
             END IF
             IF (SOILWM .LT. 1.E-6) THEN
-              SOILWM = 0.0
-              SOILW  = 0.0
-              SOILM  = 0.0
+              SOILWM = 0.0d0
+              SOILW  = 0.0d0
+              SOILM  = 0.0d0
             ELSE
               SOILW = SOILWW / SOILWM
             END IF
@@ -828,47 +828,47 @@ CONTAINS
       REAL(DP)              :: SNOALB2
       REAL(DP)              :: TM,SNOALB1
       REAL(DP), INTENT(IN)  :: LVCOEF
-      REAL(DP), PARAMETER   :: SNACCA=0.94,SNACCB=0.58,SNTHWA=0.82,SNTHWB=0.46
+      REAL(DP), PARAMETER   :: SNACCA=0.94d0,SNACCB=0.58d0,SNTHWA=0.82d0,SNTHWB=0.46d0
 ! turn of vegetation effect
-!      ALBEDO = ALB + (1.0- (SHDFAC - SHDMIN))* SNCOVR * (SNOALB - ALB)
-!      ALBEDO = (1.0-SNCOVR)*ALB + SNCOVR*SNOALB !this is equivalent to below
+!      ALBEDO = ALB + (1.0d0- (SHDFAC - SHDMIN))* SNCOVR * (SNOALB - ALB)
+!      ALBEDO = (1.0d0-SNCOVR)*ALB + SNCOVR*SNOALB !this is equivalent to below
       ALBEDO = ALB + SNCOVR*(SNOALB-ALB)
       EMISSI = EMBRD + SNCOVR*(EMISSI_S - EMBRD)
 
 !     BASE FORMULATION (DICKINSON ET AL., 1986, COGLEY ET AL., 1990)
-!          IF (TSNOW.LE.263.16) THEN
+!          IF (TSNOW.LE.263.16d0) THEN
 !            ALBEDO=SNOALB
 !          ELSE
-!            IF (TSNOW.LT.273.16) THEN
-!              TM=0.1*(TSNOW-263.16)
-!              SNOALB1=0.5*((0.9-0.2*(TM**3))+(0.8-0.16*(TM**3)))
+!            IF (TSNOW.LT.273.16d0) THEN
+!              TM=0.1d0*(TSNOW-263.16d0)
+!              SNOALB1=0.5d0*((0.9d0-0.2d0*(TM**3))+(0.8d0-0.16d0*(TM**3)))
 !            ELSE
-!              SNOALB1=0.67
-!             IF(SNCOVR.GT.0.95) SNOALB1= 0.6
+!              SNOALB1=0.67d0
+!             IF(SNCOVR.GT.0.95d0) SNOALB1= 0.6d0
 !             SNOALB1 = ALB + SNCOVR*(SNOALB-ALB)
 !            ENDIF
 !          ENDIF
 !            ALBEDO = ALB + SNCOVR*(SNOALB1-ALB)
 
 !     ISBA FORMULATION (VERSEGHY, 1991; BAKER ET AL., 1990)
-!          SNOALB1 = SNOALB+COEF*(0.85-SNOALB)
+!          SNOALB1 = SNOALB+COEF*(0.85d0-SNOALB)
 !          SNOALB2=SNOALB1
 !!m          LSTSNW=LSTSNW+1
 !          SNOTIME1 = SNOTIME1 + DT
 !          IF (SNOWNG) THEN
 !             SNOALB2=SNOALB
 !!m             LSTSNW=0
-!             SNOTIME1 = 0.0
+!             SNOTIME1 = 0.0d0
 !          ELSE
-!            IF (TSNOW.LT.273.16) THEN
-!!              SNOALB2=SNOALB-0.008*LSTSNW*DT/86400
-!!m              SNOALB2=SNOALB-0.008*SNOTIME1/86400
-!              SNOALB2=(SNOALB2-0.65)*EXP(-0.05*DT/3600)+0.65
-!!              SNOALB2=(ALBEDO-0.65)*EXP(-0.01*DT/3600)+0.65
+!            IF (TSNOW.LT.273.16d0) THEN
+!!              SNOALB2=SNOALB-0.008d0*LSTSNW*DT/86400
+!!m              SNOALB2=SNOALB-0.008d0*SNOTIME1/86400
+!              SNOALB2=(SNOALB2-0.65d0)*EXP(-0.05d0*DT/3600)+0.65d0
+!!              SNOALB2=(ALBEDO-0.65d0)*EXP(-0.01d0*DT/3600)+0.65d0
 !            ELSE
-!              SNOALB2=(SNOALB2-0.5)*EXP(-0.0005*DT/3600)+0.5
-!!              SNOALB2=(SNOALB-0.5)*EXP(-0.24*LSTSNW*DT/86400)+0.5
-!!m              SNOALB2=(SNOALB-0.5)*EXP(-0.24*SNOTIME1/86400)+0.5
+!              SNOALB2=(SNOALB2-0.5d0)*EXP(-0.0005d0*DT/3600)+0.5d0
+!!              SNOALB2=(SNOALB-0.5d0)*EXP(-0.24d0*LSTSNW*DT/86400)+0.5d0
+!!m              SNOALB2=(SNOALB-0.5d0)*EXP(-0.24d0*SNOTIME1/86400)+0.5d0
 !            ENDIF
 !          ENDIF
 !
@@ -887,17 +887,17 @@ CONTAINS
 ! IS INDEED ACCUMULATION SEASON. I.E. THAT SNOW SURFACE TEMP IS BELOW
 ! ZERO AND THE DATE FALLS BETWEEN OCTOBER AND FEBRUARY
 ! ----------------------------------------------------------------------
-         SNOALB1 = SNOALB+LVCOEF*(0.85-SNOALB)
+         SNOALB1 = SNOALB+LVCOEF*(0.85d0-SNOALB)
          SNOALB2=SNOALB1
 ! ---------------- Initial LSTSNW --------------------------------------
           IF (SNOWNG) THEN
              SNOTIME1 = 0.
           ELSE
            SNOTIME1=SNOTIME1+DT
-!               IF (TSNOW.LT.273.16) THEN
-                   SNOALB2=SNOALB1*(SNACCA**((SNOTIME1/86400.0)**SNACCB))
+!               IF (TSNOW.LT.273.16d0) THEN
+                   SNOALB2=SNOALB1*(SNACCA**((SNOTIME1/86400.0d0)**SNACCB))
 !               ELSE
-!                  SNOALB2 =SNOALB1*(SNTHWA**((SNOTIME1/86400.0)**SNTHWB))
+!                  SNOALB2 =SNOALB1*(SNTHWA**((SNOTIME1/86400.0d0)**SNTHWB))
 !               ENDIF
           ENDIF
 !
@@ -905,10 +905,10 @@ CONTAINS
            ALBEDO = ALB + SNCOVR*(SNOALB2-ALB)
            IF (ALBEDO .GT. SNOALB2) ALBEDO=SNOALB2
 
-!          IF (TSNOW.LT.273.16) THEN
-!            ALBEDO=SNOALB-0.008*DT/86400
+!          IF (TSNOW.LT.273.16d0) THEN
+!            ALBEDO=SNOALB-0.008d0*DT/86400
 !          ELSE
-!            ALBEDO=(SNOALB-0.5)*EXP(-0.24*DT/86400)+0.5
+!            ALBEDO=(SNOALB-0.5d0)*EXP(-0.24d0*DT/86400)+0.5d0
 !          ENDIF
 
 !      IF (ALBEDO > SNOALB) ALBEDO = SNOALB
@@ -933,7 +933,7 @@ CONTAINS
 ! SOURCE:  JARVIS (1976), NOILHAN AND PLANTON (1989, MWR), JACQUEMIN AND
 ! NOILHAN (1990, BLM)
 ! SEE ALSO:  CHEN ET AL (1996, JGR, VOL 101(D3), 7251-7268), EQNS 12-14
-! AND TABLE 2 OF SEC. 3.1.2
+! AND TABLE 2 OF SEC. 3.1d0.2
 ! ----------------------------------------------------------------------
 ! INPUT:
 !   SOLAR   INCOMING SOLAR RADIATION
@@ -974,37 +974,37 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! INITIALIZE CANOPY RESISTANCE MULTIPLIER TERMS.
 ! ----------------------------------------------------------------------
-      RCS = 0.0
-      RCT = 0.0
-      RCQ = 0.0
-      RCSOIL = 0.0
+      RCS = 0.0d0
+      RCT = 0.0d0
+      RCQ = 0.0d0
+      RCSOIL = 0.0d0
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO INCOMING SOLAR RADIATION
 ! ----------------------------------------------------------------------
-      RC = 0.0
-      FF = 0.55*2.0* SOLAR / (RGL * XLAI)
-      RCS = (FF + RSMIN / RSMAX) / (1.0+ FF)
+      RC = 0.0d0
+      FF = 0.55d0*2.0d0* SOLAR / (RGL * XLAI)
+      RCS = (FF + RSMIN / RSMAX) / (1.0d0+ FF)
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO AIR TEMPERATURE AT FIRST MODEL LEVEL ABOVE GROUND
 ! RCT EXPRESSION FROM NOILHAN AND PLANTON (1989, MWR).
 ! ----------------------------------------------------------------------
-      RCS = MAX (RCS,0.0001)
-      RCT = 1.0- 0.0016* ( (TOPT - SFCTMP)**2.0)
+      RCS = MAX (RCS,0.0001d0)
+      RCT = 1.0d0- 0.0016d0* ( (TOPT - SFCTMP)**2.0d0)
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO VAPOR PRESSURE DEFICIT AT FIRST MODEL LEVEL.
 ! RCQ EXPRESSION FROM SSIB
 ! ----------------------------------------------------------------------
-      RCT = MAX (RCT,0.0001)
-      RCQ = 1.0/ (1.0+ HS * (Q2SAT - Q2))
+      RCT = MAX (RCT,0.0001d0)
+      RCQ = 1.0d0/ (1.0d0+ HS * (Q2SAT - Q2))
 
 ! ----------------------------------------------------------------------
 ! CONTRIBUTION DUE TO SOIL MOISTURE AVAILABILITY.
 ! DETERMINE CONTRIBUTION FROM EACH SOIL LAYER, THEN ADD THEM UP.
 ! ----------------------------------------------------------------------
-      RCQ = MAX (RCQ,0.01)
+      RCQ = MAX (RCQ,0.01d0)
       GX = (SMC (1) - SMCWLT) / (SMCREF - SMCWLT)
       IF (GX  >  1.) GX = 1.
       IF (GX  <  0.) GX = 0.
@@ -1041,12 +1041,12 @@ CONTAINS
 !   PC * LINERIZED PENMAN POTENTIAL EVAP =
 !   PENMAN-MONTEITH ACTUAL EVAPORATION (CONTAINING RC TERM).
 ! ----------------------------------------------------------------------
-      RCSOIL = MAX (RCSOIL,0.0001)
+      RCSOIL = MAX (RCSOIL,0.0001d0)
 
       RC = RSMIN / (XLAI * RCS * RCT * RCQ * RCSOIL)
-!      RR = (4.* SIGMA * RD / CP)* (SFCTMP **4.)/ (SFCPRS * CH) + 1.0
+!      RR = (4.* SIGMA * RD / CP)* (SFCTMP **4.)/ (SFCPRS * CH) + 1.0d0
       RR = (4.* EMISSI *SIGMA * RD / CP)* (SFCTMP **4.)/ (SFCPRS * CH) &
-             + 1.0
+             + 1.0d0
 
       DELTA = (SLV / CP)* DQSDT2
 
@@ -1068,31 +1068,31 @@ CONTAINS
       REAL(DP), INTENT(IN) :: DSNOW
       REAL(DP), INTENT(OUT):: SNCOND
       REAL(DP)             :: C
-      REAL(DP), PARAMETER  :: UNIT = 0.11631
+      REAL(DP), PARAMETER  :: UNIT = 0.11631d0
 
 ! ----------------------------------------------------------------------
 ! SNCOND IN UNITS OF CAL/(CM*HR*C), RETURNED IN W/(M*C)
 ! CSNOW IN UNITS OF CAL/(CM*HR*C), RETURNED IN W/(M*C)
-! BASIC VERSION IS DYACHKOVA EQUATION (1960), FOR RANGE 0.1-0.4
+! BASIC VERSION IS DYACHKOVA EQUATION (1960), FOR RANGE 0.1d0-0.4d0
 ! ----------------------------------------------------------------------
-      C = 0.328*10** (2.25* DSNOW)
+      C = 0.328d0*10** (2.25d0* DSNOW)
 !      CSNOW=UNIT*C
 
 ! ----------------------------------------------------------------------
-! DE VAUX EQUATION (1933), IN RANGE 0.1-0.6
+! DE VAUX EQUATION (1933), IN RANGE 0.1d0-0.6d0
 ! ----------------------------------------------------------------------
-!      SNCOND=0.0293*(1.+100.*DSNOW**2)
-!      CSNOW=0.0293*(1.+100.*DSNOW**2)
+!      SNCOND=0.0293d0*(1.+100.*DSNOW**2)
+!      CSNOW=0.0293d0*(1.+100.*DSNOW**2)
 
 ! ----------------------------------------------------------------------
 ! E. ANDERSEN FROM FLERCHINGER
 ! ----------------------------------------------------------------------
-!      SNCOND=0.021+2.51*DSNOW**2
-!      CSNOW=0.021+2.51*DSNOW**2
+!      SNCOND=0.021d0+2.51d0*DSNOW**2
+!      CSNOW=0.021d0+2.51d0*DSNOW**2
 
 !      SNCOND = UNIT * C
 ! double snow thermal conductivity
-      SNCOND = 2.0 * UNIT * C
+      SNCOND = 2.0d0 * UNIT * C
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE CSNOW
@@ -1134,7 +1134,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! ALLOW FOR THE DIRECT-EVAP-REDUCING EFFECT OF SHADE
 ! ----------------------------------------------------------------------
-      EDIR = FX * ( 1.0- SHDFAC ) * ETP1
+      EDIR = FX * ( 1.0d0- SHDFAC ) * ETP1
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE DEVAP
@@ -1183,7 +1183,7 @@ CONTAINS
 ! ONLY IF VEG COVER NOT COMPLETE.
 ! FROZEN GROUND VERSION:  SH2O STATES REPLACE SMC STATES.
 ! ----------------------------------------------------------------------
-      IF (ETP1 > 0.0) THEN
+      IF (ETP1 > 0.0d0) THEN
          IF (SHDFAC <  1.) THEN
              CALL DEVAP (EDIR,ETP1,SMC (1),ZSOIL (1),SHDFAC,SMCMAX,      &
                          BEXP,DKSAT,DWSAT,SMCDRY,SMCREF,SMCWLT,FXEXP)
@@ -1193,7 +1193,7 @@ CONTAINS
 ! AND ACCUMULATE IT FOR ALL SOIL LAYERS.
 ! ----------------------------------------------------------------------
 
-         IF (SHDFAC > 0.0) THEN
+         IF (SHDFAC > 0.0d0) THEN
             CALL TRANSP (ET,NSOIL,ETP1,SH2O,CMC,ZSOIL,SHDFAC,SMCWLT,     &
                           CMCMAX,PC,CFACTR,SMCREF,SFCTMP,Q2,NROOT,RTDIS)
             DO K = 1,NSOIL
@@ -1201,12 +1201,12 @@ CONTAINS
             END DO
 ! ----------------------------------------------------------------------
 ! CALCULATE CANOPY EVAPORATION.
-! IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR CMC=0.0.
+! IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR CMC=0.0d0.
 ! ----------------------------------------------------------------------
-            IF (CMC > 0.0) THEN
+            IF (CMC > 0.0d0) THEN
                EC = SHDFAC * ( ( CMC / CMCMAX ) ** CFACTR ) * ETP1
             ELSE
-               EC = 0.0
+               EC = 0.0d0
             END IF
 ! ----------------------------------------------------------------------
 ! EC SHOULD BE LIMITED BY THE TOTAL AMOUNT OF AVAILABLE WATER ON THE
@@ -1230,18 +1230,18 @@ CONTAINS
     REAL(DP), INTENT(IN)  :: SMCMAX
     REAL(DP), INTENT(OUT) :: FLIMIT
 
-    FLIMIT = 0.90
+    FLIMIT = 0.90d0
 
-    IF ( SMCMAX == 0.395 ) THEN
-       FLIMIT = 0.59
-    ELSE IF ( ( SMCMAX == 0.434 ) .OR. ( SMCMAX == 0.404 ) ) THEN
-       FLIMIT = 0.85
-    ELSE IF ( ( SMCMAX == 0.465 ) .OR. ( SMCMAX == 0.406 ) ) THEN
-       FLIMIT = 0.86
-    ELSE IF ( ( SMCMAX == 0.476 ) .OR. ( SMCMAX == 0.439 ) ) THEN
-       FLIMIT = 0.74
-    ELSE IF ( ( SMCMAX == 0.200 ) .OR. ( SMCMAX == 0.464 ) ) THEN
-       FLIMIT = 0.80
+    IF ( SMCMAX == 0.395d0 ) THEN
+       FLIMIT = 0.59d0
+    ELSE IF ( ( SMCMAX == 0.434d0 ) .OR. ( SMCMAX == 0.404d0 ) ) THEN
+       FLIMIT = 0.85d0
+    ELSE IF ( ( SMCMAX == 0.465d0 ) .OR. ( SMCMAX == 0.406d0 ) ) THEN
+       FLIMIT = 0.86d0
+    ELSE IF ( ( SMCMAX == 0.476d0 ) .OR. ( SMCMAX == 0.439d0 ) ) THEN
+       FLIMIT = 0.74d0
+    ELSE IF ( ( SMCMAX == 0.200d0 ) .OR. ( SMCMAX == 0.464d0 ) ) THEN
+       FLIMIT = 0.80d0
     ENDIF
 
 ! ----------------------------------------------------------------------
@@ -1254,7 +1254,7 @@ CONTAINS
 ! SUBROUTINE FRH2O
 ! ----------------------------------------------------------------------
 ! CALCULATE AMOUNT OF SUPERCOOLED LIQUID SOIL WATER CONTENT IF
-! TEMPERATURE IS BELOW 273.15K (T0).  REQUIRES NEWTON-TYPE ITERATION TO
+! TEMPERATURE IS BELOW 273.15d0K (T0).  REQUIRES NEWTON-TYPE ITERATION TO
 ! SOLVE THE NONLINEAR IMPLICIT EQUATION GIVEN IN EQN 17 OF KOREN ET AL
 ! (1999, JGR, VOL 104(D16), 19569-19585).
 ! ----------------------------------------------------------------------
@@ -1284,14 +1284,14 @@ CONTAINS
       REAL(DP), INTENT(OUT)    :: FREE
       REAL(DP)                 :: BX,DENOM,DF,DSWL,FK,SWL,SWLK
       INTEGER              :: NLOG,KCOUNT
-!      PARAMETER(CK = 0.0)
-      REAL(DP), PARAMETER      :: CK = 8.0, BLIM = 5.5, ERROR = 0.005,       &
-                              HLICE = 3.335E5, GS = 9.81,DICE = 920.0,   &
-                              DH2O = 1000.0, T0 = 273.15
+!      PARAMETER(CK = 0.0d0)
+      REAL(DP), PARAMETER      :: CK = 8.0d0, BLIM = 5.5d0, ERROR = 0.005d0,       &
+                              HLICE = 3.335E5, GS = 9.81d0,DICE = 920.0d0,   &
+                              DH2O = 1000.0d0, T0 = 273.15d0
 
 ! ----------------------------------------------------------------------
-! LIMITS ON PARAMETER B: B < 5.5  (use parameter BLIM)
-! SIMULATIONS SHOWED IF B > 5.5 UNFROZEN WATER CONTENT IS
+! LIMITS ON PARAMETER B: B < 5.5d0  (use parameter BLIM)
+! SIMULATIONS SHOWED IF B > 5.5d0 UNFROZEN WATER CONTENT IS
 ! NON-REAL(DP)ISTICALLY HIGH AT VERY LOW TEMPERATURES.
 ! ----------------------------------------------------------------------
       BX = BEXP
@@ -1317,12 +1317,12 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! INITIAL GUESS FOR SWL (frozen content)
 ! ----------------------------------------------------------------------
-         IF (CK /= 0.0) THEN
+         IF (CK /= 0.0d0) THEN
             SWL = SMC - SH2O
 ! ----------------------------------------------------------------------
 ! KEEP WITHIN BOUNDS.
 ! ----------------------------------------------------------------------
-            IF (SWL > (SMC -0.02)) SWL = SMC -0.02
+            IF (SWL > (SMC -0.02d0)) SWL = SMC -0.02d0
 
 ! ----------------------------------------------------------------------
 !  START OF ITERATIONS
@@ -1339,7 +1339,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! BOUNDS USEFUL FOR MATHEMATICAL SOLUTION.
 ! ----------------------------------------------------------------------
-              IF (SWLK > (SMC -0.02)) SWLK = SMC - 0.02
+              IF (SWLK > (SMC -0.02d0)) SWLK = SMC - 0.02d0
               IF (SWLK < 0.) SWLK = 0.
 
 ! ----------------------------------------------------------------------
@@ -1378,7 +1378,7 @@ CONTAINS
                   FK = ( ( (HLICE / (GS * ( - PSIS)))*                    &
                        ( (TKELV - T0)/ TKELV))** ( -1/ BX))* SMCMAX
 !            FRH2O = MIN (FK, SMC)
-             IF (FK < 0.02) FK = 0.02
+             IF (FK < 0.02d0) FK = 0.02d0
              FREE = MIN (FK, SMC)
 ! ----------------------------------------------------------------------
 ! END OPTION 2
@@ -1415,7 +1415,7 @@ CONTAINS
       REAL(DP)                 :: DDZ, DDZ2, DENOM, DF1N, DF1K, DTSDZ,       &
                               DTSDZ2,HCPCT,QTOT,SSOIL,SICE,TAVG,TBK,     &
                               TBK1,TSNSR,TSURF,CSOIL_LOC
-      REAL(DP), PARAMETER      :: T0 = 273.15, CAIR = 1004.0, CICE = 2.106E6,&
+      REAL(DP), PARAMETER      :: T0 = 273.15d0, CAIR = 1004.0d0, CICE = 2.106E6,&
                               CH2O = 4.2E6
 
 
@@ -1435,15 +1435,15 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CALC THE HEAT CAPACITY OF THE TOP SOIL LAYER
 ! ----------------------------------------------------------------------
-      HCPCT = SH2O (1)* CH2O + (1.0- SMCMAX)* CSOIL_LOC + (SMCMAX - SMC (1))&
+      HCPCT = SH2O (1)* CH2O + (1.0d0- SMCMAX)* CSOIL_LOC + (SMCMAX - SMC (1))&
        * CAIR                                                           &
               + ( SMC (1) - SH2O (1) )* CICE
 
 ! ----------------------------------------------------------------------
 ! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
 ! ----------------------------------------------------------------------
-      DDZ = 1.0 / ( -0.5 * ZSOIL (2) )
-      AI (1) = 0.0
+      DDZ = 1.0d0 / ( -0.5d0 * ZSOIL (2) )
+      AI (1) = 0.0d0
       CI (1) = (DF1 * DDZ) / (ZSOIL (1) * HCPCT)
 
 ! ----------------------------------------------------------------------
@@ -1452,10 +1452,10 @@ CONTAINS
 ! GRADIENT AND SUBSFC HEAT FLUX TO CALC "RIGHT-HAND SIDE TENDENCY
 ! TERMS", OR "RHSTS", FOR TOP SOIL LAYER.
 ! ----------------------------------------------------------------------
-      BI (1) = - CI (1) + DF1 / (0.5 * ZSOIL (1) * ZSOIL (1)* HCPCT *    &
+      BI (1) = - CI (1) + DF1 / (0.5d0 * ZSOIL (1) * ZSOIL (1)* HCPCT *    &
        ZZ1)
-      DTSDZ = (STC (1) - STC (2)) / ( -0.5 * ZSOIL (2))
-      SSOIL = DF1 * (STC (1) - YY) / (0.5 * ZSOIL (1) * ZZ1)
+      DTSDZ = (STC (1) - STC (2)) / ( -0.5d0 * ZSOIL (2))
+      SSOIL = DF1 * (STC (1) - YY) / (0.5d0 * ZSOIL (1) * ZZ1)
 !      RHSTS(1) = (DF1 * DTSDZ - SSOIL) / (ZSOIL(1) * HCPCT)
       DENOM = (ZSOIL (1) * HCPCT)
 
@@ -1470,7 +1470,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CALCULATE FROZEN WATER CONTENT IN 1ST SOIL LAYER.
 ! ----------------------------------------------------------------------
-      QTOT = -1.0* RHSTS (1)* DENOM
+      QTOT = -1.0d0* RHSTS (1)* DENOM
 
 ! ----------------------------------------------------------------------
 ! IF TEMPERATURE AVERAGING INVOKED (ITAVG=TRUE; ELSE SKIP):
@@ -1517,7 +1517,7 @@ CONTAINS
 ! INITIALIZE DDZ2
 ! ----------------------------------------------------------------------
 
-      DDZ2 = 0.0
+      DDZ2 = 0.0d0
       DF1K = DF1
 
 ! ----------------------------------------------------------------------
@@ -1527,7 +1527,7 @@ CONTAINS
 ! CALCULATE HEAT CAPACITY FOR THIS SOIL LAYER.
 ! ----------------------------------------------------------------------
       DO K = 2,NSOIL
-         HCPCT = SH2O (K)* CH2O + (1.0- SMCMAX)* CSOIL_LOC + (SMCMAX - SMC (  &
+         HCPCT = SH2O (K)* CH2O + (1.0d0- SMCMAX)* CSOIL_LOC + (SMCMAX - SMC (  &
                 K))* CAIR + ( SMC (K) - SH2O (K) )* CICE
 ! ----------------------------------------------------------------------
 ! THIS SECTION FOR LAYER 2 OR GREATER, BUT NOT LAST LAYER.
@@ -1542,9 +1542,9 @@ CONTAINS
             CALL TDFCND (DF1N,SMC (K),QUARTZ,SMCMAX,SH2O (K))
 
 !urban
-       IF ( VEGTYP == ISURBAN ) DF1N = 3.24
+       IF ( VEGTYP == ISURBAN ) DF1N = 3.24d0
 
-            DENOM = 0.5 * ( ZSOIL (K -1) - ZSOIL (K +1) )
+            DENOM = 0.5d0 * ( ZSOIL (K -1) - ZSOIL (K +1) )
 
 ! ----------------------------------------------------------------------
 ! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
@@ -1575,7 +1575,7 @@ CONTAINS
 
 
 !urban
-       IF ( VEGTYP == ISURBAN ) DF1N = 3.24
+       IF ( VEGTYP == ISURBAN ) DF1N = 3.24d0
 
             DENOM = .5 * (ZSOIL (K -1) + ZSOIL (K)) - ZBOT
 
@@ -1600,7 +1600,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
          DENOM = ( ZSOIL (K) - ZSOIL (K -1) ) * HCPCT
          RHSTS (K) = ( DF1N * DTSDZ2- DF1K * DTSDZ ) / DENOM
-         QTOT = -1.0* DENOM * RHSTS (K)
+         QTOT = -1.0d0* DENOM * RHSTS (K)
 
          SICE = SMC (K) - SH2O (K)
          IF (ITAVG) THEN
@@ -1733,9 +1733,9 @@ CONTAINS
 ! EXECUTABLE CODE BEGINS HERE:
 ! CONVERT ETP Fnd PRCP FROM KG M-2 S-1 TO M S-1 AND INITIALIZE DEW.
 ! ----------------------------------------------------------------------
-      PRCP1 = PRCP * 0.001
-      ETP1 = ETP * 0.001
-      DEW = 0.0
+      PRCP1 = PRCP * 0.001d0
+      ETP1 = ETP * 0.001d0
+      DEW = 0.0d0
 ! ----------------------------------------------------------------------
 ! INITIALIZE EVAP TERMS.
 ! ----------------------------------------------------------------------
@@ -1750,7 +1750,7 @@ CONTAINS
       ETT = 0.
       ETT1 = 0.
 
-      IF (ETP > 0.0) THEN
+      IF (ETP > 0.0d0) THEN
          CALL EVAPO (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,                  &
                       SH2O,                                             &
                       SMCMAX,BEXP,PC,SMCWLT,DKSAT,DWSAT,                &
@@ -1769,7 +1769,7 @@ CONTAINS
 ! CONVERT MODELED EVAPOTRANSPIRATION FROM  M S-1  TO  KG M-2 S-1.
 ! ----------------------------------------------------------------------
 
-         ETA = ETA1 * 1000.0
+         ETA = ETA1 * 1000.0d0
 
 ! ----------------------------------------------------------------------
 ! IF ETP < 0, ASSUME DEW FORMS (TRANSFORM ETP1 INTO DEW AND REINITIALIZE
@@ -1794,18 +1794,18 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CONVERT MODELED EVAPOTRANSPIRATION FROM 'M S-1' TO 'KG M-2 S-1'.
 ! ----------------------------------------------------------------------
-!         ETA = ETA1 * 1000.0
+!         ETA = ETA1 * 1000.0d0
       END IF
 
 ! ----------------------------------------------------------------------
 ! BASED ON ETP AND E VALUES, DETERMINE BETA
 ! ----------------------------------------------------------------------
 
-      IF ( ETP <= 0.0 ) THEN
-         BETA = 0.0
+      IF ( ETP <= 0.0d0 ) THEN
+         BETA = 0.0d0
          ETA = ETP
-         IF ( ETP < 0.0 ) THEN
-            BETA = 1.0
+         IF ( ETP < 0.0d0 ) THEN
+            BETA = 1.0d0
          END IF
       ELSE
          BETA = ETA / ETP
@@ -1830,7 +1830,7 @@ CONTAINS
       CALL TDFCND (DF1,SMC (1),QUARTZ,SMCMAX,SH2O (1))
 
 !urban
-      IF ( VEGTYP == ISURBAN ) DF1=3.24
+      IF ( VEGTYP == ISURBAN ) DF1=3.24d0
 !
 
 ! ----------------------------------------------------------------------
@@ -1848,7 +1848,7 @@ CONTAINS
       YYNUM = FDOWN - EMISSI*SIGMA * T24
       YY = SFCTMP + (YYNUM / RCH + TH2- SFCTMP - BETA * EPSCA) / RR
 
-      ZZ1 = DF1 / ( -0.5 * ZSOIL (1) * RCH * RR ) + 1.0
+      ZZ1 = DF1 / ( -0.5d0 * ZSOIL (1) * RCH * RR ) + 1.0d0
 
 !urban
       CALL SHFLX (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,        &
@@ -1861,7 +1861,7 @@ CONTAINS
 ! SIMILARLY INITIALIZED IN THE PENMAN ROUTINE.
 ! ----------------------------------------------------------------------
       FLX1 = CPH2O * PRCP * (T1- SFCTMP)
-      FLX3 = 0.0
+      FLX3 = 0.0d0
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE NOPAC
@@ -1890,7 +1890,7 @@ CONTAINS
       REAL(DP), INTENT(OUT)       :: EPSCA,ETP,FLX2,RCH,RR,T24
       REAL(DP)                    :: A, DELTA, FNET,RAD,RHO,EMISSI,ELCP1,LVS
 
-      REAL(DP), PARAMETER      :: ELCP = 2.4888E+3, LSUBC = 2.501000E+6,CP = 1004.6
+      REAL(DP), PARAMETER      :: ELCP = 2.4888E+3, LSUBC = 2.501000E+6,CP = 1004.6d0
       REAL(DP), PARAMETER      :: LSUBS = 2.83E+6
 
 ! ----------------------------------------------------------------------
@@ -1900,15 +1900,15 @@ CONTAINS
 ! PREPARE PARTIAL QUANTITIES FOR PENMAN EQUATION.
 ! ----------------------------------------------------------------------
         EMISSI=EMISSI_IN
-        ELCP1  = (1.0-SNCOVR)*ELCP  + SNCOVR*ELCP*LSUBS/LSUBC
-        LVS    = (1.0-SNCOVR)*LSUBC + SNCOVR*LSUBS
+        ELCP1  = (1.0d0-SNCOVR)*ELCP  + SNCOVR*ELCP*LSUBS/LSUBC
+        LVS    = (1.0d0-SNCOVR)*LSUBC + SNCOVR*LSUBS
 
-      FLX2 = 0.0
+      FLX2 = 0.0d0
 !      DELTA = ELCP * DQSDT2
       DELTA = ELCP1 * DQSDT2
       T24 = SFCTMP * SFCTMP * SFCTMP * SFCTMP
-!      RR = T24 * 6.48E-8 / (SFCPRS * CH) + 1.0
-      RR = EMISSI*T24 * 6.48E-8 / (SFCPRS * CH) + 1.0
+!      RR = T24 * 6.48E-8 / (SFCPRS * CH) + 1.0d0
+      RR = EMISSI*T24 * 6.48E-8 / (SFCPRS * CH) + 1.0d0
       RHO = SFCPRS / (RD * T2V)
 
 ! ----------------------------------------------------------------------
@@ -1917,7 +1917,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
       RCH = RHO * CP * CH
       IF (.NOT. SNOWNG) THEN
-         IF (PRCP >  0.0) RR = RR + CPH2O * PRCP / RCH
+         IF (PRCP >  0.0d0) RR = RR + CPH2O * PRCP / RCH
       ELSE
          RR = RR + CPICE * PRCP / RCH
       END IF
@@ -1995,11 +1995,11 @@ CONTAINS
 !  Modified By F. Chen (01/22/00)  to include PLaya, Lava, and White San
 !  Modified By F. Chen (08/05/02)  to include additional parameters for the Noah
 ! NOTE: SATDW = BB*SATDK*(SATPSI/MAXSMC)
-!         F11 = log10(SATPSI) + BB*log10(MAXSMC) + 2.0
-!       REFSMC1=MAXSMC*(5.79E-9/SATDK)**(1/(2*BB+3)) 5.79E-9 m/s= 0.5 mm
+!         F11 = log10(SATPSI) + BB*log10(MAXSMC) + 2.0d0
+!       REFSMC1=MAXSMC*(5.79E-9/SATDK)**(1/(2*BB+3)) 5.79E-9 m/s= 0.5d0 mm
 !       REFSMC=REFSMC1+1./3.(MAXSMC-REFSMC1)
 !       WLTSMC1=MAXSMC*(200./SATPSI)**(-1./BB)    (Wetzel and Chang, 198
-!       WLTSMC=WLTSMC1-0.5*WLTSMC1
+!       WLTSMC=WLTSMC1-0.5d0*WLTSMC1
 ! Note: the values for playa is set for it to have a thermal conductivit
 ! as sand and to have a hydrulic conductivity as clay
 !
@@ -2108,7 +2108,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! TO ADJUST FRZK PARAMETER TO ACTUAL SOIL TYPE: FRZK * FRZFACT
 ! ----------------------------------------------------------------------
-      FRZFACT = (SMCMAX / SMCREF) * (0.412 / 0.468)
+      FRZFACT = (SMCMAX / SMCREF) * (0.412d0 / 0.468d0)
       FRZX = FRZK * FRZFACT
 
 ! ----------------------------------------------------------------------
@@ -2132,7 +2132,7 @@ CONTAINS
       ALBEDOMIN = ALBEDOMINTBL (VEGTYP)
       ALBEDOMAX = ALBEDOMAXTBL (VEGTYP)
 
-               IF (VEGTYP .eq. BARE) SHDFAC = 0.0
+               IF (VEGTYP .eq. BARE) SHDFAC = 0.0d0
                IF (NROOT .gt. NSOIL) THEN
                   WRITE (err_message,*) 'Error: too many root layers ',  &
                                                  NSOIL,NROOT
@@ -2197,7 +2197,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! INITIALIZE EQN COEF C FOR THE LOWEST SOIL LAYER
 ! ----------------------------------------------------------------------
-      C (NSOIL) = 0.0
+      C (NSOIL) = 0.0d0
       P (1) = - C (1) / B (1)
 ! ----------------------------------------------------------------------
 ! SOLVE THE COEFS FOR THE 1ST SOIL LAYER
@@ -2208,8 +2208,8 @@ CONTAINS
 ! ----------------------------------------------------------------------
       DELTA (1) = D (1) / B (1)
       DO K = 2,NSOIL
-         P (K) = - C (K) * ( 1.0 / (B (K) + A (K) * P (K -1)) )
-         DELTA (K) = (D (K) - A (K)* DELTA (K -1))* (1.0/ (B (K) + A (K)&
+         P (K) = - C (K) * ( 1.0d0 / (B (K) + A (K) * P (K -1)) )
+         DELTA (K) = (D (K) - A (K)* DELTA (K -1))* (1.0d0/ (B (K) + A (K)&
                     * P (K -1)))
       END DO
 ! ----------------------------------------------------------------------
@@ -2253,7 +2253,7 @@ CONTAINS
       REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: SH2O
       REAL(DP), DIMENSION(1:NSOIL), INTENT(INOUT) :: STC
       REAL(DP), DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS
-      REAL(DP), PARAMETER       :: T0 = 273.15
+      REAL(DP), PARAMETER       :: T0 = 273.15d0
 
 ! ----------------------------------------------------------------------
 ! HRT ROUTINE CALCS THE RIGHT HAND SIDE OF THE SOIL TEMP DIF EQN
@@ -2279,8 +2279,8 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CALCULATE SURFACE SOIL HEAT FLUX
 ! ----------------------------------------------------------------------
-      T1 = (YY + (ZZ1- 1.0) * STC (1)) / ZZ1
-      SSOIL = DF1 * (STC (1) - T1) / (0.5 * ZSOIL (1))
+      T1 = (YY + (ZZ1- 1.0d0) * STC (1)) / ZZ1
+      SSOIL = DF1 * (STC (1) - T1) / (0.5d0 * ZSOIL (1))
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE SHFLX
@@ -2374,7 +2374,7 @@ CONTAINS
 !  According to Dr. Ken Mitchell's suggestion, add the second contraint
 !  to remove numerical instability of runoff and soil moisture
 !  FLIMIT is a limit value for FAC2
-      FAC2=0.0
+      FAC2=0.0d0
       DO I=1,NSOIL
          FAC2=MAX(FAC2,SH2O(I)/SMCMAX)
       ENDDO
@@ -2386,7 +2386,7 @@ CONTAINS
 ! INC&UDED IN SSTEP SUBR.  FROZEN GROUND CORRECTION FACTOR, FRZFACT
 ! ADDED.  ALL WATER BALANCE CALCULATIONS USING UNFROZEN WATER
 ! ----------------------------------------------------------------------
-      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1))* SMCMAX) )   &
+      IF ( ( (PCPDRP * DT) > (0.0001d0*1000.0d0* (- ZSOIL (1))* SMCMAX) )   &
            .OR. (FAC2 > FLIMIT) ) THEN
          CALL SRT (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
                     DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
@@ -2394,7 +2394,7 @@ CONTAINS
          CALL SSTEP (SH2OFG,SH2O,DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
                         CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI)
          DO K = 1,NSOIL
-            SH2OA (K) = (SH2O (K) + SH2OFG (K)) * 0.5
+            SH2OA (K) = (SH2O (K) + SH2OFG (K)) * 0.5d0
          END DO
          CALL SRT (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,ZSOIL,         &
                     DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
@@ -2442,11 +2442,11 @@ CONTAINS
          RSNOW = SNEQV / SNUP
          SNCOVR = 1. - ( EXP ( - SALP * RSNOW) - RSNOW * EXP ( - SALP))
       ELSE
-         SNCOVR = 1.0
+         SNCOVR = 1.0d0
       END IF
 
 !     FORMULATION OF DICKINSON ET AL. 1986
-!     Z0N = 0.035
+!     Z0N = 0.035d0
 
 !        SNCOVR=SNOWH/(SNOWH + 5*Z0N)
 
@@ -2603,13 +2603,13 @@ CONTAINS
 !
       REAL(DP)                  :: T15, T16, DTOT2
       REAL(DP), PARAMETER       :: ESDMIN = 1.E-6, LSUBC = 2.501000E+6,     &
-                               LSUBS = 2.83E+6, TFREEZ = 273.15,        &
-                               SNOEXP = 2.0
+                               LSUBS = 2.83E+6, TFREEZ = 273.15d0,        &
+                               SNOEXP = 2.0d0
 
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE:
 ! ----------------------------------------------------------------------
-! FOR NON-GLACIAL LAND, IF SNOWCOVER FRACTION < 1.0, TOTAL
+! FOR NON-GLACIAL LAND, IF SNOWCOVER FRACTION < 1.0d0, TOTAL
 ! EVAPORATION < POTENTIAL DUE TO NON-POTENTIAL CONTRIBUTION FROM
 ! NON-SNOW COVERED FRACTION.
 ! ----------------------------------------------------------------------
@@ -2629,7 +2629,7 @@ CONTAINS
       EDIR1 = 0.
       EC1 = 0.
       EC = 0.
-!      EMISSI_S=0.95    ! For snow
+!      EMISSI_S=0.95d0    ! For snow
 
       DO K = 1,NSOIL
          ET (K) = 0.
@@ -2646,22 +2646,22 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CONVERT POTENTIAL EVAP (ETP) FROM KG M-2 S-1 TO ETP1 IN M S-1
 ! ----------------------------------------------------------------------
-      PRCP1 = PRCPF *0.001
+      PRCP1 = PRCPF *0.001d0
 ! ----------------------------------------------------------------------
 ! IF ETP<0 (DOWNWARD) THEN DEWFALL (=FROSTFALL IN THIS CASE).
 ! ----------------------------------------------------------------------
-      BETA = 1.0
-      IF (ETP <= 0.0) THEN
-         IF ( ( RIBB >= 0.1 ) .AND. ( FDOWN > 150.0 ) ) THEN
-            ETP=(MIN(ETP*(1.0-RIBB),0.)*SNCOVR/0.980 + ETP*(0.980-SNCOVR))/0.980
+      BETA = 1.0d0
+      IF (ETP <= 0.0d0) THEN
+         IF ( ( RIBB >= 0.1d0 ) .AND. ( FDOWN > 150.0d0 ) ) THEN
+            ETP=(MIN(ETP*(1.0d0-RIBB),0.)*SNCOVR/0.980d0 + ETP*(0.980d0-SNCOVR))/0.980d0
          ENDIF
-        IF(ETP == 0.) BETA = 0.0
-        ETP1 = ETP * 0.001
+        IF(ETP == 0.) BETA = 0.0d0
+        ETP1 = ETP * 0.001d0
          DEW = -ETP1
          ESNOW2 = ETP1*DT
          ETANRG = ETP*((1.-SNCOVR)*LSUBC + SNCOVR*LSUBS)
       ELSE
-         ETP1 = ETP * 0.001
+         ETP1 = ETP * 0.001d0
             ! NON-GLACIAL LAND CASE
              IF (SNCOVR <  1.) THEN
                CALL EVAPO (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,           &
@@ -2692,10 +2692,10 @@ CONTAINS
 
             END IF
          ESNOW = ETP*SNCOVR
-         ESNOW1 = ESNOW*0.001
+         ESNOW1 = ESNOW*0.001d0
          ESNOW2 = ESNOW1*DT
          ETANRG = ESNOW*LSUBS + ETNS*LSUBC
-!   end IF (ETP .le. 0.0)
+!   end IF (ETP .le. 0.0d0)
       END IF
 
 ! ----------------------------------------------------------------------
@@ -2704,11 +2704,11 @@ CONTAINS
 ! THE NOT-YET-UPDATED SKIN TEMPERATURE (T1).  ASSUMES TEMPERATURE OF THE
 ! SNOWFALL STRIKING THE GROUND IS =SFCTMP (LOWEST MODEL LEVEL AIR TEMP).
 ! ----------------------------------------------------------------------
-      FLX1 = 0.0
+      FLX1 = 0.0d0
       IF (SNOWNG) THEN
          FLX1 = CPICE * PRCP * (T1- SFCTMP)
       ELSE
-         IF (PRCP >  0.0) FLX1 = CPH2O * PRCP * (T1- SFCTMP)
+         IF (PRCP >  0.0d0) FLX1 = CPH2O * PRCP * (T1- SFCTMP)
 ! ----------------------------------------------------------------------
 ! CALCULATE AN 'EFFECTIVE SNOW-GRND SFC TEMP' (T12) BASED ON HEAT FLUXES
 ! BETWEEN THE SNOW PACK AND THE SOIL AND ON NET RADIATION.
@@ -2718,12 +2718,12 @@ CONTAINS
 ! PENMAN.
 ! ----------------------------------------------------------------------
       END IF
-      DSOIL = - (0.5 * ZSOIL (1))
+      DSOIL = - (0.5d0 * ZSOIL (1))
       DTOT = SNOWH + DSOIL
-      DENOM = 1.0+ DF1 / (DTOT * RR * RCH)
+      DENOM = 1.0d0+ DF1 / (DTOT * RR * RCH)
 ! surface emissivity weighted by snow cover fraction
 !      T12A = ( (FDOWN - FLX1 - FLX2 -                                   &
-!     &       ((SNCOVR*EMISSI_S)+EMISSI*(1.0-SNCOVR))*SIGMA *T24)/RCH    &
+!     &       ((SNCOVR*EMISSI_S)+EMISSI*(1.0d0-SNCOVR))*SIGMA *T24)/RCH    &
 !     &       + TH2 - SFCTMP - ETANRG/RCH ) / RR
       T12A = ( (FDOWN - FLX1- FLX2- EMISSI * SIGMA * T24)/ RCH                    &
                 + TH2- SFCTMP - ETANRG / RCH ) / RR
@@ -2746,12 +2746,12 @@ CONTAINS
       IF (T12 <=  TFREEZ) THEN
          T1 = T12
          SSOIL = DF1 * (T1- STC (1)) / DTOT
-!        ESD = MAX (0.0, ESD- ETP2)
-         ESD = MAX(0.0, ESD-ESNOW2)
-         FLX3 = 0.0
-         EX = 0.0
+!        ESD = MAX (0.0d0, ESD- ETP2)
+         ESD = MAX(0.0d0, ESD-ESNOW2)
+         FLX3 = 0.0d0
+         EX = 0.0d0
 
-         SNOMLT = 0.0
+         SNOMLT = 0.0d0
 ! ----------------------------------------------------------------------
 ! IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS ABOVE FREEZING, SNOW MELT
 ! WILL OCCUR.  CALL THE SNOW MELT RATE,EX AND AMT, SNOMLT.  REVISE THE
@@ -2768,8 +2768,8 @@ CONTAINS
 ! ABOVE FREEZING BLOCK
 ! ----------------------------------------------------------------------
       ELSE
-         T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0- SNCOVR ** SNOEXP)
-         BETA = 1.0
+         T1 = TFREEZ * SNCOVR ** SNOEXP + T12 * (1.0d0- SNCOVR ** SNOEXP)
+         BETA = 1.0d0
 
 ! ----------------------------------------------------------------------
 ! IF POTENTIAL EVAP (SUBLIMATION) GREATER THAN DEPTH OF SNOWPACK.
@@ -2778,10 +2778,10 @@ CONTAINS
 ! ----------------------------------------------------------------------
          SSOIL = DF1 * (T1- STC (1)) / DTOT
          IF (ESD-ESNOW2 <= ESDMIN) THEN
-            ESD = 0.0
-            EX = 0.0
-            SNOMLT = 0.0
-            FLX3 = 0.0
+            ESD = 0.0d0
+            EX = 0.0d0
+            SNOMLT = 0.0d0
+            FLX3 = 0.0d0
 ! ----------------------------------------------------------------------
 ! SUBLIMATION LESS THAN DEPTH OF SNOWPACK
 ! SNOWPACK (ESD) REDUCED BY ESNOW2 (DEPTH OF SUBLIMATED SNOW)
@@ -2796,11 +2796,11 @@ CONTAINS
 !                  ((SNCOVR*EMISSI_S)+EMISSI*(1-SNCOVR))*SIGMA*T14 -     &
 !                    SSOIL - SEH - ETANRG
             FLX3 = FDOWN - FLX1- FLX2- EMISSI*SIGMA * T14- SSOIL - SEH - ETANRG
-            IF (FLX3 <= 0.0) FLX3 = 0.0
+            IF (FLX3 <= 0.0d0) FLX3 = 0.0d0
 ! ----------------------------------------------------------------------
 ! SNOWMELT REDUCTION DEPENDING ON SNOW COVER
 ! ----------------------------------------------------------------------
-            EX = FLX3*0.001/ LSUBF
+            EX = FLX3*0.001d0/ LSUBF
 
 ! ----------------------------------------------------------------------
 ! ESDMIN REPRESENTS A SNOWPACK DEPTH THRESHOLD VALUE BELOW WHICH WE
@@ -2814,10 +2814,10 @@ CONTAINS
 ! ----------------------------------------------------------------------
             ELSE
                EX = ESD / DT
-               FLX3 = EX *1000.0* LSUBF
+               FLX3 = EX *1000.0d0* LSUBF
                SNOMLT = ESD
 
-               ESD = 0.0
+               ESD = 0.0d0
 ! ----------------------------------------------------------------------
 ! END OF 'ESD .LE. ETP2' IF-BLOCK
 ! ----------------------------------------------------------------------
@@ -2855,8 +2855,8 @@ CONTAINS
 ! SNOW TOP SURFACE.  T11 IS A DUMMY ARGUEMENT SO WE WILL NOT USE THE
 ! SKIN TEMP VALUE AS REVISED BY SHFLX.
 ! ----------------------------------------------------------------------
-      ZZ1 = 1.0
-      YY = STC (1) -0.5* SSOIL * ZSOIL (1)* ZZ1/ DF1
+      ZZ1 = 1.0d0
+      YY = STC (1) -0.5d0* SSOIL * ZSOIL (1)* ZZ1/ DF1
 
 ! ----------------------------------------------------------------------
 ! SHFLX WILL CALC/UPDATE THE SOIL TEMPS.  NOTE:  THE SUB-SFC HEAT FLUX
@@ -2896,7 +2896,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CALCULATE COMPACTION OF SNOWPACK UNDER CONDITIONS OF INCREASING SNOW
 ! DENSITY, AS OBTAINED FROM AN APPROXIMATE SOLUTION OF E. ANDERSON'S
-! DIFFERENTIAL EQUATION (3.29), NOAA TECHNICAL REPORT NWS 19, BY VICTOR
+! DIFFERENTIAL EQUATION (3.29d0), NOAA TECHNICAL REPORT NWS 19, BY VICTOR
 ! KOREN, 03/25/95.
 ! ----------------------------------------------------------------------
 ! ESD     WATER EQUIVALENT OF SNOW (M)
@@ -2915,16 +2915,16 @@ CONTAINS
       REAL(DP), INTENT(INOUT)    :: SNOWH, SNDENS
       REAL(DP)                   :: BFAC,DSX,DTHR,DW,SNOWHC,PEXP,           &
                                 TAVGC,TSNOWC,TSOILC,ESDC,ESDCX
-      REAL(DP), PARAMETER        :: C1 = 0.01, C2 = 21.0, G = 9.81,         &
-                                KN = 4000.0
+      REAL(DP), PARAMETER        :: C1 = 0.01d0, C2 = 21.0d0, G = 9.81d0,         &
+                                KN = 4000.0d0
 ! ----------------------------------------------------------------------
 ! CONVERSION INTO SIMULATION UNITS
 ! ----------------------------------------------------------------------
       SNOWHC = SNOWH *100.
       ESDC = ESD *100.
       DTHR = DTSEC /3600.
-      TSNOWC = TSNOW -273.15
-      TSOILC = TSOIL -273.15
+      TSNOWC = TSNOW -273.15d0
+      TSOILC = TSOIL -273.15d0
 
 ! ----------------------------------------------------------------------
 ! CALCULATING OF AVERAGE TEMPERATURE OF SNOW PACK
@@ -2932,13 +2932,13 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CALCULATING OF SNOW DEPTH AND DENSITY AS A RESULT OF COMPACTION
 !  SNDENS=DS0*(EXP(BFAC*ESD)-1.)/(BFAC*ESD)
-!  BFAC=DTHR*C1*EXP(0.08*TAVGC-C2*DS0)
+!  BFAC=DTHR*C1*EXP(0.08d0*TAVGC-C2*DS0)
 ! NOTE: BFAC*ESD IN SNDENS EQN ABOVE HAS TO BE CAREFULLY TREATED
 ! NUMERICALLY BELOW:
 !   C1 IS THE FRACTIONAL INCREASE IN DENSITY (1/(CM*HR))
 !   C2 IS A CONSTANT (CM3/G) KOJIMA ESTIMATED AS 21 CMS/G
 ! ----------------------------------------------------------------------
-      TAVGC = 0.5* (TSNOWC + TSOILC)
+      TAVGC = 0.5d0* (TSNOWC + TSOILC)
       IF (ESDC >  1.E-2) THEN
          ESDCX = ESDC
       ELSE
@@ -2959,11 +2959,11 @@ CONTAINS
 ! IS GOVERNED BY ITERATION LIMIT "IPOL".
 !      IPOL GREATER THAN 9 ONLY MAKES A DIFFERENCE ON DOUBLE
 !            PRECISION (RELATIVE ERRORS GIVEN IN PERCENT %).
-!       IPOL=9, FOR REL.ERROR <~ 1.6 E-6 % (8 SIGNIFICANT DIGITS)
-!       IPOL=8, FOR REL.ERROR <~ 1.8 E-5 % (7 SIGNIFICANT DIGITS)
-!       IPOL=7, FOR REL.ERROR <~ 1.8 E-4 % ...
+!       IPOL=9, FOR REL.ERROR <~ 1.6d0 E-6 % (8 SIGNIFICANT DIGITS)
+!       IPOL=8, FOR REL.ERROR <~ 1.8d0 E-5 % (7 SIGNIFICANT DIGITS)
+!       IPOL=7, FOR REL.ERROR <~ 1.8d0 E-4 % ...
 ! ----------------------------------------------------------------------
-      BFAC = DTHR * C1* EXP (0.08* TAVGC - C2* SNDENS)
+      BFAC = DTHR * C1* EXP (0.08d0* TAVGC - C2* SNDENS)
       IPOL = 4
       PEXP = 0.
 !        PEXP = (1. + PEXP)*BFAC*ESDC/REAL(DP)(J+1)
@@ -2979,13 +2979,13 @@ CONTAINS
 
 !     BASE FORMULATION (COGLEY ET AL., 1990)
 !     CONVERT DENSITY FROM G/CM3 TO KG/M3
-!       DSM=SNDENS*1000.0
+!       DSM=SNDENS*1000.0d0
 
-!       DSX=DSM+DTSEC*0.5*DSM*G*ESD/
-!    &      (1E7*EXP(-0.02*DSM+KN/(TAVGC+273.16)-14.643))
+!       DSX=DSM+DTSEC*0.5d0*DSM*G*ESD/
+!    &      (1E7*EXP(-0.02d0*DSM+KN/(TAVGC+273.16d0)-14.643d0))
 
 !  &   CONVERT DENSITY FROM KG/M3 TO G/CM3
-!       DSX=DSX/1000.0
+!       DSX=DSX/1000.0d0
 
 !     END OF COGLEY ET AL. FORMULATION
 
@@ -2993,25 +2993,25 @@ CONTAINS
 ! SET UPPER/LOWER LIMIT ON SNOW DENSITY
 ! ----------------------------------------------------------------------
       DSX = SNDENS * (PEXP)
-      IF (DSX > 0.40) DSX = 0.40
-      IF (DSX < 0.05) DSX = 0.05
+      IF (DSX > 0.40d0) DSX = 0.40d0
+      IF (DSX < 0.05d0) DSX = 0.05d0
 ! ----------------------------------------------------------------------
 ! UPDATE OF SNOW DEPTH AND DENSITY DEPENDING ON LIQUID WATER DURING
 ! SNOWMELT.  ASSUMED THAT 13% OF LIQUID WATER CAN BE STORED IN SNOW PER
-! DAY DURING SNOWMELT TILL SNOW DENSITY 0.40.
+! DAY DURING SNOWMELT TILL SNOW DENSITY 0.40d0.
 ! ----------------------------------------------------------------------
       SNDENS = DSX
       IF (TSNOWC >=  0.) THEN
-         DW = 0.13* DTHR /24.
+         DW = 0.13d0* DTHR /24.
          SNDENS = SNDENS * (1. - DW) + DW
-         IF (SNDENS >=  0.40) SNDENS = 0.40
+         IF (SNDENS >=  0.40d0) SNDENS = 0.40d0
 ! ----------------------------------------------------------------------
 ! CALCULATE SNOW DEPTH (CM) FROM SNOW WATER EQUIVALENT AND SNOW DENSITY.
 ! CHANGE SNOW DEPTH UNITS TO METERS
 ! ----------------------------------------------------------------------
       END IF
       SNOWHC = ESDC / SNDENS
-      SNOWH = SNOWHC *0.01
+      SNOWH = SNOWHC *0.01d0
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNOWPACK
@@ -3025,22 +3025,22 @@ CONTAINS
 ! CALCULATE TOTAL ROUGHNESS LENGTH OVER SNOW
 ! SNCOVR  FRACTIONAL SNOW COVER
 ! Z0      ROUGHNESS LENGTH (m)
-! Z0S     SNOW ROUGHNESS LENGTH:=0.001 (m)
+! Z0S     SNOW ROUGHNESS LENGTH:=0.001d0 (m)
 ! ----------------------------------------------------------------------
       IMPLICIT NONE
       REAL(DP), INTENT(IN)        :: SNCOVR, Z0BRD
       REAL(DP), INTENT(OUT)       :: Z0
-      REAL(DP), PARAMETER         :: Z0S=0.001
+      REAL(DP), PARAMETER         :: Z0S=0.001d0
       REAL(DP), INTENT(IN)        :: SNOWH
       REAL(DP)                    :: BURIAL
       REAL(DP)                    :: Z0EFF
 
 !m      Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0S
-      BURIAL = 7.0*Z0BRD - SNOWH
-      IF(BURIAL.LE.0.0007) THEN
+      BURIAL = 7.0d0*Z0BRD - SNOWH
+      IF(BURIAL.LE.0.0007d0) THEN
         Z0EFF = Z0S
       ELSE
-        Z0EFF = BURIAL/7.0
+        Z0EFF = BURIAL/7.0d0
       ENDIF
 
       Z0 = (1.- SNCOVR)* Z0BRD + SNCOVR * Z0EFF
@@ -3080,11 +3080,11 @@ CONTAINS
 ! AND GLACIERIZED BASIN', 6TH NORDIC HYDROLOGICAL CONFERENCE,
 ! VEMADOLEN, SWEDEN, 1980, 172-177PP.
 !-----------------------------------------------------------------------
-      TEMPC = TEMP -273.15
+      TEMPC = TEMP -273.15d0
       IF (TEMPC <=  -15.) THEN
-         DSNEW = 0.05
+         DSNEW = 0.05d0
       ELSE
-         DSNEW = 0.05+0.0017* (TEMPC +15.)**1.5
+         DSNEW = 0.05d0+0.0017d0* (TEMPC +15.)**1.5d0
       END IF
 ! ----------------------------------------------------------------------
 ! ADJUSTMENT OF SNOW DENSITY DEPENDING ON NEW SNOWFALL
@@ -3096,7 +3096,7 @@ CONTAINS
          SNDENS = (SNOWHC * SNDENS + HNEWC * DSNEW)/ (SNOWHC + HNEWC)
       ENDIF
       SNOWHC = SNOWHC + HNEWC
-      SNOWH = SNOWHC *0.01
+      SNOWH = SNOWHC *0.01d0
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNOW_NEW
@@ -3137,8 +3137,8 @@ CONTAINS
 ! AREAL(DP) DISTRIBUTION FUNCTION OF SOIL ICE CONTENT WHICH EQUALS 1/CV.
 ! CV IS A COEFFICIENT OF SPATIAL VARIATION OF SOIL ICE CONTENT.  BASED
 ! ON FIELD DATA CV DEPENDS ON AREAL(DP) MEAN OF FROZEN DEPTH, AND IT CLOSE
-! TO CONSTANT = 0.6 IF AREAL(DP) MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
-! WHY PARAMETER CVFRZ = 3 (INT{1/0.6*0.6}).
+! TO CONSTANT = 0.6d0 IF AREAL(DP) MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
+! WHY PARAMETER CVFRZ = 3 (INT{1/0.6d0*0.6d0}).
 ! CURRENT LOGIC DOESN'T ALLOW CVFRZ BE BIGGER THAN 3
 ! ----------------------------------------------------------------------
 
@@ -3152,7 +3152,7 @@ CONTAINS
 ! LAYERS.
 ! ----------------------------------------------------------------------
       IOHINF = 1
-      SICEMAX = 0.0
+      SICEMAX = 0.0d0
       DO KS = 1,NSOIL
          IF (SICE (KS) >  SICEMAX) SICEMAX = SICE (KS)
 ! ----------------------------------------------------------------------
@@ -3160,14 +3160,14 @@ CONTAINS
 ! ----------------------------------------------------------------------
       END DO
       PDDUM = PCPDRP
-      RUNOFF1 = 0.0
+      RUNOFF1 = 0.0d0
 
 ! ----------------------------------------------------------------------
 ! MODIFIED BY Q. DUAN, 5/16/94
 ! ----------------------------------------------------------------------
 !        IF (IOHINF == 1) THEN
 
-      IF (PCPDRP /=  0.0) THEN
+      IF (PCPDRP /=  0.0d0) THEN
          DT1 = DT /86400.
          SMCAV = SMCMAX - SMCWLT
 
@@ -3177,7 +3177,7 @@ CONTAINS
          DMAX (1)= - ZSOIL (1)* SMCAV
 
          DICE = - ZSOIL (1) * SICE (1)
-         DMAX (1)= DMAX (1)* (1.0- (SH2OA (1) + SICE (1) - SMCWLT)/      &
+         DMAX (1)= DMAX (1)* (1.0d0- (SH2OA (1) + SICE (1) - SMCWLT)/      &
                     SMCAV)
 
          DD = DMAX (1)
@@ -3189,7 +3189,7 @@ CONTAINS
 
             DICE = DICE+ ( ZSOIL (KS -1) - ZSOIL (KS) ) * SICE (KS)
             DMAX (KS) = (ZSOIL (KS -1) - ZSOIL (KS))* SMCAV
-            DMAX (KS) = DMAX (KS)* (1.0- (SH2OA (KS) + SICE (KS)        &
+            DMAX (KS) = DMAX (KS)* (1.0d0- (SH2OA (KS) + SICE (KS)        &
                         - SMCWLT)/ SMCAV)
             DD = DD+ DMAX (KS)
 ! ----------------------------------------------------------------------
@@ -3200,7 +3200,7 @@ CONTAINS
          VAL = (1. - EXP ( - KDT * DT1))
          DDT = DD * VAL
          PX = PCPDRP * DT
-         IF (PX <  0.0) PX = 0.0
+         IF (PX <  0.0d0) PX = 0.0d0
 
 ! ----------------------------------------------------------------------
 ! FROZEN GROUND VERSION:
@@ -3254,7 +3254,7 @@ CONTAINS
 ! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
 ! ----------------------------------------------------------------------
       DDZ = 1. / ( - .5 * ZSOIL (2) )
-      AI (1) = 0.0
+      AI (1) = 0.0d0
       BI (1) = WDF * DDZ / ( - ZSOIL (1) )
 
 ! ----------------------------------------------------------------------
@@ -3273,7 +3273,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABV PROCESS
 ! ----------------------------------------------------------------------
-      DDZ2 = 0.0
+      DDZ2 = 0.0d0
       DO K = 2,NSOIL
          DENOM2 = (ZSOIL (K -1) - ZSOIL (K))
          IF (K /= NSOIL) THEN
@@ -3296,8 +3296,8 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
 ! ----------------------------------------------------------------------
-            DSMDZ2 = (SH2O (K) - SH2O (K +1)) / (DENOM * 0.5)
-            DDZ2 = 2.0 / DENOM
+            DSMDZ2 = (SH2O (K) - SH2O (K +1)) / (DENOM * 0.5d0)
+            DDZ2 = 2.0d0 / DENOM
             CI (K) = - WDF2 * DDZ2 / DENOM2
 
          ELSE
@@ -3320,8 +3320,8 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! SET MATRIX COEF CI TO ZERO
 ! ----------------------------------------------------------------------
-            DSMDZ2 = 0.0
-            CI (K) = 0.0
+            DSMDZ2 = 0.0d0
+            CI (K) = 0.0d0
 ! ----------------------------------------------------------------------
 ! CALC RHSTT FOR THIS LAYER AFTER CALC'NG ITS NUMERATOR
 ! ----------------------------------------------------------------------
@@ -3404,10 +3404,10 @@ CONTAINS
       CALL ROSR12 (CI,AI,BI,CIin,RHSTTin,RHSTT,NSOIL)
 ! ----------------------------------------------------------------------
 ! SUM THE PREVIOUS SMC VALUE AND THE MATRIX SOLUTION TO GET A
-! NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02.
+! NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02d0.
 ! RUNOFF3: RUNOFF WITHIN SOIL LAYERS
 ! ----------------------------------------------------------------------
-      WPLUS = 0.0
+      WPLUS = 0.0d0
       RUNOFF3 = 0.
 
       DDZ = - ZSOIL (1)
@@ -3426,8 +3426,8 @@ CONTAINS
          ELSE
             WPLUS = 0.
          END IF
-         SMC (K) = MAX ( MIN (STOT,SMCMAX),0.02 )
-         SH2OOUT (K) = MAX ( (SMC (K) - SICE (K)),0.0)
+         SMC (K) = MAX ( MIN (STOT,SMCMAX),0.02d0 )
+         SH2OOUT (K) = MAX ( (SMC (K) - SICE (K)),0.0d0)
       END DO
 
 ! ----------------------------------------------------------------------
@@ -3436,7 +3436,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
       RUNOFF3 = WPLUS
       CMC = CMC + DT * RHSCT
-      IF (CMC < 1.E-20) CMC = 0.0
+      IF (CMC < 1.E-20) CMC = 0.0d0
       CMC = MIN (CMC,CMCMAX)
 
 ! ----------------------------------------------------------------------
@@ -3458,7 +3458,7 @@ CONTAINS
       REAL(DP), INTENT(OUT)         :: TBND1
       REAL(DP), DIMENSION(1:NSOIL), INTENT(IN)   :: ZSOIL
       REAL(DP)                      :: ZB, ZUP
-      REAL(DP), PARAMETER           :: T0 = 273.15
+      REAL(DP), PARAMETER           :: T0 = 273.15d0
 
 ! ----------------------------------------------------------------------
 ! USE SURFACE TEMPERATURE ON THE TOP OF THE FIRST LAYER
@@ -3507,8 +3507,8 @@ CONTAINS
 
 ! ----------------------------------------------------------------------
 ! WE NOW GET QUARTZ AS AN INPUT ARGUMENT (SET IN ROUTINE REDPRM):
-!      DATA QUARTZ /0.82, 0.10, 0.25, 0.60, 0.52,
-!     &             0.35, 0.60, 0.40, 0.82/
+!      DATA QUARTZ /0.82d0, 0.10d0, 0.25d0, 0.60d0, 0.52d0,
+!     &             0.35d0, 0.60d0, 0.40d0, 0.82d0/
 ! ----------------------------------------------------------------------
 ! IF THE SOIL HAS ANY MOISTURE CONTENT COMPUTE A PARTIAL SUM/PRODUCT
 ! OTHERWISE USE A CONSTANT VALUE WHICH WORKS WELL WITH MOST SOILS
@@ -3541,14 +3541,14 @@ CONTAINS
 ! PARAMETERS  W/(M.K)
       SATRATIO = SMC / SMCMAX
 ! ICE CONDUCTIVITY:
-      THKICE = 2.2
+      THKICE = 2.2d0
 ! WATER CONDUCTIVITY:
-      THKW = 0.57
+      THKW = 0.57d0
 ! THERMAL CONDUCTIVITY OF "OTHER" SOIL COMPONENTS
-!      IF (QZ .LE. 0.2) THKO = 3.0
-      THKO = 2.0
+!      IF (QZ .LE. 0.2d0) THKO = 3.0d0
+      THKO = 2.0d0
 ! QUARTZ' CONDUCTIVITY
-      THKQTZ = 7.7
+      THKQTZ = 7.7d0
 ! SOLIDS' CONDUCTIVITY
       THKS = (THKQTZ ** QZ)* (THKO ** (1. - QZ))
 
@@ -3565,9 +3565,9 @@ CONTAINS
       GAMMD = (1. - SMCMAX)*2700.
 
 ! DRY THERMAL CONDUCTIVITY IN W.M-1.K-1
-      THKDRY = (0.135* GAMMD+ 64.7)/ (2700. - 0.947* GAMMD)
+      THKDRY = (0.135d0* GAMMD+ 64.7d0)/ (2700. - 0.947d0* GAMMD)
 ! FROZEN
-      IF ( (SH2O + 0.0005) <  SMC ) THEN
+      IF ( (SH2O + 0.0005d0) <  SMC ) THEN
          AKE = SATRATIO
 ! UNFROZEN
 ! RANGE OF VALIDITY FOR THE KERSTEN NUMBER (AKE)
@@ -3577,14 +3577,14 @@ CONTAINS
 ! LEAST 5% OF PARTICLES WITH DIAMETER LESS THAN 2.E-6 METERS.)
 ! (FOR "COARSE" FORMULA, SEE PETERS-LIDARD ET AL., 1998).
 
-         IF ( SATRATIO >  0.1 ) THEN
+         IF ( SATRATIO >  0.1d0 ) THEN
 
-            AKE = LOG10 (SATRATIO) + 1.0
+            AKE = LOG10 (SATRATIO) + 1.0d0
 
 ! USE K = KDRY
          ELSE
 
-            AKE = 0.0
+            AKE = 0.0d0
          END IF
 !  THERMAL CONDUCTIVITY
 
@@ -3630,20 +3630,20 @@ CONTAINS
          DZ = ZSOIL (K -1) - ZSOIL (K)
       END IF
 
-      DZH = DZ *0.5
+      DZH = DZ *0.5d0
       IF (TUP .lt. T0) THEN
          IF (TM .lt. T0) THEN
 ! ----------------------------------------------------------------------
 ! TUP, TM, TDN < T0
 ! ----------------------------------------------------------------------
             IF (TDN .lt. T0) THEN
-               TAVG = (TUP + 2.0* TM + TDN)/ 4.0
+               TAVG = (TUP + 2.0d0* TM + TDN)/ 4.0d0
 ! ----------------------------------------------------------------------
 ! TUP & TM < T0,  TDN .ge. T0
 ! ----------------------------------------------------------------------
             ELSE
                X0 = (T0- TM) * DZH / (TDN - TM)
-               TAVG = 0.5 * (TUP * DZH + TM * (DZH + X0) + T0* (        &
+               TAVG = 0.5d0 * (TUP * DZH + TM * (DZH + X0) + T0* (        &
      &               2.* DZH - X0)) / DZ
             END IF
          ELSE
@@ -3653,14 +3653,14 @@ CONTAINS
             IF (TDN .lt. T0) THEN
                XUP = (T0- TUP) * DZH / (TM - TUP)
                XDN = DZH - (T0- TM) * DZH / (TDN - TM)
-               TAVG = 0.5 * (TUP * XUP + T0* (2.* DZ - XUP - XDN)       &
+               TAVG = 0.5d0 * (TUP * XUP + T0* (2.* DZ - XUP - XDN)       &
      &                + TDN * XDN) / DZ
 ! ----------------------------------------------------------------------
 ! TUP < T0, TM .ge. T0, TDN .ge. T0
 ! ----------------------------------------------------------------------
             ELSE
                XUP = (T0- TUP) * DZH / (TM - TUP)
-               TAVG = 0.5 * (TUP * XUP + T0* (2.* DZ - XUP)) / DZ
+               TAVG = 0.5d0 * (TUP * XUP + T0* (2.* DZ - XUP)) / DZ
             END IF
          END IF
       ELSE
@@ -3670,7 +3670,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
             IF (TDN .lt. T0) THEN
                XUP = DZH - (T0- TUP) * DZH / (TM - TUP)
-               TAVG = 0.5 * (T0* (DZ - XUP) + TM * (DZH + XUP)          &
+               TAVG = 0.5d0 * (T0* (DZ - XUP) + TM * (DZH + XUP)          &
      &                + TDN * DZH) / DZ
 ! ----------------------------------------------------------------------
 ! TUP .ge. T0, TM < T0, TDN .ge. T0
@@ -3678,7 +3678,7 @@ CONTAINS
             ELSE
                XUP = DZH - (T0- TUP) * DZH / (TM - TUP)
                XDN = (T0- TM) * DZH / (TDN - TM)
-               TAVG = 0.5 * (T0* (2.* DZ - XUP - XDN) + TM *            &
+               TAVG = 0.5d0 * (T0* (2.* DZ - XUP - XDN) + TM *            &
      & (XUP + XDN)) / DZ
             END IF
          ELSE
@@ -3687,12 +3687,12 @@ CONTAINS
 ! ----------------------------------------------------------------------
             IF (TDN .lt. T0) THEN
                XDN = DZH - (T0- TM) * DZH / (TDN - TM)
-               TAVG = (T0* (DZ - XDN) +0.5* (T0+ TDN)* XDN) / DZ
+               TAVG = (T0* (DZ - XDN) +0.5d0* (T0+ TDN)* XDN) / DZ
 ! ----------------------------------------------------------------------
 ! TUP .ge. T0, TM .ge. T0, TDN .ge. T0
 ! ----------------------------------------------------------------------
             ELSE
-               TAVG = (TUP + 2.0* TM + TDN) / 4.0
+               TAVG = (TUP + 2.0d0* TM + TDN) / 4.0d0
             END IF
          END IF
       END IF
@@ -3749,12 +3749,12 @@ CONTAINS
 ! TOTAL ETP1A.
 ! ----------------------------------------------------------------------
       END DO
-      IF (CMC .ne. 0.0) THEN
-         ETP1A = SHDFAC * PC * ETP1 * (1.0- (CMC / CMCMAX) ** CFACTR)
+      IF (CMC .ne. 0.0d0) THEN
+         ETP1A = SHDFAC * PC * ETP1 * (1.0d0- (CMC / CMCMAX) ** CFACTR)
       ELSE
          ETP1A = SHDFAC * PC * ETP1
       END IF
-      SGX = 0.0
+      SGX = 0.0d0
       DO I = 1,NROOT
          GX (I) = ( SMC (I) - SMCWLT ) / ( SMCREF - SMCWLT )
          GX (I) = MAX ( MIN ( GX (I), 1. ), 0. )
@@ -3769,7 +3769,7 @@ CONTAINS
          DENOM = DENOM + GX (I)
       END DO
 
-      IF (DENOM .le. 0.0) DENOM = 1.
+      IF (DENOM .le. 0.0d0) DENOM = 1.
       DO I = 1,NROOT
          ET (I) = ETP1A * GX (I) / DENOM
 ! ----------------------------------------------------------------------
@@ -3792,7 +3792,7 @@ CONTAINS
 !        GX = ( SMC(K) - SMCWLT ) / ( SMCREF - SMCWLT )
 !        GX = MAX ( MIN ( GX, 1. ), 0. )
 ! TEST CANOPY RESISTANCE
-!        GX = 1.0
+!        GX = 1.0d0
 !        ET(K) = ((ZSOIL(K)-ZSOIL(K-1))/ZSOIL(NROOT))*GX*ETP1A
 !        ET(K) = ((ZSOIL(K)-ZSOIL(K-1))/ZSOIL(NROOT))*ETP1A
 ! ----------------------------------------------------------------------
@@ -3831,14 +3831,14 @@ CONTAINS
 !     CALC THE RATIO OF THE ACTUAL TO THE MAX PSBL SOIL H2O CONTENT
 ! ----------------------------------------------------------------------
       REAL(DP)     WDF
-      FACTR1 = 0.05 / SMCMAX
+      FACTR1 = 0.05d0 / SMCMAX
 
 ! ----------------------------------------------------------------------
 ! PREP AN EXPNTL COEF AND CALC THE SOIL WATER DIFFUSIVITY
 ! ----------------------------------------------------------------------
       FACTR2 = SMC / SMCMAX
       FACTR1 = MIN(FACTR1,FACTR2)
-      EXPON = BEXP + 2.0
+      EXPON = BEXP + 2.0d0
 
 ! ----------------------------------------------------------------------
 ! FROZEN SOIL HYDRAULIC DIFFUSIVITY.  VERY SENSITIVE TO THE VERTICAL
@@ -3849,18 +3849,18 @@ CONTAINS
 ! UNFROZEN WATER IN BOTH DIRECTIONS FROM HUGE HYDRAULIC DIFFUSIVITY.
 ! THEREFORE, WE FOUND WE HAD TO ARBITRARILY CONSTRAIN WDF
 ! --
-! VERSION D_10CM: ........  FACTR1 = 0.2/SMCMAX
+! VERSION D_10CM: ........  FACTR1 = 0.2d0/SMCMAX
 ! WEIGHTED APPROACH...................... PABLO GRUNMANN, 28_SEP_1999.
 ! ----------------------------------------------------------------------
       WDF = DWSAT * FACTR2 ** EXPON
-      IF (SICEMAX .gt. 0.0) THEN
+      IF (SICEMAX .gt. 0.0d0) THEN
          VKWGT = 1./ (1. + (500.* SICEMAX)**3.)
          WDF = VKWGT * WDF + (1. - VKWGT)* DWSAT * FACTR1** EXPON
 ! ----------------------------------------------------------------------
 ! RESET THE EXPNTL COEF AND CALC THE HYDRAULIC CONDUCTIVITY
 ! ----------------------------------------------------------------------
       END IF
-      EXPON = (2.0 * BEXP) + 3.0
+      EXPON = (2.0d0 * BEXP) + 3.0d0
       WCND = DKSAT * FACTR2 ** EXPON
 
 ! ----------------------------------------------------------------------
@@ -3893,17 +3893,17 @@ CONTAINS
 
       INTEGER  ITRMX, ILECH, ITR
       PARAMETER                                                         &
-     &        (WWST = 1.2,WWST2 = WWST * WWST,G = 9.8,VKRM = 0.40,      &
-     &         EXCM = 0.001                                             &
+     &        (WWST = 1.2d0,WWST2 = WWST * WWST,G = 9.8d0,VKRM = 0.40d0,      &
+     &         EXCM = 0.001d0                                             &
      &        ,BETA = 1./270.,BTG = BETA * G,ELFC = VKRM * BTG          &
      &                  ,WOLD =.15,WNEW = 1. - WOLD,ITRMX = 05,         &
-     &                   PIHF = 3.14159265/2.)
+     &                   PIHF = 3.14159265d0/2.)
       PARAMETER                                                         &
-     &         (EPSU2 = 1.E-4,EPSUST = 0.07,EPSIT = 1.E-4,EPSA = 1.E-8  &
-     &         ,ZTMIN = -5.,ZTMAX = 1.,HPBL = 1000.0                    &
-     &          ,SQVISC = 258.2)
+     &         (EPSU2 = 1.E-4,EPSUST = 0.07d0,EPSIT = 1.E-4,EPSA = 1.E-8  &
+     &         ,ZTMIN = -5.,ZTMAX = 1.,HPBL = 1000.0d0                    &
+     &          ,SQVISC = 258.2d0)
       PARAMETER                                                         &
-     &       (RIC = 0.183,RRIC = 1.0/ RIC,FHNEU = 0.8,RFC = 0.191       &
+     &       (RIC = 0.183d0,RRIC = 1.0d0/ RIC,FHNEU = 0.8d0,RFC = 0.191d0       &
      &        ,RFAC = RIC / (FHNEU * RFC * RFC))
 
 ! ----------------------------------------------------------------------
@@ -3911,19 +3911,19 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! LECH'S SURFACE FUNCTIONS
 ! ----------------------------------------------------------------------
-      PSLMU (ZZ)= -0.96* log (1.0-4.5* ZZ)
-      PSLMS (ZZ)= ZZ * RRIC -2.076* (1. -1./ (ZZ +1.))
-      PSLHU (ZZ)= -0.96* log (1.0-4.5* ZZ)
+      PSLMU (ZZ)= -0.96d0* log (1.0d0-4.5d0* ZZ)
+      PSLMS (ZZ)= ZZ * RRIC -2.076d0* (1. -1./ (ZZ +1.))
+      PSLHU (ZZ)= -0.96d0* log (1.0d0-4.5d0* ZZ)
 
 ! ----------------------------------------------------------------------
 ! PAULSON'S SURFACE FUNCTIONS
 ! ----------------------------------------------------------------------
-      PSLHS (ZZ)= ZZ * RFAC -2.076* (1. -1./ (ZZ +1.))
-      PSPMU (XX)= -2.* log ( (XX +1.)*0.5) - log ( (XX * XX +1.)*0.5)   &
+      PSLHS (ZZ)= ZZ * RFAC -2.076d0* (1. -1./ (ZZ +1.))
+      PSPMU (XX)= -2.* log ( (XX +1.)*0.5d0) - log ( (XX * XX +1.)*0.5d0)   &
      &        +2.* ATAN (XX)                                            &
      &- PIHF
       PSPMS (YY)= 5.* YY
-      PSPHU (XX)= -2.* log ( (XX * XX +1.)*0.5)
+      PSPHU (XX)= -2.* log ( (XX * XX +1.)*0.5d0)
 
 ! ----------------------------------------------------------------------
 ! THIS ROUTINE SFCDIF CAN HANDLE BOTH OVER OPEN WATER (SEA, OCEAN) AND
@@ -3933,7 +3933,7 @@ CONTAINS
 
 ! ----------------------------------------------------------------------
 !     ZTFC: RATIO OF ZOH/ZOM  LESS OR EQUAL THAN 1
-!     C......ZTFC=0.1
+!     C......ZTFC=0.1d0
 !     CZIL: CONSTANT C IN Zilitinkevich, S. S.1995,:NOTE ABOUT ZT
 ! ----------------------------------------------------------------------
       ILECH = 0
@@ -3952,10 +3952,10 @@ CONTAINS
       DU2 = MAX (SFCSPD * SFCSPD,EPSU2)
 !cc   If statements to avoid TANGENT LINEAR problems near zero
       BTGH = BTG * HPBL
-      IF (BTGH * AKHS * DTHV .ne. 0.0) THEN
+      IF (BTGH * AKHS * DTHV .ne. 0.0d0) THEN
          WSTAR2 = WWST2* ABS (BTGH * AKHS * DTHV)** (2./3.)
       ELSE
-         WSTAR2 = 0.0
+         WSTAR2 = 0.0d0
       END IF
 
 ! ----------------------------------------------------------------------
@@ -4073,10 +4073,10 @@ CONTAINS
 ! IF STATEMENTS TO AVOID TANGENT LINEAR PROBLEMS NEAR ZERO
 !-----------------------------------------------------------------------
          AKHS = MAX (USTARK / SIMH,CXCH)
-         IF (BTGH * AKHS * DTHV .ne. 0.0) THEN
+         IF (BTGH * AKHS * DTHV .ne. 0.0d0) THEN
             WSTAR2 = WWST2* ABS (BTGH * AKHS * DTHV)** (2./3.)
          ELSE
-            WSTAR2 = 0.0
+            WSTAR2 = 0.0d0
          END IF
 !-----------------------------------------------------------------------
          RLMN = ELFC * AKHS * DTHV / USTAR **3

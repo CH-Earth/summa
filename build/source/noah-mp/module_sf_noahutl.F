@@ -1,7 +1,7 @@
 MODULE module_sf_noahutl
   use nrtype
 
-  REAL(DP), PARAMETER      :: CP = 1004.5, RD = 287.04, SIGMA = 5.67E-8,    &
+  REAL(DP), PARAMETER      :: CP = 1004.5d0, RD = 287.04d0, SIGMA = 5.67E-8,    &
                           CPH2O = 4.218E+3,CPICE = 2.106E+3,            &
                           LSUBF = 3.335E+5
 
@@ -27,10 +27,10 @@ CONTAINS
     ! Local:
     REAL(DP)                   :: T2V
 
-    TH2 = SFCTMP + ( 0.0098 * ZLVL)
-    T1V= T1 * (1.0+ 0.61 * Q2)
-    TH2V = TH2 * (1.0+ 0.61 * Q2)
-    T2V = SFCTMP * ( 1.0 + 0.61 * Q2 )
+    TH2 = SFCTMP + ( 0.0098d0 * ZLVL)
+    T1V= T1 * (1.0d0+ 0.61d0 * Q2)
+    TH2V = TH2 * (1.0d0+ 0.61d0 * Q2)
+    T2V = SFCTMP * ( 1.0d0 + 0.61d0 * Q2 )
     RHO = SFCPRS/(RD * T2V)
 
   END SUBROUTINE CALTMP
@@ -48,9 +48,9 @@ CONTAINS
     REAL(DP), INTENT(OUT)      :: DQSDT2
 
     ! Local
-    REAL(DP), PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,        &
-                              A23M4=A2*(A3-A4), E0=611.0, RV=461.0,             &
-                              EPSILON=0.622
+    REAL(DP), PARAMETER        :: A2=17.67d0,A3=273.15d0,A4=29.65d0, ELWV=2.501E6,        &
+                              A23M4=A2*(A3-A4), E0=611.0d0, RV=461.0d0,             &
+                              EPSILON=0.622d0
     REAL(DP)                   :: ES
 
     ! ES:  e.g. Dutton chapter 8, eq 11
