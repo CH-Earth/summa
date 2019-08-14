@@ -28,19 +28,19 @@
       REAL(DP),PARAMETER :: GOCP02=G/CP*2.,GOCP10=G/CP*10.
 !      REAL(DP),PARAMETER :: EPSU2=1.E-4,EPSUST=0.07d0,EPSZT=1.E-5
 !	ECMWF sets lower limit on ln(Z0h)=-20 --> EPSZT=2.e-9
-      REAL(DP),PARAMETER :: EPSU2=1.E-6,EPSUST=1.e-9,EPSZT=1.E-28
+      REAL(DP),PARAMETER :: EPSU2=1.d-6,EPSUST=1.d-9,EPSZT=1.d-28
       REAL(DP),PARAMETER :: A2S=17.2693882d0,A3S=273.16d0,A4S=35.86d0
       REAL(DP),PARAMETER :: SEAFC=0.98d0,PQ0SEA=PQ0*SEAFC
-      REAL(DP),PARAMETER :: BETA=1./273.,EXCML=0.0001d0,EXCMS=0.0001d0         &
-     &                 ,GLKBR=10.,GLKBS=30.,PI_re=3.1415926d0               &
-     &                 ,QVISC=2.1E-5,RIC=0.505d0,SMALL=0.35d0              &
-     &                 ,SQPR=0.84d0,SQSC=0.84d0,SQVISC=258.2d0,TVISC=2.1E-5  &
-     &                 ,USTC=0.7d0,USTR=0.225d0,VISC=1.5E-5,FH=1.01d0        &
-     &                 ,WWST=1.2d0,ZTFC=1.,TOPOFAC=9.0E-6
+      REAL(DP),PARAMETER :: BETA=1.0d0/273.0d0,EXCML=0.0001d0,EXCMS=0.0001d0         &
+     &                 ,GLKBR=10.0d0,GLKBS=30.0d0,PI_re=3.1415926d0               &
+     &                 ,QVISC=2.1d-5,RIC=0.505d0,SMALL=0.35d0              &
+     &                 ,SQPR=0.84d0,SQSC=0.84d0,SQVISC=258.2d0,TVISC=2.1d-5  &
+     &                 ,USTC=0.7d0,USTR=0.225d0,VISC=1.5d-5,FH=1.01d0        &
+     &                 ,WWST=1.2d0,ZTFC=1.0d0,TOPOFAC=9.0E-6
 !
       REAL(DP),PARAMETER :: BTG=BETA*G,CZIV=SMALL*GLKBS                    &
      &                 ,GRRS=GLKBR/GLKBS                               &
-     &                 ,RTVISC=1./TVISC,RVISC=1./VISC                  &
+     &                 ,RTVISC=1.0d0/TVISC,RVISC=1.0d0/VISC                  &
      &                 ,ZQRZT=SQSC/SQPR                                &
      &                 ,FZQ1=RTVISC*QVISC*ZQRZT                        &
      &                 ,FZQ2=RTVISC*QVISC*ZQRZT                        &
@@ -48,7 +48,7 @@
      &                 ,FZT2=CZIV*GRRS*TVISC*SQPR                      &
      &                 ,FZU1=CZIV*VISC                                 &
      &                 ,PIHF=0.5d0*PI_re                                    &
-     &                 ,RQVISC=1./QVISC                                &
+     &                 ,RQVISC=1.0d0/QVISC                                &
      &                 ,USTFC=0.018d0/G                                  &
      &                 ,WWST2=WWST*WWST
 !
@@ -195,7 +195,7 @@ CONTAINS
         DO I=ITS,ITE
           USTAR(I,J)=0.1d0
           FIS=HT(I,J)*G
-          SM=XLAND(I,J)-1.
+          SM=XLAND(I,J)-1.0d0
 !!!       Z0(I,J)=SM*Z0SEA+(1.-SM)*(Z0(I,J)*Z0MAX+FIS*FCM+Z0LAND)
 !!!       ZNT(I,J)=SM*Z0SEA+(1.-SM)*(ZNT(I,J)*Z0MAX+FIS*FCM+Z0LAND)
         ENDDO
@@ -205,7 +205,7 @@ CONTAINS
 !!!!  IF(NTSD==1)THEN
         DO J=JTS,JTE
         DO I=ITS,ITE
-          CT(I,J)=0.
+          CT(I,J)=0.0d0
         ENDDO
         ENDDO
 !!!!  ENDIF
@@ -243,7 +243,7 @@ CONTAINS
             PK(K)=PMID(I,KFLIP,J)
             CWMK(K)=QC(I,KFLIP,J)
             THvK(K)=(qk(k)*0.608d0+(1.-CWMK(K)))*THK(K)
-            Q2K(K)=2.*Q2(I,KFLIP,J)
+            Q2K(K)=2.0d0*Q2(I,KFLIP,J)
 !
 !***  COMPUTE THE HEIGHTS OF THE LAYER INTERFACES
 !
@@ -429,10 +429,10 @@ CONTAINS
       BTGX=G/THLOW
       ELFC=VKARMAN*BTGX
 !
-      IF(PBLH>1000.)THEN
+      IF(PBLH>1000.0d0)THEN
         BTGH=BTGX*PBLH
       ELSE
-        BTGH=BTGX*1000.
+        BTGH=BTGX*1000.0d0
       ENDIF
 !
 !----------------------------------------------------------------------
@@ -446,7 +446,7 @@ CONTAINS
 !----------------------------------------------------------------------
         DO ITR=1,ITRMX
 !----------------------------------------------------------------------
-          Z0=MAX(USTFC*USTAR*USTAR,1.59E-5)
+          Z0=MAX(USTFC*USTAR*USTAR,1.59d-5)
 !
 !***  VISCOUS SUBLAYER, JANJIC MWR 1994
 !
@@ -469,7 +469,7 @@ CONTAINS
 !
               ZU=FZU1*SQRT(SQRT(Z0*USTAR*RVISC))/USTAR
               WGHT=AKMS*ZU*RVISC
-              RWGH=WGHT/(WGHT+1.)
+              RWGH=WGHT/(WGHT+1.0d0)
               UZ0=(ULOW*RWGH+UZ0)*0.5d0
               VZ0=(VLOW*RWGH+VZ0)*0.5d0
 !
@@ -484,19 +484,19 @@ CONTAINS
      IF(NTSD>1)THEN
 #endif
 !tgs              IF(NTSD>1)THEN
-                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.)+THZ0)*0.5d0
-                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.)+QZ0)*0.5d0
+                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.0d0)+THZ0)*0.5d0
+                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.0d0)+QZ0)*0.5d0
               ELSE
-                THZ0=(WGHTT*THLOW+THS)/(WGHTT+1.)
-                QZ0=(WGHTQ*QLOW+QS)/(WGHTQ+1.)
+                THZ0=(WGHTT*THLOW+THS)/(WGHTT+1.0d0)
+                QZ0=(WGHTQ*QLOW+QS)/(WGHTQ+1.0d0)
               ENDIF
 !
             ENDIF
 !
             IF(USTAR>=USTR.AND.USTAR<USTC)THEN
               ZU=Z0
-              UZ0=0.
-              VZ0=0.
+              UZ0=0.0d0
+              VZ0=0.0d0
 !
               ZT=FZT2*SQRT(SQRT(Z0*USTAR*RVISC))/USTAR
               ZQ=FZQ2*ZT
@@ -510,11 +510,11 @@ CONTAINS
 #endif
 
 !tgs              IF(NTSD>1)THEN
-                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.)+THZ0)*0.5d0
-                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.)+QZ0)*0.5d0
+                THZ0=((WGHTT*THLOW+THS)/(WGHTT+1.0d0)+THZ0)*0.5d0
+                QZ0=((WGHTQ*QLOW+QS)/(WGHTQ+1.0d0)+QZ0)*0.5d0
               ELSE
-                THZ0=(WGHTT*THLOW+THS)/(WGHTT+1.)
-                QZ0=(WGHTQ*QLOW+QS)/(WGHTQ+1.)
+                THZ0=(WGHTT*THLOW+THS)/(WGHTT+1.0d0)
+                QZ0=(WGHTQ*QLOW+QS)/(WGHTQ+1.0d0)
               ENDIF
 !
             ENDIF
@@ -522,8 +522,8 @@ CONTAINS
           ELSE
 !----------------------------------------------------------------------
             ZU=Z0
-            UZ0=0.
-            VZ0=0.
+            UZ0=0.0d0
+            VZ0=0.0d0
 !
             ZT=Z0
             THZ0=THS
@@ -533,7 +533,7 @@ CONTAINS
 !----------------------------------------------------------------------
           ENDIF
 !----------------------------------------------------------------------
-          dthv=thvlow-thz0*(0.608d0*qz0+1.)
+          dthv=thvlow-thz0*(0.608d0*qz0+1.0d0)
 !
           DU2=MAX((ULOW-UZ0)**2+(VLOW-VZ0)**2,EPSU2)
           RIB=BTGX*DTHV*ZSL/DU2
@@ -576,14 +576,14 @@ CONTAINS
 !
             RZ=(ZETAU-ZTMIN1)/DZETA1
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSMZ=(PSIM1(K+2)-PSIM1(K+1))*RDZT+PSIM1(K+1)
 !
             RZ=(ZETALU-ZTMIN1)/DZETA1
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSMZL=(PSIM1(K+2)-PSIM1(K+1))*RDZT+PSIM1(K+1)
@@ -592,14 +592,14 @@ CONTAINS
 !
             RZ=(ZETAT-ZTMIN1)/DZETA1
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSHZ=(PSIH1(K+2)-PSIH1(K+1))*RDZT+PSIH1(K+1)
 !
             RZ=(ZETALT-ZTMIN1)/DZETA1
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSHZL=(PSIH1(K+2)-PSIH1(K+1))*RDZT+PSIH1(K+1)
@@ -740,14 +740,14 @@ CONTAINS
 !
             RZ=(ZETAU-ZTMIN2)/DZETA2
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSMZ=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
 !
             RZ=(ZETALU-ZTMIN2)/DZETA2
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSMZL=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
@@ -756,14 +756,14 @@ CONTAINS
 !
             RZ=(ZETAT-ZTMIN2)/DZETA2
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSHZ=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
 !
             RZ=(ZETALT-ZTMIN2)/DZETA2
             K=INT(RZ)
-            RDZT=RZ-REAL(K)
+            RDZT=RZ-DBLE(K)
             K=MIN(K,KZTM2)
             K=MAX(K,0)
             PSHZL=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
@@ -863,7 +863,7 @@ CONTAINS
 !----------------------------------------------------------------------
           RZ=(ZTAU10-ZTMIN1)/DZETA1
           K=INT(RZ)
-          RDZT=RZ-REAL(K)
+          RDZT=RZ-DBLE(K)
           K=MIN(K,KZTM2)
           K=MAX(K,0)
           PSM10=(PSIM1(K+2)-PSIM1(K+1))*RDZT+PSIM1(K+1)
@@ -872,7 +872,7 @@ CONTAINS
 !
           RZ=(ZTAT02-ZTMIN1)/DZETA1
           K=INT(RZ)
-          RDZT=RZ-REAL(K)
+          RDZT=RZ-DBLE(K)
           K=MIN(K,KZTM2)
           K=MAX(K,0)
           PSH02=(PSIH1(K+2)-PSIH1(K+1))*RDZT+PSIH1(K+1)
@@ -881,7 +881,7 @@ CONTAINS
 !
           RZ=(ZTAT10-ZTMIN1)/DZETA1
           K=INT(RZ)
-          RDZT=RZ-REAL(K)
+          RDZT=RZ-DBLE(K)
           K=MIN(K,KZTM2)
           K=MAX(K,0)
           PSH10=(PSIH1(K+2)-PSIH1(K+1))*RDZT+PSIH1(K+1)
@@ -905,7 +905,7 @@ CONTAINS
 !----------------------------------------------------------------------
           RZ=(ZTAU10-ZTMIN2)/DZETA2
           K=INT(RZ)
-          RDZT=RZ-REAL(K)
+          RDZT=RZ-DBLE(K)
           K=MIN(K,KZTM2)
           K=MAX(K,0)
           PSM10=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
@@ -914,7 +914,7 @@ CONTAINS
 !
           RZ=(ZTAT02-ZTMIN2)/DZETA2
           K=INT(RZ)
-          RDZT=RZ-REAL(K)
+          RDZT=RZ-DBLE(K)
           K=MIN(K,KZTM2)
           K=MAX(K,0)
           PSH02=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
@@ -923,7 +923,7 @@ CONTAINS
 !
           RZ=(ZTAT10-ZTMIN2)/DZETA2
           K=INT(RZ)
-          RDZT=RZ-REAL(K)
+          RDZT=RZ-DBLE(K)
           K=MIN(K,KZTM2)
           K=MAX(K,0)
           PSH10=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
@@ -991,7 +991,7 @@ CONTAINS
 
         RZ=(ZTAU10-ZTMIN2)/DZETA2
         K=INT(RZ)
-        RDZT=RZ-REAL(K)
+        RDZT=RZ-DBLE(K)
         K=MIN(K,KZTM2)
         K=MAX(K,0)
         PSM10=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)

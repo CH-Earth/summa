@@ -306,8 +306,8 @@ MODULE NOAHMP_VEG_PARAMETERS
     REAL(DP) :: TMP15(MVT*12)
     REAL(DP) :: TMP16(MVT*5)
 
-    real slarea(MVT)
-    real eps(MVT,5)
+    real(DP) slarea(MVT)
+    real(DP) eps(MVT,5)
 
 CONTAINS
   subroutine read_mp_veg_parameters(FILENAME_VEGTABLE,DATASET_IDENTIFIER)
@@ -1104,10 +1104,10 @@ contains
         DAY = JULIAN
      ELSE
         ! Southern Hemisphere.  DAY is shifted by 1/2 year.
-        DAY = MOD ( JULIAN + ( 0.5d0 * YEARLEN ) , REAL(YEARLEN) )
+        DAY = MOD ( JULIAN + ( 0.5d0 * YEARLEN ) , DBLE(YEARLEN) )
      ENDIF
 
-     T = 12. * DAY / REAL(YEARLEN)
+     T = 12. * DAY / DBLE(YEARLEN)
      IT1 = T + 0.5d0
      IT2 = IT1 + 1
      WT1 = (IT1+0.5d0) - T
@@ -4040,7 +4040,7 @@ contains
   REAL(DP) :: TMP2         !temporary calculation
   REAL(DP) :: TMPRAH2      !temporary calculation for aerodynamic resistances
   REAL(DP) :: TMPRB        !temporary calculation for rb
-  real :: MOLG,FHGNEW,CWPC
+  real(DP) :: MOLG,FHGNEW,CWPC
 ! --------------------------------------------------------------------------------------------------
 ! stability correction to below canopy resistance
 
@@ -4709,14 +4709,14 @@ contains
 
     RZ=(ZETAU-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSMZ=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
 
     RZ=(ZETALU-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSMZL=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
@@ -4725,14 +4725,14 @@ contains
 
     RZ=(ZETAT-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSHZ=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
 
     RZ=(ZETALT-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSHZL=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
@@ -4786,7 +4786,7 @@ contains
 !jref: land diagnostic functions
     RZ=(ZTAU10-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSM10=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
@@ -4795,7 +4795,7 @@ contains
 
     RZ=(ZTAT02-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSH02=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
@@ -4804,7 +4804,7 @@ contains
 
     RZ=(ZTAT10-ZTMIN2)/DZETA2
     K=INT(RZ)
-    RDZT=RZ-REAL(K)
+    RDZT=RZ-DBLE(K)
     K=MIN(K,KZTM2)
     K=MAX(K,0)
     PSH10=(PSIH2(K+2)-PSIH2(K+1))*RDZT+PSIH2(K+1)
@@ -4881,7 +4881,7 @@ contains
 
         RZ=(ZTAU10-ZTMIN2)/DZETA2
         K=INT(RZ)
-        RDZT=RZ-REAL(K)
+        RDZT=RZ-DBLE(K)
         K=MIN(K,KZTM2)
         K=MAX(K,0)
         PSM10=(PSIM2(K+2)-PSIM2(K+1))*RDZT+PSIM2(K+1)
@@ -5580,7 +5580,7 @@ contains
 
 ! contribution due to vapor pressure deficit
 
-    RCQ = 1.0d0/ (1.0d0+ HS * MAX(0.,Q2SAT-Q2))
+    RCQ = 1.0d0/ (1.0d0+ HS * MAX(0.0d0,Q2SAT-Q2))
     RCQ = MAX (RCQ,0.01d0)
 
 ! determine canopy resistance due to all factors
@@ -5596,25 +5596,25 @@ contains
 
         REAL(DP), INTENT(IN)       :: SFCTMP, SFCPRS
         REAL(DP), INTENT(OUT)      :: Q2SAT, DQSDT2
-        REAL(DP), PARAMETER        :: A2=17.67d0,A3=273.15d0,A4=29.65d0, ELWV=2.501E6,         &
+        REAL(DP), PARAMETER        :: A2=17.67d0,A3=273.15d0,A4=29.65d0, ELWV=2.501d6,         &
                                   A23M4=A2*(A3-A4), E0=0.611d0, RV=461.0d0,             &
                                   EPSILON=0.622d0
         REAL(DP)                   :: ES, SFCPRSX
 
 ! Q2SAT: saturated mixing ratio
-        ES = E0 * EXP ( ELWV/RV*(1./A3 - 1./SFCTMP) )
+        ES = E0 * EXP ( ELWV/RV*(1.0d0/A3 - 1.0d0/SFCTMP) )
 ! convert SFCPRS from Pa to KPa
-        SFCPRSX = SFCPRS*1.E-3
+        SFCPRSX = SFCPRS*1.d-3
         Q2SAT = EPSILON * ES / (SFCPRSX-ES)
 ! convert from  g/g to g/kg
-        Q2SAT = Q2SAT * 1.E3
+        Q2SAT = Q2SAT * 1.d3
 ! Q2SAT is currently a 'mixing ratio'
 
 ! DQSDT2 is calculated assuming Q2SAT is a specific humidity
         DQSDT2=(Q2SAT/(1+Q2SAT))*A23M4/(SFCTMP-A4)**2
 
 ! DG Q2SAT needs to be in g/g when returned for SFLX
-        Q2SAT = Q2SAT / 1.E3
+        Q2SAT = Q2SAT / 1.d3
 
         END SUBROUTINE CALHUM
 ! ==================================================================================================
@@ -8285,7 +8285,7 @@ contains
 ! Matric potential at the layer above the water table
 
       S_NODE = MIN(1.0d0,SMC(IWT)/SMCMAX )
-      S_NODE = MAX(S_NODE,REAL(0.01d0,KIND=8))
+      S_NODE = MAX(S_NODE,DBLE(0.01d0))
       SMPFZ  = -PSISAT*1000.*S_NODE**(-BEXP)   ! m --> mm
       SMPFZ  = MAX(-120000.0d0,CMIC*SMPFZ)
 
@@ -8783,32 +8783,32 @@ contains
 ! ------------------------ input/output variables -----------------
 ! input
   integer                     ,INTENT(IN) :: vegtyp  !vegetation type
-  real                        ,INTENT(IN) :: vegfrac !green vegetation fraction [0.0d0-1.0d0]
-  real                        ,INTENT(IN) :: apar    !photosynthesis active energy by canopy (w/m2)
-  real                        ,INTENT(IN) :: tv      !vegetation canopy temperature (k)
+  real(dp)                        ,INTENT(IN) :: vegfrac !green vegetation fraction [0.0d0-1.0d0]
+  real(dp)                        ,INTENT(IN) :: apar    !photosynthesis active energy by canopy (w/m2)
+  real(dp)                        ,INTENT(IN) :: tv      !vegetation canopy temperature (k)
 
 ! output
-  real                        ,INTENT(OUT) :: vocflx(5) ! voc fluxes [ug C m-2 h-1]
+  real(dp)                        ,INTENT(OUT) :: vocflx(5) ! voc fluxes [ug C m-2 h-1]
 
 ! Local Variables
 
-  real, parameter :: R      = 8.314d0    ! univ. gas constant [J K-1 mol-1]
-  real, parameter :: alpha  = 0.0027d0   ! empirical coefficient
-  real, parameter :: cl1    = 1.066d0    ! empirical coefficient
-  real, parameter :: ct1    = 95000.0d0  ! empirical coefficient [J mol-1]
-  real, parameter :: ct2    = 230000.0d0 ! empirical coefficient [J mol-1]
-  real, parameter :: ct3    = 0.961d0    ! empirical coefficient
-  real, parameter :: tm     = 314.0d0    ! empirical coefficient [K]
-  real, parameter :: tstd   = 303.0d0    ! std temperature [K]
-  real, parameter :: bet    = 0.09d0     ! beta empirical coefficient [K-1]
+  real(dp), parameter :: R      = 8.314d0    ! univ. gas constant [J K-1 mol-1]
+  real(dp), parameter :: alpha  = 0.0027d0   ! empirical coefficient
+  real(dp), parameter :: cl1    = 1.066d0    ! empirical coefficient
+  real(dp), parameter :: ct1    = 95000.0d0  ! empirical coefficient [J mol-1]
+  real(dp), parameter :: ct2    = 230000.0d0 ! empirical coefficient [J mol-1]
+  real(dp), parameter :: ct3    = 0.961d0    ! empirical coefficient
+  real(dp), parameter :: tm     = 314.0d0    ! empirical coefficient [K]
+  real(dp), parameter :: tstd   = 303.0d0    ! std temperature [K]
+  real(dp), parameter :: bet    = 0.09d0     ! beta empirical coefficient [K-1]
 
   integer ivoc        ! do-loop index
   integer ityp        ! do-loop index
-  real epsilon(5)
-  real gamma(5)
-  real density
-  real elai
-  real par,cl,reciprod,ct
+  real(dp) epsilon(5)
+  real(dp) gamma(5)
+  real(dp) density
+  real(dp) elai
+  real(dp) par,cl,reciprod,ct
 
 ! epsilon :
 
@@ -8835,7 +8835,7 @@ contains
 
 ! transform vegfrac to lai
 
-   elai    = max(0.0d0,-6.5d0/2.5d0*alog((1.-vegfrac)))
+   elai    = max(0.0d0,-6.5d0/2.5d0*log((1.-vegfrac)))
    density = elai / (slarea(VEGTYP) * 0.5d0)
 
 ! calculate the voc flux

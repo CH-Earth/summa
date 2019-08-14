@@ -14,7 +14,7 @@ MODULE module_sf_noahlsm
         integer, PARAMETER :: NLUS=50
         CHARACTER(LEN=256) LUTYPE
         INTEGER, DIMENSION(1:NLUS) :: NROTBL
-        real, dimension(1:NLUS) ::  SNUPTBL, RSTBL, RGLTBL, HSTBL,                &
+        real(dp), dimension(1:NLUS) ::  SNUPTBL, RSTBL, RGLTBL, HSTBL,                &
                                     SHDTBL, MAXALB,                               &
                                     EMISSMINTBL, EMISSMAXTBL,                     &
                                     LAIMINTBL, LAIMAXTBL,                         &
@@ -2966,9 +2966,9 @@ CONTAINS
       BFAC = DTHR * C1* EXP (0.08d0* TAVGC - C2* SNDENS)
       IPOL = 4
       PEXP = 0.
-!        PEXP = (1. + PEXP)*BFAC*ESDC/REAL(DP)(J+1)
+!        PEXP = (1. + PEXP)*BFAC*ESDC/DBLE(DP)(J+1)
       DO J = IPOL,1, -1
-         PEXP = (1. + PEXP)* BFAC * ESDCX / REAL (J +1)
+         PEXP = (1. + PEXP)* BFAC * ESDCX / DBLE(J +1)
       END DO
 
       PEXP = PEXP + 1.
