@@ -82,8 +82,11 @@ function summa_install {
     export FC=gfortran
     export FC_EXE=gfortran-6
     export INCLUDES='-I${INSTALLDIR}/include -I/usr/include'
-    export LIBRARIES='-I${INSTALLDIR}/lib -lnetcdff -L/usr/lib -llapack -lblas'
-    make -C build/ -f Makefile &> make.log
+    export LIBRARIES='-L${INSTALLDIR}/lib -lnetcdff -L/usr/lib -llapack -lblas'
+    printenv
+    # make -C build/ -f Makefile &> make.log
+    make -C build/ -f Makefile check
+    make -C build/ -f Makefile
 }
 
 function summa_script {
