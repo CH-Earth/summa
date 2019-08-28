@@ -7,6 +7,11 @@
 # your top level SUMMA directory. Don't include the Makefile.local in
 # any pull requests you make.
 #
+# Note that Makefile configurations that we commonly use can be found on
+# the SUMMA wiki at: 
+# https://github.com/NCAR/summa/wiki/SUMMA-Makefile-Part-0-configuration
+# feel free to add yours to that page.
+#
 # To troubleshoot your paths and setup, type 'make check'
 #
 # At a minimum you will need to set the following:
@@ -25,21 +30,27 @@
 # PART 0: User-configurable part
 #========================================================================
 
+# The variables can be specified in one of two ways:
+# * delete the '##' in front of the variable, fill out the entry, 
+#   save the file and run make
+# * make no changes to this file, but specify the variables in your
+#   environment before you run make
+
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =
+##F_MASTER =
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
 # compiler flags in the ifeq statements in this Makefile. The compiler
 # executable is set separately as FC_EXE
 # Currently this is either gfortran or ifort
-FC =
+##FC =
 
 # Define the path for the compiler executable. This is the actual executable
 # that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin-gfortran-mp-6
 # FC and FC_EXE have to be consistent
-FC_EXE =
+##FC_EXE =
 
 # Define the NetCDF and LAPACK libraries and path to include files. 
 # INCLUDES needs to be of the form (no quotes around the string):
@@ -48,8 +59,8 @@ FC_EXE =
 # LIBRARIES = '-L<netcdf library path> -lnetcdff -L<blas library path> -lblas -L<etc> -l<etc>'
 # If none of this makes sense, please talk to your system
 # administrator.
-INCLUDES =
-LIBRARIES =
+##INCLUDES =
+##LIBRARIES =
 
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -75,9 +86,9 @@ LIBOPENMP =
 # gfortran compiler flags
 ifeq "$(FC)" "gfortran"
 
-ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -fopenmp
-endif
+	ifeq "$(isOpenMP)" "yes"
+ 		FLAGS_OMP = -fopenmp
+	endif
 
 # Production runs
 FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
@@ -94,9 +105,9 @@ endif
 # ifort compiler flags
 ifeq "$(FC)" "ifort"
 
-ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -qopenmp
-endif
+	ifeq "$(isOpenMP)" "yes"
+ 		FLAGS_OMP = -qopenmp
+	endif
 
 # Production runs
 FLAGS_NOAH = -O3 -autodouble -noerror_limit -FR -auto -fltconsistency $(FLAGS_OMP)
@@ -372,5 +383,4 @@ clean:
 install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(DRIVER__EX) $(EXE_PATH)
-	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
 	$(info $(DRIVER__EX) successfully installed in $(EXE_PATH))
