@@ -2,14 +2,39 @@
 # Makefile to compile SUMMA
 #========================================================================
 #
+# Recommended use: Copy this file to Makefile.local, edit it to your 
+# heart's content, and then run `make -f build/Makefile.local` from
+# your top level SUMMA directory. Don't include the Makefile.local in
+# any pull requests you make.
+#
+# Note that Makefile configurations that we commonly use can be found on
+# the SUMMA wiki at: 
+# https://github.com/NCAR/summa/wiki/SUMMA-Makefile-Part-0-configuration
+# feel free to add yours to that page.
+#
 # To troubleshoot your paths and setup, type 'make check'
 #
-# At a minimum you will need to set F_MASTER and FC. You will probably
-# also have to specify the location of your netcdf and lapack libraries
+# At a minimum you will need to set the following:
+#  * F_MASTER         - top level summa directory
+#  * FC               - compiler suite
+#  * FC_EXE           - compiler executable
+#  * INCLUDES         - path to include files
+#  * LIBRARIES        - path to and libraries to include
+# 
+# Some further options can be specified for OpenMP, etc. See in Part 0 of
+# the Makefile. You don't need to make any changes in PART 1 and 
+# following unless you are doing SUMMA development and changed what 
+# needs to be compiled
 
 #========================================================================
 # PART 0: User-configurable part
 #========================================================================
+
+# The variables can be specified in one of two ways:
+# * delete the '##' in front of the variable, fill out the entry, 
+#   save the file and run make
+# * make no changes to this file, but specify the variables in your
+#   environment before you run make
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
@@ -19,6 +44,7 @@
 # to be version 6 or higher. This variable is simply used to select the right
 # compiler flags in the ifeq statements in this Makefile. The compiler
 # executable is set separately as FC_EXE
+# Currently this is either gfortran or ifort
 ##FC =
 
 # Define the path for the compiler executable. This is the actual executable
@@ -26,14 +52,15 @@
 # FC and FC_EXE have to be consistent
 ##FC_EXE =
 
-# Define the compiler environment. This is used in the ifeq statements in this
-# Makefile to set the include and library paths and the libraries
-##FC_ENV =
-
-# Define the NetCDF and LAPACK libraries and path to include files. Note
-# that the default paths defined are those that work for our compilers
-# and settings. If none of this makes sense, please talk to your system
+# Define the NetCDF and LAPACK libraries and path to include files. 
+# INCLUDES needs to be of the form (no quotes around the string):
+# INCLUDES = -I<include path 1> -I<include path 2> -I<...> -I<include path n>
+# LIBRARIES needs to be of the form ( no quotes around the string):
+# LIBRARIES = '-L<netcdf library path> -lnetcdff -L<blas library path> -lblas -L<etc> -l<etc>'
+# If none of this makes sense, please talk to your system
 # administrator.
+##INCLUDES =
+##LIBRARIES =
 
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -56,115 +83,42 @@ LIBOPENMP =
 # you will need to figure out what the equivalent flags are
 # and may need to update this section
 
-# gfortran
+# gfortran compiler flags
 ifeq "$(FC)" "gfortran"
 
-ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -fopenmp
-endif
+	ifeq "$(isOpenMP)" "yes"
+ 		FLAGS_OMP = -fopenmp
+	endif
 
+# Production runs
 FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
+# Debug runs
 #FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 #FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 #FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 
 endif
 
-
-# ifort
+# ifort compiler flags
 ifeq "$(FC)" "ifort"
 
-ifeq "$(isOpenMP)" "yes"
- FLAGS_OMP = -qopenmp
-endif
+	ifeq "$(isOpenMP)" "yes"
+ 		FLAGS_OMP = -qopenmp
+	endif
 
+# Production runs
 FLAGS_NOAH = -O3 -autodouble -noerror_limit -FR -auto -fltconsistency $(FLAGS_OMP)
 FLAGS_COMM = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
 FLAGS_SUMMA = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
 
+# Debug runs
 #FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
 #FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 #FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 endif
-
-# pgi
-ifeq "$(FC)" "pgfortran"
- FLAGS_NOAH = -O0 -pg -g -traceback -r8 -Mfree -Mbounds
- FLAGS_COMM = -O0 -pg -g -traceback -Mfree -Mbounds
- FLAGS_SUMMA = -O0 -pg -g -traceback -Mfree -Mbounds -Minfo -Mnoautoinline -Ktrap=inv,denorm,divz,ovf,unf,inexact
-endif
-
-# ------------ define compiler libraries ------------------------------------
-
-# gfortran compiler on cheyenne
-ifeq "$(FC_ENV)" "gfortran-cheyenne"
-
-ifeq "$(isOpenMP)" "yes"
- LIBOPENMP = -lgomp
-endif
-
-NCDF_PATH = /glade/u/apps/ch/opt/netcdf/4.4.1.1/gnu/7.1.0
-LIBLAPACK = ${NCAR_LIBS_NETLIB}
-endif
-
-# gfortran-6 compiler used in Docker builds
-ifeq "$(FC_ENV)" "gfortran-6-docker"
- NCDF_PATH = /usr
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
-endif
-
-# Ubuntu gfortran compiler tested with 4.6 and higher
-# also used for the travis build
-ifeq "$(FC_ENV)" "gfortran-6-travis"
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas
-endif
-
-# gfortran compiler on OS X tested with 6 and higher
-# (works on Mac OS X with Macports)
-ifeq "$(FC_ENV)" "gfortran-6-macports"
- NCDF_PATH = /opt/local
- LAPK_PATH = /opt/local
- # define the lapack libraries - on OS X you need atlas and
- # blas as well
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack -lblas -latlas
-endif
-
-# Intel fortran compiler
-ifeq "$(FC_ENV)" "ifort"
-
-ifeq "$(isOpenMP)" "yes"
- LIBOPENMP = -liomp5
-endif
-
-#NCDF_PATH = /opt/netcdf4-intel
-#LAPK_PATH = /usr
-NCDF_PATH = /glade/u/apps/ch/opt/netcdf/4.4.1.1/intel/17.0.1
-LAPK_PATH = /glade/u/apps/opt/intel/2017u1/compilers_and_libraries/linux/mkl/lib/intel64
-
-# define the lapack libraries
-#LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-LIBLAPACK = $(NCAR_LIBS_MKL)
-
-endif
-
-# Portland compiler
-ifeq "$(FC_ENV)" "pgfortran"
- NCDF_PATH = /opt/netcdf4-pgi
- LAPK_PATH = /usr
- # define the lapack libraries
- LIBLAPACK = -L$(LAPK_PATH)/lib -llapack
-endif
-
-# define netcdf libraries and include files
-LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff
-INCNETCDF = -I$(NCDF_PATH)/include
 
 #========================================================================
 # PART 1: Define directory paths
@@ -365,14 +319,14 @@ endif
 ifndef FC_EXE
  $(error FC_EXE is undefined: Specify your compiler executable)
 endif
-ifndef FC_ENV
- $(error FC_ENV is undefined: Specify your compiler environment)
-endif
 ifndef FLAGS_SUMMA
  $(error Specify flags for your compiler: $(FC))
 endif
-ifndef NCDF_PATH
- $(error NCDF_PATH is undefined)
+ifndef INCLUDES
+ $(error INCLUDES is undefined)
+endif
+ifndef LIBRARIES
+ $(error LIBRARIES is undefined)
 endif
 
 #========================================================================
@@ -388,15 +342,11 @@ check:
 	$(info   F_MASTER   : $(F_MASTER))
 	$(info   EXE_PATH   : $(EXE_PATH))
 	$(info   FC         : $(FC))
-	$(info   NCDF_PATH  : $(NCDF_PATH))
-	$(info   LIBNETCDF  : $(LIBNETCDF))
-	$(info   INCNETCDF  : $(INCNETCDF))
-	$(info   LAPK_PATH  : $(LAPK_PATH))
-	$(info   LIBLAPACK  : $(LIBLAPACK))
+	$(info   INCLUDES   : $(INCLUDES))
+	$(info   LIBRARIES  : $(LIBRARIES))
 	$(info   FLAGS_NOAH : $(FLAGS_NOAH))
 	$(info   FLAGS_COMM : $(FLAGS_COMM))
 	$(info   FLAGS_SUMMA: $(FLAGS_SUMMA))
-	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
 	$(info)
 
 # update version information
@@ -417,11 +367,11 @@ compile_comm:
 # compile SUMMA routines
 compile_summa: update_version
 	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCNETCDF)
+	$(INCLUDES)
 
 # link routines
 link:
-	$(FC_EXE) -pg -g *.o $(LIBNETCDF) $(LIBLAPACK) -o $(DRIVER__EX)
+	$(FC_EXE) -pg -g *.o $(LIBRARIES) -o $(DRIVER__EX)
 
 # Remove object files
 clean:
@@ -433,5 +383,4 @@ clean:
 install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(DRIVER__EX) $(EXE_PATH)
-	$(info Add $(NCDF_PATH)/lib to your LD_LIBRARY_PATH)
 	$(info $(DRIVER__EX) successfully installed in $(EXE_PATH))
