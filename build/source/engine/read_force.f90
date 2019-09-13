@@ -118,7 +118,7 @@ contains
  if(ncid==integerMissing)then ! file is closed if ncid==integerMissing
 
   ! identify the first time step
-  call getFirstTimestep(currentJulday,iFile,iRead,ncid,err,cmessage) 
+  call getFirstTimestep(currentJulday,iFile,iRead,ncid,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end if  ! if the file is not yet open
@@ -324,7 +324,7 @@ contains
 
  end do ! end of search for model first time step in forcing files
 
- end subroutine getFirstTimestep 
+ end subroutine getFirstTimestep
 
  ! *************************************************************************
  ! * open the NetCDF forcing file and get the time information
@@ -343,7 +343,8 @@ contains
  ! local variables
  character(len=256)                :: cmessage           ! error message for downwind routine
  integer(i4b)                      :: iyyy,im,id,ih,imin ! date
- real(dp)                          :: dsec               ! seconds
+ integer(i4b)                      :: ih_tz,imin_tz      ! time zone information
+ real(dp)                          :: dsec,dsec_tz       ! seconds
  integer(i4b)                      :: varId              ! variable identifier
  integer(i4b)                      :: mode               ! netcdf file mode
  integer(i4b)                      :: attLen             ! attribute length
@@ -364,6 +365,7 @@ contains
  ! define the reference time for the model simulation
  call extractTime(refTimeString,                         & ! input  = units string for time data
                   iyyy,im,id,ih,imin,dsec,               & ! output = year, month, day, hour, minute, second
+                  ih_tz, imin_tz, dsec_tz,               & ! output = time zone information (hour, minute, second)
                   err,cmessage)                            ! output = error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -383,7 +385,7 @@ contains
  end subroutine openForcingFile
 
  ! *************************************************************************
- ! * read the NetCDF forcing data 
+ ! * read the NetCDF forcing data
  ! *************************************************************************
  subroutine readForcingData(currentJulday,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
  USE netcdf                                            ! netcdf capability
