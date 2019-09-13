@@ -216,6 +216,13 @@ contains
   case default; message=trim(message)//'unable to identify option for tmZoneInfo'; err=20; return
  end select ! identifying option tmZoneInfo
 
+ ! constrain timeOffset so that it is in the [-0.5, 0.5] range
+ if(timeOffset<-0.5)then
+  timeOffset = timeOffset+1
+ else if(timeOffset>0.5)then
+  timeOffset = timeOffset-1
+ endif
+
  ! compute the local time
  julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days)
 

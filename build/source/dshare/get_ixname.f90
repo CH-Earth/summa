@@ -57,46 +57,46 @@ contains
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! ( 1) simulation start time
-  case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! ( 2) simulation end time
-  case('tmZoneInfo'      ); get_ixdecisions=iLookDECISIONS%tmZoneInfo  ! ( 3) time zone information
-  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! ( 4) soil-category dateset
-  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! ( 5) vegetation category dataset
-  case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! ( 6) choice of function for the soil moisture control on stomatal resistance
-  case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! ( 7) choice of function for stomatal resistance
-  case('bbTempFunc'      ); get_ixdecisions=iLookDECISIONS%bbTempFunc  ! ( 8) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
-  case('bbHumdFunc'      ); get_ixdecisions=iLookDECISIONS%bbHumdFunc  ! ( 9) Ball-Berry: humidity controls on stomatal resistance
-  case('bbElecFunc'      ); get_ixdecisions=iLookDECISIONS%bbElecFunc  ! (10) Ball-Berry: dependence of photosynthesis on PAR
-  case('bbCO2point'      ); get_ixdecisions=iLookDECISIONS%bbCO2point  ! (11) Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
-  case('bbNumerics'      ); get_ixdecisions=iLookDECISIONS%bbNumerics  ! (12) Ball-Berry: iterative numerical solution method
-  case('bbAssimFnc'      ); get_ixdecisions=iLookDECISIONS%bbAssimFnc  ! (13) Ball-Berry: controls on carbon assimilation
-  case('bbCanIntg8'      ); get_ixdecisions=iLookDECISIONS%bbCanIntg8  ! (14) Ball-Berry: scaling of photosynthesis from the leaf to the canopy
-  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! (15) choice of numerical method
-  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! (16) choice of method to calculate flux derivatives
-  case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! (17) choice of method to determine LAI and SAI
-  case('cIntercept'      ); get_ixdecisions=iLookDECISIONS%cIntercept  ! (18) choice of parameterization for canopy interception
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! (19) form of Richards' equation
-  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! (20) choice of groundwater parameterization
-  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! (21) choice of hydraulic conductivity profile
-  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! (22) type of upper boundary condition for thermodynamics
-  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (23) type of lower boundary condition for thermodynamics
-  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (24) type of upper boundary condition for soil hydrology
-  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (25) type of lower boundary condition for soil hydrology
-  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (26) choice of parameterization for vegetation roughness length and displacement height
-  case('rootProfil'      ); get_ixdecisions=iLookDECISIONS%rootProfil  ! (27) choice of parameterization for the rooting profile
-  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (28) choice of parameterization for canopy emissivity
-  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (29) choice of parameterization for snow interception
-  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! (30) choice of canopy wind profile
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (31) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (32) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (33) choice of method to combine and sub-divide snow layers
-  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! (34) choice of thermal conductivity representation for snow
-  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! (35) choice of thermal conductivity representation for soil
-  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (36) choice of method for canopy shortwave radiation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (37) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (38) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (39) choice of method for sub-grid routing
-  case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! (40) choice of method for new snow density
+  case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! simulation start time
+  case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! simulation end time
+  case('tmZoneInfo'      ); get_ixdecisions=iLookDECISIONS%tmZoneInfo  ! time zone information
+  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dateset
+  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! vegetation category dataset
+  case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! choice of function for the soil moisture control on stomatal resistance
+  case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! choice of function for stomatal resistance
+  case('bbTempFunc'      ); get_ixdecisions=iLookDECISIONS%bbTempFunc  ! Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
+  case('bbHumdFunc'      ); get_ixdecisions=iLookDECISIONS%bbHumdFunc  ! Ball-Berry: humidity controls on stomatal resistance
+  case('bbElecFunc'      ); get_ixdecisions=iLookDECISIONS%bbElecFunc  ! Ball-Berry: dependence of photosynthesis on PAR
+  case('bbCO2point'      ); get_ixdecisions=iLookDECISIONS%bbCO2point  ! Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
+  case('bbNumerics'      ); get_ixdecisions=iLookDECISIONS%bbNumerics  ! Ball-Berry: iterative numerical solution method
+  case('bbAssimFnc'      ); get_ixdecisions=iLookDECISIONS%bbAssimFnc  ! Ball-Berry: controls on carbon assimilation
+  case('bbCanIntg8'      ); get_ixdecisions=iLookDECISIONS%bbCanIntg8  ! Ball-Berry: scaling of photosynthesis from the leaf to the canopy
+  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! choice of numerical method
+  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! choice of method to calculate flux derivatives
+  case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! choice of method to determine LAI and SAI
+  case('cIntercept'      ); get_ixdecisions=iLookDECISIONS%cIntercept  ! choice of parameterization for canopy interception
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! choice of groundwater parameterization
+  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! choice of hydraulic conductivity profile
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! type of lower boundary condition for soil hydrology
+  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! choice of parameterization for vegetation roughness length and displacement height
+  case('rootProfil'      ); get_ixdecisions=iLookDECISIONS%rootProfil  ! choice of parameterization for the rooting profile
+  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! choice of parameterization for canopy emissivity
+  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! choice of parameterization for snow interception
+  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! choice of canopy wind profile
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! choice of method to combine and sub-divide snow layers
+  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! choice of thermal conductivity representation for snow
+  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! choice of thermal conductivity representation for soil
+  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! choice of method for canopy shortwave radiation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
+  case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -120,6 +120,8 @@ contains
   case('id'              ); get_ixtime = iLookTIME%id               ! day
   case('ih'              ); get_ixtime = iLookTIME%ih               ! hour
   case('imin'            ); get_ixtime = iLookTIME%imin             ! minute
+  case('ih_tz'           ); get_ixtime = iLookTIME%ih_tz            ! hour for time zone offset
+  case('imin_tz'         ); get_ixtime = iLookTIME%imin_tz          ! minute for time zone offset
   ! get to here if cannot find the variable
   case default
    get_ixtime = integerMissing
