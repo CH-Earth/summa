@@ -60,7 +60,6 @@ contains
    message=trim(message)//"OpenError['"//trim(infile)//"']"//trim(nf90_strerror(err))
    err=20; return
  end if
- print*, trim(infile)//': chunksize = ', chunksize
 
  end subroutine nc_file_open
 

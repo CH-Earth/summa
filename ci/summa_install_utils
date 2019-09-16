@@ -81,8 +81,8 @@ function summa_install {
     export F_MASTER=${TRAVIS_BUILD_DIR}
     export FC=gfortran
     export FC_EXE=gfortran-6
-    export FC_ENV=gfortran-6-travis
-    export NCDF_PATH=${INSTALLDIR}
+    export INCLUDES='-I${INSTALLDIR}/include -I/usr/include'
+    export LIBRARIES='-L${INSTALLDIR}/lib -lnetcdff -L/usr/lib -llapack -lblas'
     make -C build/ -f Makefile &> make.log
 }
 
