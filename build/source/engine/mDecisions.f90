@@ -164,7 +164,6 @@ contains
  USE globalData,only:startTime,finshTime    ! start/end time of simulation
  USE globalData,only:dJulianStart           ! julian day of start time of simulation
  USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
- USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
  USE globalData,only:data_step              ! length of data step (s)
  USE globalData,only:numtim                 ! number of time steps in the simulation
  ! model decision structures
@@ -222,15 +221,6 @@ contains
                   dsec_tz,                                               & ! time zone seconds
                   err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
- select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
-  case(ncTime); tmZoneOffsetFracDay = fracDay(refTime%var(iLookTIME%ih_tz),   & ! time zone hour
-                                              refTime%var(iLookTIME%imin_tz), & ! time zone minute
-                                              dsec_tz)                        ! time zone second
-  case(utcTime);   tmZoneOffsetFracDay = 0._dp
-  case(localTime); tmZoneOffsetFracDay = 0._dp
-  case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
- end select ! (option time zone option)
 
 
  ! compute the julian date (fraction of day) for the reference time

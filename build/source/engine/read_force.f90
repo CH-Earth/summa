@@ -52,6 +52,7 @@ USE globalData,only:nHRUfile                  ! number of days in the data file
 ! global metadata
 USE globalData,only:time_meta,forc_meta       ! metadata structures
 USE var_lookup,only:iLookTIME,iLookFORCE      ! named variables to define structure elements
+USE var_lookup,only:iLookDECISIONS            ! named variables for elements of the decision structure
 
 ! file paths
 USE summaFileManager,only:INPUT_PATH          ! path of the forcing data file
@@ -332,8 +333,14 @@ contains
  subroutine openForcingFile(iFile,infile,ncId,err,message)
  USE netcdf                                              ! netcdf capability
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
+ USE time_utils_module,only:fracDay         ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
  USE time_utils_module,only:compJulday                   ! convert calendar date to julian day
+ USE globalData,only:model_decisions                     ! model decision structure
+ USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
+ USE mDecisions_module,only:ncTime                       ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+ USE mDecisions_module,only:utcTime                      ! all times in UTC (timeOffset = longitude/15. hours)
+ USE mDecisions_module,only:localTime                    ! all times local (timeOffset = 0)
  ! dummy variables
  integer(i4b),intent(in)           :: iFile              ! index of current forcing file in forcing file list
  character(*) ,intent(in)          :: infile             ! input file
@@ -368,6 +375,17 @@ contains
                   ih_tz, imin_tz, dsec_tz,               & ! output = time zone information (hour, minute, second)
                   err,cmessage)                            ! output = error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+ select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
+  case(ncTime); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
+                                                               imin_tz, & ! time zone minute
+                                                               dsec_tz)                        ! time zone second
+  case(utcTime);   tmZoneOffsetFracDay = 0._dp
+  case(localTime); tmZoneOffsetFracDay = 0._dp
+  case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
+ end select ! (option time zone option)
+ write(*,*) "FOUND timZoneOffsetFracDay : ", tmZoneOffsetFracDay, '   ', ih_tz, '   ', imin_tz
+
 
  ! convert the reference time to days since the beginning of time
  call compjulday(iyyy,im,id,ih,imin,dsec,                & ! output = year, month, day, hour, minute, second
