@@ -106,7 +106,6 @@ contains
  ! loop through data structures
  do iStruct=1,nStruct
   ! check that the metadata is fully populated
-  write(*,*) trim(structInfo(iStruct)%structName)
   select case(trim(structInfo(iStruct)%structName))
    case('time');  call checkPopulated(iStruct,time_meta,err,cmessage)
    case('forc');  call checkPopulated(iStruct,forc_meta,err,cmessage)
@@ -123,7 +122,6 @@ contains
    case('deriv'); call checkPopulated(iStruct,deriv_meta,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
-  write(*,*) ''
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  end do  ! looping through data structures
 
@@ -156,7 +154,6 @@ contains
   do iVar=1,size(metadata)
 
    ! check that this variable is populated
-   write(*, *) trim(metadata(iVar)%varname), ' of ', size(metadata)
    if (trim(metadata(iVar)%varname)=='empty') then
     write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar, ' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return

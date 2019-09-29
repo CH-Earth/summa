@@ -21,7 +21,8 @@ RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y \
 ENV F_MASTER /code
 ENV FC gfortran
 ENV FC_EXE gfortran
-ENV FC_ENV gfortran-6-docker
+ENV INCLUDES -I/usr/include
+ENV LIBRARIES '-L/usr/lib -lnetcdff -llapack -lblas'
 
 # add code directory
 WORKDIR /code
