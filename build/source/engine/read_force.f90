@@ -384,7 +384,6 @@ contains
   case(localTime); tmZoneOffsetFracDay = 0._dp
   case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
  end select ! (option time zone option)
- write(*,*) "FOUND timZoneOffsetFracDay : ", tmZoneOffsetFracDay, '   ', ih_tz, '   ', imin_tz
 
 
  ! convert the reference time to days since the beginning of time
