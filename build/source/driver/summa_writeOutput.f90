@@ -196,7 +196,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! print progress
- if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var
+ if(printProgress) write(*,'(i4,1x,5(i2,1x))') timeStruct%var(1:5)
 
  ! *****************************************************************************
  ! *** define summa output files

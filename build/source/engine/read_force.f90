@@ -52,6 +52,7 @@ USE globalData,only:nHRUfile                  ! number of days in the data file
 ! global metadata
 USE globalData,only:time_meta,forc_meta       ! metadata structures
 USE var_lookup,only:iLookTIME,iLookFORCE      ! named variables to define structure elements
+USE var_lookup,only:iLookDECISIONS            ! named variables for elements of the decision structure
 
 ! file paths
 USE summaFileManager,only:INPUT_PATH          ! path of the forcing data file
@@ -118,7 +119,7 @@ contains
  if(ncid==integerMissing)then ! file is closed if ncid==integerMissing
 
   ! identify the first time step
-  call getFirstTimestep(currentJulday,iFile,iRead,ncid,err,cmessage) 
+  call getFirstTimestep(currentJulday,iFile,iRead,ncid,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end if  ! if the file is not yet open
@@ -324,7 +325,7 @@ contains
 
  end do ! end of search for model first time step in forcing files
 
- end subroutine getFirstTimestep 
+ end subroutine getFirstTimestep
 
  ! *************************************************************************
  ! * open the NetCDF forcing file and get the time information
@@ -332,8 +333,14 @@ contains
  subroutine openForcingFile(iFile,infile,ncId,err,message)
  USE netcdf                                              ! netcdf capability
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
+ USE time_utils_module,only:fracDay         ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
  USE time_utils_module,only:compJulday                   ! convert calendar date to julian day
+ USE globalData,only:model_decisions                     ! model decision structure
+ USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
+ USE mDecisions_module,only:ncTime                       ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+ USE mDecisions_module,only:utcTime                      ! all times in UTC (timeOffset = longitude/15. hours)
+ USE mDecisions_module,only:localTime                    ! all times local (timeOffset = 0)
  ! dummy variables
  integer(i4b),intent(in)           :: iFile              ! index of current forcing file in forcing file list
  character(*) ,intent(in)          :: infile             ! input file
@@ -343,7 +350,8 @@ contains
  ! local variables
  character(len=256)                :: cmessage           ! error message for downwind routine
  integer(i4b)                      :: iyyy,im,id,ih,imin ! date
- real(dp)                          :: dsec               ! seconds
+ integer(i4b)                      :: ih_tz,imin_tz      ! time zone information
+ real(dp)                          :: dsec,dsec_tz       ! seconds
  integer(i4b)                      :: varId              ! variable identifier
  integer(i4b)                      :: mode               ! netcdf file mode
  integer(i4b)                      :: attLen             ! attribute length
@@ -364,8 +372,19 @@ contains
  ! define the reference time for the model simulation
  call extractTime(refTimeString,                         & ! input  = units string for time data
                   iyyy,im,id,ih,imin,dsec,               & ! output = year, month, day, hour, minute, second
+                  ih_tz, imin_tz, dsec_tz,               & ! output = time zone information (hour, minute, second)
                   err,cmessage)                            ! output = error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+ select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
+  case(ncTime); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
+                                                               imin_tz, & ! time zone minute
+                                                               dsec_tz)                        ! time zone second
+  case(utcTime);   tmZoneOffsetFracDay = 0._dp
+  case(localTime); tmZoneOffsetFracDay = 0._dp
+  case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
+ end select ! (option time zone option)
+
 
  ! convert the reference time to days since the beginning of time
  call compjulday(iyyy,im,id,ih,imin,dsec,                & ! output = year, month, day, hour, minute, second
@@ -383,7 +402,7 @@ contains
  end subroutine openForcingFile
 
  ! *************************************************************************
- ! * read the NetCDF forcing data 
+ ! * read the NetCDF forcing data
  ! *************************************************************************
  subroutine readForcingData(currentJulday,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
  USE netcdf                                            ! netcdf capability
@@ -448,8 +467,8 @@ contains
                  err,cmessage)                     ! output = error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
- ! check to see if any of the time data is missing
- if(any(time_data(:)==integerMissing))then
+ ! check to see if any of the time data is missing -- note that it is OK if ih_tz or imin_tz are missing
+ if((time_data(iLookTime%iyyy)==integerMissing) .or. (time_data(iLookTime%im)==integerMissing) .or. (time_data(iLookTime%id)==integerMissing) .or. (time_data(iLookTime%ih)==integerMissing) .or. (time_data(iLookTime%imin)==integerMissing))then
   do iline=1,size(time_data)
    if(time_data(iline)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; end if
   end do
