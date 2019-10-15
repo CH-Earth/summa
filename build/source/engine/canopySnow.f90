@@ -104,7 +104,8 @@ contains
  ixSnowInterception        => model_decisions(iLookDECISIONS%snowIncept)%iDecision,        & ! intent(in): [i4b] choice of option to determine maximum snow interception capacity
 
  ! model forcing data
- scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): [dp] air temperature (K)
+ scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): [dp] air temperature (K) 
+ scalarWindspd             => forc_data%var(iLookFORCE%windspd),                           & ! intent(in): [dp] wind speed (m s-1)
 
  ! model parameters
  refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1),        & ! intent(in): [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
@@ -116,10 +117,14 @@ contains
 
  ! model prognostic variables (input/output)
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
+ scalarSWE                 => prog_data%var(iLookPROG%scalarSWE)%dat(1),                   & ! intent(inout): [dp] snow water equivalent (kg m-2)
 
  ! model fluxes (input)
  scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
  scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
+ scalarWindspdCanopyTop    => flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),      & ! intent(in): [dp] windspeed at the top of the canopy (m s-1)
+ scalarWindspdCanopyBottom => flux_data%var(iLookFlux%scalarWindspdCanopyBottom)%dat(1),   & ! intent(in): [dp] windspeed at the height of the bottom of the canopy (m s-1)
+ scalarCanopyEvaporation   => flux_data%var(iLookFlux%scalarCanopyEvaporation)%dat(1),     & ! intent(in): [dp] canopy evaporation/condensation (kg m-2 s-1)
 
  ! model variables (output)
  scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),       & ! intent(out): [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -192,6 +197,23 @@ contains
      leafInterceptCapSnow = refInterceptCapSnow*leafScaleFactor
      !write(*,'(a,1x,2(f20.10,1x))') 'airtemp_degC, leafInterceptCapSnow = ', airtemp_degC, leafInterceptCapSnow
      !pause 'in stickysnow'
+
+    ! * option 3: interception unloading as a function of windspeed and temperature (e.g., Roesch et al. 2001)
+    case(windySnow)
+    ! constants used in Roesch at al. 2001 for temperature and wind-unloading functions
+    C_1 = -270.15_dp   ! (K)
+    C_2 = .0000187_dp  ! (K s-1)
+    C_3 = .0000156_dp  ! (m)
+
+    ! calculate the windspeed at the average height in the canopy, or 10 m above the ground
+    scalarWindspdCanopyAvg = (scalarWindspdCanopyTop + scalarWindspdCanopyBottom) / 2._dp  ! (m s-1)
+
+    ! define the temperature and wind unloading functions, Eq. 14 & 15
+    tempUnloadingFun = (C_1 + scalarAirtemp) / C_2   ! (s-1)
+    windUnloadingFun = scalarWindspdCanopyAvg / C_3  ! (s-1)
+
+    ! define the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13
+    leafInterceptCapSnow = refInterceptCapSnow - scalarSnowfall * (tempUnloadingFun + windUnloadingFun) - scalarCanopyEvaporation  ! (kg m-2 s-1)
 
     ! check we found the case
     case default
