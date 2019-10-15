@@ -467,7 +467,7 @@ contains
  select case(trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision))
   case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
   case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
-  case('windSnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = windSnow            ! interception as a function of temperature and wind-induced unloading  
+  case('windySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = windySnow          ! interception as a function of temperature and wind-induced unloading  
    case default
    err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
  end select
