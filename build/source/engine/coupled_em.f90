@@ -122,7 +122,8 @@ contains
  ! look-up values for the maximum interception capacity
  USE mDecisions_module,only:         &
                        stickySnow,   &      ! maximum interception capacity an increasing function of temerature
-                       lightSnow            ! maximum interception capacity an inverse function of new snow density
+                       lightSnow,    &      ! maximum interception capacity an inverse function of new snow density
+                       windySnow            ! maximum interception capacity an inverse of temperature and wind-unloading
  implicit none
  ! model control
  integer(i4b),intent(in)              :: hruId                  ! hruId
