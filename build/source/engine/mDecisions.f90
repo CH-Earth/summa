@@ -101,7 +101,8 @@ integer(i4b),parameter,public :: simplExp             = 191    ! simple exponent
 integer(i4b),parameter,public :: difTrans             = 192    ! parameterized as a function of diffuse transmissivity
 ! look-up values for the choice of parameterization for snow interception
 integer(i4b),parameter,public :: stickySnow           = 201    ! maximum interception capacity an increasing function of temerature
-integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow densit
+integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow density
+integer(i4b),parameter,public :: windySnow            = 203    ! maximum interception capacity an inverse of temperature and wind-unloading
 ! look-up values for the choice of wind profile
 integer(i4b),parameter,public :: exponential          = 211    ! exponential wind profile extends to the surface
 integer(i4b),parameter,public :: logBelowCanopy       = 212    ! logarithmic profile below the vegetation canopy
@@ -467,7 +468,7 @@ contains
  select case(trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision))
   case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
   case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
-  case('windySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = windySnow          ! interception as a function of temperature and wind-induced unloading  
+  case('windySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = windySnow          ! maximum interception capacity an inverse of temperature and wind-unloading  
    case default
    err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
  end select
