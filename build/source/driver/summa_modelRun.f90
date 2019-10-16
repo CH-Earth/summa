@@ -30,6 +30,7 @@ USE globalData,only:yes,no           ! .true. and .false.
 USE var_lookup,only:iLookTIME        ! named variables for time data structure
 USE var_lookup,only:iLookDIAG        ! look-up values for local column model diagnostic variables
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
+USE summa_util,only:handle_err
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -69,13 +70,12 @@ contains
  character(LEN=256)                    :: cmessage              ! error message of downwind routine
  integer(i4b)                          :: iHRU                  ! HRU index
  integer(i4b)                          :: iGRU,jGRU,kGRU        ! GRU indices
+ integer(i4b)                          :: nThreads                   ! number of threads
  ! local variables: veg phenology
  logical(lgt)                          :: computeVegFluxFlag    ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp)                              :: notUsed_canopyDepth   ! NOT USED: canopy depth (m)
  real(dp)                              :: notUsed_exposedVAI    ! NOT USED: exposed vegetation area index (m2 m-2)
  ! local variables: parallelize the model run
- integer(i4b)                          :: omp_get_num_threads   ! get the number of threads
- integer(i4b)                          :: nThreads              ! number of threads
  integer(i4b), allocatable             :: ixExpense(:)          ! ranked index GRU w.r.t. computational expense
  integer(i4b), allocatable             :: totalFluxCalls(:)     ! total number of flux calls for each GRU
  ! local variables: timing information
@@ -185,51 +185,65 @@ contains
  ! initialize the GRU count
  ! NOTE: this needs to be outside the parallel section so it is not reinitialized by different threads
  kGRU=0
+ end associate summaVars
 
  ! initialize the time that the openMP section starts
  call system_clock(openMPstart)
 
  ! ----- use openMP directives to run GRUs in parallel -------------------------
-
  ! start of parallel section: define shared and private structure elements
- !$omp parallel default(none) &
- !$omp          private(iGRU, jGRU)  & ! GRU indices are private for a given thread
- !$omp          shared(openMPstart, openMPend, nThreads)   & ! access constant variables
- !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
- !$omp          shared(gru_struc, dt_init, computeVegFlux)       & ! subroutine inputs
- !$omp          shared(timeStruct, typeStruct, attrStruct, mparStruct, indxStruct, &
- !$omp                 forcStruct, progStruct, diagStruct, fluxStruct, bvarStruct) &
- !$omp          private(err, message) &
- !$omp          firstprivate(nGRU)
+   !!$omp parallel
+  !$omp parallel  default(none) &
+  !$omp          private(iGRU, jGRU) &  ! GRU indices are private for a given thread
+  !$omp          shared(openMPstart, openMPend)   & ! access constant variables
+  !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
+  !$omp          shared(summa1_struc, gru_struc) &
+  !$omp          private(err, cmessage)
+ ! nThreads = 1
+ ! !$ nThreads = omp_get_num_threads()
+ ! associate to elements in the data structur, gru_struce
+ ! need to associate again for the parallelism to work
+ summaVars2: associate(&
 
- nThreads = 1
- !$ nThreads = omp_get_num_threads()
+  ! primary data structures (scalars)
+  timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
+  forcStruct           => summa1_struc%forcStruct          , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+  attrStruct           => summa1_struc%attrStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+  typeStruct           => summa1_struc%typeStruct          , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
+  idStruct             => summa1_struc%idStruct            , & ! x%gru(:)%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
 
- ! use dynamic scheduling with chunk size of one:
- !  -- new chunks are assigned to threads when they become available
- !  -- start with the more expensive GRUs, and add the less expensive GRUs as threads come available
+  ! primary data structures (variable length vectors)
+  indxStruct           => summa1_struc%indxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
+  mparStruct           => summa1_struc%mparStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model parameters
+  progStruct           => summa1_struc%progStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
+  diagStruct           => summa1_struc%diagStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
+  fluxStruct           => summa1_struc%fluxStruct          , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
 
- !$omp do schedule(dynamic, 1)   ! chunk size of 1
+  ! basin-average structures
+  bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
+  bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
+
+  ! run time variables
+  greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
+  computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+  dt_init              => summa1_struc%dt_init             , & ! used to initialize the length of the sub-step for each HRU
+  nGRU                 => summa1_struc%nGRU                  & ! number of grouped response units
+
+ ) ! assignment to variables in the data structures
+
+ !$omp do schedule(dynamic, 1)
  do jGRU=1,nGRU  ! loop through GRUs
 
   !----- process GRUs in order of computational expense -------------------------
-
   !$omp critical(setGRU)
-
   ! assign expensive GRUs to threads that enter first
   kGRU = kGRU+1
   iGRU = ixExpense(kGRU)
-
   ! get the time that the GRU started
   call system_clock( timeGRUstart(iGRU) )
-
-  ! print progress
-  !write(*,'(a,1x,5(i4,1x),f20.10,1x)') 'iGRU, jGRU, kGRU, nThreads = ', iGRU, jGRU, kGRU, nThreads, timeGRU(iGRU)
-
   !$omp end critical(setGRU)
 
   !----- run simulation for a single GRU ----------------------------------------
-
   call run_oneGRU(&
                   ! model control
                   gru_struc(iGRU),              & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers)
@@ -251,22 +265,20 @@ contains
                   ! error control
                   err,cmessage)                   ! intent(out):   error control
 
-  !----- save timing information ------------------------------------------------
-
-  !$omp critical(saveTiming)
-
   ! check errors
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  call handle_err(err, cmessage)
 
+  !----- save timing information ------------------------------------------------
+  !$omp critical(saveTiming)
   ! save timing information
   call system_clock(openMPend)
   timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(dp))
   timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(dp))
-
   !$omp end critical(saveTiming)
 
  end do  ! (looping through GRUs)
  !$omp end do
+ end associate summaVars2
  !$omp end parallel
 
  ! identify the end of the physics
@@ -280,7 +292,6 @@ contains
  if(err/=0)then; message=trim(message)//'unable to deallocate space for GRU timing'; return; endif
 
  ! end associate statements
- end associate summaVars
 
  end subroutine summa_runPhysics
 
