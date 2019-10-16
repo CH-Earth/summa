@@ -125,6 +125,7 @@ contains
 
  ! FIELD 3: Advance to the ih_tz:imin_tz string
  istart=nsub+1
+ if(istart>n) return  ! no more time info
 
  ! eat all the whitespace at the start of the string
  do while (refdate(istart:istart)==" ")
