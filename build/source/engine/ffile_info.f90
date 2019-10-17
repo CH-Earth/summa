@@ -22,6 +22,7 @@ module ffile_info_module
 USE nrtype
 USE netcdf
 USE globalData,only:integerMissing
+USE globalData,only:ixHRUfile_min,ixHRUfile_max
 implicit none
 private
 public::ffile_info
@@ -34,6 +35,7 @@ contains
  subroutine ffile_info(nGRU,err,message)
  ! used to read metadata on the forcing data file
  USE ascii_util_module,only:file_open
+ USE ascii_util_module,only:linewidth
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
  USE netcdf_util_module,only:netcdf_err      ! netcdf error handling function
  USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
@@ -47,33 +49,33 @@ contains
  USE globalData,only:gru_struc               ! gru-hru mapping structure
  implicit none
  ! define input & output
- integer(i4b),intent(in)              :: nGRU           ! number of grouped response units
- integer(i4b),intent(out)             :: err            ! error code
- character(*),intent(out)             :: message        ! error message
+ integer(i4b),intent(in)              :: nGRU             ! number of grouped response units
+ integer(i4b),intent(out)             :: err              ! error code
+ character(*),intent(out)             :: message          ! error message
  ! define local variables
  ! netcdf file i/o related
- integer(i4b)                         :: ncid           ! netcdf file id
- integer(i4b)                         :: mode           ! netCDF file open mode
- integer(i4b)                         :: varid          ! netcdf variable id
- integer(i4b)                         :: dimId          ! netcdf dimension id
- character(LEN=nf90_max_name)         :: varName        ! character array of netcdf variable name
- integer(i4b)                         :: iNC            ! index of a variable in netcdf file
- integer(i4b)                         :: nvar           ! number of variables in netcdf local attribute file
+ integer(i4b)                         :: ncid             ! netcdf file id
+ integer(i4b)                         :: mode             ! netCDF file open mode
+ integer(i4b)                         :: varid            ! netcdf variable id
+ integer(i4b)                         :: dimId            ! netcdf dimension id
+ character(LEN=nf90_max_name)         :: varName          ! character array of netcdf variable name
+ integer(i4b)                         :: iNC              ! index of a variable in netcdf file
+ integer(i4b)                         :: nvar             ! number of variables in netcdf local attribute file
  ! the rest
- character(LEN=1024),allocatable      :: dataLines(:)   ! vector of lines of information (non-comment lines)
- character(len=256)                   :: cmessage       ! error message for downwind routine
- character(LEN=256)                   :: infile         ! input filename
- integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
- character(LEN=256)                   :: filenameData   ! name of forcing datafile
- integer(i4b)                         :: ivar           ! index of model variable
- integer(i4b)                         :: iFile          ! counter for forcing files
- integer(i4b)                         :: nFile          ! number of forcing files in forcing file list
- integer(i4b)                         :: file_nHRU      ! number of HRUs in current forcing file
- integer(i4b)                         :: nForcing       ! number of forcing variables
- integer(i4b)                         :: iGRU,localHRU  ! index of GRU and HRU
- integer(i4b)                         :: ncHruId(1)     ! hruID from the forcing files
- real(dp)                             :: dataStep_iFile ! data step for a given forcing data file
- logical(lgt)                         :: xist           ! .TRUE. if the file exists
+ character(LEN=linewidth),allocatable :: dataLines(:)     ! vector of lines of information (non-comment lines)
+ character(len=256)                   :: cmessage         ! error message for downwind routine
+ character(LEN=256)                   :: infile           ! input filename
+ integer(i4b)                         :: unt              ! file unit (free unit output from file_open)
+ character(LEN=256)                   :: filenameData     ! name of forcing datafile
+ integer(i4b)                         :: ivar             ! index of model variable
+ integer(i4b)                         :: iFile            ! counter for forcing files
+ integer(i4b)                         :: nFile            ! number of forcing files in forcing file list
+ integer(i4b)                         :: file_nHRU        ! number of HRUs in current forcing file
+ integer(i4b)                         :: nForcing         ! number of forcing variables
+ integer(i4b)                         :: iGRU,localHRU_ix ! index of GRU and HRU
+ integer(8)                           :: ncHruId(1)       ! hruID from the forcing files
+ real(dp)                             :: dataStep_iFile   ! data step for a given forcing data file
+ logical(lgt)                         :: xist             ! .TRUE. if the file exists
 
  ! Start procedure here
  err=0; message="ffile_info/"
@@ -97,7 +99,7 @@ contains
  allocate(forcFileInfo(nFile), stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for forcFileInfo'; return; end if
 
- ! poputate the forcingInfo structure with filenames 
+ ! poputate the forcingInfo structure with filenames
  do iFile=1,nFile
   ! split the line into "words" (expect one word: the file describing forcing data for that index)
   read(dataLines(iFile),*,iostat=err) filenameData
@@ -138,7 +140,7 @@ contains
    message=trim(message)//"FileNotFound[file='"//trim(infile)//"']"
    err=10; return
   end if
-  
+
   ! open file
   mode=nf90_NoWrite
   call nc_file_open(trim(infile), mode, ncid, err, cmessage)
@@ -151,9 +153,19 @@ contains
   ! set nVar attribute
   forcFileInfo(iFile)%nVars = nVar
 
+  ! allocate space
+  allocate(forcFileInfo(iFile)%var_ix(nVar), stat=err)
+  if(err/=0)then
+   message=trim(message)//'problem allocating space for structure element'
+   err=20; return
+  endif
+
+  ! initialize data structure
+  forcFileInfo(iFile)%var_ix(:) = integerMissing
+
   ! inquire nhru dimension size
   err = nf90_inq_dimid(ncid,'hru',dimId);                 if(err/=0)then; message=trim(message)//'cannot find dimension hru'; return; endif
-  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif 
+  err = nf90_inquire_dimension(ncid,dimId,len=file_nHRU); if(err/=0)then; message=trim(message)//'cannot read dimension hru'; return; endif
 
   ! inquire time dimension size
   err = nf90_inq_dimid(ncid,'time',dimId);                                     if(err/=0)then; message=trim(message)//'cannot find dimension time'; return; end if
@@ -162,7 +174,7 @@ contains
   ! loop through all variables in netcdf file, check to see if everything needed to run the model exists and data_step is correct
   do iNC=1,nVar
 
-   ! inqure about current variable name, type, number of dimensions
+   ! inquire about current variable name, type, number of dimensions
    err = nf90_inquire_variable(ncid,iNC,name=varName)
    if(err/=0)then; message=trim(message)//'problem inquiring variable: '//trim(varName); return; end if
 
@@ -181,11 +193,13 @@ contains
      err = nf90_inq_varid(ncid, trim(varName), forcFileInfo(iFile)%data_id(ivar))
      if(err/=0)then; message=trim(message)//"problem inquiring forcing variable[var="//trim(varName)//"]"; return; end if
 
-     ! put variable name in forcing file metadata structure
-     forcFileInfo(iFile)%varName(ivar) = trim(varName)
+     ! put variable index of the forcing structure in the metadata structure
+     if(trim(varName)/='time')then
+      forcFileInfo(iFile)%var_ix(iNC)   = ivar
+      forcFileInfo(iFile)%varName(ivar) = trim(varName)
 
      ! get first time from file, place into forcFileInfo
-     if(trim(varname)=='time')then
+     else
       err = nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),forcFileInfo(iFile)%firstJulDay,start=(/1/))
       if(err/=0)then; message=trim(message)//'problem reading first Julian day'; return; end if
      end if  ! if the variable name is time
@@ -214,20 +228,26 @@ contains
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
 
+     ixHRUfile_min=huge(1)
+     ixHRUfile_max=0
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
-      do localHRU=1,gru_struc(iGRU)%hruCount
-       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU)%hru_nc/),count=(/1/))
-       if(gru_struc(iGRU)%hruInfo(localHRU)%hru_id /= ncHruId(1))then
-        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_nc,' - ',  &
-            ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU)%hru_id, ' in file ', trim(infile)
+      do localHRU_ix=1,gru_struc(iGRU)%hruCount
+       ! check the HRU is what we expect
+       err = nf90_get_var(ncid,varId,ncHruId,start=(/gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc/),count=(/1/))
+       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_id /= ncHruId(1))then
+        write(message,'(a,i0,a,i0,a,i0,a,a)') trim(message)//'hruId for global HRU: ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc,' - ',  &
+            ncHruId(1), ' differs from the expected: ',gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_id, ' in file ', trim(infile)
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
+       ! save the index of the minimum and maximum HRUs in the file
+       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
       end do
      end do
-  
+
     ! OK to have additional variables in the forcing file that are not used
     case default; cycle
    end select  ! select variable name
@@ -239,6 +259,10 @@ contains
     if(forcFileInfo(iFile)%data_id(iVar)==integerMissing)then; err=40; message=trim(message)//"variable missing [var='"//trim(forcFileInfo(iFile)%varname(iVar))//"']"; return; end if
    end do
   end if
+
+  ! close file
+  err = nf90_close(ncid)
+  if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
 
  end do ! (loop through files)
 

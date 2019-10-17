@@ -30,16 +30,20 @@ USE data_types,only:&
                     ilength,             & ! var%dat
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
+                    var_i8,              & ! x%var(:)            integer(8)
                     var_d,               & ! x%var(:)            (dp)
+                    var_flagVec,         & ! x%var(:)%dat        (logical)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
                     var_dlength,         & ! x%var(:)%dat        (dp)
                     ! gru dimension
                     gru_int,             & ! x%gru(:)%var(:)     (i4b)
+                    gru_int8,            & ! x%gru(:)%var(:)     integer(8)
                     gru_double,          & ! x%gru(:)%var(:)     (dp)
                     gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
                     gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
+                    gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
                     gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
@@ -48,9 +52,14 @@ USE data_types,only:&
 USE data_types,only:var_info               ! data type for metadata
 
 ! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
+USE globalData,only:integerMissing         ! missing integer
+USE globalData,only:realMissing            ! missing double precision number
 
+! access variable types
+USE var_lookup,only:iLookVarType           ! look up structure for variable typed
+USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
+
+! privacy
 implicit none
 private
 public::allocGlobal
@@ -64,10 +73,11 @@ integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay
 contains
 
  ! ************************************************************************************************
- ! public subroutine allocGlobal: allocate space for global data structures 
+ ! public subroutine allocGlobal: allocate space for global data structures
  ! ************************************************************************************************
  subroutine allocGlobal(metaStruct,dataStruct,err,message)
- USE globalData,only: gru_struc                    ! gru-hru mapping structures
+ ! NOTE: safety -- ensure only used in allocGlobal
+ USE globalData,only: gru_struc     ! gru-hru mapping structures
  implicit none
  ! input
  type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
@@ -77,32 +87,34 @@ contains
  character(*),intent(out)        :: message        ! error message
  ! local variables
  logical(lgt)                    :: check          ! .true. if structure is already allocated
- integer(i4b)                    :: iHRU           ! loop through HRUs
- integer(i4b)                    :: iGRU           ! loop through GRUs
+ integer(i4b)                    :: iHRU           ! loop index through HRUs
+ integer(i4b)                    :: iGRU           ! loop index through GRUs
  integer(i4b)                    :: nGRU           ! number of GRUs
  logical(lgt)                    :: spatial        ! spatial flag
  character(len=256)              :: cmessage       ! error message of the downwind routine
  ! initialize error control
  err=0; message='allocGlobal/'
- 
+
  ! initialize allocation check
  check=.false.
- 
+
  ! get the number of GRUs
  nGRU = size(gru_struc)
 
  ! * allocate GRU dimension
  select type(dataStruct)
   ! gru dimension only
-  type is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_int);           if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_int8);          if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_intVec);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_double);        if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_doubleVec);     if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   ! gru+hru dimensions
-  type is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
-  type is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_int);       if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_int8);      if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+  class is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
  end select
 
  ! check errors
@@ -113,10 +125,11 @@ contains
  do iGRU=1,nGRU
   ! allocate the HRU dimension
   select type(dataStruct)
-   type is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   type is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   type is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
-   type is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_int);       if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_int8);      if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+   class is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
    class default  ! do nothing: It is acceptable to not be any of these specified cases
   end select
   ! check errors
@@ -140,10 +153,11 @@ contains
 
    ! allocate space for structures WITH an HRU dimension
    select type(dataStruct)
-    type is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    type is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    type is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
-    type is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_int);       call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_int8);      call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
     class default; exit hruLoop
    end select
 
@@ -157,8 +171,8 @@ contains
 
   ! allocate space for structures *WITHOUT* an HRU dimension
   select type(dataStruct)
-   type is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
-   type is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
+   class is (gru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU),nSnow=0,nSoil=0,err=err,message=cmessage); spatial=.true.
    class default
     if(.not.spatial) exit gruLoop  ! no need to allocate spatial dimensions if none exist for a given variable
     cycle gruLoop  ! can have an HRU dimension if we get to here
@@ -171,14 +185,15 @@ contains
 
  ! * allocate local data structures where there is no spatial dimension
  select type(dataStruct)
-  type is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage) 
-  type is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  type is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
-  type is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_i);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_i8);        call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_d);         call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_ilength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
+  class is (var_dlength);   call allocLocal(metaStruct,dataStruct,err=err,message=cmessage)
   ! check identified the data type
   class default; if(.not.spatial)then; err=20; message=trim(message)//'unable to identify derived data type'; return; end if
  end select
- 
+
  ! error check
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
@@ -219,8 +234,9 @@ contains
  ! It is possible that nSnow and nSoil are actually needed here, so we return an error if the optional arguments are missing when needed
  else
   select type(dataStruct)
-   type is (var_ilength); err=20
-   type is (var_dlength); err=20
+   class is (var_flagVec); err=20
+   class is (var_ilength); err=20
+   class is (var_dlength); err=20
   end select
   if(err/=0)then; message=trim(message)//'expect nSnow and nSoil to be present for variable-length data structures'; return; end if
  end if
@@ -230,10 +246,12 @@ contains
 
  ! allocate the dimension for model variables
  select type(dataStruct)
-  type is (var_i);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
-  type is (var_d);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
-  type is (var_ilength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
-  type is (var_dlength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
+  class is (var_i);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
+  class is (var_i8);      if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
+  class is (var_d);       if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if; return
+  class is (var_flagVec); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
+  class is (var_ilength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
+  class is (var_dlength); if(allocated(dataStruct%var))then; check=.true.; else; allocate(dataStruct%var(nVars),stat=err); end if
   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
  end select
  ! check errors
@@ -242,11 +260,12 @@ contains
 
  ! allocate the dimension for model data
  select type(dataStruct)
-  type is (var_ilength); call allocateDat_int(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
-  type is (var_dlength); call allocateDat_dp( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage) 
+  class is (var_flagVec); call allocateDat_flag(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
+  class is (var_ilength); call allocateDat_int( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
+  class is (var_dlength); call allocateDat_dp(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
- 
+
  ! check errors
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -286,16 +305,16 @@ contains
 
  ! check that the input data structure is allocated
  select type(dataStructOrig)
-  type is (var_ilength); err=merge(0, 20, allocated(dataStructOrig%var))
-  type is (var_dlength); err=merge(0, 20, allocated(dataStructOrig%var))
+  class is (var_ilength); err=merge(0, 20, allocated(dataStructOrig%var))
+  class is (var_dlength); err=merge(0, 20, allocated(dataStructOrig%var))
   class default; err=20; message=trim(message)//'unable to identify type of data structure'; return
  end select
  if(err/=0)then; message=trim(message)//'input data structure dataStructOrig%var'; return; end if
 
  ! allocate the dimension for model variables
  select type(dataStructNew)
-  type is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err) 
-  type is (var_dlength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
+  class is (var_ilength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
+  class is (var_dlength); if(.not.allocated(dataStructNew%var)) allocate(dataStructNew%var(nVars),stat=err)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the variable dimension'; return
  end select
  if(err/=0)then; message=trim(message)//'problem allocating space for dataStructNew%var'; return; end if
@@ -303,20 +322,20 @@ contains
  ! loop through variables
  do iVar=1,nVars
 
-  ! resize and copy data structures 
+  ! resize and copy data structures
   select type(dataStructOrig)
 
    ! double precision
-   type is (var_dlength)
-    select type(dataStructNew) 
-     type is (var_dlength); call copyStruct_dp( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
+   class is (var_dlength)
+    select type(dataStructNew)
+     class is (var_dlength); call copyStruct_dp( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
      class default; err=20; message=trim(message)//'mismatch data structure for variable'//trim(metaStruct(iVar)%varname); return
     end select
 
    ! integer
-   type is (var_ilength)
+   class is (var_ilength)
     select type(dataStructNew)
-     type is (var_ilength); call copyStruct_i4b(dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
+     class is (var_ilength); call copyStruct_i4b(dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
      class default; err=20; message=trim(message)//'mismatch data structure for variable'//trim(metaStruct(iVar)%varname); return
     end select
 
@@ -330,7 +349,7 @@ contains
  end subroutine resizeData
 
  ! ************************************************************************************************
- ! private subroutine copyStruct_dp: copy a given data structure 
+ ! private subroutine copyStruct_dp: copy a given data structure
  ! ************************************************************************************************
  subroutine copyStruct_dp(varOrig,varNew,copy,err,message)
  ! dummy variables
@@ -383,7 +402,7 @@ contains
  ! internal routines
  contains
 
-  ! internal subroutine getVarInfo: get information from a given data structure 
+  ! internal subroutine getVarInfo: get information from a given data structure
   subroutine getVarInfo(var,isAllocated,lowerBound,upperBound)
   ! input
   type(dlength),intent(in)         :: var            ! data vector for a given variable
@@ -411,13 +430,13 @@ contains
    lowerBound=0
    upperBound=0
   endif ! (check allocation)
-  
+
   end subroutine getVarInfo
 
  end subroutine copyStruct_dp
 
  ! ************************************************************************************************
- ! private subroutine copyStruct_i4b: copy a given data structure 
+ ! private subroutine copyStruct_i4b: copy a given data structure
  ! ************************************************************************************************
  subroutine copyStruct_i4b(varOrig,varNew,copy,err,message)
  ! dummy variables
@@ -470,7 +489,7 @@ contains
  ! internal routines
  contains
 
-  ! internal subroutine getVarInfo: get information from a given data structure 
+  ! internal subroutine getVarInfo: get information from a given data structure
   subroutine getVarInfo(var,isAllocated,lowerBound,upperBound)
   ! input
   type(ilength),intent(in)         :: var            ! data vector for a given variable
@@ -498,7 +517,7 @@ contains
    lowerBound=0
    upperBound=0
   endif ! (check allocation)
-  
+
   end subroutine getVarInfo
 
  end subroutine copyStruct_i4b
@@ -509,8 +528,7 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_dp(metadata,nSnow,nSoil,nLayers, & ! input
                            varData,err,message)            ! output
- USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
+ ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -540,7 +558,9 @@ contains
    err=20; return
 
   ! allocate structures
-  ! NOTE: maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
+  ! NOTE: maxvarFreq is the number of possible output frequencies
+  !        -- however, this vector must store two values for the variance calculation, thus the *2 in this allocate
+  !            (need enough space in the event that variance is the desired statistic for all output frequencies)
   else
    select case(metadata(iVar)%vartype)
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -553,7 +573,7 @@ contains
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%parSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarfreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown = special (and valid) case that is allocated later (initialize with zero-length vector)
     case default
      err=40; message=trim(message)//"1. unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"
@@ -574,8 +594,6 @@ contains
  ! ************************************************************************************************
  subroutine allocateDat_int(metadata,nSnow,nSoil,nLayers, & ! input
                             varData,err,message)            ! output
- USE var_lookup,only:iLookVarType                 ! look up structure for variable typed
- USE var_lookup,only:maxvarStat                   ! allocation dimension (stats)
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
  implicit none
  ! input variables
@@ -605,7 +623,9 @@ contains
    err=20; return
 
   ! allocate structures
-  ! NOTE: maxvarStats is the number of possible output statistics, but this vector must store two values for the variance calculation, thus the +1 in this allocate.
+  ! NOTE: maxvarFreq is the number of possible output frequencies
+  !        -- however, this vector must store two values for the variance calculation, thus the *2 in this allocate
+  !            (need enough space in the event that variance is the desired statistic for all output frequencies)
   else
    select case(metadata(iVar)%vartype)
     case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
@@ -617,7 +637,7 @@ contains
     case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
     case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
     case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
-    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarStat+1),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
     case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
     case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
    end select
@@ -630,5 +650,67 @@ contains
  end do  ! looping through variables
 
  end subroutine allocateDat_int
+
+ ! ************************************************************************************************
+ ! private subroutine allocateDat_flag: initialize data dimension of the data structures
+ ! ************************************************************************************************
+ subroutine allocateDat_flag(metadata,nSnow,nSoil,nLayers, & ! input
+                             varData,err,message)            ! output
+ USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
+ implicit none
+ ! input variables
+ type(var_info),intent(in)         :: metadata(:) ! metadata structure
+ integer(i4b),intent(in)           :: nSnow       ! number of snow layers
+ integer(i4b),intent(in)           :: nSoil       ! number of soil layers
+ integer(i4b),intent(in)           :: nLayers     ! total number of soil layers in the snow+soil domian (nSnow+nSoil)
+ ! output variables
+ type(var_flagVec),intent(inout)   :: varData     ! model variables for a local HRU
+ integer(i4b),intent(out)          :: err         ! error code
+ character(*),intent(out)          :: message     ! error message
+ ! local variables
+ integer(i4b)                      :: iVar        ! variable index
+ integer(i4b)                      :: nVars       ! number of variables in the metadata structure
+ ! initialize error control
+ err=0; message='allocateDat_flag/'
+
+ ! get the number of variables in the metadata structure
+ nVars = size(metadata)
+
+ ! loop through variables in the data structure
+ do iVar=1,nVars
+
+  ! check allocated
+  if(allocated(varData%var(iVar)%dat))then
+   message=trim(message)//'variable '//trim(metadata(iVar)%varname)//' is unexpectedly allocated'
+   err=20; return
+
+  ! allocate structures
+  ! NOTE: maxvarFreq is the number of possible output frequencies
+  !        -- however, this vector must store two values for the variance calculation, thus the *2 in this allocate
+  !            (need enough space in the event that variance is the desired statistic for all output frequencies)
+  else
+   select case(metadata(iVar)%vartype)
+    case(iLookVarType%scalarv); allocate(varData%var(iVar)%dat(1),stat=err)
+    case(iLookVarType%wLength); allocate(varData%var(iVar)%dat(nBand),stat=err)
+    case(iLookVarType%midSnow); allocate(varData%var(iVar)%dat(nSnow),stat=err)
+    case(iLookVarType%midSoil); allocate(varData%var(iVar)%dat(nSoil),stat=err)
+    case(iLookVarType%midToto); allocate(varData%var(iVar)%dat(nLayers),stat=err)
+    case(iLookVarType%ifcSnow); allocate(varData%var(iVar)%dat(0:nSnow),stat=err)
+    case(iLookVarType%ifcSoil); allocate(varData%var(iVar)%dat(0:nSoil),stat=err)
+    case(iLookVarType%ifcToto); allocate(varData%var(iVar)%dat(0:nLayers),stat=err)
+    case(iLookVarType%routing); allocate(varData%var(iVar)%dat(nTimeDelay),stat=err)
+    case(iLookVarType%outstat); allocate(varData%var(iVar)%dat(maxvarFreq*2),stat=err)
+    case(iLookVarType%unknown); allocate(varData%var(iVar)%dat(0),stat=err)  ! unknown=special (and valid) case that is allocated later (initialize with zero-length vector)
+    case default; err=40; message=trim(message)//"unknownVariableType[name='"//trim(metadata(iVar)%varname)//"'; type='"//trim(get_varTypeName(metadata(iVar)%vartype))//"']"; return
+   end select
+   ! check error
+   if(err/=0)then; err=20; message=trim(message)//'problem allocating variable '//trim(metadata(iVar)%varname); return; end if
+   ! set to false
+   varData%var(iVar)%dat(:) = .false.
+  end if  ! if not allocated
+
+ end do  ! looping through variables
+
+ end subroutine allocateDat_flag
 
 end module allocspace_module

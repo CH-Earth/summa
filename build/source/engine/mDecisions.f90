@@ -24,6 +24,10 @@ USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
+! look-up values for the choice of the time zone information
+integer(i4b),parameter,public :: ncTime               =   1    ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+integer(i4b),parameter,public :: utcTime              =   2    ! all times in UTC (timeOffset = longitude/15. hours)
+integer(i4b),parameter,public :: localTime            =   3    ! all times local (timeOffset = 0)
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance
 integer(i4b),parameter,public :: NoahType             =   1    ! thresholded linear function of volumetric liquid water content
 integer(i4b),parameter,public :: CLM_Type             =   2    ! thresholded linear function of matric head
@@ -35,7 +39,7 @@ integer(i4b),parameter,public :: simpleResistance     =   3    ! simple resistan
 integer(i4b),parameter,public :: BallBerryFlex        =   4    ! flexible Ball-Berry scheme
 integer(i4b),parameter,public :: BallBerryTest        =   5    ! flexible Ball-Berry scheme (testing)
 ! look-up values to define leaf temperature controls on photosynthesis + stomatal resistance
-integer(i4b),parameter,public :: q10Func              =  11    ! the q10 function used in CLM4 and Noah-MP 
+integer(i4b),parameter,public :: q10Func              =  11    ! the q10 function used in CLM4 and Noah-MP
 integer(i4b),parameter,public :: Arrhenius            =  12    ! the Arrhenious functions used in CLM5 and Cable
 ! look-up values to define humidity controls on stomatal resistance
 integer(i4b),parameter,public :: humidLeafSurface     =  21    ! humidity at the leaf surface [Bonan et al., 2011]
@@ -91,7 +95,7 @@ integer(i4b),parameter,public :: funcBottomHead       = 163    ! function of mat
 integer(i4b),parameter,public :: freeDrainage         = 164    ! free drainage
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 integer(i4b),parameter,public :: Raupach_BLM1994      = 171    ! Raupach (BLM 1994) "Simplified expressions..."
-integer(i4b),parameter,public :: CM_QJRMS1998         = 172    ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+integer(i4b),parameter,public :: CM_QJRMS1988         = 172    ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
 integer(i4b),parameter,public :: vegTypeTable         = 173    ! constant parameters dependent on the vegetation type
 ! look-up values for the choice of parameterization for the rooting profile
 integer(i4b),parameter,public :: powerLaw             = 181    ! simple power-law rooting profile
@@ -142,7 +146,7 @@ integer(i4b),parameter,public :: timeDelay            = 301    ! time-delay hist
 integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous routing
 ! look-up values for the choice of new snow density method
 integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
-integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976 
+integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976
 integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
 integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 ! -----------------------------------------------------------------------------------------------------------
@@ -156,6 +160,8 @@ contains
  ! model time structures
  USE multiconst,only:secprday               ! number of seconds in a day
  USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
+ USE globalData,only:refTime,refJulday      ! reference time
+ USE globalData,only:oldTime                ! time from the previous time step
  USE globalData,only:startTime,finshTime    ! start/end time of simulation
  USE globalData,only:dJulianStart           ! julian day of start time of simulation
  USE globalData,only:dJulianFinsh           ! julian day of end time of simulation
@@ -164,6 +170,9 @@ contains
  ! model decision structures
  USE globaldata,only:model_decisions        ! model decision structure
  USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+ ! forcing metadata
+ USE globalData,only:forc_meta              ! metadata structures
+ USE var_lookup,only:iLookFORCE             ! named variables to define structure elements
  ! Noah-MP decision structures
  USE noahmp_globals,only:DVEG               ! decision for dynamic vegetation
  USE noahmp_globals,only:OPT_RAD            ! decision for canopy radiation
@@ -171,13 +180,14 @@ contains
  ! time utility programs
  USE time_utils_module,only:extractTime     ! extract time info from units string
  USE time_utils_module,only:compjulday      ! compute the julian day
+ USE time_utils_module,only:fracDay         ! compute fractional day
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
- real(dp)                             :: dsec           ! second
+ real(dp)                             :: dsec,dsec_tz   ! second
  ! initialize error control
  err=0; message='mDecisions/'
 
@@ -190,6 +200,42 @@ contains
 
  ! -------------------------------------------------------------------------------------------------
 
+ ! identify the choice of the time zone option
+ select case(trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision))
+  case('ncTime'   ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = ncTime       ! time zone information from NetCDF file
+  case('utcTime'  ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = utcTime      ! all times in UTC
+  case('localTime'); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = localTime    ! all times local
+  case default
+   err=10; message=trim(message)//"unknown time zone info option [option="//trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision)//"]"; return
+ end select
+
+ ! put reference time information into the time structures
+ call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
+                  refTime%var(iLookTIME%iyyy),                           & ! year
+                  refTime%var(iLookTIME%im),                             & ! month
+                  refTime%var(iLookTIME%id),                             & ! day
+                  refTime%var(iLookTIME%ih),                             & ! hour
+                  refTime%var(iLookTIME%imin),                           & ! minute
+                  dsec,                                                  & ! second
+                  refTime%var(iLookTIME%ih_tz),                          & ! time zone hour
+                  refTime%var(iLookTIME%imin_tz),                        & ! time zone minute
+                  dsec_tz,                                               & ! time zone seconds
+                  err,cmessage)                                            ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+
+ ! compute the julian date (fraction of day) for the reference time
+ call compjulday(&
+                 refTime%var(iLookTIME%iyyy),                           & ! year
+                 refTime%var(iLookTIME%im),                             & ! month
+                 refTime%var(iLookTIME%id),                             & ! day
+                 refTime%var(iLookTIME%ih),                             & ! hour
+                 refTime%var(iLookTIME%imin),                           & ! minute
+                 0._dp,                                                 & ! second
+                 refJulday,                                             & ! julian date for the start of the simulation
+                 err, cmessage)                                           ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
  ! put simulation start time information into the time structures
  call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
                   startTime%var(iLookTIME%iyyy),                         & ! year
@@ -198,18 +244,10 @@ contains
                   startTime%var(iLookTIME%ih),                           & ! hour
                   startTime%var(iLookTIME%imin),                         & ! minute
                   dsec,                                                  & ! second
+                  startTime%var(iLookTIME%ih_tz),                        & ! time zone hour
+                  startTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
+                  dsec_tz,                                               & ! time zone seconds
                   err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
- ! put simulation end time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
-                  finshTime%var(iLookTIME%iyyy),                         & ! year
-                  finshTime%var(iLookTIME%im),                           & ! month
-                  finshTime%var(iLookTIME%id),                           & ! day
-                  finshTime%var(iLookTIME%ih),                           & ! hour
-                  finshTime%var(iLookTIME%imin),                         & ! minute
-                  dsec,                                                  & ! second
-                  err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the start of the simulation
@@ -222,6 +260,20 @@ contains
                  0._dp,                                                 & ! second
                  dJulianStart,                                          & ! julian date for the start of the simulation
                  err, cmessage)                                           ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! put simulation end time information into the time structures
+ call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
+                  finshTime%var(iLookTIME%iyyy),                         & ! year
+                  finshTime%var(iLookTIME%im),                           & ! month
+                  finshTime%var(iLookTIME%id),                           & ! day
+                  finshTime%var(iLookTIME%ih),                           & ! hour
+                  finshTime%var(iLookTIME%imin),                         & ! minute
+                  dsec,                                                  & ! second
+                  finshTime%var(iLookTIME%ih_tz),                        & ! time zone hour
+                  finshTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
+                  dsec_tz,                                               & ! time zone seconds
+                  err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the end of the simulation
@@ -237,14 +289,18 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! check start and finish time
- write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
- write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
+ write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
+ write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
 
  ! check that simulation end time is > start time
  if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if
 
+ ! initialize the old time vector (time from the previous time step)
+ oldTime%var(:) = startTime%var(:)
+
  ! compute the number of time steps
  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+ write(*,'(a,1x,i10)') 'number of time steps = ', numtim
 
  ! -------------------------------------------------------------------------------------------------
 
@@ -313,7 +369,7 @@ contains
     err=10; message=trim(message)//"unknown option for the co2 compensation point [option="//trim(model_decisions(iLookDECISIONS%bbCO2point)%cDecision)//"]"; return
   end select
  end if
- 
+
  ! identify the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision))
@@ -323,7 +379,7 @@ contains
     err=10; message=trim(message)//"unknown option for the Ball-Berry numerical solution [option="//trim(model_decisions(iLookDECISIONS%bbNumerics)%cDecision)//"]"; return
   end select
  end if
- 
+
  ! identify the controls on carbon assimilation
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbAssimFnc)%cDecision))
@@ -337,7 +393,7 @@ contains
  ! identify the scaling of photosynthesis from the leaf to the canopy
  if(model_decisions(iLookDECISIONS%stomResist)%iDecision >= BallBerryFlex)then
   select case(trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision))
-   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor 
+   case('constantScaling'    ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = constantScaling ! constant scaling factor
    case('laiScaling'         ); model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision = laiScaling      ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
    case default
     err=10; message=trim(message)//"unknown option for scaling of photosynthesis from the leaf to the canopy [option="//trim(model_decisions(iLookDECISIONS%bbCanIntg8)%cDecision)//"]"; return
@@ -441,7 +497,7 @@ contains
  ! identify the choice of parameterization for vegetation roughness length and displacement height
  select case(trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision))
   case('Raupach_BLM1994'); model_decisions(iLookDECISIONS%veg_traits)%iDecision = Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
-  case('CM_QJRMS1998'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1998     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+  case('CM_QJRMS1988'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = CM_QJRMS1988     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
   case('vegTypeTable'   ); model_decisions(iLookDECISIONS%veg_traits)%iDecision = vegTypeTable     ! constant parameters dependent on the vegetation type
   case default
    err=10; message=trim(message)//"unknown parameterization for vegetation roughness length and displacement height [option="//trim(model_decisions(iLookDECISIONS%veg_traits)%cDecision)//"]"; return
@@ -537,7 +593,7 @@ contains
 
  ! choice of thermal conductivity representation for soil
  select case(trim(model_decisions(iLookDECISIONS%thCondSoil)%cDecision))
-  case('funcSoilWet'); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = funcSoilWet      ! function of soil wetness 
+  case('funcSoilWet'); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = funcSoilWet      ! function of soil wetness
   case('mixConstit' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = mixConstit       ! mixture of constituents
   case('hanssonVZJ' ); model_decisions(iLookDECISIONS%thCondSoil)%iDecision = hanssonVZJ       ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
   case default
@@ -638,6 +694,7 @@ contains
  subroutine readoption(err,message)
  ! used to read information from model decisions file
  USE ascii_util_module,only:file_open       ! open file
+ USE ascii_util_module,only:linewidth       ! max character number for one line
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
  USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
@@ -650,8 +707,8 @@ contains
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
  character(LEN=256)                   :: infile         ! input filename
- integer(i4b)                         :: unt            ! file unit (free unit output from file_open) 
- character(LEN=256),allocatable       :: charline(:)    ! vector of character strings
+ integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
+ character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
  integer(i4b)                         :: nDecisions     ! number of model decisions
  integer(i4b)                         :: iDecision      ! index of model decisions
  character(len=32)                    :: decision       ! name of model decision

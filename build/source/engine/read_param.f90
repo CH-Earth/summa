@@ -36,7 +36,7 @@ USE netcdf_util_module,only:netcdf_err     ! netcdf error handling function
 
 ! data types
 USE data_types,only:gru_double             ! spatial double data type:  x%gru(:)%var(:)
-USE data_types,only:gru_hru_int            ! spatial integer data type: x%gru(:)%hru(:)%var(:)
+USE data_types,only:gru_hru_int8           ! spatial integer data type: x%gru(:)%hru(:)%var(:)
 USE data_types,only:gru_hru_doubleVec      ! spatial double data type:  x%gru(:)%hru(:)%var(:)%dat(:)
 
 implicit none
@@ -48,13 +48,13 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_param: read trial model parameter values
  ! ************************************************************************************************
- subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,typeStruct,mparStruct,bparStruct,err,message)
+ subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
  USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
  USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookTYPE            ! named variables to index elements of the data vectors
+ USE var_lookup,only:iLookPARAM,iLookTYPE,iLookID    ! named variables to index elements of the data vectors
  implicit none
  ! define input
  integer(i4b),        intent(in)       :: iRunMode         ! run mode
@@ -62,7 +62,7 @@ contains
  integer(i4b),        intent(in)       :: startGRU         ! index of single GRU if runMode = startGRU
  integer(i4b),        intent(in)       :: nHRU             ! number of global HRUs
  integer(i4b),        intent(in)       :: nGRU             ! number of global GRUs
- type(gru_hru_int),   intent(in)       :: typeStruct       ! local classification of soil veg etc. for each HRU
+ type(gru_hru_int8),  intent(in)       :: idStruct         ! local labels for hru and gru IDs
  ! define output
  type(gru_hru_doubleVec),intent(inout) :: mparStruct       ! model parameters
  type(gru_double)    ,intent(inout)    :: bparStruct       ! basin parameters
@@ -72,7 +72,7 @@ contains
  character(len=1024)                   :: cmessage         ! error message for downwind routine
  character(LEN=1024)                   :: infile           ! input filename
  integer(i4b)                          :: iHRU             ! index of HRU within data vector
- integer(i4b)                          :: localHRU,iGRU    ! index of HRU and GRU within data structure
+ integer(i4b)                          :: localHRU_ix,iGRU ! index of HRU and GRU within data structure
  integer(i4b)                          :: ixParam          ! index of the model parameter in the data structure
  ! indices/metadata in the NetCDF file
  integer(i4b)                          :: ncid             ! netcdf id
@@ -89,9 +89,9 @@ contains
  integer(i4b)                          :: idim_list(2)     ! list of dimension ids
  ! data in the netcdf file
  integer(i4b)                          :: parLength        ! length of the parameter data
- integer(i4b),allocatable              :: hruId(:)      ! HRU identifier in the file
+ integer(8),allocatable                :: hruId(:)         ! HRU identifier in the file
  real(dp),allocatable                  :: parVector(:)     ! model parameter vector
- logical                               :: fexist           ! inquire whether the parmTrial file exists 
+ logical                               :: fexist           ! inquire whether the parmTrial file exists
  integer(i4b)                          :: fHRU             ! index of HRU in input file
 
  ! Start procedure here
@@ -148,7 +148,7 @@ contains
   message=trim(message)//'not enough HRUs in file '//trim(infile)
   err=20; return
  endif
- 
+
  ! check have the correct number of GRUs
  if ((irunMode==irunModeGRU).and.(nGRU_file<startGRU).and.(nGRU_file/=integerMissing)) then
   message=trim(message)//'not enough GRUs in file '//trim(infile)
@@ -158,7 +158,7 @@ contains
   message=trim(message)//'incorrect number of GRUs in file '//trim(infile)
   err=20; return
  endif
- 
+
  ! **********************************************************************************************
  ! * read the HRU index
  ! **********************************************************************************************
@@ -169,8 +169,6 @@ contains
   ! get the parameter name
   err=nf90_inquire_variable(ncid, ivarid, name=parName)
   call netcdf_err(err,message); if (err/=0) then; err=20; return; end if
-
-  print*, trim(parName)
 
   ! special case of the HRU id
   if(trim(parName)=='hruIndex' .or. trim(parName)=='hruId')then
@@ -183,9 +181,9 @@ contains
    if (iRunMode==iRunModeFull) then
     do iHRU=1,nHRU
      iGRU=index_map(iHRU)%gru_ix
-     localHRU=index_map(iHRU)%localHRU
-     if((hruId(iHRU)>0).and.(hruId(iHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex)))then
-      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+     localHRU_ix=index_map(iHRU)%localHRU_ix
+     if((hruId(iHRU)>0).and.(hruId(iHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId)))then
+      write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
       err=20; return
      endif
     end do  ! looping through HRUs
@@ -193,24 +191,24 @@ contains
    else if (iRunMode==iRunModeGRU) then
     do iHRU=1,nHRU
      iGRU=index_map(iHRU)%gru_ix
-     localHRU=index_map(iHRU)%localHRU
-     fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
-     if(hruId(fHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+     localHRU_ix=index_map(iHRU)%localHRU_ix
+     fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
+     if(hruId(fHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId))then
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
      err=20; return
     endif
    enddo
 
    else if (iRunMode==iRunModeHRU) then
     iGRU=index_map(1)%gru_ix
-    localHRU=index_map(1)%localHRU
-    if(hruId(checkHRU)/=typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex))then
-     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', typeStruct%gru(iGRU)%hru(localHRU)%var(iLookTYPE%hruIndex), '(param HRU = ', hruId(iHRU), ')'
+    localHRU_ix=index_map(1)%localHRU_ix
+    if(hruId(checkHRU)/=idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId))then
+     write(message,'(a,i0,a,i0,a)') trim(message)//'mismatch for HRU ', idStruct%gru(iGRU)%hru(localHRU_ix)%var(iLookID%hruId), '(param HRU = ', hruId(iHRU), ')'
      err=20; return
     endif
 
    ! error check
-   else 
+   else
     err = 20; message = 'run mode not recognized'; return;
    end if
 
@@ -243,11 +241,11 @@ contains
 
    ! get the length of the depth dimension (if it exists)
    if(nDims==2)then
- 
+
     ! get the information on the 2nd dimension for 2-d variables
     err=nf90_inquire_dimension(ncid, idim_list(2), dimName, nSoil_file)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-    
+
     ! check that it is the depth dimension
     if(trim(dimName)/='depth')then
      message=trim(message)//'expect 2nd dimension of 2-d variable to be depth (dimension name = '//trim(dimName)//')'
@@ -255,7 +253,7 @@ contains
     endif
 
     ! check that the dimension length is correct
-    if(size(mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat) /= nSoil_file)then
+    if(size(mparStruct%gru(iGRU)%hru(localHRU_ix)%var(ixParam)%dat) /= nSoil_file)then
      message=trim(message)//'unexpected number of soil layers in parameter file'
      err=20; return
     endif
@@ -266,7 +264,7 @@ contains
    else
     parLength = 1
    endif  ! if two dimensions
- 
+
    ! allocate space for model parameters
    allocate(parVector(parLength),stat=err)
    if(err/=0)then
@@ -276,11 +274,11 @@ contains
 
    ! loop through HRUs
    do iHRU=1,nHRU
- 
-    ! map to the GRUs and HRUs    
+
+    ! map to the GRUs and HRUs
     iGRU=index_map(iHRU)%gru_ix
-    localHRU=index_map(iHRU)%localHRU
-    fHRU = gru_struc(iGRU)%hruInfo(localHRU)%hru_nc
+    localHRU_ix=index_map(iHRU)%localHRU_ix
+    fHRU = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
 
     ! read parameter data
     select case(nDims)
@@ -294,8 +292,8 @@ contains
 
     ! populate parameter structures
     select case(nDims)
-     case(1); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension 
-     case(2); mparStruct%gru(iGRU)%hru(localHRU)%var(ixParam)%dat(:) = parVector(:)
+     case(1); mparStruct%gru(iGRU)%hru(localHRU_ix)%var(ixParam)%dat(:) = parVector(1)  ! also distributes scalar across depth dimension
+     case(2); mparStruct%gru(iGRU)%hru(localHRU_ix)%var(ixParam)%dat(:) = parVector(:)
      case default; err=20; message=trim(message)//'unexpected number of dimensions for parameter '//trim(parName)
     end select
 
@@ -335,14 +333,14 @@ contains
    ! populate parameter structures
    if (iRunMode==iRunModeGRU) then
     do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1) 
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU+startGRU-1)
     end do  ! looping through GRUs
    else if (iRunMode==iRunModeFull) then
     do iGRU=1,nGRU
-     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU) 
+     bparStruct%gru(iGRU)%var(ixParam) = parVector(iGRU)
     end do  ! looping through GRUs
    else if (iRunMode==iRunModeHRU) then
-    err = 20; message='checkHRU run mode not working'; return; 
+    err = 20; message='checkHRU run mode not working'; return;
    endif
 
    ! deallocate space for model parameters

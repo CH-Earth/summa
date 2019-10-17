@@ -31,9 +31,9 @@ function install_szip {
 function install_hdf5 {
     echo install_hdf5
     cd $WORKDIR
-    wget --no-check-certificate -q https://support.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.10.1.tar.gz
-    tar -xzf hdf5-1.10.1.tar.gz
-    cd hdf5-1.10.1
+    wget --no-check-certificate -q https://support.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.10.5.tar.gz
+    tar -xzf hdf5-1.10.5.tar.gz
+    cd hdf5-1.10.5
     ./configure --prefix=$INSTALLDIR &> config.log
     make
     make install
@@ -81,8 +81,8 @@ function summa_install {
     export F_MASTER=${TRAVIS_BUILD_DIR}
     export FC=gfortran
     export FC_EXE=gfortran-6
-    export FC_ENV=gfortran-6-travis
-    export NCDF_PATH=${INSTALLDIR}
+    export INCLUDES='-I${INSTALLDIR}/include -I/usr/include'
+    export LIBRARIES='-L${INSTALLDIR}/lib -lnetcdff -L/usr/lib -llapack -lblas'
     make -C build/ -f Makefile &> make.log
 }
 

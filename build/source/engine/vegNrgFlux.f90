@@ -19,8 +19,29 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module vegNrgFlux_module
-! numerical recipes data types
+
+! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,            & ! data vector (i4b)
+                    var_d,            & ! data vector (dp)
+                    var_ilength,      & ! data vector with variable length dimension (i4b)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! indices that define elements of the data structures
+USE var_lookup,only:iLookTYPE           ! named variables for structure elements
+USE var_lookup,only:iLookPROG           ! named variables for structure elements
+USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+USE var_lookup,only:iLookFORCE          ! named variables for structure elements
+USE var_lookup,only:iLookPARAM          ! named variables for structure elements
+USE var_lookup,only:iLookINDEX          ! named variables for structure elements
+USE var_lookup,only:iLookBVAR           ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+
 ! constants
 USE multiconst,only:gravity    ! acceleration of gravity              (m s-2)
 USE multiconst,only:vkc        ! von Karman's constant                (-)
@@ -38,38 +59,47 @@ USE multiconst,only:sb         ! Stefan Boltzman constant             (W m-2 K-4
 USE multiconst,only:iden_air   ! intrinsic density of air             (kg m-3)
 USE multiconst,only:iden_ice   ! intrinsic density of ice             (kg m-3)
 USE multiconst,only:iden_water ! intrinsic density of liquid water    (kg m-3)
+
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:  &
  numerical,                  & ! numerical solution
  analytical                    ! analytical solution
+
 ! look-up values for choice of boundary conditions for thermodynamics
 USE mDecisions_module,only:  &
  prescribedTemp,             & ! prescribed temperature
  energyFlux,                 & ! energy flux
  zeroFlux                      ! zero flux
+
 ! look-up values for the choice of parameterization for vegetation roughness length and displacement height
 USE mDecisions_module,only:  &
  Raupach_BLM1994,            & ! Raupach (BLM 1994) "Simplified expressions..."
- CM_QJRMS1998,               & ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+ CM_QJRMS1988,               & ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
  vegTypeTable                  ! constant parameters dependent on the vegetation type
+
 ! look-up values for the choice of parameterization for canopy emissivity
 USE mDecisions_module,only:  &
  simplExp,                   & ! simple exponential function
  difTrans                      ! parameterized as a function of diffuse transmissivity
+
 ! look-up values for the choice of canopy wind profile
 USE mDecisions_module,only:  &
  exponential,                & ! exponential wind profile extends to the surface
  logBelowCanopy                ! logarithmic profile below the vegetation canopy
+
 ! look-up values for choice of stability function
 USE mDecisions_module,only:  &
  standard,                   & ! standard MO similarity, a la Anderson (1976)
  louisInversePower,          & ! Louis (1979) inverse power function
  mahrtExponential              ! Mahrt (1987) exponential
+
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:  &
  localColumn,                & ! separate groundwater representation in each local soil column
  singleBasin                   ! single groundwater store over the entire basin
+
 ! -------------------------------------------------------------------------------------------------
+! privacy
 implicit none
 private
 public::vegNrgFlux
@@ -84,14 +114,14 @@ integer(i4b),parameter        :: ice     = 0   ! Surface type:  ICE=0 => soil;  
 integer(i4b),parameter        :: iLoc    = 1   ! i-location
 integer(i4b),parameter        :: jLoc    = 1   ! j-location
 ! algorithmic parameters
-real(dp),parameter     :: missingValue=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
-real(dp),parameter     :: dx=1.e-11_dp         ! finite difference increment
+real(dp),parameter     :: missingValue=-9999._dp   ! missing value, used when diagnostic or state variables are undefined
+real(dp),parameter     :: verySmall=1.e-6_dp       ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: tinyVal=epsilon(1._dp)   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: mpe=1.e-6_dp             ! prevents overflow error if division by zero
+real(dp),parameter     :: dx=1.e-11_dp             ! finite difference increment
 ! control
 logical(lgt)           :: printflag            ! flag to turn on printing
 contains
-
 
  ! *******************************************************************************************************
  ! public subroutine vegNrgFlux: muster program to compute energy fluxes at vegetation and ground surfaces
@@ -115,7 +145,6 @@ contains
 
                        ! input/output: data structures
                        type_data,                               & ! intent(in):    type of vegetation and soil
-                       attr_data,                               & ! intent(in):    spatial attributes
                        forc_data,                               & ! intent(in):    model forcing data
                        mpar_data,                               & ! intent(in):    model parameters
                        indx_data,                               & ! intent(in):    state vector geometry
@@ -165,24 +194,6 @@ contains
                        ! output: error control
                        err,message)                               ! intent(out): error control
 
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookATTR           ! named variables for structure elements
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
- USE var_lookup,only:iLookPROG           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookINDEX          ! named variables for structure elements
- USE var_lookup,only:iLookBVAR           ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
  ! utilities
  USE expIntegral_module,only:expInt                               ! function to calculate the exponential integral
  ! conversion functions
@@ -214,7 +225,6 @@ contains
 
  ! input/output: data structures
  type(var_i),intent(in)          :: type_data                       ! type of vegetation and soil
- type(var_d),intent(in)          :: attr_data                       ! spatial attributes
  type(var_d),intent(in)          :: forc_data                       ! model forcing data
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters
  type(var_ilength),intent(in)    :: indx_data                       ! state vector geometry
@@ -316,7 +326,6 @@ contains
  ! local (aerodynamic resistance)
  real(dp)                       :: scalarCanopyStabilityCorrection_old    ! stability correction for the canopy (-)
  real(dp)                       :: scalarGroundStabilityCorrection_old    ! stability correction for the ground surface (-)
- real(dp)                       :: uHeight                          ! height of windspeed measurement adjusted to be above vegetation canopy
 
  ! local (turbulent heat transfer)
  real(dp)                       :: z0Ground                         ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
@@ -480,7 +489,7 @@ contains
  minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
 
  ! input: forcing at the upper boundary
- mHeight                         => attr_data%var(iLookATTR%mHeight),                               & ! intent(in): [dp] measurement height (m)
+ mHeight                         => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1),            & ! intent(in): [dp] measurement height (m)
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
  windspd                         => forc_data%var(iLookFORCE%windspd),                              & ! intent(in): [dp] wind speed at some height above the surface (m s-1)
  airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
@@ -589,14 +598,15 @@ contains
  ! output: liquid water fluxes
  scalarCanopyTranspiration       => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1),      & ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
  scalarCanopyEvaporation         => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1),        & ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
- scalarGroundEvaporation         => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1)         & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+ scalarGroundEvaporation         => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),        & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+
+ ! output: derived fluxes
+ scalarTotalET                   => flux_data%var(iLookFLUX%scalarTotalET)%dat(1),                  & ! intent(out): [dp] total ET (kg m-2 s-1)
+ scalarNetRadiation              => flux_data%var(iLookFLUX%scalarNetRadiation)%dat(1)              & ! intent(out): [dp] net radiation (W m-2)
  )
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="vegNrgFlux/"
-
- ! set wind measurement height at distance above canopy
- uHeight = mHeight + heightCanopyTop
 
  ! initialize printflag
  printflag = .false.
@@ -613,6 +623,9 @@ contains
   ! ** prescribed temperature or zero flux at the upper boundary of the snow-soil system
   case(prescribedTemp,zeroFlux)
 
+   ! derived fluxes
+   scalarTotalET             = 0._dp    ! total ET (kg m-2 s-1)
+   scalarNetRadiation        = 0._dp    ! net radiation (W m-2)
    ! liquid water fluxes associated with evaporation/transpiration
    scalarCanopyTranspiration = 0._dp    ! canopy transpiration (kg m-2 s-1)
    scalarCanopyEvaporation   = 0._dp    ! canopy evaporation/condensation (kg m-2 s-1)
@@ -809,7 +822,7 @@ contains
                    ix_windPrfile,                      & ! intent(in): choice of canopy wind profile
                    ix_astability,                      & ! intent(in): choice of stability function
                    ! input: above-canopy forcing data
-                   uHeight,                            & ! intent(in): measurement height (m)
+                   mHeight,                            & ! intent(in): measurement height (m)
                    airtemp,                            & ! intent(in): air temperature at some height above the surface (K)
                    windspd,                            & ! intent(in): wind speed at some height above the surface (m s-1)
                    ! input: canopy and ground temperature
@@ -1090,7 +1103,7 @@ contains
                      ix_windPrfile,                           & ! intent(in): choice of canopy wind profile
                      ix_astability,                           & ! intent(in): choice of stability function
                      ! input: above-canopy forcing data
-                     uHeight,                                 & ! intent(in): measurement height (m)
+                     mHeight,                                 & ! intent(in): measurement height (m)
                      airtemp,                                 & ! intent(in): air temperature at some height above the surface (K)
                      windspd,                                 & ! intent(in): wind speed at some height above the surface (m s-1)
                      ! input: temperature (canopy, ground, canopy air space)
@@ -1424,6 +1437,10 @@ contains
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
 
+   ! compute derived fluxes
+   scalarTotalET      = scalarGroundEvaporation + scalarCanopyEvaporation + scalarCanopyTranspiration
+   scalarNetRadiation = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + scalarGroundAbsorbedSolar + scalarLWNetGround
+
    ! compute net fluxes at the canopy and ground surface
    canairNetFlux = turbFluxCanair
    canopyNetFlux = scalarCanopyAbsorbedSolar + scalarLWNetCanopy + turbFluxCanopy + scalarCanopyAdvectiveHeatFlux
@@ -1494,6 +1511,7 @@ contains
 
  ! end associations
  end associate
+
 
  end subroutine vegNrgFlux
 
@@ -2074,10 +2092,14 @@ contains
  real(dp)                      :: groundExNeut                  ! surface-atmosphere exchange coefficient under neutral conditions (-)
  real(dp)                      :: sfc2AtmExchangeCoeff_canopy   ! surface-atmosphere exchange coefficient after stability corrections (-)
  real(dp)                      :: groundResistanceNeutral       ! ground resistance under neutral conditions (s m-1)
- real(dp)                      :: windConvFactorTop             ! factor to convert friction velocity to wind speed at top of canopy (-)
- real(dp)                      :: windConvFactorBottom          ! factor to convert wind speed at top of canopy to wind speed at bottom of canopy (-)
- real(dp)                      :: referenceHeight               ! reference height used to compute above-ground windspeed (m)
+ real(dp)                      :: windConvFactor_fv             ! factor to convert friction velocity to wind speed at top of canopy (-)
+ real(dp)                      :: windConvFactor                ! factor to convert wind speed at top of canopy to wind speed at a given height in the canopy (-)
+ real(dp)                      :: referenceHeight               ! z0Canopy+zeroPlaneDisplacement (m)
+ real(dp)                      :: windspdRefHeight              ! windspeed at the reference height (m/s)
  real(dp)                      :: heightAboveGround             ! height above the snow surface (m)
+ real(dp)                      :: heightCanopyTopAboveSnow      ! height at the top of the vegetation canopy relative to snowpack (m)
+ real(dp)                      :: heightCanopyBottomAboveSnow   ! height at the bottom of the vegetation canopy relative to snowpack (m)
+ real(dp),parameter            :: xTolerance=0.1_dp             ! tolerance to handle the transition from exponential to log-below canopy
  ! local variables: derivatives
  real(dp)                      :: dFV_dT                        ! derivative in friction velocity w.r.t. canopy air temperature
  real(dp)                      :: dED_dT                        ! derivative in eddy diffusivity at the top of the canopy w.r.t. canopy air temperature
@@ -2104,10 +2126,13 @@ contains
 
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! * compute vegetation poperties (could be done at the same time as phenology.. does not have to be in the flux routine!)
-
  if(computeVegFlux) then ! (if vegetation is exposed)
 
   ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
+  ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
+  ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
+  heightCanopyTopAboveSnow = heightCanopyTop - snowDepth
+  heightCanopyBottomAboveSnow = max(heightCanopyBottom - snowDepth, 0.0_dp)
   select case(ixVegTraits)
 
    ! Raupach (BLM 1994) "Simplified expressions..."
@@ -2115,25 +2140,25 @@ contains
     ! (compute zero-plane displacement)
     funcLAI          = sqrt(c_d1*exposedVAI)
     fracCanopyHeight = -(1._dp - exp(-funcLAI))/funcLAI + 1._dp
-    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTop-heightCanopyBottom)+heightCanopyBottom
+    zeroPlaneDisplacement = fracCanopyHeight*(heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)+heightCanopyBottomAboveSnow
     ! (coupute roughness length of the veg canopy)
     approxDragCoef   = min( sqrt(C_s + C_r*exposedVAI/2._dp), approxDragCoef_max)
-    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTop-heightCanopyBottom)
+    z0Canopy         = (1._dp - fracCanopyHeight) * exp(-vkc*approxDragCoef - psi_h) * (heightCanopyTopAboveSnow-heightCanopyBottomAboveSnow)
 
-   ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
-   case(CM_QJRMS1998)
+   ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
+   case(CM_QJRMS1988)
     funcLAI =  cd_CM*exposedVAI
-    zeroPlaneDisplacement = 1.1_dp*heightCanopyTop*log(1._dp + funcLAI**0.25_dp)
+    zeroPlaneDisplacement = 1.1_dp*heightCanopyTopAboveSnow*log(1._dp + funcLAI**0.25_dp)
     if(funcLAI < 0.2_dp)then
-     z0Canopy = z0Ground + 0.3_dp*heightCanopyTop*funcLAI**0.5_dp
+     z0Canopy = z0Ground + 0.3_dp*heightCanopyTopAboveSnow*funcLAI**0.5_dp
     else
-     z0Canopy = 0.3_dp*heightCanopyTop*(1._dp - zeroPlaneDisplacement/heightCanopyTop)
+     z0Canopy = 0.3_dp*heightCanopyTopAboveSnow*(1._dp - zeroPlaneDisplacement/heightCanopyTopAboveSnow)
     end if
 
    ! constant parameters dependent on the vegetation type
    case(vegTypeTable)
-    zeroPlaneDisplacement = zpdFraction*heightCanopyTop  ! zero-plane displacement (m)
-    z0Canopy = z0CanopyParam                             ! roughness length of the veg canopy (m)
+    zeroPlaneDisplacement = zpdFraction*heightCanopyTopAboveSnow  ! zero-plane displacement (m)
+    z0Canopy = z0CanopyParam                                      ! roughness length of the veg canopy (m)
 
    ! check
    case default
@@ -2141,23 +2166,21 @@ contains
 
   end select  ! vegetation traits (z0, zpd)
 
-  ! correct for snow depth
-  if(zeroPlaneDisplacement < snowDepth) zeroPlaneDisplacement = snowDepth
+  ! check zero plane displacement
+  if(zeroPlaneDisplacement < heightCanopyBottomAboveSnow)then
+   write(*,'(a,1x,10(f12.5,1x))') 'heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI = ', &
+                                   heightCanopyTop, snowDepth, heightCanopyTopAboveSnow, heightCanopyBottomAboveSnow, exposedVAI
+   message=trim(message)//'zero plane displacement is below the canopy bottom'
+   err=20; return
+  endif
 
-  ! check that everything is consistent
-  if(zeroPlaneDisplacement < heightCanopyBottom)then; err=20; message=trim(message)//'zero plane displacement is below the canopy bottom'; return; end if
+  ! check measurement height
   if(mHeight < zeroPlaneDisplacement)then; err=20; message=trim(message)//'measurement height is below the displacement height'; return; end if
   if(mHeight < z0Canopy)then; err=20; message=trim(message)//'measurement height is below the roughness length'; return; end if
 
- end if  ! if there is a canopy
-
- ! -----------------------------------------------------------------------------------------------------------------------------------------
- ! -----------------------------------------------------------------------------------------------------------------------------------------
- ! * compute resistance for the case where the canopy is exposed
-
- ! check if vegetation is exposed
- if(computeVegFlux) then
-
+  ! -----------------------------------------------------------------------------------------------------------------------------------------
+  ! -----------------------------------------------------------------------------------------------------------------------------------------
+  ! * compute resistance for the case where the canopy is exposed
   ! compute the stability correction for resistance from canopy air space to air above the canopy (-)
   call aStability(&
                   ! input
@@ -2191,82 +2214,72 @@ contains
   ! compute the above-canopy resistance (s m-1)
   canopyResistance = 1._dp/(sfc2AtmExchangeCoeff_canopy*windspd)
   if(canopyResistance < 0._dp)then; err=20; message=trim(message)//'canopy resistance < 0'; return; end if
-  !write(*,'(a,10(f20.10,1x))') 'in aeroResist: windspd, canairTemp, canopyExNeut, canopyStabilityCorrection, canopyResistance = ', &
-  !                                             windspd, canairTemp, canopyExNeut, canopyStabilityCorrection, canopyResistance
 
-  ! compute windspeed at the top of the canopy (m s-1)
+  ! compute windspeed at the top of the canopy above snow depth (m s-1)
   ! NOTE: stability corrections cancel out
-  windConvFactorTop = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - zeroPlaneDisplacement)/z0Canopy)
-  windspdCanopyTop  = windspd*windConvFactorTop
-  !windConvFactorTop = log((heightCanopyTop - zeroPlaneDisplacement)/z0Canopy)/(sqrt(canopyStabilityCorrection)*vkc)
-  !windspdCanopyTop  = frictionVelocity*windConvFactorTop
+  windConvFactor_fv = log((heightCanopyTopAboveSnow - zeroPlaneDisplacement)/z0Canopy) / log((mHeight - snowDepth - zeroPlaneDisplacement)/z0Canopy)
+  windspdCanopyTop  = windspd*windConvFactor_fv
 
   ! compute the windspeed reduction
   ! Refs: Norman et al. (Ag. Forest Met., 1995) -- citing Goudriaan (1977 manuscript "crop micrometeorology: a simulation study", Wageningen).
-  windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTop - heightCanopyBottom)**oneThird / leafDimension**oneThird
-  !windReductionFactor = 3._dp
+  windReductionFactor = windReductionParam * exposedVAI**twoThirds * (heightCanopyTopAboveSnow - heightCanopyBottomAboveSnow)**oneThird / leafDimension**oneThird
 
-  ! compute windspeed at the bottom of the canopy (m s-1)
-  !referenceHeight      = max(heightCanopyBottom, min(0.5_dp, heightCanopyTop))
-  referenceHeight      = max(heightCanopyBottom, snowDepth+z0Ground)
-  windConvFactorBottom = exp(-windReductionFactor*(1._dp - referenceHeight/heightCanopyTop))
-  windspdCanopyBottom  = windspdCanopyTop*windConvFactorBottom
-  if(referenceHeight > z0Canopy+zeroPlaneDisplacement)then
-   print*, 'heightCanopyTop       = ', heightCanopyTop
-   print*, 'heightCanopyBottom    = ', heightCanopyBottom
-   print*, 'snowDepth             = ', snowDepth
-   print*, 'z0Ground              = ', z0Ground
-   print*, 'referenceHeight       = ', referenceHeight
-   print*, 'z0Canopy              = ', z0Canopy
-   print*, 'zeroPlaneDisplacement = ', zeroPlaneDisplacement
-   message=trim(message)//'reference height > z0Canopy+zeroPlaneDisplacement'
-   err=20; return
-  end if
+  ! compute windspeed at the height z0Canopy+zeroPlaneDisplacement (m s-1)
+  referenceHeight   = z0Canopy+zeroPlaneDisplacement
+  windConvFactor    = exp(-windReductionFactor*(1._dp - (referenceHeight/heightCanopyTopAboveSnow)))
+  windspdRefHeight  = windspdCanopyTop*windConvFactor
+
+  ! compute windspeed at the bottom of the canopy relative to the snow depth (m s-1)
+  windConvFactor       = exp(-windReductionFactor*(1._dp - (heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)))
+  windspdCanopyBottom  = windspdCanopyTop*windConvFactor
 
   ! compute the leaf boundary layer resistance (s m-1)
-
   singleLeafConductance  = leafExchangeCoeff*sqrt(windspdCanopyTop/leafDimension)
   leaf2CanopyScaleFactor = (2._dp/windReductionFactor) * (1._dp - exp(-windReductionFactor/2._dp)) ! factor to scale from the leaf to the canopy
   canopyLeafConductance  = singleLeafConductance*leaf2CanopyScaleFactor
-  leafResistance  = 1._dp/(canopyLeafConductance)
+  leafResistance         = 1._dp/(canopyLeafConductance)
   if(leafResistance < 0._dp)then; err=20; message=trim(message)//'leaf resistance < 0'; return; end if
 
   ! compute eddy diffusivity for heat at the top of the canopy (m2 s-1)
-  !   Note: use of friction velocity here includes stability adjustments
-  eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTop - zeroPlaneDisplacement), mpe)  ! (avoid divide by zero)
+  !  Note: use of friction velocity here includes stability adjustments
+  !  Note: max used to avoid dividing by zero
+  eddyDiffusCanopyTop = max(vkc*FrictionVelocity*(heightCanopyTopAboveSnow - zeroPlaneDisplacement), mpe)
 
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
-  select case(ixWindProfile)
-   ! case 1: assume exponential profile extends from the surface roughness length to the displacement height plus vegetation roughness
-   case(exponential)
-    tmp1 = exp(-windReductionFactor* (snowDepth+z0Ground)/heightCanopyTop)
-    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
-    groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
-   ! case 2: logarithmic profile below the canopy
-   case(logBelowCanopy)
-    tmp1 = exp(-windReductionFactor* referenceHeight/heightCanopyTop)
-    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTop)
-    if(referenceHeight > heightCanopyBottom)then  ! snow is above the bottom of the canopy -- just use the exponential profile
-     groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
-    else  ! snow is below the bottom of the canopy
-     groundResistanceNeutral = ( heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2) & ! s m-1
-                                  + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log((referenceHeight - snowDepth)/z0Ground))**2._dp
-    end if
-   ! check that we identified the option
-   case default
-    err=20; message=trim(message)//'cannot identify option for canopy wind profile'; return
-   end select
+
+  ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
+  if(ixWindProfile==exponential .or. heightCanopyBottomAboveSnow<z0Ground+xTolerance)then
+
+   ! compute the neutral ground resistance
+   tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
+   tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+   groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)   ! s m-1
+
+  ! case 2: logarithmic profile from snow depth plus roughness height to bottom of the canopy
+  ! NOTE: heightCanopyBottomAboveSnow>z0Ground+xTolerance
+  else
+
+   ! compute the neutral ground resistance
+   ! (first, component between heightCanopyBottomAboveSnow and z0Canopy+zeroPlaneDisplacement)
+   tmp1  = exp(-windReductionFactor* heightCanopyBottomAboveSnow/heightCanopyTopAboveSnow)
+   tmp2  = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
+   groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)
+   ! (add log-below-canopy component)
+   groundResistanceNeutral = groundResistanceNeutral + (1._dp/(max(0.1_dp,windspdCanopyBottom)*vkc**2._dp))*(log(heightCanopyBottomAboveSnow/z0Ground))**2._dp
+
+  endif  ! switch between exponential profile and log-below-canopy
 
   ! compute the stability correction for resistance from the ground to the canopy air space (-)
+  ! NOTE: here we are interested in the windspeed at height z0Canopy+zeroPlaneDisplacement
   call aStability(&
                   ! input
                   derivDesired,                                     & ! input: logical flag to compute analytical derivatives
                   ixStability,                                      & ! input: choice of stability function
                   ! input: forcing data, diagnostic and state variables
-                  referenceHeight,                                  & ! input: reference height of wind within the canopy (m)
+                  referenceHeight,                                  & ! input: height of the canopy air space temperature/wind (m)
                   canairTemp,                                       & ! input: temperature of the canopy air space (K)
                   groundTemp,                                       & ! input: temperature of the ground surface (K)
-                  max(0.1_dp,windspdCanopyBottom),                  & ! input: wind speed at the reference height (m s-1)
+                  max(0.1_dp,windspdRefHeight),                     & ! input: wind speed at height z0Canopy+zeroPlaneDisplacement (m s-1)
                   ! input: stability parameters
                   critRichNumber,                                   & ! input: critical value for the bulk Richardson number where turbulence ceases (-)
                   Louis79_bparam,                                   & ! input: parameter in Louis (1979) stability function
@@ -2376,9 +2389,9 @@ contains
    dCanopyResistance_dTCanair = -dCanopyStabilityCorrection_dCasTemp/(windspd*canopyExNeut*canopyStabilityCorrection**2._dp)
    ! derivative in ground resistance w.r.t. canopy air temperature (s m-1 K-1)
    ! (compute derivative in NEUTRAL ground resistance w.r.t. canopy air temperature (s m-1 K-1))
-   dFV_dT = windspd*canopyExNeut*dCanopyStabilityCorrection_dCasTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                ! d(frictionVelocity)/d(canopy air temperature)
-   dED_dT = dFV_dT*vkc*(heightCanopyTop - zeroPlaneDisplacement)                                                             ! d(eddyDiffusCanopyTop)d(canopy air temperature)
-   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTop*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp) ! d(groundResistanceNeutral)/d(canopy air temperature)
+   dFV_dT = windspd*canopyExNeut*dCanopyStabilityCorrection_dCasTemp/(sqrt(sfc2AtmExchangeCoeff_canopy)*2._dp)                         ! d(frictionVelocity)/d(canopy air temperature)
+   dED_dT = dFV_dT*vkc*(heightCanopyTopAboveSnow - zeroPlaneDisplacement)                                                              ! d(eddyDiffusCanopyTop)d(canopy air temperature)
+   dGR_dT = -dED_dT*(tmp1 - tmp2)*heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop**2._dp) ! d(groundResistanceNeutral)/d(canopy air temperature)
    ! (stitch everything together -- product rule)
    dGroundResistance_dTCanair = dGR_dT/groundStabilityCorrection - groundResistanceNeutral*dGroundStabilityCorrection_dCasTemp/(groundStabilityCorrection**2._dp)
 
@@ -2508,6 +2521,7 @@ contains
  else  ! (if there are roots in the aquifer)
   aquiferTranspireLimitFac = 0._dp
  end if
+
  ! compute the weighted average (weighted by root density)
  wAvgTranspireLimitFac = wAvgTranspireLimitFac + aquiferTranspireLimitFac*scalarAquiferRootFrac
 
@@ -2783,6 +2797,18 @@ contains
  end if
  groundConductanceLH = 1._dp/(groundResistance + soilResistance)  ! NOTE: soilResistance accounts for fractional snow, and =0 when snow cover is 100%
  totalConductanceLH  = evapConductance + transConductance + groundConductanceLH + canopyConductance
+
+ ! check sensible heat conductance
+ if(totalConductanceSH < -tinyVal .or. groundConductanceSH < -tinyVal .or. canopyConductance < -tinyVal)then
+  message=trim(message)//'negative conductance for sensible heat'
+  err=20; return
+ endif
+
+ ! check latent heat conductance
+ if(totalConductanceLH < tinyVal .or. groundConductanceLH < -tinyVal)then
+  message=trim(message)//'negative conductance for latent heat'
+  err=20; return
+ endif
 
  ! * compute derivatives
  ! NOTE: it may be more efficient to compute these derivatives when computing resistances

@@ -19,36 +19,59 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module derivforce_module
+
+! data types
 USE nrtype
+USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
+
+! model constants
+USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
+USE multiconst,only:secprday                                ! number of seconds in a day
+USE multiconst,only:secprhour                               ! number of seconds in an hour
+USE multiconst,only:minprhour                               ! number of minutes in an hour
+
+! global time information
+USE globalData,only:refJulday                               ! reference time (fractional julian days)
+USE globalData,only:data_step                               ! length of the data step (s)
+USE globalData,only:tmZoneOffsetFracDay                     ! time zone offset in fractional days
+
+! model decisions
+USE globalData,only:model_decisions                         ! model decision structure
+USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
+
+! named variables for structure elements
+USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
+USE var_lookup,only:iLookPARAM,iLookFORCE                   ! named variables for structure elements
+USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX           ! named variables for structure elements
+
+! look-up values for the choice of the time zone information
+USE mDecisions_module,only:  &
+ ncTime,                 &    ! time zone information from NetCDF file
+ utcTime,                &    ! all times in UTC
+ localTime                    ! all times local
+
 ! look-up values for the choice of snow albedo options
 USE mDecisions_module,only:  &
  constDens,              &    ! Constant new snow density
  anderson,               &    ! Anderson 1976
  hedAndPom,              &    ! Hedstrom and Pomeroy (1998), expoential increase
  pahaut_76                    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+
+! privacy
 implicit none
 private
 public::derivforce
 contains
 
-
  ! ************************************************************************************************
  ! public subroutine derivforce: compute derived forcing data
  ! ************************************************************************************************
- subroutine derivforce(time_data,forc_data,attr_data,mpar_data,diag_data,flux_data,err,message)
- USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)
- USE multiconst,only:secprhour                               ! number of seconds in an hour
- USE multiconst,only:minprhour                               ! number of minutes in an hour
- USE globalData,only:data_step                               ! length of the data step (s)
- USE globalData,only:model_decisions                         ! model decision structure
- USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
- USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
- USE var_lookup,only:iLookPARAM,iLookFORCE,iLookDIAG,iLookFLUX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
+ subroutine derivforce(time_data,forc_data,attr_data,mpar_data,prog_data,diag_data,flux_data,err,message)
  USE sunGeomtry_module,only:clrsky_rad                       ! compute cosine of the solar zenith angle
  USE conv_funcs_module,only:vapPress                         ! compute vapor pressure of air (Pa)
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
  USE snow_utils_module,only:fracliquid,templiquid            ! functions to compute temperature/liquid water
+ USE time_utils_module,only:compcalday                       ! convert julian day to calendar date
  ! compute derived forcing data variables
  implicit none
  ! input variables
@@ -56,22 +79,31 @@ contains
  real(dp),         intent(inout) :: forc_data(:)             ! vector of forcing data for a given time step
  real(dp),         intent(in)    :: attr_data(:)             ! vector of model attributes
  type(var_dlength),intent(in)    :: mpar_data                ! vector of model parameters
+ type(var_dlength),intent(in)    :: prog_data                ! data structure of model prognostic variables for a local HRU
  ! output variables
  type(var_dlength),intent(inout) :: diag_data                ! data structure of model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                ! data structure of model fluxes for a local HRU
  integer(i4b),intent(out)        :: err                      ! error code
  character(*),intent(out)        :: message                  ! error message
- ! variables for cosine of the solar zenith angle
+ ! local time
+ integer(i4b)                    :: jyyy,jm,jd               ! year, month, day
+ integer(i4b)                    :: jh,jmin                  ! hour, minute
+ real(dp)                        :: dsec                     ! double precision seconds (not used)
+ real(dp)                        :: timeOffset               ! time offset from Grenwich (days)
+ real(dp)                        :: julianTime               ! local julian time
+ ! cosine of the solar zenith angle
  real(dp)                        :: ahour                    ! hour at start of time step
  real(dp)                        :: dataStep                 ! data step (hours)
  real(dp),parameter              :: slope=0._dp              ! terrain slope (assume flat)
  real(dp),parameter              :: azimuth=0._dp            ! terrain azimuth (assume zero)
  real(dp)                        :: hri                      ! average radiation index over time step DT
- ! local variables
+ ! general local variables
+ character(len=256)              :: cmessage                 ! error message for downwind routine
  integer(i4b),parameter          :: nBands=2                 ! number of spectral bands
  real(dp),parameter              :: valueMissing=-9999._dp   ! missing value
  real(dp),parameter              :: co2Factor=355.e-6_dp     ! empirical factor to obtain partial pressure of co2
  real(dp),parameter              :: o2Factor=0.209_dp        ! empirical factor to obtain partial pressure of o2
+ real(dp),parameter              :: minMeasHeight=1._dp      ! minimum measurement height (m)
  real(dp)                        :: relhum                   ! relative humidity (-)
  real(dp)                        :: fracrain                 ! fraction of precipitation that falls as rain
  real(dp)                        :: maxFrozenSnowTemp        ! maximum temperature of snow when the snow is predominantely frozen (K)
@@ -83,7 +115,7 @@ contains
  real(dp),parameter              :: andersonColdDenLimit=15._dp! Lower air temperature limit in Anderson (1976) new snow density (C)
  real(dp),parameter              :: andersonDenScal=1.5_dp     ! Scalar parameter in Anderson (1976) new snow density function (-)
  real(dp),parameter              :: pahautDenWindScal=0.5_dp   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
-! ************************************************************************************************
+ ! ************************************************************************************************
  ! associate local variables with the information in the data structures
  associate(&
  ! model parameters
@@ -105,12 +137,21 @@ contains
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
  ! radiation geometry variables
+ iyyy                    => time_data(iLookTIME%iyyy)                             , & ! year
  im                      => time_data(iLookTIME%im)                               , & ! month
  id                      => time_data(iLookTIME%id)                               , & ! day
  ih                      => time_data(iLookTIME%ih)                               , & ! hour
  imin                    => time_data(iLookTIME%imin)                             , & ! minute
  latitude                => attr_data(iLookATTR%latitude)                         , & ! latitude (degrees north)
+ longitude               => attr_data(iLookATTR%longitude)                        , & ! longitude (degrees east)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
+ ! measurement height
+ mHeight                 => attr_data(iLookATTR%mHeight)                          , & ! latitude (degrees north)
+ adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
+ scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
+ heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
+ ! model time
+ secondsSinceRefTime     => forc_data(iLookFORCE%time)                            , & ! time = seconds since reference time
  ! model forcing data
  SWRadAtm                => forc_data(iLookFORCE%SWRadAtm)                        , & ! downward shortwave radiation (W m-2)
  airtemp                 => forc_data(iLookFORCE%airtemp)                         , & ! air temperature at 2 meter height (K)
@@ -143,16 +184,60 @@ contains
   err=20; return
  end if
 
+ ! adjust the measurement height for the vegetation canopy
+ ! NOTE: could return an error or a warning
+ ! NOTE: this does not need to be done every time step -- doing here for consistency with the snow adjustment
+ if(mHeight < heightCanopyTop)then
+  adjMeasHeight = heightCanopyTop+minMeasHeight  ! measurement height at least minMeasHeight above the canopy
+ else
+  adjMeasHeight = mHeight
+ endif
+
+ ! adjust the measurement height for snow depth
+ if(adjMeasHeight < scalarSnowDepth+minMeasHeight)then
+  adjMeasHeight = scalarSnowDepth+minMeasHeight  ! measurement height at least minMeasHeight above the snow surface
+ endif
+
  ! compute the partial pressure of o2 and co2
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
  scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
 
+ ! determine timeOffset based on tmZoneInfo option`
+ select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
+  ! Time zone information from NetCDF file
+  case(ncTime)
+   timeOffset = longitude/360._dp - tmZoneOffsetFracDay ! time offset in days
+  ! All times in UTC
+  case(utcTime)
+   timeOffset = longitude/360._dp  ! time offset in days
+  ! All times local
+  case(localTime)
+   timeOffset = 0._dp  ! time offset in days
+  case default; message=trim(message)//'unable to identify option for tmZoneInfo'; err=20; return
+ end select ! identifying option tmZoneInfo
+
+ ! constrain timeOffset so that it is in the [-0.5, 0.5] range
+ if(timeOffset<-0.5)then
+  timeOffset = timeOffset+1
+ else if(timeOffset>0.5)then
+  timeOffset = timeOffset-1
+ endif
+
+ ! compute the local time
+ julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days)
+
+ ! convert julian day to year/month/day/hour/minute
+ call compcalday(julianTime+timeOffset,          & ! input  = julian day
+                 jyyy,jm,jd,jh,jmin,dsec,        & ! output = year, month, day, hour, minute, second
+                 err,cmessage)                     ! output = error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
  ! compute the decimal hour at the start of the time step
  dataStep = data_step/secprhour  ! time step (hours)
- ahour    = real(ih,kind(dp)) + real(imin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
+ ahour    = real(jh,kind(dp)) + real(jmin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
  ! compute the cosine of the solar zenith angle
- call clrsky_rad(im,id,ahour,dataStep,   &  ! intent(in): time variables
+ call clrsky_rad(jm,jd,ahour,dataStep,   &  ! intent(in): time variables
                  slope,azimuth,latitude, &  ! intent(in): location variables
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
  !write(*,'(a,1x,4(i2,1x),3(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,cosZenith = ', &

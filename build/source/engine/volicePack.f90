@@ -19,8 +19,24 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module volicePack_module
-! numerical recipes data types
+
+! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_d,            & ! data vector (dp)
+                    var_ilength,      & ! data vector with variable length dimension (i4b)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! named variables for snow and soil
+USE globalData,only:iname_snow          ! named variables for snow
+USE globalData,only:iname_soil          ! named variables for soil
+
+! named variables for parent structures
+USE var_lookup,only:iLookINDEX          ! named variables for structure elements
+
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,  & ! freezing point              (K)
@@ -30,6 +46,8 @@ USE multiconst,only:&
                     iden_air, & ! intrinsic density of air    (kg m-3)
                     iden_ice, & ! intrinsic density of ice    (kg m-3)
                     iden_water  ! intrinsic density of water  (kg m-3)
+
+! privacy
 implicit none
 private
 public::volicePack
@@ -54,12 +72,6 @@ contains
                        modifiedLayers,              & ! intent(out): flag to denote that layers were modified
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_d,            & ! data vector (dp)
-                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
  ! external subroutine
  USE layerMerge_module,only:layerMerge   ! merge snow layers if they are too thin
  USE layerDivide_module,only:layerDivide ! sub-divide layers if they are too thick
@@ -113,6 +125,11 @@ contains
                  mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+
+ ! update the number of layers
+ indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
+ indx_data%var(iLookINDEX%nSoil)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
+ indx_data%var(iLookINDEX%nLayers)%dat(1) = indx_data%var(iLookINDEX%nSnow)%dat(1) + indx_data%var(iLookINDEX%nSoil)%dat(1)
 
  ! flag if layers were modified
  modifiedLayers = (mergedLayers .or. divideLayer)

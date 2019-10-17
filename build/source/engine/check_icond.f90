@@ -68,16 +68,16 @@ contains
  ! variable declarations
  ! dummies
  integer(i4b)           ,intent(in)    :: nGRU           ! number of grouped response units
- type(gru_hru_doubleVec),intent(inout) :: progData       ! prognostic vars 
- type(gru_hru_doubleVec),intent(in)    :: mparData       ! parameters 
- type(gru_hru_intVec)   ,intent(in)    :: indxData       ! layer indexes 
+ type(gru_hru_doubleVec),intent(inout) :: progData       ! prognostic vars
+ type(gru_hru_doubleVec),intent(in)    :: mparData       ! parameters
+ type(gru_hru_intVec)   ,intent(in)    :: indxData       ! layer indexes
  integer(i4b)           ,intent(out)   :: err            ! error code
  character(*)           ,intent(out)   :: message        ! returned error message
 
  ! locals
  character(len=256)                     :: cmessage      ! downstream error message
- integer(i4b)                           :: iGRU          ! loop index 
- integer(i4b)                           :: iHRU          ! loop index 
+ integer(i4b)                           :: iGRU          ! loop index
+ integer(i4b)                           :: iHRU          ! loop index
 
  ! temporary variables for realism checks
  integer(i4b)                      :: iLayer             ! index of model layer
@@ -90,7 +90,7 @@ contains
  integer(i4b)                      :: nLayers            ! total number of layers
  real(dp)                          :: kappa              ! constant in the freezing curve function (m K-1)
  integer(i4b)                      :: nSnow              ! number of snow layers
-
+ real(dp),parameter                :: xTol=1.e-10_dp     ! small tolerance to address precision issues
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -118,11 +118,11 @@ contains
       progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(2) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMinNearIR)%dat(1)
   end do
  end do
- 
+
  ! ensure the initial conditions are consistent with the constitutive functions
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
- 
+
    ! associate local variables with variables in the data structures
    associate(&
    ! state variables in the vegetation canopy
@@ -195,15 +195,16 @@ contains
 
      ! ***** soil
      case(iname_soil)
+
       ! (check liquid water)
-      if(mLayerVolFracLiq(iLayer) < theta_res(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
-      if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracLiq(iLayer) < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water < theta_res: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracLiq(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of liquid water > theta_sat: layer = ',iLayer; err=20; return; end if
       ! (check ice)
-      if(mLayerVolFracIce(iLayer) < 0._dp            )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
-      if(mLayerVolFracIce(iLayer) > theta_sat(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
+      if(mLayerVolFracIce(iLayer) < 0._dp                )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice < 0: layer = '        ,iLayer; err=20; return; end if
+      if(mLayerVolFracIce(iLayer) > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with volumetric fraction of ice > theta_sat: layer = ',iLayer; err=20; return; end if
       ! check total water
-      if(scalarTheta < theta_res(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if 
-      if(scalarTheta > theta_sat(iSoil) )then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
+      if(scalarTheta < theta_res(iSoil)-xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] < theta_res: layer = ',iLayer; err=20; return; end if
+      if(scalarTheta > theta_sat(iSoil)+xTol)then; write(message,'(a,1x,i0)') trim(message)//'cannot initialize the model with total water fraction [liquid + ice] > theta_sat: layer = ',iLayer; err=20; return; end if
 
      case default
       err=20; message=trim(message)//'cannot identify layer type'; return
@@ -213,16 +214,16 @@ contains
     ! * check that the initial conditions are consistent with the constitutive functions...
     ! *************************************************************************************
     select case(mLayerLayerType(iLayer))
-  
+
      ! ** snow
      case(iname_snow)
-  
+
       ! check that snow temperature is less than freezing
       if(mLayerTemp(iLayer) > Tfreeze)then
        message=trim(message)//'initial snow temperature is greater than freezing'
        err=20; return
       end if
-  
+
       ! ensure consistency among state variables
       call updateSnow(&
                       ! input
@@ -235,10 +236,10 @@ contains
                       fLiq,                                      & ! intent(out): fraction of liquid water (-)
                       err,cmessage)                                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  
+
      ! ** soil
      case(iname_soil)
-  
+
       ! ensure consistency among state variables
       call updateSoil(&
                       ! input
@@ -251,15 +252,15 @@ contains
                       mLayerVolFracIce(iLayer),                                              & ! intent(out): volumetric fraction of ice (-)
                       err,cmessage)                                                            ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  
+
      case default; err=10; message=trim(message)//'unknown case for model layer'; return
     end select
-  
+
    end do  ! (looping through layers)
-  
+
    ! end association to variables in the data structures
    end associate
-  
+
    ! if snow layers exist, compute snow depth and SWE
    if(nSnow > 0)then
     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSWE)%dat(1)       = sum( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &

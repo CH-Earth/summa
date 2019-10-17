@@ -55,14 +55,14 @@ contains
 
  ! net energy and mass fluxes for the vegetation domain
  flux2state_orig(iLookFLUX%scalarCanopyNetLiqFlux)          = flux2state(state1=iname_watCanopy, state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarCanairNetNrgFlux)          = flux2state(state1=iname_nrgCanair, state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarCanopyNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing) 
- flux2state_orig(iLookFLUX%scalarGroundNetNrgFlux)          = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarCanairNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarCanopyNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarGroundNetNrgFlux)          = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! precipitation -- does not depend on state variables
  flux2state_orig(iLookFLUX%scalarRainfall)                  = flux2state(state1=integerMissing, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSnowfall)                  = flux2state(state1=integerMissing, state2=integerMissing)
- 
+
  ! shortwave radiation -- does not depend on state variables
  flux2state_orig(iLookFLUX%spectralIncomingDirect)          = flux2state(state1=integerMissing, state2=integerMissing)
  flux2state_orig(iLookFLUX%spectralIncomingDiffuse)         = flux2state(state1=integerMissing, state2=integerMissing)
@@ -73,7 +73,7 @@ contains
  flux2state_orig(iLookFLUX%scalarBelowCanopySolar)          = flux2state(state1=integerMissing, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyAbsorbedSolar)       = flux2state(state1=integerMissing, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarGroundAbsorbedSolar)       = flux2state(state1=integerMissing, state2=integerMissing)
- 
+
  ! longwave radiation -- assume calculated when the canopy energy state variable is active OR when the ground energy state variable is active
  flux2state_orig(iLookFLUX%scalarLWRadCanopy)               = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarLWRadGround)               = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
@@ -88,8 +88,8 @@ contains
  flux2state_orig(iLookFLUX%scalarLWNetCanopy)               = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarLWNetGround)               = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarLWNetUbound)               = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
- 
- ! turbulent heat transfer -- assume calculated when the canopy energy state variable is active OR when the ground energy state variable is active 
+
+ ! turbulent heat transfer -- assume calculated when the canopy energy state variable is active OR when the ground energy state variable is active
  flux2state_orig(iLookFLUX%scalarEddyDiffusCanopyTop)       = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarFrictionVelocity)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarWindspdCanopyTop)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
@@ -109,7 +109,7 @@ contains
  flux2state_orig(iLookFLUX%scalarGroundAdvectiveHeatFlux)   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarCanopySublimation)         = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarSnowSublimation)           = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
- 
+
  ! stomatal resistance and photosynthesis -- calculated when the canopy energy state variable is active
  flux2state_orig(iLookFLUX%scalarStomResistSunlit)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarStomResistShaded)          = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
@@ -130,18 +130,18 @@ contains
  flux2state_orig(iLookFLUX%scalarThroughfallRain)           = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyLiqDrainage)         = flux2state(state1=iname_watCanopy, state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarCanopyMeltFreeze)          = flux2state(state1=integerMissing,  state2=integerMissing)
- 
+
  ! energy fluxes and for the snow and soil domains
  flux2state_orig(iLookFLUX%iLayerConductiveFlux)            = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerAdvectiveFlux)             = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerNrgFlux)                   = flux2state(state1=iname_nrgLayer,  state2=integerMissing)
- 
+
  ! liquid water fluxes for the snow domain
  flux2state_orig(iLookFLUX%scalarSnowDrainage)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%iLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%mLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
- 
+
  ! liquid water fluxes for the soil domain
  flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarMaxInfilRate)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
@@ -163,6 +163,11 @@ contains
  flux2state_orig(iLookFLUX%scalarAquiferTranspire)          = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
+ ! derived variables
+ flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+
  ! ** copy across flux metadata
  do iVar=1,nFlux
   flux2state_orig(iVar)%var_info = flux_meta(iVar)
@@ -182,7 +187,7 @@ contains
 
  ! initialize to the original structure
  do iVar=1,nFlux
-  flux2state_liq(iVar)%state1 = flux2state_orig(iVar)%state1 
+  flux2state_liq(iVar)%state1 = flux2state_orig(iVar)%state1
   flux2state_liq(iVar)%state2 = flux2state_orig(iVar)%state2
  end do
 

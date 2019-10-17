@@ -19,22 +19,32 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module groundwatr_module
-! numerical recipes data types
+
+! data types
 USE nrtype
+
 ! model constants
 USE multiconst,only:iden_water ! density of water (kg m-3)
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_d,     & ! data vector (dp)
+                    var_dlength  ! data vector with variable length dimension (dp)
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookATTR    ! named variables for structure elements
+USE var_lookup,only:iLookPROG    ! named variables for structure elements
+USE var_lookup,only:iLookDIAG    ! named variables for structure elements
+USE var_lookup,only:iLookFLUX    ! named variables for structure elements
+USE var_lookup,only:iLookPARAM   ! named variables for structure elements
+
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:  &
  qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
  bigBucket,                  & ! a big bucket (lumped aquifer model)
  noExplicit                    ! no explicit groundwater parameterization
-! provide access to the derived types to define the data structures
-USE data_types,only:&
-                    var_d,     & ! data vector (dp)
-                    var_dlength  ! data vector with variable length dimension (dp)
-! provide access to named variables defining elements in the data structures
-USE var_lookup,only:iLookATTR,iLookPARAM,iLookPROG,iLookFLUX
- ! utility modules
+
+! privacy
 implicit none
 ! constant parameters
 real(dp),parameter     :: valueMissing=-9999._dp    ! missing value parameter
@@ -97,16 +107,6 @@ contains
                        ! output: error control
                        err,message)                              ! intent(out): error control
  ! ---------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_d,            & ! data vector (dp)
-                     var_dlength         ! data vector with variable length dimension (dp)
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookATTR           ! named variables for structure elements
- USE var_lookup,only:iLookPROG           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
  ! utility modules
  USE soil_utils_module,only:volFracLiq          ! compute volumetric fraction of liquid water as a function of matric head
  USE soil_utils_module,only:hydCond_psi         ! compute hydraulic conductivity as a function of matric head

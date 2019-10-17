@@ -19,14 +19,30 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module canopySnow_module
+
 ! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,       &  ! data vector (i4b)
+                    var_d,       &  ! data vector (dp)
+                    var_dlength, &  ! data vector with variable length dimension (dp)
+                    model_options   ! defines the model decisions
+
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
+
 ! model decisions
 USE mDecisions_module,only:       &
                       stickySnow, & ! maximum interception capacity an increasing function of temerature
                       lightSnow     ! maximum interception capacity an inverse function of new snow densit
+
+! privacy
 implicit none
 private
 public::canopySnow
@@ -52,15 +68,6 @@ contains
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: model control
@@ -93,6 +100,9 @@ contains
  real(dp)                      :: delS                       ! change in storage (kg m-2)
  real(dp)                      :: resMass                    ! residual in mass equation (kg m-2)
  real(dp),parameter            :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
+ real(dp),parameter            :: C_1=-270.15_dp             ! constant 1 for windySnow (K)
+ real(dp),parameter            :: C_2=0.0000187_dp           ! constant 2 for windySnow (K s)
+ real(dp),parameter            :: C_3=0.0000156_dp           ! constant 3 for windySnow (m)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='canopySnow/'
@@ -105,7 +115,6 @@ contains
 
  ! model forcing data
  scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): [dp] air temperature (K) 
- scalarWindspd             => forc_data%var(iLookFORCE%windspd),                           & ! intent(in): [dp] wind speed (m s-1)
 
  ! model parameters
  refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1),        & ! intent(in): [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
@@ -117,7 +126,8 @@ contains
 
  ! model prognostic variables (input/output)
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarSWE                 => prog_data%var(iLookPROG%scalarSWE)%dat(1),                   & ! intent(inout): [dp] snow water equivalent (kg m-2)
+ scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)             & ! intent(input): [dp] temperature of the canopy air space (k)
+ scalarCanopyWat           => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)              & ! intent(input): [dp] mass of total water on the vegetation canopy (kg m-2)
 
  ! model fluxes (input)
  scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
@@ -146,7 +156,6 @@ contains
  ! *****
  ! compute the ice balance due to snowfall and unloading...
  ! ********************************************************
-
  ! check for early returns
  if(.not.computeVegFlux .or. (scalarSnowfall<tiny(dt) .and. scalarCanopyIce<tiny(dt)))then
   scalarThroughfallSnow     = scalarSnowfall    ! throughfall of snow through the canopy (kg m-2 s-1)
@@ -200,20 +209,13 @@ contains
 
     ! * option 3: interception unloading as a function of windspeed and temperature (e.g., Roesch et al. 2001)
     case(windySnow)
-    ! constants used in Roesch at al. 2001 for temperature and wind-unloading functions
-    C_1 = -270.15_dp   ! (K)
-    C_2 = .0000187_dp  ! (K s-1)
-    C_3 = .0000156_dp  ! (m)
 
-    ! calculate the windspeed at the average height in the canopy, or 10 m above the ground
-    scalarWindspdCanopyAvg = (scalarWindspdCanopyTop + scalarWindspdCanopyBottom) / 2._dp  ! (m s-1)
+    ! define the temperature and wind unloading functions, Eq. 14 & 15 in Roesch et al. 2001
+    tempUnloadingFun = (C_1 + scalarCanairTemp) / C_2   ! (s-1)
+    windUnloadingFun = scalarWindspdCanopyTop / C_3     ! (s-1)
 
-    ! define the temperature and wind unloading functions, Eq. 14 & 15
-    tempUnloadingFun = (C_1 + scalarAirtemp) / C_2   ! (s-1)
-    windUnloadingFun = scalarWindspdCanopyAvg / C_3  ! (s-1)
-
-    ! define the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13
-    leafInterceptCapSnow = refInterceptCapSnow - scalarSnowfall * (tempUnloadingFun + windUnloadingFun) - scalarCanopyEvaporation  ! (kg m-2 s-1)
+    ! define the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
+    leafInterceptCapSnow =  scalarSnowfall - scalarCanopyWat*(tempUnloadingFun + windUnloadingFun) - scalarCanopyEvaporation  ! (kg m-2 s-1)
 
     ! check we found the case
     case default

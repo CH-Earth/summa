@@ -19,48 +19,74 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module stomResist_module
+
+! data types
 USE nrtype
+
 ! physical constants
 USE multiconst, only: Rgas     ! universal gas constant (J mol-1 K-1)
 USE multiconst, only: Tfreeze  ! freezing point of pure water (K)
 USE multiconst, only: ave_slp  ! standard pressure (Pa)
-! conversion functions
-USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,            & ! data vector (i4b)
+                    var_d,            & ! data vector (dp)
+                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    model_options       ! defines the model decisions
+
+! indices that define elements of the data structures
+USE var_lookup,only:iLookTYPE           ! named variables for structure elements
+USE var_lookup,only:iLookDIAG           ! named variables for structure elements
+USE var_lookup,only:iLookFLUX           ! named variables for structure elements
+USE var_lookup,only:iLookFORCE          ! named variables for structure elements
+USE var_lookup,only:iLookPARAM          ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
+
 ! look-up values for the stomatal resistance formulation
 USE mDecisions_module,only:  &
  simpleResistance,           & ! simple resistance formulation
- BallBerryFlex,              & ! flexible Ball-Berry scheme           
+ BallBerryFlex,              & ! flexible Ball-Berry scheme
  BallBerry,                  & ! Ball-Berry (from Noah-MP)
  Jarvis                        ! Jarvis (from Noah-MP)
+
 ! look-up values for the leaf temperature controls on photosynthesis + stomatal resistance
 USE mDecisions_module,only:  &
  q10Func,                    & ! the q10 function used in CLM4 and Noah-MP
- Arrhenius                     ! the Arrhenius functions used in CLM5 and Cable 
+ Arrhenius                     ! the Arrhenius functions used in CLM5 and Cable
+
 ! look-up values for the humidity controls on stomatal resistance
 USE mDecisions_module,only:  &
  humidLeafSurface,           & ! humidity at the leaf surface [Bonan et al., 2011]
  scaledHyperbolic              ! scaled hyperbolic function [Leuning et al., 1995]
+
 ! look-up values for the electron transport function, dependence of photosynthesis on PAR
 USE mDecisions_module,only:  &
  linear,                     & ! linear function used in CLM4 and Noah-MP
  linearJmax,                 & ! linear jmax function used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
  quadraticJmax                 ! the quadratic Jmax function, used in SSiB and CLM5
+
 ! look-up values for the CO2 compensation point to calculate stomatal resistance
 USE mDecisions_module,only:  &
  origBWB,                    & ! the original BWB function
  Leuning                       ! the Leuning function
+
 ! look up values to define the iterative numerical solution method used in the Ball-Berry stomatal resistance parameterization
 USE mDecisions_module,only:  &
  NoahMPsolution,             & ! the NoahMP solution (and CLM4): fixed point iteration; max 3 iterations
  newtonRaphson                 ! full Newton-Raphson iterative solution to convergence
+
 ! look up values to define the controls on carbon assimilation
 USE mDecisions_module,only:  &
  colimitation,               & ! enable colimitation, as described by Collatz et al. (1991) and Sellers et al. (1996)
  minFunc                       ! do not enable colimitation: use minimum of the three controls on carbon assimilation
+
 ! look up values to define the scaling of photosynthesis from the leaf to the canopy
 USE mDecisions_module,only:  &
  constantScaling,            & ! constant scaling factor
  laiScaling                    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
+
+! privacy
 implicit none
 private
 public::stomResist
@@ -97,19 +123,8 @@ contains
                        err,message)                           ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookTYPE           ! named variables for structure elements
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
+ ! conversion functions
+ USE conv_funcs_module,only:satVapPress   ! function to compute the saturated vapor pressure (Pa)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(dp),intent(in)             :: scalarVegetationTemp      ! vegetation temperature (K)
@@ -207,11 +222,11 @@ contains
      ! sunlit leaves
      case(ixSunlit)
       absorbedPAR = scalarCanopySunlitPAR         ! average absorbed par for sunlit leaves (w m-2)
-      ci          = scalarIntercellularCO2Sunlit  ! co2 of the leaf interior for sunlit leaves (Pa) 
+      ci          = scalarIntercellularCO2Sunlit  ! co2 of the leaf interior for sunlit leaves (Pa)
      ! shaded leaves
      case(ixShaded)
       absorbedPAR = scalarCanopyShadedPAR         ! average absorbed par for shaded leaves (w m-2)
-      ci          = scalarIntercellularCO2Shaded  ! co2 of the leaf interior for shaded leaves (Pa) 
+      ci          = scalarIntercellularCO2Shaded  ! co2 of the leaf interior for shaded leaves (Pa)
      ! check
      case default; err=20; message=trim(message)//'unable to identify case for sunlit/shaded leaves'; return
     end select
@@ -241,7 +256,7 @@ contains
     ! assign output variables
     select case(iSunShade)
      case(ixSunlit)
-      scalarStomResistSunlit       = scalarStomResist 
+      scalarStomResistSunlit       = scalarStomResist
       scalarPhotosynthesisSunlit   = scalarPhotosynthesis
       scalarIntercellularCO2Sunlit = ci
      case(ixShaded)
@@ -339,17 +354,6 @@ contains
                             err,message)                           ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to indices that define elements of the data structures
- USE var_lookup,only:iLookDIAG           ! named variables for structure elements
- USE var_lookup,only:iLookFLUX           ! named variables for structure elements
- USE var_lookup,only:iLookFORCE          ! named variables for structure elements
- USE var_lookup,only:iLookPARAM          ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                           ! named variables for elements of the decision structure
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
  real(dp),intent(in)             :: scalarVegetationTemp       ! vegetation temperature (K)
@@ -376,7 +380,7 @@ contains
  real(dp)                        :: rlb                        ! leaf boundary layer rersistance (umol-1 m2 s)
  real(dp)                        :: x0,x1,x2                   ! temporary variables
  real(dp)                        :: co2compPt                  ! co2 compensation point (Pa)
- real(dp)                        :: fHum                       ! humidity function, fraction [0,1] 
+ real(dp)                        :: fHum                       ! humidity function, fraction [0,1]
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! fixed parameters
  integer(i4b),parameter          :: maxiter=20                 ! maximum number of iterations
@@ -397,7 +401,7 @@ contains
  real(dp)                        :: jmax25                     ! maximum electron transport rate at 25 deg C (umol m-2 s-1)
  real(dp)                        :: vcmax                      ! maximum Rubisco carboxylation rate (umol m-2 s-1)
  real(dp)                        :: jmax                       ! maximum electron transport rate (umol m-2 s-1)
- real(dp)                        :: aQuad                      ! the quadratic coefficient in the quadratic equation 
+ real(dp)                        :: aQuad                      ! the quadratic coefficient in the quadratic equation
  real(dp)                        :: bQuad                      ! the linear coefficient in the quadratic equation
  real(dp)                        :: cQuad                      ! the constant in the quadratic equation
  real(dp)                        :: bSign                      ! sign of the linear coeffcient
@@ -409,7 +413,7 @@ contains
  real(dp)                        :: awb                        ! Michaelis-Menten control (Pa)
  real(dp)                        :: cp2                        ! additional controls in light-limited assimilation (Pa)
  real(dp)                        :: psn                        ! leaf gross photosynthesis rate (umol co2 m-2 s-1)
- real(dp)                        :: dA_dc                      ! derivative in photosynthesis w.r.t. intercellular co2 concentration 
+ real(dp)                        :: dA_dc                      ! derivative in photosynthesis w.r.t. intercellular co2 concentration
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! stomatal resistance
  real(dp)                        :: gMin                       ! scaled minimum conductance (umol m-2 s-1)
@@ -433,12 +437,12 @@ contains
 
  ! input: model decisions
  ix_bbTempFunc                   => model_decisions(iLookDECISIONS%bbTempFunc)%iDecision,           & ! intent(in): [i4b] leaf temperature controls on photosynthesis + stomatal resistance
- ix_bbHumdFunc                   => model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision,           & ! intent(in): [i4b] humidity controls on stomatal resistance 
+ ix_bbHumdFunc                   => model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision,           & ! intent(in): [i4b] humidity controls on stomatal resistance
  ix_bbElecFunc                   => model_decisions(iLookDECISIONS%bbElecFunc)%iDecision,           & ! intent(in): [i4b] dependence of photosynthesis on PAR
  ix_bbCO2point                   => model_decisions(iLookDECISIONS%bbCO2point)%iDecision,           & ! intent(in): [i4b] use of CO2 compensation point to calculate stomatal resistance
- ix_bbNumerics                   => model_decisions(iLookDECISIONS%bbNumerics)%iDecision,           & ! intent(in): [i4b] iterative numerical solution method used in the Ball-Berry parameterization 
+ ix_bbNumerics                   => model_decisions(iLookDECISIONS%bbNumerics)%iDecision,           & ! intent(in): [i4b] iterative numerical solution method used in the Ball-Berry parameterization
  ix_bbAssimFnc                   => model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision,           & ! intent(in): [i4b] controls on carbon assimilation (min function, or colimitation)
- ix_bbCanIntg8                   => model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision,           & ! intent(in): [i4b] scaling of photosynthesis from the leaf to the canopy 
+ ix_bbCanIntg8                   => model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision,           & ! intent(in): [i4b] scaling of photosynthesis from the leaf to the canopy
 
  ! input: model parameters
  Kc25                            => mpar_data%var(iLookPARAM%Kc25)%dat(1),                          & ! intent(in): [dp] Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
@@ -452,7 +456,7 @@ contains
  vcmax_Ha                        => mpar_data%var(iLookPARAM%vcmax_Ha)%dat(1),                      & ! intent(in): [dp] activation energy in the vcmax function (J mol-1)
  vcmax_Hd                        => mpar_data%var(iLookPARAM%vcmax_Hd)%dat(1),                      & ! intent(in): [dp] deactivation energy in the vcmax function (J mol-1)
  vcmax_Sv                        => mpar_data%var(iLookPARAM%vcmax_Sv)%dat(1),                      & ! intent(in): [dp] entropy term in the vcmax function (J mol-1 K-1)
- vcmax_Kn                        => mpar_data%var(iLookPARAM%vcmax_Kn)%dat(1),                      & ! intent(in): [dp] foliage nitrogen decay coefficient (-) 
+ vcmax_Kn                        => mpar_data%var(iLookPARAM%vcmax_Kn)%dat(1),                      & ! intent(in): [dp] foliage nitrogen decay coefficient (-)
  jmax25_scale                    => mpar_data%var(iLookPARAM%jmax25_scale)%dat(1),                  & ! intent(in): [dp] scaling factor to relate jmax25 to vcmax25 (-)
  jmax_Ha                         => mpar_data%var(iLookPARAM%jmax_Ha)%dat(1),                       & ! intent(in): [dp] activation energy in the jmax function (J mol-1)
  jmax_Hd                         => mpar_data%var(iLookPARAM%jmax_Hd)%dat(1),                       & ! intent(in): [dp] deactivation energy in the jmax function (J mol-1)
@@ -495,7 +499,7 @@ contains
  if(absorbedPAR < tiny(absorbedPAR) .or. scalarGrowingSeasonIndex < tiny(absorbedPAR))then
   scalarStomResist     = unitConv*umol_per_mol/(scalarTranspireLim*minStomatalConductance)
   scalarPhotosynthesis = 0._dp
-  ci                   = 0._dp 
+  ci                   = 0._dp
  return
  end if
 
@@ -607,7 +611,7 @@ contains
  end select
 
  ! compute the co2 compensation point (Pa)
- co2compPt = (Kc/Ko)*scalarO2air*o2scaleFactor 
+ co2compPt = (Kc/Ko)*scalarO2air*o2scaleFactor
 
  ! compute the Michaelis-Menten controls (Pa)
  awb = Kc*(1._dp + scalarO2air/Ko)
@@ -665,7 +669,7 @@ contains
   end if
 
   ! compute conductance in the absence of humidity
-  g0     = cond2photo_slope*airpres*psn/csx 
+  g0     = cond2photo_slope*airpres*psn/csx
   dg0_dc = cond2photo_slope*airpres*dA_dc*(x1*psn/cs + 1._dp)/csx
 
   ! use quadratic function to compute stomatal resistance
@@ -885,7 +889,7 @@ contains
     dAj_dc = 0._dp
     dAe_dc = 0._dp
    end if
- 
+
    ! smooth Rubisco-limitation and light limitation
    if(ciDiff > tiny(ciDiff))then
     call quadSmooth(desireDeriv, xPSN(ixRubi), xPSN(ixLight), theta_cj, dAc_dc, dAj_dc, xsPSN, dAi_dc)
@@ -937,7 +941,7 @@ contains
  implicit none
  ! dummy variables
  logical(lgt),intent(in) :: desireDeriv   ! flag to denote if the derivative is desired
- integer(i4b),intent(in) :: ix_bbHumdFunc ! option for humidity control on stomatal resistance 
+ integer(i4b),intent(in) :: ix_bbHumdFunc ! option for humidity control on stomatal resistance
  real(dp),intent(in)     :: rlb           ! leaf boundary layer resistance (umol-1 m2 s)
  real(dp),intent(in)     :: fHum          ! scaled humidity function (-)
  real(dp),intent(in)     :: gMin          ! scaled minimum stomatal consuctance (umol m-2 s-1)
@@ -996,7 +1000,7 @@ contains
   ! compute derivatives in rs
   if(root1 > root2)then
    select case(ix_bbHumdFunc)
-    case(humidLeafSurface); drs_dc = (dqq_dc - root1*fHum*dg0_dc)/aQuad 
+    case(humidLeafSurface); drs_dc = (dqq_dc - root1*fHum*dg0_dc)/aQuad
     case(scaledHyperbolic); drs_dc = (dqq_dc - root1*dg0_dc)/aQuad
    end select
   else
@@ -1104,7 +1108,7 @@ contains
  function fHigh(delH,delS,T)
  implicit none
  real(dp),intent(in) :: delH     ! deactivation energy in high temp inhibition function (J mol-1)
- real(dp),intent(in) :: delS     ! entropy term in high temp inhibition function (J K-1 mol-1) 
+ real(dp),intent(in) :: delS     ! entropy term in high temp inhibition function (J K-1 mol-1)
  real(dp),intent(in) :: T        ! temperature (K)
  real(dp)            :: fHigh    ! high temperature inhibition (-)
  fHigh = 1._dp + exp( (delS*T - delH)/(Rgas*T) ) ! NOTE: Rgas = J K-1 mol-1
