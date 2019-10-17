@@ -295,11 +295,9 @@ contains
   err = nf90_get_var(ncid,varId,timeVal,start=(/1/),count=(/1/))
   if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
 
-  ! (get time vector)
-  fileTime = arth(0,1,dimLen)*data_step/secprday + timeVal(1)
-
-  ! convert time to units of days, and add reference julian day
-  fileTime=fileTime/forcFileInfo(iFile)%convTime2Days + refJulday_data
+  ! get time vector & convert units based on offset and data step
+  fileTime = arth(0,1,dimLen) * data_step/secprday + refJulday_data &
+             + timeVal(1)/forcFileInfo(iFile)%convTime2Days
 
   ! find difference of fileTime from currentJulday
   diffTime=abs(fileTime-currentJulday)
@@ -312,7 +310,6 @@ contains
 
   ! time step is not in current file
   else
-
    ! close file
    err = nf90_close(ncid)
    if(err/=nf90_noerr)then; message=trim(message)//'trouble closing file '//trim(infile); return; endif
