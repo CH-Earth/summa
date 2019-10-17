@@ -192,15 +192,14 @@ contains
 
  ! ----- use openMP directives to run GRUs in parallel -------------------------
  ! start of parallel section: define shared and private structure elements
-   !!$omp parallel
   !$omp parallel  default(none) &
   !$omp          private(iGRU, jGRU) &  ! GRU indices are private for a given thread
   !$omp          shared(openMPstart, openMPend)   & ! access constant variables
   !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
   !$omp          shared(summa1_struc, gru_struc) &
   !$omp          private(err, cmessage)
- ! nThreads = 1
- ! !$ nThreads = omp_get_num_threads()
+  nThreads = 1
+  !$ nThreads = omp_get_num_threads()
  ! associate to elements in the data structur, gru_struce
  ! need to associate again for the parallelism to work
  summaVars2: associate(&
