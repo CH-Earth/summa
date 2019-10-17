@@ -136,7 +136,6 @@ contains
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
-<<<<<<< HEAD
  ! look-up values for the numerical method
  USE mDecisions_module,only:         &
   iterative,                         &      ! iterative
@@ -147,8 +146,6 @@ contains
                        stickySnow,   &      ! maximum interception capacity an increasing function of temerature
                        lightSnow,    &      ! maximum interception capacity an inverse function of new snow density
                        windySnow            ! maximum interception capacity an inverse of temperature and wind-unloading
-=======
->>>>>>> 9308b7aa85fbb412633e3a60c8fef5a606dee773
  implicit none
  ! model control
  integer(8),intent(in)                :: hruId                  ! hruId
@@ -426,7 +423,7 @@ contains
  select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)
   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)*4._dp
-  case(windySnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%redInterceptCapSnow)%dat(1)
+  case(windySnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)
   case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
  end select ! identifying option for maximum branch interception capacity
  !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
@@ -1072,12 +1069,12 @@ contains
    write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
    write(*,'(a,1x,f20.10)') 'scalarSnowfall                               = ', scalarSnowfall
    write(*,'(a,1x,f20.10)') 'scalarRainfall                               = ', scalarRainfall
-   write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)!*data_step
-   write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)!*data_step
-   write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading!*data_step
-   write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage!*data_step
-   write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation!*data_step
-   write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation!*data_step
+   write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)*data_step
+   write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation*data_step
+   write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation*data_step
    write(*,'(a,1x,f20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
    message=trim(message)//'canopy hydrology does not balance'
    err=20; return
