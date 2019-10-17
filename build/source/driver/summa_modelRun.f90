@@ -70,7 +70,6 @@ contains
  character(LEN=256)                    :: cmessage              ! error message of downwind routine
  integer(i4b)                          :: iHRU                  ! HRU index
  integer(i4b)                          :: iGRU,jGRU,kGRU        ! GRU indices
- integer(i4b)                          :: nThreads                   ! number of threads
  ! local variables: veg phenology
  logical(lgt)                          :: computeVegFluxFlag    ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(dp)                              :: notUsed_canopyDepth   ! NOT USED: canopy depth (m)
@@ -198,8 +197,6 @@ contains
   !$omp          shared(timeGRUstart, timeGRUcompleted, timeGRU, ixExpense, kGRU)  & ! time variables shared
   !$omp          shared(summa1_struc, gru_struc) &
   !$omp          private(err, cmessage)
-  nThreads = 1
-  !$ nThreads = omp_get_num_threads()
  ! associate to elements in the data structur, gru_struce
  ! need to associate again for the parallelism to work
  summaVars2: associate(&
