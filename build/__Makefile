@@ -11,14 +11,6 @@
 # PART 0: User-configurable part
 #========================================================================
 
-# This section is now set outside of this file, through the following commands:
-# export F_MASTER=[path]
-# export FC=[compiler]
-# export FC_ENV=[env]
-# export FC_EXE=[path_to_compiler_exe]
-
-# ------------ old set up ---------------------------------------------------
-
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
 # F_MASTER = /home/wmk934/summa/
@@ -48,8 +40,6 @@
 # and with different compilers. If you are successful compiling SUMMA,
 # please add your configuration (operating system and compiler plus
 # part 0 of the Makefile) to the SUMMA wiki on github.
-
-# ------------ end old set up -----------------------------------------------
 
 # Define compiler flags. If you use a different compiler,
 # you will need to figure out what the equivalent flags are
