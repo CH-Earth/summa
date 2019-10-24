@@ -97,6 +97,7 @@ contains
   case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! choice of method for spatial representation of groundwater
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
   case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
+  case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing

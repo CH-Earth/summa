@@ -62,6 +62,7 @@ MODULE var_lookup
   integer(i4b)    :: rootProfil = integerMissing     ! choice of parameterization for the rooting profile
   integer(i4b)    :: canopyEmis = integerMissing     ! choice of parameterization for canopy emissivity
   integer(i4b)    :: snowIncept = integerMissing     ! choice of parameterization for snow interception
+  integer(i4b)    :: snowUnload = integerMissing     ! choice of parameterization for snow unloading
   integer(i4b)    :: windPrfile = integerMissing     ! choice of canopy wind profile
   integer(i4b)    :: astability = integerMissing     ! choice of stability function
   integer(i4b)    :: canopySrad = integerMissing     ! choice of method for canopy shortwave radiation
@@ -760,7 +761,8 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
+                                                                         41)
 
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)

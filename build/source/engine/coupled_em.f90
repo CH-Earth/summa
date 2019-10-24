@@ -142,10 +142,9 @@ contains
   nonIterative,                      &      ! non-iterative
   iterSurfEnergyBal                         ! iterate only on the surface energy balance
  ! look-up values for the maximum interception capacity
- USE mDecisions_module,only:         &
-                       stickySnow,   &      ! maximum interception capacity an increasing function of temerature
-                       lightSnow,    &      ! maximum interception capacity an inverse function of new snow density
-                       windySnow            ! maximum interception capacity an inverse of temperature and wind-unloading
+ USE mDecisions_module,only:          &
+                       stickySnow,    &      ! maximum interception capacity an increasing function of temerature
+                       lightSnow             ! maximum interception capacity an inverse function of new snow density
  implicit none
  ! model control
  integer(8),intent(in)                :: hruId                  ! hruId
@@ -423,7 +422,6 @@ contains
  select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)
   case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)*4._dp
-  case(windySnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)
   case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
  end select ! identifying option for maximum branch interception capacity
  !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
