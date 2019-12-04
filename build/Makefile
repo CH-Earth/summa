@@ -371,7 +371,7 @@ compile_summa: update_version
 
 # link routines
 link:
-	$(FC_EXE) -pg -g *.o $(LIBRARIES) -o $(DRIVER__EX)
+	$(FC_EXE) -g *.o $(LIBRARIES) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

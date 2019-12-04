@@ -801,7 +801,7 @@ contains
 
   ! check mass balance for soil
   ! NOTE: fatal errors, though possible to recover using negative error codes
-  if(count(ixSoilOnlyHyd/=integerMissing)>0)then
+  if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
    soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
    vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
    tranSink     = sum(mLayerTranspire)*dt                                ! m s-1 --> m
