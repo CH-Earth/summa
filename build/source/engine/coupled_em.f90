@@ -854,7 +854,6 @@ contains
 
   end if  ! (if snow layers exist)
 
-  end associate sublime
 
   ! *** account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -878,8 +877,31 @@ contains
                    prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
                    ! output: error control
                    err,cmessage)                     ! intent(out): error control
-   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+
+   !----------------------------------------------
+   ! NOTE: this is done AFTER densification
+   ! try to remove ice from the top layer
+   iSnow=1
+
+   ! check that we did not remove the entire layer
+   if(mLayerDepth(iSnow) < verySmall)then
+    stepFailure  = .true.
+    doLayerMerge = .true.
+    dt_sub      = max(dtSave/2._dp, minstep)
+    cycle substeps
+   else
+    stepFailure  = .false.
+    doLayerMerge = .false.
+   endif
+
+   ! update the volumetric fraction of liquid water
+   mLayerVolFracLiq(iSnow) = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water / (mLayerDepth(iSnow)*iden_water)
+   ! no snow
+   ! -------------------------------------------------------
   end if  ! if snow layers exist
+  end associate sublime
+  ! Handle error outside of cycle
+  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
   ! update coordinate variables
   call calcHeight(&
