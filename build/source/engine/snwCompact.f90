@@ -164,15 +164,9 @@ contains
   ! can occur given the masses of ice and liquid in the layer
   scalarDepthNew = scalarDepthNew/(1._dp + CR_metamorph*dt)
   scalarDepthMin = (massIceOld / iden_ice) + (massLiqOld / iden_water)
-  mLayerDepth(iSnow) = scalarDepthNew
+  mLayerDepth(iSnow) = max(scalarDepthMin, scalarDepthNew)
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
-  if (scalarDepthMin > scalarDepthNew) then
-    scalarDepthNew = scalarDepthMin
-    mLayerDepth(iSnow) = scalarDepthNew
-    mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
-    mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
-  end if
 
   ! check that depth is reasonable
   if(mLayerDepth(iSnow) < 0._dp)then
