@@ -156,7 +156,6 @@ contains
   else
    scalarDepthNew = mLayerDepth(iSnow)
   end if
-
   ! compute the total compaction rate associated with metamorphism
   CR_metamorph = CR_grainGrowth + CR_ovrvdnPress
   ! update depth due to metamorphism (implicit solution)
@@ -165,8 +164,6 @@ contains
   scalarDepthNew = scalarDepthNew/(1._dp + CR_metamorph*dt)
   scalarDepthMin = (massIceOld / iden_ice) + (massLiqOld / iden_water)
   mLayerDepth(iSnow) = max(scalarDepthMin, scalarDepthNew)
-  mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
-  mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
 
   ! check that depth is reasonable
   if(mLayerDepth(iSnow) < 0._dp)then
@@ -176,6 +173,8 @@ contains
   endif
 
   ! update volumetric ice and liquid water content
+  mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
+  mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
   !write(*,'(a,1x,i4,1x,f9.3)') 'after compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
   !if(mLayerMeltFreeze(iSnow) > 20._dp) pause 'meaningful melt'
 
@@ -194,7 +193,7 @@ contains
  if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < minLayerDensity) .or. &
     any(mLayerVolFracIceNew(1:nSnow) > 1._dp))then
   do iSnow=1,nSnow
-   write(*,*) 'iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow),  mLayerVolFracIceNew(iSnow)*iden_ice
+   write(*,*) 'iSnow, volFracIce, density = ', iSnow, mLayerVolFracIceNew(iSnow),  mLayerVolFracIceNew(iSnow)*iden_ice
   end do
   message=trim(message)//'unreasonable value for snow density'
   err=20; return
