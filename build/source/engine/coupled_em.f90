@@ -878,7 +878,7 @@ contains
                    prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
                    ! output: error control
                    err,cmessage)                     ! intent(out): error control
-  if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
 
   ! update coordinate variables
