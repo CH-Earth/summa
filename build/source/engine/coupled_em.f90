@@ -854,6 +854,7 @@ contains
 
   end if  ! (if snow layers exist)
 
+  end associate sublime
 
   ! *** account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -878,28 +879,6 @@ contains
                    ! output: error control
                    err,cmessage)                     ! intent(out): error control
 
-   !----------------------------------------------
-   ! NOTE: this is done AFTER densification
-   ! try to remove ice from the top layer
-   iSnow=1
-   associate(&
-   ! model decisions
-   ix_snowLayers    => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
-   ! model parameters (control the depth of snow layers)
-   zmin             => mpar_data%var(iLookPARAM%zmin)%dat(1),                & ! minimum layer depth (m)
-   zminLayer1       => mpar_data%var(iLookPARAM%zminLayer1)%dat(1)) ! ,          & ! minimum layer depth for the 1st (top) layer (m)
-   ! check that we did not remove the entire layer
-   if(mLayerDepth(iSnow) < max(zmin, zminLayer1)) then
-    stepFailure  = .true.
-    doLayerMerge = .true.
-    dt_sub      = max(dtSave/2._dp, minstep)
-    cycle substeps
-   else
-    stepFailure  = .false.
-    doLayerMerge = .false.
-   endif
-   end associate
-   ! end associate statement
    ! update the volumetric fraction of liquid water
    mLayerVolFracLiq(iSnow) = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water / (mLayerDepth(iSnow)*iden_water)
    ! no snow

@@ -27,6 +27,7 @@ USE nrtype
 USE multiconst,only:&
                     Tfreeze,    &     ! freezing point of pure water (K)
                     iden_ice,   &     ! intrinsic density of ice (kg m-3)
+                    iden_air,   &     ! intrinsic density of air (kg m-3)
                     iden_water        ! intrinsic density of liquid water (kg m-3)
 ! privacy
 implicit none
@@ -96,6 +97,7 @@ contains
  real(dp)                            :: scalarDepthNew           ! updated layer depth (m)
  real(dp)                            :: scalarDepthMin           ! minimum layer depth (m)
  real(dp)                            :: volFracIceLoss           ! volumetric fraction of ice lost due to melt and sublimation (-)
+ real(dp), dimension(nSnow)          :: mLayerVolFracAirNew      ! volumetric fraction of air in each layer after compaction (-)
  real(dp),parameter                  :: snwden_min=100._dp       ! minimum snow density for reducing metamorphism rate (kg m-3)
  real(dp),parameter                  :: snwDensityMax=550._dp    ! maximum snow density for collapse under melt (kg m-3)
  real(dp),parameter                  :: wetSnowThresh=0.01_dp    ! threshold to discriminate between "wet" and "dry" snow
@@ -175,6 +177,7 @@ contains
   ! update volumetric ice and liquid water content
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
+  mLayerVolFracAirNew(iSnow) = 1.0_dp - mLayerVolFracIceNew(iSnow) - mLayerVolFracLiqNew(iSnow)
   !write(*,'(a,1x,i4,1x,f9.3)') 'after compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
   !if(mLayerMeltFreeze(iSnow) > 20._dp) pause 'meaningful melt'
 
@@ -190,7 +193,7 @@ contains
  end if
 
  ! check for low/high snow density
- if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice < minLayerDensity) .or. &
+ if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice + mLayerVolFracLiqNew(1:nSnow)*iden_water + mLayerVolFracAirNew(1:nSnow)*iden_air < minLayerDensity) .or. &
     any(mLayerVolFracIceNew(1:nSnow) > 1._dp))then
   do iSnow=1,nSnow
    write(*,*) 'iSnow, volFracIce, density = ', iSnow, mLayerVolFracIceNew(iSnow),  mLayerVolFracIceNew(iSnow)*iden_ice
