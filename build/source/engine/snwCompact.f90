@@ -169,7 +169,7 @@ contains
 
   ! check that depth is reasonable
   if(mLayerDepth(iSnow) < 0._dp)then
-   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density, massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
+   write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density,massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
                                          iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
   endif
@@ -194,7 +194,7 @@ contains
 
  ! check for low/high snow density
  if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice + mLayerVolFracLiqNew(1:nSnow)*iden_water + mLayerVolFracAirNew(1:nSnow)*iden_air < minLayerDensity) .or. &
-    any(mLayerVolFracIceNew(1:nSnow) > 1._dp))then
+    any(mLayerVolFracIceNew(1:nSnow) + mLayerVolFracLiqNew(1:nSnow) + mLayerVolFracAirNew(1:nSnow) > 1._dp))then
   do iSnow=1,nSnow
    write(*,*) 'iSnow, volFracIce, density = ', iSnow, mLayerVolFracIceNew(iSnow),  mLayerVolFracIceNew(iSnow)*iden_ice
   end do
