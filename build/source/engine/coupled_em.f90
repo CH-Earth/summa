@@ -878,15 +878,8 @@ contains
                    prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
                    ! output: error control
                    err,cmessage)                     ! intent(out): error control
-
-   ! update the volumetric fraction of liquid water
-   mLayerVolFracLiq(iSnow) = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water / (mLayerDepth(iSnow)*iden_water)
-   ! no snow
-   ! -------------------------------------------------------
-  end if  ! if snow layers exist
-  end associate sublime
-  ! Handle error outside of cycle
   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+  end if  ! if snow layers exist
 
   ! update coordinate variables
   call calcHeight(&
