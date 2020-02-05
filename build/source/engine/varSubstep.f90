@@ -350,19 +350,8 @@ contains
 
   ! reduce step based on failure
   if(failedSubstep)then
-
-   ! solver failure
-   if(err<0)then
     err=0; message='varSubstep/'  ! recover from failed convergence
     dtMultiplier  = 0.5_dp        ! system failure: step halving
-
-   ! nothing else defined
-   else
-    message=trim(message)//'unknown failure'
-    err=20; return
-   endif
-
-  ! successful step
   else
 
    ! ** implicit Euler: adjust step length based on iteration count
