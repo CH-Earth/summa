@@ -246,6 +246,9 @@ MODULE var_lookup
   integer(i4b)    :: ratioDrip2Unloading   = integerMissing    ! ratio of canopy drip to unloading of snow from the forest canopy (-)
   integer(i4b)    :: canopyWettingFactor   = integerMissing    ! maximum wetted fraction of the canopy (-)
   integer(i4b)    :: canopyWettingExp      = integerMissing    ! exponent in canopy wetting function (-)
+  integer(i4b)    :: minTempUnloading      = integerMissing    ! constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
+  integer(i4b)    :: rateTempUnloading     = integerMissing    ! constant describing how quickly snow will unload due to temperature in windySnow parameterization (K s)
+  integer(i4b)    :: rateWindUnloading     = integerMissing    ! constant describing how quickly snow will unload due to wind in windySnow parameterization (m)
   ! soil properties
   integer(i4b)    :: soil_dens_intr        = integerMissing    ! intrinsic soil density (kg m-3)
   integer(i4b)    :: thCond_soil           = integerMissing    ! thermal conductivity of soil (W m-1 K-1)
@@ -795,7 +798,7 @@ MODULE var_lookup
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
-                                                                        151,152,153,154,155)
+                                                                        151,152,153,154,155,156,157,158)
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

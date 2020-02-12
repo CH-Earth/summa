@@ -104,9 +104,6 @@ contains
  real(dp)                      :: tempUnloadingFun           ! temperature unloading functions, Eq. 14 in Roesch et al. 2001
  real(dp)                      :: windUnloadingFun           ! temperature unloading functions, Eq. 15 in Roesch et al. 2001
  real(dp),parameter            :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
- real(dp),parameter            :: C_1=-270.15_dp             ! constant 1 for wind unloading (K)
- real(dp),parameter            :: C_2=1.87d+5                ! constant 2 for wind unloading (K s)
- real(dp),parameter            :: C_3=1.56d+5                ! constant 3 for wind unloading (m)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='canopySnow/'
@@ -125,8 +122,11 @@ contains
  refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1),        & ! intent(in): [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
  ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading)%dat(1),        & ! intent(in): [dp] ratio of canopy drip to snow unloading (-)
  snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff)%dat(1),         & ! intent(in): [dp] time constant for unloading of snow from the forest canopy (s-1)
+ minTempUnloading          => mpar_data%var(iLookPARAM%minTempUnloading)%dat(1),           & ! constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
+ rateTempUnloading         => mpar_data%var(iLookPARAM%rateTempUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to temperature in windySnow parameterization (K s)
+ rateWindUnloading         => mpar_data%var(iLookPARAM%rateWindUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to wind in windySnow parameterization (K s)
 
- ! model diagnostic variables
+! model diagnostic variables
  scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)
 
  ! model prognostic variables (input/output)
@@ -175,8 +175,8 @@ contains
          scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
          unloadingDeriv            = snowUnloadingCoeff
      else if (ixSnowUnload==windUnload) then
-         tempUnloadingFun = (C_1 + scalarCanairTemp) / C_2   ! (s-1)
-         windUnloadingFun = abs(scalarWindspdCanopyTop) / C_3     ! (s-1)
+         tempUnloadingFun = (scalarCanairTemp - minTempUnloading) / rateTempUnloading   ! (s-1)
+         windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
          ! No snow unloading if T < -3C
          if (tempUnloadingFun < 0) then
              tempUnloadingFun = 0._dp
