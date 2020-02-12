@@ -526,8 +526,8 @@ contains
  select case(trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision))
   case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
   case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
-   case default
-   err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
+  case default
+  err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
  end select
 
  ! identify the choice of wind profile
@@ -631,7 +631,7 @@ contains
  ! choice of snow unloading from canopy
  select case(trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision))
   case('meltDripUnload','notPopulatedYet'); model_decisions(iLookDECISIONS%snowUnload)%iDecision = meltDripUnload  ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
-  case('windUnload');                   model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
+  case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
   case default
    err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
  end select

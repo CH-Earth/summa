@@ -98,7 +98,6 @@ contains
  real(dp)                      :: throughfallDeriv           ! derivative in throughfall flux w.r.t. canopy storage (s-1)
  real(dp)                      :: unloadingDeriv             ! derivative in unloading flux w.r.t. canopy storage (s-1)
  real(dp)                      :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
- real(dp)                      :: accum
  real(dp)                      :: flux                       ! net flux (kg m-2 s-1)
  real(dp)                      :: delS                       ! change in storage (kg m-2)
  real(dp)                      :: resMass                    ! residual in mass equation (kg m-2)
@@ -106,8 +105,8 @@ contains
  real(dp)                      :: windUnloadingFun           ! temperature unloading functions, Eq. 15 in Roesch et al. 2001
  real(dp),parameter            :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
  real(dp),parameter            :: C_1=-270.15_dp             ! constant 1 for wind unloading (K)
- real(dp),parameter            :: C_2=1.87d+5           ! constant 2 for wind unloading (K s)
- real(dp),parameter            :: C_3=1.56d+5           ! constant 3 for wind unloading (m)
+ real(dp),parameter            :: C_2=1.87d+5                ! constant 2 for wind unloading (K s)
+ real(dp),parameter            :: C_3=1.56d+5                ! constant 3 for wind unloading (m)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='canopySnow/'
@@ -132,9 +131,9 @@ contains
 
  ! model prognostic variables (input/output)
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1),             & ! intent(input): [dp] temperature of the canopy air space (k)
 
  ! model fluxes (input)
+ scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1),            & ! intent(in): [dp] temperature of the canopy air space (k)
  scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
  scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
  scalarWindspdCanopyTop    => flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),      & ! intent(in): [dp] windspeed at the top of the canopy (m s-1)
@@ -238,11 +237,6 @@ contains
  ! *****
  ! update mass of ice on the canopy (kg m-2)
  scalarCanopyIce = scalarCanopyIceIter
- !write(*,*) scalarCanopySnowUnloading !, scalarThroughfallSnow, flux, delS
-
- !print*, 'scalarCanopySnowUnloading    = ', scalarCanopySnowUnloading
- !print*, 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
-
  ! end association to variables in the data structure
  end associate
 
