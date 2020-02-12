@@ -126,7 +126,7 @@ contains
  rateTempUnloading         => mpar_data%var(iLookPARAM%rateTempUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to temperature in windySnow parameterization (K s)
  rateWindUnloading         => mpar_data%var(iLookPARAM%rateWindUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to wind in windySnow parameterization (K s)
 
-! model diagnostic variables
+ ! model diagnostic variables
  scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)
 
  ! model prognostic variables (input/output)
@@ -137,9 +137,6 @@ contains
  scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
  scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
  scalarWindspdCanopyTop    => flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),      & ! intent(in): [dp] windspeed at the top of the canopy (m s-1)
- scalarWindspdCanopyBottom => flux_data%var(iLookFlux%scalarWindspdCanopyBottom)%dat(1),   & ! intent(in): [dp] windspeed at the height of the bottom of the canopy (m s-1)
- scalarCanopyEvaporation   => flux_data%var(iLookFlux%scalarCanopyEvaporation)%dat(1),     & ! intent(in): [dp] canopy evaporation/condensation (kg m-2 s-1)
-
  ! model variables (output)
  scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),       & ! intent(out): [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
  scalarCanopySnowUnloading => flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)    & ! intent(out): [dp] unloading of snow from the vegetion canopy (kg m-2 s-1)
@@ -177,11 +174,11 @@ contains
      else if (ixSnowUnload==windUnload) then
          tempUnloadingFun = (scalarCanairTemp - minTempUnloading) / rateTempUnloading   ! (s-1)
          windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
-         ! No snow unloading if T < -3C
+         ! No snow unloading if T < minTempUnloading
          if (tempUnloadingFun < 0) then
              tempUnloadingFun = 0._dp
          end if
-         ! define the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
+         ! implement the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
          scalarCanopySnowUnloading = scalarCanopyIceIter * (tempUnloadingFun + windUnloadingFun)
          unloadingDeriv            = tempUnloadingFun + windUnloadingFun
      end if
