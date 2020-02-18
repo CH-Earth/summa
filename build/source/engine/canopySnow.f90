@@ -123,6 +123,7 @@ contains
  ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading)%dat(1),        & ! intent(in): [dp] ratio of canopy drip to snow unloading (-)
  snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff)%dat(1),         & ! intent(in): [dp] time constant for unloading of snow from the forest canopy (s-1)
  minTempUnloading          => mpar_data%var(iLookPARAM%minTempUnloading)%dat(1),           & ! constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
+ minWindUnloading          => mpar_data%var(iLookPARAM%minWindUnloading)%dat(1),           & ! constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
  rateTempUnloading         => mpar_data%var(iLookPARAM%rateTempUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to temperature in windySnow parameterization (K s)
  rateWindUnloading         => mpar_data%var(iLookPARAM%rateWindUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to wind in windySnow parameterization (K s)
 
@@ -172,11 +173,11 @@ contains
          scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
          unloadingDeriv            = snowUnloadingCoeff
      else if (ixSnowUnload==windUnload) then
-         tempUnloadingFun = (scalarCanairTemp - minTempUnloading) / rateTempUnloading   ! (s-1)
-         windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
-         ! No snow unloading if T < minTempUnloading
-         if (tempUnloadingFun < 0) then
-             tempUnloadingFun = 0._dp
+         tempUnloadingFun = max(scalarCanairTemp - minTempUnloading, 0._dp) / rateTempUnloading   ! (s-1)
+         if (scalarWindspdCanopyTop >= minWindUnloading) then
+            windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
+         else
+            windUnloadingFun = 0._dp ! (s-1)
          end if
          ! implement the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
          scalarCanopySnowUnloading = scalarCanopyIceIter * (tempUnloadingFun + windUnloadingFun)
