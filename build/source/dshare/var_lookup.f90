@@ -751,7 +751,6 @@ MODULE var_lookup
   integer(i4b)    :: annual   = integerMissing ! yearly (annual) aggregation
   integer(i4b)    :: timestep = integerMissing ! timestep-level output (no temporal aggregation)
  endtype iLook_freq
-
  ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************

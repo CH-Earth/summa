@@ -243,6 +243,7 @@ MODULE data_types
   type(var_i8),allocatable           :: gru(:)     ! gru(:)%var(:)
  endtype gru_int8
 
+
  ! define derived types to hold BOTH the GRU and HRU dimension
  ! ** double precision type of variable length
  type, public :: gru_hru_doubleVec
@@ -276,6 +277,166 @@ MODULE data_types
  type, public :: gru_i
   type(hru_i),allocatable            :: gru(:)    ! gru(:)%hru(:)
  endtype gru_i
+
+
+
+! ----------------------------
+! - TIME DEPENDENT VARIABLES
+! ----------------------------
+ ! ** double precision type
+ type, public :: time_dlength
+  real(dp),dimension(:),allocatable                :: dat(:)    ! dat(:)
+ endtype time_dlength
+ ! ** integer type (4 byte)
+ type, public :: time_ilength
+  integer(i4b),dimension(:),allocatable            :: dat(:)    ! dat(:)
+ endtype time_ilength
+ ! ** integer type (8 byte)
+ type, public :: time_i8length
+  integer(8),dimension(:),allocatable              :: dat(:)    ! dat(:)
+ endtype time_i8length
+ ! ** logical type
+ type, public :: time_flagVec
+  logical(lgt),dimension(:),allocatable            :: dat(:)    ! dat(:)
+ endtype time_flagVec
+
+ ! define derived types to hold data for multiple variables
+ ! NOTE: use derived types here to facilitate adding extra dimensions (e.g., spatial)
+
+ ! ** double precision type of variable length
+ type, public :: var_time_dlength
+  type(time_dlength),allocatable           :: var(:)    ! var(:)%dat
+ endtype var_time_dlength
+ ! ** integer type of variable length (4 byte)
+ type, public :: var_time_ilength
+  type(time_ilength),allocatable           :: var(:)    ! var(:)%dat
+ endtype var_time_ilength
+ ! ** integer type of variable length (8 byte)
+ type, public :: var_time_i8length
+  type(time_i8length),allocatable          :: var(:)    ! var(:)%dat
+ endtype var_time_i8length
+ ! ** logical type of variable length
+ type, public :: var_time_flagVec
+  type(time_flagVec),allocatable           :: var(:)    ! var(:)%dat
+ endtype var_time_flagVec
+
+ ! ** double precision type of fixed length
+ type, public :: var_time_d
+  type(time_dlength),allocatable                :: var(:)    ! var(:)
+ endtype var_time_d
+ ! ** integer type of fixed length (4 byte)
+ type, public :: var_time_i
+  type(time_ilength),allocatable            :: var(:)    ! var(:)
+ endtype var_time_i
+ ! ** integer type of fixed length (8 byte)
+ type, public :: var_time_i8
+  type(time_i8length),allocatable              :: var(:)    ! var(:)
+ endtype var_time_i8
+
+ ! ** double precision type of fixed length
+ type, public :: hru_time_d
+  type(time_dlength),allocatable                :: hru(:)    ! hru(:)
+ endtype hru_time_d
+ ! ** integer typelength of fixed length (4 byte)
+ type, public :: hru_time_i
+  type(time_ilength),allocatable            :: hru(:)    ! hru(:)
+ endtype hru_time_i
+ ! ** integer type of fixed length (8 byte)
+ type, public :: hru_time_i8
+  type(time_i8length),allocatable              :: hru(:)    ! hru(:)
+ endtype hru_time_i8
+
+ ! define derived types to hold JUST the HRU dimension
+ ! ** double precision type of variable length
+ type, public :: hru_time_doubleVec
+  type(var_time_dlength),allocatable      :: hru(:)     ! hru(:)%var(:)%dat
+ endtype hru_time_doubleVec
+ ! ** integer type of variable length (4 byte)
+ type, public :: hru_time_intVec
+  type(var_time_ilength),allocatable      :: hru(:)     ! hru(:)%var(:)%dat
+ endtype hru_time_intVec
+ ! ** integer type of variable length (8 byte)
+ type, public :: hru_time_int8Vec
+  type(var_time_i8length),allocatable     :: hru(:)     ! hru(:)%var(:)%dat
+ endtype hru_time_int8Vec
+ ! ** double precision type of fixed length
+ type, public :: hru_time_double
+  type(var_time_d),allocatable            :: hru(:)     ! hru(:)%var(:)
+ endtype hru_time_double
+ ! ** integer type of fixed length (4 byte)
+ type, public :: hru_time_int
+  type(var_time_i),allocatable            :: hru(:)     ! hru(:)%var(:)
+ endtype hru_time_int
+ ! ** integer type of fixed length (8 byte)
+ type, public :: hru_time_int8
+  type(var_time_i8),allocatable           :: hru(:)     ! hru(:)%var(:)
+ endtype hru_time_int8
+
+
+ ! define derived types to hold JUST the HRU dimension
+ ! ** double precision type of variable length
+ type, public :: gru_time_doubleVec
+  type(var_time_dlength),allocatable      :: gru(:)     ! gru(:)%var(:)%dat
+ endtype gru_time_doubleVec
+ ! ** integer type of variable length (4 byte)
+ type, public :: gru_time_intVec
+  type(var_time_ilength),allocatable      :: gru(:)     ! gru(:)%var(:)%dat
+ endtype gru_time_intVec
+ ! ** integer type of variable length (8 byte)
+ type, public :: gru_time_int8Vec
+  type(var_time_i8length),allocatable     :: gru(:)     ! gru(:)%var(:)%dat
+ endtype gru_time_int8Vec
+ ! ** double precision type of fixed length
+ type, public :: gru_time_double
+  type(var_time_d),allocatable            :: gru(:)     ! gru(:)%var(:)
+ endtype gru_time_double
+ ! ** integer type of variable length (4 byte)
+ type, public :: gru_time_int
+  type(var_time_i),allocatable            :: gru(:)     ! gru(:)%var(:)
+ endtype gru_time_int
+ ! ** integer type of variable length (8 byte)
+ type, public :: gru_time_int8
+  type(var_time_i8),allocatable           :: gru(:)     ! gru(:)%var(:)
+ endtype gru_time_int8
+
+
+
+ ! define derived types to hold GRU and HRU dimension with time dependence
+ ! ** double precision type of variable length
+ type, public :: gru_hru_time_doubleVec
+  type(hru_time_doubleVec),allocatable    :: gru(:)     ! gru(:)%hru(:)%var(:)%time(:)%dat
+ endtype gru_hru_time_doubleVec
+ ! ** integer type of variable length (4 byte)
+ type, public :: gru_hru_time_intVec
+  type(hru_time_intVec),allocatable       :: gru(:)     ! gru(:)%hru(:)%var(:)%time(:)%dat
+ endtype gru_hru_time_intVec
+ ! ** integer type of variable length (8 byte)
+ type, public :: gru_hru_time_int8Vec
+  type(hru_time_int8Vec),allocatable      :: gru(:)     ! gru(:)%hru(:)%var(:)%time(:)%dat
+ endtype gru_hru_time_int8Vec
+ ! ** double precision type of fixed length
+ type, public :: gru_hru_time_double
+  type(hru_time_double),allocatable       :: gru(:)     ! gru(:)%hru(:)%var(:)%time(:)
+ endtype gru_hru_time_double
+ ! ** integer type of variable length (4 byte)
+ type, public :: gru_hru_time_int
+  type(hru_time_int),allocatable          :: gru(:)     ! gru(:)%hru(:)%var(:)%time(:)
+ endtype gru_hru_time_int
+ ! ** integer type of variable length (8 byte)
+ type, public :: gru_hru_time_int8
+  type(hru_time_int8),allocatable         :: gru(:)     ! gru(:)%hru(:)%var(:)%time(:)
+ endtype gru_hru_time_int8
+ ! ** double precision type of fixed length
+ type, public :: gru_time_d
+  type(hru_time_d),allocatable            :: gru(:)    ! gru(:)%hru(:)%time(:)
+ endtype gru_time_d
+ ! ** integer type of fixed length
+ type, public :: gru_time_i
+  type(hru_time_i),allocatable            :: gru(:)    ! gru(:)%hru(:)%time(:)
+ endtype gru_time_i
+
+
+
 
 END MODULE data_types
 

@@ -147,7 +147,7 @@ contains
  USE var_lookup,only:iLookVarType                   ! index into type structure
  USE var_lookup,only:iLookIndex                     ! index into index structure
  USE var_lookup,only:iLookStat                      ! index into stat structure
- USE globalData,only:outFreq,ncid                   ! output file information
+ USE globalData,only:outFreq,ncid,writeChunk        ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
  implicit none
@@ -177,6 +177,9 @@ contains
  integer(i4b)                     :: datLength         ! length of each data vector
  integer(i4b)                     :: maxLength         ! maximum length of each data vector
  real(dp)                         :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
+
+ real(dp), dimension(nHRUrun,writeChunk(size(writeChunk))):: scalarvRealVec(nHRUrun,writeChunk(size(writeChunk)))  ! real array for scalar vars
+
  real(dp)                         :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
  integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
  integer(i4b)                     :: dataType          ! type of data
@@ -207,7 +210,7 @@ contains
     ! data bound write
     select type(dat) ! forcStruc
      class is (gru_hru_double)   ! x%gru(:)%hru(:)%var(:)
-      err = nf90_put_var(ncid(iFreq),ncVarID,(/dat%gru(iGRU)%hru(iHRU)%var(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
+      err = nf90_put_var(ncid(iFreq),ncVarID,(/dat%gru(iGRU)%hru(iHRU)%var(iVar)/),start=(/outputTimestep(iFreq)/),count=(/writeChunk(iFreq)/))
       call netcdf_err(err,message); if (err/=0) return
       cycle ! move onto the next variable
      class default; err=20; message=trim(message)//'time variable must be of type gru_hru_double (forcing data structure)'; return
@@ -228,12 +231,12 @@ contains
       ! loop through HRUs and GRUs, and place data in the single vector
       do iGRU=1,size(gru_struc)
        do iHRU=1,gru_struc(iGRU)%hruCount
-        realVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
+        scalarvRealVec(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix, :) = stat%gru(iGRU)%hru(iHRU)%var(map(iVar))%dat(iFreq)
        end do
       end do
 
       ! write data
-      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realVec,start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,1/))
+      err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),scalarvRealVec,start=(/1,outputTimestep(iFreq)/),count=(/nHRUrun,writeChunk(iFreq)/))
 
      class default; err=20; message=trim(message)//'stats must be scalarv and of type gru_hru_doubleVec'; return
     end select  ! stat
@@ -293,8 +296,8 @@ contains
 
     ! write the data vectors
     select case(dataType)
-     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
-     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,1/))
+     case(ixReal);    err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),realArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,writeChunk(iFreq)/))
+     case(ixInteger); err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),intArray(1:nHRUrun,1:maxLength),start=(/1,1,outputTimestep(iFreq)/),count=(/nHRUrun,maxLength,writeChunk(iFreq)/))
      case default; err=20; message=trim(message)//'data must be of type integer or real'; return
     end select ! data type
 
@@ -316,6 +319,7 @@ contains
  USE data_types,only:var_info                       ! metadata type
  USE var_lookup,only:maxVarStat                     ! index into stats structure
  USE var_lookup,only:iLookVarType                   ! index into type structure
+ USE globalData,only:writeChunk
  USE globalData,only:outFreq,ncid                   ! output file information
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixName_module,only:get_statName            ! to access type strings for error messages
@@ -354,13 +358,13 @@ contains
    iStat = meta(iVar)%statIndex(iFreq)
 
    ! check that the variable is desired
-   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle 
+   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle
 
    ! stats/dats output - select data type
    select case (meta(iVar)%varType)
 
     case (iLookVarType%scalarv)
-     err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/stat(map(iVar))%dat(iFreq)/),start=(/iGRU,outputTimestep(iFreq)/),count=(/1,1/))
+     err = nf90_put_var(ncid(iFreq),meta(iVar)%ncVarID(iFreq),(/stat(map(iVar))%dat(iFreq)/),start=(/iGRU,outputTimestep(iFreq)/),count=(/1,writeChunk(iFreq)/))
 
     case (iLookVarType%routing)
      if (iFreq==1 .and. outputTimestep(iFreq)==1) then
@@ -386,6 +390,7 @@ contains
  subroutine writeTime(finalizeStats,outputTimestep,meta,dat,err,message)
  USE data_types,only:var_info                       ! metadata type
  USE globalData,only:ncid                           ! output file IDs
+ USE globalData,only:writeChunk
  USE var_lookup,only:iLookStat                      ! index into stat structure
  implicit none
 
@@ -422,7 +427,7 @@ contains
    if (err/=0) then; err=20; return; end if
 
    ! add to file
-   err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/1/))
+   err = nf90_put_var(ncid(iFreq),ncVarID,(/dat(iVar)/),start=(/outputTimestep(iFreq)/),count=(/writeChunk(iFreq)/))
    if (err/=0) message=trim(message)//trim(meta(iVar)%varName)
    call netcdf_err(err,message)
    if (err/=0) then; err=20; return; end if

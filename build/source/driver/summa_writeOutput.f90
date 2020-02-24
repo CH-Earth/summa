@@ -93,11 +93,14 @@ contains
  USE globalData,only:ixProgress                              ! define frequency to write progress
  USE globalData,only:ixRestart                               ! define frequency to write restart files
  USE globalData,only:newOutputFile                           ! define option for new output files
+ USE globalData,only:data_step ! define option for new output files
+ USE multiconst,only:secprday
  ! controls on statistics output
  USE globalData,only:statCounter                             ! time counter for stats
  USE globalData,only:resetStats                              ! flags to reset statistics
  USE globalData,only:finalizeStats                           ! flags to finalize statistics
  USE globalData,only:outputTimeStep                          ! timestep in output files
+ USE globalData,only:writeChunk                              ! how many pieces of data to write at once
  ! output constraints
  USE globalData,only:maxLayers                               ! maximum number of layers
  USE globalData,only:maxSnowLayers                           ! maximum number of snow layers
@@ -157,7 +160,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_manageOutputFiles/'
-
  ! identify the start of the writing
  call date_and_time(values=startWrite)
 
@@ -171,13 +173,15 @@ contains
   ! initialize time step index
   statCounter(1:maxVarFreq) = 1
   outputTimeStep(1:maxVarFreq) = 1
+  writeChunk(1:maxVarFreq) = 1
+  writeChunk(maxvarFreq) = int(secprday / data_step)
 
   ! initialize flags to reset/finalize statistics
   resetStats(:)    = .true.   ! start by resetting statistics
   finalizeStats(:) = .false.  ! do not finalize stats on the first time step
 
   ! set stats flag for the timestep-level output
-  finalizeStats(iLookFreq%timestep)=.true.
+  !finalizeStats(iLookFreq%timestep)=.true.
 
  endif  ! if the first time step
 
@@ -211,6 +215,8 @@ contains
 
   ! re-initalize the indices for model writing
   outputTimeStep(:)=1
+  writeChunk(:)=1
+  writeChunk(maxvarFreq)=int(secprday/data_step)
 
  end if  ! if defining a new file
 
@@ -290,7 +296,7 @@ contains
  ! increment output file timestep
  do iFreq = 1,maxvarFreq
   statCounter(iFreq) = statCounter(iFreq)+1
-  if(finalizeStats(iFreq)) outputTimeStep(iFreq) = outputTimeStep(iFreq) + 1
+  if(finalizeStats(iFreq)) outputTimeStep(iFreq) = outputTimeStep(iFreq) + writeChunk(iFreq)
  end do
 
  ! increment forcingStep

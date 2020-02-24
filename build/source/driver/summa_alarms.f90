@@ -154,7 +154,7 @@ contains
     case(iLookFreq%day     ); finalizeStats(iFreq)=(oldTime(iLookTime%id  )/=newTime(iLookTime%id  ))  ! daily aggregation
     case(iLookFreq%month   ); finalizeStats(iFreq)=(oldTime(iLookTime%im  )/=newTime(iLookTime%im  ))  ! monthly aggregation
     case(iLookFreq%annual  ); finalizeStats(iFreq)=(oldTime(iLookTime%iyyy)/=newTime(iLookTime%iyyy))  ! yearly (annual) aggregation
-    case(iLookFreq%timestep); finalizeStats(iFreq)=.true.          ! timestep-level output (no temporal aggregation)
+    case(iLookFreq%timestep); finalizeStats(iFreq)=(oldTime(iLookTime%id  )/=newTime(iLookTime%id  ))  ! timestep-level output (no temporal aggregation)
     case default; err=20; message=trim(message)//'unable to identify output frequency'; return
    end select
 

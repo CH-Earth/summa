@@ -267,6 +267,7 @@ MODULE globalData
  ! define controls on model output
  integer(i4b),dimension(maxvarFreq),save,public :: statCounter=0                  ! time counter for stats
  integer(i4b),dimension(maxvarFreq),save,public :: outputTimeStep=0               ! timestep in output files
+ integer(i4b),dimension(maxvarFreq),save,public :: writeChunk=1                   ! number of data steps to write
  logical(lgt),dimension(maxvarFreq),save,public :: resetStats=.true.              ! flags to reset statistics
  logical(lgt),dimension(maxvarFreq),save,public :: finalizeStats=.false.          ! flags to reset statistics
  integer(i4b),save,public                       :: maxLayers                      ! maximum number of layers
