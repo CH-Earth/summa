@@ -315,7 +315,7 @@ Canopy wind profile
 
 | Option | Description |
 |---|---|
-| exponential | **The wind speed profile through the canopy is an exponential decay fucntion. <br> [Reference](http://doi.org/)** |
+| exponential | **The wind speed profile through the canopy is an exponential decay function. <br> [Reference](http://doi.org/)** |
 | logBelowCanopy | **The wind speed profile through the canopy is a logarithmic decay function. <br> [Reference](http://doi.org/)** |
 
 
@@ -345,8 +345,8 @@ Method to combine and sub-divide snow layers
 
 | Option | Description |
 |---|---|
-| jrdn1991 | **Divides the snowpack into an infinate layer system and the number of layers can be specified. The layers can be set to equal in height or increase in height with increasing distance from the surface.  <br> [Jordan, 1991](https://apps.dtic.mil/docs/citations/ADA245493)** |
-| CLM_2010 | **Divides the snowpack into a default 5-layer system. This set-up can be alterned into a 2-layer only snowpack with variable top layer thickness. <br> [Community Land Model, 2010]( https://doi.org/10.1029/2011MS00045)** |
+| jrdn1991 | **Divides the snowpack into a growing layer system where the number of layers is 100.  <br> [Jordan, 1991](https://apps.dtic.mil/docs/citations/ADA245493)** |
+| CLM_2010 | **Divides the snowpack into a 5-layer system. The rules of the layer division/merge can be altered to create <5 layer snowpacks. <br> [Community Land Model, 2010]( https://doi.org/10.1029/2011MS00045)** |
 
 
 <a id="thCondSnow"></a>
