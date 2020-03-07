@@ -217,12 +217,16 @@ contains
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(dp)                        :: rAdd(nState)                  ! additional terms in the residual vector
  real(dp)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
- real(dp)                        :: xMin,xMax                     ! state minimum and maximum (mixed units) 
+ real(dp)                        :: xMin,xMax                     ! state minimum and maximum (mixed units)
  logical(lgt)                    :: converged                     ! convergence flag
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: resSinkNew(nState)            ! additional terms in the residual vector
  real(dp)                        :: fluxVecNew(nState)            ! new flux vector
  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector
+ integer(i4b), parameter         :: firstOrder=8991               ! named variable for the first order solution
+ integer(i4b), parameter         :: secondOrder=8992              ! named variable for the second order solution
+ integer(i4b)                    :: ixSolution=firstOrder         ! decision for the solution method
+ real(dp)                        :: dtAdj                         ! adjusted time step (s)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -348,6 +352,13 @@ contains
  ! * compute the initial function evaluation...
  ! --------------------------------------------
 
+ ! define time step
+ select case(ixSolution)
+  case(firstOrder);  dtAdj = dt       ! first order solution
+  case(secondOrder); dtAdj = dt/2._dp ! second order solution
+  case default; err=20; message=trim(message)//'unable to identify solution method'; return
+ end select ! (define time step)
+
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
 
@@ -365,7 +376,8 @@ contains
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
  call eval8summa(&
                  ! input: model control
-                 dt,                      & ! intent(in):    length of the time step (seconds)
+                 !dt,                      & ! intent(in):    length of the time step (seconds)
+                 dtAdj,                   & ! intent(in):    length of the time step (seconds)
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of layers
@@ -451,7 +463,8 @@ contains
   !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
   call summaSolve(&
                   ! input: model control
-                  dt,                            & ! intent(in):    length of the time step (seconds)
+                  !dt,                            & ! intent(in):    length of the time step (seconds)
+                  dtAdj,                         & ! intent(in):    length of the time step (seconds)
                   iter,                          & ! intent(in):    iteration index
                   nSnow,                         & ! intent(in):    number of snow layers
                   nSoil,                         & ! intent(in):    number of soil layers
@@ -534,6 +547,9 @@ contains
 
  ! set untapped melt energy to zero
  untappedMelt(:) = 0._dp
+
+ ! estimate states at the end of the time step
+ if(ixSolution==secondOrder) stateVecTrial = stateVecTrial(:)*2._dp - stateVecInit(:)
 
  ! update temperatures (ensure new temperature is consistent with the fluxes)
  if(nSnowSoilNrg>0)then

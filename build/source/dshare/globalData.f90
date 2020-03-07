@@ -55,6 +55,10 @@ MODULE globalData
  ! * part 1: parameters that are fixed across multiple instantiations
  ! ----------------------------------------------------------------------------------------------------------------
 
+ ! define version number
+ character(len=256),parameter,public         :: summaVersion='v2.34.56'
+`
+
  ! define missing values
  real(qp),parameter,public                   :: quadMissing    = nr_quadMissing    ! (from nrtype) missing quadruple precision number
  real(dp),parameter,public                   :: realMissing    = nr_realMissing    ! (from nrtype) missing double precision number
