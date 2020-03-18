@@ -26,7 +26,7 @@ use nrtype
 implicit none
 public
 ! summa-wide pathlength
-integer(i4b),parameter::summaPathLen=256
+integer(i4b),parameter::summaPathLen=4096
 ! defines the path for data files (and default values)
 CHARACTER(LEN=summaPathLen)  :: SETNGS_PATH='settings/'         ! SETNGS_PATH
 CHARACTER(LEN=summaPathLen)  :: INPUT_PATH ='input/default/'    ! INPUT_PATH
