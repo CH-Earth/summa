@@ -24,6 +24,10 @@ USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
+! look-up values for the choice of the time zone information
+integer(i4b),parameter,public :: ncTime               =   1    ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+integer(i4b),parameter,public :: utcTime              =   2    ! all times in UTC (timeOffset = longitude/15. hours)
+integer(i4b),parameter,public :: localTime            =   3    ! all times local (timeOffset = 0)
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance
 integer(i4b),parameter,public :: NoahType             =   1    ! thresholded linear function of volumetric liquid water content
 integer(i4b),parameter,public :: CLM_Type             =   2    ! thresholded linear function of matric head
@@ -175,13 +179,14 @@ contains
  ! time utility programs
  USE time_utils_module,only:extractTime     ! extract time info from units string
  USE time_utils_module,only:compjulday      ! compute the julian day
+ USE time_utils_module,only:fracDay         ! compute fractional day
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
  character(*),intent(out)             :: message        ! error message
  ! define local variables
  character(len=256)                   :: cmessage       ! error message for downwind routine
- real(dp)                             :: dsec           ! second
+ real(dp)                             :: dsec,dsec_tz   ! second
  ! initialize error control
  err=0; message='mDecisions/'
 
@@ -194,6 +199,15 @@ contains
 
  ! -------------------------------------------------------------------------------------------------
 
+ ! identify the choice of the time zone option
+ select case(trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision))
+  case('ncTime'   ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = ncTime       ! time zone information from NetCDF file
+  case('utcTime'  ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = utcTime      ! all times in UTC
+  case('localTime'); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = localTime    ! all times local
+  case default
+   err=10; message=trim(message)//"unknown time zone info option [option="//trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision)//"]"; return
+ end select
+
  ! put reference time information into the time structures
  call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
                   refTime%var(iLookTIME%iyyy),                           & ! year
@@ -202,30 +216,12 @@ contains
                   refTime%var(iLookTIME%ih),                             & ! hour
                   refTime%var(iLookTIME%imin),                           & ! minute
                   dsec,                                                  & ! second
+                  refTime%var(iLookTIME%ih_tz),                          & ! time zone hour
+                  refTime%var(iLookTIME%imin_tz),                        & ! time zone minute
+                  dsec_tz,                                               & ! time zone seconds
                   err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! put simulation start time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
-                  startTime%var(iLookTIME%iyyy),                         & ! year
-                  startTime%var(iLookTIME%im),                           & ! month
-                  startTime%var(iLookTIME%id),                           & ! day
-                  startTime%var(iLookTIME%ih),                           & ! hour
-                  startTime%var(iLookTIME%imin),                         & ! minute
-                  dsec,                                                  & ! second
-                  err,cmessage)                                            ! error control
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
- ! put simulation end time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
-                  finshTime%var(iLookTIME%iyyy),                         & ! year
-                  finshTime%var(iLookTIME%im),                           & ! month
-                  finshTime%var(iLookTIME%id),                           & ! day
-                  finshTime%var(iLookTIME%ih),                           & ! hour
-                  finshTime%var(iLookTIME%imin),                         & ! minute
-                  dsec,                                                  & ! second
-                  err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the reference time
  call compjulday(&
@@ -239,6 +235,20 @@ contains
                  err, cmessage)                                           ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
+ ! put simulation start time information into the time structures
+ call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
+                  startTime%var(iLookTIME%iyyy),                         & ! year
+                  startTime%var(iLookTIME%im),                           & ! month
+                  startTime%var(iLookTIME%id),                           & ! day
+                  startTime%var(iLookTIME%ih),                           & ! hour
+                  startTime%var(iLookTIME%imin),                         & ! minute
+                  dsec,                                                  & ! second
+                  startTime%var(iLookTIME%ih_tz),                        & ! time zone hour
+                  startTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
+                  dsec_tz,                                               & ! time zone seconds
+                  err,cmessage)                                            ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
  ! compute the julian date (fraction of day) for the start of the simulation
  call compjulday(&
                  startTime%var(iLookTIME%iyyy),                         & ! year
@@ -249,6 +259,20 @@ contains
                  0._dp,                                                 & ! second
                  dJulianStart,                                          & ! julian date for the start of the simulation
                  err, cmessage)                                           ! error control
+ if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+ ! put simulation end time information into the time structures
+ call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
+                  finshTime%var(iLookTIME%iyyy),                         & ! year
+                  finshTime%var(iLookTIME%im),                           & ! month
+                  finshTime%var(iLookTIME%id),                           & ! day
+                  finshTime%var(iLookTIME%ih),                           & ! hour
+                  finshTime%var(iLookTIME%imin),                         & ! minute
+                  dsec,                                                  & ! second
+                  finshTime%var(iLookTIME%ih_tz),                        & ! time zone hour
+                  finshTime%var(iLookTIME%imin_tz),                      & ! time zone minnute
+                  dsec_tz,                                               & ! time zone seconds
+                  err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! compute the julian date (fraction of day) for the end of the simulation
@@ -264,8 +288,8 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! check start and finish time
- write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var
- write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var
+ write(*,'(a,i4,1x,4(i2,1x))') 'startTime: iyyy, im, id, ih, imin = ', startTime%var(1:5)
+ write(*,'(a,i4,1x,4(i2,1x))') 'finshTime: iyyy, im, id, ih, imin = ', finshTime%var(1:5)
 
  ! check that simulation end time is > start time
  if(dJulianFinsh < dJulianStart)then; err=20; message=trim(message)//'end time of simulation occurs before start time'; return; end if

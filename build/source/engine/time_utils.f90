@@ -33,75 +33,124 @@ public::extractTime
 public::compjulday
 public::compcalday
 public::elapsedSec
+public::fracDay
 contains
 
 
  ! ******************************************************************************************
  ! public subroutine extractTime: extract year/month/day/hour/minute/second from units string
+ ! as well as any time zone information (hour/minute/second)
  ! ******************************************************************************************
- subroutine extractTime(refdate,iyyy,im,id,ih,imin,dsec,err,message)
+ subroutine extractTime(refdate,iyyy,im,id,ih,imin,dsec,ih_tz,imin_tz,dsec_tz,err,message)
  implicit none
  ! dummy variables
  character(*),intent(in)    :: refdate             ! units string (time since...)
  integer(i4b),intent(out)   :: iyyy,im,id,ih,imin  ! time (year/month/day/hour/minute)
  real(dp),intent(out)       :: dsec                ! seconds
+ integer(i4b),intent(out)   :: ih_tz,imin_tz       ! time zone information (hour/minute)
+ real(dp),intent(out)       :: dsec_tz             ! time zone information (seconds)
  integer(i4b),intent(out)   :: err                 ! error code
  character(*),intent(out)   :: message             ! error message
  ! local variables
- integer(i4b)               :: n                   ! length of the string
- integer(i4b)               :: istart,iend         ! position in string
- ! iniitalize error control
+ integer(i4b)               :: n,nsub              ! length of the string and substring
+ integer(i4b)               :: istart              ! position in string
+ ! initialize error control
  err=0; message="extractTime/"
 
+ ! There are up to three space delimited fields: iyyy-im-id ih:imin:dsec ih_tz:imin_tz
+ ! we'll parse each of these in order.
+
+ ! Missing ih, imin, dsec, ih_tz, imin_tz and dsec_tz fields will be set to zero without causing an error.
+ ih=0; imin=0; dsec=0._dp; ih_tz=0; imin_tz=0; dsec_tz=0._dp;
+
  ! get the length of the string
- n      = len_trim(refdate)
- ! move to a position in string past the time units (seconds since , days since , hours since )
+ n = len_trim(refdate)
+
+ ! FIELD 1: move to a position in string past the time units (seconds since , days since , hours since )
  istart = index(refdate,'since')  ! get the index at the beginning of the word "since"
  if (istart>0) then ! if the word "since" exists
-  iend   = index(refdate(istart:n)," ")
-  istart = istart+iend
+  istart = istart + index(refdate(istart:n)," ")
  else
   istart=1
  end if
 
- ! get the year
- call extract(refdate(istart:n),"-",iend,iyyy,err,message); if (err/=0) return
- if(iyyy < 1900)then; err=20; message=trim(message)//'year < 1900'; return; end if
- if(iyyy > 2100)then; err=20; message=trim(message)//'year > 2100'; return; end if
- ! get the month
- istart=istart+iend
- call extract(refdate(istart:n),"-",iend,im,err,message);   if (err/=0) return
- if(im <  1)then; err=20; message=trim(message)//'month < 1'; return; end if
- if(im > 12)then; err=20; message=trim(message)//'month > 12'; return; end if
- ! get the day
- istart=istart+iend
- call extract(refdate(istart:n)," ",iend,id,err,message);   if (err/=0) return
- if(id <  1)then; err=20; message=trim(message)//'day < 1'; return; end if
- if(id > 31)then; err=20; message=trim(message)//'day > 31'; return; end if
- ! check if we are at the end of the string
- if (istart+(iend-2)==n) then
-  ih=0; imin=0; dsec=0._dp; return
+ ! eat all the whitespace at the start of the string
+ do while (refdate(istart:istart)==" ")
+  istart = istart+1
+ end do
+
+ ! Find the end of FIELD 1
+ nsub = index(refdate(istart:n)," ")
+ if(nsub==0)then
+  nsub=n             ! not found - read till the end of string
+ else
+  nsub=nsub+istart-1 ! found - read till the character before the whitespace
  end if
 
- ! get the hour (":" at end of hour)
- istart = istart+iend
- if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include hours'; return; end if
- call extract(refdate(istart:n),":",iend,ih,err,message);   if (err/=0) return
- if(ih <  0)then; err=20; message=trim(message)//'hour < 0'; return; end if
- if(ih > 24)then; err=20; message=trim(message)//'hour > 24'; return; end if
- ! get the minute (":" at end of minute)
- istart = istart+iend
- if(istart > len_trim(refdate))then; err=20; message=trim(message)//'string does not include minutes'; return; end if
- call extract(refdate(istart:n),":",iend,imin,err,message); if (err/=0) return
- if(imin <  0)then; err=20; message=trim(message)//'minute < 0'; return; end if
- if(imin > 60)then; err=20; message=trim(message)//'minute > 60'; return; end if
+ ! parse the iyyy-im-id string
+ call extract_dmy(refdate(istart:nsub),"-",iyyy,im,id,err,message); if (err/=0) return
+ if(iyyy < 1900)then; err=20; message=trim(message)//'year < 1900'; return; end if
+ if(iyyy > 2100)then; err=20; message=trim(message)//'year > 2100'; return; end if
+ if(im   <    1)then; err=20; message=trim(message)//'month < 1';   return; end if
+ if(im   >   12)then; err=20; message=trim(message)//'month > 12';  return; end if
+ if(id   <    1)then; err=20; message=trim(message)//'day < 1';     return; end if
+ if(id   >   31)then; err=20; message=trim(message)//'day > 31';    return; end if
 
- ! get the second
- istart = istart+iend
- if(istart > len_trim(refdate)) return
- iend   = index(refdate(istart:n)," ")
- read(refdate(istart:n),*) dsec
- !write(*,'(a,i4,1x,4(i2,1x))') 'refdate: iyyy, im, id, ih, imin = ', iyyy, im, id, ih, imin
+ ! FIELD 2: Advance to the ih:imin:dsec string
+ istart=nsub+1
+ if(istart>n) return  ! no more time info
+
+ ! eat all the whitespace at the start of the string
+ do while (refdate(istart:istart)==" ")
+  istart = istart+1
+ end do
+
+ if(istart>n) return  ! no more time info
+
+ ! Find the end of FIELD 2
+ nsub = index(refdate(istart:n)," ")
+ if(nsub==0)then
+  nsub=n             ! not found - read till the end of string
+ else
+  nsub=nsub+istart-1 ! found - read till the character before the whitespace
+ end if
+
+ ! parse the ih:imin:dsec string. Anything other than ih is optional
+ call extract_hms(refdate(istart:nsub),":",ih,imin,dsec,err,message); if (err/=0) return
+ if(ih   <  0)    then; err=20; message=trim(message)//'hour < 0';    return; end if
+ if(ih   > 24)    then; err=20; message=trim(message)//'hour > 24';   return; end if
+ if(imin <  0)    then; err=20; message=trim(message)//'minute < 0';  return; end if
+ if(imin > 60)    then; err=20; message=trim(message)//'minute > 60'; return; end if
+ if(dsec <  0._dp)then; err=20; message=trim(message)//'second < 0';  return; end if
+ if(dsec > 60._dp)then; err=20; message=trim(message)//'second > 60'; return; end if
+
+ ! FIELD 3: Advance to the ih_tz:imin_tz string
+ istart=nsub+1
+ if(istart>n) return  ! no more time info
+
+ ! eat all the whitespace at the start of the string
+ do while (refdate(istart:istart)==" ")
+  istart = istart+1
+ end do
+
+ if(istart>n) return  ! no more time info
+
+ ! Find the end of FIELD 3
+ nsub = index(refdate(istart:n)," ")
+ if(nsub==0)then
+  nsub=n             ! not found - read till the end of string
+ else
+  nsub=nsub+istart-1 ! found - read till the character before the whitespace
+ end if
+
+ ! parse the ih_tz:imin_tz string.
+ call extract_hms(refdate(istart:nsub),":",ih_tz,imin_tz,dsec_tz,err,message); if (err/=0) return
+ if(ih_tz   <  -12)    then; err=20; message=trim(message)//'time zone hour < -12';  return; end if
+ if(ih_tz   >   12)    then; err=20; message=trim(message)//'time zone hour > 12';   return; end if
+ if(imin_tz <    0)    then; err=20; message=trim(message)//'time zone minute < 0';  return; end if
+ if(imin_tz >   60)    then; err=20; message=trim(message)//'time zone minute > 60'; return; end if
+ if(dsec_tz <    0._dp)then; err=20; message=trim(message)//'time zone second < 0';  return; end if
+ if(dsec_tz >   60._dp)then; err=20; message=trim(message)//'time zone second > 60'; return; end if
 
  contains
 
@@ -133,7 +182,85 @@ contains
   end if
   end subroutine extract
 
+
+  ! ******************************************************************************************
+  ! internal subroutine extract_dmy: extract iyyy-im-id
+  ! ******************************************************************************************
+  subroutine extract_dmy(substring,cdelim,iyyy,im,id,err,message)
+  implicit none
+  ! input
+  character(*),intent(in)     :: substring       ! sub-string to process
+  character(len=1),intent(in) :: cdelim          ! string delimiter
+  ! output
+  integer(i4b),intent(out)    :: iyyy            ! year
+  integer(i4b),intent(out)    :: im              ! month
+  integer(i4b),intent(out)    :: id              ! day
+  integer(i4b),intent(out)    :: err             ! error code
+  character(*),intent(out)    :: message         ! error message
+  ! local variables
+  integer(i4b)                :: istart,iend,n   ! position in string
+
+  ! initialize error code and message
+  err=0; message="extract_dmy/"
+
+  ! start indices
+  n = len_trim(substring)
+  istart = 1
+
+  ! extract the year
+  call extract(substring(istart:n),cdelim,iend,iyyy,err,message); if (err/=0) return
+
+  ! extract the month
+  istart=istart+iend
+  call extract(substring(istart:n),cdelim,iend,im,err,message); if (err/=0) return
+
+  ! extract the day
+  istart=istart+iend
+  call extract(substring(istart:n),cdelim,iend,id,err,message); if (err/=0) return
+
+  end subroutine extract_dmy
+
+  ! ******************************************************************************************
+  ! internal subroutine extract_hms: extract hh:mm:sec
+  ! ******************************************************************************************
+  subroutine extract_hms(substring,cdelim,hh,mm,ss,err,message)
+  implicit none
+  ! input
+  character(*),intent(in)     :: substring      ! sub-string to process
+  character(len=1),intent(in) :: cdelim         ! string delimiter
+  ! output
+  integer(i4b),intent(out)    :: hh             ! hour
+  integer(i4b),intent(out)    :: mm             ! minute
+  real(dp)    ,intent(out)    :: ss             ! sec
+  integer(i4b),intent(out)    :: err            ! error code
+  character(*),intent(out)    :: message        ! error message
+  ! local variables
+  integer(i4b)                :: istart,iend,n  ! position in string
+
+  ! initialize error code and message
+  err=0; message="extract_hms/"
+
+  ! initialize indices
+  n = len_trim(substring)
+  istart = 1
+
+  ! extract the hour
+  call extract(substring(istart:n),cdelim,iend,hh,err,message); if (err/=0) return
+
+  ! extract the minute
+  istart=istart+iend
+  if(istart > n) return
+  call extract(substring(istart:n),cdelim,iend,mm,err,message); if (err/=0) return
+
+  ! extract the second
+  istart=istart+iend
+  if(istart > n) return
+  read(substring(istart:n),*) ss
+
+  end subroutine extract_hms
+
  end subroutine extractTime
+
 
 
  ! ***************************************************************************************
@@ -176,7 +303,7 @@ contains
  end if
 
  ! compute fraction of the day
- jfrac = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
+ jfrac = fracDay(ih, imin, dsec)
 
  ! and return the julian day, expressed in fraction of a day
  juldayss = real(julday,kind(dp)) + jfrac
@@ -192,7 +319,7 @@ contains
                        iyyy,mm,id,ih,imin,dsec,err,message)   !output
  implicit none
 
- ! input variables	
+ ! input variables
  real(dp), intent(in)          :: julday       ! julian day
 
  ! output varibles
@@ -306,6 +433,20 @@ contains
   ! convert to seconds
   elapsedSec = elapsedSec + elapsedDay * secprday
  end if
- end function
+ end function elapsedSec
+
+ ! ***************************************************************************************
+ ! public function fracDay: calculate fraction of a day
+ ! ***************************************************************************************
+ function fracDay(ih, imin, dsec)
+ integer(i4b),intent(in)   :: ih,imin      ! hour, minute
+ real(dp),intent(in)       :: dsec         ! seconds
+ real(dp)                  :: fracDay      ! fraction of a day
+ ! local variable
+
+ fracDay = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
+ if(ih < 0) fracDay=-fracDay
+ return
+ end function fracDay
 
 end module time_utils_module
