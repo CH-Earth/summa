@@ -33,6 +33,7 @@ USE multiconst,only:minprhour                               ! number of minutes 
 ! global time information
 USE globalData,only:refJulday                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
+USE globalData,only:tmZoneOffsetFracDay                     ! time zone offset in fractional days
 
 ! model decisions
 USE globalData,only:model_decisions                         ! model decision structure
@@ -42,6 +43,12 @@ USE var_lookup,only:iLookDECISIONS                          ! named variables fo
 USE var_lookup,only:iLookTIME,iLookATTR                     ! named variables for structure elements
 USE var_lookup,only:iLookPARAM,iLookFORCE                   ! named variables for structure elements
 USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX           ! named variables for structure elements
+
+! look-up values for the choice of the time zone information
+USE mDecisions_module,only:  &
+ ncTime,                 &    ! time zone information from NetCDF file
+ utcTime,                &    ! all times in UTC
+ localTime                    ! all times local
 
 ! look-up values for the choice of snow albedo options
 USE mDecisions_module,only:  &
@@ -195,19 +202,35 @@ contains
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
  scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
 
+ ! determine timeOffset based on tmZoneInfo option`
+ select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
+  ! Time zone information from NetCDF file
+  case(ncTime)
+   timeOffset = longitude/360._dp - tmZoneOffsetFracDay ! time offset in days
+  ! All times in UTC
+  case(utcTime)
+   timeOffset = longitude/360._dp  ! time offset in days
+  ! All times local
+  case(localTime)
+   timeOffset = 0._dp  ! time offset in days
+  case default; message=trim(message)//'unable to identify option for tmZoneInfo'; err=20; return
+ end select ! identifying option tmZoneInfo
+
+ ! constrain timeOffset so that it is in the [-0.5, 0.5] range
+ if(timeOffset<-0.5)then
+  timeOffset = timeOffset+1
+ else if(timeOffset>0.5)then
+  timeOffset = timeOffset-1
+ endif
+
  ! compute the local time
- timeOffset = longitude/360._dp  ! time offset in days
- julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days) 
+ julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days)
 
  ! convert julian day to year/month/day/hour/minute
  call compcalday(julianTime+timeOffset,          & ! input  = julian day
                  jyyy,jm,jd,jh,jmin,dsec,        & ! output = year, month, day, hour, minute, second
                  err,cmessage)                     ! output = error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
- !print*, 'longitude, timeOffset = ', longitude, timeOffset
- !print*, 'Grenwich time = ', iyyy,im,id,ih,imin
- !print*, 'Local time    = ', jyyy,jm,jd,jh,jmin
- !print*, 'PAUSE: '; read(*,*)
 
  ! compute the decimal hour at the start of the time step
  dataStep = data_step/secprhour  ! time step (hours)
