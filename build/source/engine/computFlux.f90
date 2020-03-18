@@ -793,8 +793,8 @@ contains
                    err,cmessage)                   ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! compute total runoff (overwrite previous formulation with no aquifer)
-   scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilBaseflow + scalarAquiferBaseflow
+   ! compute total runoff (overwrite previously calculated value before considering aquifer)
+   scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
 
   ! if no aquifer, then fluxes are zero
   else

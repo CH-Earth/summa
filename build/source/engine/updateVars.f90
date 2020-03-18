@@ -628,7 +628,7 @@ contains
   ! only for soil
   if(ixDomainType==iname_soil)then
 
-   ! check liquid water (include small tolerance)
+   ! check liquid water (include tolerance)
    if(mLayerVolFracLiqTrial(iLayer) > theta_sat(ixControlIndex)+epsT )then
     message=trim(message)//'liquid water greater than porosity'
     print*,'---------------'

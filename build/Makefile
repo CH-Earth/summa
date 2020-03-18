@@ -45,6 +45,7 @@ F_MASTER = /glade/u/home/andywood/proj/SHARP/models/summa/
 # compiler flags in the ifeq statements in this Makefile. The compiler
 # executable is set separately as FC_EXE
 # Currently this is either gfortran or ifort
+# Note:  on cheyenne, first need: module load gnu; module load openblas
 FC = gfortran
 
 # Define the path for the compiler executable. This is the actual executable
