@@ -30,9 +30,8 @@ summa.exe.dSYM*
 summaversion.inc
 # makefile
 make.out
-Makefile
+Makefile-*
 # backup files
 *.backup
 # site directory from mkdocs
 site/
-
