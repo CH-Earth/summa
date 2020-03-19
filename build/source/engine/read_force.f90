@@ -487,8 +487,8 @@ contains
 
   ! read forcing data for all HRUs
   if(simultaneousRead)then
-   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iNC),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
-   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(forcFileInfo(iFile)%varname(iNC))//'/'//trim(nf90_strerror(err)); return; endif
+   err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVec,start=(/ixHRUfile_min,iRead/),count=(/nHRUlocal,1/))
+   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
   endif
 
   ! loop through GRUs and HRUs
@@ -502,8 +502,8 @@ contains
 
     ! read forcing data for a single HRU
     if(.not.simultaneousRead)then
-     err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(iNC),dataVal,start=(/iHRU_global,iRead/))
-     if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(forcFileInfo(iFile)%varname(iNC))//'/'//trim(nf90_strerror(err)); return; endif
+     err=nf90_get_var(ncid,forcFileInfo(iFile)%data_id(ivar),dataVal,start=(/iHRU_global,iRead/))
+     if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing data: '//trim(varName)//'/'//trim(nf90_strerror(err)); return; endif
     endif
 
     ! check the number of HRUs
