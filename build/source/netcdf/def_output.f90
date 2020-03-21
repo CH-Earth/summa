@@ -125,7 +125,7 @@ contains
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  print*,'Created output file: '//trim(fname)//'   !; ncid = ', ncid(iFreq)
+  print*,'Created output file: '//trim(fname)
 
   ! define SUMMA version
   do iVar=1,4
@@ -211,9 +211,7 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! create output file
- !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
- !err = nf90_create(trim(infile),NF90_HDF5,ncid)
- err = nf90_create(trim(infile),NF90_NETCDF4,ncid)
+ err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions

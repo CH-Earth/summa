@@ -36,6 +36,7 @@ USE globalData, only: ixRestart_never         ! named variable to print a re-sta
 USE globalData, only: ixProgress_im           ! named variable to print progress once per month
 USE globalData, only: ixProgress_id           ! named variable to print progress once per day
 USE globalData, only: ixProgress_ih           ! named variable to print progress once per hour
+USE globalData, only: ixProgress_it           ! named variable to print progress once per timestep
 USE globalData, only: ixProgress_never        ! named variable to print progress never
 
 ! named variable for time structures
@@ -103,10 +104,10 @@ contains
 
   ! (check for the start of the USA water year)
   case(newFileEveryOct1)
-   defNewOutputFile = (newTime(iLookTIME%im)  ==10 .and. &   ! month = October
-                       newTime(iLookTIME%id)  ==1  .and. &   ! day = 1
-                       newTime(iLookTIME%ih)  ==0  .and. &   ! hour = 1
-                       newTime(iLookTIME%imin)==0)           ! minute = 0
+   defNewOutputFile = (newTime(iLookTIME%im)   == 10 .and. &   ! month = October
+                       newTime(iLookTIME%id)   == 1  .and. &   ! day = 1
+                       newTime(iLookTIME%ih)   == 0  .and. &   ! hour = 1
+                       newTime(iLookTIME%imin) == 0)           ! minute = 0
 
   ! (check that we found the option)
   case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
@@ -134,9 +135,10 @@ contains
  ! *** define the need to print progress
  ! *****************************************************************************
  select case(ixProgress)
-  case(ixProgress_im);    printProgress = (newTime(iLookTIME%id)   == 1 .and. newTime(iLookTIME%ih)   == 0 .and. newTime(iLookTIME%imin) == 0)
-  case(ixProgress_id);    printProgress = (newTime(iLookTIME%ih)   == 0 .and. newTime(iLookTIME%imin) == 0)
+  case(ixProgress_im);    printProgress = (newTime(iLookTIME%im) /= oldTime(iLookTIME%im))  ! first month will not appear
+  case(ixProgress_id);    printProgress = (newTime(iLookTIME%id) /= oldTime(iLookTIME%id))  ! first day will not appear
   case(ixProgress_ih);    printProgress = (newTime(iLookTIME%imin) == 0)
+  case(ixProgress_it);    printProgress = .true.
   case(ixProgress_never); printProgress = .false.
   case default; err=20; message=trim(message)//'unable to identify option to print progress'; return
  end select
@@ -151,9 +153,9 @@ contains
    ! define the need to finalize statistics
    ! NOTE: time vector is configured so that ih=0 at the start of the day, hence day in oldTime and timeStruct%var differ
    select case(iFreq)
-    case(iLookFreq%day     ); finalizeStats(iFreq)=(oldTime(iLookTime%id  )/=newTime(iLookTime%id  ))  ! daily aggregation
-    case(iLookFreq%month   ); finalizeStats(iFreq)=(oldTime(iLookTime%im  )/=newTime(iLookTime%im  ))  ! monthly aggregation
-    case(iLookFreq%annual  ); finalizeStats(iFreq)=(oldTime(iLookTime%iyyy)/=newTime(iLookTime%iyyy))  ! yearly (annual) aggregation
+    case(iLookFreq%day     ); finalizeStats(iFreq)=(oldTime(iLookTIME%id  )/=newTime(iLookTIME%id  ))  ! daily aggregation
+    case(iLookFreq%month   ); finalizeStats(iFreq)=(oldTime(iLookTIME%im  )/=newTime(iLookTIME%im  ))  ! monthly aggregation
+    case(iLookFreq%annual  ); finalizeStats(iFreq)=(oldTime(iLookTIME%iyyy)/=newTime(iLookTIME%iyyy))  ! yearly (annual) aggregation
     case(iLookFreq%timestep); finalizeStats(iFreq)=.true.          ! timestep-level output (no temporal aggregation)
     case default; err=20; message=trim(message)//'unable to identify output frequency'; return
    end select
