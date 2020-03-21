@@ -104,10 +104,8 @@ contains
 
   ! (check for the start of the USA water year)
   case(newFileEveryOct1)
-   defNewOutputFile = (newTime(iLookTIME%im)   == 10 .and. &   ! month = October
-                       newTime(iLookTIME%id)   == 1  .and. &   ! day = 1
-                       newTime(iLookTIME%ih)   == 0  .and. &   ! hour = 1
-                       newTime(iLookTIME%imin) == 0)           ! minute = 0
+   defNewOutputFile = (newTime(iLookTIME%im) == 10 .and. &             ! month = October
+                       newTime(iLookTIME%im) /= oldTime(iLookTIME%im)) ! first timestep in October
 
   ! (check that we found the option)
   case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
@@ -135,8 +133,8 @@ contains
  ! *** define the need to print progress
  ! *****************************************************************************
  select case(ixProgress)
-  case(ixProgress_im);    printProgress = (newTime(iLookTIME%im) /= oldTime(iLookTIME%im))  ! first month will not appear
-  case(ixProgress_id);    printProgress = (newTime(iLookTIME%id) /= oldTime(iLookTIME%id))  ! first day will not appear
+  case(ixProgress_im);    printProgress = (newTime(iLookTIME%im) /= oldTime(iLookTIME%im))  ! start month missed
+  case(ixProgress_id);    printProgress = (newTime(iLookTIME%id) /= oldTime(iLookTIME%id))  ! start day missed
   case(ixProgress_ih);    printProgress = (newTime(iLookTIME%imin) == 0)
   case(ixProgress_it);    printProgress = .true.
   case(ixProgress_never); printProgress = .false.

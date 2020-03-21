@@ -766,7 +766,7 @@ contains
 
 
  ! *****
- ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...
+ ! (7) CALCULATE FLUXES FOR THE DEEP AQUIFER...
  ! ********************************************
 
  ! check if computing aquifer fluxes
