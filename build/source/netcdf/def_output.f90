@@ -211,7 +211,8 @@ contains
  end select ! (option to combine/sub-divide snow layers)
 
  ! create output file
- err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
+ !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
+ err = nf90_create(trim(infile),NF90_HDF5,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
