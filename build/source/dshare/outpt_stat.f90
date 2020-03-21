@@ -108,8 +108,8 @@ contains
  ! structures of named variables
  USE var_lookup,only:iLookVarType     ! named variables for variable types
  USE var_lookup,only:iLookFreq        ! named variables for output frequency
- USE var_lookup,only:iLookStat        ! named variables for output statistics
- USE var_lookup,only:iLookTime        ! named variables for time information
+ USE var_lookup,only:iLookSTAT        ! named variables for output statistics
+ USE var_lookup,only:iLookTIME        ! named variables for time information
  implicit none
  ! input variables
  class(var_info),intent(in)         :: meta              ! meta data structure

@@ -70,6 +70,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixProgress_id=1001      ! named variable to print progress once per day
  integer(i4b),parameter,public               :: ixProgress_ih=1002      ! named variable to print progress once per hour
  integer(i4b),parameter,public               :: ixProgress_never=1003   ! named variable to print progress never
+ integer(i4b),parameter,public               :: ixProgress_it=1004      ! named variable to print progress every timestep
 
  ! define restart frequency
  integer(i4b),parameter,public               :: ixRestart_iy=1000       ! named variable to print a re-start file once per year

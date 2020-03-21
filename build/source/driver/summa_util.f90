@@ -49,7 +49,7 @@ contains
  USE summa_type, only:summa1_type_dec                         ! master summa data type
  ! provide access to named parameters
  USE globalData,only:iRunModeFull,iRunModeGRU,iRunModeHRU
- USE globalData,only:ixProgress_im,ixProgress_id,ixProgress_ih,ixProgress_never
+ USE globalData,only:ixProgress_it,ixProgress_im,ixProgress_id,ixProgress_ih,ixProgress_never
  USE globalData,only:ixRestart_iy,ixRestart_im,ixRestart_id,ixRestart_end,ixRestart_never
  USE globalData,only:noNewFiles,newFileEveryOct1
  ! provide access to runtime options
@@ -211,9 +211,10 @@ contains
      err=1; return
     endif
     select case (trim(argString(iArgument+1)))
-     case ('m' , 'month'); ixProgress = ixProgress_im
-     case ('d' , 'day');   ixProgress = ixProgress_id
+     case ('t' , 'timestep');  ixProgress = ixProgress_it  ! default
      case ('h' , 'hour');  ixProgress = ixProgress_ih
+     case ('d' , 'day');   ixProgress = ixProgress_id
+     case ('m' , 'month'); ixProgress = ixProgress_im
      case ('n' , 'never'); ixProgress = ixProgress_never
      case default
       message='unknown frequency to print progress'
