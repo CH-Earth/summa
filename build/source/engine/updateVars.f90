@@ -90,7 +90,7 @@ USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liqui
 USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
 USE soil_utils_module,only:liquidHead     ! compute the liquid water matric potential
 
-! IEEE checks
+! IEEE check
 USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
 
 implicit none
@@ -628,9 +628,14 @@ contains
   ! only for soil
   if(ixDomainType==iname_soil)then
 
-   ! check liquid water
-   if(mLayerVolFracLiqTrial(iLayer) > theta_sat(ixControlIndex) )then
+   ! check liquid water (include tolerance)
+   if(mLayerVolFracLiqTrial(iLayer) > theta_sat(ixControlIndex)+epsT )then
     message=trim(message)//'liquid water greater than porosity'
+    print*,'---------------'
+    print*,'porosity(theta_sat)=', theta_sat(ixControlIndex)
+    print*,'liq water =',mLayerVolFracLiqTrial(iLayer)
+    print*,'layer =',iLayer
+    print*,'---------------'
     err=20; return
    endif
 

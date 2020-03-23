@@ -122,7 +122,7 @@ contains
  character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile                ! restart file name
  logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
- logical(lgt)                          :: printProgress=.false.      ! flag to print simulationprogress
+ logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
  integer(i4b)                          :: iGRU,iHRU          ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct            ! index of model structure
@@ -254,7 +254,7 @@ contains
  nHRUrun = sum(gru_struc%hruCount)
 
  ! write time information
- call WriteTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
+ call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
 
  ! write the model output to the NetCDF file
  ! Passes the full metadata structure rather than the stats metadata structure because

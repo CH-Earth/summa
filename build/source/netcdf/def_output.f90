@@ -125,7 +125,7 @@ contains
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
   call ini_create(nGRU,nHRU,nSoil,trim(fname),ncid(iFreq),err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-  print*,'Created output file: '//trim(fname)//'; ncid = ', ncid(iFreq)
+  print*,'Created output file: '//trim(fname)
 
   ! define SUMMA version
   do iVar=1,4
@@ -348,7 +348,7 @@ contains
   ! define statistics index
   iStat = metaData(iVar)%statIndex(iFreq)
 
-  ! create full variable name (append statistics info(
+  ! create full variable name (append statistics info)
   if(iStat==iLookStat%inst)then
    catName = trim(metaData(iVar)%varName)
   else
