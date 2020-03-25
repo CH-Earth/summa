@@ -321,7 +321,7 @@ MODULE globalData
  type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
  ! output file information
- logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the outut frequency is desired
+ logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
  integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
 
 END MODULE globalData

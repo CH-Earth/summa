@@ -18,12 +18,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summa_defineOutput
-! used to define model output files
+module summa_defineOutput                     ! used to define model output files
 
 ! access missing values
-USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:integerMissing            ! missing integer
+USE globalData,only:realMissing               ! missing double precision number
 
 ! named variables to define new output files
 USE globalData, only: noNewFiles              ! no new output files
@@ -32,7 +31,7 @@ USE globalData, only: newFileEveryOct1        ! create a new file on Oct 1 every
 ! metadata structures
 USE globalData,only:attr_meta                 ! attributes metadata structure
 USE globalData,only:type_meta                 ! veg/soil type metadata structure
-USE globalData,only:id_meta                   ! veg/soil type metadata structure
+USE globalData,only:id_meta                   ! hru and gru Id metadata structure
 USE globalData,only:mpar_meta                 ! local parameter metadata structure
 USE globalData,only:bpar_meta                 ! basin parameter metadata structure
 
@@ -101,11 +100,13 @@ contains
  ! *** define the name of the model output file
  ! *****************************************************************************
 
- ! define name of output file : spinup
+ ! define full name of output file 
  if(modelTimeStep==1)then
   select case(newOutputFile)
-   case(noNewFiles);       fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
-   case(newFileEveryOct1); fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
+   !case(noNewFiles);       fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
+   case(noNewFiles);       fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(output_fileSuffix)
+   !case(newFileEveryOct1); fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
+   case(newFileEveryOct1); fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(output_fileSuffix)
    case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
   end select
 
@@ -133,7 +134,7 @@ contains
     select case(trim(structInfo(iStruct)%structName))
      case('attr'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
      case('type'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
-     case('id');   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,cmessage)
+     !case('id');   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,cmessage)
      case('mpar'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,cmessage)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
@@ -151,5 +152,3 @@ contains
 
  end subroutine summa_defineOutputFiles
 end module summa_defineOutput
-
-

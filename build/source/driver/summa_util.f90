@@ -211,11 +211,11 @@ contains
      err=1; return
     endif
     select case (trim(argString(iArgument+1)))
-     case ('t' , 'timestep');  ixProgress = ixProgress_it  ! default
-     case ('h' , 'hour');  ixProgress = ixProgress_ih
-     case ('d' , 'day');   ixProgress = ixProgress_id
-     case ('m' , 'month'); ixProgress = ixProgress_im
-     case ('n' , 'never'); ixProgress = ixProgress_never
+     case ('t' , 'timestep');  ixProgress = ixProgress_it
+     case ('h' , 'hour');      ixProgress = ixProgress_ih
+     case ('d' , 'day');       ixProgress = ixProgress_id  ! default
+     case ('m' , 'month');     ixProgress = ixProgress_im
+     case ('n' , 'never');     ixProgress = ixProgress_never
      case default
       message='unknown frequency to print progress'
       err=1; return

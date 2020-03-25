@@ -116,10 +116,10 @@ contains
  ! e.g., xxxxxxxxx_timestep.nc  (for output at every model timestep)
  ! e.g., xxxxxxxxx_monthly.nc   (for monthly model output)
  do iFreq=1,maxvarFreq
-
+ 
   ! skip frequencies that are not needed
   if(.not.outFreq(iFreq)) cycle
-
+  
   ! create file
   fstring = get_freqName(iFreq)
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
@@ -151,7 +151,7 @@ contains
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
-    case('id' );   call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,id_meta,   nf90_int64, err,cmessage)  ! local classification
+    !case('id' );   call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,id_meta,   nf90_int64, err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
     case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
     case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
@@ -162,14 +162,15 @@ contains
     case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
     case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
     case('bvar' ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
+    case('id' );   cycle                                                                                    ! ids handled elsewhere
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
    end select
    ! error handling
    if(err/=0)then;err=20;message=trim(message)//trim(cmessage)//'[structure =  '//trim(structInfo(iStruct)%structName);return;end if
   end do ! iStruct
 
-  ! write HRU dimension for each output file
-  call write_hru_dim(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+  ! write HRU dimension and ID for each output file
+  call write_hru_info(ncid(iFreq), err, cmessage); if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
  end do ! iFreq
 
@@ -298,7 +299,7 @@ contains
 
   ! check that the variable is desired
   if (metaData(iVar)%varType==iLookvarType%unknown) cycle
-  if (metaData(iVar)%statIndex(iFreq)==integerMissing.and.metaData(iVar)%varName/='time') cycle
+  if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. metaData(iVar)%varName/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
 
@@ -368,7 +369,7 @@ contains
   catName = trim(metaData(iVar)%varunit)
   if (iStat==iLookStat%totl) then
 
-   ! make sure that the units of this varaible allow for integration
+   ! make sure that the units of this variable allow for integration
    if ((index(catName,'s-1')<=0).and.(index(catName,'s-2')<=0).and.(index(catName,'W m-2')<=0)) then
     message=trim(message)//'trying to integrate a non-time variable: '//trim(metaData(iVar)%varName)//' - units: '//trim(catName)
     err=20; return
@@ -403,22 +404,23 @@ contains
  end subroutine def_variab
 
  ! **********************************************************************************************************
- ! internal subroutine write_hru_dim: write HRU dimension
+ ! internal subroutine write_hru_info: write HRU dimension and ID
  ! **********************************************************************************************************
- subroutine write_hru_dim(ncid, err, message)
+ subroutine write_hru_info(ncid, err, message)
  use globalData,only:gru_struc                    ! gru-hru mapping structures
  ! input
- integer(i4b)  ,intent(in)   :: ncid              ! netcdf file id
+ integer(i4b),intent(in)     :: ncid              ! netcdf file id
  ! output
  integer(i4b),intent(out)    :: err               ! error code
  character(*),intent(out)    :: message           ! error message
  ! define local variables
  integer(i4b)                :: iHRU              ! local HRU index
  integer(i4b)                :: iGRU              ! GRU index
- integer(i4b)                :: hruVarID          ! HRU varID in netcdf file
+ integer(i4b)                :: hruVarID          ! hru varID in netcdf file 
+ integer(i4b)                :: hruIdVarID        ! hruId varID in netcdf file 
 
  ! initialize error control
- err=0; message='write_hru_dim/'
+ err=0; message='write_hru_info/'
 
  ! allow re-definition of variables
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
@@ -427,6 +429,11 @@ contains
  err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
+ 
+ ! define hruId var
+ err = nf90_def_var(ncid, 'hruId', nf90_int64, hru_DimID, hruIdVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
+ err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';     call netcdf_err(err,message); return; end if
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); if (err/=nf90_NoErr) return
@@ -436,6 +443,9 @@ contains
   do iHRU = 1, gru_struc(iGRU)%hruCount
    err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruVar'; call netcdf_err(err,message); return; end if
+   err = nf90_put_var(ncid, hruIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
+   !err = nf90_put_var(ncid, hruIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/1/))
+   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruIdVar'; call netcdf_err(err,message); return; end if
   end do
  end do
 

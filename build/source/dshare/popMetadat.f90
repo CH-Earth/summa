@@ -86,7 +86,6 @@ contains
  ! -----
  ! * categorical data...
  ! ---------------------
- !type_meta(iLookTYPE%hruId)                  = var_info('hruId'         , 'ID defining the hydrologic response unit'   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%vegTypeIndex)           = var_info('vegTypeIndex'  , 'index defining vegetation type'             , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%soilTypeIndex)          = var_info('soilTypeIndex' , 'index defining soil type'                   , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  type_meta(iLookTYPE%slopeTypeIndex)         = var_info('slopeTypeIndex', 'index defining slope'                       , '-', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -781,7 +780,7 @@ contains
  outFreq(:) = .false.
 
  ! initialize output frequency for timestep-level output
- outFreq(iLookFREQ%timestep) = .true.
+ !outFreq(iLookFREQ%timestep) = .true.   ! AW-tmp do not initialize this frequency
 
  ! loop through the lines in the file
  do vLine = 1,size(charLines)
@@ -799,9 +798,15 @@ contains
 
   ! --- variables with multiple statistics options --------------------------
 
-  ! idenify the data structure for the given variable (structName) and the variable index (vDex)
+  ! identify the data structure for the given variable (structName) and the variable index (vDex)
   call get_ixUnknown(trim(varName),structName,vDex,err,cmessage)
   if (err/=0) then; message=trim(message)//trim(cmessage)//trim(varName); return; end if;
+  
+  ! id variables should not be specified in output control file
+  if (trim(structName)=='id')then
+   print*,'id variable requested in outputControl, will be skipped: variable='//trim(varName)
+   cycle 
+  end if
 
   ! --- identify the desired frequency in the metadata structure  -----------
 
@@ -833,13 +838,19 @@ contains
                           //' [entered "'//trim(freqName)//'"]'
      err=20; return
     endif
-
+    
    ! temporally constant variables use timestep-level output (no aggregation)
    case default
+    message=trim(message)//'unable to identify desired output frequency for variable '//trim(varName)&
+                         //' [entered "'//trim(freqName)//'"];'&
+                         //' outputting variable in timestep file'
     iFreq    = iLookFREQ%timestep
     freqName = 'timestep'
   end select
-
+  
+  ! debugging output
+  !print*, 'varname=',trim(varName),' freqname=',trim(freqName),' varstruct=',trim(structName),' iFreq=',iFreq
+  
   ! --- identify the desired statistic in the metadata structure  -----------
 
   ! * check the definition of statistics
@@ -908,7 +919,7 @@ contains
    case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
    case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
    case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
-   case('id' );     id_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst;   id_meta(vDex)%varDesire=.true.   ! local hru/gru IDs
+   !case('id' );     id_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst;   id_meta(vDex)%varDesire=.true.   ! local hru/gru IDs
    case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
 
    ! index structures -- can only be output at the model time step
@@ -935,9 +946,9 @@ contains
   ! error control from popStat
   if (err/=0) then; message=trim(message)//trim(cmessage);return; end if
 
-  ! Ensure that time is turned on
+  ! ensure that time is turned on
   forc_meta(iLookForce%time)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
-
+  
   ! set desired output frequency
   outFreq(iFreq) = .true.
 
@@ -951,22 +962,22 @@ contains
  ! **********************************************************************************************
 
  ! force output the number of layers at every time step
- indx_meta(iLookINDEX%nSnow  )%varDesire = .true.  ! snow layers
- indx_meta(iLookINDEX%nSoil  )%varDesire = .true.  ! soil layers
- indx_meta(iLookINDEX%nLayers)%varDesire = .true.  ! total layers
+ !indx_meta(iLookINDEX%nSnow  )%varDesire = .true.  ! snow layers
+ !indx_meta(iLookINDEX%nSoil  )%varDesire = .true.  ! soil layers
+ !indx_meta(iLookINDEX%nLayers)%varDesire = .true.  ! total layers
 
  ! output number of layers at the timestep level
- indx_meta(iLookINDEX%nSnow  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! snow layers
- indx_meta(iLookINDEX%nSoil  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! soil layers
- indx_meta(iLookINDEX%nLayers)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! total layers
+ !indx_meta(iLookINDEX%nSnow  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! snow layers
+ !indx_meta(iLookINDEX%nSoil  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! soil layers
+ !indx_meta(iLookINDEX%nLayers)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! total layers
 
  ! force time to be written in every file
  forc_meta(iLookFORCE%time)%varDesire    = .true.
  forc_meta(iLookFORCE%time)%statIndex(:) = iLookSTAT%inst
 
- ! force the HRU id to be written in the timestep-level file
- id_meta(iLookID%hruId)%varDesire    = .true.
- id_meta(iLookID%hruId)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
+ ! force the HRU id to be written in every file
+ !id_meta(iLookID%hruId)%varDesire    = .true.
+ !id_meta(iLookID%hruId)%statIndex(:) = iLookSTAT%inst  ! 'inst' means no aggregation applied
 
  end subroutine read_output_file
 
