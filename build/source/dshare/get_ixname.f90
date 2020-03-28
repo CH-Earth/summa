@@ -953,7 +953,7 @@ contains
 
  ! *******************************************************************************************************************
  ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the
- ! structrue that it was found in
+ ! structure that it was found in
  ! *******************************************************************************************************************
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
  USE nrtype
@@ -962,7 +962,7 @@ contains
 
  ! dummies
  character(*),intent(in)  :: varName   ! variable name
- character(*),intent(out) :: typeName  ! variable type name
+ character(*),intent(out) :: typeName  ! variable type (structure) name
  integer(i4b),intent(out) :: vDex      ! variable index in structure
  integer(i4b),intent(out) :: err       ! error code
  character(*),intent(out) :: message   ! error message
@@ -982,7 +982,7 @@ contains
    case ('forc' ); vDex = get_ixForce(trim(varName))
    case ('attr' ); vDex = get_ixAttr(trim(varName))
    case ('type' ); vDex = get_ixType(trim(varName))
-   case ('id' );   vDex = get_ixId(trim(varName))
+   case ('id'   ); vDex = get_ixId(trim(varName))
    case ('mpar' ); vDex = get_ixParam(trim(varName))
    case ('indx' ); vDex = get_ixIndex(trim(varName))
    case ('prog' ); vDex = get_ixProg(trim(varName))
