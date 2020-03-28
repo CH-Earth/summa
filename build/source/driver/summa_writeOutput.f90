@@ -88,7 +88,7 @@ contains
  USE globalData,only:oldTime                                 ! time from the previous time step
  USE globalData,only:finshTime                               ! end time of simulation
  ! global data: model output
- USE globalData,only:fileout                                 ! name of model output file
+! USE globalData,only:fileout                                 ! name of model output file
  ! global data: decisions for model alarms
  USE globalData,only:ixProgress                              ! define frequency to write progress
  USE globalData,only:ixRestart                               ! define frequency to write restart files
@@ -107,7 +107,7 @@ contains
  ! file information
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  USE globalData,only:output_fileSuffix                       ! suffix for the output file
- USE globalData,only:fileout                                 ! name of the output file
+! USE globalData,only:fileout                                 ! name of the output file
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
