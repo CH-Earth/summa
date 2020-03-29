@@ -691,7 +691,6 @@ contains
  USE globalData, only: time_meta               ! data structure for time metadata
  USE globalData, only: forc_meta               ! data structure for forcing metadata
  USE globalData, only: type_meta               ! data structure for categorical metadata
- USE globalData, only: id_meta                 ! data structure for hru and gru ID metadata
  USE globalData, only: attr_meta               ! data structure for attribute metadata
  USE globalData, only: mpar_meta               ! data structure for local parameter metadata
  USE globalData, only: bpar_meta               ! data structure for basin parameter metadata
@@ -779,9 +778,6 @@ contains
  ! initialize output frequency
  outFreq(:) = .false.
 
- ! initialize output frequency for timestep-level output
- !outFreq(iLookFREQ%timestep) = .true.   ! AW-tmp do not initialize this frequency
-
  ! loop through the lines in the file
  do vLine = 1,size(charLines)
 
@@ -838,7 +834,7 @@ contains
                           //' [entered "'//trim(freqName)//'"]'
      err=20; return
     endif
-    
+
    ! temporally constant variables use timestep-level output (no aggregation)
    case default
     message=trim(message)//'unable to identify desired output frequency for variable '//trim(varName)&
@@ -847,9 +843,6 @@ contains
     iFreq    = iLookFREQ%timestep
     freqName = 'timestep'
   end select
-  
-  ! debugging output
-  !print*, 'varname=',trim(varName),' freqname=',trim(freqName),' varstruct=',trim(structName),' iFreq=',iFreq
   
   ! --- identify the desired statistic in the metadata structure  -----------
 
@@ -919,7 +912,6 @@ contains
    case('bpar' ); bpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; bpar_meta(vDex)%varDesire=.true.   ! basin parameters
    case('attr' ); attr_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; attr_meta(vDex)%varDesire=.true.   ! local attributes
    case('type' ); type_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; type_meta(vDex)%varDesire=.true.   ! local classification
-   !case('id' );     id_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst;   id_meta(vDex)%varDesire=.true.   ! local hru/gru IDs
    case('mpar' ); mpar_meta(vDex)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst; mpar_meta(vDex)%varDesire=.true.   ! model parameters
 
    ! index structures -- can only be output at the model time step
@@ -948,36 +940,22 @@ contains
 
   ! ensure that time is turned on
   forc_meta(iLookForce%time)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst
-  
+
   ! set desired output frequency
   outFreq(iFreq) = .true.
 
-  ! print output
+  ! print output (debugging)
   !write(*,'(a)') 'freqName = '//trim(freqName)//'; statName = '//trim(statName)//'; charLines(vLine) = '//trim(charLines(vLine))
 
  end do ! loop through file lines with vline
 
  ! **********************************************************************************************
- ! (4) include index variables and time
+ ! (4) include time variable
  ! **********************************************************************************************
-
- ! force output the number of layers at every time step
- !indx_meta(iLookINDEX%nSnow  )%varDesire = .true.  ! snow layers
- !indx_meta(iLookINDEX%nSoil  )%varDesire = .true.  ! soil layers
- !indx_meta(iLookINDEX%nLayers)%varDesire = .true.  ! total layers
-
- ! output number of layers at the timestep level
- !indx_meta(iLookINDEX%nSnow  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! snow layers
- !indx_meta(iLookINDEX%nSoil  )%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! soil layers
- !indx_meta(iLookINDEX%nLayers)%statIndex(iLookFREQ%timestep) = iLookSTAT%inst  ! total layers
 
  ! force time to be written in every file
  forc_meta(iLookFORCE%time)%varDesire    = .true.
  forc_meta(iLookFORCE%time)%statIndex(:) = iLookSTAT%inst
-
- ! force the HRU id to be written in every file
- !id_meta(iLookID%hruId)%varDesire    = .true.
- !id_meta(iLookID%hruId)%statIndex(:) = iLookSTAT%inst  ! 'inst' means no aggregation applied
 
  end subroutine read_output_file
 

@@ -69,7 +69,7 @@ contains
  ! **********************************************************************************************************
  subroutine def_output(summaVersion,buildTime,gitBranch,gitHash,nGRU,nHRU,nSoil,infile,err,message)
  USE globalData,only:structInfo                               ! information on the data structures
- USE globalData,only:forc_meta,attr_meta,type_meta,id_meta    ! metaData structures
+ USE globalData,only:forc_meta,attr_meta,type_meta            ! metaData structures
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta ! metaData structures
  USE globalData,only:mpar_meta,indx_meta                      ! metaData structures
  USE globalData,only:bpar_meta,bvar_meta,time_meta            ! metaData structures
@@ -116,10 +116,10 @@ contains
  ! e.g., xxxxxxxxx_timestep.nc  (for output at every model timestep)
  ! e.g., xxxxxxxxx_monthly.nc   (for monthly model output)
  do iFreq=1,maxvarFreq
- 
+
   ! skip frequencies that are not needed
   if(.not.outFreq(iFreq)) cycle
-  
+
   ! create file
   fstring = get_freqName(iFreq)
   fname   = trim(infile)//'_'//trim(fstring)//'.nc'
@@ -151,7 +151,6 @@ contains
    select case (trim(structInfo(iStruct)%structName))
     case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
     case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
-    !case('id' );   call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,id_meta,   nf90_int64, err,cmessage)  ! local classification
     case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
     case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
     case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
@@ -162,7 +161,7 @@ contains
     case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
     case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
     case('bvar' ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
-    case('id' );   cycle                                                                                    ! ids handled elsewhere
+    case('id'   ); cycle                                                                                    ! ids -- see write_hru_info()
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
    end select
    ! error handling
@@ -433,12 +432,12 @@ contains
  ! define hruId var
  err = nf90_def_var(ncid, 'hruId', nf90_int64, hru_DimID, hruIdVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
  err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
- err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';     call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  ! Leave define mode of NetCDF files
  err = nf90_enddef(ncid);  message=trim(message)//'nf90_enddef'; call netcdf_err(err,message); if (err/=nf90_NoErr) return
 
- ! write the HRU dimension to record position in the input netcdf file for concatenation of outputs of a parallelized run.
+ ! write the 'hru' record from the input netcdf file, and hruId, to aid post-processing (eg merging of split-domain runs)
  do iGRU = 1, size(gru_struc)
   do iHRU = 1, gru_struc(iGRU)%hruCount
    err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))

@@ -103,12 +103,12 @@ contains
  ! define full name of output file 
  if(modelTimeStep==1)then
   select case(newOutputFile)
-   !case(noNewFiles);       fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'output'//trim(output_fileSuffix)
-   case(noNewFiles);       fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(output_fileSuffix)
-   !case(newFileEveryOct1); fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'spinup'//trim(output_fileSuffix)
-   case(newFileEveryOct1); fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(output_fileSuffix)
+   case(noNewFiles);          ! do nothing, just ensure validity of outputfile option
+   case(newFileEveryOct1);    
    case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
   end select
+
+  fileout = trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//trim(output_fileSuffix)
 
  ! model time step > 1: define name of output file : new simulations
  else
@@ -134,7 +134,6 @@ contains
     select case(trim(structInfo(iStruct)%structName))
      case('attr'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,attrStruct%gru(iGRU)%hru(iHRU),attr_meta,err,cmessage)
      case('type'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,typeStruct%gru(iGRU)%hru(iHRU),type_meta,err,cmessage)
-     !case('id');   call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,  idStruct%gru(iGRU)%hru(iHRU),  id_meta,err,cmessage)
      case('mpar'); call writeParm(gru_struc(iGRU)%hruInfo(iHRU)%hru_ix,mparStruct%gru(iGRU)%hru(iHRU),mpar_meta,err,cmessage)
     end select
     if(err/=0)then; message=trim(message)//trim(cmessage)//'['//trim(structInfo(iStruct)%structName)//']'; return; endif
