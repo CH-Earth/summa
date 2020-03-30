@@ -20,6 +20,7 @@ pages:
 - Input/Output:
   - SUMMA Input: 'input_output/SUMMA_input.md'
   - SUMMA Output: 'input_output/SUMMA_output.md'
+  - SUMMA Debugging: 'input_output/SUMMA_errors.md'
 - Development:
   - SUMMA Coding Conventions: 'development/SUMMA_coding_conventions.md'
   - SUMMA and Git: 'development/SUMMA_and_git.md'
