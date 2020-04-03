@@ -306,7 +306,7 @@ contains
 
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then
-   call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage); chunksize=(/ 480 /)
+   call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage); chunksize=(/ 1000 /)
    if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; end if
 
   ! standard case (not time)
@@ -315,22 +315,22 @@ contains
 
     ! (scalar variable -- many different types)
     case(iLookvarType%scalarv)
-     if(spatialDesire==needGRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 480, 480 /)
-     if(spatialDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 480, 480 /)
-     if(spatialDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage); chunksize=(/ 480 /)
-     if(spatialDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage); chunksize=(/ 480 /)
-     if(spatialDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage); chunksize=(/ 1, 960 /)
+     if(spatialDesire==needGRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 40, 40 /)
+     if(spatialDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 40, 40 /)
+     if(spatialDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage); chunksize=(/ 1000 /)
+     if(spatialDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/) , err=err, message=cmessage);               chunksize=(/ 1000 /)
+     if(spatialDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/) , err=err, message=cmessage);               chunksize=(/ 10, 100/)
 
     ! (other variables)
-    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 1, 1, 480 /)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); chunksize=(/ 1, 1 /)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage); chunksize=(/ 1 /)
+    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); chunksize=(/ 10, 1, 100 /)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); chunksize=(/ 30, 30 /)
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage); chunksize=(/ 1000 /)
    end select
    ! check errors
    if(err/=0)then
