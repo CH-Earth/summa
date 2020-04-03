@@ -95,7 +95,7 @@ contains
 
 
  ! ***********************************************************************************
- ! Private subroutine calc_stats is a generic fucntion to deal with any variable type.
+ ! Private subroutine calc_stats is a generic function to deal with any variable type.
  ! Called from compile_stats
  ! ***********************************************************************************
  subroutine calc_stats(meta,stat,tdata,resetStats,finalizeStats,statCounter,err,message)
@@ -108,8 +108,8 @@ contains
  ! structures of named variables
  USE var_lookup,only:iLookVarType     ! named variables for variable types
  USE var_lookup,only:iLookFreq        ! named variables for output frequency
- USE var_lookup,only:iLookStat        ! named variables for output statistics
- USE var_lookup,only:iLookTime        ! named variables for time information
+ USE var_lookup,only:iLookSTAT        ! named variables for output statistics
+ USE var_lookup,only:iLookTIME        ! named variables for time information
  implicit none
  ! input variables
  class(var_info),intent(in)         :: meta              ! meta data structure
@@ -139,7 +139,7 @@ contains
  ! ---------------------------------------------
  do iFreq=1,maxVarFreq                              ! loop through output statistics
   if(resetStats(iFreq))then                         ! flag to reset statistics
-   if(meta%statIndex(iFreq)==integerMissing) cycle  ! don't bother if output frequency is not desired for a given variab;e
+   if(meta%statIndex(iFreq)==integerMissing) cycle  ! don't bother if output frequency is not desired for a given variable
    if(meta%varType/=iLookVarType%outstat) cycle     ! only calculate stats for scalars
    select case(meta%statIndex(iFreq))               ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
@@ -196,7 +196,7 @@ contains
  end do ! looping through output frequencies
 
  ! ---------------------------------------------
- ! finalize statistics at end of frequenncy period
+ ! finalize statistics at end of frequency period
  ! ---------------------------------------------
  do iFreq=1,maxVarFreq                                ! loop through output statistics
   if(finalizeStats(iFreq))then

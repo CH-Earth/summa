@@ -759,14 +759,14 @@ contains
   ! compute total baseflow from the soil zone (needed for mass balance checks)
   scalarSoilBaseflow = sum(mLayerBaseflow)
 
-  ! compute total runodd
+  ! compute total runoff
   scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow
 
  endif  ! if computing soil hydrology
 
 
  ! *****
- ! (7) CALCUALTE FLUXES FOR THE DEEP AQUIFER...
+ ! (7) CALCULATE FLUXES FOR THE DEEP AQUIFER...
  ! ********************************************
 
  ! check if computing aquifer fluxes
@@ -792,6 +792,9 @@ contains
                    ! output: error control
                    err,cmessage)                   ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! compute total runoff (overwrite previously calculated value before considering aquifer)
+   scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
 
   ! if no aquifer, then fluxes are zero
   else

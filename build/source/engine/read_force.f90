@@ -465,7 +465,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! check to see if any of the time data is missing -- note that it is OK if ih_tz or imin_tz are missing
- if((time_data(iLookTime%iyyy)==integerMissing) .or. (time_data(iLookTime%im)==integerMissing) .or. (time_data(iLookTime%id)==integerMissing) .or. (time_data(iLookTime%ih)==integerMissing) .or. (time_data(iLookTime%imin)==integerMissing))then
+ if((time_data(iLookTIME%iyyy)==integerMissing) .or. (time_data(iLookTIME%im)==integerMissing) .or. (time_data(iLookTIME%id)==integerMissing) .or. (time_data(iLookTIME%ih)==integerMissing) .or. (time_data(iLookTIME%imin)==integerMissing))then
   do iline=1,size(time_data)
    if(time_data(iline)==integerMissing)then; err=40; message=trim(message)//"variableMissing[var='"//trim(time_meta(iline)%varname)//"']"; return; end if
   end do

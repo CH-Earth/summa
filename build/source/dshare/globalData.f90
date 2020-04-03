@@ -71,6 +71,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixProgress_id=1001      ! named variable to print progress once per day
  integer(i4b),parameter,public               :: ixProgress_ih=1002      ! named variable to print progress once per hour
  integer(i4b),parameter,public               :: ixProgress_never=1003   ! named variable to print progress never
+ integer(i4b),parameter,public               :: ixProgress_it=1004      ! named variable to print progress every timestep
 
  ! define restart frequency
  integer(i4b),parameter,public               :: ixRestart_iy=1000       ! named variable to print a re-start file once per year
@@ -324,7 +325,7 @@ MODULE globalData
  type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
  ! output file information
- logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the outut frequency is desired
+ logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
  integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
 
 END MODULE globalData
