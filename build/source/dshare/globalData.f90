@@ -284,6 +284,8 @@ MODULE globalData
 
  ! define common variables
  integer(i4b),save,public                    :: numtim                  ! number of time steps
+ integer(i4b),save,public                    :: nHRUrun                 ! number of HRUs in the run domain
+ integer(i4b),save,public                    :: nGRUrun                 ! number of GRUs in the run domain
  real(dp),save,public                        :: data_step               ! time step of the data
  real(dp),save,public                        :: refJulday               ! reference time in fractional julian days
  real(dp),save,public                        :: refJulday_data          ! reference time in fractional julian days (data files)
