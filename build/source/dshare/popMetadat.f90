@@ -17,20 +17,20 @@ contains
 
  subroutine popMetadat(err,message)
  ! data structures
- USE data_types, only: var_info   ! data type for metadata structure
- USE globalData, only: time_meta  ! data structure for time metadata
- USE globalData, only: forc_meta  ! data structure for forcing metadata
- USE globalData, only: type_meta  ! data structure for categorical metadata
- USE globalData, only: id_meta    ! data structure for hru and gru ID metadata
- USE globalData, only: attr_meta  ! data structure for attribute metadata
- USE globalData, only: mpar_meta  ! data structure for local parameter metadata
- USE globalData, only: bpar_meta  ! data structure for basin parameter metadata
- USE globalData, only: bvar_meta  ! data structure for basin model variable metadata
- USE globalData, only: indx_meta  ! data structure for index metadata
- USE globalData, only: prog_meta  ! data structure for local prognostic (state) variables
- USE globalData, only: diag_meta  ! data structure for local diagnostic variables
- USE globalData, only: flux_meta  ! data structure for local flux variables
- USE globalData, only: deriv_meta ! data structure for local flux derivatives
+ USE data_types, only: var_info        ! data type for metadata structure
+ USE globalData, only: time_meta       ! data structure for time metadata
+ USE globalData, only: forc_meta       ! data structure for forcing metadata
+ USE globalData, only: type_meta       ! data structure for categorical metadata
+ USE globalData, only: id_meta         ! data structure for hru and gru ID metadata
+ USE globalData, only: attr_meta       ! data structure for attribute metadata
+ USE globalData, only: mpar_meta       ! data structure for local parameter metadata
+ USE globalData, only: bpar_meta       ! data structure for basin parameter metadata
+ USE globalData, only: bvar_meta       ! data structure for basin model variable metadata
+ USE globalData, only: indx_meta       ! data structure for index metadata
+ USE globalData, only: prog_meta       ! data structure for local prognostic (state) variables
+ USE globalData, only: diag_meta       ! data structure for local diagnostic variables
+ USE globalData, only: flux_meta       ! data structure for local flux variables
+ USE globalData, only: deriv_meta      ! data structure for local flux derivatives
  ! structures of named variables
  USE var_lookup, only: iLookTIME  ! named variables for time data structure
  USE var_lookup, only: iLookFORCE ! named variables for forcing data structure
@@ -678,7 +678,7 @@ contains
  ! subroutine to populate write commands from file input
  ! ------------------------------------------------
  subroutine read_output_file(err,message)
-
+ USE netcdf
  ! to get name of output control file from user
  USE summaFileManager,only:SETNGS_PATH         ! path for metadata files
  USE summaFileManager,only:OUTPUT_CONTROL      ! file with output controls
@@ -702,6 +702,7 @@ contains
  USE globalData, only: diag_meta               ! data structure for local diagnostic variables
  USE globalData, only: flux_meta               ! data structure for local flux variables
  USE globalData, only: deriv_meta              ! data structure for local flux derivatives
+ USE globalData, only: outputPrecision         ! data structure for output precision
 
  ! structures of named variables
  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
@@ -796,6 +797,16 @@ contains
 
   ! user cannot control time output
   if (trim(varName)=='time') cycle
+  ! set precision if it is given
+  if (trim(varName)=='outputPrecision') then
+    statName = trim(lineWords(nWords))
+    if (statName=='single' .or. statName=='float') then
+      outputPrecision = nf90_float
+    else if (statName=='double') then
+      outputPrecision = nf90_double
+    end if
+    cycle
+  end if
 
   ! --- variables with multiple statistics options --------------------------
 

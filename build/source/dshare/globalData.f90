@@ -21,6 +21,7 @@
 MODULE globalData
  ! data types
  USE nrtype
+ USE netcdf
  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
@@ -296,6 +297,7 @@ MODULE globalData
  logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
  logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
  integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
+ integer(i4b),save,public                    :: outputPrecision=nf90_double ! variable type
 
  ! define result from the time calls
  integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization
