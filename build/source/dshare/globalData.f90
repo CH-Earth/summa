@@ -21,6 +21,7 @@
 MODULE globalData
  ! data types
  USE nrtype
+ USE netcdf
  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
@@ -283,20 +284,23 @@ MODULE globalData
  integer(i4b),save,public                    :: newOutputFile=noNewFiles          ! define option for new output files
 
  ! define common variables
- integer(i4b),save,public                    :: numtim                  ! number of time steps
- real(dp),save,public                        :: data_step               ! time step of the data
- real(dp),save,public                        :: refJulday               ! reference time in fractional julian days
- real(dp),save,public                        :: refJulday_data          ! reference time in fractional julian days (data files)
- real(dp),save,public                        :: fracJulday              ! fractional julian days since the start of year
- real(dp),save,public                        :: dJulianStart            ! julian day of start time of simulation
- real(dp),save,public                        :: dJulianFinsh            ! julian day of end time of simulation
- real(dp),save,public                        :: tmZoneOffsetFracDay     ! time zone offset in fractional days
- integer(i4b),save,public                    :: nHRUfile                ! number of HRUs in the file
- integer(i4b),save,public                    :: yearLength              ! number of days in the current year
- integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
- logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
- logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
- integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
+ integer(i4b),save,public                    :: numtim                      ! number of time steps
+ integer(i4b),save,public                    :: nHRUrun                     ! number of HRUs in the run domain
+ integer(i4b),save,public                    :: nGRUrun                     ! number of GRUs in the run domain
+ real(dp),save,public                        :: data_step                   ! time step of the data
+ real(dp),save,public                        :: refJulday                   ! reference time in fractional julian days
+ real(dp),save,public                        :: refJulday_data              ! reference time in fractional julian days (data files)
+ real(dp),save,public                        :: fracJulday                  ! fractional julian days since the start of year
+ real(dp),save,public                        :: dJulianStart                ! julian day of start time of simulation
+ real(dp),save,public                        :: dJulianFinsh                ! julian day of end time of simulation
+ real(dp),save,public                        :: tmZoneOffsetFracDay         ! time zone offset in fractional days
+ integer(i4b),save,public                    :: nHRUfile                    ! number of HRUs in the file
+ integer(i4b),save,public                    :: yearLength                  ! number of days in the current year
+ integer(i4b),save,public                    :: urbanVegCategory            ! vegetation category for urban areas
+ logical(lgt),save,public                    :: doJacobian=.false.          ! flag to compute the Jacobian
+ logical(lgt),save,public                    :: globalPrintFlag=.false.     ! flag to compute the Jacobian
+ integer(i4b),save,public                    :: chunksize=1024              ! chunk size for the netcdf read/write
+ integer(i4b),save,public                    :: outputPrecision=nf90_double ! variable type
 
  ! define result from the time calls
  integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization
@@ -321,7 +325,7 @@ MODULE globalData
  type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
  ! output file information
- logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the outut frequency is desired
+ logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
  integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
 
 END MODULE globalData

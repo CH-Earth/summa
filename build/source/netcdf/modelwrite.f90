@@ -354,7 +354,7 @@ contains
    iStat = meta(iVar)%statIndex(iFreq)
 
    ! check that the variable is desired
-   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle 
+   if (iStat==integerMissing.or.trim(meta(iVar)%varName)=='unknown') cycle
 
    ! stats/dats output - select data type
    select case (meta(iVar)%varType)
