@@ -24,6 +24,8 @@ USE netcdf_util_module,only:netcdf_err        ! netcdf error handling function
 USE netcdf_util_module,only:nc_file_close     ! close NetCDF files
 USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
 USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
+USE globalData, only: outputPrecision         ! data structure for output precision
+USE globalData, only: chunkSize               ! size of chunks to write
 implicit none
 private
 public :: def_output
@@ -149,19 +151,19 @@ contains
   ! define variables
   do iStruct = 1,size(structInfo)
    select case (trim(structInfo(iStruct)%structName))
-    case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, nf90_double,err,cmessage)  ! local attributes HRU
-    case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)  ! local classification
-    case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, nf90_double,err,cmessage)  ! model parameters
-    case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, nf90_double,err,cmessage)  ! basin-average param
-    case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)  ! model variables
-    case('deriv'); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,nf90_double,err,cmessage)  ! model derivatives
-    case('time' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,   err,cmessage)  ! model derivatives
-    case('forc' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, nf90_double,err,cmessage)  ! model forcing data
-    case('prog' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, nf90_double,err,cmessage)  ! model prognostics
-    case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, nf90_double,err,cmessage)  ! model diagnostic variables
-    case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, nf90_double,err,cmessage)  ! model fluxes
-    case('bvar' ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, nf90_double,err,cmessage)  ! basin-average variables
-    case('id'   ); cycle                                                                                    ! ids -- see write_hru_info()
+    case('attr' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,attr_meta, outputPrecision, err,cmessage)  ! local attributes HRU
+    case('type' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,type_meta, nf90_int,   err,cmessage)       ! local classification
+    case('mpar' ); call def_variab(ncid(iFreq),iFreq,needHRU,  noTime,mpar_meta, outputPrecision, err,cmessage)  ! model parameters
+    case('bpar' ); call def_variab(ncid(iFreq),iFreq,needGRU,  noTime,bpar_meta, outputPrecision, err,cmessage)  ! basin-average param
+    case('indx' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,indx_meta, nf90_int,   err,cmessage)       ! model variables
+    case('deriv'); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,deriv_meta,outputPrecision, err,cmessage)  ! model derivatives
+    case('time' ); call def_variab(ncid(iFreq),iFreq,  noHRU,needTime,time_meta, nf90_int,   err,cmessage)       ! model derivatives
+    case('forc' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,forc_meta, outputPrecision, err,cmessage)  ! model forcing data
+    case('prog' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,prog_meta, outputPrecision, err,cmessage)  ! model prognostics
+    case('diag' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
+    case('flux' ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
+    case('bvar' ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
+    case('id'   ); cycle                                                                                         ! ids -- see write_hru_info()
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
    end select
    ! error handling
@@ -212,7 +214,7 @@ contains
 
  ! create output file
  !err = nf90_create(trim(infile),NF90_64BIT_OFFSET,ncid)
- err = nf90_create(trim(infile),NF90_HDF5,ncid)
+ err = nf90_create(trim(infile),NF90_NETCDF4,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if (err/=0) return
 
  ! create dimensions
@@ -268,6 +270,8 @@ contains
  USE var_lookup,only:maxVarFreq                     ! # of available output frequencies
  USE get_ixName_module,only:get_varTypeName         ! to access type strings for error messages
  USE get_ixname_module,only:get_statName            ! statistics names for variable defs in output file
+ USE globalData,only:nHRUrun
+ USE globalData,only:nGRUrun
  implicit none
  ! input
  integer(i4b)  ,intent(in)     :: ncid              ! netcdf file id
@@ -284,7 +288,12 @@ contains
  integer(i4b)                  :: iVarId            ! netcdf variable index
  integer(i4b)                  :: iStat             ! stat index
  integer(i4b),allocatable      :: dimensionIDs(:)   ! vector of dimension IDs
+ integer(i4b),allocatable      :: writechunk(:)     ! size of chunks to be written
  integer(i4b)                  :: timePosition      ! extrinsic variable to hold substring index
+ integer(i4b)                  :: timeChunk         ! size of time chunks to try to use
+ integer(i4b)                  :: hruChunk          ! size of hru chunk to try to use
+ integer(i4b)                  :: gruChunk          ! size of gru chunk to try to use
+ integer(i4b)                  :: layerChunk        ! size of layer chunk to try to use
  character(LEN=256)            :: cmessage          ! error message of downwind routine
  character(LEN=256)            :: catName           ! full variable name
  ! initialize error control
@@ -301,10 +310,14 @@ contains
   if (metaData(iVar)%statIndex(iFreq)==integerMissing .and. metaData(iVar)%varName/='time') cycle
 
   ! ---------- get the dimension IDs (use cloneStruc, given source) ----------
+  gruChunk = min(nGRUrun, chunkSize)
+  hruChunk = min(nHRUrun, chunkSize)
+  timeChunk = chunkSize
+  layerChunk = 1
 
   ! special case of the time variable
   if(metaData(iVar)%varName == 'time')then
-   call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage)
+   call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/),err=err,message=cmessage); writechunk=(/ timeChunk /)
    if(err/=0)then; message=trim(message)//trim(cmessage)//' [variable '//trim(metaData(iVar)%varName)//']'; return; end if
 
   ! standard case (not time)
@@ -313,22 +326,22 @@ contains
 
     ! (scalar variable -- many different types)
     case(iLookvarType%scalarv)
-     if(spatialDesire==needGRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage)
-     if(spatialDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage)
-     if(spatialDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage)
-     if(spatialDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/)               , err=err, message=cmessage)
-     if(spatialDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/)               , err=err, message=cmessage)
+     if(spatialDesire==needGRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, int(timeChunk/gruChunk)+1 /)
+     if(spatialDesire==needHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /)
+     if(spatialDesire==needHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage); writechunk=(/ hruChunk /)
+     if(spatialDesire==  noHRU .and. timeDesire==needTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/) , err=err, message=cmessage);               writechunk=(/ gruChunk /)
+     if(spatialDesire==  noHRU .and. timeDesire==  noTime) call cloneStruc(dimensionIDs, lowerBound=1, source=(/  scalar_DimID/) , err=err, message=cmessage);               writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /)
 
     ! (other variables)
-    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage)
-    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage)
-    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage)
+    case(iLookvarType%wLength); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, wLength_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%midSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%midSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%midToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, midToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%ifcSnow); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSnow_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%ifcSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcSoil_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%ifcToto); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, ifcToto_DimID, Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk, int(timeChunk/hruChunk)+1 /)
+    case(iLookvarType%parSoil); call cloneStruc(dimensionIDs, lowerBound=1, source=(/hru_DimID, depth_DimID                  /), err=err, message=cmessage); writechunk=(/ hruChunk, layerChunk/)
+    case(iLookvarType%routing); call cloneStruc(dimensionIDs, lowerBound=1, source=(/routing_DimID                           /), err=err, message=cmessage); writechunk=(/ layerChunk /)
    end select
    ! check errors
    if(err/=0)then
@@ -357,6 +370,9 @@ contains
 
   ! define variable
   err = nf90_def_var(ncid,trim(catName),ivtype,dimensionIDs,iVarId)
+  call netcdf_err(err,message); if (err/=0) return
+
+  err = nf90_def_var_chunking(ncid,iVarId,NF90_CHUNKED,writechunk)
   call netcdf_err(err,message); if (err/=0) return
 
   ! add parameter description
@@ -415,8 +431,8 @@ contains
  ! define local variables
  integer(i4b)                :: iHRU              ! local HRU index
  integer(i4b)                :: iGRU              ! GRU index
- integer(i4b)                :: hruVarID          ! hru varID in netcdf file 
- integer(i4b)                :: hruIdVarID        ! hruId varID in netcdf file 
+ integer(i4b)                :: hruVarID          ! hru varID in netcdf file
+ integer(i4b)                :: hruIdVarID        ! hruId varID in netcdf file
 
  ! initialize error control
  err=0; message='write_hru_info/'
@@ -425,12 +441,12 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if 
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'long_name', 'hru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
- 
+
  ! define hruId var
- err = nf90_def_var(ncid, 'hruId', nf90_int64, hru_DimID, hruIdVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if 
+ err = nf90_def_var(ncid, 'hruId', nf90_int64, hru_DimID, hruIdVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';   call netcdf_err(err,message); return; end if
 
