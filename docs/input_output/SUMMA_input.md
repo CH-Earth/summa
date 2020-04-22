@@ -139,7 +139,7 @@ scalarSenHeatTotal | 24      | 0   | 1    | 1    | 0   | 1   | 1   | 0
 ```
 In this example, the first line is a comment (starts with `!`) and then the sum, mean, min, max are calculated for `scalarSenHeatTotal` across 24 forcing time steps and written to the output file.
 
-Additionally, you can specify the output precision as `float`, `single`, or `double` by adding the line `outputPrecision | single` to the output control file. The default precision if this is not included is `double`. Both `single` and `float` correspond to single precision.
+Additionally, you can specify the output precision by adding the line `outputPrecision | <precision>` to the output control file where `<precision>` is one of `float`, `single`, or `double`. The default precision if this is not included is `double`. Both `single` and `float` correspond to single precision.
 
 <a id="infile_forcing_list"></a>
 ## List of forcing files file

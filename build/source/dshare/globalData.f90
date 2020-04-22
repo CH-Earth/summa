@@ -284,22 +284,22 @@ MODULE globalData
  integer(i4b),save,public                    :: newOutputFile=noNewFiles          ! define option for new output files
 
  ! define common variables
- integer(i4b),save,public                    :: numtim                  ! number of time steps
- integer(i4b),save,public                    :: nHRUrun                 ! number of HRUs in the run domain
- integer(i4b),save,public                    :: nGRUrun                 ! number of GRUs in the run domain
- real(dp),save,public                        :: data_step               ! time step of the data
- real(dp),save,public                        :: refJulday               ! reference time in fractional julian days
- real(dp),save,public                        :: refJulday_data          ! reference time in fractional julian days (data files)
- real(dp),save,public                        :: fracJulday              ! fractional julian days since the start of year
- real(dp),save,public                        :: dJulianStart            ! julian day of start time of simulation
- real(dp),save,public                        :: dJulianFinsh            ! julian day of end time of simulation
- real(dp),save,public                        :: tmZoneOffsetFracDay     ! time zone offset in fractional days
- integer(i4b),save,public                    :: nHRUfile                ! number of HRUs in the file
- integer(i4b),save,public                    :: yearLength              ! number of days in the current year
- integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
- logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
- logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
- integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
+ integer(i4b),save,public                    :: numtim                      ! number of time steps
+ integer(i4b),save,public                    :: nHRUrun                     ! number of HRUs in the run domain
+ integer(i4b),save,public                    :: nGRUrun                     ! number of GRUs in the run domain
+ real(dp),save,public                        :: data_step                   ! time step of the data
+ real(dp),save,public                        :: refJulday                   ! reference time in fractional julian days
+ real(dp),save,public                        :: refJulday_data              ! reference time in fractional julian days (data files)
+ real(dp),save,public                        :: fracJulday                  ! fractional julian days since the start of year
+ real(dp),save,public                        :: dJulianStart                ! julian day of start time of simulation
+ real(dp),save,public                        :: dJulianFinsh                ! julian day of end time of simulation
+ real(dp),save,public                        :: tmZoneOffsetFracDay         ! time zone offset in fractional days
+ integer(i4b),save,public                    :: nHRUfile                    ! number of HRUs in the file
+ integer(i4b),save,public                    :: yearLength                  ! number of days in the current year
+ integer(i4b),save,public                    :: urbanVegCategory            ! vegetation category for urban areas
+ logical(lgt),save,public                    :: doJacobian=.false.          ! flag to compute the Jacobian
+ logical(lgt),save,public                    :: globalPrintFlag=.false.     ! flag to compute the Jacobian
+ integer(i4b),save,public                    :: chunksize=1024              ! chunk size for the netcdf read/write
  integer(i4b),save,public                    :: outputPrecision=nf90_double ! variable type
 
  ! define result from the time calls

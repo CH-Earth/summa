@@ -799,6 +799,11 @@ contains
       outputPrecision = nf90_float
     else if (statName=='double') then
       outputPrecision = nf90_double
+    else
+      err=20
+      cmessage='outputPrecision must be single, float, or double'
+      message=trim(message)//trim(cmessage)//trim(varName);
+      return
     end if
     cycle
   end if
@@ -808,11 +813,11 @@ contains
   ! identify the data structure for the given variable (structName) and the variable index (vDex)
   call get_ixUnknown(trim(varName),structName,vDex,err,cmessage)
   if (err/=0) then; message=trim(message)//trim(cmessage)//trim(varName); return; end if;
-  
+
   ! id variables should not be specified in output control file
   if (trim(structName)=='id')then
    print*,'id variable requested in outputControl, will be skipped: variable='//trim(varName)
-   cycle 
+   cycle
   end if
 
   ! --- identify the desired frequency in the metadata structure  -----------
@@ -854,7 +859,7 @@ contains
     iFreq    = iLookFREQ%timestep
     freqName = 'timestep'
   end select
-  
+
   ! --- identify the desired statistic in the metadata structure  -----------
 
   ! * check the definition of statistics
