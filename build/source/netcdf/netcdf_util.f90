@@ -64,7 +64,7 @@ contains
  end subroutine nc_file_open
 
  ! **********************************************************************************************************
- ! private subroutine put_attrib: put global attributes as character string
+ ! private subroutine nc_file_close: close netcdf file
  ! **********************************************************************************************************
  subroutine nc_file_close(ncid,err,message)
  implicit none
