@@ -166,7 +166,7 @@ spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement he
 
 Notes about forcing file format:
 
-* <a id="forcing_file_time_units">Forcing timestep units</a>: The user can specify the time units as `<units> since <reference time>`, where `<units>` is one of `seconds`, `hours`, or `days` and `<reference time>` is specified as `YYYY-MM-DD hh:mm`.
+* <a id="forcing_file_time_units">Forcing timestep units</a>: The user can specify the time units as `<units> since <reference time>`, where `<units>` is one of `seconds`, `minutes`, `hours`, or `days` and `<reference time>` is specified as `YYYY-MM-DD hh:mm`.
 
 * <a id="forcing_file_time_stamp">Forcing time stamp</a>: SUMMA forcing time stamps are period-ending and the forcing information reflects average conditions over the time interval of length `data_step` preceding the time stamp.
 
