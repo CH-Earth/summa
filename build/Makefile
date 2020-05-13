@@ -26,6 +26,8 @@
 # following unless you are doing SUMMA development and changed what 
 # needs to be compiled
 
+# Have fun
+
 #========================================================================
 # PART 0: User-configurable part
 #========================================================================
