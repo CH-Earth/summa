@@ -18,6 +18,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! ----------------------------------------------------------------------------------------------------------------
+! * part 1: parameters that are fixed across multiple instantiations
+! ----------------------------------------------------------------------------------------------------------------
+
 MODULE globalData
  ! data types
  USE nrtype
@@ -245,8 +249,8 @@ MODULE globalData
  ! define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 
- ! define the model control information
- type(model_control),save,public             :: model_control_info(maxvarControl) ! the model control information structure
+ ! define the model run control information
+ !type(model_control),save,public             :: model_control_info(maxvarControl) ! the model run information structure
 
  ! define metadata for model forcing datafile
  type(file_info),save,public,allocatable     :: forcFileInfo(:)                   ! file info for model forcing data
@@ -329,6 +333,10 @@ MODULE globalData
  type(var_i),save,public                     :: refTime                 ! reference time for the model simulation
  type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
+ ! output file information
+ logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
+ integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
+ 
  ! -- moved from mDecisions module --
  ! look-up values for the choice of the time zone information
  integer(i4b),parameter,public               :: ncTime=1                ! time zone information from NetCDF file (timeOffset =   longitude/15. - ncTimeOffset)
@@ -336,8 +344,5 @@ MODULE globalData
  integer(i4b),parameter,public               :: localTime=3             ! all times local (timeOffset = 0)
  ! -- end moved ---
 
- ! output file information
- logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
- integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
 
 END MODULE globalData

@@ -1092,7 +1092,7 @@ contains
  end function get_statName
  
  ! *******************************************************************************************************************
- ! public function get_ixdecisions: get the index of the named variables for the model control file information
+ ! public function get_ixControl: get the index of the named variables for the model control file information
  ! *******************************************************************************************************************
  function get_ixControl(varName)
  USE var_lookup,only:iLookCONTROL                    ! indices of the named variables
@@ -1125,17 +1125,12 @@ contains
   case('metaLocParam'    ); get_ixControl=iLookCONTROL%metaLocParam    ! 
   case('metaBasParam'    ); get_ixControl=iLookCONTROL%metaBasParam    ! 
   case('metaBasMvar'     ); get_ixControl=iLookCONTROL%metaBasMvar    ! 
-  case('metaLocIndex'    ); get_ixControl=iLookCONTROL%metaLocInex    ! 
+  case('metaLocIndex'    ); get_ixControl=iLookCONTROL%metaLocIndex    ! 
   ! get to here if cannot find the variable
   case default
-   get_ixControl = 'unknown'
+   get_ixControl = integerMissing
  end select
  end function get_ixControl
-
-
- 
- 
- 
 
 end module get_ixname_module
 

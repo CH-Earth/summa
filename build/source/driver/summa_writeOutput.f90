@@ -105,7 +105,7 @@ contains
  ! file information
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  USE globalData,only:output_fileSuffix                       ! suffix for the output file
- USE globalData,only:fileout                                 ! name of the output file
+ !USE globalData,only:fileout                                 ! name of the output file
  USE globalData,only:nHRUrun                                 ! number of HRU in the run
  USE globalData,only:nGRUrun                                 ! number of GRU in the run
  ! ---------------------------------------------------------------------------------------

@@ -73,13 +73,13 @@ MODULE var_lookup
  endtype iLook_decision
  
  ! ***************************************************************************************
- ! (1) define model control / input information
+ ! (1) define model control / input information -- not yet used
  ! ***************************************************************************************
  type, public  ::  iLook_control
   integer(i4b)    :: controlVersion = integerMissing    ! control file version string
   integer(i4b)    :: simStartTime   = integerMissing    ! simulation start time
   integer(i4b)    :: simEndTime     = integerMissing    ! simulation end time
-  integer(i4b)    :: timeZoneInfo   = integerMissing    ! time zone information
+  integer(i4b)    :: tmZoneInfo     = integerMissing    ! time zone information
   integer(i4b)    :: settingsPath   = integerMissing    ! settings directory
   integer(i4b)    :: forcingPath    = integerMissing    ! input forcing directory
   integer(i4b)    :: outputPath     = integerMissing    ! output directory
@@ -146,7 +146,6 @@ MODULE var_lookup
  ! (5) define local classification of veg, soil, etc.; and gru and hru IDs and associated information
  ! ***********************************************************************************************************
  type, public  ::  iLook_type
-  !integer(i4b)    :: hruId         = integerMissing  ! id defining hydrologic response unit (-)
   integer(i4b)    :: vegTypeIndex  = integerMissing  ! index defining vegetation type (-)
   integer(i4b)    :: soilTypeIndex = integerMissing  ! index defining soil type (-)
   integer(i4b)    :: slopeTypeIndex= integerMissing  ! index defining slope (-)
@@ -155,6 +154,7 @@ MODULE var_lookup
 
  type, public  ::  iLook_id
   integer(8)    :: hruId         = integerMissing  ! ID label defining hydrologic response unit (-)
+  !integer(8)    :: gruId         = integerMissing  ! ID label defining grouped response unit (-)
  end type iLook_id
 
  ! ***********************************************************************************************************
@@ -789,7 +789,7 @@ MODULE var_lookup
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37)
 
- ! named variables: model control information (times/paths)
+ ! named variables: model control information (times/paths) -- not yet used
  type(iLook_control),public,parameter :: iLookCONTROL=iLook_control    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24)

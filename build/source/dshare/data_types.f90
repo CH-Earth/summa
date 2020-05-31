@@ -23,7 +23,7 @@ MODULE data_types
  USE nrtype, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarFreq
  USE var_lookup,only:maxvarStat
- USE summaFileManager,only:summaPathLen
+ USE summafilemanager,only:summaPathLen
  implicit none
  ! constants necessary for variable defs
  private

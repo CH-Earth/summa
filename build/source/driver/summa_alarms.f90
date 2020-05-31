@@ -86,7 +86,7 @@ contains
  character(*),intent(out)              :: message            ! error message
  ! ---------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)                    :: cmessage           ! error message of downwind routine
+ !character(LEN=256)                    :: cmessage           ! error message of downwind routine
  integer(i4b)                          :: iFreq              ! loop through frequencies
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
