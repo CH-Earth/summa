@@ -38,7 +38,7 @@ USE var_lookup,only:maxvarIndx      ! model indices:            maximum number v
 USE var_lookup,only:maxvarMpar      ! model parameters:         maximum number variables
 USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
 USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
-USE var_lookup,only:maxvarDecisions ! maximum number of decisions - not used? 
+USE var_lookup,only:maxvarDecisions ! maximum number of decisions
 USE var_lookup,only:maxvarFreq      ! maximum number of output files
 
 ! metadata structures
