@@ -77,40 +77,80 @@ contains
  ! CONVERSION FACTORS
  !   degrees to radians
  CRAD=PI_D/180.0D0
+ !print*,'crad',CRAD
+
  !   days-of-year to radians
  YRAD=2.0D0*PI_D/365.0D0
+ !print*,'yrad',YRAD
+
  ! CONVERT TIME TO RADIANS FROM NOON
  T=(HOUR-12.0)*PI_D/12.0D0
+ !print*,'T',T
+
  ! Convert time step to radians
  DELT1=DT*PI_D/12.0D0
+ !print*,'delt1',DELT1
+
  ! CONVERT ground slope, ground aspect, and latitude TO RADIANS
  SLOPE1=SLOPE*CRAD  ! tilt angle
+ !print*,'slope1',SLOPE1
+
  AZI1=AZI*CRAD ! surface-solar Azimuth ??
+ !print*,'azi1',AZI1
+
  LAT1=LAT*CRAD ! latitude
+ !print*,'lat1',LAT1
+
  ! Calculate julian date
  FJULIAN=dble(JULIAN(MONTH,DAY))
+ !print*,'FJULIAN',FJULIAN
+
  ! Calculate solar declination
  D=CRAD*23.5*SIN((FJULIAN-82.0)*YRAD)
+ !print*,'D',D
+
  ! Calculate latitude "adjustment" for ground slope, aspect and latitude (LP = LAT1 for level surface)
  LP=ASIN(SIN(SLOPE1)*COS(AZI1)*COS(LAT1) + COS(SLOPE1)*SIN(LAT1)) ! angle between solar rays and surface (tilted) ??
+ !print*,'LP',LP
+
+ ! Bugfix: WK, 2020/06/11
  ! Calculate time of sunrise/sunset on level surface as radians from noon
- TD=ACOS(-TAN(LAT1)*TAN(D))
+ !TD=ACOS(-TAN(LAT1)*TAN(D))
+
+ ! Account for low/high latitude locations, where there might not be a sunrise/sunset time on a given day
+ IF((-TAN(LAT1)*TAN(D)).LT.-1.0) THEN
+  TD=ACOS(-1.0)
+ ELSE IF((-TAN(LAT1)*TAN(D)).GT.1.0) THEN
+  TD=ACOS(1.0)
+ ELSE
+  TD=ACOS(-TAN(LAT1)*TAN(D))
+ END IF
+ !print*,'TD',TD
+
  ! print *, 'Sunrise = ', TD
  ! Calculate time of sunrise/sunset adjusted for inclined ground surface as radians from noon???
  TPI=-TAN(LP)*TAN(D)
+ !print*,'TPI',TPI
+
  IF(ABS(TPI).LT.1.0) THEN
   TP=ACOS(TPI)
+  !print*,'TP',TP
+
  ELSE
   TP=0.0
+  !print*,'TP',TP
+
  ENDIF
  ! Calculate time adjustment for ground slope, aspect and latitude (DDT = 0 for level surface)
  DDT=ATAN(SIN(AZI1)*SIN(SLOPE1)/(COS(SLOPE1)*COS(LAT1)-COS(AZI1)*SIN(SLOPE1)*SIN(LAT1)))
- ! print*, 'ddt = ', ddt
+ !print*, 'ddt = ', ddt
+
  ! Set beginning time of time step (set to sunrise if before sunrise)
  T1=MAX(T,-TP-DDT,-TD)
  ! Set end time of time step (adjust if after sunset)
  T2=MIN(T+DELT1,TD,TP-DDT)
- ! print *, 'First t1 and t2 = ', t1, t2
+ !print *, 'First t1 and t2 = ', t1, t2
+
  IF(T2.LE.T1) THEN
   HRI=0.0 ! nighttime
  ELSE
@@ -119,7 +159,7 @@ contains
   HRI=(SIN(D)*SIN(LP)*(T2-T1)+COS(D)*COS(LP)*(SIN(T2+DDT) &
       -SIN(T1+DDT)))/(COS(SLOPE1)*DELT1)  ! radiation index
  ENDIF
- ! print *, hri
+ !print *, hri
  ! ----------------- for time intervals that extend to following day ----------------------
  ! Check to see of timestep extends to following day
  IF((T+DELT1).GT.PI_D) THEN
@@ -128,7 +168,17 @@ contains
   ! Calculate solar declination
   D=CRAD*23.5*SIN((FJULIAN-82.0)*YRAD)
   ! Calculate time of sunrise/sunset on level surface as radians from noon
-  TD=ACOS(-TAN(LAT1)*TAN(D))
+  
+  ! Bugfix: WK, 2020/06/11
+  ! Account for low/high latitude locations, where there might not be a sunrise/sunset time on a given day
+  IF((-TAN(LAT1)*TAN(D)).LT.-1.0) THEN
+   TD=ACOS(-1.0)
+  ELSE IF((-TAN(LAT1)*TAN(D)).GT.1.0) THEN
+   TD=ACOS(1.0)
+  ELSE
+   TD=ACOS(-TAN(LAT1)*TAN(D))
+  END IF
+
   ! print *, 'Sunrise #2 = ', TD, DELT1
   ! Calculate time of sunrise/sunset adjusted for inclined ground surface as radians from noon???
   TPI=-TAN(LP)*TAN(D)
@@ -150,11 +200,14 @@ contains
    HRI=HRI+(SIN(D)*SIN(LP)*(T2-T1)+COS(D)*COS(LP)*(SIN(T2+DDT) &
            -SIN(T1+DDT)))/(COS(SLOPE1)*DELT1)  ! radiation index
   ENDIF
-  ! print *, hri
+  !print *, hri
+
  ENDIF
  ! ----------------------------------------------------------------------------------------
  ! Calculate cosine of solar zenith angle (= HRI for level surface)
  COSZEN = HRI*COS(SLOPE1)
+ print*,'COSZEN',COSZEN 
+
  ! this is assumed to be an appropriate representative value over the
  ! time step.  It is used for albedo calculations.
  ! ----------------------------------------------------------------------------------------
