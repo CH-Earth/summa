@@ -391,6 +391,7 @@ contains
  ! get the time multiplier needed to convert time to units of days
  select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
   case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp
+  case('minutes'); forcFileInfo(iFile)%convTime2Days=1440._dp
   case('hours');   forcFileInfo(iFile)%convTime2Days=24._dp
   case('days');    forcFileInfo(iFile)%convTime2Days=1._dp
   case default;    message=trim(message)//'unable to identify time units'; err=20; return

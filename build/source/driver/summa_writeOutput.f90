@@ -105,6 +105,9 @@ contains
  ! file information
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  USE globalData,only:output_fileSuffix                       ! suffix for the output file
+ USE globalData,only:fileout                                 ! name of the output file
+ USE globalData,only:nHRUrun                                 ! number of HRU in the run
+ USE globalData,only:nGRUrun                                 ! number of GRU in the run
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -124,7 +127,6 @@ contains
  integer(i4b)                          :: iGRU,iHRU          ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct            ! index of model structure
  integer(i4b)                          :: iFreq              ! index of the output frequency
- integer(i4b)                          :: nHRUrun            ! number of HRUs in the run domain
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -176,6 +178,9 @@ contains
   ! set stats flag for the timestep-level output
   finalizeStats(iLookFreq%timestep)=.true.
 
+  ! initialize number of hru and gru in global data
+  nGRUrun = nGRU
+  nHRUrun = nHRU
  endif  ! if the first time step
 
  ! *****************************************************************************
