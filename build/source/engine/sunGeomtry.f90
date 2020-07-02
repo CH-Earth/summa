@@ -99,7 +99,7 @@ contains
  ! In such cases AUX > 1 or AUX < -1. Fix AUX at (-)1 in those cases, to fix sunrise at 00.00 or 24.00 of the current day (instead of some time before/after the current day)
  AUX=-TAN(LAT1)*TAN(D)
  IF(abs(AUX) > 1.) THEN
-  TD=ACOS(SIGN(1.D0., AUX))
+  TD=ACOS(SIGN(1.D0, AUX))
  ELSE
   TD=ACOS(AUX)
  END IF
