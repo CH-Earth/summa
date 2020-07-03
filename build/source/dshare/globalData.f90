@@ -29,8 +29,7 @@ MODULE globalData
  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
- USE data_types,only:model_options   ! the model decision structure
- USE data_types,only:model_control   ! the model control information structure
+ USE data_types, only:model_options   ! the model decision structure
  USE data_types,only:file_info       ! metadata for model forcing datafile
  USE data_types,only:par_info        ! default parameter values and parameter bounds
  USE data_types,only:var_info        ! metadata for variables in each model structure
@@ -53,7 +52,6 @@ MODULE globalData
  USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
  USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
  USE var_lookup,only:maxvarDecisions ! maximum number of decisions
- USE var_lookup,only:maxvarControl   ! maximum number of control information entries
  USE var_lookup,only:maxvarFreq      ! maximum number of output files
  implicit none
  private
@@ -249,9 +247,6 @@ MODULE globalData
  ! define the model decisions
  type(model_options),save,public             :: model_decisions(maxvarDecisions)  ! the model decision structure
 
- ! define the model run control information
- !type(model_control),save,public             :: model_control_info(maxvarControl) ! the model run information structure
-
  ! define metadata for model forcing datafile
  type(file_info),save,public,allocatable     :: forcFileInfo(:)                   ! file info for model forcing data
 
@@ -337,12 +332,9 @@ MODULE globalData
  logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
  integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
  
- ! -- moved from mDecisions module --
- ! look-up values for the choice of the time zone information
- integer(i4b),parameter,public               :: ncTime=1                ! time zone information from NetCDF file (timeOffset =   longitude/15. - ncTimeOffset)
+ ! look-up values for the choice of the time zone information (formerly in modelDecisions module)
+ integer(i4b),parameter,public               :: ncTime=1                ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  integer(i4b),parameter,public               :: utcTime=2               ! all times in UTC (timeOffset = longitude/15. hours)
  integer(i4b),parameter,public               :: localTime=3             ! all times local (timeOffset = 0)
- ! -- end moved ---
-
 
 END MODULE globalData

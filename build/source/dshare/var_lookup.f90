@@ -72,38 +72,8 @@ MODULE var_lookup
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
  endtype iLook_decision
  
- ! ***************************************************************************************
- ! (1) define model control / input information -- not yet used
- ! ***************************************************************************************
- type, public  ::  iLook_control
-  integer(i4b)    :: controlVersion = integerMissing    ! control file version string
-  integer(i4b)    :: simStartTime   = integerMissing    ! simulation start time
-  integer(i4b)    :: simEndTime     = integerMissing    ! simulation end time
-  integer(i4b)    :: tmZoneInfo     = integerMissing    ! time zone information
-  integer(i4b)    :: settingsPath   = integerMissing    ! settings directory
-  integer(i4b)    :: forcingPath    = integerMissing    ! input forcing directory
-  integer(i4b)    :: outputPath     = integerMissing    ! output directory
-  integer(i4b)    :: decisionsFile  = integerMissing    ! model decisions file
-  integer(i4b)    :: outputDefFile  = integerMissing    ! output control file
-  integer(i4b)    :: hruParamFile   = integerMissing    ! default hru-level param file
-  integer(i4b)    :: gruParamFile   = integerMissing    ! default gru-level param file
-  integer(i4b)    :: attributeFile  = integerMissing    ! attribute file
-  integer(i4b)    :: trialParamFile = integerMissing    ! trial parameters file
-  integer(i4b)    :: forcingList    = integerMissing    ! file listing forcing filenames
-  integer(i4b)    :: initCondFile   = integerMissing    ! initial conditions file (cold State)
-  integer(i4b)    :: outFilePrefix  = integerMissing    ! filename root for output files
-  integer(i4b)    :: metaTime       = integerMissing    ! 
-  integer(i4b)    :: metaAttr       = integerMissing    ! 
-  integer(i4b)    :: metaType       = integerMissing    ! 
-  integer(i4b)    :: metaForc       = integerMissing    ! 
-  integer(i4b)    :: metaLocParam   = integerMissing    ! 
-  integer(i4b)    :: metaBasParam   = integerMissing    ! 
-  integer(i4b)    :: metaBasMvar    = integerMissing    ! 
-  integer(i4b)    :: metaLocIndex   = integerMissing    ! 
- endtype iLook_control
-
  ! ***********************************************************************************************************
- ! (2) define model time
+ ! (1) define model time
  ! ***********************************************************************************************************
  type, public  ::  iLook_time
   integer(i4b)    :: iyyy       = integerMissing     ! year
@@ -116,7 +86,7 @@ MODULE var_lookup
  endtype iLook_time
 
  ! ***********************************************************************************************************
- ! (3) define model forcing data
+ ! (2) define model forcing data
  ! ***********************************************************************************************************
  type, public  ::  iLook_force
   integer(i4b)    :: time       = integerMissing     ! time since time reference       (s)
@@ -130,7 +100,7 @@ MODULE var_lookup
  endtype iLook_force
 
  ! ***********************************************************************************************************
- ! (4) define local attributes
+ ! (3) define local attributes
  ! ***********************************************************************************************************
  type, public  ::  iLook_attr
   integer(i4b)    :: latitude      = integerMissing  ! latitude (degrees north)
@@ -143,7 +113,7 @@ MODULE var_lookup
  end type iLook_attr
 
  ! ***********************************************************************************************************
- ! (5) define local classification of veg, soil, etc.; and gru and hru IDs and associated information
+ ! (4) define local classification of veg, soil, etc.; and gru and hru IDs and associated information
  ! ***********************************************************************************************************
  type, public  ::  iLook_type
   integer(i4b)    :: vegTypeIndex  = integerMissing  ! index defining vegetation type (-)
@@ -158,7 +128,7 @@ MODULE var_lookup
  end type iLook_id
 
  ! ***********************************************************************************************************
- ! (6) define model parameters
+ ! (5) define model parameters
  ! ***********************************************************************************************************
  type, public  ::  iLook_param
   ! boundary conditions
@@ -331,9 +301,8 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
  endtype ilook_param
 
-
  ! ***********************************************************************************************************
- ! (7) define model prognostic (state) variables
+ ! (6) define model prognostic (state) variables
  ! ***********************************************************************************************************
  type, public :: iLook_prog
   ! variables for time stepping
@@ -366,7 +335,7 @@ MODULE var_lookup
  endtype iLook_prog
 
  ! ***********************************************************************************************************
- ! (8) define diagnostic variables
+ ! (7) define diagnostic variables
  ! ***********************************************************************************************************
  type, public :: iLook_diag
   ! local properties
@@ -466,7 +435,7 @@ MODULE var_lookup
  endtype iLook_diag
 
  ! ***********************************************************************************************************
- ! (9) define model fluxes
+ ! (8) define model fluxes
  ! ***********************************************************************************************************
  type, public :: iLook_flux
   ! net energy and mass fluxes for the vegetation domain
@@ -572,7 +541,7 @@ MODULE var_lookup
  endtype iLook_flux
 
  ! ***********************************************************************************************************
- ! (10) define derivatives
+ ! (9) define derivatives
  ! ***********************************************************************************************************
  type, public :: iLook_deriv
   ! derivatives in net vegetation energy fluxes w.r.t. relevant state variables
@@ -626,7 +595,7 @@ MODULE var_lookup
  endtype iLook_deriv
 
  ! ***********************************************************************************************************
- ! (11) define model indices
+ ! (10) define model indices
  ! ***********************************************************************************************************
  type, public :: iLook_index
  ! number of model layers, and layer indices
@@ -705,7 +674,7 @@ MODULE var_lookup
  endtype iLook_index
 
  ! ***********************************************************************************************************
- ! (12) define basin-average model parameters
+ ! (11) define basin-average model parameters
  ! ***********************************************************************************************************
  type, public :: iLook_bpar
   ! baseflow
@@ -718,7 +687,7 @@ MODULE var_lookup
  endtype iLook_bpar
 
  ! ***********************************************************************************************************
- ! (13) define basin-average model variables
+ ! (12) define basin-average model variables
  ! ***********************************************************************************************************
  type, public :: iLook_bvar
   ! define derived variables
@@ -738,7 +707,7 @@ MODULE var_lookup
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
- ! (14) structure for looking up the type of a model variable (this is only needed for backward
+ ! (13) structure for looking up the type of a model variable (this is only needed for backward
  ! compatability, and should be removed eventually)
  ! ***********************************************************************************************************
  type, public :: iLook_varType
@@ -757,7 +726,7 @@ MODULE var_lookup
  endtype iLook_varType
 
  ! ***********************************************************************************************************
- ! (15) structure for looking up statistics
+ ! (14) structure for looking up statistics
  ! ***********************************************************************************************************
  type, public :: iLook_stat
   integer(i4b)    :: totl = integerMissing ! summation
@@ -770,7 +739,7 @@ MODULE var_lookup
  endtype iLook_stat
 
  ! ***********************************************************************************************************
- ! (16) structure for looking up output frequencies
+ ! (15) structure for looking up output frequencies
  ! ***********************************************************************************************************
  type, public :: iLook_freq
   integer(i4b)    :: day      = integerMissing ! daily aggregation
@@ -788,12 +757,6 @@ MODULE var_lookup
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37)
-
- ! named variables: model control information (times/paths) -- not yet used
- type(iLook_control),public,parameter :: iLookCONTROL=iLook_control    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
-                                                                         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
-                                                                         21, 22, 23, 24)
-
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
 
@@ -886,7 +849,6 @@ MODULE var_lookup
 
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
- integer(i4b),parameter,public :: maxvarControl   = storage_size(iLookCONTROL)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength
  integer(i4b),parameter,public :: maxvarForc      = storage_size(iLookFORCE)/iLength
  integer(i4b),parameter,public :: maxvarAttr      = storage_size(iLookATTR)/iLength

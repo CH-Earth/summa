@@ -53,7 +53,7 @@ USE globalData,only:nHRUfile                  ! number of days in the data file
 USE globalData,only:time_meta,forc_meta       ! metadata structures
 USE var_lookup,only:iLookTIME,iLookFORCE      ! named variables to define structure elements
 USE var_lookup,only:iLookDECISIONS            ! named variables for elements of the decision structure
- 
+
 ! file paths
 USE summaFileManager,only:INPUT_PATH          ! path of the forcing data file
 
@@ -330,10 +330,9 @@ contains
  subroutine openForcingFile(iFile,infile,ncId,err,message)
  USE netcdf                                              ! netcdf capability
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
- USE time_utils_module,only:fracDay         ! compute fractional day
+ USE time_utils_module,only:fracDay                      ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
  USE time_utils_module,only:compJulday                   ! convert calendar date to julian day
- !USE globalData,only:model_decisions                     ! model decision structure
  USE globalData,only:tmZoneOffsetFracDay                 ! time zone offset in fractional days
  USE globalData,only:ncTime                              ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  USE globalData,only:utcTime                             ! all times in UTC (timeOffset = longitude/15. hours)

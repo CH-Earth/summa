@@ -44,7 +44,6 @@ public::get_ixFreq
 public::get_ixStat
 public::get_freqName
 public::get_statName
-public::get_ixControl
 contains
 
  ! *******************************************************************************************************************
@@ -58,9 +57,6 @@ contains
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  !case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! simulation start time
-  !case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! simulation end time
-  !case('tmZoneInfo'      ); get_ixdecisions=iLookDECISIONS%tmZoneInfo  ! time zone information
   case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dateset
   case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! vegetation category dataset
   case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! choice of function for the soil moisture control on stomatal resistance
@@ -1090,47 +1086,6 @@ contains
    get_statName = 'unknown'
  end select
  end function get_statName
- 
- ! *******************************************************************************************************************
- ! public function get_ixControl: get the index of the named variables for the model control file information
- ! *******************************************************************************************************************
- function get_ixControl(varName)
- USE var_lookup,only:iLookCONTROL                    ! indices of the named variables
- implicit none
- ! define dummy variables
- character(*), intent(in) :: varName                 ! variable name
- integer(i4b)             :: get_ixControl           ! index of the named variable
- ! get the index of the named variables
- select case(trim(varName))
-  case('controlVersion'  ); get_ixControl=iLookCONTROL%controlVersion  ! control file version string
-  case('simStartTime'    ); get_ixControl=iLookCONTROL%simStartTime  ! simulation start time
-  case('simEndTime'      ); get_ixControl=iLookCONTROL%simEndTime    ! simulation end time
-  case('tmZoneInfo'      ); get_ixControl=iLookCONTROL%tmZoneInfo    ! time zone information
-  case('settingsPath'    ); get_ixControl=iLookCONTROL%settingsPath    ! settings directory
-  case('forcingPath'     ); get_ixControl=iLookCONTROL%forcingPath    ! input forcing directory
-  case('outputPath'      ); get_ixControl=iLookCONTROL%outputPath    ! output directory
-  case('decisionsFile'   ); get_ixControl=iLookCONTROL%decisionsFile    ! model decisions file
-  case('outputDefFile'   ); get_ixControl=iLookCONTROL%outputDefFile    ! output control file
-  case('hruParamFile'    ); get_ixControl=iLookCONTROL%hruParamFile    ! default hru-level param file
-  case('gruParamFile'    ); get_ixControl=iLookCONTROL%gruParamFile    ! default gru-level param file
-  case('attributeFile'   ); get_ixControl=iLookCONTROL%attributeFile    ! attribute file
-  case('trialParamFile'  ); get_ixControl=iLookCONTROL%trialParamFile    ! trial parameters file
-  case('forcingList'     ); get_ixControl=iLookCONTROL%forcingList    ! file listing forcing filenames
-  case('initCondFile'    ); get_ixControl=iLookCONTROL%initCondFile    ! initial conditions file (cold State)
-  case('outFilePrefix'   ); get_ixControl=iLookCONTROL%outFilePrefix    ! filename root for output files
-  case('metaTime'        ); get_ixControl=iLookCONTROL%metaTime    ! 
-  case('metaAttr'        ); get_ixControl=iLookCONTROL%metaAttr    ! 
-  case('metaType'        ); get_ixControl=iLookCONTROL%metaType    ! 
-  case('metaForc'        ); get_ixControl=iLookCONTROL%metaForc    ! 
-  case('metaLocParam'    ); get_ixControl=iLookCONTROL%metaLocParam    ! 
-  case('metaBasParam'    ); get_ixControl=iLookCONTROL%metaBasParam    ! 
-  case('metaBasMvar'     ); get_ixControl=iLookCONTROL%metaBasMvar    ! 
-  case('metaLocIndex'    ); get_ixControl=iLookCONTROL%metaLocIndex    ! 
-  ! get to here if cannot find the variable
-  case default
-   get_ixControl = integerMissing
- end select
- end function get_ixControl
 
 end module get_ixname_module
 

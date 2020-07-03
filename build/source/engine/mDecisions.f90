@@ -177,7 +177,7 @@ contains
  USE time_utils_module,only:compjulday      ! compute the julian day
  USE time_utils_module,only:fracDay         ! compute fractional day
  USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
- !USE summaFileManager,only: NC_TIME_ZONE    ! time zone info from control file module, may be needed later
+ !USE summaFileManager,only: NC_TIME_ZONE   ! time zone info from control file module, may be needed later
 
  implicit none
  ! define output
@@ -197,15 +197,6 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! -------------------------------------------------------------------------------------------------
-
- ! set the index of the time zone option  -- not sure whether to keep this, where to put it (ie not in model_decisions)
- !select case(trim(NC_TIME_ZONE))
- ! case('ncTime'   ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = ncTime       ! time zone information from NetCDF file
- ! case('utcTime'  ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = utcTime      ! all times in UTC
- ! case('localTime'); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = localTime    ! all times local
- ! case default
- !  err=10; message=trim(message)//"unknown time zone info option [option="//trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision)//"]"; return
- !end select
 
  ! put reference time information into the time structures
  call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string

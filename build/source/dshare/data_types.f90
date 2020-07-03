@@ -23,7 +23,6 @@ MODULE data_types
  USE nrtype, integerMissing=>nr_integerMissing
  USE var_lookup,only:maxvarFreq
  USE var_lookup,only:maxvarStat
- USE summafilemanager,only:summaPathLen
  implicit none
  ! constants necessary for variable defs
  private
@@ -38,16 +37,6 @@ MODULE data_types
   integer(i4b)                           :: iDecision = integerMissing
  end type model_options
  
- ! ***********************************************************************************************************
- ! Define the model control information
- ! ***********************************************************************************************************
- ! the model control information structure
- type,public  :: model_control
-  character(len=64)                      :: cOption  = 'notPopulatedYet'
-  character(len=summaPathLen)            :: cControl = 'notPopulatedYet'
-  integer(i4b)                           :: iControl = integerMissing
- end type model_control
-
  ! ***********************************************************************************************************
  ! Define metadata for model forcing datafile
  ! ***********************************************************************************************************
