@@ -362,7 +362,7 @@ compile_noah:
 
 # compile common routines
 compile_comm:
-	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL)
+	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 
 # compile SUMMA routines
 compile_summa: update_version
