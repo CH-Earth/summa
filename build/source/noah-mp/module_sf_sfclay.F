@@ -1,12 +1,13 @@
 !WRF:MODEL_LAYER:PHYSICS
 !
 MODULE module_sf_sfclay
+ use nrtype
 
- REAL    , PARAMETER ::  VCONVC=1.
- REAL    , PARAMETER ::  CZO=0.0185
- REAL    , PARAMETER ::  OZO=1.59E-5
+ REAL(DP)    , PARAMETER ::  VCONVC=1.
+ REAL(DP)    , PARAMETER ::  CZO=0.0185d0
+ REAL(DP)    , PARAMETER ::  OZO=1.59E-5
 
- REAL,   DIMENSION(0:1000 ),SAVE          :: PSIMTB,PSIHTB
+ REAL(DP),   DIMENSION(0:1000 ),SAVE          :: PSIMTB,PSIHTB
 
 CONTAINS
 
@@ -110,24 +111,24 @@ CONTAINS
                                         its,ite, jts,jte, kts,kte
 !
       INTEGER,  INTENT(IN )   ::        ISFFLX
-      REAL,     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
-      REAL,     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
-      REAL,     INTENT(IN )   ::        P1000mb
+      REAL(DP),     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
+      REAL(DP),     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
+      REAL(DP),     INTENT(IN )   ::        P1000mb
 !
-      REAL,     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
+      REAL(DP),     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
                 INTENT(IN   )   ::                           dz8w
 
-      REAL,     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
+      REAL(DP),     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
                 INTENT(IN   )   ::                           QV3D, &
                                                               P3D, &
                                                               T3D
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(IN   )               ::             MAVAIL, &
                                                              PBLH, &
                                                             XLAND, &
                                                               TSK
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(OUT  )               ::                U10, &
                                                               V10, &
                                                               TH2, &
@@ -136,7 +137,7 @@ CONTAINS
                                                              QSFC
 
 !
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)               ::             REGIME, &
                                                               HFX, &
                                                               QFX, &
@@ -144,18 +145,18 @@ CONTAINS
                                                           MOL,RMOL
 !m the following 5 are change to memory size
 !
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                 GZ1OZ0,WSPD,BR, &
                                                         PSIM,PSIH
 
-      REAL,     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
+      REAL(DP),     DIMENSION( ims:ime, kms:kme, jms:jme )           , &
                 INTENT(IN   )   ::                            U3D, &
                                                               V3D
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(IN   )               ::               PSFC
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                            ZNT, &
                                                               ZOL, &
                                                               UST, &
@@ -164,31 +165,31 @@ CONTAINS
                                                              CQS2, &
                                                               CHS
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                      FLHC,FLQC
 
-      REAL,     DIMENSION( ims:ime, jms:jme )                    , &
+      REAL(DP),     DIMENSION( ims:ime, jms:jme )                    , &
                 INTENT(INOUT)   ::                                 &
                                                               QGH
 
 
 
-      REAL,     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
+      REAL(DP),     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
 
-      REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme )              , &
+      REAL(DP), OPTIONAL, DIMENSION( ims:ime, jms:jme )              , &
                 INTENT(OUT)     ::              ck,cka,cd,cda,ustm
 
       INTEGER,  OPTIONAL,  INTENT(IN )   ::     ISFTCFLX, IZ0TLND
 
 ! LOCAL VARS
 
-      REAL,     DIMENSION( its:ite ) ::                       U1D, &
+      REAL(DP),     DIMENSION( its:ite ) ::                       U1D, &
                                                               V1D, &
                                                              QV1D, &
                                                               P1D, &
                                                               T1D
 
-      REAL,     DIMENSION( its:ite ) ::                    dz8w1d
+      REAL(DP),     DIMENSION( its:ite ) ::                    dz8w1d
 
       INTEGER ::  I,J
 
@@ -253,8 +254,8 @@ CONTAINS
 !-------------------------------------------------------------------
       IMPLICIT NONE
 !-------------------------------------------------------------------
-      REAL,     PARAMETER     ::        XKA=2.4E-5
-      REAL,     PARAMETER     ::        PRT=1.
+      REAL(DP),     PARAMETER     ::        XKA=2.4E-5
+      REAL(DP),     PARAMETER     ::        PRT=1.
 
       INTEGER,  INTENT(IN )   ::        ids,ide, jds,jde, kds,kde, &
                                         ims,ime, jms,jme, kms,kme, &
@@ -262,32 +263,32 @@ CONTAINS
                                         J
 !
       INTEGER,  INTENT(IN )   ::        ISFFLX
-      REAL,     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
-      REAL,     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
-      REAL,     INTENT(IN )   ::        P1000mb
+      REAL(DP),     INTENT(IN )   ::        SVP1,SVP2,SVP3,SVPT0
+      REAL(DP),     INTENT(IN )   ::        EP1,EP2,KARMAN,EOMEG,STBOLT
+      REAL(DP),     INTENT(IN )   ::        P1000mb
 
 !
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(IN   )               ::             MAVAIL, &
                                                              PBLH, &
                                                             XLAND, &
                                                               TSK
 !
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(IN   )               ::             PSFCPA
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)               ::             REGIME, &
                                                               HFX, &
                                                               QFX, &
                                                          MOL,RMOL
 !m the following 5 are changed to memory size---
 !
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                 GZ1OZ0,WSPD,BR, &
                                                         PSIM,PSIH
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                            ZNT, &
                                                               ZOL, &
                                                               UST, &
@@ -296,37 +297,37 @@ CONTAINS
                                                              CQS2, &
                                                               CHS
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                      FLHC,FLQC
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(INOUT)   ::                                 &
                                                               QGH
 
-      REAL,     DIMENSION( ims:ime )                             , &
+      REAL(DP),     DIMENSION( ims:ime )                             , &
                 INTENT(OUT)     ::                        U10,V10, &
                                                 TH2,T2,Q2,QSFC,LH
 
 
-      REAL,     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
+      REAL(DP),     INTENT(IN   )               ::   CP,G,ROVCP,R,XLV,DX
 
 ! MODULE-LOCAL VARIABLES, DEFINED IN SUBROUTINE SFCLAY
-      REAL,     DIMENSION( its:ite ),  INTENT(IN   )   ::  dz8w1d
+      REAL(DP),     DIMENSION( its:ite ),  INTENT(IN   )   ::  dz8w1d
 
-      REAL,     DIMENSION( its:ite ),  INTENT(IN   )   ::      UX, &
+      REAL(DP),     DIMENSION( its:ite ),  INTENT(IN   )   ::      UX, &
                                                                VX, &
                                                              QV1D, &
                                                               P1D, &
                                                               T1D
 
-      REAL, OPTIONAL, DIMENSION( ims:ime )                       , &
+      REAL(DP), OPTIONAL, DIMENSION( ims:ime )                       , &
                 INTENT(OUT)     ::              ck,cka,cd,cda,ustm
 
       INTEGER,  OPTIONAL,  INTENT(IN )   ::     ISFTCFLX, IZ0TLND
 
 ! LOCAL VARS
 
-      REAL,     DIMENSION( its:ite )        ::                 ZA, &
+      REAL(DP),     DIMENSION( its:ite )        ::                 ZA, &
                                                         THVX,ZQKL, &
                                                            ZQKLP1, &
                                                            THX,QX, &
@@ -341,21 +342,21 @@ CONTAINS
                                                            GZ2OZ0, &
                                                            GZ10OZ0
 !
-      REAL,     DIMENSION( its:ite )        ::                     &
+      REAL(DP),     DIMENSION( its:ite )        ::                     &
                                                       RHOX,GOVRTH, &
                                                             TGDSA
 !
-      REAL,     DIMENSION( its:ite)         ::          SCR3,SCR4
-      REAL,     DIMENSION( its:ite )        ::         THGB, PSFC
+      REAL(DP),     DIMENSION( its:ite)         ::          SCR3,SCR4
+      REAL(DP),     DIMENSION( its:ite )        ::         THGB, PSFC
 !
       INTEGER                               ::                 KL
 
       INTEGER ::  N,I,K,KK,L,NZOL,NK,NZOL2,NZOL10
 
-      REAL    ::  PL,THCON,TVCON,E1
-      REAL    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
-      REAL    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
-      REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,RESTAR2
+      REAL(DP)    ::  PL,THCON,TVCON,E1
+      REAL(DP)    ::  ZL,TSKV,DTHVDZ,DTHVM,VCONV,RZOL,RZOL2,RZOL10,ZOL2,ZOL10
+      REAL(DP)    ::  DTG,PSIX,DTTHX,PSIX10,PSIT,PSIT2,PSIQ,PSIQ2,PSIQ10
+      REAL(DP)    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,RESTAR2
 !-------------------------------------------------------------------
       KL=kte
 
@@ -398,7 +399,7 @@ CONTAINS
          PL=P1D(I)/1000.
          SCR3(I)=T1D(I)
 !         THCON=(100./PL)**ROVCP
-         THCON=(P1000mb*0.001/PL)**ROVCP
+         THCON=(P1000mb*0.001d0/PL)**ROVCP
          THX(I)=SCR3(I)*THCON
          SCR4(I)=SCR3(I)
          THVX(I)=THX(I)
@@ -423,13 +424,13 @@ CONTAINS
       DO 60 I=its,ite
         E1=SVP1*EXP(SVP2*(TGDSA(I)-SVPT0)/(TGDSA(I)-SVP3))
 !  for land points QSFC can come from previous time step
-        if(xland(i).gt.1.5.or.qsfc(i).le.0.0)QSFC(I)=EP2*E1/(PSFC(I)-E1)
+        if(xland(i).gt.1.5d0.or.qsfc(i).le.0.0d0)QSFC(I)=EP2*E1/(PSFC(I)-E1)
 ! QGH CHANGED TO USE LOWEST-LEVEL AIR TEMP CONSISTENT WITH MYJSFC CHANGE
 ! Q2SAT = QGH IN LSM
         E1=SVP1*EXP(SVP2*(T1D(I)-SVPT0)/(T1D(I)-SVP3))
         PL=P1D(I)/1000.
         QGH(I)=EP2*E1/(PL-E1)
-        CPM(I)=CP*(1.+0.8*QX(I))
+        CPM(I)=CP*(1.+0.8d0*QX(I))
    60 CONTINUE
    80 CONTINUE
 
@@ -446,7 +447,7 @@ CONTAINS
   110 CONTINUE
 !
       DO 120 I=its,ite
-         ZA(I)=0.5*(ZQKL(I)+ZQKLP1(I))
+         ZA(I)=0.5d0*(ZQKL(I)+ZQKLP1(I))
   120 CONTINUE
 !
       DO 160 I=its,ite
@@ -457,13 +458,13 @@ CONTAINS
 !     AKB(1976), EQ(12).
 
       DO 260 I=its,ite
-        GZ1OZ0(I)=ALOG(ZA(I)/ZNT(I))
-        GZ2OZ0(I)=ALOG(2./ZNT(I))
-        GZ10OZ0(I)=ALOG(10./ZNT(I))
-        IF((XLAND(I)-1.5).GE.0)THEN
+        GZ1OZ0(I)=log(ZA(I)/ZNT(I))
+        GZ2OZ0(I)=log(2./ZNT(I))
+        GZ10OZ0(I)=log(10./ZNT(I))
+        IF((XLAND(I)-1.5d0).GE.0)THEN
           ZL=ZNT(I)
         ELSE
-          ZL=0.01
+          ZL=0.01d0
         ENDIF
         WSPD(I)=SQRT(UX(I)*UX(I)+VX(I)*VX(I))
 
@@ -473,9 +474,9 @@ CONTAINS
 !  following Beljaars (1995, QJRMS) and Mahrt and Sun (1995, MWR)
 !                                ... HONG Aug. 2001
 !
-!       VCONV = 0.25*sqrt(g/tskv*pblh(i)*dthvm)
+!       VCONV = 0.25d0*sqrt(g/tskv*pblh(i)*dthvm)
 !      Use Beljaars over land, old MM5 (Wyngaard) formula over water
-        if (xland(i).lt.1.5) then
+        if (xland(i).lt.1.5d0) then
         fluxc = max(hfx(i)/rhox(i)/cp                    &
               + ep1*tskv*qfx(i)/rhox(i),0.)
         VCONV = vconvc*(g/tgdsa(i)*pblh(i)*fluxc)**.33
@@ -488,12 +489,12 @@ CONTAINS
         VCONV = 2.*SQRT(DTHVM)
         endif
 ! Mahrt and Sun low-res correction
-        VSGD = 0.32 * (max(dx/5000.-1.,0.))**.33
+        VSGD = 0.32d0 * (max(dx/5000.-1.,0.))**.33
         WSPD(I)=SQRT(WSPD(I)*WSPD(I)+VCONV*VCONV+vsgd*vsgd)
-        WSPD(I)=AMAX1(WSPD(I),0.1)
+        WSPD(I)=AMAX1(WSPD(I),0.1d0)
         BR(I)=GOVRTH(I)*ZA(I)*DTHVDZ/(WSPD(I)*WSPD(I))
 !  IF PREVIOUSLY UNSTABLE, DO NOT LET INTO REGIMES 1 AND 2
-        IF(MOL(I).LT.0.)BR(I)=AMIN1(BR(I),0.0)
+        IF(MOL(I).LT.0.)BR(I)=AMIN1(BR(I),0.0d0)
 !jdf
         RMOL(I)=-GOVRTH(I)*DTHVDZ*ZA(I)*KARMAN
 !jdf
@@ -509,17 +510,17 @@ CONTAINS
 !
 !     CRITERIA FOR THE CLASSES ARE AS FOLLOWS:
 !
-!        1. BR .GE. 0.2;
+!        1. BR .GE. 0.2d0;
 !               REPRESENTS NIGHTTIME STABLE CONDITIONS (REGIME=1),
 !
-!        2. BR .LT. 0.2 .AND. BR .GT. 0.0;
+!        2. BR .LT. 0.2d0 .AND. BR .GT. 0.0d0;
 !               REPRESENTS DAMPED MECHANICAL TURBULENT CONDITIONS
 !               (REGIME=2),
 !
-!        3. BR .EQ. 0.0
+!        3. BR .EQ. 0.0d0
 !               REPRESENTS FORCED CONVECTION CONDITIONS (REGIME=3),
 !
-!        4. BR .LT. 0.0
+!        4. BR .LT. 0.0d0
 !               REPRESENTS FREE CONVECTION CONDITIONS (REGIME=4).
 !
 !CCCCC
@@ -527,12 +528,12 @@ CONTAINS
       DO 320 I=its,ite
 !CCCCC
 !CC     REMOVE REGIME 3 DEPENDENCE ON PBL HEIGHT
-!CC          IF(BR(I).LT.0..AND.HOL(I,J).GT.1.5)GOTO 310
+!CC          IF(BR(I).LT.0..AND.HOL(I,J).GT.1.5d0)GOTO 310
         IF(BR(I).LT.0.)GOTO 310
 !
 !-----CLASS 1; STABLE (NIGHTTIME) CONDITIONS:
 !
-        IF(BR(I).LT.0.2)GOTO 270
+        IF(BR(I).LT.0.2d0)GOTO 270
         REGIME(I)=1.
         PSIM(I)=-10.*GZ1OZ0(I)
 !    LOWER LIMIT ON PSI IN STABLE CONDITIONS
@@ -545,22 +546,22 @@ CONTAINS
         PSIM2(I)=AMAX1(PSIM2(I),-10.)
         PSIH2(I)=PSIM2(I)
 
-!       1.0 over Monin-Obukhov length
-        IF(UST(I).LT.0.01)THEN
+!       1.0d0 over Monin-Obukhov length
+        IF(UST(I).LT.0.01d0)THEN
            RMOL(I)=BR(I)*GZ1OZ0(I) !ZA/L
         ELSE
            RMOL(I)=KARMAN*GOVRTH(I)*ZA(I)*MOL(I)/(UST(I)*UST(I)) !ZA/L
         ENDIF
-        RMOL(I)=AMIN1(RMOL(I),9.999) ! ZA/L
-        RMOL(I) = RMOL(I)/ZA(I) !1.0/L
+        RMOL(I)=AMIN1(RMOL(I),9.999d0) ! ZA/L
+        RMOL(I) = RMOL(I)/ZA(I) !1.0d0/L
 
         GOTO 320
 !
 !-----CLASS 2; DAMPED MECHANICAL TURBULENCE:
 !
-  270   IF(BR(I).EQ.0.0)GOTO 280
+  270   IF(BR(I).EQ.0.0d0)GOTO 280
         REGIME(I)=2.
-        PSIM(I)=-5.0*BR(I)*GZ1OZ0(I)/(1.1-5.0*BR(I))
+        PSIM(I)=-5.0d0*BR(I)*GZ1OZ0(I)/(1.1d0-5.0d0*BR(I))
 !    LOWER LIMIT ON PSI IN STABLE CONDITIONS
         PSIM(I)=AMAX1(PSIM(I),-10.)
 !.....AKB(1976), EQ(16).
@@ -572,22 +573,22 @@ CONTAINS
         PSIM2(I)=AMAX1(PSIM2(I),-10.)
         PSIH2(I)=PSIM2(I)
 
-        ! Linear form: PSIM = -0.5*ZA/L; e.g, see eqn 16 of
+        ! Linear form: PSIM = -0.5d0*ZA/L; e.g, see eqn 16 of
         ! Blackadar, Modeling the nocturnal boundary layer, Preprints,
         ! Third Symposium on Atmospheric Turbulence Diffusion and Air Quality,
         ! Raleigh, NC, 1976
-        ZOL(I) = BR(I)*GZ1OZ0(I)/(1.00001-5.0*BR(I))
+        ZOL(I) = BR(I)*GZ1OZ0(I)/(1.00001d0-5.0d0*BR(I))
 
-        if ( ZOL(I) .GT. 0.5 ) then ! linear form ok
+        if ( ZOL(I) .GT. 0.5d0 ) then ! linear form ok
            ! Holtslag and de Bruin, J. App. Meteor 27, 689-704, 1988;
            ! see also, Launiainen, Boundary-Layer Meteor 76,165-179, 1995
            ! Eqn (8) of Launiainen, 1995
-           ZOL(I) = ( 1.89*GZ1OZ0(I) + 44.2 ) * BR(I)*BR(I)    &
-                + ( 1.18*GZ1OZ0(I) - 1.37 ) * BR(I)
-           ZOL(I)=AMIN1(ZOL(I),9.999)
+           ZOL(I) = ( 1.89d0*GZ1OZ0(I) + 44.2d0 ) * BR(I)*BR(I)    &
+                + ( 1.18d0*GZ1OZ0(I) - 1.37d0 ) * BR(I)
+           ZOL(I)=AMIN1(ZOL(I),9.999d0)
         end if
 
-        ! 1.0 over Monin-Obukhov length
+        ! 1.0d0 over Monin-Obukhov length
         RMOL(I)= ZOL(I)/ZA(I)
 
         GOTO 320
@@ -595,7 +596,7 @@ CONTAINS
 !-----CLASS 3; FORCED CONVECTION:
 !
   280   REGIME(I)=3.
-        PSIM(I)=0.0
+        PSIM(I)=0.0d0
         PSIH(I)=PSIM(I)
         PSIM10(I)=0.
         PSIH10(I)=PSIM10(I)
@@ -603,7 +604,7 @@ CONTAINS
         PSIH2(I)=PSIM2(I)
 
 
-        IF(UST(I).LT.0.01)THEN
+        IF(UST(I).LT.0.01d0)THEN
           ZOL(I)=BR(I)*GZ1OZ0(I)
         ELSE
           ZOL(I)=KARMAN*GOVRTH(I)*ZA(I)*MOL(I)/(UST(I)*UST(I))
@@ -617,7 +618,7 @@ CONTAINS
 !
   310   CONTINUE
         REGIME(I)=4.
-        IF(UST(I).LT.0.01)THEN
+        IF(UST(I).LT.0.01d0)THEN
           ZOL(I)=BR(I)*GZ1OZ0(I)
         ELSE
           ZOL(I)=KARMAN*GOVRTH(I)*ZA(I)*MOL(I)/(UST(I)*UST(I))
@@ -625,11 +626,11 @@ CONTAINS
         ZOL10=10./ZA(I)*ZOL(I)
         ZOL2=2./ZA(I)*ZOL(I)
         ZOL(I)=AMIN1(ZOL(I),0.)
-        ZOL(I)=AMAX1(ZOL(I),-9.9999)
+        ZOL(I)=AMAX1(ZOL(I),-9.9999d0)
         ZOL10=AMIN1(ZOL10,0.)
-        ZOL10=AMAX1(ZOL10,-9.9999)
+        ZOL10=AMAX1(ZOL10,-9.9999d0)
         ZOL2=AMIN1(ZOL2,0.)
-        ZOL2=AMAX1(ZOL2,-9.9999)
+        ZOL2=AMAX1(ZOL2,-9.9999d0)
         NZOL=INT(-ZOL(I)*100.)
         RZOL=-ZOL(I)*100.-NZOL
         NZOL10=INT(-ZOL10*100.)
@@ -645,21 +646,21 @@ CONTAINS
 
 !---LIMIT PSIH AND PSIM IN THE CASE OF THIN LAYERS AND HIGH ROUGHNESS
 !---  THIS PREVENTS DENOMINATOR IN FLUXES FROM GETTING TOO SMALL
-!       PSIH(I)=AMIN1(PSIH(I),0.9*GZ1OZ0(I))
-!       PSIM(I)=AMIN1(PSIM(I),0.9*GZ1OZ0(I))
-        PSIH(I)=AMIN1(PSIH(I),0.9*GZ1OZ0(I))
-        PSIM(I)=AMIN1(PSIM(I),0.9*GZ1OZ0(I))
-        PSIH2(I)=AMIN1(PSIH2(I),0.9*GZ2OZ0(I))
-        PSIM10(I)=AMIN1(PSIM10(I),0.9*GZ10OZ0(I))
+!       PSIH(I)=AMIN1(PSIH(I),0.9d0*GZ1OZ0(I))
+!       PSIM(I)=AMIN1(PSIM(I),0.9d0*GZ1OZ0(I))
+        PSIH(I)=AMIN1(PSIH(I),0.9d0*GZ1OZ0(I))
+        PSIM(I)=AMIN1(PSIM(I),0.9d0*GZ1OZ0(I))
+        PSIH2(I)=AMIN1(PSIH2(I),0.9d0*GZ2OZ0(I))
+        PSIM10(I)=AMIN1(PSIM10(I),0.9d0*GZ10OZ0(I))
 ! AHW: mods to compute ck, cd
-        PSIH10(I)=AMIN1(PSIH10(I),0.9*GZ10OZ0(I))
+        PSIH10(I)=AMIN1(PSIH10(I),0.9d0*GZ10OZ0(I))
 
         RMOL(I) = ZOL(I)/ZA(I)
 
   320 CONTINUE
 !
 !-----COMPUTE THE FRICTIONAL VELOCITY:
-!     ZA(1982) EQS(2.60),(2.61).
+!     ZA(1982) EQS(2.60d0),(2.61d0).
 !
       DO 330 I=its,ite
         DTG=THX(I)-THGB(I)
@@ -669,43 +670,43 @@ CONTAINS
 !     ACTIVATES IN UNSTABLE CONDITIONS WITH THIN LAYERS OR HIGH Z0
         PSIT=AMAX1(GZ1OZ0(I)-PSIH(I),2.)
 
-        IF((XLAND(I)-1.5).GE.0)THEN
+        IF((XLAND(I)-1.5d0).GE.0)THEN
           ZL=ZNT(I)
         ELSE
-          ZL=0.01
+          ZL=0.01d0
         ENDIF
-        PSIQ=ALOG(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I)
+        PSIQ=log(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I)
         PSIT2=GZ2OZ0(I)-PSIH2(I)
-        PSIQ2=ALOG(KARMAN*UST(I)*2./XKA+2./ZL)-PSIH2(I)
+        PSIQ2=log(KARMAN*UST(I)*2./XKA+2./ZL)-PSIH2(I)
 ! AHW: mods to compute ck, cd
-        PSIQ10=ALOG(KARMAN*UST(I)*10./XKA+10./ZL)-PSIH10(I)
+        PSIQ10=log(KARMAN*UST(I)*10./XKA+10./ZL)-PSIH10(I)
         IF ( PRESENT(ISFTCFLX) ) THEN
-           IF ( ISFTCFLX.EQ.1 .AND. (XLAND(I)-1.5).GE.0. ) THEN
-! v3.1
+           IF ( ISFTCFLX.EQ.1 .AND. (XLAND(I)-1.5d0).GE.0. ) THEN
+! v3.1d0
 !             Z0Q = 1.e-4 + 1.e-3*(MAX(0.,UST(I)-1.))**2
 ! hfip1
-!             Z0Q = 0.62*2.0E-5/UST(I) + 1.E-3*(MAX(0.,UST(I)-1.5))**2
-! v3.2
+!             Z0Q = 0.62d0*2.0E-5/UST(I) + 1.E-3*(MAX(0.,UST(I)-1.5d0))**2
+! v3.2d0
               Z0Q = 1.e-4
-              PSIQ=ALOG(ZA(I)/Z0Q)-PSIH(I)
+              PSIQ=log(ZA(I)/Z0Q)-PSIH(I)
               PSIT=PSIQ
-              PSIQ2=ALOG(2./Z0Q)-PSIH2(I)
-              PSIQ10=ALOG(10./Z0Q)-PSIH10(I)
+              PSIQ2=log(2./Z0Q)-PSIH2(I)
+              PSIQ10=log(10./Z0Q)-PSIH10(I)
               PSIT2=PSIQ2
            ENDIF
-           IF ( ISFTCFLX.EQ.2 .AND. (XLAND(I)-1.5).GE.0. ) THEN
+           IF ( ISFTCFLX.EQ.2 .AND. (XLAND(I)-1.5d0).GE.0. ) THEN
 ! AHW: Garratt formula: Calculate roughness Reynolds number
 !        Kinematic viscosity of air (linear approc to
 !                 temp dependence at sea levle)
-              VISC=(1.32+0.009*(SCR3(I)-273.15))*1.E-5
+              VISC=(1.32d0+0.009d0*(SCR3(I)-273.15d0))*1.E-5
 !!            VISC=1.5E-5
               RESTAR=UST(I)*ZNT(I)/VISC
-              RESTAR2=2.48*SQRT(SQRT(RESTAR))-2.
+              RESTAR2=2.48d0*SQRT(SQRT(RESTAR))-2.
               PSIT=GZ1OZ0(I)-PSIH(I)+RESTAR2
-              PSIQ=GZ1OZ0(I)-PSIH(I)+2.28*SQRT(SQRT(RESTAR))-2.
+              PSIQ=GZ1OZ0(I)-PSIH(I)+2.28d0*SQRT(SQRT(RESTAR))-2.
               PSIT2=GZ2OZ0(I)-PSIH2(I)+RESTAR2
-              PSIQ2=GZ2OZ0(I)-PSIH2(I)+2.28*SQRT(SQRT(RESTAR))-2.
-              PSIQ10=GZ10OZ0(I)-PSIH(I)+2.28*SQRT(SQRT(RESTAR))-2.
+              PSIQ2=GZ2OZ0(I)-PSIH2(I)+2.28d0*SQRT(SQRT(RESTAR))-2.
+              PSIQ10=GZ10OZ0(I)-PSIH(I)+2.28d0*SQRT(SQRT(RESTAR))-2.
            ENDIF
         ENDIF
         IF(PRESENT(ck) .and. PRESENT(cd) .and. PRESENT(cka) .and. PRESENT(cda)) THEN
@@ -715,14 +716,14 @@ CONTAINS
            Cda(I)=(karman/psix)*(karman/psix)
         ENDIF
         IF ( PRESENT(IZ0TLND) ) THEN
-           IF ( IZ0TLND.EQ.1 .AND. (XLAND(I)-1.5).LE.0. ) THEN
+           IF ( IZ0TLND.EQ.1 .AND. (XLAND(I)-1.5d0).LE.0. ) THEN
               ZL=ZNT(I)
 !             CZIL RELATED CHANGES FOR LAND
-              VISC=(1.32+0.009*(SCR3(I)-273.15))*1.E-5
+              VISC=(1.32d0+0.009d0*(SCR3(I)-273.15d0))*1.E-5
               RESTAR=UST(I)*ZL/VISC
 !             Modify CZIL according to Chen & Zhang, 2009
 
-              CZIL = 10.0 ** ( -0.40 * ( ZL / 0.07 ) )
+              CZIL = 10.0d0 ** ( -0.40d0 * ( ZL / 0.07d0 ) )
 
               PSIT=GZ1OZ0(I)-PSIH(I)+CZIL*KARMAN*SQRT(RESTAR)
               PSIQ=GZ1OZ0(I)-PSIH(I)+CZIL*KARMAN*SQRT(RESTAR)
@@ -732,11 +733,11 @@ CONTAINS
            ENDIF
         ENDIF
 ! TO PREVENT OSCILLATIONS AVERAGE WITH OLD VALUE
-        UST(I)=0.5*UST(I)+0.5*KARMAN*WSPD(I)/PSIX
+        UST(I)=0.5d0*UST(I)+0.5d0*KARMAN*WSPD(I)/PSIX
 ! TKE coupling: compute ust without vconv for use in tke scheme
         WSPDI(I)=SQRT(UX(I)*UX(I)+VX(I)*VX(I))
         IF ( PRESENT(USTM) ) THEN
-        USTM(I)=0.5*USTM(I)+0.5*KARMAN*WSPDI(I)/PSIX
+        USTM(I)=0.5d0*USTM(I)+0.5d0*KARMAN*WSPDI(I)/PSIX
         ENDIF
         U10(I)=UX(I)*PSIX10/PSIX
         V10(I)=VX(I)*PSIX10/PSIX
@@ -750,8 +751,8 @@ CONTAINS
 !       VA10(I,J) = V10(I)
 !       write(*,1002)UST(I),KARMAN*WSPD(I),PSIX,KARMAN*WSPD(I)/PSIX
 !
-        IF((XLAND(I)-1.5).LT.0.)THEN
-          UST(I)=AMAX1(UST(I),0.1)
+        IF((XLAND(I)-1.5d0).LT.0.)THEN
+          UST(I)=AMAX1(UST(I),0.1d0)
         ENDIF
         MOL(I)=KARMAN*DTG/PSIT/PRT
         DENOMQ(I)=PSIQ
@@ -773,25 +774,25 @@ CONTAINS
 !-----OVER WATER, ALTER ROUGHNESS LENGTH (ZNT) ACCORDING TO WIND (UST).
 
       DO 360 I=its,ite
-        IF((XLAND(I)-1.5).GE.0)THEN
+        IF((XLAND(I)-1.5d0).GE.0)THEN
           ZNT(I)=CZO*UST(I)*UST(I)/G+OZO
 ! AHW: change roughness length, and hence the drag coefficients Ck and Cd
           IF ( PRESENT(ISFTCFLX) ) THEN
              IF ( ISFTCFLX.NE.0 ) THEN
 !               ZNT(I)=10.*exp(-9.*UST(I)**(-.3333))
-                ZNT(I)=10.*exp(-9.5*UST(I)**(-.3333))
-                ZNT(I)=ZNT(I) + 0.11*1.5E-5/AMAX1(UST(I),0.01)
-                ZNT(I)=MIN(ZNT(I),2.85e-3)
-                ZNT(I)=MAX(ZNT(I),1.27e-7)
+                ZNT(I)=10.*exp(-9.5d0*UST(I)**(-.3333))
+                ZNT(I)=ZNT(I) + 0.11d0*1.5E-5/AMAX1(UST(I),0.01d0)
+                ZNT(I)=MIN(ZNT(I),2.85E-3)
+                ZNT(I)=MAX(ZNT(I),1.27E-7)
              ENDIF
           ENDIF
           ZL = ZNT(I)
         ELSE
-          ZL = 0.01
+          ZL = 0.01d0
         ENDIF
         FLQC(I)=RHOX(I)*MAVAIL(I)*UST(I)*KARMAN/DENOMQ(I)
 !       FLQC(I)=RHOX(I)*MAVAIL(I)*UST(I)*KARMAN/(   &
-!               ALOG(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I))
+!               log(KARMAN*UST(I)*ZA(I)/XKA+ZA(I)/ZL)-PSIH(I))
         DTTHX=ABS(THX(I)-THGB(I))
         IF(DTTHX.GT.1.E-5)THEN
           FLHC(I)=CPM(I)*RHOX(I)*UST(I)*MOL(I)/(THX(I)-THGB(I))
@@ -817,7 +818,7 @@ CONTAINS
 !
   390 CONTINUE
       DO 400 I=its,ite
-        IF(XLAND(I)-1.5.GT.0.)THEN
+        IF(XLAND(I)-1.5d0.GT.0.)THEN
           HFX(I)=FLHC(I)*(THGB(I)-THX(I))
           IF ( PRESENT(ISFTCFLX) ) THEN
              IF ( ISFTCFLX.NE.0 ) THEN
@@ -825,20 +826,20 @@ CONTAINS
                 HFX(I)=HFX(I)+RHOX(I)*USTM(I)*USTM(I)*WSPDI(I)
              ENDIF
           ENDIF
-        ELSEIF(XLAND(I)-1.5.LT.0.)THEN
+        ELSEIF(XLAND(I)-1.5d0.LT.0.)THEN
           HFX(I)=FLHC(I)*(THGB(I)-THX(I))
           HFX(I)=AMAX1(HFX(I),-250.)
         ENDIF
   400 CONTINUE
 
       DO I=its,ite
-         IF((XLAND(I)-1.5).GE.0)THEN
+         IF((XLAND(I)-1.5d0).GE.0)THEN
            ZL=ZNT(I)
          ELSE
-           ZL=0.01
+           ZL=0.01d0
          ENDIF
          CHS(I)=UST(I)*KARMAN/DENOMQ(I)
-!        GZ2OZ0(I)=ALOG(2./ZNT(I))
+!        GZ2OZ0(I)=log(2./ZNT(I))
 !        PSIM2(I)=-10.*GZ2OZ0(I)
 !        PSIM2(I)=AMAX1(PSIM2(I),-10.)
 !        PSIH2(I)=PSIM2(I)
@@ -849,10 +850,10 @@ CONTAINS
   410 CONTINUE
 !jdf
 !     DO I=its,ite
-!       IF(UST(I).GE.0.1) THEN
+!       IF(UST(I).GE.0.1d0) THEN
 !         RMOL(I)=RMOL(I)*(-FLHC(I))/(UST(I)*UST(I)*UST(I))
 !       ELSE
-!         RMOL(I)=RMOL(I)*(-FLHC(I))/(0.1*0.1*0.1)
+!         RMOL(I)=RMOL(I)*(-FLHC(I))/(0.1d0*0.1d0*0.1d0)
 !       ENDIF
 !     ENDDO
 !jdf
@@ -865,15 +866,15 @@ CONTAINS
 
    LOGICAL , INTENT(IN)      ::      allowed_to_read
    INTEGER                   ::      N
-   REAL                      ::      ZOLN,X,Y
+   REAL(DP)                      ::      ZOLN,X,Y
 
    DO N=0,1000
-      ZOLN=-FLOAT(N)*0.01
-      X=(1-16.*ZOLN)**0.25
-      PSIMTB(N)=2*ALOG(0.5*(1+X))+ALOG(0.5*(1+X*X))- &
+      ZOLN=-FLOAT(N)*0.01d0
+      X=(1-16.*ZOLN)**0.25d0
+      PSIMTB(N)=2*log(0.5d0*(1+X))+log(0.5d0*(1+X*X))- &
                 2.*ATAN(X)+2.*ATAN(1.)
-      Y=(1-16*ZOLN)**0.5
-      PSIHTB(N)=2*ALOG(0.5*(1+Y))
+      Y=(1-16*ZOLN)**0.5d0
+      PSIHTB(N)=2*log(0.5d0*(1+Y))
    ENDDO
 
    END SUBROUTINE sfclayinit
