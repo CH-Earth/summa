@@ -24,10 +24,6 @@ USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
-! look-up values for the choice of the time zone information
-integer(i4b),parameter,public :: ncTime               =   1    ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
-integer(i4b),parameter,public :: utcTime              =   2    ! all times in UTC (timeOffset = longitude/15. hours)
-integer(i4b),parameter,public :: localTime            =   3    ! all times local (timeOffset = 0)
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance
 integer(i4b),parameter,public :: NoahType             =   1    ! thresholded linear function of volumetric liquid water content
 integer(i4b),parameter,public :: CLM_Type             =   2    ! thresholded linear function of matric head
@@ -152,8 +148,8 @@ integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wi
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
 ! -----------------------------------------------------------------------------------------------------------
-contains
 
+contains
 
  ! ************************************************************************************************
  ! public subroutine mDecisions: save model decisions as named integers
@@ -183,6 +179,8 @@ contains
  USE time_utils_module,only:extractTime     ! extract time info from units string
  USE time_utils_module,only:compjulday      ! compute the julian day
  USE time_utils_module,only:fracDay         ! compute fractional day
+ USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
+
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
@@ -202,15 +200,6 @@ contains
 
  ! -------------------------------------------------------------------------------------------------
 
- ! identify the choice of the time zone option
- select case(trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision))
-  case('ncTime'   ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = ncTime       ! time zone information from NetCDF file
-  case('utcTime'  ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = utcTime      ! all times in UTC
-  case('localTime'); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = localTime    ! all times local
-  case default
-   err=10; message=trim(message)//"unknown time zone info option [option="//trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision)//"]"; return
- end select
-
  ! put reference time information into the time structures
  call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
                   refTime%var(iLookTIME%iyyy),                           & ! year
@@ -225,7 +214,6 @@ contains
                   err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-
  ! compute the julian date (fraction of day) for the reference time
  call compjulday(&
                  refTime%var(iLookTIME%iyyy),                           & ! year
@@ -239,7 +227,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! put simulation start time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
+ call extractTime(trim(SIM_START_TM),                                    & ! date-time string
                   startTime%var(iLookTIME%iyyy),                         & ! year
                   startTime%var(iLookTIME%im),                           & ! month
                   startTime%var(iLookTIME%id),                           & ! day
@@ -265,7 +253,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! put simulation end time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
+ call extractTime(trim(SIM_END_TM),                                      & ! date-time string
                   finshTime%var(iLookTIME%iyyy),                         & ! year
                   finshTime%var(iLookTIME%im),                           & ! month
                   finshTime%var(iLookTIME%id),                           & ! day

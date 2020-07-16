@@ -33,9 +33,6 @@ MODULE var_lookup
  ! (0) define model decisions
  ! ***************************************************************************************
  type, public  ::  iLook_decision
-  integer(i4b)    :: simulStart = integerMissing     ! simulation start time
-  integer(i4b)    :: simulFinsh = integerMissing     ! simulation end time
-  integer(i4b)    :: tmZoneInfo = integerMissing     ! time zone information
   integer(i4b)    :: soilCatTbl = integerMissing     ! soil-category dateset
   integer(i4b)    :: vegeParTbl = integerMissing     ! vegetation category dataset
   integer(i4b)    :: soilStress = integerMissing     ! choice of function for the soil moisture control on stomatal resistance
@@ -120,7 +117,6 @@ MODULE var_lookup
  ! (4) define local classification of veg, soil, etc.; and gru and hru IDs and associated information
  ! ***********************************************************************************************************
  type, public  ::  iLook_type
-  !integer(i4b)    :: hruId         = integerMissing  ! id defining hydrologic response unit (-)
   integer(i4b)    :: vegTypeIndex  = integerMissing  ! index defining vegetation type (-)
   integer(i4b)    :: soilTypeIndex = integerMissing  ! index defining soil type (-)
   integer(i4b)    :: slopeTypeIndex= integerMissing  ! index defining slope (-)
@@ -308,7 +304,6 @@ MODULE var_lookup
   integer(i4b)    :: zmaxLayer3_upper      = integerMissing    ! maximum layer depth for the 3rd layer when > 3 layers (m)
   integer(i4b)    :: zmaxLayer4_upper      = integerMissing    ! maximum layer depth for the 4th layer when > 4 layers (m)
  endtype ilook_param
-
 
  ! ***********************************************************************************************************
  ! (6) define model prognostic (state) variables
@@ -716,7 +711,7 @@ MODULE var_lookup
  endtype iLook_bvar
 
  ! ***********************************************************************************************************
- ! (10) structure for looking up the type of a model variable (this is only needed for backward
+ ! (13) structure for looking up the type of a model variable (this is only needed for backward
  ! compatability, and should be removed eventually)
  ! ***********************************************************************************************************
  type, public :: iLook_varType
@@ -735,7 +730,7 @@ MODULE var_lookup
  endtype iLook_varType
 
  ! ***********************************************************************************************************
- ! (11) structure for looking up statistics
+ ! (14) structure for looking up statistics
  ! ***********************************************************************************************************
  type, public :: iLook_stat
   integer(i4b)    :: totl = integerMissing ! summation
@@ -748,7 +743,7 @@ MODULE var_lookup
  endtype iLook_stat
 
  ! ***********************************************************************************************************
- ! (12) structure for looking up output frequencies
+ ! (15) structure for looking up output frequencies
  ! ***********************************************************************************************************
  type, public :: iLook_freq
   integer(i4b)    :: day      = integerMissing ! daily aggregation
@@ -765,9 +760,7 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
-                                                                         41)
-
+                                                                         31, 32, 33, 34, 35, 36, 37, 38)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
 

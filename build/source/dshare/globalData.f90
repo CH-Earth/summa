@@ -18,9 +18,14 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! ----------------------------------------------------------------------------------------------------------------
+! * part 1: parameters that are fixed across multiple instantiations
+! ----------------------------------------------------------------------------------------------------------------
+
 MODULE globalData
  ! data types
  USE nrtype
+ USE netcdf
  USE,intrinsic :: ieee_arithmetic    ! IEEE arithmetic
  USE data_types,only:gru2hru_map     ! mapping between the GRUs and HRUs
  USE data_types,only:hru2gru_map     ! mapping between the GRUs and HRUs
@@ -70,6 +75,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: ixProgress_id=1001      ! named variable to print progress once per day
  integer(i4b),parameter,public               :: ixProgress_ih=1002      ! named variable to print progress once per hour
  integer(i4b),parameter,public               :: ixProgress_never=1003   ! named variable to print progress never
+ integer(i4b),parameter,public               :: ixProgress_it=1004      ! named variable to print progress every timestep
 
  ! define restart frequency
  integer(i4b),parameter,public               :: ixRestart_iy=1000       ! named variable to print a re-start file once per year
@@ -282,36 +288,39 @@ MODULE globalData
  integer(i4b),save,public                    :: newOutputFile=noNewFiles          ! define option for new output files
 
  ! define common variables
- integer(i4b),save,public                    :: numtim                  ! number of time steps
- real(dp),save,public                        :: data_step               ! time step of the data
- real(dp),save,public                        :: refJulday               ! reference time in fractional julian days
- real(dp),save,public                        :: refJulday_data          ! reference time in fractional julian days (data files)
- real(dp),save,public                        :: fracJulday              ! fractional julian days since the start of year
- real(dp),save,public                        :: dJulianStart            ! julian day of start time of simulation
- real(dp),save,public                        :: dJulianFinsh            ! julian day of end time of simulation
- real(dp),save,public                        :: tmZoneOffsetFracDay     ! time zone offset in fractional days
- integer(i4b),save,public                    :: nHRUfile                ! number of HRUs in the file
- integer(i4b),save,public                    :: yearLength              ! number of days in the current year
- integer(i4b),save,public                    :: urbanVegCategory        ! vegetation category for urban areas
- logical(lgt),save,public                    :: doJacobian=.false.      ! flag to compute the Jacobian
- logical(lgt),save,public                    :: globalPrintFlag=.false. ! flag to compute the Jacobian
- integer(i4b),save,public                    :: chunksize=1024          ! chunk size for the netcdf read/write
+ integer(i4b),save,public                    :: numtim                      ! number of time steps
+ integer(i4b),save,public                    :: nHRUrun                     ! number of HRUs in the run domain
+ integer(i4b),save,public                    :: nGRUrun                     ! number of GRUs in the run domain
+ real(dp),save,public                        :: data_step                   ! time step of the data
+ real(dp),save,public                        :: refJulday                   ! reference time in fractional julian days
+ real(dp),save,public                        :: refJulday_data              ! reference time in fractional julian days (data files)
+ real(dp),save,public                        :: fracJulday                  ! fractional julian days since the start of year
+ real(dp),save,public                        :: dJulianStart                ! julian day of start time of simulation
+ real(dp),save,public                        :: dJulianFinsh                ! julian day of end time of simulation
+ real(dp),save,public                        :: tmZoneOffsetFracDay         ! time zone offset in fractional days
+ integer(i4b),save,public                    :: nHRUfile                    ! number of HRUs in the file
+ integer(i4b),save,public                    :: yearLength                  ! number of days in the current year
+ integer(i4b),save,public                    :: urbanVegCategory            ! vegetation category for urban areas
+ logical(lgt),save,public                    :: doJacobian=.false.          ! flag to compute the Jacobian
+ logical(lgt),save,public                    :: globalPrintFlag=.false.     ! flag to compute the Jacobian
+ integer(i4b),save,public                    :: chunksize=1024              ! chunk size for the netcdf read/write
+ integer(i4b),save,public                    :: outputPrecision=nf90_double ! variable type
 
  ! define result from the time calls
- integer(i4b), dimension(8), save, public    :: startInit,endInit       ! date/time for the start and end of the initialization
- integer(i4b), dimension(8), save, public    :: startSetup,endSetup     ! date/time for the start and end of the parameter setup
- integer(i4b), dimension(8), save, public    :: startRestart,endRestart ! date/time for the start and end to read restart data
- integer(i4b), dimension(8), save, public    :: startRead,endRead       ! date/time for the start and end of the data read
- integer(i4b), dimension(8), save, public    :: startWrite,endWrite     ! date/time for the start and end of the stats/write
- integer(i4b), dimension(8), save, public    :: startPhysics,endPhysics ! date/time for the start and end of the physics
+ integer(i4b),dimension(8),save,public       :: startInit,endInit       ! date/time for the start and end of the initialization
+ integer(i4b),dimension(8),save,public       :: startSetup,endSetup     ! date/time for the start and end of the parameter setup
+ integer(i4b),dimension(8),save,public       :: startRestart,endRestart ! date/time for the start and end to read restart data
+ integer(i4b),dimension(8),save,public       :: startRead,endRead       ! date/time for the start and end of the data read
+ integer(i4b),dimension(8),save,public       :: startWrite,endWrite     ! date/time for the start and end of the stats/write
+ integer(i4b),dimension(8),save,public       :: startPhysics,endPhysics ! date/time for the start and end of the physics
 
  ! define elapsed time
- real(dp), save, public                      :: elapsedInit             ! elapsed time for the initialization
- real(dp), save, public                      :: elapsedSetup            ! elapsed time for the parameter setup
- real(dp), save, public                      :: elapsedRestart          ! elapsed time to read restart data
- real(dp), save, public                      :: elapsedRead             ! elapsed time for the data read
- real(dp), save, public                      :: elapsedWrite            ! elapsed time for the stats/write
- real(dp), save, public                      :: elapsedPhysics          ! elapsed time for the physics
+ real(dp),save,public                        :: elapsedInit             ! elapsed time for the initialization
+ real(dp),save,public                        :: elapsedSetup            ! elapsed time for the parameter setup
+ real(dp),save,public                        :: elapsedRestart          ! elapsed time to read restart data
+ real(dp),save,public                        :: elapsedRead             ! elapsed time for the data read
+ real(dp),save,public                        :: elapsedWrite            ! elapsed time for the stats/write
+ real(dp),save,public                        :: elapsedPhysics          ! elapsed time for the physics
 
  ! define ancillary data structures
  type(var_i),save,public                     :: startTime               ! start time for the model simulation
@@ -320,7 +329,12 @@ MODULE globalData
  type(var_i),save,public                     :: oldTime                 ! time for the previous model time step
 
  ! output file information
- logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the outut frequency is desired
+ logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
  integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
+ 
+ ! look-up values for the choice of the time zone information (formerly in modelDecisions module)
+ integer(i4b),parameter,public               :: ncTime=1                ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+ integer(i4b),parameter,public               :: utcTime=2               ! all times in UTC (timeOffset = longitude/15. hours)
+ integer(i4b),parameter,public               :: localTime=3             ! all times local (timeOffset = 0)
 
 END MODULE globalData

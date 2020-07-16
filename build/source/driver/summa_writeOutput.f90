@@ -87,8 +87,6 @@ contains
  ! global data: time structures
  USE globalData,only:oldTime                                 ! time from the previous time step
  USE globalData,only:finshTime                               ! end time of simulation
- ! global data: model output
- USE globalData,only:fileout                                 ! name of model output file
  ! global data: decisions for model alarms
  USE globalData,only:ixProgress                              ! define frequency to write progress
  USE globalData,only:ixRestart                               ! define frequency to write restart files
@@ -107,7 +105,8 @@ contains
  ! file information
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
  USE globalData,only:output_fileSuffix                       ! suffix for the output file
- USE globalData,only:fileout                                 ! name of the output file
+ USE globalData,only:nHRUrun                                 ! number of HRU in the run
+ USE globalData,only:nGRUrun                                 ! number of GRU in the run
  ! ---------------------------------------------------------------------------------------
  ! * variables
  ! ---------------------------------------------------------------------------------------
@@ -122,12 +121,11 @@ contains
  character(len=256)                    :: timeString                 ! portion of restart file name that contains the write-out time
  character(len=256)                    :: restartFile                ! restart file name
  logical(lgt)                          :: printRestart=.false.       ! flag to print a re-start file
- logical(lgt)                          :: printProgress=.false.      ! flag to print simulationprogress
+ logical(lgt)                          :: printProgress=.false.      ! flag to print simulation progress
  logical(lgt)                          :: defNewOutputFile=.false.   ! flag to define new output files
  integer(i4b)                          :: iGRU,iHRU          ! indices of GRUs and HRUs
  integer(i4b)                          :: iStruct            ! index of model structure
  integer(i4b)                          :: iFreq              ! index of the output frequency
- integer(i4b)                          :: nHRUrun            ! number of HRUs in the run domain
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -179,6 +177,9 @@ contains
   ! set stats flag for the timestep-level output
   finalizeStats(iLookFreq%timestep)=.true.
 
+  ! initialize number of hru and gru in global data
+  nGRUrun = nGRU
+  nHRUrun = nHRU
  endif  ! if the first time step
 
  ! *****************************************************************************
@@ -254,7 +255,7 @@ contains
  nHRUrun = sum(gru_struc%hruCount)
 
  ! write time information
- call WriteTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
+ call writeTime(finalizeStats,outputTimeStep,time_meta,timeStruct%var,err,message)
 
  ! write the model output to the NetCDF file
  ! Passes the full metadata structure rather than the stats metadata structure because
