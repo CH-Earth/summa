@@ -57,9 +57,6 @@ contains
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! simulation start time
-  case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! simulation end time
-  case('tmZoneInfo'      ); get_ixdecisions=iLookDECISIONS%tmZoneInfo  ! time zone information
   case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dateset
   case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! vegetation category dataset
   case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! choice of function for the soil moisture control on stomatal resistance
