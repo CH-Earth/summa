@@ -26,20 +26,12 @@ USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing double precision number
 
 ! size of data structures
-USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
 USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
-USE var_lookup,only:maxvarAttr      ! attributes:               maximum number variables
-USE var_lookup,only:maxvarType      ! type index:               maximum number variables
 USE var_lookup,only:maxvarProg      ! prognostic variables:     maximum number variables
 USE var_lookup,only:maxvarDiag      ! diagnostic variables:     maximum number variables
 USE var_lookup,only:maxvarFlux      ! model fluxes:             maximum number variables
-USE var_lookup,only:maxvarDeriv     ! model derivatives:        maximum number variables
 USE var_lookup,only:maxvarIndx      ! model indices:            maximum number variables
-USE var_lookup,only:maxvarMpar      ! model parameters:         maximum number variables
 USE var_lookup,only:maxvarBvar      ! basin-average variables:  maximum number variables
-USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
-USE var_lookup,only:maxvarDecisions ! maximum number of decisions - not used? 
-USE var_lookup,only:maxvarFreq      ! maximum number of output files
 
 ! metadata structures
 USE globalData,only:time_meta,forc_meta,attr_meta,type_meta ! metadata structures
