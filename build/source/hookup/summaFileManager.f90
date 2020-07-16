@@ -29,7 +29,7 @@ public
 ! summa-wide pathlength
 integer(i4b),parameter       :: summaPathLen=4096
 ! defines the time of the run
-CHARACTER(LEN=summaPathLen)  :: CONTROL_VRS      = 'SUMMA_FILEMANAGER_V2.0'         ! control version
+CHARACTER(LEN=summaPathLen)  :: CONTROL_VRS      = 'SUMMA_FILEMANAGER_V3.0.0'         ! control version
 CHARACTER(LEN=summaPathLen)  :: SIM_START_TM     = '2000-01-01 00:00'               ! simulation start time
 CHARACTER(LEN=summaPathLen)  :: SIM_END_TM       = '2000-01-01 00:00'               ! simulation end time
 CHARACTER(LEN=summaPathLen)  :: NC_TIME_ZONE     = 'utcTime'                        ! time zone info
@@ -51,10 +51,10 @@ CHARACTER(LEN=summaPathLen)  :: OUTPUT_PREFIX    = 'summa_output_'              
 contains
 
  ! **************************************************************************************************
- ! public subroutine summa_SetTimesDirsUndPhiles: Sets times, directories and filenames for summa run
+ ! public subroutine summa_SetTimesDirsAndFiles: Sets times, directories and filenames for summa run
  ! **************************************************************************************************
- subroutine summa_SetTimesDirsUndPhiles(summaFileManagerIn,err,message)
- ! Purpose: Sets run times, directories and philenames for summa.
+ subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
+ ! Purpose: Sets run times, directories and filenames for summa.
  ! ---
  USE ascii_util_module,only:file_open       ! function to open file
  USE ascii_util_module,only:linewidth       ! max character number for one line
@@ -78,7 +78,7 @@ contains
  character(len=summaPathLen)          :: varEntry          ! name of model info
  character(len=32)                    :: option         ! option for model info
 
- err=0; message="summa_SetTimesDirsUndPhiles/"
+ err=0; message="summa_SetTimesDirsAndFiles/"
  
  ! read information from model control file, and populate model control structure
  ! populates global control information structure
@@ -134,7 +134,7 @@ contains
                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
  close(runinfo_fileunit)
 
- end subroutine summa_SetTimesDirsUndPhiles
+ end subroutine summa_SetTimesDirsAndFiles
 
 
 END MODULE summaFileManager

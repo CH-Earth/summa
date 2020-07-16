@@ -65,7 +65,7 @@ contains
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions: initial priming
  USE summa_util, only:getCommandArguments                    ! process command line arguments
- USE summaFileManager,only:summa_SetTimesDirsUndPhiles       ! sets directories and filenames
+ USE summaFileManager,only:summa_SetTimesDirsAndFiles       ! sets directories and filenames
  USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
  ! subroutines and functions: read dimensions (NOTE: NetCDF)
@@ -183,7 +183,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! set directories and files -- summaFileManager used as command-line argument
- call summa_SetTimesDirsUndPhiles(summaFileManagerFile,err,cmessage)
+ call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define global data (parameters, metadata)
