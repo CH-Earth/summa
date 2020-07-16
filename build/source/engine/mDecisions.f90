@@ -101,7 +101,7 @@ integer(i4b),parameter,public :: simplExp             = 191    ! simple exponent
 integer(i4b),parameter,public :: difTrans             = 192    ! parameterized as a function of diffuse transmissivity
 ! look-up values for the choice of parameterization for snow interception
 integer(i4b),parameter,public :: stickySnow           = 201    ! maximum interception capacity an increasing function of temerature
-integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow densit
+integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow density
 ! look-up values for the choice of wind profile
 integer(i4b),parameter,public :: exponential          = 211    ! exponential wind profile extends to the surface
 integer(i4b),parameter,public :: logBelowCanopy       = 212    ! logarithmic profile below the vegetation canopy
@@ -144,6 +144,9 @@ integer(i4b),parameter,public :: constDens            = 311    ! Constant new sn
 integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976
 integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
 integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+! look-up values for the choice of snow unloading from the canopy
+integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
+integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -512,7 +515,7 @@ contains
   case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
   case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
   case default
-   err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
+  err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
  end select
 
  ! identify the choice of wind profile
@@ -612,6 +615,15 @@ contains
   case default
    err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
  end select
+
+ ! choice of snow unloading from canopy
+ select case(trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision))
+  case('meltDripUnload','notPopulatedYet'); model_decisions(iLookDECISIONS%snowUnload)%iDecision = meltDripUnload  ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
+  case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
+  case default
+   err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
+ end select
+
 
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! check for consistency among options

@@ -33,9 +33,9 @@ Function for the soil moisture control on stomatal resistance
 
 | Option | Description |
 |---|---|
-| NoahType | Soil stress is a thresholded linear function of volumetric liquid water content <br> **TODO: Describe NoahType <br> [Reference](http://doi.org/)** |
-| CLM_Type | Soil stress is a thresholded linear function of matric head <br> **TODO: Describe CLM_Type <br> [Reference](http://doi.org/)** |
-| SiB_Type | Soil stress is an exponential of the log of matric head <br> **TODO: Describe Sib_Type <br> [Reference](http://doi.org/)** |
+| NoahType | **Soil stress is a thresholded linear function of volumetric liquid water content <br> [Reference](http://doi.org/)** |
+| CLM_Type | **Soil stress is a thresholded linear function of matric head <br> [CLM, 2010]( https://doi.org/10.1029/2011MS00045)** |
+| SiB_Type | **Soil stress is an exponential of the log of matric head <br> [Reference](http://doi.org/)** |
 
 <a id="stomResist"></a>
 ##  6. stomResist
@@ -266,8 +266,8 @@ Parameterization for snow interception
 
 | Option | Description |
 |---|---|
-| stickySnow | **TODO: Describe stickySnow <br> [Reference](http://doi.org/)** |
-| lightSnow | **TODO: Describe lightSnow <br> [Reference](http://doi.org/)** |
+| stickySnow | **Includes a rapid interception increasae between -3 and 0 C from observations of increased cohesion in warm regions.  <br> [Andreadis et al. 2009](https://doi.org/10.1029/2008WR007042)** |
+| lightSnow | **Includes a slight decrease in interception after -3 C from obervations in cold regions. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)** |
 
 
 <a id="windPrfile"></a>
@@ -276,8 +276,8 @@ Canopy wind profile
 
 | Option | Description |
 |---|---|
-| exponential | **TODO: Describe exponential <br> [Reference](http://doi.org/)** |
-| logBelowCanopy | **TODO: Describe logBelowCanopy <br> [Reference](http://doi.org/)** |
+| exponential | **The wind speed profile through the canopy is an exponential decay function. <br> [Reference](http://doi.org/)** |
+| logBelowCanopy | **The wind speed profile through the canopy is a logarithmic decay function. <br> [Reference](http://doi.org/)** |
 
 
 <a id="astability"></a>
@@ -306,8 +306,8 @@ Method to combine and sub-divide snow layers
 
 | Option | Description |
 |---|---|
-| jrdn1991 | **TODO: Describe jrdn1991 <br> [Reference](http://doi.org/)** |
-| CLM_2010 | **TODO: Describe CLM_2010 <br> [Reference](http://doi.org/)** |
+| jrdn1991 | **Divides the snowpack into a growing layer system where the number of layers is 100.  <br> [Jordan, 1991](https://apps.dtic.mil/docs/citations/ADA245493)** |
+| CLM_2010 | **Divides the snowpack into a 5-layer system. The rules of the layer division/merge can be altered to create <5 layer snowpacks. <br> [Community Land Model, 2010]( https://doi.org/10.1029/2011MS00045)** |
 
 
 <a id="thCondSnow"></a>
@@ -379,7 +379,17 @@ Method for new snow density
 
 | Option | Description |
 |---|---|
-| hedAndPom | **TODO: Describe hedAndPom <br> [Reference](http://doi.org/)** |
+| hedAndPom | **An empirical calculation dependant on air temperature. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)** |
 | anderson | **TODO: Describe anderson <br> [Reference](http://doi.org/)** |
-| pahaut_76 | **TODO: Describe pahaut_76 <br> [Reference](http://doi.org/)** |
-| constDens | **TODO: Describe constDens <br> [Reference](http://doi.org/)** |
+| pahaut_76 | **An empirical calculation dependant on air temperature and wind speed. <br> [Pahaut, 1976](http://doi.org/)** |
+| constDens | **A constant new snow density of 330 kg/m^3 <br> [Reference](http://doi.org/)** |
+
+<a id="snowUnload"></a>
+## 40. snowUnload
+Method for unloading snow from the canopy
+
+| Option | Description |
+|---|---|
+| meltDripUnload | **Contains a temperature unloading function where the parameter *snowUnloadingCoeff* controls the exponential unloading rate and *ratioDrip2Unloading* is the ratio of liquid water drip from the canopy to snow unloading. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4) <br> [Storck et al. 2002]( https://doi.org/10.1029/2002WR001281)** |
+| windUnload | **Contains temperature and wind dependent unloading functions. The rates of temperature and wind unloading are adjustable through parameters *rateTempUnloading* and *rateWindUnloading*. Both functions contain parameter thresholds for the minimum temperature and windspeed required for unloading.  <br> [Roesch et al. 2001](https://doi.org/10.1007/s003820100153)** |
+
