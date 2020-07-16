@@ -163,6 +163,7 @@ NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
+		ascii_util.f90 \
 		summaFileManager.f90
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
@@ -174,7 +175,6 @@ SUMMA_DATAMS= \
 		globalData.f90 \
 		flxMapping.f90 \
 		get_ixname.f90 \
-		ascii_util.f90 \
 		popMetadat.f90 \
 		outpt_stat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))

@@ -330,14 +330,14 @@ contains
  subroutine openForcingFile(iFile,infile,ncId,err,message)
  USE netcdf                                              ! netcdf capability
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
- USE time_utils_module,only:fracDay         ! compute fractional day
+ USE time_utils_module,only:fracDay                      ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
  USE time_utils_module,only:compJulday                   ! convert calendar date to julian day
- USE globalData,only:model_decisions                     ! model decision structure
- USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
- USE mDecisions_module,only:ncTime                       ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
- USE mDecisions_module,only:utcTime                      ! all times in UTC (timeOffset = longitude/15. hours)
- USE mDecisions_module,only:localTime                    ! all times local (timeOffset = 0)
+ USE globalData,only:tmZoneOffsetFracDay                 ! time zone offset in fractional days
+ USE globalData,only:ncTime                              ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
+ USE globalData,only:utcTime                             ! all times in UTC (timeOffset = longitude/15. hours)
+ USE globalData,only:localTime                           ! all times local (timeOffset = 0)
+ USE summafilemanager,only:NC_TIME_ZONE
  ! dummy variables
  integer(i4b),intent(in)           :: iFile              ! index of current forcing file in forcing file list
  character(*) ,intent(in)          :: infile             ! input file
@@ -353,6 +353,7 @@ contains
  integer(i4b)                      :: mode               ! netcdf file mode
  integer(i4b)                      :: attLen             ! attribute length
  character(len=256)                :: refTimeString      ! reference time string
+
  ! initialize error control
  err=0; message='openForcingFile/'
 
@@ -373,12 +374,12 @@ contains
                   err,cmessage)                            ! output = error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
- select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
-  case(ncTime); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
+ select case(trim(NC_TIME_ZONE))
+  case('ncTime'); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
                                                                imin_tz, & ! time zone minute
                                                                dsec_tz)                        ! time zone second
-  case(utcTime);   tmZoneOffsetFracDay = 0._dp
-  case(localTime); tmZoneOffsetFracDay = 0._dp
+  case('utcTime');   tmZoneOffsetFracDay = 0._dp
+  case('localTime'); tmZoneOffsetFracDay = 0._dp
   case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
  end select ! (option time zone option)
 
