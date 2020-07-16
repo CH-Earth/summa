@@ -239,9 +239,9 @@ PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_PRELIM))
 SUMMA_NOAHMP= \
 		module_model_constants.F \
 		module_sf_noahutl.F \
-		module_sf_sfclay.F \
 		module_sf_noahlsm.F \
 		module_sf_noahmplsm.F
+
 NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 
 # Define routines for the SUMMA model runs
