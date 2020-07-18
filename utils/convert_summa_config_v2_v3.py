@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# 
+#
 # Script to convert SUMMA v2.x configuration to SUMMA v3.0.0
-#  
+#
 # SUMMA - Structure for Unifying Multiple Modeling Alternatives
 # Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 #
@@ -30,16 +30,16 @@ import sys
 import shutil
 
 fm_v2_keys = ['controlVersion', 'settingsPath', 'forcingPath',
-              'outputPath', 'decisionsFile', 'outputDefFile',
+              'outputPath', 'decisionsFile', 'notused_1',
               'notused_2', 'notused_3', 'notused_4',
-              'notused_5', 'output_control', 'notused_6',
+              'notused_5', 'outputDefFile', 'notused_6',
               'notused_7', 'notused_8', 'attributeFile',
               'hruParamFile', 'gruParamFile', 'forcingList',
               'initCondFile', 'trialParamFile', 'outFilePrefix']
 
 fm_v3_keys = ['controlVersion', 'simStartTime' , 'simEndTime',
-              'tmZoneInfo', 'settingsPath', 'forcingPath', 
-              'outputPath', 'decisionsFile', 'outputDefFile', 
+              'tmZoneInfo', 'settingsPath', 'forcingPath',
+              'outputPath', 'decisionsFile', 'outputDefFile',
               'hruParamFile', 'gruParamFile', 'attributeFile',
               'trialParamFile', 'forcingList', 'initCondFile',
               'outFilePrefix']
@@ -50,15 +50,12 @@ decision_v2_to_fm_v3 = {'simulStart': 'simStartTime',
 
 comment_sep = '!'
 
-hruparam_append = [
-    "! Minimum temperature for temperature unloading (T< minTempUnloading causes no unloading) (K)",
-    "minTempUnloading          |       270.16 |       260.16 |       273.16",
-    "! Minimum wind for wind unloading (v < minWindUnloading causes no unloading) (m/s)",
-    "minWindUnloading          |       0.0000 |       0.0000 |       10.000",
-    "! Scales the speed at which unloading due to temperature occurs (inversely proportional) (K*s)",
-    "rateTempUnloading         |      1.87d+5 |       1.0d+5 |       3.0d+5",
-    "! Scales the speed at which unloading due to wind occurs (inversely proportional) (m)",
-    "rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5"]
+hruparam_append = {
+        "minTempUnloading":  "minTempUnloading          |       270.16 |       260.16 |       273.16",
+        "minWindUnloading":  "minWindUnloading          |       0.0000 |       0.0000 |       10.000",
+        "rateTempUnloading": "rateTempUnloading         |      1.87d+5 |       1.0d+5 |       3.0d+5",
+        "rateWindUnloading": "rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5"}
+
 
 def process_command_line():
     '''Parse the commandline'''
@@ -67,23 +64,20 @@ def process_command_line():
                         help='Define path/name of v.2.x file manager (required)')
     args = parser.parse_args()
     return(args.filemanager)
-    
+
+
 def dec_v3_write(ifile, ofile, history=None):
     with open(ifile) as f:
         lines = f.readlines()
-
     # keys to strip
     dont_copy = decision_v2_to_fm_v3.keys()
-
     with open(ofile, 'w') as f:
         for line in lines:
             if not any(re.findall('|'.join(dont_copy), line)):
                 f.write(line)
-
         if history:
             f.write(history+'\n')
 
-    return
 
 def fm_v2_parse(ifile):
     with open(ifile) as f:
@@ -99,8 +93,9 @@ def fm_v2_parse(ifile):
 
     fm = dict(zip(fm_v2_keys, fm_values))
     fm_comments = dict(zip(fm_v2_keys, fm_comments))
- 
+
     return fm, fm_comments
+
 
 def fm_v3_create(fm_v2, fm_v2_comments):
     fm_v3 = {}
@@ -114,60 +109,58 @@ def fm_v3_create(fm_v2, fm_v2_comments):
         if key in fm_v2_comments:
             fm_v3_comments[key] = fm_v2_comments[key]
         else:
-            fm_v3_comments[key] = None
-        
+            fm_v3_comments[key] = ''
+
     fm_v3['controlVersion'] = 'SUMMA_FILE_MANAGER_V3.0.0'
     return fm_v3, fm_v3_comments
+
 
 def fm_v3_update(ifile, fm_v3, fm_v3_comments):
     with open(ifile) as f:
         txt = f.read()
 
     for line in iter(txt.splitlines()):
-        m = re.match('^([^\\{}]*)\\{}(.*)$'.format(comment_sep, comment_sep), line)
-        if m and m.group(1):  # The line contains a hash / comment
-            decision, *value = m.group(1).split(comment_sep)[0].split()
-            if decision in decision_v2_to_fm_v3:
-                if isinstance(value, list):
-                    value = " ".join(value)
-                fm_v3[decision_v2_to_fm_v3[decision]] = value
-                fm_v3_comments[decision_v2_to_fm_v3[decision]] = m.group(2)
-
+        if line.startswith('!') or not len(line.strip()):
+            continue
+        decision, *value = line.split(comment_sep)[0].split()
+        if decision.strip() in decision_v2_to_fm_v3:
+            if isinstance(value, list):
+                value = " ".join(value).replace("'", "")
+            fm_v3[decision_v2_to_fm_v3[decision]] = value
 
     if fm_v3['tmZoneInfo'] == None:
         fm_v3['tmZoneInfo'] = 'localTime'
         fm_v3_comments['tmZoneInfo'] = 'Time zone info'
-            
+
     return fm_v3, fm_v3_comments
 
 
-def fm_v3_write(ofile, fm, fm_comments, history=None):
+def fm_v3_write(ofile, fm, fm_comments, history=''):
     lines = []
-    for key in fm_v3_keys: 
-        line = '{:20s} {}'.format(key, fm[key])
+    for key in fm_v3_keys:
+        line = "{:20s} '{}'".format(key, fm[key])
         if key in fm_comments:
-            line = '{} {} {}'.format(line, comment_sep, fm_comments[key])
+            line = "{} {} {}".format(line, comment_sep, fm_comments[key])
         lines.append(line+'\n')
 
-    if history:
-        lines.append(history+'\n')
-
+    lines.append(history)
     with open(ofile, 'w') as f:
         f.writelines(lines)
 
-    return
 
-def hruparam_v3_write(ifile, ofile, history=None):
+def hruparam_v3_write(ifile, ofile, history=''):
     with open(ifile) as f:
         lines = f.readlines()
+    all_keys = [l.split('|')[0].strip() for l in lines
+                if not l.startswith('!')]
 
     with open(ofile, 'w') as f:
         f.writelines(lines)
-        for line in hruparam_append:
-            f.writelines(line+'\n')
-        if history:
-            f.write(history+'\n')
-    return
+        for k, line in hruparam_append.items():
+            if k not in all_keys:
+                f.writelines(line+'\n')
+        f.write(history)
+
 
 def make_backup(path, ext='.v2'):
     fromfile = path
@@ -175,7 +168,7 @@ def make_backup(path, ext='.v2'):
     shutil.copyfile(fromfile, tofile)
     return fromfile, tofile
 
-# main
+
 if __name__ == '__main__':
     # process command line
     fm_v2_path = process_command_line()

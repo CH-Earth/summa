@@ -29,7 +29,7 @@ public
 ! summa-wide pathlength
 integer(i4b),parameter       :: summaPathLen=4096
 ! defines the time of the run
-CHARACTER(LEN=summaPathLen)  :: CONTROL_VRS      = 'SUMMA_FILEMANAGER_V3.0.0'         ! control version
+CHARACTER(LEN=summaPathLen)  :: CONTROL_VRS      = 'SUMMA_FILE_MANAGER_V3.0.0'         ! control version
 CHARACTER(LEN=summaPathLen)  :: SIM_START_TM     = '2000-01-01 00:00'               ! simulation start time
 CHARACTER(LEN=summaPathLen)  :: SIM_END_TM       = '2000-01-01 00:00'               ! simulation end time
 CHARACTER(LEN=summaPathLen)  :: NC_TIME_ZONE     = 'utcTime'                        ! time zone info
@@ -67,7 +67,7 @@ contains
  integer(i4b),intent(out)             :: err
  character(*),intent(out)             :: message
  ! local vars
- character(*),parameter               :: summaFileManagerHeader="SUMMA_FILE_MANAGER_V2.0"
+ character(*),parameter               :: summaFileManagerHeader='SUMMA_FILE_MANAGER_V3.0.0'
  integer(i4b),parameter               :: runinfo_fileunit=67   ! file unit for run time information
  character(len=8)                     :: cdate
  character(len=10)                    :: ctime
@@ -79,17 +79,17 @@ contains
  character(len=32)                    :: option         ! option for model info
 
  err=0; message="summa_SetTimesDirsAndFiles/"
- 
+
  ! read information from model control file, and populate model control structure
  ! populates global control information structure
- 
+
  ! open file, read non-comment lines, close file
  call file_open(trim(summaFileManagerIn),unt,err,cmessage)
  if(err/=0) then; message=trim(message)//trim(cmessage)//"/Failed to open control file [''"//trim(summaFileManagerIn)//"']"; err=-10; return; end if
  call get_vlines(unt,charline,err,cmessage)  ! 'charline' is a list of strings from non-comment lines
  if(err/=0) then; message=trim(message)//trim(cmessage)//"/Control file read issue in get_vlines()"; return; end if
  close(unt)
-  
+
  ! get the number of model control file entries
  nControl = size(charline)
 
@@ -100,11 +100,16 @@ contains
   if (err/=0) then; err=30; message=trim(message)//"error reading charline array"; return; end if
   ! get the index of the control file entry in the data structure
   write(*,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
- 
+
   ! assign entries from control file to module public variables; add checking as needed
   select case(trim(option))
-   case('controlVersion' ); CONTROL_VRS = trim(varEntry); if(trim(varEntry)/=summaFileManagerHeader)then;&
-     message=trim(message)//"unknown control file version in '"//trim(summaFileManagerIn); err=20; return; end if
+   case('controlVersion' );
+       CONTROL_VRS = trim(varEntry);
+       if(trim(varEntry)/=trim(summaFileManagerHeader)) then
+         message=trim(message)//"unknown control file version in '"//trim(summaFileManagerIn)//" looking for "//trim(summaFileManagerHeader)
+         err=20
+         return
+       end if
    case('simStartTime'   ); SIM_START_TM = trim(varEntry)                  ! start simulation time
    case('simEndTime'     ); SIM_END_TM = trim(varEntry)                    ! end simulation time
    case('tmZoneInfo'     ); NC_TIME_ZONE = trim(varEntry)                  ! time zone info
