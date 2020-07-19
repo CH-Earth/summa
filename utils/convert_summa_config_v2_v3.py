@@ -32,16 +32,16 @@ import shutil
 fm_v2_keys = ['controlVersion', 'settingsPath', 'forcingPath',
               'outputPath', 'decisionsFile', 'notused_1',
               'notused_2', 'notused_3', 'notused_4',
-              'notused_5', 'outputDefFile', 'notused_6',
+              'notused_5', 'outputControl', 'notused_6',
               'notused_7', 'notused_8', 'attributeFile',
-              'hruParamFile', 'gruParamFile', 'forcingList',
-              'initCondFile', 'trialParamFile', 'outFilePrefix']
+              'globalHruParams', 'globalGruParams', 'forcingList',
+              'initCondFile', 'spatialParams', 'outFilePrefix']
 
-fm_v3_keys = ['controlVersion', 'simStartTime' , 'simEndTime',
+fm_v3_keys = ['controlVersion', 'simStartTime', 'simEndTime',
               'tmZoneInfo', 'settingsPath', 'forcingPath',
-              'outputPath', 'decisionsFile', 'outputDefFile',
-              'hruParamFile', 'gruParamFile', 'attributeFile',
-              'trialParamFile', 'forcingList', 'initCondFile',
+              'outputPath', 'decisionsFile', 'outputControl',
+              'globalHruParams', 'globalGruParams', 'attributeFile',
+              'spatialParams', 'forcingList', 'initCondFile',
               'outFilePrefix']
 
 decision_v2_to_fm_v3 = {'simulStart': 'simStartTime',
@@ -186,7 +186,7 @@ if __name__ == '__main__':
     # Make copies by appending v2 to each of the file names
     fm_v3_path, fm_v2_path = make_backup(fm_v2_path)
     dec_v3_path, dec_v2_path = make_backup(dec_v2_path)
-    hruparam_v3_path, hruparam_v2_path = make_backup(os.path.join(fm_v2['settingsPath'], fm_v2['hruParamFile']))
+    hruparam_v3_path, hruparam_v2_path = make_backup(os.path.join(fm_v2['settingsPath'], fm_v2['globalHruParams']))
 
     # create a history string to be passed to all updated files
     history = '{} history {}: {}\n'.format(comment_sep, datetime.now().strftime('%c'), ' '.join(sys.argv))

@@ -117,11 +117,11 @@ contains
    case('forcingPath'    ); INPUT_PATH = trim(varEntry)                    ! input forcing directory
    case('outputPath'     ); OUTPUT_PATH = trim(varEntry)                   ! output directory
    case('decisionsFile'  ); M_DECISIONS = trim(varEntry)                   ! model decisions file
-   case('outputDefFile'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
-   case('hruParamFile'   ); LOCALPARAM_INFO = trim(varEntry)               ! default hru-level param file
-   case('gruParamFile'   ); BASINPARAM_INFO = trim(varEntry)               ! default gru-level param file
+   case('outputControl'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
+   case('globalHruParams'); LOCALPARAM_INFO = trim(varEntry)               ! default hru-level param file
+   case('globalGruParams'); BASINPARAM_INFO = trim(varEntry)               ! default gru-level param file
    case('attributeFile'  ); LOCAL_ATTRIBUTES = trim(varEntry)              ! attribute file
-   case('trialParamFile' ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file
+   case('spatialParams'  ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file
    case('forcingList'    ); FORCING_FILELIST = trim(varEntry)              ! file listing forcing filenames
    case('initCondFile'   ); MODEL_INITCOND = trim(varEntry)                ! initial conditions file (cold State)
    case('outFilePrefix'  ); OUTPUT_PREFIX = trim(varEntry)                 ! filename root for output files
