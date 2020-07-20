@@ -32,17 +32,18 @@ import shutil
 fm_v2_keys = ['controlVersion', 'settingsPath', 'forcingPath',
               'outputPath', 'decisionsFile', 'notused_1',
               'notused_2', 'notused_3', 'notused_4',
-              'notused_5', 'outputDefFile', 'notused_6',
+              'notused_5', 'outputControlFile', 'notused_6',
               'notused_7', 'notused_8', 'attributeFile',
-              'hruParamFile', 'gruParamFile', 'forcingList',
-              'initCondFile', 'trialParamFile', 'outFilePrefix']
+              'globalHruParamFile', 'globalGruParamFile', 'forcingListFile',
+              'initConditionFile', 'trialParamFile', 'outFilePrefix']
 
-fm_v3_keys = ['controlVersion', 'simStartTime' , 'simEndTime',
+fm_v3_keys = ['controlVersion', 'simStartTime', 'simEndTime',
               'tmZoneInfo', 'settingsPath', 'forcingPath',
-              'outputPath', 'decisionsFile', 'outputDefFile',
-              'hruParamFile', 'gruParamFile', 'attributeFile',
-              'trialParamFile', 'forcingList', 'initCondFile',
-              'outFilePrefix']
+              'outputPath', 'decisionsFile', 'outputControlFile',
+              'globalHruParamFile', 'globalGruParamFile', 'attributeFile',
+              'trialParamFile', 'forcingListFile', 'initConditionFile',
+              'outFilePrefix', 'vegTableFile', 'soilTableFile',
+              'generalTableFile', 'noahmpTableFile']
 
 decision_v2_to_fm_v3 = {'simulStart': 'simStartTime',
                         'simulFinsh': 'simEndTime',
@@ -112,6 +113,10 @@ def fm_v3_create(fm_v2, fm_v2_comments):
             fm_v3_comments[key] = ''
 
     fm_v3['controlVersion'] = 'SUMMA_FILE_MANAGER_V3.0.0'
+    fm_v3['vegTableFile'] = 'VEGPARM.TBL'
+    fm_v3['soilTableFile'] = 'SOILPARM.TBL'
+    fm_v3['generalTableFile'] = 'GENPARM.TBL'
+    fm_v3['noahmpTableFile'] = 'MPTABLE.TBL'
     return fm_v3, fm_v3_comments
 
 
@@ -186,7 +191,7 @@ if __name__ == '__main__':
     # Make copies by appending v2 to each of the file names
     fm_v3_path, fm_v2_path = make_backup(fm_v2_path)
     dec_v3_path, dec_v2_path = make_backup(dec_v2_path)
-    hruparam_v3_path, hruparam_v2_path = make_backup(os.path.join(fm_v2['settingsPath'], fm_v2['hruParamFile']))
+    hruparam_v3_path, hruparam_v2_path = make_backup(os.path.join(fm_v2['settingsPath'], fm_v2['globalHruParamFile']))
 
     # create a history string to be passed to all updated files
     history = '{} history {}: {}\n'.format(comment_sep, datetime.now().strftime('%c'), ' '.join(sys.argv))
