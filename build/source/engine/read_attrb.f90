@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -37,7 +37,7 @@ contains
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru->hru mapping structure
  USE globalData,only:index_map                              ! hru->gru mapping structure
- implicit none 
+ implicit none
 
  character(*),intent(in)              :: attrFile           ! name of attributed file
  integer(i4b),intent(out)             :: fileGRU            ! number of GRUs in the input file
@@ -53,8 +53,8 @@ contains
  integer(i4b)                         :: sGRU               ! starting GRU
  integer(i4b)                         :: iHRU               ! HRU couinting index
  integer(i4b)                         :: iGRU               ! GRU loop index
- integer(i4b),allocatable             :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
- integer(i4b),allocatable             :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
+ integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
+ integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
  integer(i4b),allocatable             :: hru_ix(:)          ! hru index for search
 
  ! define variables for NetCDF file operation
@@ -65,7 +65,7 @@ contains
  character(len=256)                   :: cmessage           ! error message for downwind routine
 
  ! Start procedure here
- err=0; message="read_dimension/" 
+ err=0; message="read_dimension/"
 
  ! check that we do not have conflicting flags
  if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist'; return; end if
@@ -75,7 +75,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! *********************************************************************************************
- ! read and set GRU dimensions 
+ ! read and set GRU dimensions
  ! **********************************************************************************************
  ! get gru dimension of whole file
  err = nf90_inq_dimid(ncID,"gru",gruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
@@ -83,7 +83,7 @@ contains
 
  ! get hru dimension of whole file
  err = nf90_inq_dimid(ncID,"hru",hruDimId);                   if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if 
+ err = nf90_inquire_dimension(ncID, hruDimId, len = fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
  ! get runtime GRU dimensions
  if     (present(startGRU)) then
@@ -97,7 +97,7 @@ contains
  endif
 
  ! check dimensions
- if ((present(startGRU)).and.(startGRU + nGRU > fileGRU)) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
+ if ((present(startGRU)).and.(startGRU + nGRU - 1  > fileGRU)) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
  if ((present(checkHRU)).and.(checkHRU        > fileHRU)) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'       ; return; end if
 
  ! *********************************************************************************************
@@ -111,7 +111,7 @@ contains
  err = nf90_inq_varid(ncID,"gruId",varID);     if (err/=0) then; message=trim(message)//'problem finding gruId'; return; end if
  err = nf90_get_var(ncID,varID,gru_id);        if (err/=0) then; message=trim(message)//'problem reading gruId'; return; end if
 
- ! read hruIndex from netcdf file
+ ! read hru_id from netcdf file
  err = nf90_inq_varid(ncID,"hruId",varID);     if (err/=0) then; message=trim(message)//'problem finding hruId'; return; end if
  err = nf90_get_var(ncID,varID,hru_id);        if (err/=0) then; message=trim(message)//'problem reading hruId'; return; end if
 
@@ -131,28 +131,31 @@ if (allocated(gru_struc)) then; message=trim(message)//'gru_struc is unexpectedl
 if (allocated(index_map)) then; message=trim(message)//'index_map is unexpectedly allocated'; return; end if
 
 ! allocate first level of gru to hru mapping
-allocate(gru_struc(nGRU))  
+allocate(gru_struc(nGRU))
 
-! set gru to hru mapping  
+! set gru to hru mapping
 if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
 
- ! gru to hru maping
+ ! gru to hru mapping
  iGRU = 1
  gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
  gru_struc(iGRU)%gruId                = hru2gru_id(checkHRU)                                   ! set gru id
+ gru_struc(iGRU)%gru_nc               = sGRU                                                   ! set gru index within the netcdf file
  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
  gru_struc(iGRU)%hruInfo(iGRU)%hru_ix = 1                                                      ! set index of hru in run domain
  gru_struc(iGRU)%hruInfo(iGRU)%hru_id = hru_id(checkHRU)                                       ! set id of hru
 
 else ! allocate space for anything except a single HRU run
- 
+
  iHRU = 1
- do iGRU = 1,nGRU 
+ do iGRU = 1,nGRU
 
   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
   gru_struc(iGRU)%gruId             = gru_id(iGRU+sGRU-1)                                      ! set gru id
+  gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
+
   allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                  ! allocate second level of gru to hru map
   gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gruId)         ! set hru id in attributes netcdf file
   gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run domain
@@ -162,20 +165,20 @@ else ! allocate space for anything except a single HRU run
 
 end if ! not checkHRU
 
-! set hru to gru mapping 
+! set hru to gru mapping
 nHRU = sum(gru_struc%hruCount)                                                                 ! total number of HRUs
 allocate(index_map(nHRU))                                                                      ! allocate first level of hru to gru mapping
 
 if (present(checkHRU)) then                                                                    ! allocate space for single-HRU run
  if (nHRU/=1) then; err=-20; message=trim(message)//'wrong # of HRUs for checkHRU run'; return; end if
- iGRU = 1; 
+ iGRU = 1;
  index_map(1)%gru_ix   = iGRU                                                                  ! index of gru in run domain to which the hru belongs
- index_map(1)%localHRU = hru_ix(1)                                                             ! index of hru within the gru
+ index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
 else ! anything other than a single HRU run
- do iGRU = 1,nGRU 
+ do iGRU = 1,nGRU
   index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run domain to which the hru belongs
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU = hru_ix(1:gru_struc(iGRU)%hruCount)   ! index of hru within the gru 
+  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
  enddo ! iGRU = 1,nGRU
 
 end if ! not checkHRU
@@ -185,7 +188,7 @@ end subroutine read_dimension
  ! ************************************************************************************************
  ! public subroutine read_attrb: read information on local attributes
  ! ************************************************************************************************
- subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,err,message)
+ subroutine read_attrb(attrFile,nGRU,attrStruct,typeStruct,idStruct,err,message)
  ! provide access to subroutines
  USE netcdf
  USE netcdf_util_module,only:nc_file_open                   ! open netcdf file
@@ -193,11 +196,12 @@ end subroutine read_dimension
  USE netcdf_util_module,only:netcdf_err                     ! netcdf error handling function
  ! provide access to derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
+ USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     integer(8)
  USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (dp)
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
- USE globalData,only:attr_meta,type_meta                    ! metadata structures
- USE get_ixname_module,only:get_ixAttr,get_ixType           ! access function to find index of elements in structure
+ USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
+ USE get_ixname_module,only:get_ixAttr,get_ixType,get_ixId  ! access function to find index of elements in structure
  implicit none
 
  ! io vars
@@ -205,6 +209,7 @@ end subroutine read_dimension
  integer(i4b),intent(in)              :: nGRU               ! number of grouped response units
  type(gru_hru_double),intent(inout)   :: attrStruct         ! local attributes for each HRU
  type(gru_hru_int),intent(inout)      :: typeStruct         ! local classification of soil veg etc. for each HRU
+ type(gru_hru_int8),intent(inout)     :: idStruct           ! local classification of hru and gru IDs
  integer(i4b),intent(out)             :: err                ! error code
  character(*),intent(out)             :: message            ! error message
 
@@ -213,22 +218,25 @@ end subroutine read_dimension
  integer(i4b)                         :: iVar               ! loop through varibles in the netcdf file
  integer(i4b)                         :: iHRU               ! index of an HRU within a GRU
  integer(i4b)                         :: iGRU               ! index of an GRU
- integer(i4b)                         :: varType            ! type of variable (categorical or numerical)
+ integer(i4b)                         :: varType            ! type of variable (categorica, numerical, idrelated)
  integer(i4b)                         :: varIndx            ! index of variable within its data structure
 
  ! check structures
  integer(i4b)                         :: iCheck             ! index of an attribute name
  logical(lgt),allocatable             :: checkType(:)       ! vector to check if we have all desired categorical values
+ logical(lgt),allocatable             :: checkId(:)         ! vector to check if we have all desired IDs
  logical(lgt),allocatable             :: checkAttr(:)       ! vector to check if we have all desired local attributes
- 
+
  ! netcdf variables
  integer(i4b)                         :: ncID               ! netcdf file id
  character(LEN=nf90_max_name)         :: varName            ! character array of netcdf variable name
  integer(i4b)                         :: nVar               ! number of variables in netcdf local attribute file
  integer(i4b),parameter               :: categorical=101    ! named variable to denote categorical data
  integer(i4b),parameter               :: numerical=102      ! named variable to denote numerical data
+ integer(i4b),parameter               :: idrelated=103      ! named variable to denote ID related data
  integer(i4b)                         :: categorical_var(1) ! temporary categorical variable from local attributes netcdf file
  real(dp)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
+ integer(8)                           :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
 
  ! define mapping variables
 
@@ -236,15 +244,16 @@ end subroutine read_dimension
  err=0; message="read_attrb/"
 
  ! **********************************************************************************************
- ! (1) prepare check vectors 
+ ! (1) prepare check vectors
  ! **********************************************************************************************
- allocate(checkType(size(type_meta)),checkAttr(size(attr_meta)),stat=err)
+ allocate(checkType(size(type_meta)),checkAttr(size(attr_meta)),checkId(size(id_meta)),stat=err)
  if(err/=0)then; err=20; message=trim(message)//'problem allocating space for variable check vectors'; return; endif
  checkType(:) = .false.
  checkAttr(:) = .false.
+ checkId(:)   = .false.
 
  ! **********************************************************************************************
- ! (2) open netcdf file 
+ ! (2) open netcdf file
  ! **********************************************************************************************
  ! open file
  call nc_file_open(trim(attrFile),nf90_noWrite,ncID,err,cmessage)
@@ -269,15 +278,11 @@ end subroutine read_dimension
   select case(trim(varName))
 
    ! ** categorical data
-   case('hruId','vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
+   case('vegTypeIndex','soilTypeIndex','slopeTypeIndex','downHRUindex')
 
     ! get the index of the variable
     varType = categorical
-    if(trim(varName) == "hruId") then
-     varIndx = get_ixType("hruIndex")
-    else
-     varIndx = get_ixType(varName)
-    end if
+    varIndx = get_ixType(varName)
     checkType(varIndx) = .true.
 
     ! check that the variable could be identified in the data structure
@@ -286,9 +291,28 @@ end subroutine read_dimension
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
      do iHRU = 1,gru_struc(iGRU)%hruCount
-      err = nf90_get_var(ncID,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/)) 
+      err = nf90_get_var(ncID,iVar,categorical_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       typeStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = categorical_var(1)
+     end do
+    end do
+
+   ! ** ID related data
+   case('hruId')
+    ! get the index of the variable
+    varType = idrelated
+    varIndx = get_ixId(varName)
+    checkId(varIndx) = .true.
+
+    ! check that the variable could be identified in the data structure
+    if(varIndx < 1)then; err=20; message=trim(message)//'unable to find variable ['//trim(varName)//'] in data structure'; return; endif
+
+    ! get data from netcdf file and store in vector
+    do iGRU=1,nGRU
+     do iHRU = 1,gru_struc(iGRU)%hruCount
+      err = nf90_get_var(ncID,iVar,idrelated_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
+      if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
+      idStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = idrelated_var(1)
      end do
     end do
 
@@ -305,7 +329,7 @@ end subroutine read_dimension
 
     ! get data from netcdf file and store in vector
     do iGRU=1,nGRU
-     do iHRU = 1, gru_struc(iGRU)%hruCount      
+     do iHRU = 1, gru_struc(iGRU)%hruCount
       err = nf90_get_var(ncID,iVar,numeric_var,start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_nc/),count=(/1/))
       if(err/=nf90_noerr)then; message=trim(message)//'problem reading: '//trim(varName); return; end if
       attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = numeric_var(1)
@@ -323,7 +347,7 @@ end subroutine read_dimension
  end do ! (looping through netcdf local attribute file)
 
  ! **********************************************************************************************
- ! (4) check that we have all the desired varaibles 
+ ! (4) check that we have all the desired varaibles
  ! **********************************************************************************************
  ! check that we have all desired categorical variables
  if(any(.not.checkType))then
@@ -332,6 +356,14 @@ end subroutine read_dimension
   end do
  endif
 
+ ! check that we have all desired ID variables
+ if(any(.not.checkId))then
+  do iCheck = 1,size(id_meta)
+   if(.not.checkId(iCheck))then; err=20; message=trim(message)//'missing variable ['//trim(id_meta(iCheck)%varname)//'] in local attributes file'; return; endif
+  end do
+ endif
+
+
  ! check that we have all desired local attributes
  if(any(.not.checkAttr))then
   do iCheck = 1,size(attr_meta)
@@ -339,14 +371,16 @@ end subroutine read_dimension
   end do
  endif
 
+
  ! **********************************************************************************************
- ! (5) close netcdf file 
+ ! (5) close netcdf file
  ! **********************************************************************************************
  call nc_file_close(ncID,err,cmessage)
  if (err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! free memory
  deallocate(checkType)
+ deallocate(checkId)
  deallocate(checkAttr)
 
  end subroutine read_attrb

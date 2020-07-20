@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -73,6 +73,7 @@ contains
  REAL(DP)                                  :: DDT     ! used to calculate sunrise/set(= 0 for level surface)
  REAL(DP)                                  :: T1      ! first time in time step or sunrise
  REAL(DP)                                  :: T2      ! last time in time step or sunset
+ REAL(DP)                                  :: AUX     ! Auxiliary variable used to check whether the sunset/sunrise time calculation can succeed
  ! ----------------------------------------------------------------------------------------
  ! CONVERSION FACTORS
  !   degrees to radians
@@ -94,7 +95,14 @@ contains
  ! Calculate latitude "adjustment" for ground slope, aspect and latitude (LP = LAT1 for level surface)
  LP=ASIN(SIN(SLOPE1)*COS(AZI1)*COS(LAT1) + COS(SLOPE1)*SIN(LAT1)) ! angle between solar rays and surface (tilted) ??
  ! Calculate time of sunrise/sunset on level surface as radians from noon
- TD=ACOS(-TAN(LAT1)*TAN(D))
+ ! Account for high latitude locations, where there might not be a sunrise/sunset time on a given day
+ ! In such cases AUX > 1 or AUX < -1. Fix AUX at (-)1 in those cases, to fix sunrise at 00.00 or 24.00 of the current day (instead of some time before/after the current day)
+ AUX=-TAN(LAT1)*TAN(D)
+ IF(abs(AUX) > 1.) THEN
+  TD=ACOS(SIGN(1._dp, AUX))
+ ELSE
+  TD=ACOS(AUX)
+ END IF
  ! print *, 'Sunrise = ', TD
  ! Calculate time of sunrise/sunset adjusted for inclined ground surface as radians from noon???
  TPI=-TAN(LP)*TAN(D)
@@ -128,7 +136,15 @@ contains
   ! Calculate solar declination
   D=CRAD*23.5*SIN((FJULIAN-82.0)*YRAD)
   ! Calculate time of sunrise/sunset on level surface as radians from noon
-  TD=ACOS(-TAN(LAT1)*TAN(D))
+  ! Account for high latitude locations, where there might not be a sunrise/sunset time on a given day
+  ! In such cases AUX > 1 or AUX < -1. Fix AUX at (-)1 in those cases
+  AUX=-TAN(LAT1)*TAN(D)
+  IF(abs(AUX) > 1.) THEN
+   TD=ACOS(SIGN(1._dp, AUX))
+  ELSE
+   TD=ACOS(AUX)
+  END IF
+
   ! print *, 'Sunrise #2 = ', TD, DELT1
   ! Calculate time of sunrise/sunset adjusted for inclined ground surface as radians from noon???
   TPI=-TAN(LP)*TAN(D)

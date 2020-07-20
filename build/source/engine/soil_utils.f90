@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,9 +19,19 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module soil_utils_module
+
+! data types
 USE nrtype
+
+USE multiconst,only: gravity, & ! acceleration of gravity       (m s-2)
+                     Tfreeze, & ! temperature at freezing    (K)
+                     LH_fus,  & ! latent heat of fusion      (J kg-1, or m2 s-2)
+                     R_wv       ! gas constant for water vapor  (J kg-1 K-1; [J = Pa m3])
+
+! privacy
 implicit none
 private
+
 ! routines to make public
 public::iceImpede
 public::dIceImpede_dTemp
@@ -40,10 +50,11 @@ public::dTheta_dTk
 public::crit_soilT
 public::liquidHead
 public::gammp
+
 ! constant parameters
 real(dp),parameter     :: valueMissing=-9999._dp    ! missing value parameter
 real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used to avoid divide by zero)
-real(dp),parameter     :: dx=1.e-8_dp               ! finite difference increment
+real(dp),parameter     :: dx=-1.e-12_dp             ! finite difference increment
 contains
 
 
@@ -85,7 +96,7 @@ contains
 
 
  ! ******************************************************************************************************************************
- ! public subroutine: compute the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)  
+ ! public subroutine: compute the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  ! ******************************************************************************************************************************
  subroutine liquidHead(&
                        ! input
@@ -99,7 +110,7 @@ contains
                        matricHeadLiq                            ,& ! intent(out)   : liquid water matric potential (m)
                        dPsiLiq_dPsi0                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
                        dPsiLiq_dTemp                            ,& ! intent(out)   : derivative in the liquid water matric potential w.r.t. temperature (m K-1)
-                       err,message)                                ! intent(out)   : error control 
+                       err,message)                                ! intent(out)   : error control
  ! computes the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  implicit none
  ! input
@@ -144,7 +155,7 @@ contains
 
   ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
   if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
-   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m) 
+   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)
   endif
 
   ! -----
@@ -544,8 +555,6 @@ contains
  ! public function RH_soilair: compute relative humidity of air in soil pore space
  ! ******************************************************************************************************************************
  function RH_soilair(matpot,Tk)
- USE multiconst,only: gravity, &      ! acceleration of gravity       (m s-2)
-                      R_wv            ! gas constant for water vapor  (J kg-1 K-1; [J = Pa m3])
  implicit none
  real(dp),intent(in) :: matpot        ! soil water suction -- matric potential (m)
  real(dp),intent(in) :: Tk            ! temperature (K)
@@ -559,9 +568,6 @@ contains
  ! public function crit_soilT: compute the critical temperature above which all water is unfrozen
  ! ******************************************************************************************************************************
  function crit_soilT(psi)
- USE multiconst,only: gravity,   &    ! acceleration of gravity    (m s-2)
-                      Tfreeze,   &    ! temperature at freezing    (K)
-                      LH_fus          ! latent heat of fusion      (J kg-1, or m2 s-2)
  implicit none
  real(dp),intent(in) :: psi           ! matric head (m)
  real(dp)            :: crit_soilT    ! critical soil temperature (K)
@@ -573,9 +579,6 @@ contains
  ! public function dTheta_dTk: differentiate the freezing curve w.r.t. temperature
  ! ******************************************************************************************************************************
  function dTheta_dTk(Tk,theta_res,theta_sat,alpha,n,m)
- USE multiconst,only: gravity,   &    ! acceleration of gravity    (m s-2)
-                      Tfreeze,   &    ! temperature at freezing    (K)
-                      LH_fus          ! latent heat of fusion      (J kg-1, or m2 s-2)
  implicit none
  real(dp),intent(in) :: Tk            ! temperature (K)
  real(dp),intent(in) :: theta_res     ! residual liquid water content (-)

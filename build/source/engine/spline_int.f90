@@ -71,12 +71,12 @@ contains
  INTEGER(I4B) :: khi,klo,n
  REAL(DP) :: a,b,h
  ! check size of input vectors
- if (size(xa)==size(ya) .and. size(ya)==size(y2a)) then 
+ if (size(xa)==size(ya) .and. size(ya)==size(y2a)) then
   n=size(xa)
  else
   err=20; message="f-splint/sizeMismatch"; return
  end if
- ! start procedure 
+ ! start procedure
  klo=max(min(locate(xa,x),n-1),1)
  khi=klo+1
  h=xa(khi)-xa(klo)

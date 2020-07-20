@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -21,6 +21,7 @@
 module ascii_util_module
 USE nrtype
 implicit none
+integer(i4b),parameter,public :: linewidth=4096  ! max character number for one line
 private
 public::file_open
 public::split_line
@@ -71,10 +72,10 @@ contains
  ! do not know how many "words", so use linked lists
  implicit none
  ! declare dummy arguments
- character(*),intent(in)              :: inline     ! line of characters
- character(*),intent(out),allocatable :: words(:) ! vector of "words"
- integer(i4b),intent(out)             :: err      ! error code
- character(*),intent(out)             :: message  ! error message
+ character(*),intent(in)                          :: inline     ! line of characters
+ character(len=*),intent(out),allocatable         :: words(:)   ! vector of "words"
+ integer(i4b),intent(out)                         :: err        ! error code
+ character(*),intent(out)                         :: message    ! error message
  ! declare local variables
  integer(i4b),parameter  :: cLen=8192
  character(len=cLen)     :: temp                  ! temporary line of characters
@@ -134,10 +135,10 @@ contains
  ! do not know how many valid lines, so use linked lists
  implicit none
  ! declare dummy arguments
- integer(i4b),intent(in)              :: unt         ! file unit
- character(*),intent(out),allocatable :: vlines(:)   ! vector of character strings
- integer(i4b),intent(out)             :: err         ! error code
- character(*),intent(out)             :: message     ! error message
+ integer(i4b),intent(in)                          :: unt         ! file unit
+ character(len=linewidth),intent(out),allocatable :: vlines(:)   ! vector of character strings
+ integer(i4b),intent(out)                         :: err         ! error code
+ character(*),intent(out)                         :: message     ! error message
  ! declare local variables
  integer(i4b)            :: iline                    ! loop through lines in the file
  integer(i4b),parameter  :: maxLines=1000000         ! maximum number of valid lines in a file

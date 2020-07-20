@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,14 +19,26 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module tempAdjust_module
+
 ! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_d,        & ! data vector (dp)
+                    var_dlength     ! data vector with variable length dimension (dp)
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG  ! named variables for structure elements
+
 ! physical constants
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
 USE multiconst,only:LH_fus          ! latent heat of fusion (J kg-1)
 USE multiconst,only:Cp_ice          ! specific heat of ice (J kg-1 K-1)
 USE multiconst,only:Cp_water        ! specific heat of liquid water (J kg-1 K-1)
 USE multiconst,only:iden_water      ! intrinsic density of water (kg m-3)
+
+! privacy
 implicit none
 private
 public::tempAdjust
@@ -47,12 +59,6 @@ contains
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_d,              & ! data vector (dp)
-                     var_dlength           ! data vector with variable length dimension (dp)
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG  ! named variables for structure elements
  ! utility routines
  USE snow_utils_module,only:fracliquid     ! compute fraction of liquid water
  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)

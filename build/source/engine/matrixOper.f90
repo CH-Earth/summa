@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -44,13 +44,13 @@ public::computeGradient
 contains
 
  ! **********************************************************************************************************
- ! public subroutine: scaleMatrices: scale the matrices 
+ ! public subroutine: scaleMatrices: scale the matrices
  ! **********************************************************************************************************
  subroutine scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,message)
  implicit none
  ! input variables
  integer(i4b),intent(in)         :: ixMatrix          ! type of matrix (full Jacobian or band diagonal)
- integer(i4b),intent(in)         :: nState            ! number of state variables 
+ integer(i4b),intent(in)         :: nState            ! number of state variables
  real(dp),intent(in)             :: aJac(:,:)         ! original Jacobian matrix
  real(dp),intent(in)             :: fScale(:)         ! function scaling vector
  real(dp),intent(in)             :: xScale(:)         ! "variable" scaling vector, i.e., for state variables

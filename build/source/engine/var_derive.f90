@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,7 +19,50 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module var_derive_module
+
+! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
+USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
+
+! named variables for snow and soil
+USE globalData,only:iname_snow     ! named variables for snow
+USE globalData,only:iname_soil     ! named variables for soil
+
+! named variables
+USE globalData,only:data_step      ! time step of forcing data
+
+! named variables
+USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG,iLookFLUX        ! HRU: named variables for structure elements
+USE var_lookup,only:iLookBVAR,iLookBPAR                                        ! GRU: named variables for structure elements
+
+! model decision structures
+USE globalData,only:model_decisions        ! model decision structure
+USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+
+! look-up values for the choice of the rooting profile
+USE mDecisions_module,only: &
+ powerLaw,                   & ! simple power-law rooting profile
+ doubleExp                     ! the double exponential function of Xeng et al. (JHM 2001)
+
+! look-up values for the choice of groundwater parameterization
+USE mDecisions_module,only: &
+ bigBucket,                  & ! a big bucket (lumped aquifer model)
+ noExplicit                    ! no explicit groundwater parameterization
+
+! look-up values for the choice of groundwater parameterization
+USE mDecisions_module,only: &
+ constant,                  & ! constant hydraulic conductivity with depth
+ powerLaw_profile             ! power-law profile
+
+! look-up values for the sub-grid routing method
+USE mDecisions_module,only:      &
+ timeDelay,&  ! time-delay histogram
+ qInstant     ! instantaneous routing
+
+! privacy
 implicit none
 private
 public::calcHeight
@@ -39,14 +82,6 @@ contains
                        prog_data,   & ! intent(inout): model variables for a local HRU
                        ! output: error control
                        err,message)
- ! access named variables for snow and soil
- USE globalData,only:iname_snow     ! named variables for snow
- USE globalData,only:iname_soil     ! named variables for soil
- ! access to the derived types to define the data structures
- USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
- USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPROG,iLookINDEX  ! named variables for structure elements
  implicit none
  ! ----------------------------------------------------------------------------------
  ! dummy variables
@@ -103,22 +138,6 @@ contains
  ! public subroutine rootDensty: compute vertical distribution of root density
  ! **********************************************************************************************************
  subroutine rootDensty(mpar_data,indx_data,prog_data,diag_data,err,message)
- ! model decision structures
- USE globalData,only:model_decisions        ! model decision structure
- USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- ! look-up values for the choice of the rooting profile
- USE mDecisions_module,only: &
- powerLaw,                   & ! simple power-law rooting profile
- doubleExp                     ! the double exponential function of Xeng et al. (JHM 2001)
- ! look-up values for the choice of groundwater parameterization
- USE mDecisions_module,only: &
- bigBucket,                  & ! a big bucket (lumped aquifer model)
- noExplicit                    ! no explicit groundwater parameterization
- ! named variables
- USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookDIAG        ! named variables for structure elements
- ! data types
- USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
- USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
  type(var_dlength),intent(in)    :: mpar_data       ! data structure of model parameters for a local HRU
@@ -159,8 +178,8 @@ contains
  ) ! end associate
  ! ----------------------------------------------------------------------------------
 
-! print*, 'nSnow   = ', nSnow
-! print*, 'nLayers = ', nLayers
+ !print*, 'nSnow   = ', nSnow
+ !print*, 'nLayers = ', nLayers
 
  ! compute the fraction of roots in each soil layer
  do iLayer=nSnow+1,nLayers
@@ -181,9 +200,11 @@ contains
      if(fracRootUpper>1._dp) fracRootUpper=1._dp
      ! compute the root density
      mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
-   else
-    mLayerRootDensity(iLayer-nSnow) = 0._dp
-   end if
+    else
+     mLayerRootDensity(iLayer-nSnow) = 0._dp
+    end if
+    !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
+    !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
    ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
    case(doubleExp)
@@ -192,8 +213,8 @@ contains
     fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
-    write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
-                                 mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
+    !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
+    !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
 
    ! ** check
    case default; err=20; message=trim(message)//'unable to identify option for rooting profile'; return
@@ -218,7 +239,7 @@ contains
  else
   scalarAquiferRootFrac = 0._dp
  end if
- 
+
  ! check that roots in the aquifer are appropriate
  if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._dp*epsilon(rootingDepth)))then
   if(scalarAquiferRootFrac < rootTolerance) then
@@ -242,18 +263,6 @@ contains
  ! public subroutine satHydCond: compute vertical profile of saturated hydraulic conductivity
  ! **********************************************************************************************************
  subroutine satHydCond(mpar_data,indx_data,prog_data,flux_data,err,message)
- ! model decision structures
- USE globalData,only:model_decisions        ! model decision structure
- USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- ! look-up values for the choice of groundwater parameterization
- USE mDecisions_module,only: &
-  constant,                  & ! constant hydraulic conductivity with depth
-  powerLaw_profile             ! power-law profile
- ! named variables
- USE var_lookup,only:iLookPARAM,iLookINDEX,iLookPROG,iLookFLUX        ! named variables for structure elements
- ! data types
- USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
- USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
  implicit none
  ! declare input variables
  type(var_dlength),intent(in)    :: mpar_data           ! data structure of model parameters for a local HRU
@@ -298,7 +307,7 @@ contains
 
    ! constant hydraulic conductivity with depth
    case(constant)
-    ! - conductivity at layer interfaces 
+    ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1)
@@ -315,10 +324,10 @@ contains
 
    ! power-law profile
    case(powerLaw_profile)
-    ! - conductivity at layer interfaces 
+    ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
     ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
-                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) 
+                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
     else
@@ -362,18 +371,6 @@ contains
  subroutine fracFuture(bpar_data,bvar_data,err,message)
  ! external functions
  USE soil_utils_module,only:gammp                     ! compute the cumulative probabilty based on the Gamma distribution
- ! model decision structures
- USE globalData,only:model_decisions                  ! model decision structure
- USE var_lookup,only:iLookDECISIONS                   ! named variables for elements of the decision structure
- ! look-up values for the sub-grid routing method
- USE mDecisions_module,only:      &
-  timeDelay,&  ! time-delay histogram
-  qInstant     ! instantaneous routing
- ! named variables 
- USE globalData,only:data_step                        ! time step of forcing data
- USE var_lookup,only:iLookBVAR,iLookBPAR              ! named variables for structure elements
- ! data types
- USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  implicit none
  ! input variables
  real(dp),intent(in)             :: bpar_data(:)           ! vector of basin-average model parameters
@@ -413,8 +410,6 @@ contains
  ! initialize runoffFuture
  runoffFuture(1:nTDH) = 0._dp
 
- !print*, 'nTDH = ', nTDH
-
  ! select option for sub-grid routing
  select case(ixRouting)
 
@@ -434,15 +429,17 @@ contains
    end if
    ! loop through time steps and compute fraction of runoff in future steps
    do iFuture = 1,nTDH
+    ! get weight for a given bin
     tFuture = real(iFuture, kind(dt))*dt                  ! future time (end of step)
     cumProb = gammp(routingGammaShape,aLambda*tFuture)    ! cumulative probability at the end of the step
     fractionFuture(iFuture) = max(0._dp, cumProb - pSave) ! fraction of runoff in the current step
     pSave   = cumProb                                     ! save the cumulative probability for use in the next step
+    !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
+    ! set remaining bins to zero
     if(fractionFuture(iFuture) < tiny(dt))then
      fractionFuture(iFuture:nTDH) = 0._dp
      exit
     end if
-    !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
    end do ! (looping through future time steps)
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
@@ -467,10 +464,6 @@ contains
  ! public subroutine v_shortcut: compute "short-cut" variables
  ! **********************************************************************************************************
  subroutine v_shortcut(mpar_data,diag_data,err,message)
- ! named variables
- USE var_lookup,only:iLookPARAM,iLookDIAG      ! named variables for structure elements
- ! data types
- USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
  implicit none
  ! declare input variables
  type(var_dlength),intent(in)    :: mpar_data       ! data structure of model parameters for a local HRU

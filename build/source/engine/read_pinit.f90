@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -75,7 +75,6 @@ contains
  ! build filename and update error message
  infile = trim(SETNGS_PATH)//trim(filenm)
  message=trim(message)//'file='//trim(infile)//' - '
- write(*,'(a)') trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -132,7 +131,7 @@ contains
  end do  ! (looping through lines in the file)
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
- if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file 
+ if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
   if(any(parFallback(:)%default_val < 0.99_dp*realMissing))then
    do ivar=1,size(parFallback)
     if(parFallback(ivar)%default_val < 0.99_dp*realMissing)then
