@@ -87,10 +87,15 @@ def fm_v2_parse(ifile):
     fm_values = []
     fm_comments = []
     for line in iter(fm_txt.splitlines()):
+        if line.startswith('!'):
+            continue
         m = re.match('^([^\\{}]*)\\{}(.*)$'.format(comment_sep, comment_sep), line)
         if m and m.group(1):  # The line contains a hash / comment
             fm_values.append(m.group(1).replace("'", ' ').strip())
             fm_comments.append(m.group(2))
+        else:
+            fm_values.append(line.replace("'",'').strip())
+            fm_comments.append('')
 
     fm = dict(zip(fm_v2_keys, fm_values))
     fm_comments = dict(zip(fm_v2_keys, fm_comments))
@@ -194,7 +199,7 @@ if __name__ == '__main__':
     hruparam_v3_path, hruparam_v2_path = make_backup(os.path.join(fm_v2['settingsPath'], fm_v2['globalHruParamFile']))
 
     # create a history string to be passed to all updated files
-    history = '{} history {}: {}\n'.format(comment_sep, datetime.now().strftime('%c'), ' '.join(sys.argv))
+    history = '{} history {}: {}'.format(comment_sep, datetime.now().strftime('%c'), ' '.join(sys.argv))
 
     # write out the v3 file manager
     fm_v3_write(fm_v3_path, fm_v3, fm_v3_comments, history)
