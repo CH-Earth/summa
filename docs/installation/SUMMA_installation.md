@@ -54,7 +54,7 @@ Once you have all the above, you can compile SUMMA using the following steps:
         >            └── utils  
         >            ```
         >
-        >  `export F_MASTER=/code` 
+        >  `export F_MASTER=/summa` 
         
     * `FC` : Define the compiler family. This is only used to determine the compiler flags. If your compiler is not included, you will need to add the relevant section to the `Makefile`.
     
