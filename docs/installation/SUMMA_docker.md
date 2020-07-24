@@ -22,7 +22,7 @@ To run SUMMA using [Docker](https://www.docker.com) you will need to do the foll
 
     `docker run bartnijssen/summa:develop -v`
 
-         SUMMA - Structure for Unifying Multiple Modeling Alternatives    
+         SUMMA - Structure for Unifying Multiple Modeling Alternatives
                                Version: v2.0.0
                    Build Time: Fri Sep  1 22:23:26 UTC 2017
                         Git Branch: develop-0-gb9515d7

@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,8 +19,15 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module ssdNrgFlux_module
-! numerical recipes data types
+
+! data types
 USE nrtype
+
+! data types
+USE data_types,only:var_d           ! x%var(:)       (dp)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
+
 ! physical constants
 USE multiconst,only:&
                     sb,          & ! Stefan Boltzman constant      (W m-2 K-4)
@@ -35,9 +42,26 @@ USE multiconst,only:&
                     iden_air,    & ! intrinsic density of air      (kg m-3)
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
                     iden_water     ! intrinsic density of water    (kg m-3)
+
+! missing values
+USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing real number
+
 ! named variables for snow and soil
 USE globalData,only:iname_snow     ! named variables for snow
 USE globalData,only:iname_soil     ! named variables for soil
+
+! named variables
+USE var_lookup,only:iLookPROG       ! named variables for structure elements
+USE var_lookup,only:iLookDIAG       ! named variables for structure elements
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+
+! model decisions
+USE globalData,only:model_decisions                         ! model decision structure
+USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
+
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:      &
  ! look-up values for the numerical method
@@ -53,6 +77,7 @@ USE mDecisions_module,only:      &
  zeroFlux,                       & ! zero flux
  ! look-up values for choice of boundary conditions for soil hydrology
  prescribedHead                    ! prescribed head
+
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -62,11 +87,12 @@ real(dp),parameter            :: dx=1.e-10_dp             ! finite difference in
 real(dp),parameter            :: valueMissing=-9999._dp   ! missing value parameter
 contains
 
-
  ! ************************************************************************************************
  ! public subroutine ssdNrgFlux: compute energy fluxes and derivatives at layer interfaces
  ! ************************************************************************************************
  subroutine ssdNrgFlux(&
+                       ! input: model control
+                       scalarSolution,                     & ! intent(in):    flag to indicate the scalar solution
                        ! input: fluxes and derivatives at the upper boundary
                        groundNetFlux,                      & ! intent(in):    total flux at the ground surface (W m-2)
                        dGroundNetFlux_dGroundTemp,         & ! intent(in):    derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
@@ -87,20 +113,9 @@ contains
                        dFlux_dTempBelow,                   & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
                        ! output: error control
                        err,message)                          ! intent(out): error control
- ! model decisions
- USE globalData,only:model_decisions                         ! model decision structure
- USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
- ! named variables
- USE var_lookup,only:iLookPROG       ! named variables for structure elements
- USE var_lookup,only:iLookDIAG       ! named variables for structure elements
- USE var_lookup,only:iLookFLUX       ! named variables for structure elements
- USE var_lookup,only:iLookPARAM      ! named variables for structure elements
- USE var_lookup,only:iLookINDEX      ! named variables for structure elements
- ! data types
- USE data_types,only:var_d           ! x%var(:)       (dp)
- USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
- USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  implicit none
+ ! input: model control
+ logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution
  ! input: fluxes and derivatives at the upper boundary
  real(dp),intent(in)             :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
  real(dp),intent(in)             :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
@@ -125,6 +140,9 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: iLayer                     ! index of model layers
+ integer(i4b)                    :: ixLayerDesired(1)          ! layer desired (scalar solution)
+ integer(i4b)                    :: ixTop                      ! top layer in subroutine call
+ integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
  real(dp)                        :: qFlux                      ! liquid flux at layer interfaces (m s-1)
  real(dp)                        :: dz                         ! height difference (m)
  real(dp)                        :: flux0,flux1,flux2          ! fluxes used to calculate derivatives (W m-2)
@@ -133,10 +151,13 @@ contains
  associate(&
   ix_fDerivMeth        => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision, & ! intent(in): method used to calculate flux derivatives
   ix_bcLowrTdyn        => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
-  ! input: model coordinates and thermal properties
-  nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in): number of snow layers 
-  nLayers              => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): total number of layers 
+  ! input: model coordinates
+  nSnow                => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in): number of snow layers
+  nLayers              => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): total number of layers
   layerType            => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (iname_soil or iname_snow)
+  ixLayerState         => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in): list of indices for all model layers
+  ixSnowSoilNrg        => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,          & ! intent(in): index in the state subset for energy state variables in the snow+soil domain
+  ! input: thermal properties
   mLayerDepth          => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
   mLayerHeight         => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
   iLayerThermalC       => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
@@ -144,7 +165,7 @@ contains
   ! output: diagnostic fluxes
   iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,    & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
   iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat      & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
- )  ! association of local variables with information in the data structures 
+ )  ! association of local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='ssdNrgFlux/'
@@ -154,10 +175,20 @@ contains
  iLayerConductiveFlux(0) = valueMissing
  iLayerAdvectiveFlux(0)  = valueMissing
 
+ ! get the indices for the snow+soil layers
+ if(scalarSolution)then
+  ixLayerDesired = pack(ixLayerState, ixSnowSoilNrg/=integerMissing)
+  ixTop = ixLayerDesired(1)
+  ixBot = ixLayerDesired(1)
+ else
+  ixTop = 1
+  ixBot = nLayers
+ endif
+
  ! -------------------------------------------------------------------------------------------------------------------------
  ! ***** compute the conductive fluxes at layer interfaces *****
  ! -------------------------------------------------------------------------------------------------------------------------
- do iLayer=1,nLayers
+ do iLayer=ixTop,ixBot ! (loop through model layers)
 
   ! compute fluxes at the lower boundary -- positive downwards
   if(iLayer==nLayers)then
@@ -180,7 +211,7 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------
  ! ***** compute the advective fluxes at layer interfaces *****
  ! -------------------------------------------------------------------------------------------------------------------------
- do iLayer=1,nLayers
+ do iLayer=ixTop,ixBot
   ! get the liquid flux at layer interfaces
   select case(layerType(iLayer))
    case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
@@ -200,8 +231,8 @@ contains
  ! ***** compute the total fluxes at layer interfaces *****
  ! -------------------------------------------------------------------------------------------------------------------------
  ! NOTE: ignore advective fluxes for now
- iLayerNrgFlux(0)         = groundNetFlux
- iLayerNrgFlux(1:nLayers) = iLayerConductiveFlux(1:nLayers)
+ iLayerNrgFlux(0)           = groundNetFlux
+ iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
  !print*, 'iLayerNrgFlux(0:4) = ', iLayerNrgFlux(0:4)
 
  ! -------------------------------------------------------------------------------------------------------------------------
@@ -211,15 +242,14 @@ contains
  ! initialize un-used elements
  dFlux_dTempBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
- ! loop through INTERFACES...
- do iLayer=0,nLayers
+ ! ***** the upper boundary
+ dFlux_dTempBelow(0) = dGroundNetFlux_dGroundTemp
 
-  ! ***** the upper boundary -- ** NOTE: dTotalSurfaceFlux_dTemp was computed previously using ix_fDerivMeth
-  if(iLayer==0)then  ! (upper boundary)
-   dFlux_dTempBelow(iLayer) = dGroundNetFlux_dGroundTemp
+ ! loop through INTERFACES...
+ do iLayer=ixTop,ixBot
 
   ! ***** the lower boundary
-  elseif(iLayer==nLayers)then  ! (lower boundary)
+  if(iLayer==nLayers)then  ! (lower boundary)
 
    ! identify the lower boundary condition
    select case(ix_bcLowrTdyn)

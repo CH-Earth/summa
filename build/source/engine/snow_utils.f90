@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,7 +19,20 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module snow_utils_module
+
+! data types
 USE nrtype
+
+! model constants
+USE multiconst,only:Tfreeze
+USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
+
+! model decisions
+USE globalData,only:model_decisions        ! model decision structure
+USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
+USE mDecisions_module,only:Yen1965,Mellor1977,Jordan1991 ! named variables defining thermal conductivity options
+
+! privacy
 implicit none
 private
 public::fracliquid
@@ -33,7 +46,6 @@ contains
  ! public function fracliquid: compute fraction of liquid water
  ! ***********************************************************************************************************
  function fracliquid(Tk,fc_param)
- USE multiconst,only:Tfreeze
  implicit none
  real(dp),intent(in) :: Tk         ! temperature (K)
  real(dp),intent(in) :: fc_param   ! freezing curve parameter (K-1)
@@ -47,7 +59,6 @@ contains
  ! public function templiquid: invert the fraction of liquid water function
  ! ***********************************************************************************************************
  function templiquid(fracliquid,fc_param)
- USE multiconst,only:Tfreeze
  implicit none
  real(dp),intent(in) :: fracliquid ! fraction of liquid water (-)
  real(dp),intent(in) :: fc_param   ! freezing curve parameter (K-1)
@@ -61,7 +72,6 @@ contains
  ! public function dFracLiq_dTk: differentiate the freezing curve
  ! ***********************************************************************************************************
  function dFracLiq_dTk(Tk,fc_param)
- USE multiconst,only:Tfreeze
  implicit none
  ! dummies
  real(dp),intent(in) :: Tk           ! temperature (K)
@@ -82,10 +92,6 @@ contains
  ! public subroutine tcond_snow: compute thermal conductivity of snow
  ! ***********************************************************************************************************
  subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
- USE multiconst,only:lambda_air,lambda_ice  ! thermal conductivity of air and ice
- USE globalData,only:model_decisions        ! model decision structure
- USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
- USE mDecisions_module,only:Yen1965,Mellor1977,Jordan1991 ! named variables defining thermal conductivity options
  implicit none
  real(dp),intent(in)      :: BulkDenIce     ! bulk density of ice (kg m-3)
  real(dp),intent(out)     :: thermlcond     ! thermal conductivity of snow (W m-1 K-1)

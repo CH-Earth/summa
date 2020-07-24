@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,8 +19,19 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module diagn_evar_module
+
 ! data types
 USE nrtype
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_d,            & ! data vector (dp)
+                    var_ilength,      & ! data vector with variable length dimension (i4b)
+                    var_dlength         ! data vector with variable length dimension (dp)
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
 
 ! physical constants
 USE multiconst,only:&
@@ -37,20 +48,30 @@ USE multiconst,only:&
                     lambda_ice,  & ! thermal conductivity of ice   (J s-1 m-1)
                     lambda_water   ! thermal conductivity of water (J s-1 m-1)
 
-! access missing values
-USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing real number
+! missing values
+USE globalData,only:integerMissing ! missing integer
+USE globalData,only:realMissing    ! missing real number
 
 ! named variables that define the layer type
 USE globalData,only:iname_snow     ! snow
 USE globalData,only:iname_soil     ! soil
 
-! model decisions
-USE mDecisions_module,only:Smirnova2000  ! option for temporally constant thermal conductivity
+! provide access to named variables for thermal conductivity of soil
+USE globalData,only:model_decisions  ! model decision structure
 
+! decisions for thermal conductivity of soil
+USE mDecisions_module,only:Smirnova2000    ! option for temporally constant thermal conductivity
+
+! decisions for thermal conductivity of soil
+USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
+                            mixConstit,  & ! mixture of constituents
+                            hanssonVZJ     ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
+
+! privacy
 implicit none
 private
 public::diagn_evar
+
 ! algorithmic parameters
 real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
@@ -74,19 +95,6 @@ contains
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_d,            & ! data vector (dp)
-                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                     var_dlength         ! data vector with variable length dimension (dp)
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS               ! named variables for elements of the decision structure
- ! provide access to named variables for thermal conductivity of soil
- USE globalData,only:model_decisions        ! model decision structure
- USE mDecisions_module,only: funcSoilWet, & ! function of soil wetness
-                             mixConstit,  & ! mixture of constituents
-                             hanssonVZJ     ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
  ! provide access to external subroutines
  USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
  ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -138,7 +146,7 @@ contains
  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,             & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
  ! input: coordinate variables
- nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers 
+ nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
@@ -263,7 +271,7 @@ contains
      case default; err=20; message=trim(message)//'unable to identify option for thermal conductivity of soil'; return
 
     end select  ! option for the thermal conductivity of soil
-    
+
    ! ***** snow
    case(iname_snow)
     ! temporally constant thermal conductivity

@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -27,6 +27,7 @@ public::get_ixdecisions
 public::get_ixtime
 public::get_ixattr
 public::get_ixtype
+public::get_ixid
 public::get_ixforce
 public::get_ixparam
 public::get_ixprog
@@ -39,6 +40,9 @@ public::get_ixbvar
 public::get_ixVarType
 public::get_varTypeName
 public::get_ixUnknown
+public::get_ixFreq
+public::get_ixStat
+public::get_freqName
 public::get_statName
 contains
 
@@ -53,45 +57,44 @@ contains
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! ( 1) simulation start time
-  case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! ( 2) simulation end time
-  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! ( 3) soil-category dateset
-  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! ( 4) vegetation category dataset
-  case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! ( 5) choice of function for the soil moisture control on stomatal resistance
-  case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! ( 6) choice of function for stomatal resistance
-  case('bbTempFunc'      ); get_ixdecisions=iLookDECISIONS%bbTempFunc  ! ( 7) Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
-  case('bbHumdFunc'      ); get_ixdecisions=iLookDECISIONS%bbHumdFunc  ! ( 8) Ball-Berry: humidity controls on stomatal resistance
-  case('bbElecFunc'      ); get_ixdecisions=iLookDECISIONS%bbElecFunc  ! ( 9) Ball-Berry: dependence of photosynthesis on PAR
-  case('bbCO2point'      ); get_ixdecisions=iLookDECISIONS%bbCO2point  ! (10) Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
-  case('bbNumerics'      ); get_ixdecisions=iLookDECISIONS%bbNumerics  ! (11) Ball-Berry: iterative numerical solution method
-  case('bbAssimFnc'      ); get_ixdecisions=iLookDECISIONS%bbAssimFnc  ! (12) Ball-Berry: controls on carbon assimilation
-  case('bbCanIntg8'      ); get_ixdecisions=iLookDECISIONS%bbCanIntg8  ! (13) Ball-Berry: scaling of photosynthesis from the leaf to the canopy
-  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! (14) choice of numerical method
-  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! (15) choice of method to calculate flux derivatives
-  case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! (16) choice of method to determine LAI and SAI
-  case('cIntercept'      ); get_ixdecisions=iLookDECISIONS%cIntercept  ! (17) choice of parameterization for canopy interception
-  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! (18) form of Richards' equation
-  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! (19) choice of groundwater parameterization
-  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! (20) choice of hydraulic conductivity profile
-  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! (21) type of upper boundary condition for thermodynamics
-  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! (22) type of lower boundary condition for thermodynamics
-  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! (23) type of upper boundary condition for soil hydrology
-  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! (24) type of lower boundary condition for soil hydrology
-  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! (25) choice of parameterization for vegetation roughness length and displacement height
-  case('rootProfil'      ); get_ixdecisions=iLookDECISIONS%rootProfil  ! (26) choice of parameterization for the rooting profile
-  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! (27) choice of parameterization for canopy emissivity
-  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! (28) choice of parameterization for snow interception
-  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! (29) choice of canopy wind profile
-  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! (30) choice of stability function
-  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! (31) choice of compaction routine
-  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! (32) choice of method to combine and sub-divide snow layers
-  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! (33) choice of thermal conductivity representation for snow
-  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! (34) choice of thermal conductivity representation for soil
-  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! (35) choice of method for canopy shortwave radiation
-  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! (36) choice of albedo representation
-  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! (37) choice of method for spatial representation of groundwater
-  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! (38) choice of method for sub-grid routing
-  case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! (39) choice of method for new snow density
+  case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dateset
+  case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! vegetation category dataset
+  case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! choice of function for the soil moisture control on stomatal resistance
+  case('stomResist'      ); get_ixdecisions=iLookDECISIONS%stomResist  ! choice of function for stomatal resistance
+  case('bbTempFunc'      ); get_ixdecisions=iLookDECISIONS%bbTempFunc  ! Ball-Berry: leaf temperature controls on photosynthesis + stomatal resistance
+  case('bbHumdFunc'      ); get_ixdecisions=iLookDECISIONS%bbHumdFunc  ! Ball-Berry: humidity controls on stomatal resistance
+  case('bbElecFunc'      ); get_ixdecisions=iLookDECISIONS%bbElecFunc  ! Ball-Berry: dependence of photosynthesis on PAR
+  case('bbCO2point'      ); get_ixdecisions=iLookDECISIONS%bbCO2point  ! Ball-Berry: use of CO2 compensation point to calculate stomatal resistance
+  case('bbNumerics'      ); get_ixdecisions=iLookDECISIONS%bbNumerics  ! Ball-Berry: iterative numerical solution method
+  case('bbAssimFnc'      ); get_ixdecisions=iLookDECISIONS%bbAssimFnc  ! Ball-Berry: controls on carbon assimilation
+  case('bbCanIntg8'      ); get_ixdecisions=iLookDECISIONS%bbCanIntg8  ! Ball-Berry: scaling of photosynthesis from the leaf to the canopy
+  case('num_method'      ); get_ixdecisions=iLookDECISIONS%num_method  ! choice of numerical method
+  case('fDerivMeth'      ); get_ixdecisions=iLookDECISIONS%fDerivMeth  ! choice of method to calculate flux derivatives
+  case('LAI_method'      ); get_ixdecisions=iLookDECISIONS%LAI_method  ! choice of method to determine LAI and SAI
+  case('cIntercept'      ); get_ixdecisions=iLookDECISIONS%cIntercept  ! choice of parameterization for canopy interception
+  case('f_Richards'      ); get_ixdecisions=iLookDECISIONS%f_Richards  ! form of Richards' equation
+  case('groundwatr'      ); get_ixdecisions=iLookDECISIONS%groundwatr  ! choice of groundwater parameterization
+  case('hc_profile'      ); get_ixdecisions=iLookDECISIONS%hc_profile  ! choice of hydraulic conductivity profile
+  case('bcUpprTdyn'      ); get_ixdecisions=iLookDECISIONS%bcUpprTdyn  ! type of upper boundary condition for thermodynamics
+  case('bcLowrTdyn'      ); get_ixdecisions=iLookDECISIONS%bcLowrTdyn  ! type of lower boundary condition for thermodynamics
+  case('bcUpprSoiH'      ); get_ixdecisions=iLookDECISIONS%bcUpprSoiH  ! type of upper boundary condition for soil hydrology
+  case('bcLowrSoiH'      ); get_ixdecisions=iLookDECISIONS%bcLowrSoiH  ! type of lower boundary condition for soil hydrology
+  case('veg_traits'      ); get_ixdecisions=iLookDECISIONS%veg_traits  ! choice of parameterization for vegetation roughness length and displacement height
+  case('rootProfil'      ); get_ixdecisions=iLookDECISIONS%rootProfil  ! choice of parameterization for the rooting profile
+  case('canopyEmis'      ); get_ixdecisions=iLookDECISIONS%canopyEmis  ! choice of parameterization for canopy emissivity
+  case('snowIncept'      ); get_ixdecisions=iLookDECISIONS%snowIncept  ! choice of parameterization for snow interception
+  case('windPrfile'      ); get_ixdecisions=iLookDECISIONS%windPrfile  ! choice of canopy wind profile
+  case('astability'      ); get_ixdecisions=iLookDECISIONS%astability  ! choice of stability function
+  case('compaction'      ); get_ixdecisions=iLookDECISIONS%compaction  ! choice of compaction routine
+  case('snowLayers'      ); get_ixdecisions=iLookDECISIONS%snowLayers  ! choice of method to combine and sub-divide snow layers
+  case('thCondSnow'      ); get_ixdecisions=iLookDECISIONS%thCondSnow  ! choice of thermal conductivity representation for snow
+  case('thCondSoil'      ); get_ixdecisions=iLookDECISIONS%thCondSoil  ! choice of thermal conductivity representation for soil
+  case('canopySrad'      ); get_ixdecisions=iLookDECISIONS%canopySrad  ! choice of method for canopy shortwave radiation
+  case('alb_method'      ); get_ixdecisions=iLookDECISIONS%alb_method  ! choice of albedo representation
+  case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! choice of method for spatial representation of groundwater
+  case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
+  case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
+  case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -115,6 +118,8 @@ contains
   case('id'              ); get_ixtime = iLookTIME%id               ! day
   case('ih'              ); get_ixtime = iLookTIME%ih               ! hour
   case('imin'            ); get_ixtime = iLookTIME%imin             ! minute
+  case('ih_tz'           ); get_ixtime = iLookTIME%ih_tz            ! hour for time zone offset
+  case('imin_tz'         ); get_ixtime = iLookTIME%imin_tz          ! minute for time zone offset
   ! get to here if cannot find the variable
   case default
    get_ixtime = integerMissing
@@ -184,7 +189,6 @@ contains
  integer(i4b)             :: get_ixType              ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('hruIndex'       ); get_ixType = iLookTYPE%hruIndex           ! index defining HRU index
   case('vegTypeIndex'   ); get_ixType = iLookTYPE%vegTypeIndex       ! index defining vegetation type
   case('soilTypeIndex'  ); get_ixType = iLookTYPE%soilTypeIndex      ! index defining soil type
   case('slopeTypeIndex' ); get_ixType = iLookTYPE%slopeTypeIndex     ! index defining slope
@@ -194,6 +198,25 @@ contains
    get_ixType = integerMissing
  end select
  end function get_ixType
+
+
+ ! *******************************************************************************************************************
+ ! public function get_ixId: get the index of the named variables for hru and gru IDs and related information
+ ! *******************************************************************************************************************
+ function get_ixId(varName)
+ USE var_lookup,only:iLookID                         ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! variable name
+ integer(i4b)             :: get_ixId                ! index of the named variable
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('hruId'          ); get_ixId = iLookID%hruId              ! id defining HRU index
+  ! get to here if cannot find the variable
+  case default
+   get_ixId = integerMissing
+ end select
+ end function get_ixId
 
 
  ! *******************************************************************************************************************
@@ -318,6 +341,10 @@ contains
   case('ratioDrip2Unloading'      ); get_ixparam = iLookPARAM%ratioDrip2Unloading    ! ratio of canopy drip to unloading of snow from the forest canopy (-)
   case('canopyWettingFactor'      ); get_ixparam = iLookPARAM%canopyWettingFactor    ! maximum wetted fraction of the canopy (-)
   case('canopyWettingExp'         ); get_ixparam = iLookPARAM%canopyWettingExp       ! exponent in canopy wetting function (-)
+  case('minTempUnloading'         ); get_ixparam = iLookPARAM%minTempUnloading       ! min temp for unloading in windySnow (K)
+  case('rateTempUnloading'        ); get_ixparam = iLookPARAM%rateTempUnloading      ! how quickly to unload due to temperature (K s)
+  case('minWindUnloading'         ); get_ixparam = iLookPARAM%minWindUnloading       ! min wind speed for unloading in windySnow (m s-1)
+  case('rateWindUnloading'        ); get_ixparam = iLookPARAM%rateWindUnloading      ! how quickly to unload due to wind (m)
   ! soil properties
   case('soil_dens_intr'           ); get_ixparam = iLookPARAM%soil_dens_intr         ! intrinsic soil density (kg m-3)
   case('thCond_soil'              ); get_ixparam = iLookPARAM%thCond_soil            ! thermal conductivity of soil (W m-1 K-1)
@@ -337,6 +364,7 @@ contains
   case('kAnisotropic'             ); get_ixparam = iLookPARAM%kAnisotropic           ! anisotropy factor for lateral hydraulic conductivity (-)
   case('zScale_TOPMODEL'          ); get_ixparam = iLookPARAM%zScale_TOPMODEL        ! TOPMODEL scaling factor used in lower boundary condition for soil (m)
   case('compactedDepth'           ); get_ixparam = iLookPARAM%compactedDepth         ! depth where k_soil reaches the compacted value given by CH78 (m)
+  case('aquiferBaseflowRate'      ); get_ixparam = iLookPARAM%aquiferBaseflowRate    ! baseflow rate when aquifer storage = aquiferScaleFactor (m s-1)
   case('aquiferScaleFactor'       ); get_ixparam = iLookPARAM%aquiferScaleFactor     ! scaling factor for aquifer storage in the big bucket (m)
   case('aquiferBaseflowExp'       ); get_ixparam = iLookPARAM%aquiferBaseflowExp     ! baseflow exponent (-)
   case('qSurfScale'               ); get_ixparam = iLookPARAM%qSurfScale             ! scaling factor in the surface runoff parameterization (-)
@@ -447,6 +475,7 @@ contains
   case('scalarSAI'                      ); get_ixdiag = iLookDIAG%scalarSAI                        ! one-sided stem area index (m2 m-2)
   case('scalarExposedLAI'               ); get_ixdiag = iLookDIAG%scalarExposedLAI                 ! exposed leaf area index after burial by snow (m2 m-2)
   case('scalarExposedSAI'               ); get_ixdiag = iLookDIAG%scalarExposedSAI                 ! exposed stem area index after burial by snow (m2 m-2)
+  case('scalarAdjMeasHeight'            ); get_ixdiag = iLookDIAG%scalarAdjMeasHeight              ! adjusted measurement height for cases snowDepth>mHeight (m)
   case('scalarCanopyIceMax'             ); get_ixdiag = iLookDIAG%scalarCanopyIceMax               ! maximum interception storage capacity for ice (kg m-2)
   case('scalarCanopyLiqMax'             ); get_ixdiag = iLookDIAG%scalarCanopyLiqMax               ! maximum interception storage capacity for liquid water (kg m-2)
   case('scalarGrowingSeasonIndex'       ); get_ixdiag = iLookDIAG%scalarGrowingSeasonIndex         ! growing season index (0=off, 1=on)
@@ -488,7 +517,7 @@ contains
   case('scalarRiBulkGround'             ); get_ixdiag = iLookDIAG%scalarRiBulkGround               ! bulk Richardson number for the ground surface (-)
   case('scalarCanopyStabilityCorrection'); get_ixdiag = iLookDIAG%scalarCanopyStabilityCorrection  ! stability correction for the canopy (-)
   case('scalarGroundStabilityCorrection'); get_ixdiag = iLookDIAG%scalarGroundStabilityCorrection  ! stability correction for the ground surface (-)
-  ! evapotranspiration 
+  ! evapotranspiration
   case('scalarIntercellularCO2Sunlit'   ); get_ixdiag = iLookDIAG%scalarIntercellularCO2Sunlit     ! carbon dioxide partial pressure of leaf interior (sunlit leaves) (Pa)
   case('scalarIntercellularCO2Shaded'   ); get_ixdiag = iLookDIAG%scalarIntercellularCO2Shaded     ! carbon dioxide partial pressure of leaf interior (shaded leaves) (Pa)
   case('scalarTranspireLim'             ); get_ixdiag = iLookDIAG%scalarTranspireLim               ! aggregate soil moisture and aquifer storage limit on transpiration (-)
@@ -499,13 +528,13 @@ contains
   case('mLayerRootDensity'              ); get_ixdiag = iLookDIAG%mLayerRootDensity                ! fraction of roots in each soil layer (-)
   case('scalarAquiferRootFrac'          ); get_ixdiag = iLookDIAG%scalarAquiferRootFrac            ! fraction of roots below the soil profile (-)
   ! canopy hydrology
-  case('scalarFracLiqVeg'               ); get_ixdiag = iLookDIAG%scalarFracLiqVeg                 ! fraction of liquid water on vegetation (-) 
+  case('scalarFracLiqVeg'               ); get_ixdiag = iLookDIAG%scalarFracLiqVeg                 ! fraction of liquid water on vegetation (-)
   case('scalarCanopyWetFraction'        ); get_ixdiag = iLookDIAG%scalarCanopyWetFraction          ! fraction of canopy that is wet
   ! snow hydrology
   case('scalarSnowAge'                  ); get_ixdiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixdiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)
   case('spectralSnowAlbedoDirect'       ); get_ixdiag = iLookDIAG%spectralSnowAlbedoDirect         ! direct snow albedo for individual spectral bands (-)
-  case('mLayerFracLiqSnow'              ); get_ixdiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-) 
+  case('mLayerFracLiqSnow'              ); get_ixdiag = iLookDIAG%mLayerFracLiqSnow                ! fraction of liquid water in each snow layer (-)
   case('mLayerThetaResid'               ); get_ixdiag = iLookDIAG%mLayerThetaResid                 ! residual volumetric water content in each snow layer (-)
   case('mLayerPoreSpace'                ); get_ixdiag = iLookDIAG%mLayerPoreSpace                  ! total pore space in each snow layer (-)
   case('mLayerMeltFreeze'               ); get_ixdiag = iLookDIAG%mLayerMeltFreeze                 ! ice content change from melt/freeze in each layer (kg m-3)
@@ -523,6 +552,7 @@ contains
   case('scalarAquiferBalError'          ); get_ixdiag = iLookDIAG%scalarAquiferBalError            ! error in the aquifer water balance (kg m-2)
   case('scalarTotalSoilLiq'             ); get_ixdiag = iLookDIAG%scalarTotalSoilLiq               ! total mass of liquid water in the soil (kg m-2)
   case('scalarTotalSoilIce'             ); get_ixdiag = iLookDIAG%scalarTotalSoilIce               ! total mass of ice in the soil (kg m-2)
+  case('scalarTotalSoilWat'             ); get_ixdiag = iLookDIAG%scalarTotalSoilWat               ! total mass of water in the soil (kg m-2)
   ! variable shortcuts
   case('scalarVGn_m'                    ); get_ixdiag = iLookDIAG%scalarVGn_m                      ! van Genuchten "m" parameter (-)
   case('scalarKappa'                    ); get_ixdiag = iLookDIAG%scalarKappa                      ! constant in the freezing curve function (m K-1)
@@ -548,10 +578,10 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! net energy and mass fluxes for the vegetation domain
-  case('scalarCanairNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanairNetNrgFlux           ! net energy flux for the canopy air space (W m-2)  
-  case('scalarCanopyNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetNrgFlux           ! net energy flux for the vegetation canopy (W m-2)  
-  case('scalarGroundNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarGroundNetNrgFlux           ! net energy flux for the ground surface (W m-2)  
-  case('scalarCanopyNetLiqFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetLiqFlux           ! net liquid water flux for the vegetation canopy (kg m-2 s-1)  
+  case('scalarCanairNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanairNetNrgFlux           ! net energy flux for the canopy air space (W m-2)
+  case('scalarCanopyNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetNrgFlux           ! net energy flux for the vegetation canopy (W m-2)
+  case('scalarGroundNetNrgFlux'         ); get_ixflux = iLookFLUX%scalarGroundNetNrgFlux           ! net energy flux for the ground surface (W m-2)
+  case('scalarCanopyNetLiqFlux'         ); get_ixflux = iLookFLUX%scalarCanopyNetLiqFlux           ! net liquid water flux for the vegetation canopy (kg m-2 s-1)
   ! forcing
   case('scalarRainfall'                 ); get_ixflux = iLookFLUX%scalarRainfall                   ! computed rainfall rate (kg m-2 s-1)
   case('scalarSnowfall'                 ); get_ixflux = iLookFLUX%scalarSnowfall                   ! computed snowfall rate (kg m-2 s-1)
@@ -619,11 +649,11 @@ contains
   case('iLayerAdvectiveFlux'            ); get_ixflux = iLookFLUX%iLayerAdvectiveFlux              ! advective energy flux at layer interfaces at end of time step (W m-2)
   case('iLayerNrgFlux'                  ); get_ixflux = iLookFLUX%iLayerNrgFlux                    ! energy flux at layer interfaces at the end of the time step (W m-2)
   case('mLayerNrgFlux'                  ); get_ixflux = iLookFLUX%mLayerNrgFlux                    ! net energy flux for each layer in the snow+soil domain (J m-3 s-1)
-  ! liquid water fluxes for the snow domain 
+  ! liquid water fluxes for the snow domain
   case('scalarSnowDrainage'             ); get_ixflux = iLookFLUX%scalarSnowDrainage               ! drainage from the bottom of the snow profile (m s-1)
   case('iLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%iLayerLiqFluxSnow                ! liquid flux at snow layer interfaces at the end of the time step (m s-1)
   case('mLayerLiqFluxSnow'              ); get_ixflux = iLookFLUX%mLayerLiqFluxSnow                ! net liquid water flux for each snow layer (s-1)
-  ! liquid water fluxes for the soil domain 
+  ! liquid water fluxes for the soil domain
   case('scalarRainPlusMelt'             ); get_ixflux = iLookFLUX%scalarRainPlusMelt               ! rain plus melt, as input to soil before calculating surface runoff (m s-1)
   case('scalarMaxInfilRate'             ); get_ixflux = iLookFLUX%scalarMaxInfilRate               ! maximum infiltration rate (m s-1)
   case('scalarInfiltration'             ); get_ixflux = iLookFLUX%scalarInfiltration               ! infiltration of water into the soil profile (m s-1)
@@ -643,6 +673,11 @@ contains
   case('scalarAquiferRecharge'          ); get_ixflux = iLookFLUX%scalarAquiferRecharge            ! recharge to the aquifer (m s-1)
   case('scalarAquiferTranspire'         ); get_ixflux = iLookFLUX%scalarAquiferTranspire           ! transpiration from the aquifer (m s-1)
   case('scalarAquiferBaseflow'          ); get_ixflux = iLookFLUX%scalarAquiferBaseflow            ! baseflow from the aquifer (m s-1)
+  ! derived variables
+  case('scalarTotalET'                  ); get_ixflux = iLookFLUX%scalarTotalET                    ! total ET (kg m-2 s-1)
+  case('scalarTotalRunoff'              ); get_ixflux = iLookFLUX%scalarTotalRunoff                ! total runoff (m s-1)
+  case('scalarNetRadiation'             ); get_ixflux = iLookFLUX%scalarNetRadiation               ! net radiation (W m-2)
+  ! return missing if variable not found
   case default
    get_ixflux = integerMissing
  end select
@@ -700,6 +735,8 @@ contains
   case('mLayerdTheta_dPsi'              ); get_ixderiv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
   case('mLayerdPsi_dTheta'              ); get_ixderiv = iLookDERIV%mLayerdPsi_dTheta              ! derivative in the soil water characteristic w.r.t. theta (m)
   case('dCompress_dPsi'                 ); get_ixderiv = iLookDERIV%dCompress_dPsi                 ! derivative in compressibility w.r.t matric head (m-1)
+  ! derivative in baseflow flux w.r.t. aquifer storage
+  case('dBaseflow_dAquifer'             ); get_ixderiv = iLookDERIV%dBaseflow_dAquifer             ! derivative in baseflow flux w.r.t. aquifer storage (s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   case('dq_dNrgStateAbove'              ); get_ixderiv = iLookDERIV%dq_dNrgStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dNrgStateBelow'              ); get_ixderiv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
@@ -725,76 +762,79 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   ! number of model layers, and layer indices
-  case('nSnow'               ); get_ixINDEX = iLookINDEX%nSnow               ! number of snow layers                                                    (-)
-  case('nSoil'               ); get_ixINDEX = iLookINDEX%nSoil               ! number of soil layers                                                    (-)
-  case('nLayers'             ); get_ixINDEX = iLookINDEX%nLayers             ! total number of layers                                                   (-)
-  case('layerType'           ); get_ixINDEX = iLookINDEX%layerType           ! index defining type of layer (snow or soil)                              (-)
+  case('nSnow'                ); get_ixINDEX = iLookINDEX%nSnow                 ! number of snow layers                                                    (-)
+  case('nSoil'                ); get_ixINDEX = iLookINDEX%nSoil                 ! number of soil layers                                                    (-)
+  case('nLayers'              ); get_ixINDEX = iLookINDEX%nLayers               ! total number of layers                                                   (-)
+  case('layerType'            ); get_ixINDEX = iLookINDEX%layerType             ! index defining type of layer (snow or soil)                              (-)
   ! number of state variables of different type
-  case('nCasNrg'             ); get_ixINDEX = iLookINDEX%nCasNrg             ! number of energy state variables for the canopy air space domain         (-)
-  case('nVegNrg'             ); get_ixINDEX = iLookINDEX%nVegNrg             ! number of energy state variables for the vegetation canopy               (-)
-  case('nVegMass'            ); get_ixINDEX = iLookINDEX%nVegMass            ! number of hydrology states for vegetation (mass of water)                (-)
-  case('nVegState'           ); get_ixINDEX = iLookINDEX%nVegState           ! number of vegetation state variables                                     (-)
-  case('nNrgState'           ); get_ixINDEX = iLookINDEX%nNrgState           ! number of energy state variables                                         (-)
-  case('nWatState'           ); get_ixINDEX = iLookINDEX%nWatState           ! number of "total water" states (vol. total water content)                (-)
-  case('nMatState'           ); get_ixINDEX = iLookINDEX%nMatState           ! number of matric head state variables                                    (-)
-  case('nMassState'          ); get_ixINDEX = iLookINDEX%nMassState          ! number of hydrology state variables (mass of water)                      (-)
-  case('nState'              ); get_ixINDEX = iLookINDEX%nState              ! total number of model state variables                                    (-)
-  ! number of state variables within different domains in the snow+soil system
-  case('nSnowSoilNrg'        ); get_ixINDEX = iLookINDEX%nSnowSoilNrg        ! number of energy states in the snow+soil domain                          (-)
-  case('nSnowOnlyNrg'        ); get_ixINDEX = iLookINDEX%nSnowOnlyNrg        ! number of energy states in the snow domain                               (-)
-  case('nSoilOnlyNrg'        ); get_ixINDEX = iLookINDEX%nSoilOnlyNrg        ! number of energy states in the soil domain                               (-)
-  case('nSnowSoilHyd'        ); get_ixINDEX = iLookINDEX%nSnowSoilHyd        ! number of hydrology states in the snow+soil domain                       (-)
-  case('nSnowOnlyHyd'        ); get_ixINDEX = iLookINDEX%nSnowOnlyHyd        ! number of hydrology states in the snow domain                            (-)
-  case('nSoilOnlyHyd'        ); get_ixINDEX = iLookINDEX%nSoilOnlyHyd        ! number of hydrology states in the soil domain                            (-)
+  case('nCasNrg'              ); get_ixINDEX = iLookINDEX%nCasNrg               ! number of energy state variables for the canopy air space domain         (-)
+  case('nVegNrg'              ); get_ixINDEX = iLookINDEX%nVegNrg               ! number of energy state variables for the vegetation canopy               (-)
+  case('nVegMass'             ); get_ixINDEX = iLookINDEX%nVegMass              ! number of hydrology states for vegetation (mass of water)                (-)
+  case('nVegState'            ); get_ixINDEX = iLookINDEX%nVegState             ! number of vegetation state variables                                     (-)
+  case('nNrgState'            ); get_ixINDEX = iLookINDEX%nNrgState             ! number of energy state variables                                         (-)
+  case('nWatState'            ); get_ixINDEX = iLookINDEX%nWatState             ! number of "total water" states (vol. total water content)                (-)
+  case('nMatState'            ); get_ixINDEX = iLookINDEX%nMatState             ! number of matric head state variables                                    (-)
+  case('nMassState'           ); get_ixINDEX = iLookINDEX%nMassState            ! number of hydrology state variables (mass of water)                      (-)
+  case('nState'               ); get_ixINDEX = iLookINDEX%nState                ! total number of model state variables                                    (-)
+  ! number of state variables within different domains in the snow+soil system  !
+  case('nSnowSoilNrg'         ); get_ixINDEX = iLookINDEX%nSnowSoilNrg          ! number of energy states in the snow+soil domain                          (-)
+  case('nSnowOnlyNrg'         ); get_ixINDEX = iLookINDEX%nSnowOnlyNrg          ! number of energy states in the snow domain                               (-)
+  case('nSoilOnlyNrg'         ); get_ixINDEX = iLookINDEX%nSoilOnlyNrg          ! number of energy states in the soil domain                               (-)
+  case('nSnowSoilHyd'         ); get_ixINDEX = iLookINDEX%nSnowSoilHyd          ! number of hydrology states in the snow+soil domain                       (-)
+  case('nSnowOnlyHyd'         ); get_ixINDEX = iLookINDEX%nSnowOnlyHyd          ! number of hydrology states in the snow domain                            (-)
+  case('nSoilOnlyHyd'         ); get_ixINDEX = iLookINDEX%nSoilOnlyHyd          ! number of hydrology states in the soil domain                            (-)
   ! type of model state variables
-  case('ixControlVolume'     ); get_ixINDEX = iLookINDEX%ixControlVolume     ! index of the control volume for different domains (veg, snow, soil)      (-)
-  case('ixDomainType'        ); get_ixINDEX = iLookINDEX%ixDomainType        ! index of the type of domain (iname_veg, iname_snow, iname_soil)          (-)
-  case('ixStateType'         ); get_ixINDEX = iLookINDEX%ixStateType         ! index of the type of every state variable (iname_nrgCanair, ...)         (-)
-  case('ixHydType'           ); get_ixINDEX = iLookINDEX%ixHydType           ! index of the type of hydrology states in snow+soil domain                (-)
+  case('ixControlVolume'      ); get_ixINDEX = iLookINDEX%ixControlVolume       ! index of the control volume for different domains (veg, snow, soil)      (-)
+  case('ixDomainType'         ); get_ixINDEX = iLookINDEX%ixDomainType          ! index of the type of domain (iname_veg, iname_snow, iname_soil)          (-)
+  case('ixStateType'          ); get_ixINDEX = iLookINDEX%ixStateType           ! index of the type of every state variable (iname_nrgCanair, ...)         (-)
+  case('ixHydType'            ); get_ixINDEX = iLookINDEX%ixHydType             ! index of the type of hydrology states in snow+soil domain                (-)
   ! type of model state variables (state subset)
-  case('ixDomainType_subset' ); get_ixINDEX = iLookINDEX%ixDomainType_subset ! [state subset] id of domain for desired model state variables            (-)
-  case('ixStateType_subset'  ); get_ixINDEX = iLookINDEX%ixStateType_subset  ! [state subset] type of desired model state variables                     (-)
+  case('ixDomainType_subset'  ); get_ixINDEX = iLookINDEX%ixDomainType_subset   ! [state subset] id of domain for desired model state variables            (-)
+  case('ixStateType_subset'   ); get_ixINDEX = iLookINDEX%ixStateType_subset    ! [state subset] type of desired model state variables                     (-)
   ! mapping between state subset and the full state vector
-  case('ixMapFull2Subset'    ); get_ixINDEX = iLookINDEX%ixMapFull2Subset    ! list of indices of the state subset in the full state vector             (-)
-  case('ixMapSubset2Full'    ); get_ixINDEX = iLookINDEX%ixMapSubset2Full    ! list of indices of the full state vector in the state subset             (-)
+  case('ixMapFull2Subset'     ); get_ixINDEX = iLookINDEX%ixMapFull2Subset      ! list of indices of the state subset in the full state vector             (-)
+  case('ixMapSubset2Full'     ); get_ixINDEX = iLookINDEX%ixMapSubset2Full      ! list of indices of the full state vector in the state subset             (-)
   ! indices of model specific state variables
-  case('ixCasNrg'            ); get_ixINDEX = iLookINDEX%ixCasNrg            ! index of canopy air space energy state variable                          (-)
-  case('ixVegNrg'            ); get_ixINDEX = iLookINDEX%ixVegNrg            ! index of canopy energy state variable                                    (-)
-  case('ixVegHyd'            ); get_ixINDEX = iLookINDEX%ixVegHyd            ! index of canopy hydrology state variable (mass)                          (-)
-  case('ixTopNrg'            ); get_ixINDEX = iLookINDEX%ixTopNrg            ! index of upper-most energy state in the snow+soil subdomain              (-)
-  case('ixTopHyd'            ); get_ixINDEX = iLookINDEX%ixTopHyd            ! index of upper-most hydrology state in the snow+soil subdomain           (-)
+  case('ixCasNrg'             ); get_ixINDEX = iLookINDEX%ixCasNrg              ! index of canopy air space energy state variable                          (-)
+  case('ixVegNrg'             ); get_ixINDEX = iLookINDEX%ixVegNrg              ! index of canopy energy state variable                                    (-)
+  case('ixVegHyd'             ); get_ixINDEX = iLookINDEX%ixVegHyd              ! index of canopy hydrology state variable (mass)                          (-)
+  case('ixTopNrg'             ); get_ixINDEX = iLookINDEX%ixTopNrg              ! index of upper-most energy state in the snow+soil subdomain              (-)
+  case('ixTopHyd'             ); get_ixINDEX = iLookINDEX%ixTopHyd              ! index of upper-most hydrology state in the snow+soil subdomain           (-)
+  case('ixAqWat'              ); get_ixINDEX = iLookINDEX%ixAqWat               ! index of storage of water in the aquifer                                 (-)
   ! vectors of indices for specific state types
-  case('ixNrgOnly'           ); get_ixINDEX = iLookINDEX%ixNrgOnly           ! indices IN THE STATE SUBSET for all energy states                        (-)
-  case('ixHydOnly'           ); get_ixINDEX = iLookINDEX%ixHydOnly           ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
-  case('ixMatOnly'           ); get_ixINDEX = iLookINDEX%ixMatOnly           ! indices IN THE STATE SUBSET for matric head state variables              (-)
-  case('ixMassOnly'          ); get_ixINDEX = iLookINDEX%ixMassOnly          ! indices IN THE STATE SUBSET for hydrology states (mass of water)         (-)
+  case('ixNrgOnly'            ); get_ixINDEX = iLookINDEX%ixNrgOnly             ! indices IN THE STATE SUBSET for all energy states                        (-)
+  case('ixHydOnly'            ); get_ixINDEX = iLookINDEX%ixHydOnly             ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
+  case('ixMatOnly'            ); get_ixINDEX = iLookINDEX%ixMatOnly             ! indices IN THE STATE SUBSET for matric head state variables              (-)
+  case('ixMassOnly'           ); get_ixINDEX = iLookINDEX%ixMassOnly            ! indices IN THE STATE SUBSET for hydrology states (mass of water)         (-)
   ! vectors of indicesfor specific state types within specific sub-domains
-  case('ixSnowSoilNrg'       ); get_ixINDEX = iLookINDEX%ixSnowSoilNrg       ! indices IN THE STATE SUBSET for energy states in the snow+soil domain    (-)
-  case('ixSnowOnlyNrg'       ); get_ixINDEX = iLookINDEX%ixSnowOnlyNrg       ! indices IN THE STATE SUBSET for energy states in the snow domain         (-)
-  case('ixSoilOnlyNrg'       ); get_ixINDEX = iLookINDEX%ixSoilOnlyNrg       ! indices IN THE STATE SUBSET for energy states in the soil domain         (-)
-  case('ixSnowSoilHyd'       ); get_ixINDEX = iLookINDEX%ixSnowSoilHyd       ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
-  case('ixSnowOnlyHyd'       ); get_ixINDEX = iLookINDEX%ixSnowOnlyHyd       ! indices IN THE STATE SUBSET for hydrology states in the snow domain      (-)
-  case('ixSoilOnlyHyd'       ); get_ixINDEX = iLookINDEX%ixSoilOnlyHyd       ! indices IN THE STATE SUBSET for hydrology states in the soil domain      (-)
+  case('ixSnowSoilNrg'        ); get_ixINDEX = iLookINDEX%ixSnowSoilNrg         ! indices IN THE STATE SUBSET for energy states in the snow+soil domain    (-)
+  case('ixSnowOnlyNrg'        ); get_ixINDEX = iLookINDEX%ixSnowOnlyNrg         ! indices IN THE STATE SUBSET for energy states in the snow domain         (-)
+  case('ixSoilOnlyNrg'        ); get_ixINDEX = iLookINDEX%ixSoilOnlyNrg         ! indices IN THE STATE SUBSET for energy states in the soil domain         (-)
+  case('ixSnowSoilHyd'        ); get_ixINDEX = iLookINDEX%ixSnowSoilHyd         ! indices IN THE STATE SUBSET for hydrology states in the snow+soil domain (-)
+  case('ixSnowOnlyHyd'        ); get_ixINDEX = iLookINDEX%ixSnowOnlyHyd         ! indices IN THE STATE SUBSET for hydrology states in the snow domain      (-)
+  case('ixSoilOnlyHyd'        ); get_ixINDEX = iLookINDEX%ixSoilOnlyHyd         ! indices IN THE STATE SUBSET for hydrology states in the soil domain      (-)
   ! vectors of indices for specfic state types within specific sub-domains
-  case('ixNrgCanair'         ); get_ixINDEX = iLookINDEX%ixNrgCanair         ! indices IN THE STATE SUBSET for energy states in canopy air space domain (-) 
-  case('ixNrgCanopy'         ); get_ixINDEX = iLookINDEX%ixNrgCanopy         ! indices IN THE STATE SUBSET for energy states in the canopy domain       (-) 
-  case('ixHydCanopy'         ); get_ixINDEX = iLookINDEX%ixHydCanopy         ! indices IN THE STATE SUBSET for hydrology states in the canopy domain    (-) 
-  case('ixNrgLayer'          ); get_ixINDEX = iLookINDEX%ixNrgLayer          ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
-  case('ixHydLayer'          ); get_ixINDEX = iLookINDEX%ixHydLayer          ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
+  case('ixNrgCanair'          ); get_ixINDEX = iLookINDEX%ixNrgCanair           ! indices IN THE FULL VECTOR for energy states in canopy air space domain (-)
+  case('ixNrgCanopy'          ); get_ixINDEX = iLookINDEX%ixNrgCanopy           ! indices IN THE FULL VECTOR for energy states in the canopy domain       (-)
+  case('ixHydCanopy'          ); get_ixINDEX = iLookINDEX%ixHydCanopy           ! indices IN THE FULL VECTOR for hydrology states in the canopy domain    (-)
+  case('ixNrgLayer'           ); get_ixINDEX = iLookINDEX%ixNrgLayer            ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
+  case('ixHydLayer'           ); get_ixINDEX = iLookINDEX%ixHydLayer            ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
+  case('ixWatAquifer'         ); get_ixINDEX = iLookINDEX%ixWatAquifer          ! indices IN THE FULL VECTOR for storage of water in the aquifer           (-)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
-  case('ixVolFracWat'        ); get_ixINDEX = iLookINDEX%ixVolFracWat        ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
-  case('ixMatricHead'        ); get_ixINDEX = iLookINDEX%ixMatricHead        ! indices IN THE SOIL VECTOR for hyd states                                (-)
+  case('ixVolFracWat'         ); get_ixINDEX = iLookINDEX%ixVolFracWat          ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
+  case('ixMatricHead'         ); get_ixINDEX = iLookINDEX%ixMatricHead          ! indices IN THE SOIL VECTOR for hyd states                                (-)
   ! indices within state vectors
-  case('ixAllState'          ); get_ixINDEX = iLookINDEX%ixAllState          ! list of indices for all model state variables                            (-)
-  case('ixSoilState'         ); get_ixINDEX = iLookINDEX%ixSoilState         ! list of indices for all soil layers                                      (-)
-  case('ixLayerState'        ); get_ixINDEX = iLookINDEX%ixLayerState        ! list of indices for all model layers                                     (-)
-  ! indices for the model output files
-  case('midSnowStartIndex'   ); get_ixINDEX = iLookINDEX%midSnowStartIndex   ! start index of the midSnow vector for a given timestep                   (-)
-  case('midSoilStartIndex'   ); get_ixINDEX = iLookINDEX%midSoilStartIndex   ! start index of the midSoil vector for a given timestep                   (-)
-  case('midTotoStartIndex'   ); get_ixINDEX = iLookINDEX%midTotoStartIndex   ! start index of the midToto vector for a given timestep                   (-)
-  case('ifcSnowStartIndex'   ); get_ixINDEX = iLookINDEX%ifcSnowStartIndex   ! start index of the ifcSnow vector for a given timestep                   (-)
-  case('ifcSoilStartIndex'   ); get_ixINDEX = iLookINDEX%ifcSoilStartIndex   ! start index of the ifcSoil vector for a given timestep                   (-)
-  case('ifcTotoStartIndex'   ); get_ixINDEX = iLookINDEX%ifcTotoStartIndex   ! start index of the ifcToto vector for a given timestep                   (-)
+  case('ixAllState'           ); get_ixINDEX = iLookINDEX%ixAllState            ! list of indices for all model state variables                            (-)
+  case('ixSoilState'          ); get_ixINDEX = iLookINDEX%ixSoilState           ! list of indices for all soil layers                                      (-)
+  case('ixLayerState'         ); get_ixINDEX = iLookINDEX%ixLayerState          ! list of indices for all model layers                                     (-)
+  case('ixLayerActive'        ); get_ixINDEX = iLookINDEX%ixLayerActive         ! list of indices for all active model layers                              (-)
+  ! number of trials
+  case('numberFluxCalc'       ); get_ixINDEX = iLookINDEX%numberFluxCalc        ! number of flux calculations                                              (-)
+  case('numberStateSplit'     ); get_ixINDEX = iLookINDEX%numberStateSplit      ! number of state splitting solutions                                      (-)
+  case('numberDomainSplitNrg' ); get_ixINDEX = iLookINDEX%numberDomainSplitNrg  ! number of domain splitting solutions for energy                          (-)
+  case('numberDomainSplitMass'); get_ixINDEX = iLookINDEX%numberDomainSplitMass ! number of domain splitting solutions for mass                            (-)
+  case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                               (-)
+  ! default
   case default
    get_ixindex = integerMissing
  end select
@@ -914,17 +954,17 @@ contains
  end function get_VarTypeName
 
  ! *******************************************************************************************************************
- ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the 
- ! structrue that it was found in
+ ! public subroutine get_ixUnknown: get the index of the named variable type from ANY structure, as well as the
+ ! structure that it was found in
  ! *******************************************************************************************************************
  subroutine get_ixUnknown(varName,typeName,vDex,err,message)
  USE nrtype
- USE globalData,only:structInfo        ! information on the data structures                  
+ USE globalData,only:structInfo        ! information on the data structures
  implicit none
 
  ! dummies
  character(*),intent(in)  :: varName   ! variable name
- character(*),intent(out) :: typeName  ! variable type name
+ character(*),intent(out) :: typeName  ! variable type (structure) name
  integer(i4b),intent(out) :: vDex      ! variable index in structure
  integer(i4b),intent(out) :: err       ! error code
  character(*),intent(out) :: message   ! error message
@@ -944,6 +984,7 @@ contains
    case ('forc' ); vDex = get_ixForce(trim(varName))
    case ('attr' ); vDex = get_ixAttr(trim(varName))
    case ('type' ); vDex = get_ixType(trim(varName))
+   case ('id'   ); vDex = get_ixId(trim(varName))
    case ('mpar' ); vDex = get_ixParam(trim(varName))
    case ('indx' ); vDex = get_ixIndex(trim(varName))
    case ('prog' ); vDex = get_ixProg(trim(varName))
@@ -961,6 +1002,72 @@ contains
 
  end subroutine get_ixUnknown
 
+ ! *******************************************************************************************************************
+ ! public function get_ixfreq: get the index of the named variables for the output frequencies
+ ! *******************************************************************************************************************
+ function get_ixfreq(varName)
+ USE var_lookup,only:iLookFreq                       ! indices of the named variables
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName                 ! variable name
+ integer(i4b)             :: get_ixfreq              ! index of the named variable
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('day'     ); get_ixFreq = iLookFreq%day      ! daily aggregation
+  case('month'   ); get_ixFreq = iLookFreq%month    ! monthly aggregation
+  case('annual'  ); get_ixFreq = iLookFreq%annual   ! yearly (annual) aggregation
+  case('timestep'); get_ixFreq = iLookFreq%timestep ! timestep-level output (no temporal aggregation)
+  ! get to here if cannot find the variable
+  case default
+   get_ixfreq = integerMissing
+ end select
+ end function get_ixfreq
+
+ ! ***************************************************************************************************************
+ ! public function get_ixStat: get the named variables for the statistics
+ ! ***************************************************************************************************************
+ function get_ixStat(varName)
+ USE var_lookup,only:iLookStat                   ! indices of the possible output statistics
+ implicit none
+ ! define dummy variables
+ character(*), intent(in) :: varName             ! variable name
+ integer(i4b)             :: get_ixStat          ! index of the named variable
+ ! get the index of the named variables
+ select case(trim(varName))
+  case('total'   ); get_ixStat = iLookStat%totl
+  case('instant' ); get_ixStat = iLookStat%inst
+  case('mean'    ); get_ixStat = iLookStat%mean
+  case('variance'); get_ixStat = iLookStat%vari
+  case('minimum' ); get_ixStat = iLookStat%mini
+  case('maximum' ); get_ixStat = iLookStat%maxi
+  case('mode'    ); get_ixStat = iLookStat%mode
+  ! get to here if cannot find the variable
+  case default
+   get_ixStat = integerMissing
+ end select
+ end function get_ixStat
+
+ ! ***************************************************************************************************************
+ ! public function get_freqName: get the name of the output frequency type
+ ! ***************************************************************************************************************
+ function get_freqName(ifreq)
+ USE var_lookup,only:iLookFreq                   ! indices of the possible output frequencies
+ implicit none
+ ! define dummy variables
+ integer(i4b), intent(in) :: ifreq               ! output frequency index
+ character(LEN=10)        :: get_freqName        ! name of the output frequency
+ ! get the index of the named variables
+ select case(ifreq)
+  case(iLookFreq%day);      get_freqName='day'
+  case(iLookFreq%month);    get_freqName='month'
+  case(iLookFreq%annual);   get_freqName='annual'
+  case(iLookFreq%timestep); get_freqName='timestep'
+  ! get to here if cannot find the variable
+  case default
+   get_freqName = 'unknown'
+ end select
+ end function get_freqName
+
  ! ***************************************************************************************************************
  ! public function get_statName: get the name of the output statistics type
  ! ***************************************************************************************************************
@@ -969,7 +1076,7 @@ contains
  implicit none
  ! define dummy variables
  integer(i4b), intent(in) :: istat               ! stat type name
- character(LEN=10)         :: get_statName        ! index of the named variable type list
+ character(LEN=10)         :: get_statName       ! name of the statistic
  ! get the index of the named variables
  select case(istat)
   case(iLookStat%totl);get_statName='total'

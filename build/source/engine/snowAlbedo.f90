@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -21,28 +21,41 @@
 module snowAlbedo_module
 
 ! data types
-USE nrtype                        ! numerical recipes data types
+USE nrtype                          ! numerical recipes data types
 
 ! physical constants
-USE multiconst,only:Tfreeze       ! freezing point of pure water (K)
+USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
+
+! derived types to define the data structures
+USE data_types,only:&
+                    var_i,        & ! data vector (i4b)
+                    var_d,        & ! data vector (dp)
+                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    model_options   ! defines the model decisions
+
+! named variables defining elements in the data structures
+USE var_lookup,only:iLookPARAM,iLookFLUX,iLookDIAG,iLookPROG   ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                             ! named variables for elements of the decision structure
 
 ! look-up values for the choice of snow albedo options
 USE mDecisions_module,only:  &
- constantDecay,              &    ! constant decay in snow albedo (e.g., VIC, CLASS)
- variableDecay                    ! variable decay in snow albedo (e.g., BATS approach, with destructive metamorphism + soot content)
+ constantDecay,              &      ! constant decay in snow albedo (e.g., VIC, CLASS)
+ variableDecay                      ! variable decay in snow albedo (e.g., BATS approach, with destructive metamorphism + soot content)
 
 ! look-up values for the choice of canopy shortwave radiation method
 USE mDecisions_module,only:  &
- noah_mp,                    &    ! full Noah-MP implementation (including albedo)
- CLM_2stream,                &    ! CLM 2-stream model (see CLM documentation)
- UEB_2stream,                &    ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
- NL_scatter,                 &    ! Simplified method Nijssen and Lettenmaier (JGR 1999)
- BeersLaw                         ! Beer's Law (as implemented in VIC)
+ noah_mp,                    &      ! full Noah-MP implementation (including albedo)
+ CLM_2stream,                &      ! CLM 2-stream model (see CLM documentation)
+ UEB_2stream,                &      ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+ NL_scatter,                 &      ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+ BeersLaw                           ! Beer's Law (as implemented in VIC)
 
 ! -------------------------------------------------------------------------------------------------
+! privacy
 implicit none
 private
 public::snowAlbedo
+
 ! dimensions
 integer(i4b),parameter        :: nBands=2      ! number of spectral bands for shortwave radiation
 contains
@@ -64,15 +77,6 @@ contains
                        ! output: error control
                        err,message)                             ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to the derived types to define the data structures
- USE data_types,only:&
-                     var_i,            & ! data vector (i4b)
-                     var_d,            & ! data vector (dp)
-                     var_dlength,      & ! data vector with variable length dimension (dp)
-                     model_options       ! defines the model decisions
- ! provide access to named variables defining elements in the data structures
- USE var_lookup,only:iLookPARAM,iLookFLUX,iLookDIAG,iLookPROG   ! named variables for structure elements
- USE var_lookup,only:iLookDECISIONS                             ! named variables for elements of the decision structure
  ! provide access to desired modules
  USE snow_utils_module,only:fracliquid                          ! compute fraction of liquid water at a given temperature
  ! --------------------------------------------------------------------------------------------------------------------------------------

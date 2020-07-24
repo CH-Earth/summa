@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -19,12 +19,28 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module vegLiqFlux_module
+
+! data types
 USE nrtype
-! look-up values for the choice of canopy shortwave radiation method
+
+! data types
+USE data_types,only:var_d           ! x%var(:)       (dp)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+
+! named variables
+USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
+
+! model decisions
+USE globalData,only:model_decisions      ! model decision structure
+USE var_lookup,only:iLookDECISIONS       ! named variables for elements of the decision structure
+
+! decisions on canopy interception parameterization 
 USE mDecisions_module,only:         &
                       unDefined,    & ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
                       sparseCanopy, & ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
                       storageFunc     ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+
+! privacy
 implicit none
 private
 public::vegLiqFlux
@@ -48,14 +64,6 @@ contains
                        scalarThroughfallRainDeriv,   & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
                        scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
                        err,message)                    ! intent(out): error control
- ! model decisions
- USE globalData,only:model_decisions                              ! model decision structure
- USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
- ! named variables 
- USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
- ! data types
- USE data_types,only:var_d           ! x%var(:)       (dp)
- USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
  implicit none
  ! input
  logical(lgt),intent(in)         :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -78,7 +86,7 @@ contains
   scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
   scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain)%dat(1),& ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
   scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1)  & ! intent(in): canopy drainage coefficient (s-1)
- ) ! associating local variables with information in the data structures 
+ ) ! associating local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="vegLiqFlux/"
