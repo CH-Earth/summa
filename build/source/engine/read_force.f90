@@ -55,7 +55,7 @@ USE var_lookup,only:iLookTIME,iLookFORCE      ! named variables to define struct
 USE var_lookup,only:iLookDECISIONS            ! named variables for elements of the decision structure
 
 ! file paths
-USE summaFileManager,only:INPUT_PATH          ! path of the forcing data file
+USE summaFileManager,only:FORCING_PATH        ! path of the forcing data file
 
 ! privacy
 implicit none
@@ -145,8 +145,8 @@ contains
     err=20; return
    endif
 
-   ! define new filename
-   infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
+   ! define new forcing filename
+   infile=trim(FORCING_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
    ! open up the forcing file
    call openForcingFile(iFile,trim(infile),ncId,err,cmessage)
@@ -264,8 +264,8 @@ contains
  ! keep going until we find the file containing the first time step
  do iFile=1,nFiles
 
-  ! define new filename
-  infile=trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
+  ! define new forcing filename
+  infile=trim(FORCING_PATH)//trim(forcFileInfo(iFile)%filenmData)
 
   ! open netCDF file
   call openForcingFile(iFile,trim(infile),ncId,err,cmessage)
