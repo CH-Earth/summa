@@ -89,7 +89,7 @@ contains
  USE globalData,only:startSetup,endSetup                     ! date/time for the start and end of the parameter setup
  USE globalData,only:elapsedSetup                            ! elapsed time for the parameter setup
  ! file paths
- USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
+ USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
  USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model initial attributes file
  USE summaFileManager,only:LOCALPARAM_INFO,BASINPARAM_INFO   ! files defining the default values and constraints for model parameters
  USE summaFileManager,only:GENPARM,VEGPARM,SOILPARM,MPTABLE  ! files defining the noah tables
@@ -168,7 +168,7 @@ contains
  ! *****************************************************************************
 
  ! define the attributes file
- attrFile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
+ attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
 
  ! read local attributes for each HRU
  call read_attrb(trim(attrFile),nGRU,attrStruct,typeStruct,idStruct,err,cmessage)
@@ -194,14 +194,14 @@ contains
  greenVegFrac_monthly = (/0.01_dp, 0.02_dp, 0.03_dp, 0.07_dp, 0.50_dp, 0.90_dp, 0.95_dp, 0.96_dp, 0.65_dp, 0.24_dp, 0.11_dp, 0.02_dp/)
 
  ! read Noah soil and vegetation tables
- call soil_veg_gen_parm(trim(SETNGS_PATH)//trim(VEGPARM),                              & ! filename for vegetation table
-                        trim(SETNGS_PATH)//trim(SOILPARM),                             & ! filename for soils table
-                        trim(SETNGS_PATH)//trim(GENPARM),                              & ! filename for general table
+ call soil_veg_gen_parm(trim(SETTINGS_PATH)//trim(VEGPARM),                            & ! filename for vegetation table
+                        trim(SETTINGS_PATH)//trim(SOILPARM),                           & ! filename for soils table
+                        trim(SETTINGS_PATH)//trim(GENPARM),                            & ! filename for general table
                         trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision),    & ! classification system used for vegetation
                         trim(model_decisions(iLookDECISIONS%soilCatTbl)%cDecision))      ! classification system used for soils
 
  ! read Noah-MP vegetation tables
- call read_mp_veg_parameters(trim(SETNGS_PATH)//trim(MPTABLE),                         & ! filename for Noah-MP table
+ call read_mp_veg_parameters(trim(SETTINGS_PATH)//trim(MPTABLE),                       & ! filename for Noah-MP table
                              trim(model_decisions(iLookDECISIONS%vegeParTbl)%cDecision)) ! classification system used for vegetation
 
  ! define urban vegetation category

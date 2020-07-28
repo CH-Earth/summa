@@ -104,7 +104,8 @@ contains
  USE globalData,only:elapsedWrite                            ! elapsed time to write data
  ! file information
  USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
- USE globalData,only:output_fileSuffix                       ! suffix for the output file
+ USE summaFileManager,only:STATE_PATH                        ! optional path to state output files (defaults to OUTPUT_PATH)
+ USE globalData,only:output_fileSuffix                       ! suffix for the output & state files (optional summa argument)
  USE globalData,only:nHRUrun                                 ! number of HRU in the run
  USE globalData,only:nGRUrun                                 ! number of GRU in the run
  ! ---------------------------------------------------------------------------------------
@@ -278,8 +279,14 @@ contains
 
  ! print a restart file if requested
  if(printRestart)then
-  write(timeString,'(a,i4,3(a,i2.2))') '_',timeStruct%var(iLookTIME%iyyy),'-',timeStruct%var(iLookTIME%im),'-',timeStruct%var(iLookTIME%id),'-',timeStruct%var(iLookTIME%ih)
-  restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_'//trim('summaRestart')//trim(timeString)//trim(output_fileSuffix)//'.nc'
+  write(timeString,'(i4,3(i2.2))') timeStruct%var(iLookTIME%iyyy),timeStruct%var(iLookTIME%im),timeStruct%var(iLookTIME%id),timeStruct%var(iLookTIME%ih)
+  
+  if(STATE_PATH == '') then
+    restartFile=trim(OUTPUT_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+  else
+    restartFile=trim(STATE_PATH)//trim(OUTPUT_PREFIX)//'_restart_'//trim(timeString)//trim(output_fileSuffix)//'.nc'
+  endif
+
   call writeRestart(restartFile,nGRU,nHRU,prog_meta,progStruct,maxLayers,maxSnowLayers,indx_meta,indxStruct,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  end if

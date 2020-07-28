@@ -29,13 +29,15 @@ public
 ! summa-wide pathlength
 integer(i4b),parameter       :: summaPathLen=4096
 ! defines the time of the run
-CHARACTER(LEN=summaPathLen)  :: CONTROL_VRS      = 'SUMMA_FILE_MANAGER_V3.0.0'         ! control version
+CHARACTER(LEN=summaPathLen)  :: CONTROL_VRS      = 'SUMMA_FILE_MANAGER_V3.0.0'      ! control version
 CHARACTER(LEN=summaPathLen)  :: SIM_START_TM     = '2000-01-01 00:00'               ! simulation start time
 CHARACTER(LEN=summaPathLen)  :: SIM_END_TM       = '2000-01-01 00:00'               ! simulation end time
 CHARACTER(LEN=summaPathLen)  :: NC_TIME_ZONE     = 'utcTime'                        ! time zone info
 ! defines the path for data files (and default values)
-CHARACTER(LEN=summaPathLen)  :: SETNGS_PATH      = 'settings/'                      ! settings dir path
-CHARACTER(LEN=summaPathLen)  :: INPUT_PATH       = 'input/default/'                 ! input_dir_path
+CHARACTER(LEN=summaPathLen)  :: SETTINGS_PATH    = 'settings/'                      ! settings dir path
+CHARACTER(LEN=summaPathLen)  :: STATE_PATH       = ''                               ! state file / init. cond. dir path (if omitted, defaults 
+                                                                                    !   to SETTINGS_PATH for input, OUTPATH for output)
+CHARACTER(LEN=summaPathLen)  :: FORCING_PATH     = 'forcing/default/'               ! input_dir_path
 CHARACTER(LEN=summaPathLen)  :: OUTPUT_PATH      = 'output/default/'                ! output_dir_path
 ! define name of control files    (and default values)
 CHARACTER(LEN=summaPathLen)  :: M_DECISIONS      = 'summa_zDecisions.txt'           ! definition of model decisions
@@ -75,12 +77,12 @@ contains
  integer(i4b),parameter               :: runinfo_fileunit=67   ! file unit for run time information
  character(len=8)                     :: cdate
  character(len=10)                    :: ctime
- character(len=256)                   :: cmessage       ! error message for downwind routine
- integer(i4b)                         :: unt            ! file unit (free unit output from file_open)
- character(LEN=linewidth),allocatable :: charline(:)    ! vector of character strings
- integer(i4b)                         :: iControl, nControl       ! number of model info
- character(len=summaPathLen)          :: varEntry          ! name of model info
- character(len=32)                    :: option         ! option for model info
+ character(len=256)                   :: cmessage              ! error message for downwind routine
+ integer(i4b)                         :: unt                   ! file unit (free unit output from file_open)
+ character(LEN=linewidth),allocatable :: charline(:)           ! vector of character strings
+ integer(i4b)                         :: iControl, nControl    ! number of model info
+ character(len=summaPathLen)          :: varEntry              ! name of model info
+ character(len=32)                    :: option                ! option for model info
 
  err=0; message="summa_SetTimesDirsAndFiles/"
 
@@ -117,15 +119,16 @@ contains
    case('simStartTime'       ); SIM_START_TM = trim(varEntry)                  ! start simulation time
    case('simEndTime'         ); SIM_END_TM = trim(varEntry)                    ! end simulation time
    case('tmZoneInfo'         ); NC_TIME_ZONE = trim(varEntry)                  ! time zone info
-   case('settingsPath'       ); SETNGS_PATH = trim(varEntry)                   ! settings directory
-   case('forcingPath'        ); INPUT_PATH = trim(varEntry)                    ! input forcing directory
+   case('settingsPath'       ); SETTINGS_PATH = trim(varEntry)                 ! settings directory
+   case('forcingPath'        ); FORCING_PATH = trim(varEntry)                  ! input forcing directory
    case('outputPath'         ); OUTPUT_PATH = trim(varEntry)                   ! output directory
+   case('statePath'          ); STATE_PATH = trim(varEntry)                    ! state file input/output directory
    case('decisionsFile'      ); M_DECISIONS = trim(varEntry)                   ! model decisions file
    case('outputControlFile'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
-   case('globalHruParamFile' ); LOCALPARAM_INFO = trim(varEntry)               ! default hru-level param file
-   case('globalGruParamFile' ); BASINPARAM_INFO = trim(varEntry)               ! default gru-level param file
+   case('globalHruParamFile' ); LOCALPARAM_INFO = trim(varEntry)               ! default/global hru-level param file
+   case('globalGruParamFile' ); BASINPARAM_INFO = trim(varEntry)               ! default/global gru-level param file
    case('attributeFile'      ); LOCAL_ATTRIBUTES = trim(varEntry)              ! attribute file
-   case('trialParamFile'     ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file
+   case('trialParamFile'     ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file (hru and/or gru)
    case('vegTableFile'       ); VEGPARM = trim(varEntry)                       ! vegetation parameter table
    case('soilTableFile'      ); SOILPARM = trim(varEntry)                      ! soil parameter table
    case('generalTableFile'   ); GENPARM = trim(varEntry)                       ! general parameter table
@@ -148,6 +151,5 @@ contains
  close(runinfo_fileunit)
 
  end subroutine summa_SetTimesDirsAndFiles
-
 
 END MODULE summaFileManager

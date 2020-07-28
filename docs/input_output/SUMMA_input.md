@@ -24,25 +24,26 @@ The following items must be provided in the master configuration file. Order is 
 
 `controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `SUMMA_FILE_MANAGER_V1.0` or `SUMMA_FILE_MANAGER_V2.0`.
 
-`simStartTime`   : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
-`simEndTime`     : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
-`tmZoneInfo`     : [Time zone information](#tmZoneInfo).
-`settingsPath`   : Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except `forcingPath` and `outputPath`).
-`forcingPath`    : Base path for the meteorological forcing files specified in the `forcingList`.
-`outputPath`     : Base path for the SUMMA output files.
-`decisionsFile`  : File path for the [model decisions file](#infile_model_decisions) (relative to `settingsPath`).
+`simStartTime`       : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
+`simEndTime`         : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
+`tmZoneInfo`         : [Time zone information](#tmZoneInfo).
+`settingsPath`       : Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except `forcingPath` and `outputPath`).
+`forcingPath`        : Base path for the meteorological forcing files specified in the `forcingList`.
+`outputPath`         : Base path for the SUMMA output files.
+`statePath`          : (optional) Base path for the SUMMA state files, including the initial condition file.  If not given, the initial condition (state) file is read from the settingsPath directory, and the state file outputs are written to the outputPath directory.  If given, summa expects the initial condition file to be in the state file directory.  
+`decisionsFile`      : File path for the [model decisions file](#infile_model_decisions) (relative to `settingsPath`).
 `outputControlFile`  : File path for the [output control file](#infile_output_control) (relative to `settingsPath`).
-`attributeFile`  : File path for the [local attributes file](#infile_local_attributes) (relative to `settingsPath`).
-`globalHruParamFile`   : File path for the [local parameters file](#infile_local_parameters) (relative to `settingsPath`).
-`globalGruParamFile`   : File path for the [basin parameters file](#infile_basin_parameters) (relative to `settingsPath`).
+`attributeFile`      : File path for the [local attributes file](#infile_local_attributes) (relative to `settingsPath`).
+`globalHruParamFile` : File path for the [local parameters file](#infile_local_parameters) (relative to `settingsPath`).
+`globalGruParamFile` : File path for the [basin parameters file](#infile_basin_parameters) (relative to `settingsPath`).
 `forcingListFile`    : File path for the [list of forcing files file](#infile_forcing_list) (relative to `settingsPath`).
-`initConditionFile`   : File path for the [initial conditions file](#infile_initial_conditions) (relative to `settingsPath`).
-`trialParamFile` : File path for the [trial parameters file](#infile_trial_parameters) (relative to `settingsPath`).
-`vegTableFile`: File path to the vegetation parameter table (defaults to `VEGPARM.TBL`) (relative to `settingsPath`)
-`soilTableFile` : File path to the soil parameter table (defaults to `SOILPARM.TBL`) (relative to `settingsPath`)
-`generalTableFile` : File path to the general parameter table (defaults to `GENPARM.TBL`) (relative to `settingsPath`)
-`noahmpTableFile`: File path to the noah mp parameter table (defaults to `MPTABLE.TBL`) (relative to `settingsPath`)
-`outFilePrefix`  : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
+`initConditionFile`  : File path for the [initial conditions file](#infile_initial_conditions) (relative to `settingsPath`).
+`trialParamFile`     : File path for the [trial parameters file](#infile_trial_parameters) (relative to `settingsPath`).
+`vegTableFile`       : File path to the vegetation parameter table (defaults to `VEGPARM.TBL`) (relative to `settingsPath`)
+`soilTableFile`      : File path to the soil parameter table (defaults to `SOILPARM.TBL`) (relative to `settingsPath`)
+`generalTableFile`   : File path to the general parameter table (defaults to `GENPARM.TBL`) (relative to `settingsPath`)
+`noahmpTableFile`    : File path to the noah mp parameter table (defaults to `MPTABLE.TBL`) (relative to `settingsPath`)
+`outFilePrefix`      : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
 
 And example of this file is provide [here](#fileMgr_example).
 
@@ -88,6 +89,7 @@ tmZoneInfo        'localTime'             ! (--) forcings are in local time ('lo
 settingsPath      '/glade/u/home/andywood/proj/SHARP/wreg/pnnl/sf_flathead/settings/'
 forcingPath       '/glade/work/andywood/wreg/summa_data/pnnl/forcings/sf_flathead/'
 outputPath        '/glade/work/andywood/wreg/summa_data/pnnl/output/sf_flathead/v1/'
+statePath         '/glade/work/andywood/wreg/summa_data/pnnl/states/sf_flathead/v1/'
 
 ! --- input/output file names ---
 decisionsFile     'modelDecisions.txt'                ! decision
