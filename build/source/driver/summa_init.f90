@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -44,7 +44,8 @@ USE globalData,only:statIndx_meta                           ! child metadata for
 USE globalData,only:statBvar_meta                           ! child metadata for stats
 
 ! provide access to file paths
-USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
+USE summaFileManager,only:SETTINGS_PATH                     ! define path to settings files (e.g., parameters, soil and veg. tables)
+USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
 USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
 USE summaFileManager,only:LOCAL_ATTRIBUTES                  ! name of model initial attributes file
 USE summaFileManager,only:OUTPUT_PATH,OUTPUT_PREFIX         ! define output file
@@ -65,7 +66,7 @@ contains
  USE summa_type, only:summa1_type_dec                        ! master summa data type
  ! subroutines and functions: initial priming
  USE summa_util, only:getCommandArguments                    ! process command line arguments
- USE summaFileManager,only:summa_SetDirsUndPhiles            ! sets directories and filenames
+ USE summaFileManager,only:summa_SetTimesDirsAndFiles       ! sets directories and filenames
  USE summa_globalData,only:summa_defineGlobalData            ! used to define global summa data structures
  USE time_utils_module,only:elapsedSec                       ! calculate the elapsed time
  ! subroutines and functions: read dimensions (NOTE: NetCDF)
@@ -183,7 +184,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! set directories and files -- summaFileManager used as command-line argument
- call summa_SetDirsUndPhiles(summaFileManagerFile,err,cmessage)
+ call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! define global data (parameters, metadata)
@@ -194,7 +195,7 @@ contains
  ! *** read the number of GRUs and HRUs
  ! *****************************************************************************
  ! obtain the HRU and GRU dimensions in the LocalAttribute file
- attrFile = trim(SETNGS_PATH)//trim(LOCAL_ATTRIBUTES)
+ attrFile = trim(SETTINGS_PATH)//trim(LOCAL_ATTRIBUTES)
  select case (iRunMode)
   case(iRunModeFull); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage)
   case(iRunModeGRU ); call read_dimension(trim(attrFile),fileGRU,fileHRU,nGRU,nHRU,err,cmessage,startGRU=startGRU)
@@ -205,8 +206,12 @@ contains
  ! *****************************************************************************
  ! *** read the number of snow and soil layers
  ! *****************************************************************************
- ! obtain the number of snow and soil layers from the initial conditions file
- restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
+ ! set restart filename and read the number of snow and soil layers from the initial conditions (restart) file
+ if(STATE_PATH == '') then
+   restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
+ else
+    restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
+ endif
  call read_icond_nlayers(trim(restartFile),nGRU,indx_meta,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

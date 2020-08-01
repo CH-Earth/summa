@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -115,12 +115,13 @@ MODULE data_types
   integer(8)                        :: gruId                    ! id of the gru
   integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
   type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
+  integer(i4b)                      :: gru_nc                   ! index of gru in the netcdf file
  endtype gru2hru_map
 
  ! define the mapping from the HRUs to the GRUs
  type, public :: hru2gru_map
   integer(i4b)                      :: gru_ix                   ! index of gru which the hru belongs to
-  integer(i4b)                      :: localHRU_ix              ! index of a hru within a gru
+  integer(i4b)                      :: localHRU_ix              ! index of a hru within a gru (start from 1 per gru)
  endtype hru2gru_map
 
  ! ***********************************************************************************************************

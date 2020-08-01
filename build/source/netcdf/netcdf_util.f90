@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -64,7 +64,7 @@ contains
  end subroutine nc_file_open
 
  ! **********************************************************************************************************
- ! private subroutine put_attrib: put global attributes as character string
+ ! private subroutine nc_file_close: close netcdf file
  ! **********************************************************************************************************
  subroutine nc_file_close(ncid,err,message)
  implicit none

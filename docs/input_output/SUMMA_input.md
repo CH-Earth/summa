@@ -10,62 +10,98 @@ SUMMA input files are either ASCII format or NetCDF. The general characteristics
 ### ASCII
 ASCII or text files are in a format that can be modified using a text editor. Comments can be added to any SUMMA text file by starting the comments with  a `!`. Anything after the `!` will be discarded till the end of the line. You can include as many comments as you want, as they will be stripped as SUMMA processes the file.
 
-
 <a id="infile_format_nc"></a>
 ### NetCDF
 [NetCDF](https://www.unidata.ucar.edu/software/netcdf/) or Network Common Data Format is a file format that is widely used in geosciences to organize large data sets. The main advantages of using NetCDF files is that they are machine independent, they allow the user to include meta data directly in the data file, and they can be read by, visualized and analyzed using a large number of freely available software packages. The SUMMA documentation is not the place to learn about NetCDF. We assume that you know the difference between NetCDF dimensions, NetCDF variables, and NetCDF attributes (global and local). If you don't, then there are many tutorials available online. Note that NetCDF attributes are different from the local SUMMA attributes that we are describing [below](#infile_local_attributes).
 
 SUMMA input files in NetCDF format can include variables (and dimensions) other than those specified below. They will simply not be read by SUMMA, but may be useful to facilitate further analysis and/or visualization. For example, it may be convenient to include latitude and longitude in many of the spatial files to allow visualization.
 
-
 <a id="infile_master_configuration"></a>
 ## Master configuration file
-The master configuration file is an [ASCII file](#infile_format_ASCII) and is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the `-m` or `--master` command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in `build/source/hookup/summaFileManager.f90`. The file contents mostly consist of file paths that provide the actual information about the model configuration.
+The master configuration file is an [ASCII file](#infile_format_ASCII) and is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the `-m` or `--master` command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in `build/source/hookup/summaFileManager.f90`. The file contents mostly consist of file paths that provide the actual information about the model configuration.  It also contains the run period and forcing time zone information.
 
-The following items must be provided in order in the master configuration file. Each item must be on its own line, but may be followed by a comment and you can add lines of comments between the items. Each entry must be enclosed in single quotes `'entry'`. In the following, I start each enumerated entry with the actual variable name that is used in the SUMMA source code to refer to each of the entries (in `summaFileManager.f90`) and its default value in case you are trying to trace a problem.
+The following items must be provided in the master configuration file. Order is not important, as the entries are each associated with a keyword.  Each keyword and entry pair must be on its own line, but may be followed by a comment (started by the '!' character), and you can add lines of comments between the items. Each entry must be enclosed in single quotes `'entry'`. The associations of the keywords to the actual variable name that is used in the SUMMA source code can be found in `summaFileManager.f90`, along with its default value where appropriate.
 
-1. `summaFileManagerHeader`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V1.0'`.
+`controlVersion`: Version of the file manager that should be used to process the master configuration file. At this time, this string should be equal to `'SUMMA_FILE_MANAGER_V3.0.0'`.  Note, this version of the code is not backward compatible with versions using `SUMMA_FILE_MANAGER_V1.0` or `SUMMA_FILE_MANAGER_V2.0`.
 
-1. `SETNGS_PATH`: Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except `INPUT_PATH` and `OUTPUT_PATH`).
+`simStartTime`       : Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. See [Time definition notes](#simulStartEndTimes).
+`simEndTime`         : End of the simulation specified as `'YYYY-MM-DD hh:mm'`.
+`tmZoneInfo`         : [Time zone information](#tmZoneInfo).
+`settingsPath`       : Base path for the configuration files. Most of the file paths in the remainder of the master configuration file are relative to this path (except `forcingPath` and `outputPath`).
+`forcingPath`        : Base path for the meteorological forcing files specified in the `forcingList`.
+`outputPath`         : Base path for the SUMMA output files.
+`statePath`          : (optional) Base path for the SUMMA state files, including the initial condition file.  If not given, the initial condition (state) file is read from the settingsPath directory, and the state file outputs are written to the outputPath directory.  If given, summa expects the initial condition file to be in the state file directory.  
+`decisionsFile`      : File path for the [model decisions file](#infile_model_decisions) (relative to `settingsPath`).
+`outputControlFile`  : File path for the [output control file](#infile_output_control) (relative to `settingsPath`).
+`attributeFile`      : File path for the [local attributes file](#infile_local_attributes) (relative to `settingsPath`).
+`globalHruParamFile` : File path for the [local parameters file](#infile_local_parameters) (relative to `settingsPath`).
+`globalGruParamFile` : File path for the [basin parameters file](#infile_basin_parameters) (relative to `settingsPath`).
+`forcingListFile`    : File path for the [list of forcing files file](#infile_forcing_list) (relative to `settingsPath`).
+`initConditionFile`  : File path for the [initial conditions file](#infile_initial_conditions) (relative to `settingsPath`).
+`trialParamFile`     : File path for the [trial parameters file](#infile_trial_parameters) (relative to `settingsPath`).
+`vegTableFile`       : File path to the vegetation parameter table (defaults to `VEGPARM.TBL`) (relative to `settingsPath`)
+`soilTableFile`      : File path to the soil parameter table (defaults to `SOILPARM.TBL`) (relative to `settingsPath`)
+`generalTableFile`   : File path to the general parameter table (defaults to `GENPARM.TBL`) (relative to `settingsPath`)
+`noahmpTableFile`    : File path to the noah mp parameter table (defaults to `MPTABLE.TBL`) (relative to `settingsPath`)
+`outFilePrefix`      : Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
 
-1. `INPUT_PATH`: Base path for the meteorological forcing files specified in the `FORCING_FILELIST`.
+And example of this file is provide [here](#fileMgr_example).
 
-1. `OUTPUT_PATH`: Base path for the SUMMA output files.
+<a id="simulStartEndTimes"></a>
+## 1. Simulation Start and End Times
+Start and end of the simulation are specified as `'YYYY-MM-DD hh:mm'`. Note that the strings needs to be enclosed in single quotes. These indicates the end of the first and last time step. Since the time stamps in the [forcing files](#infile_meteorological_forcing) are period-ending, SUMMA will start reading the forcing file for the time stamp that equals `simulStart`.
 
-1. `M_DECISIONS`: File path for the [model decisions file](#infile_model_decisions) (relative to `SETNGS_PATH`).
+<a id="tmZoneInfo"></a>
+##  3. tmZoneInfo
+The time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as `localTime = inputTime + timeOffset`, where `localTime` is the time in which local noon coincides with solar noon, `inputTime` is the time in the model forcing files, and `timeOffset` is determined according to the `tmZoneInfo` option that is selected. The `simulStart` and
+`simulFinsh` time stamps must be consistent with the `tmZoneInfo` option. The `utcTime` option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).
 
-1. `META_TIME`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+Time stamps in the output files will be consistent with the `tmZoneInfo` option selected.
 
-1. `META_ATTR`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+| Option | Description |
+|---|---|
+| ncTime | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file with the
+ meteorological forcings. The `timeOffset` is then calculated as `timeOffset = longitude/15 - ncTimeOffset`. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).  Note that the code internally uses fractional days and thus uses `longitude/360`.
+| utcTime | `timeOffset` is calculated as `timeOffset = longitude/15` hours. In essence this assumes
+ that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses `longitude/360`.
+| localTime | `timeOffset` is equal to zero. |
 
-1. `META_TYPE`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+For example, assume that a model element has longitude -120º (or 120W) and the `units` attribute of the `time` variable in the NetCDF forcing file is `seconds since 1992-01-01 00:00:00 -6:00`. For each of the `tmZoneInfo` options this will be processed the following way:
 
-1. `META_FORCE`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+| Option | `timeOffset`|
+|--|--|
+|`ncTime`: | `-2:00` hours (`-120/15 - (-6)`)|
+|`utcTime`: | `-8:00` hours (`-120/15`)|
+|`localTime`: | `0:00` hours|
 
-1. `META_LOCALPARAM`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+Specifying time zone information in the NetCDF file and overriding it with the `tmZoneInfo` option can be confusing and is only provided to give the user some flexibility.
 
-1. `OUTPUT_CONTROL`: File path for the [output control file](#infile_output_control) (relative to `SETNGS_PATH`).
+<a id="fileMgr_example"></a>
+------------------
+controlVersion:    'SUMMA_FILE_MANAGER_V2.0'          ! file manager version
 
-1. `META_LOCALINDEX`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+! --- simulation times ---
+simStartTime      '1970-01-01 03:00'      ! (01) simulation start time -- must be in single quotes
+simEndTime        '2019-12-31 24:00'      ! (02) simulation end time -- must be in single quotes
+tmZoneInfo        'localTime'             ! (--) forcings are in local time ('localTime') or UTC time >
 
-1. `META_BASINPARAM`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
+! --- file paths ---
+settingsPath      '/glade/u/home/andywood/proj/SHARP/wreg/pnnl/sf_flathead/settings/'
+forcingPath       '/glade/work/andywood/wreg/summa_data/pnnl/forcings/sf_flathead/'
+outputPath        '/glade/work/andywood/wreg/summa_data/pnnl/output/sf_flathead/v1/'
+statePath         '/glade/work/andywood/wreg/summa_data/pnnl/states/sf_flathead/v1/'
 
-1. `META_BASINMVAR`: No longer used as of SUMMA 2.x - simply specify `'N/A'`.
-
-1. `LOCAL_ATTRIBUTES`: File path for the [local attributes file](#infile_local_attributes) (relative to `SETNGS_PATH`).
-
-1. `LOCALPARAM_INFO`: File path for the [local parameters file](#infile_local_parameters) (relative to `SETNGS_PATH`).
-
-1. `BASINPARAM_INFO`: File path for the [basin parameters file](#infile_basin_parameters) (relative to `SETNGS_PATH`).
-
-1. `FORCING_FILELIST`: File path for the [list of forcing files file](#infile_forcing_list) (relative to `SETNGS_PATH`).
-
-1. `MODEL_INITCOND`: File path for the [initial conditions file](#infile_initial_conditions) (relative to `SETNGS_PATH`).
-
-1. `PARAMETER_TRIAL`: File path for the [trial parameters file](#infile_trial_parameters) (relative to `SETNGS_PATH`).
-
-1. `OUTPUT_PREFIX`: Text string prepended to each output filename to identify a specific model setup. Note that the user can further modify the output file name at run-time by using the `-s|--suffix` command-line option.
-
+! --- input/output file names ---
+decisionsFile     'modelDecisions.txt'                ! decision
+outputDefFile     'outputControl.wb.txt'              ! OUTPUT_CONTROL
+attributeFile     'attributes.v1.nc'                  ! local attributes
+hruParamFile      'localParamInfo.txt'                ! default hru parameter info
+gruParamFile      'basinParamInfo.txt'                ! default gru parameter info
+forcingList       'forcingFileList.txt'               ! forcing file list
+initCondFile      'coldState.3l3h_100cm.nc'           ! initial conditions
+trialParamFile    'trialParams.v1.nc'                 ! trial parameter file
+outFilePrefix     'sf_flathead_v1'                    ! output_prefix
+------------------
 
 <a id="infile_model_decisions"></a>
 ## Model decisions file
@@ -166,7 +202,7 @@ spechum  | time, hru | double | g g-1 | Specific humidity at the [measurement he
 
 Notes about forcing file format:
 
-* <a id="forcing_file_dimensions">Forcing dimensions</a>: SUMMA expects the dimensions of the forcing NetCDF file as `(hru,time)`. Note that different programming languages interact with NetCDF dimensions in different ways. For example, a NetCDF file with dimensions `(hru,time)` generated by Python, will be read by Fortran as a file with dimensions `(time,hru)`. 
+* <a id="forcing_file_dimensions">Forcing dimensions</a>: SUMMA expects the dimensions of the forcing NetCDF file as `(hru,time)`. Note that different programming languages interact with NetCDF dimensions in different ways. For example, a NetCDF file with dimensions `(hru,time)` generated by Python, will be read by Fortran as a file with dimensions `(time,hru)`.
 
 * <a id="forcing_file_time_units">Forcing timestep units</a>: The user can specify the time units as `<units> since <reference time>`, where `<units>` is one of `seconds`, `minutes`, `hours`, or `days` and `<reference time>` is specified as `YYYY-MM-DD hh:mm`.
 

@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -45,10 +45,7 @@ USE var_lookup,only:iLookPARAM,iLookFORCE                   ! named variables fo
 USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX           ! named variables for structure elements
 
 ! look-up values for the choice of the time zone information
-USE mDecisions_module,only:  &
- ncTime,                 &    ! time zone information from NetCDF file
- utcTime,                &    ! all times in UTC
- localTime                    ! all times local
+USE globalData,only:ncTime,utcTime,localTime                ! time zone info: as in NetCDF file, UTC, or local
 
 ! look-up values for the choice of snow albedo options
 USE mDecisions_module,only:  &
@@ -72,6 +69,7 @@ contains
  USE conv_funcs_module,only:SPHM2RELHM,RELHM2SPHM,WETBULBTMP ! conversion functions
  USE snow_utils_module,only:fracliquid,templiquid            ! functions to compute temperature/liquid water
  USE time_utils_module,only:compcalday                       ! convert julian day to calendar date
+ USE summaFileManager,only: NC_TIME_ZONE                     ! time zone option from control file
  ! compute derived forcing data variables
  implicit none
  ! input variables
@@ -202,16 +200,16 @@ contains
  scalarCO2air = co2Factor * airpres  ! atmospheric co2 concentration (Pa)
  scalarO2air  = o2Factor * airpres   ! atmospheric o2 concentration (Pa)
 
- ! determine timeOffset based on tmZoneInfo option`
- select case(model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision)
+ ! determine timeOffset based on tmZoneInfo option number`
+ select case(trim(NC_TIME_ZONE))
   ! Time zone information from NetCDF file
-  case(ncTime)
+  case('ncTime')
    timeOffset = longitude/360._dp - tmZoneOffsetFracDay ! time offset in days
   ! All times in UTC
-  case(utcTime)
+  case('utcTime')
    timeOffset = longitude/360._dp  ! time offset in days
   ! All times local
-  case(localTime)
+  case('localTime')
    timeOffset = 0._dp  ! time offset in days
   case default; message=trim(message)//'unable to identify option for tmZoneInfo'; err=20; return
  end select ! identifying option tmZoneInfo

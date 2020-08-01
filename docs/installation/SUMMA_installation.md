@@ -37,9 +37,40 @@ Once you have all the above, you can compile SUMMA using the following steps:
  1. Specify a number of environment variables that are used by the build process. You will need to set the following:
 
     * `F_MASTER` : This is the parent directory of the `build` directory.
+    
+        > Example: Given the following directory structure: 
+        >            ```
+        >
+        >            summa/  
+        >            ├── build  
+        >            ├── ci  
+        >            ├── COPYING  
+        >            ├── Dockerfile  
+        >            ├── docs  
+        >            ├── header.license  
+        >            ├── LICENSE.txt  
+        >            ├── mkdocs.yml  
+        >            ├── readme.md -> docs/index.md  
+        >            └── utils  
+        >            ```
+        >
+        >  `export F_MASTER=/summa` 
+        
     * `FC` : Define the compiler family. This is only used to determine the compiler flags. If your compiler is not included, you will need to add the relevant section to the `Makefile`.
+    
+        > Example: `export FC=gfortran`
+            
     * `FC_EXE` : This is the actual compiler executable that is invoked.
-    * `FC_ENV` : Define the compiler environment. This is used to set the include and library paths and the libraries. If your paths are different than the options already provided, then you will need to add the relevant section to the `Makefile`.
+    
+        > Example: `export FC_EXE=gfortran`
+        
+    * `INCLUDES`: This is the path to the NetCDF and LAPACK include files. This is typically `/usr/include` or `/usr/local/include`.   
+        
+        > Example: `export INCLUDES='-I/usr/include -I/usr/local/inclde -I<other paths>`
+            
+    * `LIBRARIES`: This is the path to the NetCDF and LAPACK libraries, typically `/usr/lib`. The following command will help you determine the correct paths: `find / -type f \( -name "libblas*.so*" -o -name "libnetcdf*.so*" \)`. 
+        
+        > Example: `export LIBRARIES='-L/usr/lib -lnetcdff -L/usr/lib/x86_64-linux-gnu -llapack -lblas'`
 
     If you are using the `bash` shell, then you would set these environment variables with `export FC=gfortran` for example. You may need to modify the `Makefile` if you are using a different Fortran compiler or your setup is different. If someone wants to contribute an actual `configure` script that would be great.
 

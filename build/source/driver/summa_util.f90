@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -99,10 +99,10 @@ contains
   if (trim(argString(iArgument)) == '-v' .or. trim(argString(iArgument)) == '--version') then
    print "(A)", '----------------------------------------------------------------------'
    print "(A)", '     SUMMA - Structure for Unifying Multiple Modeling Alternatives    '
-   print "(A)", spaces(1:int((70 - len_trim(summaVersion) - 9) / 2))//'Version: '   //trim(summaVersion)
-   print "(A)", spaces(1:int((70 - len_trim(buildTime) - 12) / 2))  //'Build Time: '//trim(buildTime)
-   print "(A)", spaces(1:int((70 - len_trim(gitBranch) - 12) / 2))  //'Git Branch: '//trim(gitBranch)
-   print "(A)", spaces(1:int((70 - len_trim(gitHash) - 10) / 2))    //'Git Hash: '  //trim(gitHash)
+   print "(A)", spaces(1:int(real(70 - len_trim(summaVersion) - 9) / 2))//'Version: '   //trim(summaVersion)
+   print "(A)", spaces(1:int(real(70 - len_trim(buildTime) - 12) / 2))  //'Build Time: '//trim(buildTime)
+   print "(A)", spaces(1:int(real(70 - len_trim(gitBranch) - 12) / 2))  //'Git Branch: '//trim(gitBranch)
+   print "(A)", spaces(1:int(real(70 - len_trim(gitHash) - 10) / 2))    //'Git Hash: '  //trim(gitHash)
    print "(A)", '----------------------------------------------------------------------'
    if (nArgument == 1) stop
   end if

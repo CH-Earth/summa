@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -57,9 +57,6 @@ contains
  integer(i4b)             :: get_ixdecisions         ! index of the named variable
  ! get the index of the named variables
  select case(trim(varName))
-  case('simulStart'      ); get_ixdecisions=iLookDECISIONS%simulStart  ! simulation start time
-  case('simulFinsh'      ); get_ixdecisions=iLookDECISIONS%simulFinsh  ! simulation end time
-  case('tmZoneInfo'      ); get_ixdecisions=iLookDECISIONS%tmZoneInfo  ! time zone information
   case('soilCatTbl'      ); get_ixdecisions=iLookDECISIONS%soilCatTbl  ! soil-category dateset
   case('vegeParTbl'      ); get_ixdecisions=iLookDECISIONS%vegeParTbl  ! vegetation category dataset
   case('soilStress'      ); get_ixdecisions=iLookDECISIONS%soilStress  ! choice of function for the soil moisture control on stomatal resistance
@@ -97,6 +94,7 @@ contains
   case('spatial_gw'      ); get_ixdecisions=iLookDECISIONS%spatial_gw  ! choice of method for spatial representation of groundwater
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
   case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
+  case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -343,6 +341,10 @@ contains
   case('ratioDrip2Unloading'      ); get_ixparam = iLookPARAM%ratioDrip2Unloading    ! ratio of canopy drip to unloading of snow from the forest canopy (-)
   case('canopyWettingFactor'      ); get_ixparam = iLookPARAM%canopyWettingFactor    ! maximum wetted fraction of the canopy (-)
   case('canopyWettingExp'         ); get_ixparam = iLookPARAM%canopyWettingExp       ! exponent in canopy wetting function (-)
+  case('minTempUnloading'         ); get_ixparam = iLookPARAM%minTempUnloading       ! min temp for unloading in windySnow (K)
+  case('rateTempUnloading'        ); get_ixparam = iLookPARAM%rateTempUnloading      ! how quickly to unload due to temperature (K s)
+  case('minWindUnloading'         ); get_ixparam = iLookPARAM%minWindUnloading       ! min wind speed for unloading in windySnow (m s-1)
+  case('rateWindUnloading'        ); get_ixparam = iLookPARAM%rateWindUnloading      ! how quickly to unload due to wind (m)
   ! soil properties
   case('soil_dens_intr'           ); get_ixparam = iLookPARAM%soil_dens_intr         ! intrinsic soil density (kg m-3)
   case('thCond_soil'              ); get_ixparam = iLookPARAM%thCond_soil            ! thermal conductivity of soil (W m-1 K-1)

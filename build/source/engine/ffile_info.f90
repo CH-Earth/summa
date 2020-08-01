@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -38,8 +38,8 @@ contains
  USE ascii_util_module,only:linewidth
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
  USE netcdf_util_module,only:netcdf_err      ! netcdf error handling function
- USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
- USE summaFileManager,only:INPUT_PATH        ! path for forcing files
+ USE summaFileManager,only:SETTINGS_PATH     ! path for metadata files
+ USE summaFileManager,only:FORCING_PATH      ! path for forcing files
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
  USE globalData,only:forc_meta               ! forcing metadata
@@ -82,8 +82,8 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------
  ! (1) read from the list of forcing files
  ! ------------------------------------------------------------------------------------------------------------------
- ! build filename for forcing file list
- infile = trim(SETNGS_PATH)//trim(FORCING_FILELIST)
+ ! build filename for forcing-file list file
+ infile = trim(SETTINGS_PATH)//trim(FORCING_FILELIST)
 
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
@@ -133,7 +133,7 @@ contains
   forcFileInfo(iFile)%data_id(:) = integerMissing
 
   ! build filename for actual forcing file
-  infile = trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
+  infile = trim(FORCING_PATH)//trim(forcFileInfo(iFile)%filenmData)
   ! check if file exists
   inquire(file=trim(infile),exist=xist)
   if(.not.xist)then

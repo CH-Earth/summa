@@ -2,13 +2,13 @@
 # Makefile to compile SUMMA
 #========================================================================
 #
-# Recommended use: Copy this file to Makefile.local, edit it to your 
+# Recommended use: Copy this file to Makefile.local, edit it to your
 # heart's content, and then run `make -f build/Makefile.local` from
 # your top level SUMMA directory. Don't include the Makefile.local in
 # any pull requests you make.
 #
 # Note that Makefile configurations that we commonly use can be found on
-# the SUMMA wiki at: 
+# the SUMMA wiki at:
 # https://github.com/NCAR/summa/wiki/SUMMA-Makefile-Part-0-configuration
 # feel free to add yours to that page.
 #
@@ -20,10 +20,10 @@
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
 #  * LIBRARIES        - path to and libraries to include
-# 
+#
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
-# the Makefile. You don't need to make any changes in PART 1 and 
-# following unless you are doing SUMMA development and changed what 
+# the Makefile. You don't need to make any changes in PART 1 and
+# following unless you are doing SUMMA development and changed what
 # needs to be compiled
 
 #========================================================================
@@ -31,7 +31,7 @@
 #========================================================================
 
 # The variables can be specified in one of two ways:
-# * delete the '##' in front of the variable, fill out the entry, 
+# * delete the '##' in front of the variable, fill out the entry,
 #   save the file and run make
 # * make no changes to this file, but specify the variables in your
 #   environment before you run make
@@ -52,7 +52,7 @@
 # FC and FC_EXE have to be consistent
 ##FC_EXE =
 
-# Define the NetCDF and LAPACK libraries and path to include files. 
+# Define the NetCDF and LAPACK libraries and path to include files.
 # INCLUDES needs to be of the form (no quotes around the string):
 # INCLUDES = -I<include path 1> -I<include path 2> -I<...> -I<include path n>
 # LIBRARIES needs to be of the form ( no quotes around the string):
@@ -163,6 +163,7 @@ NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
+		ascii_util.f90 \
 		summaFileManager.f90
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
@@ -174,7 +175,6 @@ SUMMA_DATAMS= \
 		globalData.f90 \
 		flxMapping.f90 \
 		get_ixname.f90 \
-		ascii_util.f90 \
 		popMetadat.f90 \
 		outpt_stat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
@@ -239,10 +239,9 @@ PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_PRELIM))
 SUMMA_NOAHMP= \
 		module_model_constants.F \
 		module_sf_noahutl.F \
-		module_sf_myjsfc.F \
-		module_sf_sfclay.F \
 		module_sf_noahlsm.F \
 		module_sf_noahmplsm.F
+
 NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 
 # Define routines for the SUMMA model runs
@@ -362,7 +361,7 @@ compile_noah:
 
 # compile common routines
 compile_comm:
-	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL)
+	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 
 # compile SUMMA routines
 compile_summa: update_version

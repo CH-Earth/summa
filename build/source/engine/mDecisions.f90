@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -24,10 +24,6 @@ USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
 private
 public::mDecisions
-! look-up values for the choice of the time zone information
-integer(i4b),parameter,public :: ncTime               =   1    ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
-integer(i4b),parameter,public :: utcTime              =   2    ! all times in UTC (timeOffset = longitude/15. hours)
-integer(i4b),parameter,public :: localTime            =   3    ! all times local (timeOffset = 0)
 ! look-up values for the choice of function for the soil moisture control on stomatal resistance
 integer(i4b),parameter,public :: NoahType             =   1    ! thresholded linear function of volumetric liquid water content
 integer(i4b),parameter,public :: CLM_Type             =   2    ! thresholded linear function of matric head
@@ -105,7 +101,7 @@ integer(i4b),parameter,public :: simplExp             = 191    ! simple exponent
 integer(i4b),parameter,public :: difTrans             = 192    ! parameterized as a function of diffuse transmissivity
 ! look-up values for the choice of parameterization for snow interception
 integer(i4b),parameter,public :: stickySnow           = 201    ! maximum interception capacity an increasing function of temerature
-integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow densit
+integer(i4b),parameter,public :: lightSnow            = 202    ! maximum interception capacity an inverse function of new snow density
 ! look-up values for the choice of wind profile
 integer(i4b),parameter,public :: exponential          = 211    ! exponential wind profile extends to the surface
 integer(i4b),parameter,public :: logBelowCanopy       = 212    ! logarithmic profile below the vegetation canopy
@@ -148,9 +144,12 @@ integer(i4b),parameter,public :: constDens            = 311    ! Constant new sn
 integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976
 integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
 integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+! look-up values for the choice of snow unloading from the canopy
+integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
+integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
 ! -----------------------------------------------------------------------------------------------------------
-contains
 
+contains
 
  ! ************************************************************************************************
  ! public subroutine mDecisions: save model decisions as named integers
@@ -180,6 +179,8 @@ contains
  USE time_utils_module,only:extractTime     ! extract time info from units string
  USE time_utils_module,only:compjulday      ! compute the julian day
  USE time_utils_module,only:fracDay         ! compute fractional day
+ USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
+
  implicit none
  ! define output
  integer(i4b),intent(out)             :: err            ! error code
@@ -199,15 +200,6 @@ contains
 
  ! -------------------------------------------------------------------------------------------------
 
- ! identify the choice of the time zone option
- select case(trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision))
-  case('ncTime'   ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = ncTime       ! time zone information from NetCDF file
-  case('utcTime'  ); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = utcTime      ! all times in UTC
-  case('localTime'); model_decisions(iLookDECISIONS%tmZoneInfo)%iDecision = localTime    ! all times local
-  case default
-   err=10; message=trim(message)//"unknown time zone info option [option="//trim(model_decisions(iLookDECISIONS%tmZoneInfo)%cDecision)//"]"; return
- end select
-
  ! put reference time information into the time structures
  call extractTime(forc_meta(iLookFORCE%time)%varunit,                    & ! date-time string
                   refTime%var(iLookTIME%iyyy),                           & ! year
@@ -222,7 +214,6 @@ contains
                   err,cmessage)                                            ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-
  ! compute the julian date (fraction of day) for the reference time
  call compjulday(&
                  refTime%var(iLookTIME%iyyy),                           & ! year
@@ -236,7 +227,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! put simulation start time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulStart)%cDecision,  & ! date-time string
+ call extractTime(trim(SIM_START_TM),                                    & ! date-time string
                   startTime%var(iLookTIME%iyyy),                         & ! year
                   startTime%var(iLookTIME%im),                           & ! month
                   startTime%var(iLookTIME%id),                           & ! day
@@ -262,7 +253,7 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! put simulation end time information into the time structures
- call extractTime(model_decisions(iLookDECISIONS%simulFinsh)%cDecision,  & ! date-time string
+ call extractTime(trim(SIM_END_TM),                                      & ! date-time string
                   finshTime%var(iLookTIME%iyyy),                         & ! year
                   finshTime%var(iLookTIME%im),                           & ! month
                   finshTime%var(iLookTIME%id),                           & ! day
@@ -524,7 +515,7 @@ contains
   case('stickySnow'); model_decisions(iLookDECISIONS%snowIncept)%iDecision = stickySnow        ! maximum interception capacity an increasing function of temerature
   case('lightSnow' ); model_decisions(iLookDECISIONS%snowIncept)%iDecision = lightSnow         ! maximum interception capacity an inverse function of new snow density
   case default
-   err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
+  err=10; message=trim(message)//"unknown option for snow interception capacity[option="//trim(model_decisions(iLookDECISIONS%snowIncept)%cDecision)//"]"; return
  end select
 
  ! identify the choice of wind profile
@@ -625,6 +616,15 @@ contains
    err=10; message=trim(message)//"unknown option for new snow density [option="//trim(model_decisions(iLookDECISIONS%snowDenNew)%cDecision)//"]"; return
  end select
 
+ ! choice of snow unloading from canopy
+ select case(trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision))
+  case('meltDripUnload','notPopulatedYet'); model_decisions(iLookDECISIONS%snowUnload)%iDecision = meltDripUnload  ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
+  case('windUnload');                       model_decisions(iLookDECISIONS%snowUnload)%iDecision = windUnload          ! Roesch et al 2001, formulate unloading based on wind and temperature
+  case default
+   err=10; message=trim(message)//"unknown option for snow unloading [option="//trim(model_decisions(iLookDECISIONS%snowUnload)%cDecision)//"]"; return
+ end select
+
+
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
  ! check for consistency among options
  ! -----------------------------------------------------------------------------------------------------------------------------------------------
@@ -694,7 +694,7 @@ contains
  USE ascii_util_module,only:file_open       ! open file
  USE ascii_util_module,only:linewidth       ! max character number for one line
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
- USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
+ USE summaFileManager,only:SETTINGS_PATH    ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
  USE globalData,only:model_decisions        ! model decision structure
@@ -715,7 +715,7 @@ contains
  ! Start procedure here
  err=0; message='readoption/'
  ! build filename
- infile = trim(SETNGS_PATH)//trim(M_DECISIONS)
+ infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)

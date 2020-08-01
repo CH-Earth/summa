@@ -4,45 +4,6 @@
 
 Information about the selection of specific model decisions is provided to SUMMA via the [model decisions file](../input_output/SUMMA_input.md#infile_model_decisions).
 
-
-<a id="simulStart"></a>
-## 1. simulStart
-Simulation start time
-
-Start of the simulation specified as `'YYYY-MM-DD hh:mm'`. Note that the string needs to be enclosed in single quotes. This indicates the end of the first time step. Since the time stamps in the [forcing files](../input_output/SUMMA_input.md#infile_meteorological_forcing) are period-ending, SUMMA will start reading the forcing file for the time stamp that equals `simulStart`.
-
-<a id="simulFinsh"></a>
-##  2. simulFinsh
-Simulation end time
-
-End of the simulation specified as `'YYYY-MM-DD hh:mm'`. Note that the string needs to be enclosed in single quotes. This indicates the end of the last time step.
-
-<a id="tmZoneInfo"></a>
-##  3. tmZoneInfo
-Time zone information.
-
-The time zone information should be specified consistently in all the model forcing files. The local time for the individual model elements is calculated as `localTime = inputTime + timeOffset`, where `localTime` is the time in which local noon coincides with solar noon, `inputTime` is the time in the model forcing files, and `timeOffset` is determined according to the `tmZoneInfo` option that is selected. The `simulStart` and `simulFinsh` time stamps must be consistent with the `tmZoneInfo` option. The `utcTime` option is recommended for large domain simulations (but you need to ensure that your forcing files are consistent with this option).
-
-Time stamps in the output files will be consistent with the `tmZoneInfo` option selected.
-
-| Option | Description |
-|---|---|
-| ncTime | Time zone information is parsed as `ncTimeOffset` from the `units` attribute of the `time` variable in the NetCDF file with the meteorological forcings. The `timeOffset` is then calculated as `timeOffset = longitude/15 - ncTimeOffset`. The `units` attribute must be compliant with the [CF conventions](http://cfconventions.org/Data/cf-conventions/cf-conventions-1.7/build/ch04s04.html).  Note that the code internally uses fractional days and thus uses `longitude/360`.|
-| utcTime | `timeOffset` is calculated as `timeOffset = longitude/15` hours. In essence this assumes that all time stamps in the forcing files are in UTC. This is the preferred option for large-domain simulations that span multiple time zones. Note that the code internally uses fractional days and thus uses `longitude/360`.|
-| localTime | `timeOffset` is equal to zero. |
-
-For example, assume that a model element has longitude -120º (or 120W) and the `units` attribute of the `time` variable in the NetCDF forcing file is `seconds since 1992-01-01 00:00:00 -6:00`. For each of the `tmZoneInfo` options this will be processed the following way:
-
-| Option | `timeOffset`|
-|--|--|
-|`ncTime`: | `-2:00` hours (`-120/15 - (-6)`)|
-|`utcTime`: | `-8:00` hours (`-120/15`)|
-|`localTime`: | `0:00` hours|
-
-Specifying time zone information in the NetCDF file and overriding it with the `tmZoneInfo` option can be confusing and is only provided to give the user some flexibility.
-
-
-
 <a id="soilCatTbl"></a>
 ##  3. soilCatTbl
 Soil-category dataset
@@ -72,9 +33,9 @@ Function for the soil moisture control on stomatal resistance
 
 | Option | Description |
 |---|---|
-| NoahType | Soil stress is a thresholded linear function of volumetric liquid water content <br> **TODO: Describe NoahType <br> [Reference](http://doi.org/)** |
-| CLM_Type | Soil stress is a thresholded linear function of matric head <br> **TODO: Describe CLM_Type <br> [Reference](http://doi.org/)** |
-| SiB_Type | Soil stress is an exponential of the log of matric head <br> **TODO: Describe Sib_Type <br> [Reference](http://doi.org/)** |
+| NoahType | **Soil stress is a thresholded linear function of volumetric liquid water content <br> [Reference](http://doi.org/)** |
+| CLM_Type | **Soil stress is a thresholded linear function of matric head <br> [CLM, 2010]( https://doi.org/10.1029/2011MS00045)** |
+| SiB_Type | **Soil stress is an exponential of the log of matric head <br> [Reference](http://doi.org/)** |
 
 <a id="stomResist"></a>
 ##  6. stomResist
@@ -305,8 +266,8 @@ Parameterization for snow interception
 
 | Option | Description |
 |---|---|
-| stickySnow | **TODO: Describe stickySnow <br> [Reference](http://doi.org/)** |
-| lightSnow | **TODO: Describe lightSnow <br> [Reference](http://doi.org/)** |
+| stickySnow | **Includes a rapid interception increasae between -3 and 0 C from observations of increased cohesion in warm regions.  <br> [Andreadis et al. 2009](https://doi.org/10.1029/2008WR007042)** |
+| lightSnow | **Includes a slight decrease in interception after -3 C from obervations in cold regions. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)** |
 
 
 <a id="windPrfile"></a>
@@ -315,8 +276,8 @@ Canopy wind profile
 
 | Option | Description |
 |---|---|
-| exponential | **TODO: Describe exponential <br> [Reference](http://doi.org/)** |
-| logBelowCanopy | **TODO: Describe logBelowCanopy <br> [Reference](http://doi.org/)** |
+| exponential | **The wind speed profile through the canopy is an exponential decay function. <br> [Reference](http://doi.org/)** |
+| logBelowCanopy | **The wind speed profile through the canopy is a logarithmic decay function. <br> [Reference](http://doi.org/)** |
 
 
 <a id="astability"></a>
@@ -345,8 +306,8 @@ Method to combine and sub-divide snow layers
 
 | Option | Description |
 |---|---|
-| jrdn1991 | **TODO: Describe jrdn1991 <br> [Reference](http://doi.org/)** |
-| CLM_2010 | **TODO: Describe CLM_2010 <br> [Reference](http://doi.org/)** |
+| jrdn1991 | **Divides the snowpack into a growing layer system where the number of layers is 100.  <br> [Jordan, 1991](https://apps.dtic.mil/docs/citations/ADA245493)** |
+| CLM_2010 | **Divides the snowpack into a 5-layer system. The rules of the layer division/merge can be altered to create <5 layer snowpacks. <br> [Community Land Model, 2010]( https://doi.org/10.1029/2011MS00045)** |
 
 
 <a id="thCondSnow"></a>
@@ -418,7 +379,17 @@ Method for new snow density
 
 | Option | Description |
 |---|---|
-| hedAndPom | **TODO: Describe hedAndPom <br> [Reference](http://doi.org/)** |
+| hedAndPom | **An empirical calculation dependant on air temperature. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4)** |
 | anderson | **TODO: Describe anderson <br> [Reference](http://doi.org/)** |
-| pahaut_76 | **TODO: Describe pahaut_76 <br> [Reference](http://doi.org/)** |
-| constDens | **TODO: Describe constDens <br> [Reference](http://doi.org/)** |
+| pahaut_76 | **An empirical calculation dependant on air temperature and wind speed. <br> [Pahaut, 1976](http://doi.org/)** |
+| constDens | **A constant new snow density of 330 kg/m^3 <br> [Reference](http://doi.org/)** |
+
+<a id="snowUnload"></a>
+## 40. snowUnload
+Method for unloading snow from the canopy
+
+| Option | Description |
+|---|---|
+| meltDripUnload | **Contains a temperature unloading function where the parameter *snowUnloadingCoeff* controls the exponential unloading rate and *ratioDrip2Unloading* is the ratio of liquid water drip from the canopy to snow unloading. <br> [Hedstom and Pomeroy, 1998](https://doi.org/10.1002/(SICI)1099-1085(199808/09)12:10/11<1611::AID-HYP684>3.0.CO;2-4) <br> [Storck et al. 2002]( https://doi.org/10.1029/2002WR001281)** |
+| windUnload | **Contains temperature and wind dependent unloading functions. The rates of temperature and wind unloading are adjustable through parameters *rateTempUnloading* and *rateWindUnloading*. Both functions contain parameter thresholds for the minimum temperature and windspeed required for unloading.  <br> [Roesch et al. 2001](https://doi.org/10.1007/s003820100153)** |
+

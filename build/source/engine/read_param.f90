@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -50,7 +50,7 @@ contains
  ! ************************************************************************************************
  subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
- USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
+ USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
  USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
@@ -102,13 +102,16 @@ contains
  ! **********************************************************************************************
 
  ! build filename
- infile = trim(SETNGS_PATH)//trim(PARAMETER_TRIAL)
+ infile = trim(SETTINGS_PATH)//trim(PARAMETER_TRIAL)
 
- ! do we need the file?
+ ! check whether the user-specified file exists and warn if it does not
  inquire(file=trim(infile),exist=fexist)
- if (.not.fexist) return
+ if (.not.fexist) then
+  write(*,'(A)') NEW_LINE('A')//'!! WARNING:  trial parameter file not found; proceeding instead with other default parameters; check path in file manager input if this was not the desired behavior'//NEW_LINE('A')
+  return
+ endif
 
- ! open file
+ ! open trial parameters file if it exists
  call nc_file_open(trim(infile),nf90_nowrite,ncid,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 

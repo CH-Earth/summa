@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -86,7 +86,6 @@ contains
  character(*),intent(out)              :: message            ! error message
  ! ---------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)                    :: cmessage           ! error message of downwind routine
  integer(i4b)                          :: iFreq              ! loop through frequencies
  ! ---------------------------------------------------------------------------------------
  ! initialize error control

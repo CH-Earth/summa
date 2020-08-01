@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2015 NCAR/RAL
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
 !
 ! This file is part of SUMMA
 !
@@ -38,9 +38,11 @@ USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named 
 USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
 
 ! model decisions
-USE mDecisions_module,only:       &
-                      stickySnow, & ! maximum interception capacity an increasing function of temerature
-                      lightSnow     ! maximum interception capacity an inverse function of new snow densit
+USE mDecisions_module,only:           &
+                      stickySnow,     & ! maximum interception capacity an increasing function of temerature
+                      lightSnow,      & ! maximum interception capacity an inverse function of new snow density
+                      meltDripUnload, & ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
+                      windUnload        ! Roesch et al 2001, formulate unloading based on wind and temperature
 
 ! privacy
 implicit none
@@ -99,6 +101,8 @@ contains
  real(dp)                      :: flux                       ! net flux (kg m-2 s-1)
  real(dp)                      :: delS                       ! change in storage (kg m-2)
  real(dp)                      :: resMass                    ! residual in mass equation (kg m-2)
+ real(dp)                      :: tempUnloadingFun           ! temperature unloading functions, Eq. 14 in Roesch et al. 2001
+ real(dp)                      :: windUnloadingFun           ! temperature unloading functions, Eq. 15 in Roesch et al. 2001
  real(dp),parameter            :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -109,6 +113,7 @@ contains
 
  ! model decisions
  ixSnowInterception        => model_decisions(iLookDECISIONS%snowIncept)%iDecision,        & ! intent(in): [i4b] choice of option to determine maximum snow interception capacity
+ ixSnowUnload              => model_decisions(iLookDECISIONS%snowUnload)%iDecision,        & ! intent(in): [i4b] choice of option to determing how snow unloads from canopy
 
  ! model forcing data
  scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in): [dp] air temperature (K)
@@ -117,6 +122,10 @@ contains
  refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1),        & ! intent(in): [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
  ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading)%dat(1),        & ! intent(in): [dp] ratio of canopy drip to snow unloading (-)
  snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff)%dat(1),         & ! intent(in): [dp] time constant for unloading of snow from the forest canopy (s-1)
+ minTempUnloading          => mpar_data%var(iLookPARAM%minTempUnloading)%dat(1),           & ! constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
+ minWindUnloading          => mpar_data%var(iLookPARAM%minWindUnloading)%dat(1),           & ! constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
+ rateTempUnloading         => mpar_data%var(iLookPARAM%rateTempUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to temperature in windySnow parameterization (K s)
+ rateWindUnloading         => mpar_data%var(iLookPARAM%rateWindUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to wind in windySnow parameterization (K s)
 
  ! model diagnostic variables
  scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)
@@ -125,9 +134,10 @@ contains
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
 
  ! model fluxes (input)
+ scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1),            & ! intent(in): [dp] temperature of the canopy air space (k)
  scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
  scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
-
+ scalarWindspdCanopyTop    => flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),      & ! intent(in): [dp] windspeed at the top of the canopy (m s-1)
  ! model variables (output)
  scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),       & ! intent(out): [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
  scalarCanopySnowUnloading => flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)    & ! intent(out): [dp] unloading of snow from the vegetion canopy (kg m-2 s-1)
@@ -148,7 +158,6 @@ contains
  ! *****
  ! compute the ice balance due to snowfall and unloading...
  ! ********************************************************
-
  ! check for early returns
  if(.not.computeVegFlux .or. (scalarSnowfall<tiny(dt) .and. scalarCanopyIce<tiny(dt)))then
   scalarThroughfallSnow     = scalarSnowfall    ! throughfall of snow through the canopy (kg m-2 s-1)
@@ -158,86 +167,66 @@ contains
 
  ! get a trial value for canopy storage
  scalarCanopyIceIter = scalarCanopyIce
-
- ! iterate
  do iter=1,maxiter
-
-  ! ** compute unloading
-  scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
-  unloadingDeriv            = snowUnloadingCoeff
-
-  ! ** compute throughfall
-
-  ! no snowfall
-  if(scalarSnowfall<tiny(dt))then ! no snow
-   ! compute throughfall -- note this is effectively zero (no snow case)
-   scalarThroughfallSnow = scalarSnowfall  ! throughfall (kg m-2 s-1)
-   canopyIceScaleFactor  = valueMissing    ! not used
-   throughfallDeriv      = 0._dp
-
-  ! snowfall: compute interception
-  else
-
-   ! ** process different options for maximum branch snow interception
-   select case(ixSnowInterception)
-
-    ! * option 1: maximum interception capacity an inverse function of new snow density (e.g., Mahat and Tarboton, HydProc 2013)
-    case(lightSnow)
-     ! (check new snow density is valid)
-     if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; end if
-     ! (compute storage capacity of new snow)
-     leafScaleFactor       = 0.27_dp + 46._dp/scalarNewSnowDensity
-     leafInterceptCapSnow  = refInterceptCapSnow*leafScaleFactor  ! per unit leaf area (kg m-2)
-
-    ! * option 2: maximum interception capacity an increasing function of air temerature
-    case(stickySnow)
-     airtemp_degC = scalarAirtemp - Tfreeze
-     if    (airtemp_degC > -1._dp)then; leafScaleFactor = 4.0_dp
-     elseif(airtemp_degC > -3._dp)then; leafScaleFactor = 1.5_dp*airtemp_degC + 5.5_dp
-                                  else; leafScaleFactor = 1.0_dp
+     ! ** compute unloading
+     if (ixSnowUnload==meltDripUnload) then
+         scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
+         unloadingDeriv            = snowUnloadingCoeff
+     else if (ixSnowUnload==windUnload) then
+         tempUnloadingFun = max(scalarCanairTemp - minTempUnloading, 0._dp) / rateTempUnloading   ! (s-1)
+         if (scalarWindspdCanopyTop >= minWindUnloading) then
+            windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
+         else
+            windUnloadingFun = 0._dp ! (s-1)
+         end if
+         ! implement the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
+         scalarCanopySnowUnloading = scalarCanopyIceIter * (tempUnloadingFun + windUnloadingFun)
+         unloadingDeriv            = tempUnloadingFun + windUnloadingFun
      end if
-     leafInterceptCapSnow = refInterceptCapSnow*leafScaleFactor
-     !write(*,'(a,1x,2(f20.10,1x))') 'airtemp_degC, leafInterceptCapSnow = ', airtemp_degC, leafInterceptCapSnow
-     !pause 'in stickysnow'
-
-    ! check we found the case
-    case default
-     message=trim(message)//'unable to identify option for maximum branch interception capacity'
-     err=20; return
-
-   end select ! identifying option for maximum branch interception capacity
-
-   ! compute maximum interception capacity for the canopy
-   canopyIceScaleFactor = leafInterceptCapSnow*exposedVAI
-
-   ! (compute throughfall)
-   scalarThroughfallSnow = scalarSnowfall*(scalarCanopyIceIter/canopyIceScaleFactor)
-   throughfallDeriv      = scalarSnowfall/canopyIceScaleFactor
-
-   !write(*,'(a,1x,10(e20.10,1x))') 'scalarSnowfall, scalarNewSnowDensity, refInterceptCapSnow, leafScaleFactor, leafInterceptCapSnow, exposedVAI, canopyIceScaleFactor = ', &
-   !                                 scalarSnowfall, scalarNewSnowDensity, refInterceptCapSnow, leafScaleFactor, leafInterceptCapSnow, exposedVAI, canopyIceScaleFactor
-
-  end if  ! (if snow is falling)
-
-  !write(*,'(a,1x,10(e20.10,1x))') 'scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt = ', &
-  !                                 scalarThroughfallSnow, scalarCanopySnowUnloading, unloading_melt
-
-  ! ** compute iteration increment
-  flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
-  delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._dp + (throughfallDeriv + unloadingDeriv)*dt)
-  !write(*,'(a,1x,10(f20.10,1x))') 'scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading = ',&
-  !                                 scalarCanopyIceIter, flux, delS, scalarSnowfall, scalarThroughfallSnow, scalarCanopySnowUnloading
-
-  ! ** check for convergence
-  resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)
-  if(abs(resMass) < convTolerMass)exit
-
-  ! ** check for non-convengence
-  if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; end if
-
-  ! ** update value
-  scalarCanopyIceIter = scalarCanopyIceIter + delS
-
+     ! no snowfall
+     if(scalarSnowfall<tiny(dt))then ! no snow
+         scalarThroughfallSnow = scalarSnowfall  ! throughfall (kg m-2 s-1)
+         canopyIceScaleFactor  = valueMissing    ! not used
+         throughfallDeriv      = 0._dp
+     else
+         ! ** process different options for maximum branch snow interception
+         select case(ixSnowInterception)
+             case(lightSnow)
+                 ! (check new snow density is valid)
+                 if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; end if
+                 ! (compute storage capacity of new snow)
+                 leafScaleFactor       = 0.27_dp + 46._dp/scalarNewSnowDensity
+                 leafInterceptCapSnow  = refInterceptCapSnow*leafScaleFactor  ! per unit leaf area (kg m-2)
+             case(stickySnow)
+                 airtemp_degC = scalarAirtemp - Tfreeze
+                 if (airtemp_degC > -1._dp) then
+                    leafScaleFactor = 4.0_dp
+                 elseif(airtemp_degC > -3._dp) then
+                    leafScaleFactor = 1.5_dp*airtemp_degC + 5.5_dp
+                 else
+                    leafScaleFactor = 1.0_dp
+                 end if
+                 leafInterceptCapSnow = refInterceptCapSnow*leafScaleFactor
+             case default
+                 message=trim(message)//'unable to identify option for maximum branch interception capacity'
+                 err=20; return
+         end select
+         ! compute maximum interception capacity for the canopy
+         canopyIceScaleFactor = leafInterceptCapSnow*exposedVAI
+         ! (compute throughfall)
+         scalarThroughfallSnow = scalarSnowfall*(scalarCanopyIceIter/canopyIceScaleFactor)
+         throughfallDeriv      = scalarSnowfall/canopyIceScaleFactor
+     end if  ! (if snow is falling)
+     ! ** compute iteration increment
+     flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
+     delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._dp + (throughfallDeriv + unloadingDeriv)*dt)
+     ! ** check for convergence
+     resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)
+     if(abs(resMass) < convTolerMass)exit
+     ! ** check for non-convengence
+     if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; end if
+     ! ** update value
+     scalarCanopyIceIter = scalarCanopyIceIter + delS
  end do  ! iterating
 
  ! add the unloading associated with melt drip (kg m-2 s-1)
@@ -246,10 +235,6 @@ contains
  ! *****
  ! update mass of ice on the canopy (kg m-2)
  scalarCanopyIce = scalarCanopyIceIter
-
- !print*, 'scalarCanopySnowUnloading    = ', scalarCanopySnowUnloading
- !print*, 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
-
  ! end association to variables in the data structure
  end associate
 
