@@ -99,11 +99,7 @@ contains
  ! In such cases AUX > 1 or AUX < -1. Fix AUX at (-)1 in those cases, to fix sunrise at 00.00 or 24.00 of the current day (instead of some time before/after the current day)
  AUX=-TAN(LAT1)*TAN(D)
  IF(abs(AUX) > 1.) THEN
-<<<<<<< HEAD
-  TD=ACOS(SIGN(1.D0, AUX))
-=======
   TD=ACOS(SIGN(1._dp, AUX))
->>>>>>> 1b6a476f1b6c776b635c6e027e8b8b5bb268588d
  ELSE
   TD=ACOS(AUX)
  END IF
@@ -144,11 +140,7 @@ contains
   ! In such cases AUX > 1 or AUX < -1. Fix AUX at (-)1 in those cases
   AUX=-TAN(LAT1)*TAN(D)
   IF(abs(AUX) > 1.) THEN
-<<<<<<< HEAD
-   TD=ACOS(SIGN(1.D0, AUX))
-=======
    TD=ACOS(SIGN(1._dp, AUX))
->>>>>>> 1b6a476f1b6c776b635c6e027e8b8b5bb268588d
   ELSE
    TD=ACOS(AUX)
   END IF
