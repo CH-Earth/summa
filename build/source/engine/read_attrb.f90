@@ -68,8 +68,8 @@ contains
  err=0; message="read_dimension/"
 
  ! check that we do not have conflicting flags
- if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist'; return; end if
-
+ if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist, which is not supported'; return; end if
+ 
  ! open nc file
  call nc_file_open(trim(attrFile),nf90_noWrite,ncID,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
@@ -97,8 +97,12 @@ contains
  endif
 
  ! check dimensions
- if ((present(startGRU)).and.(startGRU + nGRU - 1  > fileGRU)) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
- if ((present(checkHRU)).and.(checkHRU        > fileHRU)) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'       ; return; end if
+ if (present(startGRU)) then
+  if(startGRU + nGRU - 1  > fileGRU) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
+ end if
+ if (present(checkHRU)) then
+  if(checkHRU > fileHRU) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
+ end if
 
  ! *********************************************************************************************
  ! read mapping vectors and populate mapping structures

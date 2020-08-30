@@ -183,7 +183,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="computResid/"
-
+ 
  ! ---
  ! * compute sink terms...
  ! -----------------------
@@ -225,6 +225,7 @@ contains
  ! --> energy balance
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempTrial - ( (sMul(ixCasNrg)*scalarCanairTemp + fVec(ixCasNrg)*dt) + rAdd(ixCasNrg) )
  if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*scalarCanopyTempTrial - ( (sMul(ixVegNrg)*scalarCanopyTemp + fVec(ixVegNrg)*dt) + rAdd(ixVegNrg) )
+
  ! --> mass balance
  if(ixVegHyd/=integerMissing)then
   scalarCanopyHyd = merge(scalarCanopyWat, scalarCanopyLiq, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
@@ -250,7 +251,9 @@ contains
  endif
 
  ! compute the residual vector for the aquifer
- if(ixAqWat/=integerMissing) rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStorageTrial - ( (sMul(ixAqWat)*scalarAquiferStorage + fVec(ixAqWat)*dt) + rAdd(ixAqWat) )
+ if(ixAqWat/=integerMissing) then
+  rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStorageTrial - ( (sMul(ixAqWat)*scalarAquiferStorage + fVec(ixAqWat)*dt) + rAdd(ixAqWat) )
+ endif
 
  ! print result
  if(globalPrintFlag)then
@@ -261,7 +264,9 @@ contains
 
  ! check
  if(any(isNan(rVec)))then
-  message=trim(message)//'we found some Indian bread (NaN)'
+  message=trim(message)//'we found some Indian bread (NaN) '
+  write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
+  write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
   err=20; return
  endif
 
