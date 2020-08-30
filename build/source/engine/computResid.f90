@@ -183,7 +183,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="computResid/"
- 
+
  ! ---
  ! * compute sink terms...
  ! -----------------------
@@ -251,9 +251,7 @@ contains
  endif
 
  ! compute the residual vector for the aquifer
- if(ixAqWat/=integerMissing) then
-  rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStorageTrial - ( (sMul(ixAqWat)*scalarAquiferStorage + fVec(ixAqWat)*dt) + rAdd(ixAqWat) )
- endif
+ if(ixAqWat/=integerMissing) rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStorageTrial - ( (sMul(ixAqWat)*scalarAquiferStorage + fVec(ixAqWat)*dt) + rAdd(ixAqWat) )
 
  ! print result
  if(globalPrintFlag)then

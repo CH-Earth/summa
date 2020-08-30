@@ -697,7 +697,6 @@ contains
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   real(dp),parameter             :: delX=1._dp               ! trial increment
   real(dp)                       :: xIncrement(nState)       ! trial increment
-  real(dp)                       :: resVecLast(nState)       ! last residual vector
   ! initialize
   err=0; message='getBrackets/'
 
@@ -724,10 +723,6 @@ contains
    ! check that the trial value is feasible (should not happen because of the call to impose constraints)
    if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
 
-   if(iCheck==1)then
-     resVecLast = resVecNew 
-   endif
-
    ! update brackets
    if(real(resVecNew(1), dp)<0._dp)then
     xMin = stateVecNew(1)
@@ -736,60 +731,8 @@ contains
    endif
 
    ! print progress
-   print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement, delX, rVec = ', &
-            xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement, delX, rVec
-
-   ! check that the brackets are defined
-   if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
-
-   ! check that we found the brackets
-   if(iCheck==nCheck)then
-    message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
-    !err=20; return   !  AW comment out to get next part
-
-    ! reset to default brackets based on initial trial using xIncrement 
-    !xIncrement = -sign((/delX/),rVec)
-    !xMin = stateVecTrial(1) - abs(xIncrement(1))
-    !xMax = stateVecTrial(1) + abs(xIncrement(1))
-    !print*, '--- trying default min and max: ',xMin, xMax
-    print*, '--- reached limit of tries, searching in other direction'
-   endif
-
-  end do  ! multiple checks
-
-  ! initialize state vector
-  stateVecNew = stateVecTrial
-
-  ! get xIncrement (opposite direction)
-  xIncrement = sign((/delX/),rVec)
-
-  ! try the increment a few times
-  do iCheck=1,nCheck
-
-   ! impose solution constraints
-   call imposeConstraints(stateVecNew,xIncrement,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-   ! increment state vector
-   stateVecNew = stateVecNew + xIncrement
-
-   ! evaluate summa
-   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-   ! check that the trial value is feasible (should not happen because of the call to impose constraints)
-   if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
-
-   ! update brackets
-   if(real(resVecNew(1), dp)<0._dp)then
-    xMin = stateVecNew(1)
-   else
-    xMax = stateVecNew(1)
-   endif
-
-   ! print progress
-   print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement, delX, rVec = ', &
-            xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement, delX, rVec
+   !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
+   !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
 
    ! check that the brackets are defined
    if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
