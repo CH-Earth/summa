@@ -228,8 +228,6 @@ contains
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
 
-     ixHRUfile_min=huge(1)
-     ixHRUfile_max=0
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
@@ -242,9 +240,6 @@ contains
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
-       ! save the index of the minimum and maximum HRUs in the file
-       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
-       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
       end do
      end do
 

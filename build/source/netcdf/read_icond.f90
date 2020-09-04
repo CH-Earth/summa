@@ -21,6 +21,7 @@
 module read_icond_module
 USE nrtype
 USE netcdf
+USE globalData,only:ixHRUfile_min,ixHRUfile_max
 implicit none
 private
 public::read_icond
@@ -62,6 +63,8 @@ contains
  integer(i4b)             :: fileHRU                    ! number of HRUs in netcdf file
  integer(i4b)             :: snowID, soilID             ! netcdf variable ids
  integer(i4b)             :: iGRU, iHRU                 ! loop indexes
+ integer(i4b)             :: iHRU_local                 ! index of HRU in the data subset
+ integer(i4b)             :: iHRU_global                ! index of HRU in the netcdf file
  integer(i4b),allocatable :: snowData(:)                ! number of snow layers in all HRUs
  integer(i4b),allocatable :: soilData(:)                ! number of soil layers in all HRUs
  character(len=256)       :: cmessage                   ! downstream error message
@@ -95,20 +98,31 @@ contains
  !print*, 'snowData = ', snowData
  !print*, 'soilData = ', soilData
 
+ ixHRUfile_min=huge(1)
+ ixHRUfile_max=0
  ! assign to index structure - gru by hru
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   
+   if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+   if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+  end do
+ end do
+
+ do iGRU = 1,nGRU
+  do iHRU = 1,gru_struc(iGRU)%hruCount
+   iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+   iHRU_local = (iHRU_global - ixHRUfile_min) + 1
+
    ! single HRU
-   if(restartFileType==singleHRU)then   
+   if(restartFileType==singleHRU)then
     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
 
    ! multi HRU
    else
-    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
-    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc)
-   endif 
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_local)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_local)
+   endif
 
   end do
  end do
@@ -176,6 +190,8 @@ contains
  integer(i4b)                           :: dimLen       ! data dimensions
  integer(i4b)                           :: ncID         ! netcdf file ID
  integer(i4b)                           :: ixFile       ! index in file
+ integer(i4b)                           :: iHRU_local   ! index of HRU in the data subset
+ integer(i4b)                           :: iHRU_global  ! index of HRU in the netcdf file
  real(dp),allocatable                   :: varData(:,:) ! variable data storage
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b)                           :: iLayer,jLayer ! layer indices
@@ -253,18 +269,20 @@ contains
   do iGRU = 1,nGRU
    do iHRU = 1,gru_struc(iGRU)%hruCount
 
+   iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+   iHRU_local = (iHRU_global - ixHRUfile_min) + 1
     ! get the number of layers
     nSnow = gru_struc(iGRU)%hruInfo(iHRU)%nSnow
     nSoil = gru_struc(iGRU)%hruInfo(iHRU)%nSoil
     nToto = nSnow + nSoil
 
     ! get the index in the file: single HRU
-    if(restartFileType==singleHRU)then   
+    if(restartFileType==singleHRU)then
      ixFile = 1  ! use for single HRU restart file
 
     ! get the index in the file: multi HRU
     else
-     ixFile = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
+     ixFile = iHRU_local!gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
     endif
 
     ! put the data into data structures and check that none of the values are set to nf90_fill_double
