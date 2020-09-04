@@ -36,7 +36,7 @@ contains
  ! ************************************************************************************************
  subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
- USE summaFileManager,only:SETNGS_PATH     ! path for metadata files
+ USE summaFileManager,only:SETTINGS_PATH   ! path for input parameter and other configuration files
  USE ascii_util_module,only:file_open      ! open ascii file
  USE ascii_util_module,only:split_line     ! extract the list of variable names from the character string
  USE data_types,only:var_info              ! data type for metadata
@@ -73,7 +73,7 @@ contains
  ! (1) open files, etc.
  ! **********************************************************************************************
  ! build filename and update error message
- infile = trim(SETNGS_PATH)//trim(filenm)
+ infile = trim(SETTINGS_PATH)//trim(filenm)
  message=trim(message)//'file='//trim(infile)//' - '
  ! open file
  call file_open(trim(infile),unt,err,cmessage)

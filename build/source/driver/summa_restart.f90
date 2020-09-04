@@ -58,7 +58,8 @@ contains
  USE globalData,only:gru_struc                               ! gru-hru mapping structures
  USE globalData,only:model_decisions                         ! model decision structure
  ! file paths
- USE summaFileManager,only:SETNGS_PATH                       ! define path to settings files (e.g., Noah vegetation tables)
+ USE summaFileManager,only:SETTINGS_PATH                     ! path to settings files (e.g., Noah vegetation tables)
+ USE summaFileManager,only:STATE_PATH                        ! optional path to state/init. condition files (defaults to SETTINGS_PATH)
  USE summaFileManager,only:MODEL_INITCOND                    ! name of model initial conditions file
  ! timing variables
  USE globalData,only:startRestart,endRestart                 ! date/time for the start and end of reading model restart files
@@ -111,8 +112,12 @@ contains
  ! *** read/check initial conditions
  ! *****************************************************************************
 
- ! define restart file
- restartFile = trim(SETNGS_PATH)//trim(MODEL_INITCOND)
+ ! define restart file path/name
+ if(STATE_PATH == '') then
+   restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
+ else
+    restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
+ endif
 
  ! read initial conditions
  call read_icond(restartFile,                   & ! intent(in):    name of initial conditions file
