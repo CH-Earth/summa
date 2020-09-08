@@ -326,27 +326,37 @@ contains
    case(powerLaw_profile)
     ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
-    ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
-                          ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+    
+    if(compactedDepth/iLayerHeight(nLayers) /= 1._dp) then    ! avoid divide by zero
+     ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
+                           ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+    else
+     ifcDepthScaleFactor = 1.0_dp
+    endif                           
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
-    else
+    else   ! if the mid-point of a layer
      if(iLayer==nLayers)then
       iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil) * ifcDepthScaleFactor
      else
       iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) ) * ifcDepthScaleFactor
      endif
      ! - conductivity at layer midpoints
-     midDepthScaleFactor = ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
-                           ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     if(compactedDepth/iLayerHeight(nLayers) /= 1._dp) then    ! avoid divide by zero
+      midDepthScaleFactor = ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
+                            ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     else
+      midDepthScaleFactor = 1.0_dp
+     endif                            
      mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)      * midDepthScaleFactor
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow) * midDepthScaleFactor
-     !print*, 'compactedDepth = ', compactedDepth
-     !print*, 'k_macropore    = ', k_macropore
-     !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
-     !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
-     !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
-    end if  ! if the mid-point of a layer
+    end if  
+ 
+    !print*, 'compactedDepth = ', compactedDepth
+    !print*, 'k_macropore    = ', k_macropore
+    !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
+    !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
+    !print*, 'iLayer, mLayerSatHydCondMP(iLayer-nSnow) = ', mLayerSatHydCondMP(iLayer-nSnow)
 
    ! error check (errors checked earlier also, so should not get here)
    case default
