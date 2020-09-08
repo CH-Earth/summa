@@ -51,7 +51,8 @@ contains
 
  ! locals
  integer(i4b)                         :: sGRU               ! starting GRU
- integer(i4b)                         :: iHRU               ! HRU couinting index
+ integer(i4b)                         :: iHRU               ! HRU counting index
+ integer(i4b)                         :: jHRU               ! HRU index within GRU
  integer(i4b)                         :: iGRU               ! GRU loop index
  integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
  integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
@@ -176,9 +177,12 @@ if (present(checkHRU)) then                                                     
  index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
 else ! anything other than a single HRU run
+
  do iGRU = 1,nGRU
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run domain to which the hru belongs
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
+  do jHRU = 1,gru_struc(iGRU)%hruCount
+   index_map(gru_struc(iGRU)%hruInfo(jHRU)%hru_nc)%gru_ix      = iGRU                          ! index of gru in run domain to which the hru belongs
+   index_map(gru_struc(iGRU)%hruInfo(jHRU)%hru_nc)%localHRU_ix = jHRU                          ! index of hru within the gru
+  end do  ! jHRU = 1,gru_struc(iGRU)%hruCount
  enddo ! iGRU = 1,nGRU
 
 end if ! not checkHRU
