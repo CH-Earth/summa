@@ -38,8 +38,8 @@ contains
  USE ascii_util_module,only:linewidth
  USE netcdf_util_module,only:nc_file_open    ! open netCDF file
  USE netcdf_util_module,only:netcdf_err      ! netcdf error handling function
- USE summaFileManager,only:SETNGS_PATH       ! path for metadata files
- USE summaFileManager,only:INPUT_PATH        ! path for forcing files
+ USE summaFileManager,only:SETTINGS_PATH     ! path for metadata files
+ USE summaFileManager,only:FORCING_PATH      ! path for forcing files
  USE summaFileManager,only:FORCING_FILELIST  ! list of model forcing files
  USE globalData,only:forcFileInfo,data_step  ! info on model forcing file
  USE globalData,only:forc_meta               ! forcing metadata
@@ -82,8 +82,8 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------
  ! (1) read from the list of forcing files
  ! ------------------------------------------------------------------------------------------------------------------
- ! build filename for forcing file list
- infile = trim(SETNGS_PATH)//trim(FORCING_FILELIST)
+ ! build filename for forcing-file list file
+ infile = trim(SETTINGS_PATH)//trim(FORCING_FILELIST)
 
  ! open file
  call file_open(trim(infile),unt,err,cmessage)
@@ -133,7 +133,7 @@ contains
   forcFileInfo(iFile)%data_id(:) = integerMissing
 
   ! build filename for actual forcing file
-  infile = trim(INPUT_PATH)//trim(forcFileInfo(iFile)%filenmData)
+  infile = trim(FORCING_PATH)//trim(forcFileInfo(iFile)%filenmData)
   ! check if file exists
   inquire(file=trim(infile),exist=xist)
   if(.not.xist)then
@@ -228,8 +228,6 @@ contains
      err = nf90_inq_varid(ncid,trim(varname),varId)
      if(err/=0)then; message=trim(message)//'hruID variable not present'; return; endif
 
-     ixHRUfile_min=huge(1)
-     ixHRUfile_max=0
      ! check that the hruId is what we expect
      ! NOTE: we enforce that the HRU order in the forcing files is the same as in the zLocalAttributes files (too slow otherwise)
      do iGRU=1,nGRU
@@ -242,9 +240,6 @@ contains
         write(message,'(a)') trim(message)//' order of hruId in forcing file needs to match order in zLocalAttributes.nc'
         err=40; return
        endif
-       ! save the index of the minimum and maximum HRUs in the file
-       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
-       if(gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc > ixHRUfile_max) ixHRUfile_max = gru_struc(iGRU)%hruInfo(localHRU_ix)%hru_nc
       end do
      end do
 

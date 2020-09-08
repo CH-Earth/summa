@@ -683,7 +683,7 @@ contains
  subroutine read_output_file(err,message)
  USE netcdf
  ! to get name of output control file from user
- USE summaFileManager,only:SETNGS_PATH         ! path for metadata files
+ USE summaFileManager,only:SETTINGS_PATH       ! path for metadata files
  USE summaFileManager,only:OUTPUT_CONTROL      ! file with output controls
 
  ! some dimensional parameters
@@ -764,7 +764,7 @@ contains
  ! **********************************************************************************************
  ! (1) open file and read variable data
  ! **********************************************************************************************
- outfile = trim(SETNGS_PATH)//trim(OUTPUT_CONTROL)   ! build filename
+ outfile = trim(SETTINGS_PATH)//trim(OUTPUT_CONTROL) ! build filename
  call file_open(trim(outfile),unt,err,cmessage)      ! open file
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 

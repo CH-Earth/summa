@@ -50,7 +50,7 @@ contains
  ! ************************************************************************************************
  subroutine read_param(iRunMode,checkHRU,startGRU,nHRU,nGRU,idStruct,mparStruct,bparStruct,err,message)
  ! used to read model initial conditions
- USE summaFileManager,only:SETNGS_PATH               ! path for metadata files
+ USE summaFileManager,only:SETTINGS_PATH             ! path for metadata files
  USE summaFileManager,only:PARAMETER_TRIAL           ! file with parameter trial values
  USE get_ixname_module,only:get_ixparam,get_ixbpar   ! access function to find index of elements in structure
  USE globalData,only:index_map,gru_struc             ! mapping from global HRUs to the elements in the data structures
@@ -102,7 +102,7 @@ contains
  ! **********************************************************************************************
 
  ! build filename
- infile = trim(SETNGS_PATH)//trim(PARAMETER_TRIAL)
+ infile = trim(SETTINGS_PATH)//trim(PARAMETER_TRIAL)
 
  ! check whether the user-specified file exists and warn if it does not
  inquire(file=trim(infile),exist=fexist)

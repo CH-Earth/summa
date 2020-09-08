@@ -136,7 +136,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: iname_snow=1003         ! named variable to denote a snow layer
  integer(i4b),parameter,public               :: iname_aquifer=1004      ! named variable to denote a snow layer
 
- ! define named variables to describe the state varible type
+ ! define named variables to describe the state variable type
  integer(i4b),parameter,public               :: iname_nrgCanair=2001    ! named variable defining the energy of the canopy air space
  integer(i4b),parameter,public               :: iname_nrgCanopy=2002    ! named variable defining the energy of the vegetation canopy
  integer(i4b),parameter,public               :: iname_watCanopy=2003    ! named variable defining the mass of total water on the vegetation canopy

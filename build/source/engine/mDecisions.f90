@@ -694,7 +694,7 @@ contains
  USE ascii_util_module,only:file_open       ! open file
  USE ascii_util_module,only:linewidth       ! max character number for one line
  USE ascii_util_module,only:get_vlines      ! get a vector of non-comment lines
- USE summaFileManager,only:SETNGS_PATH      ! path for metadata files
+ USE summaFileManager,only:SETTINGS_PATH    ! path for metadata files
  USE summaFileManager,only:M_DECISIONS      ! definition of modeling options
  USE get_ixname_module,only:get_ixdecisions ! identify index of named variable
  USE globalData,only:model_decisions        ! model decision structure
@@ -715,7 +715,7 @@ contains
  ! Start procedure here
  err=0; message='readoption/'
  ! build filename
- infile = trim(SETNGS_PATH)//trim(M_DECISIONS)
+ infile = trim(SETTINGS_PATH)//trim(M_DECISIONS)
  write(*,'(2(a,1x))') 'decisions file = ', trim(infile)
  ! open file
  call file_open(trim(infile),unt,err,cmessage)

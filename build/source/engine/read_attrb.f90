@@ -51,7 +51,8 @@ contains
 
  ! locals
  integer(i4b)                         :: sGRU               ! starting GRU
- integer(i4b)                         :: iHRU               ! HRU couinting index
+ integer(i4b)                         :: iHRU               ! HRU counting index
+ integer(i4b)                         :: jHRU               ! HRU index within GRU
  integer(i4b)                         :: iGRU               ! GRU loop index
  integer(8),allocatable               :: gru_id(:),hru_id(:)! read gru/hru IDs in from attributes file
  integer(8),allocatable               :: hru2gru_id(:)      ! read hru->gru mapping in from attributes file
@@ -68,7 +69,7 @@ contains
  err=0; message="read_dimension/"
 
  ! check that we do not have conflicting flags
- if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist'; return; end if
+ if(present(startGRU).and.present(checkHRU))then; message=trim(message)//'startGRU and checkHRU both exist, which is not supported'; return; end if
 
  ! open nc file
  call nc_file_open(trim(attrFile),nf90_noWrite,ncID,err,cmessage)
@@ -97,8 +98,12 @@ contains
  endif
 
  ! check dimensions
- if ((present(startGRU)).and.(startGRU + nGRU - 1  > fileGRU)) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
- if ((present(checkHRU)).and.(checkHRU        > fileHRU)) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'       ; return; end if
+ if (present(startGRU)) then
+  if(startGRU + nGRU - 1  > fileGRU) then; err=20; message=trim(message)//'startGRU + nGRU is larger than then the GRU dimension'; return; end if
+ end if
+ if (present(checkHRU)) then
+  if(checkHRU > fileHRU) then; err=20; message=trim(message)//'checkHRU is larger than then the HRU dimension'; return; end if
+ end if
 
  ! *********************************************************************************************
  ! read mapping vectors and populate mapping structures
@@ -176,9 +181,12 @@ if (present(checkHRU)) then                                                     
  index_map(1)%localHRU_ix = hru_ix(1)                                                          ! index of hru within the gru
 
 else ! anything other than a single HRU run
+
  do iGRU = 1,nGRU
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%gru_ix   = iGRU                                 ! index of gru in run domain to which the hru belongs
-  index_map(gru_struc(iGRU)%hruInfo(:)%hru_ix)%localHRU_ix = hru_ix(1:gru_struc(iGRU)%hruCount)! index of hru within the gru
+  do jHRU = 1,gru_struc(iGRU)%hruCount
+   index_map(gru_struc(iGRU)%hruInfo(jHRU)%hru_nc)%gru_ix      = iGRU                          ! index of gru in run domain to which the hru belongs
+   index_map(gru_struc(iGRU)%hruInfo(jHRU)%hru_nc)%localHRU_ix = jHRU                          ! index of hru within the gru
+  end do  ! jHRU = 1,gru_struc(iGRU)%hruCount
  enddo ! iGRU = 1,nGRU
 
 end if ! not checkHRU

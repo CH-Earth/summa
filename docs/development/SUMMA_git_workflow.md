@@ -33,6 +33,7 @@ Although anyone could create these branches, they are designed for the preparati
 ## Naming Conventions
  * Master branch – master
  * Develop branch – develop
+ * Documentation branch - docs/{doc_change_name}
  * Feature branch – feature/{feature_name}
  * Hotfix branch – hotfix/{hotfix_name}
  * Release branch – release/{release_name}
