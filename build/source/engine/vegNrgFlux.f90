@@ -3140,6 +3140,7 @@ contains
  integer(i4b),intent(out)      :: err                    ! error code
  character(*),intent(out)      :: message                ! error message
  ! local
+ real(dp), parameter           :: verySmall=1.e-10_dp    ! a very small number (avoid stability of zero)
  real(dp)                      :: dRiBulk_dAirTemp       ! derivative in the bulk Richardson number w.r.t. air temperature (K-1)
  real(dp)                      :: dRiBulk_dSfcTemp       ! derivative in the bulk Richardson number w.r.t. surface temperature (K-1)
  real(dp)                      :: bPrime                 ! scaled "b" parameter for stability calculations in Louis (1979)
@@ -3188,11 +3189,11 @@ contains
   case(standard)
    ! compute surface-atmosphere exchange coefficient (-)
    if(RiBulk <  critRichNumber) stabilityCorrection = (1._dp - 5._dp*RiBulk)**2._dp
-   if(RiBulk >= critRichNumber) stabilityCorrection = epsilon(stabilityCorrection)
+   if(RiBulk >= critRichNumber) stabilityCorrection = verySmall
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
    if(computeDerivative)then
     if(RiBulk <  critRichNumber) dStabilityCorrection_dRich = (-5._dp) * 2._dp*(1._dp - 5._dp*RiBulk)
-    if(RiBulk >= critRichNumber) dStabilityCorrection_dRich = 0._dp
+    if(RiBulk >= critRichNumber) dStabilityCorrection_dRich = verySmall
    end if
 
   ! (Louis 1979)
