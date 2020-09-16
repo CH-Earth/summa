@@ -486,6 +486,10 @@ contains
   ! get index in forcing structure
   iVar = forcFileInfo(iFile)%var_ix(iNC)
   checkForce(iVar) = .true.
+  
+  ! get variable name for error reporting
+  err=nf90_inquire_variable(ncid,iNC,name=varName)
+  if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing variable name from netCDF: '//trim(nf90_strerror(err)); return; endif
 
   ! read forcing data for all HRUs
   if(simultaneousRead)then
