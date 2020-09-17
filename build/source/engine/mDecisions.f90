@@ -299,6 +299,11 @@ contains
  OPT_RAD=3   ! option for canopy radiation
  OPT_ALB=2   ! option for snow albedo
 
+ ! set zero option for thee category tables
+ ! NOTE: we want to keep track of these decisions, but not used in the physics routines
+ model_decisions(iLookDECISIONS%soilCatTbl)%iDecision = 0
+ model_decisions(iLookDECISIONS%vegeParTbl)%iDecision = 0
+
  ! identify the choice of function for the soil moisture control on stomatal resistance
  select case(trim(model_decisions(iLookDECISIONS%soilStress)%cDecision))
   case('NoahType'); model_decisions(iLookDECISIONS%soilStress)%iDecision = NoahType             ! thresholded linear function of volumetric liquid water content
