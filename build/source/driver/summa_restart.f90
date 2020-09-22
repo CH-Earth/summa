@@ -107,7 +107,7 @@ contains
 
  ! identify the start of the writing
  call date_and_time(values=startRestart)
-
+ 
  ! *****************************************************************************
  ! *** read/check initial conditions
  ! *****************************************************************************
@@ -116,7 +116,7 @@ contains
  if(STATE_PATH == '') then
    restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
  else
-    restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
+   restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
  endif
 
  ! read initial conditions
@@ -124,6 +124,7 @@ contains
                  nGRU,                          & ! intent(in):    number of response units
                  mparStruct,                    & ! intent(in):    model parameters
                  progStruct,                    & ! intent(inout): model prognostic variables
+                 bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -143,7 +144,7 @@ contains
   ! *** compute ancillary variables
   ! *****************************************************************************
 
-  ! loop through local HRUs
+  ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
 
    ! re-calculate height of each layer
@@ -178,7 +179,7 @@ contains
    ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
    fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
 
-  end do  ! (looping through HRUs)
+  end do  ! end looping through HRUs
 
   ! *****************************************************************************
   ! *** initialize aquifer storage
@@ -225,7 +226,7 @@ contains
    dt_init%gru(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
   end do
 
- end do  ! (looping through GRUs)
+ end do  ! end looping through GRUs
 
  ! *****************************************************************************
  ! *** finalize

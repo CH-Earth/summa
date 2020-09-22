@@ -66,9 +66,9 @@ public::allocGlobal
 public::allocLocal
 public::resizeData
 
-! define fixed dimensions
-integer(i4b),parameter :: nBand=2         ! number of spectral bands
-integer(i4b),parameter :: nTimeDelay=2000 ! number of elements in the time delay histogram
+! define fixed dimensions (move these to globalData module?)
+integer(i4b),parameter,public :: nBand=2         ! number of spectral bands
+integer(i4b),parameter,public :: nTimeDelay=2000 ! number of elements in the time delay histogram
 ! -----------------------------------------------------------------------------------------------------------------------------------
 contains
 
