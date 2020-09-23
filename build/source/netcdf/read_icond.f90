@@ -170,7 +170,6 @@ contains
  USE data_types,only:var_info                           ! metadata
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
  USE updatState_module,only:updateSoil                  ! update soil states
- USE globalData,only:data_step              ! timestep of model data / default run
 
  implicit none
 
@@ -391,8 +390,7 @@ contains
     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
    end do  ! looping through soil layers
-
-  end do  ! looping throuygh HRUs
+  end do  ! looping through HRUs
  end do  ! looping through GRUs
  
  ! --------------------------------------------------------------------------------------------------------
