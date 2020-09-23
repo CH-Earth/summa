@@ -55,6 +55,9 @@ USE data_types,only:var_info               ! data type for metadata
 USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:realMissing            ! missing double precision number
 
+USE globalData,only: nTimeDelay            ! number of timesteps in the time delay histogram
+USE globalData,only: nBand                 ! number of spectral bands
+
 ! access variable types
 USE var_lookup,only:iLookVarType           ! look up structure for variable typed
 USE var_lookup,only:maxvarFreq             ! allocation dimension (output frequency)
@@ -66,9 +69,6 @@ public::allocGlobal
 public::allocLocal
 public::resizeData
 
-! define fixed dimensions (move these to globalData module?)
-integer(i4b),parameter,public :: nBand=2         ! number of spectral bands
-integer(i4b),parameter,public :: nTimeDelay=2000 ! number of elements in the time delay histogram
 ! -----------------------------------------------------------------------------------------------------------------------------------
 contains
 
@@ -530,6 +530,7 @@ contains
                            varData,err,message)            ! output
  ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
+
  implicit none
  ! input variables
  type(var_info),intent(in)         :: metadata(:) ! metadata structure
@@ -543,12 +544,13 @@ contains
  ! local variables
  integer(i4b)                      :: iVar        ! variable index
  integer(i4b)                      :: nVars       ! number of variables in the metadata structure
- ! initialize error control
+
+! initialize error control
  err=0; message='allocateDat_dp/'
 
  ! get the number of variables in the metadata structure
  nVars = size(metadata)
-
+ 
  ! loop through variables in the data structure
  do iVar=1,nVars
 
@@ -608,13 +610,14 @@ contains
  ! local variables
  integer(i4b)                      :: iVar        ! variable index
  integer(i4b)                      :: nVars       ! number of variables in the metadata structure
- ! initialize error control
+
+! initialize error control
  err=0; message='allocateDat_int/'
 
  ! get the number of variables in the metadata structure
  nVars = size(metadata)
 
- ! loop through variables in the data structure
+! loop through variables in the data structure
  do iVar=1,nVars
 
   ! check allocated
@@ -670,13 +673,14 @@ contains
  ! local variables
  integer(i4b)                      :: iVar        ! variable index
  integer(i4b)                      :: nVars       ! number of variables in the metadata structure
- ! initialize error control
+
+! initialize error control
  err=0; message='allocateDat_flag/'
 
  ! get the number of variables in the metadata structure
  nVars = size(metadata)
 
- ! loop through variables in the data structure
+! loop through variables in the data structure
  do iVar=1,nVars
 
   ! check allocated

@@ -21,7 +21,8 @@
 module read_icond_module
 USE nrtype
 USE netcdf
-USE globalData,only:ixHRUfile_min,ixHRUfile_max
+USE globalData,only: ixHRUfile_min,ixHRUfile_max
+USE globalData,only: nTimeDelay   ! number of hours in the time delay histogram
 implicit none
 private
 public::read_icond
@@ -169,6 +170,8 @@ contains
  USE data_types,only:var_info                           ! metadata
  USE get_ixName_module,only:get_varTypeName             ! to access type strings for error messages
  USE updatState_module,only:updateSoil                  ! update soil states
+ USE globalData,only:data_step              ! timestep of model data / default run
+
  implicit none
 
  ! --------------------------------------------------------------------------------------------------------
@@ -188,7 +191,7 @@ contains
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
  integer(i4b)                           :: fileGRU      ! number of GRUs in file
  integer(i4b)                           :: iVar, i      ! loop indices
- integer(i4b),dimension(2)              :: ndx          ! intermediate array of loop indices
+ integer(i4b),dimension(1)              :: ndx          ! intermediate array of loop indices
  integer(i4b)                           :: iGRU         ! loop index
  integer(i4b)                           :: iHRU         ! loop index
  integer(i4b)                           :: iTDH         ! loop index (maybe not needed)
@@ -219,9 +222,6 @@ contains
  ! Start procedure here
  err=0; message="read_icond/"
  
- ! set length of time delay histogram
- nTDH = 2000    ! TODO figure a way to get this param from allocGlobal into here
-
  ! --------------------------------------------------------------------------------------------------------
  ! (1) read the file
  ! --------------------------------------------------------------------------------------------------------
@@ -240,7 +240,13 @@ contains
  ! get dimension of time delay histogram (TDH) in file
  err = nf90_inq_dimid(ncID,"tdh",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding tdh dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimID,len=nTDH);    if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension/'//trim(nf90_strerror(err)); return; end if
- ! need check via hardwired value elsewhere in code
+
+ ! check vs hardwired value set in globalData.f90
+ if(nTDH /= nTimeDelay)then
+   write(*,*) 'tdh=',nTDH,' nTimeDelay=',nTimeDelay
+   message=trim(message)//': state file time delay dimension tdh does not match summa expectation of nTimeDelay set in globalData()'
+   return
+ endif
  
  ! loop through prognostic variables
  do iVar = 1,size(prog_meta)
@@ -286,7 +292,7 @@ contains
 
   ! get data
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-  if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+  if(err/=0)then; message=trim(message)//': problem getting the data for variable '//trim(prog_meta(iVar)%varName); return; endif
 
   ! store data in prognostics structure
   ! loop through GRUs
@@ -410,7 +416,7 @@ contains
  if(restartFileType/=singleHRU)then
 
   ! loop through specific basin variables
-  ndx = (/iLookBVAR%routingRunoffFuture, iLookBVAR%routingFractionFuture/)   ! array of desired variable indices
+  ndx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices (if more than one eventually)
   do i = 1,size(ndx)
    iVar = ndx(i)
   

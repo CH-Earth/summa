@@ -28,7 +28,7 @@ USE netcdf_util_module,only:netcdf_err                    ! netcdf error handlin
 USE nrtype
 
 ! missing values
-USE globalData, only: integerMissing, realMissing
+USE globalData,only: integerMissing, realMissing
 
 ! provide access to global data
 USE globalData,only:gru_struc                             ! gru->hru mapping structure
@@ -460,7 +460,8 @@ contains
  ! external routines
  USE netcdf_util_module,only:nc_file_close  ! close netcdf file
  USE netcdf_util_module,only:nc_file_open   ! open netcdf file
- !USE allocGlobal,only:nTimeDelay      ! parameter setting for length of overland routing histogram
+ USE globalData,only:nTimeDelay             ! number of timesteps in the time delay histogram
+ 
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input
@@ -492,7 +493,6 @@ contains
  integer(i4b)                       :: maxSnow       ! maximum number of snow layers
  integer(i4b)                       :: maxSoil       ! maximum number of soil layers
  integer(i4b)                       :: nLayers       ! number of total layers
- integer(i4b)                       :: nTDH          ! number of points in time-delay histogram
  integer(i4b),parameter             :: nSpectral=2   ! number of spectal bands
  integer(i4b),parameter             :: nScalar=1     ! size of a scalar
  integer(i4b)                       :: nProgVars     ! number of prognostic variables written to state file
@@ -534,7 +534,7 @@ contains
 
  ! size of prognostic variable vector
  nProgVars = size(prog_meta)
- allocate(ncVarID(nProgVars+2))     ! include 2 additional basin variables in ID array
+ allocate(ncVarID(nProgVars+1))     ! include 1 additional basin variable in ID array (possibly more later)
 
  ! maximum number of soil layers
  maxSoil = gru_struc(1)%hruInfo(1)%nSoil
@@ -542,9 +542,6 @@ contains
  ! maximum number of snow layers
  maxSnow = maxSnowLayers
  
- ! length of time delay histogram
- nTDH = 2000    ! figure a way to get this param from allocGlobal into here
-
  ! create file
  err = nf90_create(trim(filename),nf90_classic_model,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return
@@ -552,7 +549,7 @@ contains
  ! define dimensions
                 err = nf90_def_dim(ncid,trim(hruDimName)    ,nHRU       ,    hruDimID); message='iCreate[hru]'     ; call netcdf_err(err,message); if(err/=0)return
                 err = nf90_def_dim(ncid,trim(gruDimName)    ,nGRU       ,    gruDimID); message='iCreate[gru]'     ; call netcdf_err(err,message); if(err/=0)return
-                err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTDH       ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
+                err = nf90_def_dim(ncid,trim(tdhDimName)    ,nTimeDelay ,    tdhDimID); message='iCreate[tdh]'     ; call netcdf_err(err,message); if(err/=0)return
                 err = nf90_def_dim(ncid,trim(scalDimName)   ,nScalar    ,   scalDimID); message='iCreate[scalar]'  ; call netcdf_err(err,message); if(err/=0)return
                 err = nf90_def_dim(ncid,trim(specDimName)   ,nSpectral  ,   specDimID); message='iCreate[spectral]'; call netcdf_err(err,message); if(err/=0)return
                 err = nf90_def_dim(ncid,trim(midSoilDimName),maxSoil    ,midSoilDimID); message='iCreate[ifcSoil]' ; call netcdf_err(err,message); if(err/=0)return
@@ -600,9 +597,6 @@ contains
  err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+1))
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'long_name',trim(bvar_meta(iLookBVAR%routingRunoffFuture)%vardesc));   call netcdf_err(err,message)
  err = nf90_put_att(ncid,ncVarID(nProgVars+1),'units'    ,trim(bvar_meta(iLookBVAR%routingRunoffFuture)%varunit));   call netcdf_err(err,message)
- err = nf90_def_var(ncid, trim(bvar_meta(iLookBVAR%routingFractionFuture)%varName), nf90_double, (/gruDimID, tdhDimID /), ncVarID(nProgVars+2))
- err = nf90_put_att(ncid,ncVarID(nProgVars+2),'long_name',trim(bvar_meta(iLookBVAR%routingFractionFuture)%vardesc)); call netcdf_err(err,message)
- err = nf90_put_att(ncid,ncVarID(nProgVars+2),'units'    ,trim(bvar_meta(iLookBVAR%routingFractionFuture)%varunit)); call netcdf_err(err,message)
 
  ! define index variables - snow
  err = nf90_def_var(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),nf90_int,(/hruDimID/),ncSnowID); call netcdf_err(err,message)
@@ -679,8 +673,7 @@ contains
   end do ! iHRU loop
   
   ! write selected basin variables
-  err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/),  start=(/iGRU/),count=(/1,nTDH/))
-  err=nf90_put_var(ncid,ncVarID(nProgVars+2),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingFractionFuture)%dat/),start=(/iGRU/),count=(/1,nTDH/))
+  err=nf90_put_var(ncid,ncVarID(nProgVars+1),(/bvar_data%gru(iGRU)%var(iLookBVAR%routingRunoffFuture)%dat/),  start=(/iGRU/),count=(/1,nTimeDelay/))
   
  end do  ! iGRU loop
 
