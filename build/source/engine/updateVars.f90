@@ -713,6 +713,22 @@ contains
  ! subroutine starts here
  residual   = -heatCap*(xTemp - tempInit) + meltNrg*(volFracIceTrial - volFracIceInit)  ! J m-3
  derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
+ 
+ ! check validity of residual ... 
+ ! informational only:  if nan, the sim will start to error out from calling routine
+ if( ieee_is_nan(residual) )then
+  print*, '--------'
+  print*, 'ERROR: residual is not valid in xTempSolve'
+  print*, 'heatCap', heatCap
+  print*, 'xTemp', xTemp
+  print*, 'tempInit', tempInit
+  print*, 'meltNrg', meltNrg
+  print*, 'volFracIceTrial', volFracIceTrial
+  print*, 'volFracIceInit', volFracIceInit
+  print*, 'dLiq_dT', dLiq_dT
+  print*, '--------'
+ endif
+ 
  end subroutine xTempSolve
 
 end module updateVars_module

@@ -977,7 +977,7 @@ contains
  message='get_ixUnknown/'
 
  ! loop through all structure types to find the one with the given variable name
- ! pill variable index plus return which structure it was found in
+ ! poll variable index plus return which structure it was found in
  do iStruc = 1,size(structInfo)
   select case(trim(structInfo(iStruc)%structName))
    case ('time' ); vDex = get_ixTime(trim(varName))
