@@ -418,7 +418,7 @@ contains
  ! identify number of points in the time-delay runoff variable (should be allocated match nTimeDelay)
  nTDH = size(runoffFuture)
 
- ! initialize runoffFuture
+ ! initialize runoffFuture (will be overwritten by initial conditions file values if present)
  runoffFuture(1:nTDH) = 0._dp
 
  ! select option for sub-grid routing
@@ -458,7 +458,7 @@ contains
    if(abs(1._dp - sumFrac) > tolerFrac)then
     write(*,*) 'fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
     write(*,*) 'this is less than allowed by tolerFrac = ', tolerFrac
-    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in allocspace.f90'
+    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in globalData.f90'
     err=20; return
    end if
    ! ensure the fraction sums to one

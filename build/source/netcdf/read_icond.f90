@@ -194,7 +194,6 @@ contains
  integer(i4b),dimension(1)              :: ndx          ! intermediate array of loop indices
  integer(i4b)                           :: iGRU         ! loop index
  integer(i4b)                           :: iHRU         ! loop index
- integer(i4b)                           :: iTDH         ! loop index (maybe not needed)
  integer(i4b)                           :: dimID        ! varible dimension ids
  integer(i4b)                           :: ncVarID      ! variable ID in netcdf file
  character(256)                         :: dimName      ! not used except as a placeholder in call to inq_dim function
@@ -207,21 +206,20 @@ contains
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b)                           :: nTDH          ! number of points in time-delay histogram
  integer(i4b)                           :: iLayer,jLayer ! layer indices
- integer(i4b),parameter                 :: nBand=2      ! number of spectral bands
+ integer(i4b),parameter                 :: nBand=2       ! number of spectral bands
  integer(i4b)                           :: nProgVars     ! number of prognostic variables written to state file
 
  character(len=32),parameter            :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter            :: midSoilDimName='midSoil'  ! dimension name for soil-only layers
  character(len=32),parameter            :: midTotoDimName='midToto'  ! dimension name for layered varaiables
  character(len=32),parameter            :: ifcTotoDimName='ifcToto'  ! dimension name for layered varaiables
- character(len=32),parameter            :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables (maybe not needed)
+ character(len=32),parameter            :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
  
-
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
  err=0; message="read_icond/"
- 
+
  ! --------------------------------------------------------------------------------------------------------
  ! (1) read the file
  ! --------------------------------------------------------------------------------------------------------
@@ -236,17 +234,6 @@ contains
  ! get number of GRUs in file
  err = nf90_inq_dimid(ncID,"gru",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding gru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimID,len=fileGRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading gru dimension/'//trim(nf90_strerror(err)); return; end if
-
- ! get dimension of time delay histogram (TDH) in file
- err = nf90_inq_dimid(ncID,"tdh",dimID);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding tdh dimension/'//trim(nf90_strerror(err)); return; end if
- err = nf90_inquire_dimension(ncID,dimID,len=nTDH);    if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension/'//trim(nf90_strerror(err)); return; end if
-
- ! check vs hardwired value set in globalData.f90
- if(nTDH /= nTimeDelay)then
-   write(*,*) 'tdh=',nTDH,' nTimeDelay=',nTimeDelay
-   message=trim(message)//': state file time delay dimension tdh does not match summa expectation of nTimeDelay set in globalData()'
-   return
- endif
  
  ! loop through prognostic variables
  do iVar = 1,size(prog_meta)
@@ -409,56 +396,72 @@ contains
  end do  ! looping through GRUs
  
  ! --------------------------------------------------------------------------------------------------------
- ! (2) now get the two basin runoff variables
+ ! (2) now get the basin variable(s)
  ! --------------------------------------------------------------------------------------------------------
 
  ! get the index in the file: single HRU
  if(restartFileType/=singleHRU)then
+ 
+  ! get dimension of time delay histogram (TDH) from initial conditions file
+  err = nf90_inq_dimid(ncID,"tdh",dimID);
+  if(err/=nf90_noerr)then
+   write(*,*) 'WARNING: routingRunoffFuture is not in the initial conditions file ... using zeros'  ! previously created in var_derive.f90
+   err=nf90_noerr    ! reset this err
 
-  ! loop through specific basin variables
-  ndx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices (if more than one eventually)
-  do i = 1,size(ndx)
-   iVar = ndx(i)
-  
-   ! get tdh dimension Id in file (should be 'tdh')
-   err = nf90_inq_dimid(ncID,trim(tdhDimName), dimID); 
-   if(err/=0)then; message=trim(message)//': problem with dimension ids for tdh vars'; return; endif
+  else
+   err = nf90_inquire_dimension(ncID,dimID,len=nTDH);
+   if(err/=nf90_noerr)then; message=trim(message)//'problem reading tdh dimension from initial condition file/'//trim(nf90_strerror(err)); return; end if
 
-   ! get the tdh dimension length (dimName and dimLen are outputs of this call)
-   err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
-   if(err/=0)then; message=trim(message)//': problem getting the dimension length for tdh vars'; return; endif
+   ! check vs hardwired value set in globalData.f90
+   if(nTDH /= nTimeDelay)then
+    write(*,*) 'tdh=',nTDH,' nTimeDelay=',nTimeDelay
+    message=trim(message)//': state file time delay dimension tdh does not match summa expectation of nTimeDelay set in globalData()'
+    return
+   endif
+
+   ! loop through specific basin variables (currently 1 but loop provided to enable inclusion of others)
+   ndx = (/iLookBVAR%routingRunoffFuture/)   ! array of desired variable indices
+   do i = 1,size(ndx)
+    iVar = ndx(i)
   
-   ! get tdh-based variable id
-   err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
-   if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
+    ! get tdh dimension Id in file (should be 'tdh')
+    err = nf90_inq_dimid(ncID,trim(tdhDimName), dimID); 
+    if(err/=0)then; message=trim(message)//': problem with dimension ids for tdh vars'; return; endif
+
+    ! get the tdh dimension length (dimName and dimLen are outputs of this call)
+    err = nf90_inquire_dimension(ncID,dimID,dimName,dimLen); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem getting the dimension length for tdh vars'; return; endif
+  
+    ! get tdh-based variable id
+    err = nf90_inq_varid(ncID,trim(bvar_meta(iVar)%varName),ncVarID); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem with getting basin variable id, var='//trim(bvar_meta(iVar)%varName); return; endif
    
-   ! initialize the tdh variable data
-   allocate(varData(fileGRU,dimLen),stat=err)
-   if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
+    ! initialize the tdh variable data
+    allocate(varData(fileGRU,dimLen),stat=err)
+    if(err/=0)then; print*, 'err= ',err; message=trim(message)//'problem allocating GRU variable data'; return; endif
 
-   ! get data
-   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-   if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
+    ! get data
+    err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
+    if(err/=0)then; message=trim(message)//': problem getting the data'; return; endif
 
-   ! store data in basin var (bvar) structure
-   do iGRU = 1,nGRU
+    ! store data in basin var (bvar) structure
+    do iGRU = 1,nGRU
 
-    ! put the data into data structures
-    bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData(iGRU,1:nTDH)
-    ! check whether the first values is set to nf90_fill_double
-    if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
-    if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
+     ! put the data into data structures
+     bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData(iGRU,1:nTDH)
+     ! check whether the first values is set to nf90_fill_double
+     if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
+     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
     
-   end do ! end iGRU loop
+    end do ! end iGRU loop
    
-  ! deallocate temporary data array for next variable
-  deallocate(varData, stat=err)
-  if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
+    ! deallocate temporary data array for next variable
+    deallocate(varData, stat=err)
+    if(err/=0)then; message=trim(message)//'problem deallocating GRU variable data'; return; endif
    
-  end do ! end looping through basin variables
-
+   end do ! end looping through basin variables
+  endif  ! end if case for tdh variables being in init. cond. file
  endif  ! end if case for not being a singleHRU run
-
 
  end subroutine read_icond
 

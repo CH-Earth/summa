@@ -550,7 +550,7 @@ contains
 
  ! get the number of variables in the metadata structure
  nVars = size(metadata)
- 
+
  ! loop through variables in the data structure
  do iVar=1,nVars
 

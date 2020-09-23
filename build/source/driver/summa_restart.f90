@@ -101,13 +101,14 @@ contains
   nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
 
  ) ! assignment to variables in the data structures
+ 
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_readRestart/'
 
  ! identify the start of the writing
  call date_and_time(values=startRestart)
- 
+
  ! *****************************************************************************
  ! *** read/check initial conditions
  ! *****************************************************************************
