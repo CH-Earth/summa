@@ -79,29 +79,27 @@ contains
  call nc_file_open(iconFile,nf90_nowrite,ncid,err,cmessage);
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
- ! get number of HRUs in file
+ ! get number of HRUs in file (the GRU variable(s), if present, are processed at the end)
  err = nf90_inq_dimid(ncID,"hru",dimId);               if(err/=nf90_noerr)then; message=trim(message)//'problem finding hru dimension/'//trim(nf90_strerror(err)); return; end if
  err = nf90_inquire_dimension(ncID,dimId,len=fileHRU); if(err/=nf90_noerr)then; message=trim(message)//'problem reading hru dimension/'//trim(nf90_strerror(err)); return; end if
 
- ! allocate storage for reading from file
+ ! allocate storage for reading from file (allocate entire file size, even when doing subdomain run)
  allocate(snowData(fileHRU))
  allocate(soilData(fileHRU))
  snowData = 0
  soilData = 0
 
- ! get variable ids
+ ! get netcdf ids for the variables holding number of snow and soil layers in each hru
  err = nf90_inq_varid(ncid,trim(indx_meta(iLookIndex%nSnow)%varName),snowid); call netcdf_err(err,message)
  err = nf90_inq_varid(ncid,trim(indx_meta(iLookIndex%nSoil)%varName),soilid); call netcdf_err(err,message)
 
- ! get data
+ ! get nSnow and nSoil data (reads entire state file)
  err = nf90_get_var(ncid,snowid,snowData); call netcdf_err(err,message)
  err = nf90_get_var(ncid,soilid,soilData); call netcdf_err(err,message)
- !print*, 'snowData = ', snowData
- !print*, 'soilData = ', soilData
 
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
- ! assign to index structure - gru by hru
+ ! find the min and max hru indices in the state file (why?  this should be known from the )
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
@@ -109,20 +107,25 @@ contains
   end do
  end do
 
+ ! tmp-note: nGRU = size(gru_struc) ... has number of grus in requested gru subset run
+ !   iHRU_global contains the correct subset index
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    iHRU_local = (iHRU_global - ixHRUfile_min) + 1
+   print*, 'iGRU, HRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
 
    ! single HRU
-   if(restartFileType==singleHRU)then
+   if(restartFileType==singleHRU)then                   ! restartFileType hardwired above (to multiHRU)
     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
 
    ! multi HRU
    else
-    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_local)
-    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_local)
+    !gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_local)
+    !gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_local)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
+    gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
    endif
 
   end do

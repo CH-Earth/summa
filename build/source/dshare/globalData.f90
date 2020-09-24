@@ -250,7 +250,7 @@ MODULE globalData
  ! define metadata for model forcing datafile
  type(file_info),save,public,allocatable     :: forcFileInfo(:)                   ! file info for model forcing data
 
- ! define indices describing the indices of the first and last HRUs in the forcing file
+ ! define index variables describing the indices of the first and last HRUs in the forcing file
  integer(i4b),save,public                    :: ixHRUfile_min                     ! minimum index
  integer(i4b),save,public                    :: ixHRUfile_max                     ! maximum index
 
