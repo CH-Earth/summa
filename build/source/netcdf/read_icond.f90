@@ -114,7 +114,6 @@ contains
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
    iHRU_local = (iHRU_global - ixHRUfile_min) + 1
-   print*, 'iGRU, HRU, iHRU_global, iHRU_local = ', iGRU, iHRU, iHRU_global, iHRU_local
 
    ! single HRU
    if(restartFileType==singleHRU)then                   ! restartFileType hardwired above (to multiHRU)
