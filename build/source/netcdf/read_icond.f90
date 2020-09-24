@@ -276,7 +276,6 @@ contains
 
   ! get data
   err = nf90_get_var(ncID,ncVarID,varData); call netcdf_err(err,message)
-  write(*,*) shape(varData), shape(gru_struc), ixFile
   if(err/=0)then; message=trim(message)//': problem getting the data for variable '//trim(prog_meta(iVar)%varName); return; endif
 
   ! store data in prognostics structure
@@ -294,9 +293,7 @@ contains
 
     ! get the index in the file: single HRU
     if(restartFileType==singleHRU)then
-     !  ixFile = 1  ! use for single HRU restart file
-     ixFile = startGRU
-
+     ixFile = 1  ! use for single HRU restart file
     ! get the index in the file: multi HRU
     else
      ixFile = startGRU + iHRU_local - 1
@@ -451,7 +448,7 @@ contains
     do iGRU = 1,nGRU
 
      ! put the data into data structures
-     bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData(iGRU,1:nTDH)
+     bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) = varData((iGRU+startGRU-1),1:nTDH)
      ! check whether the first values is set to nf90_fill_double
      if(any(abs(bvarData%gru(iGRU)%var(iVar)%dat(1:nTDH) - nf90_fill_double) < epsilon(varData)))then; err=20; endif
      if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(bvar_meta(iVar)%varName)//"')"; return; endif
