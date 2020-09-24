@@ -469,14 +469,14 @@ contains
  do iGRU = 1, size(gru_struc)
 
   ! GRU info
-  err = nf90_put_var(ncid, gruVarID, gru_struc(iGRU)%gru_nc, start=(/iGRU/))
+  err = nf90_put_var(ncid, gruVarID, gru_struc(iGRU)%gruId, start=(/iGRU/))
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruVar'; call netcdf_err(err,message); return; end if
   err = nf90_put_var(ncid, gruIdVarID, gru_struc(iGRU)%gruId, start=(/iGRU/))
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruIdVar'; call netcdf_err(err,message); return; end if
 
   ! HRU info
   do iHRU = 1, gru_struc(iGRU)%hruCount
-   err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
+   err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruVar'; call netcdf_err(err,message); return; end if
    err = nf90_put_var(ncid, hruIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruIdVar'; call netcdf_err(err,message); return; end if
