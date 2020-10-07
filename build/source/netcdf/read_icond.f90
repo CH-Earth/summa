@@ -100,7 +100,7 @@ contains
 
  ixHRUfile_min=huge(1)
  ixHRUfile_max=0
- ! find the min and max hru indices in the state file (why?  this should be known from the )
+ ! find the min and max hru indices in the state file
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    if(gru_struc(iGRU)%hruInfo(iHRU)%hru_nc < ixHRUfile_min) ixHRUfile_min = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
@@ -108,22 +108,18 @@ contains
   end do
  end do
 
- ! tmp-note: nGRU = size(gru_struc) ... has number of grus in requested gru subset run
- !   iHRU_global contains the correct subset index
+ ! loop over grus in current run to update snow/soil layer information
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-   iHRU_local = (iHRU_global - ixHRUfile_min) + 1
 
-   ! single HRU
-   if(restartFileType==singleHRU)then                   ! restartFileType hardwired above (to multiHRU)
+   ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
+   if(restartFileType==singleHRU) then
     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
 
    ! multi HRU
    else
-    !gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_local)
-    !gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_local)
     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
    endif
