@@ -112,7 +112,7 @@ MODULE data_types
 
  ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
-  integer(8)                        :: gruId                    ! id of the gru
+  integer(8)                        :: gru_id                   ! id of the gru
   integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
   type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
   integer(i4b)                      :: gru_nc                   ! index of gru in the netcdf file
