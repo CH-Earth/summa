@@ -268,7 +268,7 @@ hru2gruId | hru | int | - | Index of GRU to which the HRU belongs | gruId of the
 downHRUindex | hru | int | - | Index of downslope HRU (0 = basin outlet) | Downslope HRU must be within the same GRU. If the value is 0, then there is no exchange to a neighboring HRU. Setting this value to 0 for all HRUs emulates a series of independent columns |
 longitude | hru | double | Decimal degree east | Longitude of HRU's centroid | West is negative or greater than 180 |
 latitude | hru | double | Decimal degree north | Latitude of HRU's centroid | South is negative |
-elevation | hru | double | m | Elevation of HRU's centroid | |
+elevation | hru | double | m | Mean elevation of HRU | |
 HRUarea | hru | double | m^2 | Area of HRU | |
 tan_slope | hru | double | m m-1 | Average tangent slope of HRU | |
 contourLength | hru | double | m | Contour length of HRU | Width of a hillslope (m) parallel to a stream. Used in `groundwatr.f90`|
