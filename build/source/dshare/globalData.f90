@@ -250,7 +250,7 @@ MODULE globalData
  ! define metadata for model forcing datafile
  type(file_info),save,public,allocatable     :: forcFileInfo(:)                   ! file info for model forcing data
 
- ! define indices describing the indices of the first and last HRUs in the forcing file
+ ! define index variables describing the indices of the first and last HRUs in the forcing file
  integer(i4b),save,public                    :: ixHRUfile_min                     ! minimum index
  integer(i4b),save,public                    :: ixHRUfile_max                     ! maximum index
 
@@ -336,5 +336,9 @@ MODULE globalData
  integer(i4b),parameter,public               :: ncTime=1                ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  integer(i4b),parameter,public               :: utcTime=2               ! all times in UTC (timeOffset = longitude/15. hours)
  integer(i4b),parameter,public               :: localTime=3             ! all times local (timeOffset = 0)
+ 
+ ! define fixed dimensions
+ integer(i4b),parameter,public               :: nBand=2          ! number of spectral bands
+ integer(i4b),parameter,public               :: nTimeDelay=2000  ! number of hours in the time delay histogram (default: ~1 season = 24*365/4)
 
 END MODULE globalData

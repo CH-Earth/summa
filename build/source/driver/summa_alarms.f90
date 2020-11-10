@@ -123,7 +123,7 @@ contains
   case(ixRestart_end);   printRestart = (newTime(iLookTIME%im)   == endTime(iLookTIME%im) .and. &
                                          newTime(iLookTIME%id)   == endTime(iLookTIME%id) .and. &
                                          newTime(iLookTIME%ih)   == endTime(iLookTIME%ih) .and. &
-                                         newTime(iLookTIME%imin) == endTime(iLookTIME%imin))
+                                         newTime(iLookTIME%imin) == endTime(iLookTIME%imin))    ! newTime does not have a '24h', won't write ending state if end_h=24
   case(ixRestart_never); printRestart = .false.
   case default; err=20; message=trim(message)//'unable to identify option for the restart file'; return
  end select

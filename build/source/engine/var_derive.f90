@@ -381,6 +381,7 @@ contains
  subroutine fracFuture(bpar_data,bvar_data,err,message)
  ! external functions
  USE soil_utils_module,only:gammp                     ! compute the cumulative probabilty based on the Gamma distribution
+
  implicit none
  ! input variables
  real(dp),intent(in)             :: bpar_data(:)           ! vector of basin-average model parameters
@@ -397,7 +398,7 @@ contains
  real(dp)                        :: pSave                  ! cumulative probability at the start of the step
  real(dp)                        :: cumProb                ! cumulative probability at the end of the step
  real(dp)                        :: sumFrac                ! sum of runoff fractions in all steps
- real(dp),parameter              :: tolerFrac=0.01_dp      ! tolerance for fractional runoff
+ real(dp),parameter              :: tolerFrac=0.01_dp      ! tolerance for missing fractional runoff by truncating histogram
  ! initialize error control
  err=0; message='fracFuture/'
  ! ----------------------------------------------------------------------------------
@@ -414,10 +415,10 @@ contains
  ! define time step
  dt =  data_step ! length of the data step (s)
 
- ! identify number of points in the time-delay histogram
+ ! identify number of points in the time-delay runoff variable (should be allocated match nTimeDelay)
  nTDH = size(runoffFuture)
 
- ! initialize runoffFuture
+ ! initialize runoffFuture (will be overwritten by initial conditions file values if present)
  runoffFuture(1:nTDH) = 0._dp
 
  ! select option for sub-grid routing
@@ -451,10 +452,13 @@ contains
      exit
     end if
    end do ! (looping through future time steps)
+
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
    if(abs(1._dp - sumFrac) > tolerFrac)then
-    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in alloc_bvar'
+    write(*,*) 'fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
+    write(*,*) 'this is less than allowed by tolerFrac = ', tolerFrac
+    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in globalData.f90'
     err=20; return
    end if
    ! ensure the fraction sums to one
