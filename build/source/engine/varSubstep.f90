@@ -399,14 +399,14 @@ contains
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
                   mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                          & ! input-output: data structures
-                  waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
+                  waterBalanceError,nrgFluxModified,tooMuchMelt,err,cmessage)                                              ! output: flags and error control
   if(err/=0)then
    message=trim(message)//trim(cmessage)
    if(err>0) return
   endif
 
   ! if water balance error then reduce the length of the coupled step
-  if(waterBalanceError)then
+  if(waterBalanceError .or. tooMuchMelt)then
    message=trim(message)//'water balance error'
    reduceCoupledStep=.true.
    err=-20; return
@@ -538,7 +538,7 @@ contains
  ! **********************************************************************************************************
  subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
                        mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                   & ! input-output: data structures
-                       waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
+                       waterBalanceError,nrgFluxModified,tooMuchMelt,err,message)                                        ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -562,6 +562,7 @@ contains
  ! flags and error control
  logical(lgt)     ,intent(out)   :: waterBalanceError              ! flag to denote that there is a water balance error
  logical(lgt)     ,intent(out)   :: nrgFluxModified                ! flag to denote that the energy fluxes were modified
+ logical(lgt)     ,intent(out)   :: tooMuchMelt                    ! flag to denote that the energy fluxes were modified
  integer(i4b)     ,intent(out)   :: err                            ! error code
  character(*)     ,intent(out)   :: message                        ! error message
  ! ==================================================================================================================
@@ -690,6 +691,9 @@ contains
  !print*, 'after varExtract: scalarCanopyWatTrial  =', scalarCanopyWatTrial    ! trial value of canopy total water (kg m-2)
  !print*, 'after varExtract: scalarCanopyLiqTrial  =', scalarCanopyLiqTrial    ! trial value of canopy liquid water (kg m-2)
  !print*, 'after varExtract: scalarCanopyIceTrial  =', scalarCanopyIceTrial    ! trial value of canopy ice content (kg m-2)
+
+ ! check if there was too much melt
+ if(nSnow>0) tooMuchMelt = (mLayerTempTrial(1)>Tfreeze)
 
  ! update diagnostic variables
  call updateVars(&
