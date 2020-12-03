@@ -140,7 +140,7 @@ contains
  real(dp)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
  ! initialize error control
- err=0; message='run_oneHRU/'
+ err=0; write(message, '(A20,I0,A2)' ) 'run_oneHRU (hruId = ',hruId,')/'
  
  ! ----- hru initialization ---------------------------------------------------------------------------------------------
 

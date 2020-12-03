@@ -135,8 +135,8 @@ contains
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control
- err=0; message='run_oneGRU/'
-
+ err=0; write(message, '(A24,I0,A2)' ) 'run_oneGRU (gru index = ',gruInfo%gru_nc,')/'
+ 
  ! ----- basin initialization --------------------------------------------------------------------------------------------
 
  ! initialize runoff variables
@@ -194,7 +194,7 @@ contains
                   ! error control
                   err,cmessage)                      ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
+  
   ! update layer numbers that could be changed in run_oneHRU -- needed for model output
   gruInfo%hruInfo(iHRU)%nSnow = nSnow
   gruInfo%hruInfo(iHRU)%nSoil = nSoil
