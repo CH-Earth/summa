@@ -481,7 +481,7 @@ contains
   end select  ! operator splitting option
 
   ! state splitting loop
-  stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit
+  stateTypeSplitLoop: do iStateTypeSplit=1,nStateTypeSplit
 
    !print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
 
@@ -935,7 +935,7 @@ contains
     where(ixStateType(ixHydLayer) ==iname_lmpLayer)  ixStateType(ixHydLayer) =iname_matLayer
    endif  ! if modifying state variables for the mass split
 
-  end do stateTypeSplit ! state type splitting loop
+  end do stateTypeSplitLoop ! state type splitting loop
 
   ! check
   !if(ixCoupling/=fullyCoupled)then
@@ -946,8 +946,9 @@ contains
   ! ==========================================================================================================================================
 
   ! success = exit the coupling loop
-  if(ixCoupling==fullyCoupled .and. .not.failure) exit coupling
-
+  if(ixCoupling==fullyCoupled .and. .not. failure) exit coupling   ! terminate DO loop early if fullyCoupled returns a solution
+  if(ixCoupling==stateTypeSplit .and. .not. failure) exit coupling ! terminating the DO loop here is cleaner than letting it complete, because in the latter case the coupling loop will end with ixCoupling = nCoupling+1 = 3 (a FORTRAN loop increments the index variable at the end of each iteration and stops the loop if the index > specified stop value). Variable ixCoupling is used for error reporting in coupled_em.f90 in the balance checks and we thus need to make sure ixCoupling is not incremented to be larger than nCoupling. 
+  
  end do coupling ! coupling method
 
  ! check that all state variables were updated
