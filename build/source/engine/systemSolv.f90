@@ -79,6 +79,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
+                    zLookup,      & ! data vector with variable length dimension (dp)
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
@@ -119,6 +120,7 @@ contains
                        computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                        scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                        ! input/output: data structures
+                       lookup_data,       & ! intent(in):    lookup tables
                        type_data,         & ! intent(in):    type of vegetation and soil
                        attr_data,         & ! intent(in):    spatial attributes
                        forc_data,         & ! intent(in):    model forcing data
@@ -160,6 +162,7 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution
  ! input/output: data structures
+ type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
  type(var_d),intent(in)          :: forc_data                     ! model forcing data
@@ -217,7 +220,7 @@ contains
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(dp)                        :: rAdd(nState)                  ! additional terms in the residual vector
  real(dp)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
- real(dp)                        :: xMin,xMax                     ! state minimum and maximum (mixed units) 
+ real(dp)                        :: xMin,xMax                     ! state minimum and maximum (mixed units)
  logical(lgt)                    :: converged                     ! convergence flag
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: resSinkNew(nState)            ! additional terms in the residual vector
@@ -381,6 +384,7 @@ contains
                  sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                  ! input: data structures
                  model_decisions,         & ! intent(in):    model decisions
+                 lookup_data,             & ! intent(in):    lookup tables
                  type_data,               & ! intent(in):    type of vegetation and soil
                  attr_data,               & ! intent(in):    spatial attributes
                  mpar_data,               & ! intent(in):    model parameters
@@ -474,6 +478,7 @@ contains
                   fOld,                          & ! intent(in):    old function evaluation
                   ! input: data structures
                   model_decisions,               & ! intent(in):    model decisions
+                  lookup_data,                   & ! intent(in):    lookup tables
                   type_data,                     & ! intent(in):    type of vegetation and soil
                   attr_data,                     & ! intent(in):    spatial attributes
                   mpar_data,                     & ! intent(in):    model parameters

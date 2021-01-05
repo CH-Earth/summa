@@ -25,10 +25,11 @@ USE nrtype
 
 ! data types
 USE data_types,only:&
-               var_i,                    & ! x%var(:)            (i4b)
-               var_d,                    & ! x%var(:)            (dp)
-               var_ilength,              & ! x%var(:)%dat        (i4b)
-               var_dlength                 ! x%var(:)%dat        (dp)
+               var_i,                    & ! x%var(:)                (i4b)
+               var_d,                    & ! x%var(:)                (dp)
+               var_ilength,              & ! x%var(:)%dat            (i4b)
+               var_dlength,              & ! x%var(:)%dat            (dp)
+               zLookup                     ! x%z(:)%var(:)%lookup(:) (dp)
 
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
@@ -92,6 +93,7 @@ contains
                        timeVec,             & ! intent(in):    model time data
                        typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
                        attrData,            & ! intent(in):    local attributes for each HRU
+                       lookupData,          & ! intent(in):    local lookup tables for each HRU
                        bvarData,            & ! intent(in):    basin-average variables
                        ! data structures (input-output)
                        mparData,            & ! intent(inout): local model parameters
@@ -111,16 +113,17 @@ contains
  implicit none
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
- 
+
  ! model control
  integer(8)        , intent(in)    :: hruId               ! hruId
  real(dp)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers
  ! data structures (input)
- integer(i4b)      , intent(in)    :: timeVec(:)          ! int vector   -- model time data
- type(var_i)       , intent(in)    :: typeData            ! x%var(:)     -- local classification of soil veg etc. for each HRU
- type(var_d)       , intent(in)    :: attrData            ! x%var(:)     -- local attributes for each HRU
+ integer(i4b)      , intent(in)    :: timeVec(:)          ! int vector               -- model time data
+ type(var_i)       , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
+ type(var_d)       , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
+ type(zLookup)     , intent(in)    :: lookupData          ! x%z(:)%var(:)%lookup(:)  -- local lookup tables for each HRU
  type(var_dlength) , intent(in)    :: bvarData            ! x%var(:)%dat -- basin-average variables
  ! data structures (input-output)
  type(var_dlength) , intent(inout) :: mparData            ! x%var(:)%dat -- local (HRU) model parameters
@@ -141,7 +144,7 @@ contains
 
  ! initialize error control
  err=0; message='run_oneHRU/'
- 
+
  ! ----- hru initialization ---------------------------------------------------------------------------------------------
 
  ! water pixel: do nothing
@@ -215,6 +218,7 @@ contains
                  forcData,         & ! intent(in):    model forcing data
                  mparData,         & ! intent(in):    model parameters
                  bvarData,         & ! intent(in):    basin-average model variables
+                 lookupData,       & ! intent(in):    lookup tables
                  ! data structures (input-output)
                  indxData,         & ! intent(inout): model indices
                  progData,         & ! intent(inout): model prognostic variables for a local HRU

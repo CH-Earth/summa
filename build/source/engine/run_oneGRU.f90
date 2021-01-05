@@ -38,7 +38,9 @@ USE data_types,only:&
                     hru_int8,        & ! x%hru(:)%var(:)     integer(8)
                     hru_double,      & ! x%hru(:)%var(:)     (dp)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
-                    hru_doubleVec      ! x%hru(:)%var(:)%dat (dp)
+                    hru_doubleVec,   & ! x%hru(:)%var(:)%dat (dp)
+                    ! hru+z dimension
+                    hru_z_vLookup      ! x%hru(:)%z(:)%var(:)%lookup(:)
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE          ! look-up values for classification of veg, soils etc.
@@ -73,7 +75,7 @@ contains
  ! simulation for a single GRU
  subroutine run_oneGRU(&
                        ! model control
-                       gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers) 
+                       gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers)
                        dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
                        ixComputeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                        ! data structures (input)
@@ -81,6 +83,7 @@ contains
                        typeHRU,            & ! intent(in):    local classification of soil veg etc. for each HRU
                        idHRU,              & ! intent(in):    local classification of hru and gru IDs
                        attrHRU,            & ! intent(in):    local attributes for each HRU
+                       lookupHRU,          & ! intent(in):    local lookup tables for each HRU
                        ! data structures (input-output)
                        mparHRU,            & ! intent(inout):    local model parameters
                        indxHRU,            & ! intent(inout): model indices
@@ -98,11 +101,11 @@ contains
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
- 
+
  implicit none
 
  ! model control
- type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers) 
+ type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
  real(dp)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
  integer(i4b)        , intent(inout) :: ixComputeVegFlux(:)  ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  ! data structures (input)
@@ -110,6 +113,7 @@ contains
  type(hru_int)       , intent(in)    :: typeHRU              ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
  type(hru_int8)      , intent(in)    :: idHRU                ! x%hru(:)%var(:)     -- local classification of hru and gru IDs
  type(hru_double)    , intent(in)    :: attrHRU              ! x%hru(:)%var(:)     -- local attributes for each HRU
+ type(hru_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
  ! data structures (input-output)
  type(hru_doubleVec) , intent(inout) :: mparHRU              ! x%hru(:)%var(:)%dat -- local (HRU) model parameters
  type(hru_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%var(:)%dat -- model indices
@@ -127,7 +131,7 @@ contains
  ! general local variables
  character(len=256)                      :: cmessage               ! error message
  integer(i4b)                            :: iHRU                   ! HRU index
- integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit 
+ integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit
  integer(i4b)                            :: nSnow                  ! number of snow layers
  integer(i4b)                            :: nSoil                  ! number of soil layers
  integer(i4b)                            :: nLayers                ! total number of layers
@@ -183,6 +187,7 @@ contains
                   timeVec,                         & ! intent(in):    model time data
                   typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrHRU%hru(iHRU),               & ! intent(in):    local attributes for each HRU
+                  lookupHRU%hru(iHRU),             & ! intent(in):    local lookup tables for each HRU
                   bvarData,                        & ! intent(in):    basin-average model variables
                   ! data structures (input-output)
                   mparHRU%hru(iHRU),               & ! intent(inout): model parameters

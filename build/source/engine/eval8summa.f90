@@ -67,6 +67,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
+                    zLookup,      & ! data vector with variable length dimension (dp)
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -121,6 +122,7 @@ contains
                        sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
+                       lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
@@ -146,6 +148,7 @@ contains
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
  USE updateVars_module, only:updateVars           ! update prognostic variables
+ USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
  USE computFlux_module, only:soilCmpres           ! compute soil compression
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
  USE computResid_module,only:computResid          ! compute residuals given a state vector
@@ -169,6 +172,7 @@ contains
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
+ type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data              ! spatial attributes
  type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -209,6 +213,11 @@ contains
  real(dp)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
+ ! enthalpy
+ logical(lgt),parameter          :: needEnthalpy=.false.      ! flag to compute enthalpy
+ real(dp)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
+ real(dp)                        :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
+ real(dp),dimension(nLayers)     :: mLayerEnthalpy            ! enthalpy of each snow+soil layer (J m-3)
  ! other local variables
  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
  integer(i4b)                    :: jState(1)                 ! index of model state for the scalar solution within the soil domain
@@ -364,6 +373,7 @@ contains
  call updateVars(&
                  ! input
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 lookup_data,                               & ! intent(in):    lookup tables for a local HRU
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
@@ -384,6 +394,33 @@ contains
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+ ! compute enthalpy (J m-3)
+ if(needEnthalpy)then
+  call t2enthalpy(&
+                  ! input: data structures
+                  mpar_data,                   & ! intent(in):  parameter data structure
+                  indx_data,                   & ! intent(in):  model indices
+                  lookup_data,                 & ! intent(in):  lookup table data structure
+                  ! input: state variables for the vegetation canopy
+                  scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
+                  scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
+                  scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
+                  ! input: variables for the snow-soil domain
+                  mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
+                  mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
+                  mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
+                  ! output: enthalpy
+                  scalarCanairEnthalpy,        & ! intent(out):  enthalpy of the canopy air space (J m-3)
+                  scalarCanopyEnthalpy,        & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
+                  mLayerEnthalpy,              & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+  print*, 'mLayerEnthalpy = ', mLayerEnthalpy
+  print*, trim(message)//'PAUSE:'
+  read(*,*)
+ endif  ! if computing enthalpy
 
  ! print the states in the canopy domain
  !print*, 'dt = ', dt
