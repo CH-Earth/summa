@@ -478,8 +478,17 @@ contains
      ixMax=ubound(flux_data%var(iVar)%dat)
      do ixLayer=ixMin(1),ixMax(1)
       if(fluxMask%var(iVar)%dat(ixLayer)) then
-       flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+
+       ! special case of the transpiration sink from soil layers: only computed for the top soil layer
+       if(iVar==iLookFlux%mLayerTranspire)then
+         if(ixLayer==1)  flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+
+       ! standard case
+       else
+        flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+       endif
        fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
+
       endif
      end do
     endif  ! (domain splitting)
