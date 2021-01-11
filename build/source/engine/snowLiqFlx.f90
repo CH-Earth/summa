@@ -140,7 +140,7 @@ contains
   ! This implementation can result in a segfault when using JRDN layering.
   ! The segfault occurs when trying to access `mw_exp` in:
   !    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
-  ! Debugging found that the `pack` statement cased `mw_exp` to no longer be accessible.
+  ! Debugging found that the `pack` statement caused `mw_exp` to no longer be accessible.
   ! We have not been able to determine the underlying reason for this segfault.
   do i=1,size(ixSnowOnlyHyd)
     if(ixSnowOnlyHyd(i) /= integerMissing)then
