@@ -92,8 +92,8 @@ contains
  character(*),intent(out)        :: message                    ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
+ integer(i4b)                    :: i                          ! search index for scalar solution
  integer(i4b)                    :: iLayer                     ! layer index
- integer(i4b)                    :: ixLayerDesired(1)          ! layer desired (scalar solution)
  integer(i4b)                    :: ixTop                      ! top layer in subroutine call
  integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
  real(dp)                        :: multResid                  ! multiplier for the residual water content (-)
@@ -131,10 +131,27 @@ contains
  if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
  ! get the indices for the snow+soil layers
+ ixTop = integerMissing
  if(scalarSolution)then
-  ixLayerDesired = pack(ixLayerState, ixSnowOnlyHyd/=integerMissing)
-  ixTop = ixLayerDesired(1)
-  ixBot = ixLayerDesired(1)
+  ! WARNING: Previously this was implemented as:
+  !    ixLayerDesired = pack(ixLayerState, ixSnowOnlyHyd/=integerMissing)
+  !    ixTop = ixLayerDesired(1)
+  !    ixBot = ixLayerDesired(1)
+  ! This implementation can result in a segfault when using JRDN layering.
+  ! The segfault occurs when trying to access `mw_exp` in:
+  !    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
+  ! Debugging found that the `pack` statement caused `mw_exp` to no longer be accessible.
+  ! We have not been able to determine the underlying reason for this segfault.
+  do i=1,size(ixSnowOnlyHyd)
+    if(ixSnowOnlyHyd(i) /= integerMissing)then
+      ixTop=ixLayerState(i)
+      ixBot=ixTop
+      exit  ! break out of loop once found
+    endif
+  end do
+  if(ixTop == integerMissing)then
+    err=20; message=trim(message)//'Unable to identify snow layer for scalar solution!'; return
+  end if
  else
   ixTop = 1
   ixBot = nSnow
