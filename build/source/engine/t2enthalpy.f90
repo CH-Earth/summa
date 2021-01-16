@@ -86,14 +86,14 @@ contains
  character(*),intent(out)      :: message              ! error message
  ! declare local variables
  character(len=128)            :: cmessage             ! error message in downwind routine
- logical(lgt),parameter        :: doTest=.false.       ! flag to test
  integer(i4b),parameter        :: nLook=100            ! number of elements in the lookup table
  integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
  real(dp),parameter            :: T_lower=260.0_dp     ! lowest temperature value where all liquid water is assumed frozen (K)
  real(dp),dimension(nLook)     :: xTemp                ! temporary vector
  real(dp)                      :: xIncr                ! temporary increment
  real(dp)                      :: T_incr               ! temperature increment
- real(dp),parameter            :: T_test=272.9742_dp   ! test value for temperature (K)
+ logical(lgt),parameter        :: doTest=.false.       ! flag to test
+ real(dp),parameter            :: T_test=249.9742_dp   ! test value for temperature (K)
  real(dp)                      :: E_test               ! test value for enthalpy (J m-3)
  integer(i4b)                  :: iVar                 ! loop through variables
  integer(i4b)                  :: iSoil                ! loop through soil layers
