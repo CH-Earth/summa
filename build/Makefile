@@ -148,8 +148,6 @@ DSHARE_DIR = $(F_KORE_DIR)/dshare
 NUMREC_DIR = $(F_KORE_DIR)/numrec
 NOAHMP_DIR = $(F_KORE_DIR)/noah-mp
 ENGINE_DIR = $(F_KORE_DIR)/engine
-# reza
-USEFIDA_DIR = $(F_KORE_DIR)/engine/use_fida
 
 #  utilities
 SUMMA_NRUTIL= \
@@ -162,13 +160,15 @@ NRUTIL = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRUTIL))
 # Numerical recipes procedures
 # NOTE: all numerical recipes procedures are now replaced with free versions
 SUMMA_NRPROC= \
-		expIntegral.f90 \
-		spline_int.f90
+      expIntegral.f90 \
+      spline_int.f90
 NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
 
 # Hook-up modules (set files and directory paths)
 SUMMA_HOOKUP= \
-		summaFileManager.f90
+      ascii_util.f90 \
+      summaFileManager.f90
+
 HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
 
 # Data modules
@@ -179,7 +179,6 @@ SUMMA_DATAMS= \
 		globalData.f90 \
 		flxMapping.f90 \
 		get_ixname.f90 \
-		ascii_util.f90 \
 		popMetadat.f90 \
 		outpt_stat.f90
 DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
@@ -266,8 +265,6 @@ PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_PRELIM))
 SUMMA_NOAHMP= \
 		module_model_constants.F \
 		module_sf_noahutl.F \
-		module_sf_myjsfc.F \
-		module_sf_sfclay.F \
 		module_sf_noahlsm.F \
 		module_sf_noahmplsm.F
 NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
