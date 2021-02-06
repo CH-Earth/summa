@@ -33,10 +33,11 @@ USE multiconst,only:&
 
 ! data types
 USE data_types,only:&
-                    var_i,               & ! x%var(:)            (i4b)
-                    var_d,               & ! x%var(:)            (dp)
-                    var_ilength,         & ! x%var(:)%dat        (i4b)
-                    var_dlength            ! x%var(:)%dat        (dp)
+                    var_i,               & ! x%var(:)                (i4b)
+                    var_d,               & ! x%var(:)                (dp)
+                    var_ilength,         & ! x%var(:)%dat            (i4b)
+                    var_dlength,         & ! x%var(:)%dat            (dp)
+                    zLookup                ! x%z(:)%var(:)%lookup(:) (dp)
 
 ! named variables for parent structures
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -110,6 +111,7 @@ contains
                        forc_data,         & ! intent(in):    model forcing data
                        mpar_data,         & ! intent(in):    model parameters
                        bvar_data,         & ! intent(in):    basin-average variables
+                       lookup_data,       & ! intent(in):    lookup tables
                        ! data structures (input-output)
                        indx_data,         & ! intent(inout): model indices
                        prog_data,         & ! intent(inout): prognostic variables for a local HRU
@@ -156,6 +158,7 @@ contains
  type(var_d),intent(in)               :: forc_data              ! model forcing data
  type(var_dlength),intent(in)         :: mpar_data              ! model parameters
  type(var_dlength),intent(in)         :: bvar_data              ! basin-average model variables
+ type(zLookup),intent(in)             :: lookup_data            ! lookup tables
  ! data structures (input-output)
  type(var_ilength),intent(inout)      :: indx_data              ! state vector geometry
  type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
@@ -736,6 +739,7 @@ contains
                   diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
                   flux_data,                              & ! intent(inout): model fluxes for a local HRU
                   bvar_data,                              & ! intent(in):    model variables for the local basin
+                  lookup_data,                            & ! intent(in):    lookup tables
                   model_decisions,                        & ! intent(in):    model decisions
                   ! output: model control
                   dtMultiplier,                           & ! intent(out):   substep multiplier (-)

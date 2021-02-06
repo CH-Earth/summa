@@ -365,6 +365,10 @@ MODULE var_lookup
   integer(i4b)    :: scalarLambda_wetsoil            = integerMissing ! thermal conductivity of wet soil     (W m-1 K-1)
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
+  ! enthalpy
+  integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! enthalpy of the canopy air space (J m-3)
+  integer(i4b)    :: scalarCanopyEnthalpy            = integerMissing ! enthalpy of the vegetation canopy (J m-3)
+  integer(i4b)    :: mLayerEnthalpy                  = integerMissing ! enthalpy of the snow+soil layers (J m-3)
   ! forcing
   integer(i4b)    :: scalarVPair                     = integerMissing ! vapor pressure of the air above the vegetation canopy (Pa)
   integer(i4b)    :: scalarVP_CanopyAir              = integerMissing ! vapor pressure of the canopy air space (Pa)
@@ -752,6 +756,15 @@ MODULE var_lookup
   integer(i4b)    :: timestep = integerMissing ! timestep-level output (no temporal aggregation)
  endtype iLook_freq
 
+ ! ***********************************************************************************************************
+ ! (16) structure for looking up lookup tables
+ ! ***********************************************************************************************************
+ type, public :: iLook_vLookup
+  integer(i4b)    :: temperature = integerMissing ! temperature (K)
+  integer(i4b)    :: enthalpy    = integerMissing ! enthalpy (J m-3)
+  integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
+ endtype iLook_vLookup
+ 
  ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************

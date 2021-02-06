@@ -38,7 +38,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /home/stiff/summa-develop
+F_MASTER = /home/stiff/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
@@ -274,12 +274,12 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 
 # Define routines for the SUMMA model runs
 SUMMA_MODRUN = \
-		indexState.f90 \
-		getVectorz.f90 \
+      indexState.f90 \
+      getVectorz.f90 \
       varExtrFida.f90 \
       t2enthalpy.f90 \
-		updateVars.f90 \
-		updateVarsFida.f90 \
+      updateVars.f90 \
+      updateVarsFida.f90 \
       updateVarsFida2.f90 \
 		var_derive.f90 \
 		read_force.f90 \
