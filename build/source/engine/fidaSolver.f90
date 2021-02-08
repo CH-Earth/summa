@@ -274,6 +274,9 @@ contains
   integer(i4b),parameter     :: ixTrapezoidal=2
   integer(i4b)               :: iVar  
   logical(lgt)               :: startQuadrature
+  integer(i4b) :: iStep
+  integer (kind=8) :: numfais(1)
+  integer (kind=8) :: nnumfais(1)
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
@@ -380,6 +383,9 @@ contains
     
   allocate( eqns_data%mLayerVolFracWatTrial(nLayers) )
   allocate( eqns_data%mLayerVolFracWatPrev(nLayers) )
+  
+  allocate( eqns_data%mLayerTempTrial(nLayers) )
+  allocate( eqns_data%mLayerTempPrev(nLayers) )
   
   allocate( eqns_data%mLayerVolFracIceTrial(nLayers) )
   allocate( eqns_data%mLayerVolFracIcePrev(nLayers) )
@@ -550,7 +556,7 @@ contains
   
   
   ! Set Coeff. in the nonlinear convergence test, default = 0.33
-  coef_nonlin = 1e-1
+  coef_nonlin = 1e-8
   retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
   if (retval /= 0) then
      print *, 'Error in FIDASetNonlinConvCoef, retval = ', retval, '; halting'
@@ -613,26 +619,52 @@ contains
  
  tret(1) = t0
  eqns_data%mLayerVolFracWatPrev(:) = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
- eqns_data%mLayerVolFracIcePrev(:) = diag_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
- eqns_data%mLayerMatricHeadLiqPrev(:) = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)   ! matric head at t0
+ eqns_data%mLayerTempPrev(:) = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+ eqns_data%mLayerVolFracIcePrev(:) = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
+ eqns_data%mLayerMatricHeadLiqPrev(:) = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)   
  eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
  eqns_data%mLayerHeatCapPrev(:) = diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:)
  eqns_data%mLayerEnthalpyPrev(:) = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
-                   
-                      
+ 
+ 
+ !**********************************************************************************
+ !****************************** Main Solver ***************************************
+ !**********************************************************************************                  
+ iStep = 1
+ eqns_data%printON = .false.                
  do while(tret(1) < dt) 
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP) 
   
+  retval = FIDAGetNumErrTestFails(ida_mem, numfais)
+  retval = FIDAGetNumNonlinSolvConvFails(ida_mem, nnumfais)
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, stepsize_cur)
   if (retval /= 0) then
      print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
      stop 1
   end if  
+!  print *, 'stepsize = ', stepsize_cur(1)
+  
+!  if (stepsize_cur(1) < 2.79e-11_dp)then
+!   eqns_data%printON = .true.
+!   iStep = iStep + 1
+!   print *, 'step_size = ', stepsize_cur(1)
+! endif
+  
+  if(eqns_data%printON)then
+  print *, 'accuracy fails = ', numfais(1)
+  print *, 'convergence fails = ', nnumfais(1)
+  print *, '----------------------------------------'
+  endif
+  
+  if(iStep == 10) stop 1
+  
+  
   
     ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
+                 eqns_data%printON, &
                  ! input: model control
                  stepsize_cur(1),                   &
                  eqns_data%dt,                      &
@@ -667,6 +699,8 @@ contains
                  ! input-output: baseflow
                  eqns_data%ixSaturation,             & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
+                 eqns_data%mLayerTempTrial,          &
+                 eqns_data%mLayerTempPrev,           &
                  eqns_data%mLayerMatricHeadLiqTrial, &
                  eqns_data%mLayerMatricHeadLiqPrev,  &
                  eqns_data%mLayerMatricHeadTrial,    &
@@ -685,6 +719,9 @@ contains
                  eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                  & ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control 
+                 
+!   print *, 'rVec = ', rVec(:)
+!   stop 1
   
   select case(ixQuadrature)
        ! sum of flux
@@ -713,18 +750,13 @@ contains
 ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - eqns_data%mLayerMatricHeadLiqPrev(:) )
+   eqns_data%mLayerTempPrev(:) = eqns_data%mLayerTempTrial(:)
    eqns_data%mLayerMatricHeadLiqPrev(:) = eqns_data%mLayerMatricHeadLiqTrial(:)
    eqns_data%mLayerMatricHeadPrev(:) = eqns_data%mLayerMatricHeadTrial(:)
    eqns_data%mLayerVolFracWatPrev(:) = eqns_data%mLayerVolFracWatTrial(:)
    eqns_data%mLayerVolFracIcePrev(:) = eqns_data%mLayerVolFracIceTrial(:)
    eqns_data%mLayerHeatCapPrev(:) = eqns_data%mLayerHeatCapTrial(:)
    eqns_data%mLayerEnthalpyPrev(:) = eqns_data%mLayerEnthalpyTrial(:)
-     
-  ! just for experiment: computing water balance error for the current substep
-!    if(size(eqns_data%indx_data%var(iLookINDEX%ixMatOnly)%dat)>0)then
- !        soilWatBalErr = sum( real(rVec(eqns_data%indx_data%var(iLookINDEX%ixMatOnly)%dat), dp)*eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(eqns_data%nSnow + eqns_data%indx_data%var(iLookINDEX%ixMatricHead)%dat ) )
-!    endif
- !   print *, soilWatBalErr
 
  end do ! while loop on one_step mode
  
@@ -772,6 +804,8 @@ contains
   deallocate( eqns_data%mLayerVolFracWatTrial )
   deallocate( eqns_data%mLayerVolFracWatPrev )
   deallocate( eqns_data%mLayerVolFracIceTrial )
+  deallocate( eqns_data%mLayerTempPrev )
+  deallocate( eqns_data%mLayerTempTrial )
   deallocate( eqns_data%mLayerVolFracIcePrev )
   deallocate( eqns_data%mLayerHeatCapTrial )
   deallocate( eqns_data%mLayerHeatCapPrev )

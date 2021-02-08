@@ -94,10 +94,13 @@ contains
      stop 1
   end if 
 
-   
+   if(eqns_data%printON)then
+      print *, '1'
+   endif 
 
     ! compute the flux and the residual vector for a given state vector
     call eval8summaFida(&
+                 eqns_data%printON, &
                  ! input: model control
                  stepsize_next(1),                  &
                  eqns_data%dt,                      &
@@ -132,6 +135,8 @@ contains
                  ! input-output: baseflow
                  eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
+                 eqns_data%mLayerTempTrial,          &
+                 eqns_data%mLayerTempPrev,           &
                  eqns_data%mLayerMatricHeadLiqTrial, &
                  eqns_data%mLayerMatricHeadLiqPrev,  &
                  eqns_data%mLayerMatricHeadTrial, &

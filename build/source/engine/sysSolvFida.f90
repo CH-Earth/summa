@@ -549,7 +549,8 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  
  end do  ! iteration over tolerances
  
- 
+!  print *, 'rVec = ', rVec(:)
+!  stop 1
    
   ! check if fida is successful
  if( tret(1) /= dt .or. .not.feasible )then

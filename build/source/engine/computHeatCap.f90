@@ -67,65 +67,54 @@ implicit none
 private
 public::computHeatCap
 public::computStatMult
+public::computHeatCapAnalytic
 
 contains
 
 
  ! **********************************************************************************************************
- ! public subroutine computHeatCap: compute diagnostic energy variables (thermal conductivity and heat capacity)
+ ! public subroutine computHeatCap: compute diagnostic energy variables (heat capacity)
  ! **********************************************************************************************************
  subroutine computHeatCap(&
-                       ! input: control variables
-                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in): canopy depth (m)
-                       ! input: state variables
-                       scalarCanopyIce,         & ! intent(in)
-                       scalarCanopyLiquid,      & ! intent(in)
-                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                       scalarCanopyIcePrime,         & ! intent(in)
-                       scalarCanopyLiquidPrime,      & ! intent(in)
-                       mLayerVolFracIcePrime,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                       mLayerVolFracLiqPrime,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                        ! input data structures
                        mpar_data,               & ! intent(in):    model parameters
                        indx_data,               & ! intent(in):    model layer indices
+                       ! input: control variables
+                       nLayers,                  & ! intent(in): number of layers (soil+snow)
+                       diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
+                       ! input: state variables
+                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                       mLayerTempTrial,          & ! intent(in): trial temperature
+                       mLayerTempPrev,           & ! intent(in): previous temperature
+                       mLayerEnthalpyTrial,      & ! intent(in): trial enthalpy for snow and soil
+                       mLayerEnthalpyPrev,       & ! intent(in): previous enthalpy for snow and soil
                        ! output
-                       heatCapVeg,                   &
-                       mLayerHeatCap,                    &
-                       heatCapVegPrime,              &
-                       mLayerHeatCapPrime,               &
+                       mLayerHeatCap,            & ! intent(out): heat capacity for snow and soil
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to external subroutines
- USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
- ! --------------------------------------------------------------------------------------------------------------------------------------
- ! input: model control
- logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
- real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
- real(dp),intent(in)             :: scalarCanopyLiquid
- real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
- real(dp),intent(in)             :: scalarCanopyIcePrime        ! trial value of canopy ice content (kg m-2)
- real(dp),intent(in)             :: scalarCanopyLiquidPrime
- real(dp),intent(in)             :: mLayerVolFracLiqPrime(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(in)             :: mLayerVolFracIcePrime(:)        ! trial vector of volumetric ice water content (-)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
- ! output: error control
- real(qp),intent(out)            :: heatCapVeg
+ ! input:
+ integer(i4b),intent(in)         :: nLayers
+ type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
+ real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
+ real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
+ real(dp),intent(in)             :: mLayerTempTrial(:)
+ real(dp),intent(in)             :: mLayerTempPrev(:)
+ real(dp),intent(in)             :: mLayerEnthalpyTrial(:)
+ real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
+ ! output:
  real(qp),intent(out)            :: mLayerHeatCap(:)
- real(qp),intent(out)            :: heatCapVegPrime
- real(qp),intent(out)            :: mLayerHeatCapPrime(:)
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
+ real(dp)                          :: delT
+ real(dp)                          :: delEnt
  integer(i4b)                      :: iSoil                  ! index of soil layer
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
@@ -140,60 +129,35 @@ contains
  ! input: depth varying soil parameters
  iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                    & ! intent(in): soil porosity (-)
- )  ! end associate statement
- ! --------------------------------------------------------------------------------------------------------------------------------
+ )  ! end associate statemen
  ! initialize error control
  err=0; message="computHeatCap/"
 
- ! initialize the soil layer
- iSoil=integerMissing
-
- ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
- if(computeVegFlux)then
-  heatCapVeg =              specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
-                            Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
-                            Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
-                            
-  heatCapVegPrime =         Cp_water*scalarCanopyLiquidPrime/canopyDepth       + & ! liquid water component
-                            Cp_ice*scalarCanopyIcePrime/canopyDepth                ! ice component
- end if
-
  ! loop through layers
  do iLayer=1,nLayers
-
-  ! get the soil layer
-  if(iLayer>nSnow) iSoil = iLayer-nSnow
-
-  ! *****
-  ! * compute the volumetric heat capacity of each layer (J m-3 K-1)...
-  ! *******************************************************************
-  select case(layerType(iLayer))
-   ! * soil
-   case(iname_soil)
-    mLayerHeatCap(iLayer) =      iden_soil(iSoil)  * Cp_soil  * ( 1._dp - theta_sat(iSoil) ) + & ! soil component
-                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
-                                 iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
-                                 iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
-                                 
-    mLayerHeatCapPrime(iLayer) =   iden_ice          * Cp_Ice   * mLayerVolFracIcePrime(iLayer)     + & ! ice component
-                                 iden_water        * Cp_water * mLayerVolFracLiqPrime(iLayer)     + & ! liquid water component
-                                 iden_air          * Cp_air   * (-mLayerVolFracIcePrime(iLayer) - mLayerVolFracLiqPrime(iLayer))  ! air component
-   ! * snow
-   case(iname_snow)
-    mLayerHeatCap(iLayer) =        iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
-                                 iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
-                                 iden_air          * Cp_air   * ( 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
-                                 
-    mLayerHeatCapPrime(iLayer) =   iden_ice          * Cp_ice   * mLayerVolFracIcePrime(iLayer)     + & ! ice component
-                                 iden_water        * Cp_water * mLayerVolFracLiqPrime(iLayer)     + & ! liquid water component
-                                 iden_air          * Cp_air   * (-mLayerVolFracIcePrime(iLayer) - mLayerVolFracLiqPrime(iLayer))  ! air component
-   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
-  end select
-
+   delT = mLayerTempTrial(iLayer) - mLayerTempPrev(iLayer)
+   delEnt = mLayerEnthalpyTrial(iLayer) - mLayerEnthalpyPrev(iLayer)
+   if(abs(delT) <= 1e-14_dp)then
+      ! get the soil layer
+      if(iLayer>nSnow) iSoil = iLayer-nSnow
+         select case(layerType(iLayer))
+            ! * soil
+            case(iname_soil)
+                  mLayerHeatCap(iLayer) =  iden_soil(iSoil)  * Cp_soil  * ( 1._dp - theta_sat(iSoil) ) + & ! soil component
+                                           iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                           iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                           iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
+            case(iname_snow)
+                  mLayerHeatCap(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                          iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                          iden_air   * Cp_air   * ( 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
+            case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
+         end select
+   else
+      mLayerHeatCap(iLayer) = delEnt / delT
+   endif
  end do  ! looping through layers
- !pause
-
- ! end association to variables in the data structure
+ 
  end associate
 
  end subroutine computHeatCap
@@ -296,6 +260,108 @@ contains
  ! end association to variables in the data structure where vector length does not change
  end subroutine computStatMult
  
+  ! **********************************************************************************************************
+ ! public subroutine computHeatCap: compute diagnostic energy variables (thermal conductivity and heat capacity)
+ ! **********************************************************************************************************
+ subroutine computHeatCapAnalytic(&
+                       ! input: control variables
+                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
+                       canopyDepth,             & ! intent(in): canopy depth (m)
+                       ! input: state variables
+                       scalarCanopyIce,         & ! intent(in)
+                       scalarCanopyLiquid,      & ! intent(in)
+                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                       ! input data structures
+                       mpar_data,               & ! intent(in):    model parameters
+                       indx_data,               & ! intent(in):    model layer indices
+                       ! output
+                       heatCapVeg,                   &
+                       mLayerHeatCap,                    &
+                       ! output: error control
+                       err,message)               ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! provide access to external subroutines
+ USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
+ ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! input: model control
+ logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
+ real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+ real(dp),intent(in)             :: scalarCanopyLiquid
+ real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
+ real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
+ ! input/output: data structures
+ type(var_dlength),intent(in)    :: mpar_data              ! model parameters
+ type(var_ilength),intent(in)    :: indx_data              ! model layer indices
+ ! output: error control
+ real(qp),intent(out)            :: heatCapVeg
+ real(qp),intent(out)            :: mLayerHeatCap(:)
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! local variables
+ character(LEN=256)                :: cmessage               ! error message of downwind routine
+ integer(i4b)                      :: iLayer                 ! index of model layer
+ integer(i4b)                      :: iSoil                  ! index of soil layer
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! associate variables in data structure
+ associate(&
+ ! input: coordinate variables
+ nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
+ nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
+ ! input: heat capacity and thermal conductivity
+ specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in): specific heat of vegetation (J kg-1 K-1)
+ maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
+ ! input: depth varying soil parameters
+ iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                    & ! intent(in): soil porosity (-)
+ )  ! end associate statement
+ ! --------------------------------------------------------------------------------------------------------------------------------
+ ! initialize error control
+ err=0; message="computHeatCapAnalytic/"
+
+ ! initialize the soil layer
+ iSoil=integerMissing
+
+ ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ if(computeVegFlux)then
+  heatCapVeg =              specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
+                            Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
+                            Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+ end if
+
+ ! loop through layers
+ do iLayer=1,nLayers
+
+  ! get the soil layer
+  if(iLayer>nSnow) iSoil = iLayer-nSnow
+
+  ! *****
+  ! * compute the volumetric heat capacity of each layer (J m-3 K-1)...
+  ! *******************************************************************
+  select case(layerType(iLayer))
+   ! * soil
+   case(iname_soil)
+    mLayerHeatCap(iLayer) =      iden_soil(iSoil)  * Cp_soil  * ( 1._dp - theta_sat(iSoil) ) + & ! soil component
+                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                 iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
+   case(iname_snow)
+    mLayerHeatCap(iLayer) =      iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
+                                 iden_air          * Cp_air   * ( 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
+   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
+  end select
+
+ end do  ! looping through layers
+ !pause
+
+ ! end association to variables in the data structure
+ end associate
+
+ end subroutine computHeatCapAnalytic
 
 
 end module computHeatCap_module

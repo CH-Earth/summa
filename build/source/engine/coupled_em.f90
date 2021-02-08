@@ -682,7 +682,7 @@ contains
   call diagn_evar(&
                   ! input: control variables
                   computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                  canopyDepth,             & ! intent(in): canopy depth (m)
+                  diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),             & ! intent(in): canopy depth (m)
                   ! input/output: data structures
                   mpar_data,               & ! intent(in):    model parameters
                   indx_data,               & ! intent(in):    model layer indices
