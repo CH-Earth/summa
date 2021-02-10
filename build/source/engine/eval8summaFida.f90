@@ -259,11 +259,6 @@ contains
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: heatCapVeg
  real(qp)                        :: heatCapVegPrime
- real(qp),dimension(nLayers)     :: mLayerHeatCapPrime
- integer(i4b),parameter          :: analytical=1
- integer(i4b),parameter          :: lookup_tab=2
- integer(i4b),parameter          :: analytic_numeric=3
- integer(i4b)                    :: enthalpy=lookup_tab   ! analytical or lookup_tab or analytic_numeric
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -623,9 +618,9 @@ contains
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
    
    ! finite difference approximation of ice for the phase change
- !  do concurrent (iLayer=1:nLayers)
- !     mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
- !  end do
+   do concurrent (iLayer=1:nLayers)
+      mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+   end do
 
    ! H' = Cp*T' - rho*L*(theta_ice)' 
    call computEnthalpyPrime(& 
@@ -638,12 +633,7 @@ contains
                            ! output
                            mLayerEnthalpyPrime     &
                            )
-                           
-  
- ! print *, 'mLayerTempPrime = ', mLayerTempPrime(:)
- ! print *, 'mLayerVolFracIcePrime = ', mLayerVolFracIcePrime(:)
- ! print *, 'mLayerHeatCapTrial = ', mLayerHeatCapTrial(:)
- ! print *, 'mLayerEnthalpyPrime = ', mLayerEnthalpyPrime(:)
+                    
 
  ! compute the residual vector
  call computResidFida(&
