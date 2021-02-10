@@ -135,18 +135,17 @@ contains
                  ! input-output: baseflow
                  eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
-                 eqns_data%mLayerTempTrial,          &
-                 eqns_data%mLayerTempPrev,           &
-                 eqns_data%mLayerMatricHeadLiqTrial, &
-                 eqns_data%mLayerMatricHeadLiqPrev,  &
-                 eqns_data%mLayerMatricHeadTrial, &
-                 eqns_data%mLayerMatricHeadPrev, &
+                 eqns_data%mLayerTempTrial,         &
+                 eqns_data%mLayerTempPrev,          &
+                 eqns_data%mLayerMatricHeadLiqTrial,&
+                 eqns_data%mLayerMatricHeadTrial, 	&
+                 eqns_data%mLayerMatricHeadPrev, 	&
                  eqns_data%mLayerVolFracWatTrial,   &
-                 eqns_data%mLayerVolFracWatPrev,   &
+                 eqns_data%mLayerVolFracWatPrev,    &
                  eqns_data%mLayerVolFracIceTrial,   &
-                 eqns_data%mLayerVolFracIcePrev,   &
-                 eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
-                 eqns_data%mLayerEnthalpyTrial,      & ! intent(out)                
+                 eqns_data%mLayerVolFracIcePrev,   	&
+                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in)
+                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out)                
                  ! output
                  feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                 & ! intent(out):   flux vector

@@ -53,7 +53,6 @@ implicit none
    real(dp), allocatable              :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
    real(dp), allocatable              :: mLayerCmpress_sum(:)
    real(dp), allocatable              :: mLayerMatricHeadLiqTrial(:)
-   real(dp), allocatable              :: mLayerMatricHeadLiqPrev(:)
    real(dp), allocatable              :: mLayerMatricHeadTrial(:)
    real(dp), allocatable              :: mLayerMatricHeadPrev(:)
    real(dp), allocatable              :: mLayerVolFracWatTrial(:)     ! trial value for volumetric fraction of total water (-)

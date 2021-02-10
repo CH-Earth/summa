@@ -277,6 +277,7 @@ contains
   integer(i4b) :: iStep
   integer (kind=8) :: numfais(1)
   integer (kind=8) :: nnumfais(1)
+  real(dp)  :: mLayerMatricHeadLiqPrev(nSoil)
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
@@ -376,7 +377,6 @@ contains
   eqns_data%mLayerCmpress_sum = mLayerCmpress_sum
   
   allocate( eqns_data%mLayerMatricHeadLiqTrial(nSoil) )
-  allocate( eqns_data%mLayerMatricHeadLiqPrev(nSoil) )
 
   allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
   allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
@@ -618,7 +618,7 @@ contains
  eqns_data%mLayerVolFracWatPrev(:) = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
  eqns_data%mLayerTempPrev(:) = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
  eqns_data%mLayerVolFracIcePrev(:) = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
- eqns_data%mLayerMatricHeadLiqPrev(:) = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)   
+ mLayerMatricHeadLiqPrev(:) = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)   
  eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
  eqns_data%mLayerEnthalpyPrev(:) = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  
@@ -698,7 +698,6 @@ contains
                  eqns_data%mLayerTempTrial,          &
                  eqns_data%mLayerTempPrev,           &
                  eqns_data%mLayerMatricHeadLiqTrial, &
-                 eqns_data%mLayerMatricHeadLiqPrev,  &
                  eqns_data%mLayerMatricHeadTrial,    &
                  eqns_data%mLayerMatricHeadPrev,     &
                  eqns_data%mLayerVolFracWatTrial,    &
@@ -743,9 +742,9 @@ contains
   end select
 ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - eqns_data%mLayerMatricHeadLiqPrev(:) )
+                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
    eqns_data%mLayerTempPrev(:) = eqns_data%mLayerTempTrial(:)
-   eqns_data%mLayerMatricHeadLiqPrev(:) = eqns_data%mLayerMatricHeadLiqTrial(:)
+   mLayerMatricHeadLiqPrev(:) = eqns_data%mLayerMatricHeadLiqTrial(:)
    eqns_data%mLayerMatricHeadPrev(:) = eqns_data%mLayerMatricHeadTrial(:)
    eqns_data%mLayerVolFracWatPrev(:) = eqns_data%mLayerVolFracWatTrial(:)
    eqns_data%mLayerVolFracIcePrev(:) = eqns_data%mLayerVolFracIceTrial(:)
@@ -788,7 +787,6 @@ contains
   deallocate(eqns_data%dBaseflow_dMatric)
   deallocate(eqns_data%mLayerCmpress_sum)
   deallocate(eqns_data%mLayerMatricHeadLiqTrial)
-  deallocate(eqns_data%mLayerMatricHeadLiqPrev)
   deallocate(eqns_data%mLayerMatricHeadTrial)
   deallocate(eqns_data%mLayerMatricHeadPrev)
   deallocate( eqns_data%fluxVec )  
