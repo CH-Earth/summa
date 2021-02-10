@@ -60,8 +60,6 @@ implicit none
    real(dp), allocatable              :: mLayerVolFracWatPrev(:)
    real(dp), allocatable              :: mLayerVolFracIceTrial(:)     ! trial value for volumetric fraction of total water (-)
    real(dp), allocatable              :: mLayerVolFracIcePrev(:)
-   real(dp), allocatable              :: mLayerHeatCapTrial(:)     ! trial value for volumetric fraction of total water (-)
-   real(dp), allocatable              :: mLayerHeatCapPrev(:)
    real(dp), allocatable              :: mLayerEnthalpyTrial(:)
    real(dp), allocatable              :: mLayerEnthalpyPrev(:)
    real(dp), allocatable              :: mLayerTempTrial(:)

@@ -134,8 +134,6 @@ contains
                        mLayerVolFracWatPrev,    & !intent(inout)
                        mLayerVolFracIceTrial,    & !intent(inout)
                        mLayerVolFracIcePrev,    & !intent(inout)
-                       mLayerHeatCapPrev,      &
-                       mLayerHeatCapTrial,     &
                        mLayerEnthalpyPrev,       & ! intent(in)
                        mLayerEnthalpyTrial,      & ! intent(out)
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
@@ -206,8 +204,6 @@ contains
  real(dp),intent(in)             :: mLayerVolFracWatPrev(:)
  real(dp),intent(inout)          :: mLayerVolFracIceTrial(:)
  real(dp),intent(in)             :: mLayerVolFracIcePrev(:)
- real(dp),intent(in)             :: mLayerHeatCapPrev(:)
- real(dp),intent(inout)          :: mLayerHeatCapTrial(:)
  real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
  real(dp),intent(out)            :: mLayerEnthalpyTrial(:)
  logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
@@ -247,6 +243,7 @@ contains
  ! enthalpy
  real(dp)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
  real(dp)                        :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
+ real(dp),dimension(nLayers)     :: mLayerHeatCapTrial        ! heat capacity of each snow+soil layer
  real(dp),dimension(nLayers)     :: mLayerEnthalpyPrime       ! enthalpy of each snow+soil layer (J m-3)
  ! other local variables
  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain

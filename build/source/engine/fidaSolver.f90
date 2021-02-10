@@ -390,9 +390,6 @@ contains
   allocate( eqns_data%mLayerVolFracIceTrial(nLayers) )
   allocate( eqns_data%mLayerVolFracIcePrev(nLayers) )
   
-  allocate( eqns_data%mLayerHeatCapTrial(nLayers) )
-  allocate( eqns_data%mLayerHeatCapPrev(nLayers) )
-  
   allocate( eqns_data%mLayerEnthalpyTrial(nLayers) )
   allocate( eqns_data%mLayerEnthalpyPrev(nLayers) )
     
@@ -623,7 +620,6 @@ contains
  eqns_data%mLayerVolFracIcePrev(:) = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
  eqns_data%mLayerMatricHeadLiqPrev(:) = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)   
  eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
- eqns_data%mLayerHeatCapPrev(:) = diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:)
  eqns_data%mLayerEnthalpyPrev(:) = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  
  
@@ -709,8 +705,6 @@ contains
                  eqns_data%mLayerVolFracWatPrev,     &
                  eqns_data%mLayerVolFracIceTrial,    &
                  eqns_data%mLayerVolFracIcePrev,     &
-                 eqns_data%mLayerHeatCapPrev,      &
-                 eqns_data%mLayerHeatCapTrial,     &
                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out)
                  ! output
@@ -755,7 +749,6 @@ contains
    eqns_data%mLayerMatricHeadPrev(:) = eqns_data%mLayerMatricHeadTrial(:)
    eqns_data%mLayerVolFracWatPrev(:) = eqns_data%mLayerVolFracWatTrial(:)
    eqns_data%mLayerVolFracIcePrev(:) = eqns_data%mLayerVolFracIceTrial(:)
-   eqns_data%mLayerHeatCapPrev(:) = eqns_data%mLayerHeatCapTrial(:)
    eqns_data%mLayerEnthalpyPrev(:) = eqns_data%mLayerEnthalpyTrial(:)
 
  end do ! while loop on one_step mode
@@ -807,8 +800,6 @@ contains
   deallocate( eqns_data%mLayerTempPrev )
   deallocate( eqns_data%mLayerTempTrial )
   deallocate( eqns_data%mLayerVolFracIcePrev )
-  deallocate( eqns_data%mLayerHeatCapTrial )
-  deallocate( eqns_data%mLayerHeatCapPrev )
   deallocate( eqns_data%mLayerEnthalpyTrial )
   deallocate( eqns_data%mLayerEnthalpyPrev )
   
