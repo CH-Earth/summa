@@ -610,12 +610,13 @@ contains
  ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)  ! scalling_on 1 and off 0
  
  tret(1) = t0
- eqns_data%mLayerVolFracWatPrev(:) = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
- eqns_data%mLayerTempPrev(:) = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
- eqns_data%mLayerVolFracIcePrev(:) = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
- mLayerMatricHeadLiqPrev(:) = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)   
- eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
- eqns_data%mLayerEnthalpyPrev(:) = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+ eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
+ eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+ eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)   
+ eqns_data%mLayerMatricHeadPrev(:) 	= prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
+ eqns_data%mLayerEnthalpyPrev(:) 	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+ eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
+ mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  
  
  !**********************************************************************************
@@ -684,7 +685,7 @@ contains
                  feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                 & ! intent(out):   flux vector
                  eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                 rVec,                  & ! intent(out):   residual vector
+                 rVec,                  			& ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control 
                  
   
@@ -713,32 +714,34 @@ contains
        case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
   end select
   
-! sum of mLayerCmpress
+   ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
-   eqns_data%mLayerTempPrev(:) = eqns_data%mLayerTempTrial(:)
-   mLayerMatricHeadLiqPrev(:) = eqns_data%mLayerMatricHeadLiqTrial(:)
-   eqns_data%mLayerMatricHeadPrev(:) = eqns_data%mLayerMatricHeadTrial(:)
-   eqns_data%mLayerVolFracWatPrev(:) = eqns_data%mLayerVolFracWatTrial(:)
-   eqns_data%mLayerVolFracIcePrev(:) = eqns_data%mLayerVolFracIceTrial(:)
-   eqns_data%mLayerEnthalpyPrev(:) = eqns_data%mLayerEnthalpyTrial(:)
+   ! save values of some quantities for next step
+   eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
+   mLayerMatricHeadLiqPrev(:) 			= eqns_data%mLayerMatricHeadLiqTrial(:)
+   eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
+   eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
+   eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
+   eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
+   eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
 
  end do ! while loop on one_step mode
  
  !****************************** End of Main Solver ***************************************
  
-  firstFluxCall = eqns_data%firstFluxCall
-  fluxVec = eqns_data%fluxVec         
-  diag_data = eqns_data%diag_data 
-  flux_temp = eqns_data%flux_temp             
-  flux_data = eqns_data%flux_data             
-  deriv_data = eqns_data%deriv_data  
+  firstFluxCall 	= eqns_data%firstFluxCall
+  fluxVec 			= eqns_data%fluxVec         
+  diag_data 		= eqns_data%diag_data 
+  flux_temp 		= eqns_data%flux_temp             
+  flux_data 		= eqns_data%flux_data             
+  deriv_data 		= eqns_data%deriv_data  
   dBaseflow_dMatric = eqns_data%dBaseflow_dMatric  
-  ixSaturation = eqns_data%ixSaturation   
-  resSink = eqns_data%resSink 
-  stepsize_past = eqns_data%stepsize_past
-  err = eqns_data%err
-  message = eqns_data%message        
+  ixSaturation 		= eqns_data%ixSaturation   
+  resSink 			= eqns_data%resSink 
+  stepsize_past 	= eqns_data%stepsize_past
+  err 				= eqns_data%err
+  message 			= eqns_data%message        
 
 
   retval = FIDAGetLastStep(ida_mem, dt_last)

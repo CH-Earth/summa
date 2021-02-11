@@ -49,6 +49,11 @@ implicit none
    type(var_dlength)     				:: flux_sum
    type(var_dlength)     				:: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
    integer(i4b)          				:: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+   real(dp)								:: scalar
+   real(dp)								:: scalarCanopyTempTrial  ! intent(in):  trial value of canopy temperature (K)
+   real(dp)								:: scalarCanopyTempPrev   ! intent(in):  previous value of canopy temperature (K)
+   real(dp)								:: scalarCanopyEnthalpyTrial  ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
+   real(dp)								:: scalarCanopyEnthalpyPrev ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
    real(dp), allocatable              	:: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
    real(dp), allocatable              	:: mLayerCmpress_sum(:)
    real(dp), allocatable              	:: mLayerMatricHeadLiqTrial(:)
