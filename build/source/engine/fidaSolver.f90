@@ -41,7 +41,7 @@ USE globalData,only:iname_watLayer  ! named variable defining the total water st
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
 USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
-USE globalData,only:model_decisions        ! model decision structure
+USE globalData,only:model_decisions ! model decision structure
 
 ! global metadata
 USE globalData,only:flux_meta                        ! metadata on the model fluxes
@@ -124,7 +124,6 @@ contains
                        dMat,                    & ! intent(inout)
                        numDiscon,               & ! intent(in)
                        ! input: data structures
- !                      model_decisions,         & ! intent(in):    model decisions
                        lookup_data,             &
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
@@ -213,7 +212,6 @@ contains
  real(dp), intent(inout)         :: dMat(:)
  integer(i4b), intent(in)        :: numDiscon
  ! input: data structures
-! type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data              ! spatial attributes

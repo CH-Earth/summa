@@ -509,7 +509,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  dMat,                    & ! intent(inout)
                  numDiscon,               & ! intent(in)
                  ! input: data structures
-!                 model_decisions,         & ! intent(in):    model decisions
                  lookup_data,             & ! intent(in):    lookup tables
                  type_data,               & ! intent(in):    type of vegetation and soil
                  attr_data,               & ! intent(in):    spatial attributes
