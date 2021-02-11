@@ -587,7 +587,7 @@ contains
                        heatCapVegTrial,              & ! intent(out): volumetric heat capacity of vegetation canopy
                        mLayerHeatCapTrial,           & ! intent(out): heat capacity for snow and soil
                        ! output: error control
-                       err,message)               ! intent(out): error control
+                       err,message)                    ! intent(out): error control
    
    ! compute multiplier of state vector
    call computStatMult(&
