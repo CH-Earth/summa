@@ -540,7 +540,7 @@ contains
   
   
   ! Set the maximum BDF order,  default = 5
-  retval = FIDASetMaxOrd(ida_mem, 5)
+  retval = FIDASetMaxOrd(ida_mem, 1)
   if (retval /= 0) then
      print *, 'Error in FIDASetMaxOrd, retval = ', retval, '; halting'
      stop 1
@@ -612,6 +612,7 @@ contains
  tret(1) = t0
  ! need the following values for the first substep
  eqns_data%scalarCanopyTempPrev		= prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+ eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) 
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
  eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
  eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)   
@@ -674,6 +675,8 @@ contains
                  eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
                  eqns_data%scalarCanopyTempTrial,    & ! intent(in):  trial value of canopy temperature (K)
                  eqns_data%scalarCanopyTempPrev,     & ! intent(in):  previous value of canopy temperature (K)
+                 eqns_data%scalarCanopyIceTrial,	 &
+                 eqns_data%scalarCanopyIcePrev,		 &
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                  eqns_data%mLayerTempTrial,          &
@@ -725,6 +728,7 @@ contains
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
    ! save values of some quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
+   eqns_data%scalarCanopyIcePrev		= eqns_data%scalarCanopyIceTrial
    eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
    mLayerMatricHeadLiqPrev(:) 			= eqns_data%mLayerMatricHeadLiqTrial(:)
    eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)

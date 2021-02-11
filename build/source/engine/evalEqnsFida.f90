@@ -133,6 +133,8 @@ contains
                  eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
                  eqns_data%scalarCanopyTempTrial,    & ! intent(in):  trial value of canopy temperature (K)
                  eqns_data%scalarCanopyTempPrev,     & ! intent(in):  previous value of canopy temperature (K)
+                 eqns_data%scalarCanopyIceTrial,	&
+                 eqns_data%scalarCanopyIcePrev,		&
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                  eqns_data%mLayerTempTrial,         &

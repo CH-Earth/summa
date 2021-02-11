@@ -125,6 +125,8 @@ contains
                        ! output: flux and residual vectors
                        scalarCanopyTempTrial,   	 & ! intent(in):  trial value of canopy temperature (K)
                        scalarCanopyTempPrev,    	 & ! intent(in):  previous value of canopy temperature (K)
+                       scalarCanopyIceTrial,	 &
+                       scalarCanopyIcePrev,		 &
                        scalarCanopyEnthalpyTrial,    & ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                        scalarCanopyEnthalpyPrev,     & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                        mLayerTempTrial,         & ! intent(inout)
@@ -195,10 +197,12 @@ contains
  integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
- real(dp)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
- real(dp)                        :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
+ real(dp),intent(inout)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(dp),intent(in)             :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
+ real(dp),intent(inout)          :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)             :: scalarCanopyIcePrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(inout)          :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
+ real(dp),intent(in)             :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
  real(dp),intent(inout)          :: mLayerTempTrial(:)
  real(dp),intent(in)             :: mLayerTempPrev(:)
  real(dp),intent(inout)          :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
@@ -226,7 +230,6 @@ contains
  real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
  real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
  
   ! derivative of state variables
@@ -627,6 +630,7 @@ contains
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
    
    ! finite difference approximation of (theta_ice)'
+   scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
    do concurrent (iLayer=1:nLayers)
       mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
    end do

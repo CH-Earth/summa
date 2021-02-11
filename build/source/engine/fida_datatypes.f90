@@ -52,6 +52,8 @@ implicit none
    real(dp)								:: scalar
    real(dp)								:: scalarCanopyTempTrial  ! intent(in):  trial value of canopy temperature (K)
    real(dp)								:: scalarCanopyTempPrev   ! intent(in):  previous value of canopy temperature (K)
+   real(dp)								:: scalarCanopyIceTrial
+   real(dp)								:: scalarCanopyIcePrev
    real(dp)								:: scalarCanopyEnthalpyTrial  ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
    real(dp)								:: scalarCanopyEnthalpyPrev ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
    real(dp), allocatable              	:: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
