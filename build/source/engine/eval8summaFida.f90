@@ -123,23 +123,23 @@ contains
                        ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                        ! output: flux and residual vectors
-                       scalarCanopyTempTrial,   	 & ! intent(in):  trial value of canopy temperature (K)
-                       scalarCanopyTempPrev,    	 & ! intent(in):  previous value of canopy temperature (K)
-                       scalarCanopyIceTrial,	 &
-                       scalarCanopyIcePrev,		 &
-                       scalarCanopyEnthalpyTrial,    & ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
-                       scalarCanopyEnthalpyPrev,     & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
+                       scalarCanopyTempTrial,   & ! intent(in):  trial value of canopy temperature (K)
+                       scalarCanopyTempPrev,    & ! intent(in):  previous value of canopy temperature (K)
+                       scalarCanopyIceTrial,	&
+                       scalarCanopyIcePrev,		&
+                       scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
+                       scalarCanopyEnthalpyPrev,& ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                        mLayerTempTrial,         & ! intent(inout)
                        mLayerTempPrev,          & ! intent(in)
-                       mLayerMatricHeadLiqTrial, & !intent(inout)
-                       mLayerMatricHeadTrial, & !intent(inout)
-                       mLayerMatricHeadPrev, & !intent(in)
-                       mLayerVolFracWatTrial,    & !intent(inout)
+                       mLayerMatricHeadLiqTrial,& !intent(inout)
+                       mLayerMatricHeadTrial, 	& !intent(inout)
+                       mLayerMatricHeadPrev, 	& !intent(in)
+                       mLayerVolFracWatTrial,   & !intent(inout)
                        mLayerVolFracWatPrev,    & !intent(inout)
-                       mLayerVolFracIceTrial,    & !intent(inout)
+                       mLayerVolFracIceTrial,   & !intent(inout)
                        mLayerVolFracIcePrev,    & !intent(inout)
-                       mLayerEnthalpyPrev,       & ! intent(in)
-                       mLayerEnthalpyTrial,      & ! intent(out)
+                       mLayerEnthalpyPrev,      & ! intent(in)
+                       mLayerEnthalpyTrial,     & ! intent(out)
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        fluxVec,                 & ! intent(out):   flux vector
                        resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
