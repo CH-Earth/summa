@@ -412,7 +412,7 @@ contains
 
   ! identify the need to check the mass balance
   checkMassBalance = .true. ! (.not.scalarSolution) 
-  checkNrgBalance = .false.
+  checkNrgBalance = .true.
 
   ! update prognostic variables
   call updateProgFida(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
@@ -637,14 +637,10 @@ contains
  real(dp)                        :: scalarCanopyIcePrime           ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
- real(dp)                        :: enthalpy0, enthalpy1           ! amount of energy required to bring the temperature to a reference value
- real(dp)                        :: nrgError
- integer(i4b) :: iLayer
- real(dp),dimension(nLayers)     :: left, mLayerNrgError
- real(qp),dimension(nLayers)     :: mLayerHeatCap
  real(dp)                        :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
  real(dp)                        :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3
-  real(dp),dimension(nLayers)    :: mLayerEnthalpyTrial
+ real(dp),dimension(nLayers)     :: mLayerEnthalpyTrial
+ integer(i4b) 					 :: iLayer
  ! -------------------------------------------------------------------------------------------------------------------
 
  ! -------------------------------------------------------------------------------------------------------------------
@@ -764,10 +760,6 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
 
- !print*, 'after varExtract: scalarCanopyTempTrial =', scalarCanopyTempTrial   ! trial value of canopy temperature (K)
- !print*, 'after varExtract: scalarCanopyWatTrial  =', scalarCanopyWatTrial    ! trial value of canopy total water (kg m-2)
- !print*, 'after varExtract: scalarCanopyLiqTrial  =', scalarCanopyLiqTrial    ! trial value of canopy liquid water (kg m-2)
- !print*, 'after varExtract: scalarCanopyIceTrial  =', scalarCanopyIceTrial    ! trial value of canopy ice content (kg m-2)
   ! update diagnostic variables
  call updateVarsFida(&                
                  ! input
@@ -809,7 +801,7 @@ contains
  ! ----
  ! * check energy balance
  !------------------------
- 
+ ! NOTE: for now, we just compute enthalpy
  if(checkNrgBalance)then 
       ! compute enthalpy at t_{n+1}
        call t2enthalpy(&
@@ -835,18 +827,6 @@ contains
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-    do concurrent (iLayer=1:nLayers)
-      left(iLayer) = (mLayerEnthalpyTrial(iLayer) - mLayerEnthalpy(iLayer)) * mLayerDepth(iLayer)
-    end do
-
-    do concurrent (iLayer=1:nLayers)
-      mLayerNrgError(iLayer) = left(iLayer) + ( (iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1)) )*dt
-    end do
-    
-!    write(1,*) mLayerNrgError(1:nLayers)
-!    write(2,*) mLayerEnthalpyTrial(1:nLayers)
-!    write(3,*) left(1:nLayers)
     
  endif
 

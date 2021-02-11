@@ -206,7 +206,7 @@ contains
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  logical(lgt),intent(in)         :: heatCapVaries          !flag to indicate if heat capacity is constant in the current substep
  ! input: state vectors
- real(dp),intent(in)            :: stateVecInit(:)        ! model state vector
+ real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
  real(dp),intent(in)             :: fScale(:)              ! function scaling vector
  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  real(dp), intent(inout)         :: dMat(:)
@@ -259,23 +259,20 @@ contains
   integer(i4b)                      :: retval
   logical(lgt)                      :: feasible                      ! feasibility flag
   real(qp)                          :: t0
-  integer (kind = 8) :: maxstep
-  integer(kind = 8) :: mu, lu
-  real(qp)            :: h_max
-  real(qp)            :: coef_nonlin
-  integer(i4b) :: lsflag
-  integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
-  integer(i4b)                    :: iState                        ! index of model state
+  integer (kind = 8) 				:: maxstep
+  integer(kind = 8) 				:: mu, lu
+  real(qp)            				:: h_max
+  real(qp)            				:: coef_nonlin
+  integer(i4b) 						:: lsflag
+  integer(i4b)                   	:: iLayer                        ! index of layer in the snow+soil domain
+  integer(i4b)                    	:: iState                        ! index of model state
   real(dp) :: idenIW
-  real(c_double)             :: stepsize_cur(1)
-  integer(i4b),parameter     :: ixRectangular=1    ! reza: should put them in a data type later
-  integer(i4b),parameter     :: ixTrapezoidal=2
-  integer(i4b)               :: iVar  
-  logical(lgt)               :: startQuadrature
-  integer(i4b) :: iStep
-  integer (kind=8) :: numfais(1)
-  integer (kind=8) :: nnumfais(1)
-  real(dp)  :: mLayerMatricHeadLiqPrev(nSoil)
+  real(c_double)             		:: stepsize_cur(1)
+  integer(i4b),parameter     		:: ixRectangular=1    ! reza: should put them in a data type later
+  integer(i4b),parameter     		:: ixTrapezoidal=2
+  integer(i4b)               		:: iVar  
+  logical(lgt)               		:: startQuadrature
+  real(dp)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
