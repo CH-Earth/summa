@@ -620,6 +620,7 @@ contains
  
  !**********************************************************************************
  !****************************** Main Solver ***************************************
+ !************************* loop on one_step mode **********************************
  !**********************************************************************************                                 
  do while(tret(1) < dt) 
   ! call IDASolve
@@ -631,9 +632,7 @@ contains
      print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
      stop 1
   end if  
-  
-  
-  
+    
     ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
                  ! input: model control
@@ -713,6 +712,7 @@ contains
            stepsize_past = stepsize_cur(1)
        case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
   end select
+  
 ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
@@ -725,6 +725,7 @@ contains
 
  end do ! while loop on one_step mode
  
+ !****************************** End of Main Solver ***************************************
  
   firstFluxCall = eqns_data%firstFluxCall
   fluxVec = eqns_data%fluxVec         

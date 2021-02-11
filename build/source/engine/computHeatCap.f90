@@ -76,30 +76,48 @@ contains
  ! public subroutine computHeatCap: compute diagnostic energy variables (heat capacity)
  ! **********************************************************************************************************
  subroutine computHeatCap(&
+                        ! input: control variables
+                       nLayers,                 	 & ! intent(in): number of layers (soil+snow)
+                       computeVegFlux,         		 & ! intent(in): flag to denote if computing the vegetation flux
+                       canopyDepth,             	 & ! intent(in): canopy depth (m)
                        ! input data structures
-                       mpar_data,               & ! intent(in):    model parameters
-                       indx_data,               & ! intent(in):    model layer indices
-                       ! input: control variables
-                       nLayers,                  & ! intent(in): number of layers (soil+snow)
-                       diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
+                       mpar_data,               	 & ! intent(in):    model parameters
+                       indx_data,               	 & ! intent(in):    model layer indices
+                       diag_data,               	 & ! intent(in):    model diagnostic variables for a local HRU
                        ! input: state variables
-                       mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                       mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                       mLayerTempTrial,          & ! intent(in): trial temperature
-                       mLayerTempPrev,           & ! intent(in): previous temperature
-                       mLayerEnthalpyTrial,      & ! intent(in): trial enthalpy for snow and soil
-                       mLayerEnthalpyPrev,       & ! intent(in): previous enthalpy for snow and soil
+                       scalarCanopyIce,         	 & ! intent(in)
+                       scalarCanopyLiquid,       	 & ! intent(in)
+                       scalarCanopyTempTrial,   	 & ! intent(in):  trial value of canopy temperature (K)
+                       scalarCanopyTempPrev,    	 & ! intent(in):  previous value of canopy temperature (K)
+                       scalarCanopyEnthalpyTrial,    & ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
+                       scalarCanopyEnthalpyPrev,     & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
+                       mLayerVolFracIce,        	 & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiq,        	 & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                       mLayerTempTrial,          	 & ! intent(in): trial temperature
+                       mLayerTempPrev,           	 & ! intent(in): previous temperature
+                       mLayerEnthalpyTrial,      	 & ! intent(in): trial enthalpy for snow and soil
+                       mLayerEnthalpyPrev,       	 & ! intent(in): previous enthalpy for snow and soil
                        ! output
-                       mLayerHeatCap,            & ! intent(out): heat capacity for snow and soil
+                       heatCapVeg,               	 &
+                       mLayerHeatCap,            	 & ! intent(out): heat capacity for snow and soil
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
+ ! input: control variables
+ logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
+ real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
  ! input:
  integer(i4b),intent(in)         :: nLayers
  type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
+ real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+ real(dp),intent(in)             :: scalarCanopyLiquid
+ real(dp),intent(in)		     :: scalarCanopyTempTrial  ! trial value of canopy temperature
+ real(dp),intent(in)             :: scalarCanopyEnthalpyTrial ! trial enthalpy of the vegetation canopy (J m-3)
+ real(dp),intent(in)             :: scalarCanopyEnthalpyPrev  ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
+ real(dp),intent(in)		     :: scalarCanopyTempPrev   ! Previous value of canopy temperature
  real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
  real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
  real(dp),intent(in)             :: mLayerTempTrial(:)
@@ -107,15 +125,16 @@ contains
  real(dp),intent(in)             :: mLayerEnthalpyTrial(:)
  real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
  ! output:
+ real(qp),intent(out)            :: heatCapVeg
  real(qp),intent(out)            :: mLayerHeatCap(:)
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                      :: iLayer                 ! index of model layer
- real(dp)                          :: delT
- real(dp)                          :: delEnt
- integer(i4b)                      :: iSoil                  ! index of soil layer
+ integer(i4b)                    :: iLayer                 ! index of model layer
+ real(dp)                        :: delT
+ real(dp)                        :: delEnt
+ integer(i4b)                    :: iSoil                  ! index of soil layer
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
@@ -132,11 +151,26 @@ contains
  )  ! end associate statemen
  ! initialize error control
  err=0; message="computHeatCap/"
+ 
+ ! initialize the soil layer
+ iSoil=integerMissing
+
+ ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
+ if(computeVegFlux)then
+   delT = scalarCanopyTempTrial - scalarCanopyTempPrev
+   if(abs(delT) <= 1e-14_dp)then   
+	  heatCapVeg =  specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
+                    Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
+                    Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+   else 
+   	  delEnt = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpyPrev
+   	  heatCapVeg = delEnt / delT
+   end if
+ end if
 
  ! loop through layers
  do iLayer=1,nLayers
    delT = mLayerTempTrial(iLayer) - mLayerTempPrev(iLayer)
-   delEnt = mLayerEnthalpyTrial(iLayer) - mLayerEnthalpyPrev(iLayer)
    if(abs(delT) <= 1e-14_dp)then
       ! get the soil layer
       if(iLayer>nSnow) iSoil = iLayer-nSnow
@@ -154,6 +188,7 @@ contains
             case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
          end select
    else
+      delEnt = mLayerEnthalpyTrial(iLayer) - mLayerEnthalpyPrev(iLayer)
       mLayerHeatCap(iLayer) = delEnt / delT
    endif
  end do  ! looping through layers
