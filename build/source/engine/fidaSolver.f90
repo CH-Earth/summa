@@ -610,6 +610,8 @@ contains
  ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)  ! scalling_on 1 and off 0
  
  tret(1) = t0
+ ! need the following values for the first substep
+ eqns_data%scalarCanopyTempPrev		= prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
  eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
  eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)   
@@ -718,6 +720,7 @@ contains
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
    ! save values of some quantities for next step
+   eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
    eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
    mLayerMatricHeadLiqPrev(:) 			= eqns_data%mLayerMatricHeadLiqTrial(:)
    eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
