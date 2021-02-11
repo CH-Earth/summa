@@ -533,7 +533,7 @@ contains
                  err,cmessage)                             ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
-    ! compute trial enthalpy using look-up tables
+  ! compute H_T
   call t2enthalpy_T(&
                   ! input: data structures
                   diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
@@ -558,7 +558,7 @@ contains
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! *** compute volumetric heat capacity
+   ! *** compute volumetric heat capacity, C_p = dH_T/dT
    call computHeatCap(&
                         ! input data structures
                        mpar_data,                    & ! intent(in):    model parameters
@@ -577,11 +577,12 @@ contains
                        mLayerHeatCapTrial,       & ! intent(out) volumetric heat capacity of soil and snow
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+   
    ! compute multiplier of state vector
    call computStatMult(&
                  ! input
                  heatCapVeg,                       & ! intent(in) volumetric heat capacity of vegetation canopy
-                 mLayerHeatCapTrial,             & ! intent(in) volumetric heat capacity of soil and snow
+                 mLayerHeatCapTrial,               & ! intent(in) volumetric heat capacity of soil and snow
                  diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
                  indx_data,                        & ! intent(in):    indices defining model states and layers
                  ! output
@@ -610,7 +611,7 @@ contains
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
    
-   ! finite difference approximation of ice for the phase change
+   ! finite difference approximation of (theta_ice)'
    do concurrent (iLayer=1:nLayers)
       mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
    end do
