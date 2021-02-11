@@ -78,7 +78,7 @@ contains
                         mLayerVolFracIcePrime,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                         mLayerVolFracWatPrime,     &
                         mLayerVolFracLiqPrime,     &
-                        heatCapVegPrime,           &
+                        scalarCanopyEnthalpyPrime,           &
                         mLayerEnthalpyPrime,       & ! intent(in)
                         ! input: data structures
                         prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
@@ -113,7 +113,7 @@ contains
  real(dp),intent(in)             :: mLayerVolFracIcePrime(:)  ! trial value for volumetric fraction of ice (-)
  real(dp),intent(in)             :: mLayerVolFracLiqPrime(:)
  real(dp),intent(in)            ::  mLayerVolFracWatPrime(:)
- real(qp),intent(in)            ::  heatCapVegPrime
+ real(qp),intent(in)            ::  scalarCanopyEnthalpyPrime
  real(qp),intent(in)            ::  mLayerEnthalpyPrime(:)
  ! input: data structures
  type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
@@ -206,7 +206,7 @@ contains
  ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
  ! --> energy balance
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg) + rAdd(ixCasNrg) )
- if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = heatCapVegPrime * scalarCanopyTempTrial + sMul(ixVegNrg) * scalarCanopyTempPrime - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
+ if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = scalarCanopyEnthalpyPrime - fVec(ixVegNrg)
  ! --> mass balance
  if(ixVegHyd/=integerMissing)then    
   scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )  

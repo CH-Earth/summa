@@ -257,7 +257,7 @@ contains
  real(dp),dimension(nState)      :: rVecScaled                ! scaled residual vector
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: heatCapVegTrial
- real(qp)                        :: heatCapVegPrime
+ real(qp)                        :: scalarCanopyEnthalpyPrime
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -631,17 +631,23 @@ contains
       mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
    end do
 
-   ! H' = Cp*T' - rho*L*(theta_ice)' 
-   call computEnthalpyPrime(& 
-                           ! input
-                           indx_data,              &
-                           nLayers,                &
-                           mLayerTempPrime,        & 
-                           mLayerVolFracIcePrime,  & 
-                           mLayerHeatCapTrial,     & 
-                           ! output
-                           mLayerEnthalpyPrime     &
-                           )
+   ! H' = Cp*T' - rho*L*(theta_ice)'                   
+   call computEnthalpyPrime(&
+                        ! input
+                        computeVegFlux,				  &
+                        indx_data,                    &
+                        nLayers,                      &
+                        canopyDepth,               	  & ! intent(in): canopy depth (m)
+                        scalarCanopyTempPrime,        & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
+                        scalarCanopyIcePrime,         & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
+                        mLayerTempPrime,              &
+                        mLayerVolFracIcePrime,        &
+                        heatCapVegTrial,		      &
+                        mLayerHeatCapTrial,           & 
+                        ! output
+                        scalarCanopyEnthalpyPrime,	  &
+                        mLayerEnthalpyPrime           &
+                        ) 
                     
 
  ! compute the residual vector
@@ -667,8 +673,8 @@ contains
                   mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (-)
                   mLayerVolFracWatPrime,     &
                   mLayerVolFracLiqPrime,     &
-                  heatCapVegPrime,           & ! intent(in) derivarive of volumetric heat capacity of vegetation canopy
-                  mLayerEnthalpyPrime,       & ! intent(in) derivative of volumetric heat capacity of soil and snow
+                  scalarCanopyEnthalpyPrime, & ! intent(in) derivarive of enthalpy of vegetation canopy
+                  mLayerEnthalpyPrime,       & ! intent(in) derivative of enthalpy of soil and snow
                   ! input: data structures
                   prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                   diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU

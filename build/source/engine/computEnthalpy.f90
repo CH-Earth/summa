@@ -96,22 +96,34 @@ contains
  ! **********************************************************************************************************
  subroutine computEnthalpyPrime(&
                         ! input
+                        computeVegFlux,				  &
                         indx_data,                    &
                         nLayers,                      &
+                        canopyDepth,               	  & ! intent(in): canopy depth (m)
+                        scalarCanopyTempPrime,        & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
+                        scalarCanopyIcePrime,         & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
                         mLayerTempPrime,              &
                         mLayerVolFracIcePrime,        &
+                        heatCapVeg,					  &
                         mLayerHeatCap,                & 
                         ! output
+                        scalarCanopyEnthalpyPrime,	  &
                         mLayerEnthalpyPrime           &
                         )                
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: model control
- type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
+ logical(lgt),intent(in)         :: computeVegFlux         		! logical flag to denote if computing the vegetation flux
+ type(var_ilength),intent(in)    :: indx_data                 	! indices defining model states and layers
  integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
- real(dp),intent(in)             :: mLayerTempPrime(:)             ! temperature of each snow/soil layer (K)
- real(dp),intent(in)             :: mLayerVolFracIcePrime(:)       ! volumetric fraction of ice (-)
+ real(dp),intent(in)			 :: canopyDepth					! canopy depth (m)
+ real(dp),intent(in)			 :: scalarCanopyTempPrime       ! Prime value for the temperature of the vegetation canopy (K)
+ real(dp),intent(in)			 :: scalarCanopyIcePrime		! Prime value for the ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)			 :: heatCapVeg
+ real(dp),intent(in)             :: mLayerTempPrime(:)          ! temperature of each snow/soil layer (K)
+ real(dp),intent(in)             :: mLayerVolFracIcePrime(:)    ! volumetric fraction of ice (-)
  real(dp),intent(in)             :: mLayerHeatCap(:)
+ real(dp),intent(out)			 :: scalarCanopyEnthalpyPrime
  real(dp),intent(out)            :: mLayerEnthalpyPrime(:)
  
  ! local variables
@@ -123,6 +135,10 @@ contains
    layerType               => indx_data%var(iLookINDEX%layerType)%dat               ,& ! intent(in): [i4b(:)] named variables defining the type of layer
    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            & ! intent(in): [i4b(:)] indices for energy states
  )
+ 
+ if(computeVegFlux)then
+	scalarCanopyEnthalpyPrime = heatCapVeg * scalarCanopyTempPrime - LH_fus*scalarCanopyIcePrime/canopyDepth
+ end if
   ! (loop through non-missing energy state variables in the snow+soil domain)
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
    select case( layerType(iLayer) )
