@@ -123,6 +123,10 @@ contains
                        ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                        ! output: flux and residual vectors
+                       scalarCanopyTempTrial,   	 & ! intent(in):  trial value of canopy temperature (K)
+                       scalarCanopyTempPrev,    	 & ! intent(in):  previous value of canopy temperature (K)
+                       scalarCanopyEnthalpyTrial,    & ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
+                       scalarCanopyEnthalpyPrev,     & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                        mLayerTempTrial,         & ! intent(inout)
                        mLayerTempPrev,          & ! intent(in)
                        mLayerMatricHeadLiqTrial, & !intent(inout)
@@ -191,6 +195,10 @@ contains
  integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
+ real(dp)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
+ real(dp)                        :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
  real(dp),intent(inout)          :: mLayerTempTrial(:)
  real(dp),intent(in)             :: mLayerTempPrev(:)
  real(dp),intent(inout)          :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
@@ -214,8 +222,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state variables
  real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
  real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
  real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
@@ -239,8 +245,6 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
  ! enthalpy
  real(dp)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
- real(dp)                        :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
- real(dp)                        :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
  real(dp),dimension(nLayers)     :: mLayerHeatCapTrial        ! heat capacity of each snow+soil layer
  real(dp),dimension(nLayers)     :: mLayerEnthalpyPrime       ! enthalpy of each snow+soil layer (J m-3)
  ! other local variables
