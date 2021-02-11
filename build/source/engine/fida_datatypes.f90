@@ -18,7 +18,6 @@ USE data_types,only:&
 implicit none
 
  type eqnsData
-   logical(lgt) :: printON
    real(dp)             :: dt                     ! time step
    integer(i4b)         :: nSnow                  ! number of snow layers
    integer(i4b)         :: nSoil                  ! number of soil layers

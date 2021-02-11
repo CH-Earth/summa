@@ -93,14 +93,10 @@ contains
      print *, 'Error in FIDAGetCurrentStep, retval = ', retval, '; halting'
      stop 1
   end if 
-
-   if(eqns_data%printON)then
-      print *, '1'
-   endif 
+ 
 
     ! compute the flux and the residual vector for a given state vector
     call eval8summaFida(&
-                 eqns_data%printON, &
                  ! input: model control
                  stepsize_next(1),                  &
                  eqns_data%dt,                      &

@@ -89,7 +89,6 @@ contains
  ! **********************************************************************************************************
  subroutine eval8summaFida(&
                        ! input: model control
-                       printON, &
                        dt_cur,                  &
                        dt,                      & ! intent(in):    time step
                        nSnow,                   & ! intent(in):    number of snow layers
@@ -158,7 +157,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- logical(lgt),intent(in) :: printON
  real(dp),intent(in)             :: dt_cur
  real(dp),intent(in)             :: dt                     ! time step
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
@@ -665,10 +663,7 @@ contains
                   resVec,                    & ! intent(out):   residual vector
                   err,cmessage)                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
- if(printON)then
-   print *, 'rvec = ', resVec(:)
- endif
+
 
  ! end association with the information in the data structures
  end associate

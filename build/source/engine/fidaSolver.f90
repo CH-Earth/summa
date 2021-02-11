@@ -625,42 +625,22 @@ contains
  
  !**********************************************************************************
  !****************************** Main Solver ***************************************
- !**********************************************************************************                  
- iStep = 1
- eqns_data%printON = .false.                
+ !**********************************************************************************                                 
  do while(tret(1) < dt) 
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP) 
   
-  retval = FIDAGetNumErrTestFails(ida_mem, numfais)
-  retval = FIDAGetNumNonlinSolvConvFails(ida_mem, nnumfais)
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, stepsize_cur)
   if (retval /= 0) then
      print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
      stop 1
   end if  
-!  print *, 'stepsize = ', stepsize_cur(1)
-  
-!  if (stepsize_cur(1) < 2.79e-11_dp)then
-!   eqns_data%printON = .true.
-!   iStep = iStep + 1
-!   print *, 'step_size = ', stepsize_cur(1)
-! endif
-  
-  if(eqns_data%printON)then
-  print *, 'accuracy fails = ', numfais(1)
-  print *, 'convergence fails = ', nnumfais(1)
-  print *, '----------------------------------------'
-  endif
-  
-  if(iStep == 10) stop 1
   
   
   
     ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
-                 eqns_data%printON, &
                  ! input: model control
                  stepsize_cur(1),                   &
                  eqns_data%dt,                      &
@@ -713,8 +693,6 @@ contains
                  rVec,                  & ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control 
                  
-!   print *, 'rVec = ', rVec(:)
-!   stop 1
   
   select case(ixQuadrature)
        ! sum of flux
