@@ -611,7 +611,7 @@ contains
    diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
    diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
    
-
+   ! update thermal conductivity
    call computThermConduct(&
                        ! input: control variables
                        computeVegFlux,               & ! intent(in): flag to denote if computing the vegetation flux
@@ -629,7 +629,7 @@ contains
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
    
-   ! finite difference approximation of (theta_ice)'
+   ! to conserve energy compute finite difference approximation of (theta_ice)'
    scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
    do concurrent (iLayer=1:nLayers)
       mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
@@ -642,8 +642,8 @@ contains
                         indx_data,                    &
                         nLayers,                      &
                         canopyDepth,               	  & ! intent(in): canopy depth (m)
-                        scalarCanopyTempPrime,        & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
-                        scalarCanopyIcePrime,         & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
+                        scalarCanopyTempPrime,        & ! intent(in): prime value for the temperature of the vegetation canopy (K)
+                        scalarCanopyIcePrime,         & ! intent(in): prime value for the ice on the vegetation canopy (kg m-2)
                         mLayerTempPrime,              &
                         mLayerVolFracIcePrime,        &
                         heatCapVegTrial,		      &

@@ -540,7 +540,7 @@ contains
   
   
   ! Set the maximum BDF order,  default = 5
-  retval = FIDASetMaxOrd(ida_mem, 1)
+  retval = FIDASetMaxOrd(ida_mem, 5)
   if (retval /= 0) then
      print *, 'Error in FIDASetMaxOrd, retval = ', retval, '; halting'
      stop 1
@@ -548,7 +548,7 @@ contains
   
   
   ! Set Coeff. in the nonlinear convergence test, default = 0.33
-  coef_nonlin = 0.33
+  coef_nonlin = 1e-2 !0.33
   retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
   if (retval /= 0) then
      print *, 'Error in FIDASetNonlinConvCoef, retval = ', retval, '; halting'

@@ -473,8 +473,8 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  ! ------------------
 
  h_init = 0  
- atol = 1e-6
- rtol = 1e-6
+ atol = 1e-8
+ rtol = 1e-8
  
  do tol_iter=1,5
  
