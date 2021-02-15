@@ -122,7 +122,6 @@ public::opSplittin
 ! named variables for the coupling method
 integer(i4b),parameter  :: fullyCoupled=1             ! 1st try: fully coupled solution
 integer(i4b),parameter  :: stateTypeSplit=2           ! 2nd try: separate solutions for each state type
-!integer(i4b),parameter  :: nCoupling=2  !reza Now it is a variable             ! number of possible solutions
 
 ! named variables for the state variable split
 integer(i4b),parameter  :: nrgSplit=1                 ! order in sequence for the energy operation
@@ -295,9 +294,9 @@ contains
  logical(lgt)                    :: doAdjustTemp                   ! flag to adjust temperature after the mass split
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
  integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- integer(i4b),parameter          :: ida=1
- integer(i4b),parameter          :: be=2
- integer(i4b)                    :: solver=ida   ! be or ida
+ integer(i4b),parameter          :: IDA=1
+ integer(i4b),parameter          :: BE=2
+ integer(i4b)                    :: solver=IDA   ! BE or IDA
  integer(i4b)                    :: nCoupling
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
@@ -364,7 +363,12 @@ contains
  ! initialize error control
  err=0; message="opSplittin/"
  
- nCoupling=solver   ! reza
+ ! we just solve the fully coupled problem by ida
+ select case(solver)
+ 	case(BE); nCoupling = 2
+    case(IDA); nCoupling = 1
+    case default; err=20; message=trim(message)//'expect case to be IDA or BE'; return  
+ end select     
 
  ! *****
  ! (0) PRELIMINARIES...
@@ -770,7 +774,7 @@ contains
        
        ! solve variable subset for one full time step
        select case(solver)
-        case(ida)
+        case(IDA)
              call varSubstepFida(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
@@ -806,7 +810,7 @@ contains
                        reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        err,cmessage)                 ! intent(out)   : error code and error message
-        case(be) 
+        case(BE) 
              call varSubstep(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
