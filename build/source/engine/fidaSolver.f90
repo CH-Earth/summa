@@ -249,7 +249,6 @@ contains
   integer(i4b)                   	:: iLayer                        ! index of layer in the snow+soil domain
   integer(i4b)                    	:: iState                        ! index of model state
   real(dp) :: idenIW
-  real(c_double)             		:: stepsize_cur(1)
   integer(i4b),parameter     		:: ixRectangular=1    ! reza: should put them in a data type later
   integer(i4b),parameter     		:: ixTrapezoidal=2
   integer(i4b)               		:: iVar  
@@ -600,7 +599,7 @@ contains
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP) 
   
   ! get the last stepsize  
-  retval = FIDAGetLastStep(ida_mem, stepsize_cur)
+  retval = FIDAGetLastStep(ida_mem, dt_last)
   if (retval /= 0) then
      print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
      stop 1
@@ -609,7 +608,7 @@ contains
   ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
                  ! input: model control
-                 stepsize_cur(1),                   & ! intent(in):    current stepsize
+                 dt_last(1),                        & ! intent(in):    current stepsize
                  eqns_data%dt,                      & ! intent(in):    data step
                  eqns_data%nSnow,                   & ! intent(in):    number of snow layers
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
@@ -669,24 +668,24 @@ contains
        ! sum of flux
        case(ixRectangular)
             do  iVar=1,size(flux_meta) 
-              flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  stepsize_cur(1) 
+              flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1) 
             end do
        case(ixTrapezoidal)
             if(startQuadrature)then
                  do  iVar=1,size(flux_meta) 
-                     flux_sum%var(iVar)%dat(:) =  flux_temp%var(iVar)%dat(:) *  stepsize_cur(1) 
+                     flux_sum%var(iVar)%dat(:) =  flux_temp%var(iVar)%dat(:) *  dt_last(1) 
                  end do 
                  startQuadrature = .false.
             else
                  do  iVar=1,size(flux_meta) 
                      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:) & 
-                                                                           *  ( stepsize_past + stepsize_cur(1) )
+                                                                           *  ( stepsize_past + dt_last(1) )
                  end do        
            endif 
            do  iVar=1,size(flux_meta) 
               flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) 
            end do
-           stepsize_past = stepsize_cur(1)
+           stepsize_past = dt_last(1)
        case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
   end select
   
@@ -722,13 +721,6 @@ contains
   if( tret(1) == dt .and. feasible)then
   	idaSucceeds = .true.
   endif     
-
-
-  retval = FIDAGetLastStep(ida_mem, dt_last)
-  if (retval /= 0) then
-     print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
-     stop 1
-  end if
   
 
   ! free memory  

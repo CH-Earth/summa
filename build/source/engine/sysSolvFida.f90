@@ -448,8 +448,8 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
  ! just for experiment
- atol = 1e-5
- rtol = 1e-5
+ atol = 1e-6
+ rtol = 1e-6
   
 
  !-------------------
