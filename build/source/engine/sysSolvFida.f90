@@ -210,19 +210,14 @@ contains
  real(dp)                        :: rAdd(nState)                  ! additional terms in the residual vector
  real(dp)                        :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
- real(dp)                        :: resSinkNew(nState)            ! additional terms in the residual vector
- real(dp)                        :: fluxVecNew(nState)            ! new flux vector
- real(dp)                        ::  t0       ! beginning of the current time step
- real(dp)                        ::  tout     ! end of the current time step
- real(dp)                        ::  tret(1)
- real(dp)                        ::  dt_last(1)
- real(dp)                        ::  atol(nState)     ! absolute telerance
- real(dp)                        ::  rtol(nState)     ! relative tolerance     
- type(var_dlength)               ::  flux_sum
- real(qp) 						 ::  dt_past
- integer(i4b) :: tol_iter
- real(dp), allocatable           :: mLayerCmpress_sum(:)
- logical(lgt)					 :: idaSucceeds				
+ real(dp)                        :: dt_last(1)					  ! last stepsize taken by ida solver
+ real(qp) 						 :: dt_past						  ! one step before the last stepsize taken by ida solver
+ real(dp)                        :: atol(nState)     		 	  ! absolute telerance
+ real(dp)                        :: rtol(nState)     			  ! relative tolerance     
+ type(var_dlength)               :: flux_sum					  ! sum of fluxes model fluxes for a local HRU over a data step					
+ integer(i4b) 					 :: tol_iter					  ! iteration index 
+ real(dp), allocatable           :: mLayerCmpress_sum(:)		  ! sum of compression of the soil matrix
+ logical(lgt)					 :: idaSucceeds					  ! flag to indicate if ida successfully solved the problem in current data step		
 
 
  ! ---------------------------------------------------------------------------------------
@@ -238,31 +233,10 @@ contains
  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
-relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1)     ,&  ! intent(in): [dp] absolute convergence tolerance for vol frac liq water (-)
-  relConvTol_matric       => mpar_data%var(iLookPARAM%relConvTol_matric)%dat(1)     ,&  ! intent(in): [dp] absolute convergence tolerance for matric head        (m)
-  relConvTol_energy       => mpar_data%var(iLookPARAM%relConvTol_energy)%dat(1)     ,&  ! intent(in): [dp] absolute convergence tolerance for
- ! model states for the vegetation canopy
- relConvTol_aquifr       => mpar_data%var(iLookPARAM%relConvTol_aquifr)%dat(1)     ,&  ! intent(in):
- ! accelerate solution for temperature
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
- ! vector of energy and hydrology indices for the snow and soil domains
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
- ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
- ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the soil domain
- nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
- nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
- nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the soil domain
- ! mapping from full domain to the sub-domain
- ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
- ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
- ! type of state and domain for a given variable
- ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
- ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
- ! layer geometry
- layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
@@ -323,10 +297,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  do iVar=1,size(flux_temp%var)
   flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
  end do
-
- ! **************************************************************************************************************************
- ! *** NUMERICAL SOLUTION FOR A GIVEN SUBSTEP AND SPLIT *********************************************************************
- ! **************************************************************************************************************************
 
  ! -----
  ! * get scaling vectors...
@@ -439,10 +409,10 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                    prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
                    diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
                    indx_data,                        & ! intent(in):    indices defining model states and layers
-                   mpar_data,                        & ! intent(in)
+                   mpar_data,                        & ! intent(in):	model parameters
                    ! output
                    atol,                             & ! intent(out):   absolute tolerances vector (mixed units)
-                   rtol,                             &
+                   rtol,                             & ! intent(out):	relative tolerances vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   

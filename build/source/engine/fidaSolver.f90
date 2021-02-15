@@ -118,7 +118,7 @@ contains
                        sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
                        dMat,                    & ! intent(inout)
                        ! input: data structures
-                       lookup_data,             &
+                       lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
