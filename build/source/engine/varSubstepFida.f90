@@ -193,7 +193,6 @@ contains
  real(dp),parameter              :: reduceMin=0.1_dp              ! mimimum factor that time step is reduced
  real(dp),parameter              :: increaseMax=4.0_dp            ! maximum factor that time step is increased
  ! adaptive sub-stepping for the implicit solution
- integer(i4b)                    :: niter                         ! number of iterations taken
  integer(i4b),parameter          :: n_inc=5                       ! minimum number of iterations to increase time step
  integer(i4b),parameter          :: n_dec=15                      ! maximum number of iterations to decrease time step
  real(dp),parameter              :: F_inc = 1.25_dp               ! factor used to increase time step
@@ -342,7 +341,6 @@ contains
                   stateVecPrime,     & ! intent(out):   updated state vector
                   reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
-                  niter,             & ! intent(out):   number of iterations taken
                   err,cmessage)        ! intent(out):   error code and error message
                 
   if(err/=0)then
@@ -359,26 +357,11 @@ contains
   ! identify failure
   failedSubstep = (err<0)
 
-  ! check
-  if(globalPrintFlag)then
-   print*, 'niter, failedSubstep, dtSubstep = ', niter, failedSubstep, dtSubstep
-   print*, trim(cmessage)
-  endif
-
   ! reduce step based on failure
   if(failedSubstep)then
     err=0; message='varSubstepFida/'  ! recover from failed convergence
     dtMultiplier  = 0.5_dp        ! system failure: step halving
   else
-
-   ! ** implicit Euler: adjust step length based on iteration count
-    if(niter<n_inc)then
-     dtMultiplier = F_inc
-    elseif(niter>n_dec)then
-     dtMultiplier = F_dec
-    else
-     dtMultiplier = 1._dp
-    endif
 
   endif  ! switch between failure and success
 
@@ -422,8 +405,6 @@ contains
    message=trim(message)//trim(cmessage)
    if(err>0) return
   endif
- 
-
 
   ! if water balance error then reduce the length of the coupled step
   if(waterBalanceError)then

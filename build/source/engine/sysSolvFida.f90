@@ -124,7 +124,6 @@ contains
                        stateVecPrime,     & ! intent(out):   updated state vector
                        reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                        tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
-                       niter,             & ! intent(out):   number of iterations taken
                        err,message)         ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -172,7 +171,6 @@ contains
  real(dp),intent(out)            :: stateVecPrime(:)              ! trial state vector (mixed units)
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
- integer(i4b),intent(out)        :: niter                         ! number of iterations taken
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
  ! *********************************************************************************************************************************************************
