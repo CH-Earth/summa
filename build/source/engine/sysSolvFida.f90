@@ -216,7 +216,6 @@ contains
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: resSinkNew(nState)            ! additional terms in the residual vector
  real(dp)                        :: fluxVecNew(nState)            ! new flux vector
- ! input: reza : fida solver needs more data
  real(dp)                        ::  t0       ! beginning of the current time step
  real(dp)                        ::  tout     ! end of the current time step
  real(dp)                        ::  tret(1)
@@ -459,15 +458,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
-!  call countDiscontinuity(&
-!                       ! input
-!                       stateVecTrial,                                  & ! intent(in):    model state vector (mixed units)
-!                       diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-!                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-!                       indx_data,                                 & ! intent(in):    indices defining model states and layers
-!                       ! output
-!                       numDiscon,                                     & ! intent(out) 
-!                       err,message)                                 ! intent(out):   error control
+
  !-------------------
  ! * solving F(y,y') = 0 by FIDA. Here, y is the state vector
  ! ------------------
@@ -548,8 +539,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  
  end do  ! iteration over tolerances
  
-!  print *, 'rVec = ', rVec(:)
-!  stop 1
    
   ! check if fida is successful
  if( tret(1) /= dt .or. .not.feasible )then
@@ -558,7 +547,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
   return
  endif
  
-!  write (2,*) rVec(indx_data%var(iLookINDEX%ixNrgOnly)%dat)
 
  if (compAverageFlux)then  
     select case(ixQuadrature)
