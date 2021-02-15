@@ -72,7 +72,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
-                    zLookup,      & 
+                    zLookup,      & ! data vector
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
@@ -115,8 +115,8 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector              
-                       sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
-                       dMat,                    & ! intent(inout)
+                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
+                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                        ! input: data structures
                        lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
@@ -130,18 +130,18 @@ contains
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        flux_temp,               & ! intent(inout): model fluxes for a local HRU
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
-                       flux_sum,                & ! intent(inout)
+                       flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output: baseflow
                        ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                        ! output 
                        idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
-                       mLayerCmpress_sum,       &
-                       dt_last,                 &
-                       dt_past,           		&
-                       stateVec,                & ! intent(out):    model state vector
-                       stateVecPrime,           & ! intent(out):    derivative of model state vector   
+                       mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
+                       dt_last,                 & ! intent(out):   last stepsize 
+                       dt_past,           		& ! intent(out):   one stepsize before the last one
+                       stateVec,                & ! intent(out):   model state vector
+                       stateVecPrime,           & ! intent(out):   derivative of model state vector   
                        err,message              & ! intent(out):   error control
                       )
 
@@ -150,27 +150,26 @@ contains
   use nrtype
   use fida_datatypes
   use evalEqnsFida_module,only:evalEqnsFida
-  use allocspace_module,only:allocLocal                ! allocate local data structures
+  use allocspace_module,only:allocLocal         ! allocate local data structures
 
 
-  use fida_mod                      ! Fortran interface to IDA
-  use fnvector_serial_mod           ! Fortran interface to serial N_Vector
-  use fsunmatrix_dense_mod          ! Fortran interface to dense SUNMatrix
-  use fsunlinsol_dense_mod          ! Fortran interface to dense SUNLinearSolver
-  use fsunmatrix_band_mod           ! Fortran interface to banded SUNMatrix
-  use fsunlinsol_band_mod           ! Fortran interface to banded SUNLinearSolver
-  use fsunnonlinsol_newton_mod      ! Fortran interface to Newton SUNNonlinearSolver
-  use fsundials_matrix_mod          ! Fortran interface to generic SUNMatrix
-  use fsundials_nvector_mod         ! Fortran interface to generic N_Vector
-  use fsundials_linearsolver_mod    ! Fortran interface to generic SUNLinearSolver
-  use fsundials_nonlinearsolver_mod ! Fortran interface to generic SUNNonlinearSolver
-  use evalEqnsFida_module,only:evalEqnsFida           ! ODE functions
-  use evalJacFida_module,only:evalJacFida   
+  use fida_mod                      			! Fortran interface to IDA
+  use fnvector_serial_mod           			! Fortran interface to serial N_Vector
+  use fsunmatrix_dense_mod          			! Fortran interface to dense SUNMatrix
+  use fsunlinsol_dense_mod          			! Fortran interface to dense SUNLinearSolver
+  use fsunmatrix_band_mod           			! Fortran interface to banded SUNMatrix
+  use fsunlinsol_band_mod           			! Fortran interface to banded SUNLinearSolver
+  use fsunnonlinsol_newton_mod      			! Fortran interface to Newton SUNNonlinearSolver
+  use fsundials_matrix_mod          			! Fortran interface to generic SUNMatrix
+  use fsundials_nvector_mod         			! Fortran interface to generic N_Vector
+  use fsundials_linearsolver_mod    			! Fortran interface to generic SUNLinearSolver
+  use fsundials_nonlinearsolver_mod 			! Fortran interface to generic SUNNonlinearSolver
+  use evalEqnsFida_module,only:evalEqnsFida     ! DAE/ODE functions 
+  use evalJacFida_module,only:evalJacFida       ! system Jacobian
   use tolFida_module,only:computWeightFida
   use convTestFida_module,only:convTestFida
   use eval8summaFida_module,only:eval8summaFida
   USE computEnthalpy_module,only:computEnthalpy
-!  use findDiscontinuity_module,only:findDiscontinuity
 
   !======= Declarations =========
   implicit none
@@ -223,7 +222,6 @@ contains
  logical(lgt),intent(out)		 :: idaSucceeds
  real(qp),intent(out)            :: dt_last(1)
  real(qp),intent(out)            :: dt_past
- logical(lgt)                    :: scalling_on
   
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
@@ -243,11 +241,7 @@ contains
   integer(kind = 8) 				:: mu, lu
   real(qp)            				:: h_max
   real(qp)            				:: coef_nonlin
-  integer(i4b) 						:: lsflag
-  integer(i4b)                   	:: iLayer                        ! index of layer in the snow+soil domain
-  integer(i4b)                    	:: iState                        ! index of model state
-  real(dp) :: idenIW
-  integer(i4b),parameter     		:: ixRectangular=1    ! reza: should put them in a data type later
+  integer(i4b),parameter     		:: ixRectangular=1    
   integer(i4b),parameter     		:: ixTrapezoidal=2
   integer(i4b)               		:: iVar  
   logical(lgt)               		:: startQuadrature
@@ -256,16 +250,6 @@ contains
   integer(c_long)                   :: nState                 ! total number of state variables
   real(dp)                          :: rVec(nStat)
   real(qp)                          :: tret(1)
- globalVars: associate(& 
- nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
- layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&
- nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):
- ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat             & ! intent(in):
- )
-  
-  
-  
   
   !======= Internals ============
   
@@ -743,10 +727,6 @@ contains
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_yp)
-  
-   ! end associate statements
-   end associate globalVars
-
   
 
  end subroutine fidaSolver

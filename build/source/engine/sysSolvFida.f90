@@ -119,7 +119,6 @@ contains
                        ! output
                        deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                       untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                        stateVecTrial,     & ! intent(out):   updated state vector
                        stateVecPrime,     & ! intent(out):   updated state vector
                        reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
@@ -166,7 +165,6 @@ contains
  ! output: model control
  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(dp),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
  real(dp),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
  real(dp),intent(out)            :: stateVecPrime(:)              ! trial state vector (mixed units)
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
@@ -180,8 +178,6 @@ contains
  ! ---------------------------------------------------------------------------------------
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
  integer(i4b)                    :: iVar                          ! index of variable
- integer(i4b)                    :: iLayer                        ! index of layer in the snow+soil domain
- integer(i4b)                    :: iState                        ! index of model state
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
  real(dp)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
  real(dp)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
@@ -523,10 +519,7 @@ contains
  ! save the computed solution
  stateVecTrial = stateVecNew
  
-  
- ! set untapped melt energy to zero
- untappedMelt(:) = 0._dp
- 
+
  deallocate(mLayerCmpress_sum)
  
 
