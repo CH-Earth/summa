@@ -102,7 +102,6 @@ contains
 
  subroutine fidaSolver(                         &  
                        dt,                      & ! end of the current time step
-                       h_init,                  & ! intent(in) initial stepsize
                        atol,                    & ! absolute telerance
                        rtol,                    & ! relative tolerance                                              
                        nSnow,                   & ! intent(in):    number of snow layers
@@ -119,7 +118,6 @@ contains
                        stateVecInit,            & ! intent(in):    initial state vector              
                        sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
                        dMat,                    & ! intent(inout)
-                       numDiscon,               & ! intent(in)
                        ! input: data structures
                        lookup_data,             &
                        type_data,               & ! intent(in):    type of vegetation and soil
@@ -187,7 +185,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(qp),intent(in)             :: dt
- real(qp),intent(in)             :: h_init
  real(qp),intent(inout)          :: atol(:)
  real(qp),intent(inout)          :: rtol(:)
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
@@ -204,7 +201,6 @@ contains
  real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  real(dp), intent(inout)         :: dMat(:)
- integer(i4b), intent(in)        :: numDiscon
  ! input: data structures
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
@@ -267,6 +263,7 @@ contains
   integer(i4b)               		:: iVar  
   logical(lgt)               		:: startQuadrature
   real(dp)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
+  real(qp)                          :: h_init
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
@@ -438,13 +435,6 @@ contains
      stop 1
   end if
   
-  ! specify the root function
-!  retval = FIDARootInit(ida_mem, numDiscon, c_funloc(findDiscontinuity))
-!  if (retval /= 0) then
-!     print *, 'Error in FIDARootInit, retval = ', retval, '; halting'
-!     stop 1
-!  end if
-  
  ! define the form of the matrix
  select case(ixMatrix)
   case(ixBandMatrix)
@@ -582,6 +572,7 @@ contains
  ! end if
   
   ! Set initial stepsize
+  h_init = 0
   retval = FIDASetInitStep(ida_mem, h_init)
   if (retval /= 0) then
      print *, 'Error in FIDASetInitStep, retval = ', retval, '; halting'

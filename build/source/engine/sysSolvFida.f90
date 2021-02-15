@@ -225,7 +225,6 @@ contains
  type(var_dlength)               ::  flux_sum
  real(qp) :: stepsize_past
  integer(i4b) :: tol_iter
- integer(i4b) :: numDiscon
  real(dp), allocatable           :: mLayerCmpress_sum(:)
  real(dp),dimension(indx_data%var(iLookINDEX%nLayers)%dat(1))     :: mLayerEnthalpy            ! enthalpy of each snow+soil layer (J m-3)
 
@@ -459,8 +458,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  !-------------------
  ! * solving F(y,y') = 0 by FIDA. Here, y is the state vector
  ! ------------------
-
- h_init = 0  
+ 
  atol = 1e-5
  rtol = 1e-5
  
@@ -474,10 +472,9 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
     mLayerCmpress_sum(:) = 0._dp
 
    call fidaSolver(&
-                 dt,                      & ! intent (in) current time step(entire)
-                 h_init,                  & ! intent (in) initial stepsize
-                 atol,                    & ! intent (in) absolute telerance
-                 rtol,                    & ! intent (in) relative tolerance 
+                 dt,                      & ! intent (in) 	 current time step(entire)
+                 atol,                    & ! intent (in) 	 absolute telerance
+                 rtol,                    & ! intent (in) 	 relative tolerance 
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of layers
@@ -490,9 +487,8 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
-                 sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
+                 sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)
-                 numDiscon,               & ! intent(in)
                  ! input: data structures
                  lookup_data,             & ! intent(in):    lookup tables
                  type_data,               & ! intent(in):    type of vegetation and soil
