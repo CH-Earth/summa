@@ -140,7 +140,6 @@ contains
                        ! output 
                        tret,                    & ! time which the solution is returned, if successfull tret = tend
                        dt_last,                 &
-                       t_last,                  &
                        stepsize_past,           &
                        stateVec,                & ! intent(out):    model state vector
                        stateVecPrime,           & ! intent(out):    derivative of model state vector   
@@ -231,7 +230,6 @@ contains
  character(*),intent(out)        :: message                ! error message
  real(qp),intent(out)            :: tret(1)
  real(qp),intent(out)            :: dt_last(1)
- real(qp),intent(out)            :: t_last(1)
  real(qp),intent(out)            :: stepsize_past
  logical(lgt)                    :: scalling_on
   
@@ -616,11 +614,11 @@ contains
      stop 1
   end if  
     
-    ! compute the flux and the residual vector for a given state vector
+  ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
                  ! input: model control
-                 stepsize_cur(1),                   &
-                 eqns_data%dt,                      &
+                 stepsize_cur(1),                   & ! intent(in):    current stepsize
+                 eqns_data%dt,                      & ! intent(in):    data step
                  eqns_data%nSnow,                   & ! intent(in):    number of snow layers
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
@@ -735,12 +733,6 @@ contains
   retval = FIDAGetLastStep(ida_mem, dt_last)
   if (retval /= 0) then
      print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  retval = FIDAGetCurrentTime(ida_mem, t_last)
-  if (retval /= 0) then
-     print *, 'Error in FIDAGetCurrentTime, retval = ', retval, '; halting'
      stop 1
   end if
   

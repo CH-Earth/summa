@@ -115,7 +115,7 @@ contains
                        flux_temp,         & ! intent(inout): model fluxes for a local HRU
                        bvar_data,         & ! intent(in):    model variables for the local basin
                        model_decisions,   & ! intent(in):    model decisions
-                       stateVecInit,      & ! intent(inout):    initial state vector
+                       stateVecInit,      & ! intent(in):    initial state vector
                        ! output
                        deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
@@ -216,11 +216,10 @@ contains
  real(dp)                        ::  t0       ! beginning of the current time step
  real(dp)                        ::  tout     ! end of the current time step
  real(dp)                        ::  tret(1)
- real(dp)                        ::  t_last(1)
  real(dp)                        ::  dt_last(1)
  real(dp)                        ::  atol(nState)     ! absolute telerance
  real(dp)                        ::  rtol(nState)     ! relative tolerance     
- integer(c_long)                 ::  nState8   ! just to match nState to integer8
+ integer(c_long)                 ::  nState8          ! just to match nState to integer8
  real(qp)                        ::  h_init
  type(var_dlength)               ::  flux_sum
  real(qp) :: stepsize_past
@@ -454,13 +453,14 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
+ ! just for experiment
+ atol = 1e-5
+ rtol = 1e-5
+  
 
  !-------------------
  ! * solving F(y,y') = 0 by FIDA. Here, y is the state vector
  ! ------------------
- 
- atol = 1e-5
- rtol = 1e-5
  
  do tol_iter=1,5
  
@@ -469,6 +469,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
       flux_sum%var(iVar)%dat(:) = 0._dp
     end do
     
+    ! initialize sum of compression of the soil matrix
     mLayerCmpress_sum(:) = 0._dp
 
    call fidaSolver(&
@@ -486,7 +487,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
-                 stateVecTrial,           & ! intent(in):    model state vector
+                 stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)
                  ! input: data structures
@@ -507,14 +508,13 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  ! input-output: baseflow
                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                 mLayerCmpress_sum,       &
                  ! output
-                 tret,                    & ! time which the solution is returned, if successfull tret = tout
-                 dt_last,                 & ! last stepsize
-                 t_last,                  &
-                 stepsize_past,           &
-                 stateVecNew,             & ! intent(out):   model state vector
-                 stateVecPrime,           & ! intent(out):   derivative of model state vector
+                 mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
+                 tret,                    & ! intent(out): 	 time which the solution is returned, if successfull tret = tout
+                 dt_last,                 & ! intent(out):	 last stepsize 
+                 stepsize_past,           & ! intent(out):	 one stepsize before the last one
+                 stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
+                 stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  fluxVecNew,              & ! intent(out):   flux vector
                  resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                    &
@@ -551,7 +551,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
           flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) + flux_init%var(iVar)%dat(:) * (dt_last(1) + stepsize_past) &
                                                                    + flux_temp%var(iVar)%dat(:) * dt_last(1) ) /  (2.0*dt)
         end do
-           ! check
+      ! check
       case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
     end select
     
@@ -562,6 +562,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
  
  
+ ! 
  stateVecTrial = stateVecNew
  
   
