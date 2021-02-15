@@ -136,9 +136,9 @@ contains
                        ! input-output: baseflow
                        ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                       mLayerCmpress_sum,       &
                        ! output 
-                       tret,                    & ! time which the solution is returned, if successfull tret = tend
+                       idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                       mLayerCmpress_sum,       &
                        dt_last,                 &
                        stepsize_past,           &
                        stateVec,                & ! intent(out):    model state vector
@@ -222,7 +222,7 @@ contains
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
- real(qp),intent(out)            :: tret(1)
+ logical(lgt),intent(out)		 :: idaSucceeds
  real(qp),intent(out)            :: dt_last(1)
  real(qp),intent(out)            :: stepsize_past
  logical(lgt)                    :: scalling_on
@@ -258,6 +258,7 @@ contains
   real(qp)                          :: h_init
   integer(c_long)                   :: nState                 ! total number of state variables
   real(dp)                          :: rVec(nStat)
+  real(qp)                          :: tret(1)
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
@@ -273,6 +274,7 @@ contains
   
   
   nState = nStat
+  idaSucceeds = .false.
   ! fill eqns_data which will be required later to call eval8summaFida 
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow       
@@ -631,15 +633,15 @@ contains
                  eqns_data%bvar_data,               & ! intent(in):    average model variables for the entire basin
                  eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                  ! input-output: data structures
-                 eqns_data%indx_data,               & ! intent(inou):    index data
+                 eqns_data%indx_data,               & ! intent(inou):  index data
                  eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
-                 eqns_data%ixSaturation,             & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                 eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
-                 eqns_data%scalarCanopyTempTrial,    & ! intent(in):  trial value of canopy temperature (K)
-                 eqns_data%scalarCanopyTempPrev,     & ! intent(in):  previous value of canopy temperature (K)
+                 eqns_data%ixSaturation,             & ! intent(inout):index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                 eqns_data%dBaseflow_dMatric,        & ! intent(out):  derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
+                 eqns_data%scalarCanopyTempTrial,    & ! intent(in):   trial value of canopy temperature (K)
+                 eqns_data%scalarCanopyTempPrev,     & ! intent(in):   previous value of canopy temperature (K)
                  eqns_data%scalarCanopyIceTrial,	 &
                  eqns_data%scalarCanopyIcePrev,		 &
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
@@ -716,7 +718,10 @@ contains
   ixSaturation 		= eqns_data%ixSaturation   
   stepsize_past 	= eqns_data%stepsize_past
   err 				= eqns_data%err
-  message 			= eqns_data%message        
+  message 			= eqns_data%message   
+  if( tret(1) == dt .and. feasible)then
+  	idaSucceeds = .true.
+  endif     
 
 
   retval = FIDAGetLastStep(ida_mem, dt_last)

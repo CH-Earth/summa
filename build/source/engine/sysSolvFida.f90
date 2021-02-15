@@ -209,7 +209,6 @@ contains
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(dp)                        :: rAdd(nState)                  ! additional terms in the residual vector
  real(dp)                        :: fOld                          ! function values (-); NOTE: dimensionless because scaled
- logical(lgt)                    :: converged                     ! convergence flag
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: resSinkNew(nState)            ! additional terms in the residual vector
  real(dp)                        :: fluxVecNew(nState)            ! new flux vector
@@ -223,6 +222,7 @@ contains
  real(qp) :: stepsize_past
  integer(i4b) :: tol_iter
  real(dp), allocatable           :: mLayerCmpress_sum(:)
+ logical(lgt)					 :: idaSucceeds				
 
 
  ! ---------------------------------------------------------------------------------------
@@ -503,15 +503,15 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                  ! output
+                 idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
-                 tret,                    & ! intent(out): 	 time which the solution is returned, if successfull tret = tout
                  dt_last,                 & ! intent(out):	 last stepsize 
                  stepsize_past,           & ! intent(out):	 one stepsize before the last one
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
 ! if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
-   if (tret(1) == dt .and. err == 0)then
+   if (idaSucceeds)then
       exit
    else
       atol = atol * 0.1
@@ -522,7 +522,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  
    
   ! check if fida is successful
- if( tret(1) /= dt .or. .not.feasible )then
+ if( .not.idaSucceeds )then
   message=trim(message)//'fida not successful'
   reduceCoupledStep  = .true.
   return
@@ -532,7 +532,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  if (compAverageFlux)then  
     select case(ixQuadrature)
       case(ixRectangular)
-        ! add the last part of the integral, then divide by dt. Now we have average flux
+        ! divide by dt. Now we have average flux
         do iVar=1,size(flux_meta) 
           flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt
         end do
