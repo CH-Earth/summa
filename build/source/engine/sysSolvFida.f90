@@ -219,7 +219,7 @@ contains
  real(dp)                        ::  atol(nState)     ! absolute telerance
  real(dp)                        ::  rtol(nState)     ! relative tolerance     
  type(var_dlength)               ::  flux_sum
- real(qp) :: stepsize_past
+ real(qp) 						 ::  dt_past
  integer(i4b) :: tol_iter
  real(dp), allocatable           :: mLayerCmpress_sum(:)
  logical(lgt)					 :: idaSucceeds				
@@ -431,9 +431,8 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
    err=-20; return ! negative error code to denote a warning
   endif
  endif
- 
- 
-  ! get absolute tolerances vector
+  
+  ! get tolerance vectors
   call popTolFida(&
                    ! input
                    nState,                           & ! intent(in):    number of desired state variables
@@ -451,7 +450,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  atol = 1e-6
  rtol = 1e-6
   
-
  !-------------------
  ! * solving F(y,y') = 0 by FIDA. Here, y is the state vector
  ! ------------------
@@ -506,7 +504,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
                  dt_last,                 & ! intent(out):	 last stepsize 
-                 stepsize_past,           & ! intent(out):	 one stepsize before the last one
+                 dt_past,                 & ! intent(out):	 one stepsize before the last one
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
@@ -539,7 +537,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
       case(ixTrapezoidal)
         ! add the last part of the integral, then divide by dt. Now we have average flux
         do iVar=1,size(flux_meta) 
-          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) + flux_init%var(iVar)%dat(:) * (dt_last(1) + stepsize_past) &
+          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) + flux_init%var(iVar)%dat(:) * (dt_last(1) + dt_past) &
                                                                    + flux_temp%var(iVar)%dat(:) * dt_last(1) ) /  (2.0*dt)
         end do
       ! check
@@ -553,7 +551,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
  
  
- ! 
+ ! save the computed solution
  stateVecTrial = stateVecNew
  
   

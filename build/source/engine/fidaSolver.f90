@@ -140,7 +140,7 @@ contains
                        idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                        mLayerCmpress_sum,       &
                        dt_last,                 &
-                       stepsize_past,           &
+                       dt_past,           		&
                        stateVec,                & ! intent(out):    model state vector
                        stateVecPrime,           & ! intent(out):    derivative of model state vector   
                        err,message              & ! intent(out):   error control
@@ -224,7 +224,7 @@ contains
  character(*),intent(out)        :: message                ! error message
  logical(lgt),intent(out)		 :: idaSucceeds
  real(qp),intent(out)            :: dt_last(1)
- real(qp),intent(out)            :: stepsize_past
+ real(qp),intent(out)            :: dt_past
  logical(lgt)                    :: scalling_on
   
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -679,13 +679,13 @@ contains
             else
                  do  iVar=1,size(flux_meta) 
                      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:) & 
-                                                                           *  ( stepsize_past + dt_last(1) )
+                                                                           *  ( dt_past + dt_last(1) )
                  end do        
            endif 
            do  iVar=1,size(flux_meta) 
               flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) 
            end do
-           stepsize_past = dt_last(1)
+           dt_past = dt_last(1)
        case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
   end select
   
@@ -715,7 +715,7 @@ contains
   deriv_data 		= eqns_data%deriv_data  
   dBaseflow_dMatric = eqns_data%dBaseflow_dMatric  
   ixSaturation 		= eqns_data%ixSaturation   
-  stepsize_past 	= eqns_data%stepsize_past
+  dt_past 			= eqns_data%stepsize_past
   err 				= eqns_data%err
   message 			= eqns_data%message   
   if( tret(1) == dt .and. feasible)then
