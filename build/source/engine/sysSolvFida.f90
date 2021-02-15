@@ -509,8 +509,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  stepsize_past,           & ! intent(out):	 one stepsize before the last one
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
-                 fluxVecNew,              & ! intent(out):   flux vector
-                 resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                    &
                  err,cmessage)              ! intent(out):   error control
 ! if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 

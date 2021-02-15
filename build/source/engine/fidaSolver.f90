@@ -143,8 +143,6 @@ contains
                        stepsize_past,           &
                        stateVec,                & ! intent(out):    model state vector
                        stateVecPrime,           & ! intent(out):    derivative of model state vector   
-                       fluxVec,                 & ! intent(out):   flux vector
-                       resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        rVec,                    &
                        err,message              & ! intent(out):   error control
                       )
@@ -222,8 +220,6 @@ contains
  ! output: flux and residual vectors
   real(dp),intent(inout)         :: stateVec(:)       ! model state vector
  real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector
- real(dp),intent(out)            :: fluxVec(:)             ! flux vector
- real(dp),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
  real(dp),intent(out)            :: rVec(:)
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
@@ -373,11 +369,8 @@ contains
   allocate( eqns_data%mLayerEnthalpyPrev(nLayers) )
     
   allocate( eqns_data%fluxVec(nState) )
-  eqns_data%fluxVec                 = fluxVec
-  
   allocate( eqns_data%resSink(nState) )
-  eqns_data%resSink                 = resSink
-  
+
   
   allocate( eqns_data%resVec(nState) )
   
@@ -718,15 +711,13 @@ contains
  !****************************** End of Main Solver ***************************************
  
   ! copy the output data
-  firstFluxCall 	= eqns_data%firstFluxCall
-  fluxVec 			= eqns_data%fluxVec         
+  firstFluxCall 	= eqns_data%firstFluxCall        
   diag_data 		= eqns_data%diag_data 
   flux_temp 		= eqns_data%flux_temp             
   flux_data 		= eqns_data%flux_data             
   deriv_data 		= eqns_data%deriv_data  
   dBaseflow_dMatric = eqns_data%dBaseflow_dMatric  
   ixSaturation 		= eqns_data%ixSaturation   
-  resSink 			= eqns_data%resSink 
   stepsize_past 	= eqns_data%stepsize_past
   err 				= eqns_data%err
   message 			= eqns_data%message        
