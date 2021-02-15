@@ -105,7 +105,6 @@ contains
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
@@ -155,7 +154,7 @@ contains
                  
  if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif 
  if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif 
- if(.not.feasible)then; eqns_data%message=trim(eqns_data%message)//'state vector not feasible'; ierr = 1; return; endif 
+ if(.not.feasible)then; eqns_data%message=trim(eqns_data%message)//'state vector not feasible'; ierr = -1; return; endif 
  
    ! return success
    ierr = 0

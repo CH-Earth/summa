@@ -101,9 +101,9 @@ contains
  ! ------------------
 
  subroutine fidaSolver(                         &  
-                       dt,                      & ! end of the current time step
-                       atol,                    & ! absolute telerance
-                       rtol,                    & ! relative tolerance                                              
+                       dt,                      & ! intent(in):    data time step
+                       atol,                    & ! intent(in):    absolute telerance
+                       rtol,                    & ! intent(in):    relative tolerance                                              
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
@@ -111,7 +111,6 @@ contains
                        ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                        ixQuadrature,            & ! intent(in):    type of quadrature method for approximating average flux
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                       firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
@@ -127,9 +126,9 @@ contains
                        bvar_data,               & ! intent(in):    average model variables for the entire basin
                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                        ! input-output: data structures
-                       indx_data,               & ! intent(in): index data
+                       indx_data,               & ! intent(in):	   index data
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       flux_temp,               & ! intent(inout)
+                       flux_temp,               & ! intent(inout): model fluxes for a local HRU
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        flux_sum,                & ! intent(inout)
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -190,7 +189,6 @@ contains
  integer(i4b)                    :: ixMatrix               ! form of matrix (dense or banded)
  integer(i4b)                    :: ixQuadrature           ! type of quadrature method for approximating average flux
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(inout)      :: firstFluxCall          ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
@@ -282,8 +280,7 @@ contains
   eqns_data%nState                  = nState   
   eqns_data%ixMatrix                = ixMatrix           
   eqns_data%ixQuadrature            = ixQuadrature   
-  eqns_data%firstSubStep            = firstSubStep
-  eqns_data%firstFluxCall           = firstFluxCall 
+  eqns_data%firstSubStep            = firstSubStep 
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
 
@@ -615,7 +612,6 @@ contains
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
@@ -707,8 +703,7 @@ contains
  
  !****************************** End of Main Solver ***************************************
  
-  ! copy the output data
-  firstFluxCall 	= eqns_data%firstFluxCall        
+  ! copy the output data      
   diag_data 		= eqns_data%diag_data 
   flux_temp 		= eqns_data%flux_temp             
   flux_data 		= eqns_data%flux_data             

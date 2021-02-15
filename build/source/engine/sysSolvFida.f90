@@ -194,7 +194,7 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
+ logical(lgt),parameter          :: forceFullMatrix=.true.        ! flag to force the use of the full Jacobian matrix
  logical(lgt),parameter          :: compAverageFlux=.true.
  integer(i4b)                    :: ixQuadrature=ixRectangular    ! type of quadrature method to approximate average fluxes
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
@@ -465,23 +465,22 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
     mLayerCmpress_sum(:) = 0._dp
 
    call fidaSolver(&
-                 dt,                      & ! intent (in) 	 current time step(entire)
+                 dt,                      & ! intent (in) 	 data time step
                  atol,                    & ! intent (in) 	 absolute telerance
                  rtol,                    & ! intent (in) 	 relative tolerance 
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
-                 nLayers,                 & ! intent(in):    number of layers
+                 nLayers,                 & ! intent(in):    number of snow+soil layers
                  nState,                  & ! intent(in):    number of state variables in the current subset
                  ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
-                 ixQuadrature,            & ! intent(in)
+                 ixQuadrature,            & ! intent(in):    type of quadrature method to approximate average fluxes
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
-                 dMat,                    & ! intent(inout)
+                 dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                  ! input: data structures
                  lookup_data,             & ! intent(in):    lookup tables
                  type_data,               & ! intent(in):    type of vegetation and soil
@@ -493,9 +492,9 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  indx_data,               & ! intent(in):    index data
                  ! input-output: data structures
                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                 flux_init,               & ! intent(inou):
-                 flux_temp,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                 flux_sum,                & ! intent(inout)
+                 flux_init,               & ! intent(inou):  model fluxes for a local HRU (initial flux structure)
+                 flux_temp,               & ! intent(inout): model fluxes for a local HRU 
+                 flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)

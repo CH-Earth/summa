@@ -27,7 +27,6 @@ implicit none
    integer(i4b)         				:: ixQuadrature           ! type of quadrature method for approximating average flux 
    logical(lgt)         				:: startQuadrature
    logical(lgt)         				:: firstSubStep           ! flag to indicate if we are processing the first sub-step
-   logical(lgt)         				:: firstFluxCall          ! flag to indicate if we are processing the first flux call
    logical(lgt)         				:: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
    logical(lgt)         				:: scalarSolution         ! flag to denote if implementing the scalar solution
    real(qp), allocatable             	:: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
