@@ -30,7 +30,6 @@ implicit none
    logical(lgt)         				:: firstFluxCall          ! flag to indicate if we are processing the first flux call
    logical(lgt)         				:: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
    logical(lgt)         				:: scalarSolution         ! flag to denote if implementing the scalar solution
-   real(dp), allocatable             	:: fScale(:)              ! function scaling vector
    real(qp), allocatable             	:: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
    real(dp), allocatable             	:: dMat(:) 
    type(zLookup)         				:: lookup_data            ! lookup tables

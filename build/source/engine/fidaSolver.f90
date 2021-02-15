@@ -117,7 +117,6 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector              
-                       fScale,                  & ! intent(in):    function scaling vector
                        sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
                        dMat,                    & ! intent(inout)
                        numDiscon,               & ! intent(in)
@@ -203,7 +202,6 @@ contains
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
- real(dp),intent(in)             :: fScale(:)              ! function scaling vector
  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  real(dp), intent(inout)         :: dMat(:)
  integer(i4b), intent(in)        :: numDiscon
@@ -302,10 +300,6 @@ contains
   
   allocate( eqns_data%rtol(nState) )
   eqns_data%rtol = rtol
-    
-  allocate( eqns_data%fScale(nState) )
-  eqns_data%fScale = fScale
-  
   
   allocate( eqns_data%sMul(nState) )
   eqns_data%sMul                    = sMul
@@ -761,7 +755,6 @@ contains
   
 
   ! free memory  
-  deallocate(eqns_data%fScale)
   deallocate(eqns_data%sMul)
   deallocate(eqns_data%dMat)
   deallocate(eqns_data%dBaseflow_dMatric)

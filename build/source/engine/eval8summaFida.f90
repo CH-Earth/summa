@@ -253,7 +253,6 @@ contains
  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
  real(dp)                        :: xMin,xMax                 ! minimum and maximum values for water content
  real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
- real(dp),dimension(nState)      :: rVecScaled                ! scaled residual vector
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: heatCapVegTrial
  real(qp)                        :: scalarCanopyEnthalpyPrime

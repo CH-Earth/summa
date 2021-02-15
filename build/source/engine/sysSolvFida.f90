@@ -490,7 +490,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
-                 fScale,                  & ! intent(in):    function scaling vector
                  sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)
                  numDiscon,               & ! intent(in)
