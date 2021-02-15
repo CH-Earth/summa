@@ -100,7 +100,6 @@ contains
                        firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                       heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity is constant in the current subset
                        ! input: state vectors
                        stateVec,                & ! intent(in):    model state vector
                        stateVecPrime,           & ! intent(in):    derivative of model state vector                   
@@ -174,7 +173,6 @@ contains
  logical(lgt),intent(in)         :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
- logical(lgt),intent(in)         :: heatCapVaries 
  ! input: state vectors
  real(dp),intent(in)             :: stateVec(:)            ! model state vector
  real(dp),intent(in)             :: stateVecPrime(:)       ! model state vector

@@ -196,7 +196,6 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
  logical(lgt),parameter          :: compAverageFlux=.true.
- logical(lgt),parameter          :: heatCapVaries=.false.
  integer(i4b)                    :: ixQuadrature=ixRectangular    ! type of quadrature method to approximate average fluxes
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
@@ -490,7 +489,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity is constant in the current substep
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
                  fScale,                  & ! intent(in):    function scaling vector

@@ -31,7 +31,6 @@ implicit none
    logical(lgt)         				:: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
    logical(lgt)         				:: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
    logical(lgt)         				:: scalarSolution         ! flag to denote if implementing the scalar solution
-   logical(lgt)         				:: heatCapVaries         
    real(dp), allocatable             	:: fScale(:)              ! function scaling vector
    real(qp), allocatable             	:: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
    real(dp), allocatable             	:: dMat(:) 

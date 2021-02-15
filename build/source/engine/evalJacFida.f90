@@ -98,7 +98,6 @@ contains
                  eqns_data%ixMatrix,                & ! intent(in)
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 eqns_data%heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity varies in the current substep
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector

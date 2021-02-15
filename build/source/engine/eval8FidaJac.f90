@@ -97,7 +97,6 @@ contains
                        ixMatrix,                & ! intent(in)
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                       heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity varies in the current substep
                        ! input: state vectors
                        stateVec,                & ! intent(in):    model state vector
                        stateVecPrime,           & ! intent(in):    derivative of model state vector                   
@@ -135,7 +134,6 @@ contains
  integer(i4b)                    :: ixMatrix               ! form of matrix (band diagonal or full matrix)
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
- logical(lgt),intent(in)         :: heatCapVaries
  ! input: state vectors
  real(dp),intent(in)             :: stateVec(:)       ! model state vector
  real(dp),intent(in)             :: stateVecPrime(:)       ! model state vector
@@ -320,49 +318,7 @@ contains
  !       This occurred either at the call to eval8summaFida at the start of sysSolveFida
  !        or in the call to eval8summaFida in the previous iteration
  dt1 = 1.0
- if(heatCapVaries)then
-    call computJacobFidaCpVar(&
-                  ! input: model control
-                  cj,                             & ! intent(in)
-                  dt1,                            & ! intent(in):    length of the time step (seconds)
-                  nSnow,                          & ! intent(in):    number of snow layers
-                  nSoil,                          & ! intent(in):    number of soil layers
-                  nLayers,                        & ! intent(in):    total number of layers
-                  computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
-                  ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                  specificStorage,                & ! intent(in):    specific storage coefficient (m-1)
-                  theta_sat,                      & ! intent(in):    soil porosity (-)
-                  ixRichards,                     & ! intent(in):    choice of option for Richards' equation
-                  ! input: data structures
-                  indx_data,                      & ! intent(in):    index data
-                  prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
-                  deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                  dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
-                  ! input: state variables
-                  mLayerTempTrial,                & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                  mLayerTempPrime,                & ! intent(in)
-                  mLayerMatricHeadPrime,          & ! intent(in)
-                  mLayerMatricHeadLiqPrime,       & ! intent(in)
-                  mLayerVolFracWatTrial,               & ! intent(in)
-                  mLayerVolFracWatPrime,          & ! intent(in)
-                  scalarCanopyTempTrial,          & ! intent(in)
-                  scalarCanopyTempPrime,          & ! intent(in) derivative value for temperature of the vegetation canopy (K)
-                  scalarCanopyWatPrime,           & ! intetn(in) 
-                  mLayerd2Theta_dTk2,             & ! intent(in)
-                  d2VolTot_d2Psi0,                & ! intent(in)
-                  dFracLiqSnow_dTk,               & ! intent(in)
-                  d2Theta_dTkCanopy2,             & ! intent(in)
-                  dFracLiqVeg_dTkCanopy,          & ! intent(in)
-                  ! input-output: Jacobian and its diagonal
-                  dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
-                  Jac,                            & ! intent(out):   Jacobian matrix
-                  ! output: error control
-                  err,cmessage)                     ! intent(out):   error code and error message
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors) 
- else
-     call computJacobFida(&
+ call computJacobFida(&
                   ! input: model control
                   cj,                             & ! intent(in)
                   dt1,                            & ! intent(in):    length of the time step (seconds)
@@ -401,7 +357,6 @@ contains
                   ! output: error control
                   err,cmessage)                     ! intent(out):   error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- endif
 
  
 

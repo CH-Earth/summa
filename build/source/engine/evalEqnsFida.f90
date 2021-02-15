@@ -109,7 +109,6 @@ contains
                  eqns_data%firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 eqns_data%heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity is constant in the current subset
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector

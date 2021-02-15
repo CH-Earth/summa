@@ -116,7 +116,6 @@ contains
                        firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                       heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity is constant in the current substep
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector              
                        fScale,                  & ! intent(in):    function scaling vector
@@ -204,7 +203,6 @@ contains
  logical(lgt),intent(in)         :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
- logical(lgt),intent(in)         :: heatCapVaries          !flag to indicate if heat capacity is constant in the current substep
  ! input: state vectors
  real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
  real(dp),intent(in)             :: fScale(:)              ! function scaling vector
@@ -301,7 +299,6 @@ contains
   eqns_data%firstSplitOper          = firstSplitOper
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
-  eqns_data%heatCapVaries           = heatCapVaries
 
   allocate( eqns_data%atol(nState) )
   eqns_data%atol = atol
@@ -651,7 +648,6 @@ contains
                  eqns_data%firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 eqns_data%heatCapVaries,           & ! intent(in):    flag to indicate if heat capacity is constant in the current subset
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector
