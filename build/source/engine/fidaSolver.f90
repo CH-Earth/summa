@@ -143,7 +143,6 @@ contains
                        stepsize_past,           &
                        stateVec,                & ! intent(out):    model state vector
                        stateVecPrime,           & ! intent(out):    derivative of model state vector   
-                       rVec,                    &
                        err,message              & ! intent(out):   error control
                       )
 
@@ -220,7 +219,6 @@ contains
  ! output: flux and residual vectors
   real(dp),intent(inout)         :: stateVec(:)       ! model state vector
  real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector
- real(dp),intent(out)            :: rVec(:)
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -259,6 +257,7 @@ contains
   real(dp)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState                 ! total number of state variables
+  real(dp)                          :: rVec(nStat)
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
@@ -370,9 +369,6 @@ contains
     
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
-
-  
-  allocate( eqns_data%resVec(nState) )
   
   eqns_data%err                     = err
   eqns_data%message                 = message
@@ -740,7 +736,6 @@ contains
   deallocate(eqns_data%mLayerMatricHeadPrev)
   deallocate( eqns_data%fluxVec )  
   deallocate( eqns_data%resSink )
-  deallocate( eqns_data%resVec )
   deallocate( eqns_data%mLayerVolFracWatTrial )
   deallocate( eqns_data%mLayerVolFracWatPrev )
   deallocate( eqns_data%mLayerVolFracIceTrial )
