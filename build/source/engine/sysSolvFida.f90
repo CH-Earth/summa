@@ -219,16 +219,10 @@ contains
  real(dp)                        ::  dt_last(1)
  real(dp)                        ::  atol(nState)     ! absolute telerance
  real(dp)                        ::  rtol(nState)     ! relative tolerance     
- integer(c_long)                 ::  nState8          ! just to match nState to integer8
- real(qp)                        ::  h_init
  type(var_dlength)               ::  flux_sum
  real(qp) :: stepsize_past
  integer(i4b) :: tol_iter
  real(dp), allocatable           :: mLayerCmpress_sum(:)
- real(dp),dimension(indx_data%var(iLookINDEX%nLayers)%dat(1))     :: mLayerEnthalpy            ! enthalpy of each snow+soil layer (J m-3)
-
- 
- nState8 = nState  
 
 
  ! ---------------------------------------------------------------------------------------
@@ -479,7 +473,7 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of layers
-                 nState8,                 & ! intent(in):    number of state variables in the current subset
+                 nState,                  & ! intent(in):    number of state variables in the current subset
                  ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                  ixQuadrature,            & ! intent(in)
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step

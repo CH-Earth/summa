@@ -107,7 +107,7 @@ contains
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
-                       nState,                  & ! intent(in):    total number of state variables
+                       nStat,                   & ! intent(in):    total number of state variables
                        ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                        ixQuadrature,            & ! intent(in):    type of quadrature method for approximating average flux
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
@@ -189,7 +189,7 @@ contains
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
- integer(c_long),intent(in)      :: nState                 ! total number of state variables
+ integer(i4b),intent(in)      	 :: nStat                  ! total number of state variables
  integer(i4b)                    :: ixMatrix               ! form of matrix (dense or banded)
  integer(i4b)                    :: ixQuadrature           ! type of quadrature method for approximating average flux
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
@@ -262,6 +262,7 @@ contains
   logical(lgt)               		:: startQuadrature
   real(dp)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
+  integer(c_long)                   :: nState                 ! total number of state variables
  globalVars: associate(& 
  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): 
  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):
@@ -276,7 +277,7 @@ contains
   !======= Internals ============
   
   
-  
+  nState = nStat
   ! fill eqns_data which will be required later to call eval8summaFida 
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow       
@@ -716,6 +717,7 @@ contains
  
  !****************************** End of Main Solver ***************************************
  
+  ! copy the output data
   firstFluxCall 	= eqns_data%firstFluxCall
   fluxVec 			= eqns_data%fluxVec         
   diag_data 		= eqns_data%diag_data 
