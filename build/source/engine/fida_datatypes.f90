@@ -28,7 +28,6 @@ implicit none
    logical(lgt)         				:: startQuadrature
    logical(lgt)         				:: firstSubStep           ! flag to indicate if we are processing the first sub-step
    logical(lgt)         				:: firstFluxCall          ! flag to indicate if we are processing the first flux call
-   logical(lgt)         				:: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
    logical(lgt)         				:: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
    logical(lgt)         				:: scalarSolution         ! flag to denote if implementing the scalar solution
    real(dp), allocatable             	:: fScale(:)              ! function scaling vector

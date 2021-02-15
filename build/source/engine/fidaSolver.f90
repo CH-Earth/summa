@@ -113,7 +113,6 @@ contains
                        ixQuadrature,            & ! intent(in):    type of quadrature method for approximating average flux
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
@@ -200,7 +199,6 @@ contains
  integer(i4b)                    :: ixQuadrature           ! type of quadrature method for approximating average flux
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall          ! flag to indicate if we are processing the first flux call
- logical(lgt),intent(in)         :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
@@ -296,7 +294,6 @@ contains
   eqns_data%ixQuadrature            = ixQuadrature   
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%firstFluxCall           = firstFluxCall 
-  eqns_data%firstSplitOper          = firstSplitOper
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
 
@@ -645,7 +642,6 @@ contains
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                 eqns_data%firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors

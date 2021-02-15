@@ -474,10 +474,10 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
     mLayerCmpress_sum(:) = 0._dp
 
    call fidaSolver(&
-                 dt,                      & ! current time step(entire)
-                 h_init,                  & ! initial stepsize
-                 atol,                    & ! absolute telerance
-                 rtol,                    & ! relative tolerance 
+                 dt,                      & ! intent (in) current time step(entire)
+                 h_init,                  & ! intent (in) initial stepsize
+                 atol,                    & ! intent (in) absolute telerance
+                 rtol,                    & ! intent (in) relative tolerance 
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of layers
@@ -486,7 +486,6 @@ relConvTol_liquid         => mpar_data%var(iLookPARAM%relConvTol_liquid)%dat(1) 
                  ixQuadrature,            & ! intent(in)
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                 firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors

@@ -97,7 +97,6 @@ contains
                        nState,                  & ! intent(in):    total number of state variables
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
@@ -170,7 +169,6 @@ contains
  integer,intent(in)              :: nState                 ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall          ! flag to indicate if we are processing the first flux call
- logical(lgt),intent(in)         :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
@@ -475,8 +473,6 @@ contains
 
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
- 
-
 
  ! compute the fluxes for a given state vector
  call computFlux(&
@@ -486,7 +482,7 @@ contains
                  nLayers,                   & ! intent(in):    total number of layers
                  firstSubStep,              & ! intent(in):    flag to indicate if we are processing the first sub-step
                  firstFluxCall,             & ! intent(inout): flag to denote the first flux call
-                 firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
+                 .true.,                    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                  scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
