@@ -366,7 +366,7 @@ contains
      if (.not. associated(sunlinsol_LS)) then; err=20; message='fidaSolver: sunlinsol = NULL'; return; endif
    
   ! check
-  case default;  print *, 'unable to identify option for the type of matrix'; stop 1
+  case default;  err=20; message='fidaSolver: error in type of matrix'; return
   
  end select  ! form of matrix
 
@@ -384,25 +384,19 @@ contains
   sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y)
   if (.not. associated(sunnonlin_NLS)) then; err=20; message='fidaSolver: sunnonlinsol = NULL'; return; endif 
   
-
   ! Attach the nonlinear solver
   retval = FIDASetNonlinearSolver(ida_mem, sunnonlin_NLS)
   if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetNonlinearSolver'; return; endif 
   
-  ! enforce the solver to stop at the end of the data time step
+  ! Enforce the solver to stop at the end of the data time step
   retval = FIDASetStopTime(ida_mem, dt)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetStopTime, retval = ', retval, '; halting'
-     stop 1
-  end if
+  if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetStopTime'; return; endif
   
-  call setSolverParams(dt, ida_mem, retval)
+  ! Set solver parameters such as maximum order, number of iterations, ...
+  call setSolverParams(dt, ida_mem, retval)  
+  if (retval /= 0) then; err=20; message='fidaSolver: error in setSolverParams'; return; endif
   
- ! scalling_on 1 and off 0
- ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)  
- 
- tret(1) = t0
- ! need the following values for the first substep
+  ! need the following values for the first substep
  eqns_data%scalarCanopyTempPrev		= prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) 
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
@@ -412,12 +406,12 @@ contains
  eqns_data%mLayerEnthalpyPrev(:) 	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
- 
- 
+  
  !**********************************************************************************
  !****************************** Main Solver ***************************************
  !************************* loop on one_step mode **********************************
- !**********************************************************************************                                 
+ !********************************************************************************** 
+ tret(1) = t0                                
  do while(tret(1) < dt) 
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP) 
@@ -615,9 +609,9 @@ subroutine setSolverParams(dt,ida_mem,retval)
   USE fida_mod                      								! Fortran interface to IDA
 implicit none
 
-	real(dp),intent(in)	  				:: dt			   			! time step
-	type(c_ptr),intent(inout)   		:: ida_mem       			! IDA memory	
-	integer(i4b),intent(out)            :: retval					! return value
+	real(dp),intent(in)	  					:: dt			   		! time step
+	type(c_ptr),intent(inout)   			:: ida_mem       		! IDA memory	
+	integer(i4b),intent(out)            	:: retval				! return value
 
 	real(qp),parameter     					:: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
 	integer,parameter 	   					:: max_order = 5		! maximum BDF order,  default = 5
@@ -629,29 +623,41 @@ implicit none
 	real(qp)   				                :: h_max				! maximum stepsize,  dafault = infinity
 
   ! Set the maximum BDF order
-  retval = FIDASetMaxOrd(ida_mem, max_order)  
+  retval = FIDASetMaxOrd(ida_mem, max_order) 
+  if (retval /= 0) return
   
   ! Set Coeff. in the nonlinear convergence test
   retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
+  if (retval /= 0) return
      
   ! Set maximun number of nonliear iterations
   retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+  if (retval /= 0) return
   
   !  Set maximum number of convergence test failures
   retval = FIDASetMaxConvFails(ida_mem, convtest_fail)
+  if (retval /= 0) return
   
   !  Set maximum number of error test failures
   retval = FIDASetMaxErrTestFails(ida_mem, acurtest_fail)
+  if (retval /= 0) return
   
   ! Set maximum number of steps
   retval = FIDASetMaxNumSteps(ida_mem, max_step)
+  if (retval /= 0) return
   
   ! Set maximum stepsize
   h_max = dt
   retval = FIDASetMaxStep(ida_mem, h_max)
+  if (retval /= 0) return
   
   ! Set initial stepsize
   retval = FIDASetInitStep(ida_mem, h_init)
+  if (retval /= 0) return
+  
+ ! scalling on 1 and off 0
+ ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)
+ ! if (retval /= 0) return
   
 end subroutine setSolverParams				
 
