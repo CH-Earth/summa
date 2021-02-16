@@ -44,7 +44,6 @@ implicit none
    type(var_dlength)     				:: flux_data              ! model fluxes for a local HRU
    type(var_dlength)     				:: flux_sum
    type(var_dlength)     				:: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-   integer(i4b)          				:: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
    real(dp)								:: scalar
    real(dp)								:: scalarCanopyTempTrial  ! intent(in):  trial value of canopy temperature (K)
    real(dp)								:: scalarCanopyTempPrev   ! intent(in):  previous value of canopy temperature (K)

@@ -117,7 +117,6 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output: baseflow
-                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                        ! output: flux and residual vectors
                        scalarCanopyTempTrial,   & ! intent(in):  trial value of canopy temperature (K)
@@ -188,7 +187,6 @@ contains
  type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
- integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
  real(dp),intent(inout)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
@@ -255,6 +253,7 @@ contains
  real(qp)                        :: heatCapVegTrial
  real(qp)                        :: scalarCanopyEnthalpyPrime
  logical(lgt)					 :: firstFluxCall
+ integer(i4b)                    :: ixSaturation           ! index of the lowest saturated layer
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------

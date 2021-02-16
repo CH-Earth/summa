@@ -126,7 +126,6 @@ contains
                  eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
-                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
                  eqns_data%scalarCanopyTempTrial,    & ! intent(in):  trial value of canopy temperature (K)
                  eqns_data%scalarCanopyTempPrev,     & ! intent(in):  previous value of canopy temperature (K)

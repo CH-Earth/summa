@@ -463,7 +463,6 @@ contains
                  flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
-                 ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                  ! output
                  idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
