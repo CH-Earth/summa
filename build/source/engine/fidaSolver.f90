@@ -313,9 +313,7 @@ contains
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
   
-  eqns_data%err                     = err
-  eqns_data%message                 = message
-  eqns_data%startQuadrature         = .true.
+  startQuadrature         = .true.
   
   
 
