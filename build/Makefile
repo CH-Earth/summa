@@ -233,8 +233,7 @@ SUMMA_SOLVER= \
       eval8FidaJac.f90 \
       evalJacFida.f90 \
       nonlinSolvFida.f90 \
-      convTestFida.f90 \
-      findDiscontinuity.f90 \
+		findDiscontinuity.f90 \
       fidaSolver.f90 \
       sysSolvFida.f90 \
       varSubstep.f90 \

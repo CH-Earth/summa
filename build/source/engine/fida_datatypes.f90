@@ -40,7 +40,6 @@ implicit none
    type(var_dlength)     				:: diag_data              ! diagnostic variables for a local HRU
    type(var_dlength)     				:: flux_data              ! model fluxes for a local HRU
    type(var_dlength)     				:: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-   real(dp)								:: scalar
    real(dp)								:: scalarCanopyTempTrial  ! intent(in):  trial value of canopy temperature (K)
    real(dp)								:: scalarCanopyTempPrev   ! intent(in):  previous value of canopy temperature (K)
    real(dp)								:: scalarCanopyIceTrial
@@ -62,7 +61,6 @@ implicit none
    real(dp), allocatable              	:: mLayerTempPrev(:)
    real(dp), allocatable              	:: fluxVec(:)             ! flux vector
    real(qp), allocatable              	:: resSink(:) 
-   real(qp), allocatable              	:: resVec(:)
    real(dp), allocatable   				:: atol(:)
    real(dp), allocatable   				:: rtol(:) 
    integer(i4b)          				:: err                    ! error code

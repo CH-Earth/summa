@@ -145,7 +145,6 @@ contains
   USE evalEqnsFida_module,only:evalEqnsFida     ! DAE/ODE functions 
   USE evalJacFida_module,only:evalJacFida       ! system Jacobian
   USE tolFida_module,only:computWeightFida
-  USE convTestFida_module,only:convTestFida
   USE eval8summaFida_module,only:eval8summaFida
   USE computEnthalpy_module,only:computEnthalpy
 
@@ -438,13 +437,6 @@ contains
      stop 1
   end if
   
-!  Set the user-supplied nonlinear solver convergence test function 
-!    retval = FSUNNonlinSolSetConvTestFn(sunnonlin_NLS, c_funloc(convTestFida), c_loc(eqns_data));
-!  if (retval /= 0) then
-!     print *, 'Error in FSUNNonlinSolSetConvTestFn, retval = ', retval, '; halting'
-!     stop 1
-!  end if
-  
   
   ! Set the maximum BDF order,  default = 5
   retval = FIDASetMaxOrd(ida_mem, 5)
@@ -493,12 +485,12 @@ contains
   end if
   
   ! Set maximum stepsize,  dafault = infinity
- ! h_max = 1
- ! retval = FIDASetMaxStep(ida_mem, h_max)
- ! if (retval /= 0) then
- !    print *, 'Error in FIDASetMaxSteps, retval = ', retval, '; halting'
- !    stop 1
- ! end if
+  h_max = dt
+  retval = FIDASetMaxStep(ida_mem, h_max)
+  if (retval /= 0) then
+     print *, 'Error in FIDASetMaxSteps, retval = ', retval, '; halting'
+     stop 1
+  end if
   
   ! Set initial stepsize
   h_init = 0
@@ -508,14 +500,15 @@ contains
      stop 1
   end if
   
+  ! enforce the solver to stop at the end of the data time step
   retval = FIDASetStopTime(ida_mem, dt)
   if (retval /= 0) then
      print *, 'Error in FIDASetStopTime, retval = ', retval, '; halting'
      stop 1
   end if
   
- 
- ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)  ! scalling_on 1 and off 0
+ ! scalling_on 1 and off 0
+ ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)  
  
  tret(1) = t0
  ! need the following values for the first substep
