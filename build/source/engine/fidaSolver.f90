@@ -270,19 +270,9 @@ contains
  eqns_data%diag_data               = diag_data
 
  ! allocate space for the temporary flux variable structure
- call allocLocal(flux_meta(:),eqns_data%flux_temp,nSnow,nSoil,err,message)
- if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
- eqns_data%flux_temp               = flux_temp
-
- ! allocate space for the temporary flux variable structure
  call allocLocal(flux_meta(:),eqns_data%flux_data,nSnow,nSoil,err,message)
  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
  eqns_data%flux_data               = flux_data
- 
- ! allocate space for the temporary flux variable structure
- call allocLocal(flux_meta(:),eqns_data%flux_sum,nSnow,nSoil,err,message)
- if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
- eqns_data%flux_sum               = flux_sum
 
  ! allocate space for the derivative structure
  call allocLocal(deriv_meta(:),eqns_data%deriv_data,nSnow,nSoil,err,message)
@@ -640,16 +630,16 @@ contains
                  end do        
            endif 
            do  iVar=1,size(flux_meta) 
-              flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) 
+              flux_temp%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:) 
            end do
-           dt_past = dt_last(1)
        case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
   end select
+  dt_past = dt_last(1)
   
    ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
-   ! save values of some quantities for next step
+   ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
    eqns_data%scalarCanopyIcePrev		= eqns_data%scalarCanopyIceTrial
    eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
@@ -665,12 +655,9 @@ contains
  !****************************** End of Main Solver ***************************************
  
   ! copy the output data      
-  diag_data 		= eqns_data%diag_data 
-  flux_temp 		= eqns_data%flux_temp             
+  diag_data 		= eqns_data%diag_data              
   flux_data 		= eqns_data%flux_data             
-  deriv_data 		= eqns_data%deriv_data  
-  dBaseflow_dMatric = eqns_data%dBaseflow_dMatric  
-  dt_past 			= eqns_data%stepsize_past
+  deriv_data 		= eqns_data%deriv_data    
   err 				= eqns_data%err
   message 			= eqns_data%message   
   if( tret(1) == dt .and. feasible)then

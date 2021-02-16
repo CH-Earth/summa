@@ -253,7 +253,7 @@ contains
  real(qp)                        :: heatCapVegTrial
  real(qp)                        :: scalarCanopyEnthalpyPrime
  logical(lgt)					 :: firstFluxCall
- integer(i4b)                    :: ixSaturation           ! index of the lowest saturated layer
+ integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------

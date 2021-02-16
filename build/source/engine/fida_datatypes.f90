@@ -40,9 +40,7 @@ implicit none
    type(var_dlength)     				:: prog_data              ! prognostic variables for a local HRU
    type(var_ilength)     				:: indx_data              ! indices defining model states and layers
    type(var_dlength)     				:: diag_data              ! diagnostic variables for a local HRU
-   type(var_dlength)     				:: flux_temp              ! model fluxes for a local HRU
    type(var_dlength)     				:: flux_data              ! model fluxes for a local HRU
-   type(var_dlength)     				:: flux_sum
    type(var_dlength)     				:: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
    real(dp)								:: scalar
    real(dp)								:: scalarCanopyTempTrial  ! intent(in):  trial value of canopy temperature (K)
@@ -73,7 +71,6 @@ implicit none
    character(len = 50)          		:: message                ! error message
    type(c_ptr)                       	:: ida_mem
    real(dp) 							:: t_cur
-   real(dp) 							:: stepsize_past
  end type eqnsData
  
  

@@ -557,7 +557,7 @@ contains
   end do  ! looping through non-missing water state variables in the soil domain
  endif
  
-! if ( allocated(dBaseflow_dMatric) ) deallocate(dBaseflow_dMatric)  reza: does not change memcheck output
+ if ( allocated(dBaseflow_dMatric) ) deallocate(dBaseflow_dMatric)  
 
  ! end associate statements
  end associate globalVars
