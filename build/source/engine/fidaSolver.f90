@@ -169,7 +169,7 @@ contains
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
- real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+ real(qp),intent(inout)          :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
  real(dp), intent(inout)         :: dMat(:)
  ! input: data structures
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
@@ -190,12 +190,12 @@ contains
  ! output: state vectors
  real(dp),intent(inout)          :: stateVec(:)            ! model state vector (y)
  real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector (y')
- ! output: error control
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
  logical(lgt),intent(out)		 :: idaSucceeds
  real(qp),intent(out)            :: dt_last(1)
  real(qp),intent(out)            :: dt_past
+ ! output: error control
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
   
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
@@ -227,7 +227,8 @@ contains
   
   !======= Internals ============
   
-  
+  ! initialize error control
+  err=0; message="fidaSolver/"
   nState = nStat
   idaSucceeds = .false.
   ! fill eqns_data which will be required later to call eval8summaFida 
@@ -315,50 +316,32 @@ contains
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec)
-  if (.not. associated(sunvec_y)) then
-     print *, 'ERROR: sunvec = NULL'
-     stop 1
-  end if
+  if (.not. associated(sunvec_y)) then; err=20; message='fidaSolver: sunvec = NULL'; return; endif
 
   sunvec_yp => FN_VMake_Serial(nState, stateVecPrime)
-  if (.not. associated(sunvec_yp)) then
-     print *, 'ERROR: sunvec = NULL'
-     stop 1
-  end if
+  if (.not. associated(sunvec_yp)) then; err=20; message='fidaSolver: sunvec = NULL'; return; endif
   
-  ! Initialize solution vectors   reza: we should provide and pass stateVecPrimeInit later
+  ! Initialize solution vectors  
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
 
   ! Call FIDACreate and FIDAInit to initialize IDA memory
   ida_mem = FIDACreate()
-  if (.not. c_associated(ida_mem)) then
-     print *, 'ERROR: ida_mem = NULL'
-     stop 1
-  end if
+  if (.not. c_associated(ida_mem)) then; err=20; message='fidaSolver: ida_mem = NULL'; return; endif
   
   eqns_data%ida_mem = ida_mem
 
 
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
-  if (retval /= 0) then
-     print *, 'Error in FIDASetUserData, retval = ', retval, '; halting'
-     stop 1
-  end if
+  if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetUserData'; return; endif
   
   t0 = 0._dp
   retval = FIDAInit(ida_mem, c_funloc(evalEqnsFida), t0, sunvec_y, sunvec_yp)
-  if (retval /= 0) then
-     print *, 'Error in FIDAInit, retval = ', retval, '; halting'
-     stop 1
-  end if
+  if (retval /= 0) then; err=20; message='fidaSolver: error in FIDAInit'; return; endif
 
   ! set tolerances
   retval = FIDAWFtolerances(ida_mem, c_funloc(computWeightFida))
-  if (retval /= 0) then
-     print *, 'Error in FIDAWFtolerances, retval = ', retval, '; halting'
-     stop 1
-  end if
+  if (retval /= 0) then; err=20; message='fidaSolver: error in FIDAWFtolerances'; return; endif
   
  ! define the form of the matrix
  select case(ixMatrix)
@@ -366,32 +349,20 @@ contains
   mu = ku; lu = kl;
   ! Create banded SUNMatrix for use in linear solves
      sunmat_A => FSUNBandMatrix(nState, mu, lu)
-     if (.not. associated(sunmat_A)) then
-        print *, 'ERROR: sunmat = NULL'
-        stop 1
-     end if
+     if (.not. associated(sunmat_A)) then; err=20; message='fidaSolver: sunmat = NULL'; return; endif
 
      ! Create banded SUNLinearSolver object
      sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A)
-     if (.not. associated(sunlinsol_LS)) then
-        print *, 'ERROR: sunlinsol = NULL'
-        stop 1
-     end if
+     if (.not. associated(sunlinsol_LS)) then; err=20; message='fidaSolver: sunlinsol = NULL'; return; endif
   
   case(ixFullMatrix)
     ! Create dense SUNMatrix for use in linear solves
      sunmat_A => FSUNDenseMatrix(nState, nState)
-     if (.not. associated(sunmat_A)) then
-        print *, 'ERROR: sunmat = NULL'
-        stop 1
-     end if
+     if (.not. associated(sunmat_A)) then; err=20; message='fidaSolver: sunmat = NULL'; return; endif
 
      ! Create dense SUNLinearSolver object
      sunlinsol_LS => FSUNDenseLinearSolver(sunvec_y, sunmat_A)
-     if (.not. associated(sunlinsol_LS)) then
-        print *, 'ERROR: sunlinsol = NULL'
-        stop 1
-     end if
+     if (.not. associated(sunlinsol_LS)) then; err=20; message='fidaSolver: sunlinsol = NULL'; return; endif
    
   ! check
   case default;  print *, 'unable to identify option for the type of matrix'; stop 1
@@ -400,21 +371,14 @@ contains
 
   ! Attach the matrix and linear solver
   retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
-  if (retval /= 0) then
-     print *, 'Error in FIDASetLinearSolver, retval = ', retval, '; halting'
-     stop 1
-  end if
+  if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetLinearSolver'; return; endif
   
   
   
   if(ixMatrix == ixFullMatrix)then
      ! Set the user-supplied Jacobian routine    
     retval = FIDASetJacFn(ida_mem, c_funloc(evalJacFida))
-   if (retval /= 0) then
-      print *, 'Error in FIDASetJacFn, retval = ', retval, '; halting'
-      stop 1
-   end if
-  
+   if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetJacFn'; return; endif  
   endif
 
   ! Create Newton SUNNonlinearSolver object. IDA uses a

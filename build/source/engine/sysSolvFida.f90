@@ -469,7 +469,7 @@ contains
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
-! if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
    if (idaSucceeds)then
       exit
    else
@@ -482,7 +482,7 @@ contains
    
   ! check if fida is successful
  if( .not.idaSucceeds )then
-  message=trim(message)//'fida not successful'
+  message=trim(message)//trim(cmessage)
   reduceCoupledStep  = .true.
   return
  endif
@@ -514,7 +514,7 @@ contains
  ! save the computed solution
  stateVecTrial = stateVecNew
  
-
+ ! free memory
  deallocate(mLayerCmpress_sum)
  deallocate(dBaseflow_dMatric)  
 
