@@ -191,7 +191,6 @@ contains
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
  logical(lgt),parameter          :: forceFullMatrix=.true.        ! flag to force the use of the full Jacobian matrix
- logical(lgt),parameter          :: compAverageFlux=.true.
  integer(i4b)                    :: ixQuadrature=ixRectangular    ! type of quadrature method to approximate average fluxes
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
@@ -443,7 +442,7 @@ contains
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 ! input: state vectors
+                 ! input: state vector
                  stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
@@ -462,8 +461,6 @@ contains
                  flux_temp,               & ! intent(inout): model fluxes for a local HRU 
                  flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: baseflow
-                 dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                  ! output
                  idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
@@ -491,8 +488,8 @@ contains
  endif
  
 
- if (compAverageFlux)then  
-    select case(ixQuadrature)
+ ! compute average flux  
+  select case(ixQuadrature)
       case(ixRectangular)
         ! divide by dt. Now we have average flux
         do iVar=1,size(flux_meta) 
@@ -506,10 +503,9 @@ contains
         end do
       ! check
       case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
-    end select
+  end select
     
-    diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
- endif 
+  diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
 
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water

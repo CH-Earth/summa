@@ -24,7 +24,6 @@ implicit none
    integer(i4b)         				:: nLayers                ! total number of layers
    integer              				:: nState                 ! total number of state variables
    integer(i4b)         				:: ixMatrix               ! form of matrix (dense or banded)
-   integer(i4b)         				:: ixQuadrature           ! type of quadrature method for approximating average flux 
    logical(lgt)         				:: startQuadrature
    logical(lgt)         				:: firstSubStep           ! flag to indicate if we are processing the first sub-step
    logical(lgt)         				:: computeVegFlux         ! flag to indicate if computing fluxes over vegetation

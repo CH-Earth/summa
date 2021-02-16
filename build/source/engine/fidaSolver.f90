@@ -119,8 +119,6 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                       ! input-output: baseflow
-                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                        ! output 
                        idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
@@ -165,8 +163,8 @@ contains
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
  integer(i4b),intent(in)      	 :: nStat                  ! total number of state variables
- integer(i4b)                    :: ixMatrix               ! form of matrix (dense or banded)
- integer(i4b)                    :: ixQuadrature           ! type of quadrature method for approximating average flux
+ integer(i4b),intent(in)         :: ixMatrix               ! form of matrix (dense or banded)
+ integer(i4b),intent(in)         :: ixQuadrature           ! type of quadrature method for approximating average flux
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
@@ -189,8 +187,6 @@ contains
   type(var_dlength),intent(inout):: flux_data              ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: flux_sum
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
- ! input-output: baseflow
- real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  real(dp),intent(inout)          :: mLayerCmpress_sum(:)
  ! output: state vectors
  real(dp),intent(inout)          :: stateVec(:)            ! model state vector (y)
@@ -241,8 +237,7 @@ contains
   eqns_data%nSoil                   = nSoil
   eqns_data%nLayers                 = nLayers
   eqns_data%nState                  = nState   
-  eqns_data%ixMatrix                = ixMatrix           
-  eqns_data%ixQuadrature            = ixQuadrature   
+  eqns_data%ixMatrix                = ixMatrix              
   eqns_data%firstSubStep            = firstSubStep 
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
@@ -294,8 +289,6 @@ contains
  else
   allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
  end if
- 
-  eqns_data%dBaseflow_dMatric       = dBaseflow_dMatric
   
   allocate( eqns_data%mLayerCmpress_sum(nSoil) )
   eqns_data%mLayerCmpress_sum = mLayerCmpress_sum
