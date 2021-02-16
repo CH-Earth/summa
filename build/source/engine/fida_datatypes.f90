@@ -50,17 +50,17 @@ implicit none
    real(qp), allocatable              	:: resSink(:) 						! additional (sink) terms on the RHS of the state equation
    real(dp), allocatable   				:: atol(:)							! vector of absolute tolerances
    real(dp), allocatable   				:: rtol(:) 							! vector of relative tolerances
-   real(dp), allocatable              	:: mLayerMatricHeadLiqTrial(:)
-   real(dp), allocatable              	:: mLayerMatricHeadTrial(:)
-   real(dp), allocatable              	:: mLayerMatricHeadPrev(:)
+   real(dp), allocatable              	:: mLayerMatricHeadLiqTrial(:)		! trial value for liquid water matric potential (m)
+   real(dp), allocatable              	:: mLayerMatricHeadTrial(:)         ! trial vector of total water matric potential (m)
+   real(dp), allocatable              	:: mLayerMatricHeadPrev(:)			! vector of total water matric potential (m) at previous step
    real(dp), allocatable              	:: mLayerVolFracWatTrial(:)     	! trial value for volumetric fraction of total water (-)
-   real(dp), allocatable              	:: mLayerVolFracWatPrev(:)
-   real(dp), allocatable              	:: mLayerVolFracIceTrial(:)     	! trial value for volumetric fraction of total water (-)
-   real(dp), allocatable              	:: mLayerVolFracIcePrev(:)
-   real(dp), allocatable              	:: mLayerEnthalpyTrial(:)
-   real(dp), allocatable              	:: mLayerEnthalpyPrev(:)
-   real(dp), allocatable              	:: mLayerTempTrial(:)
-   real(dp), allocatable              	:: mLayerTempPrev(:)
+   real(dp), allocatable              	:: mLayerVolFracWatPrev(:)			! value for volumetric fraction of total water (-) at previous step
+   real(dp), allocatable              	:: mLayerVolFracIceTrial(:)     	! trial value for volumetric fraction of ice (-)
+   real(dp), allocatable              	:: mLayerVolFracIcePrev(:)			! value for volumetric fraction of ice (-) at previous step
+   real(dp), allocatable              	:: mLayerEnthalpyTrial(:)			! trial enthalpy of snow and soil (J m-3)
+   real(dp), allocatable              	:: mLayerEnthalpyPrev(:)			! enthalpy of snow and soil (J m-3) at previous step
+   real(dp), allocatable              	:: mLayerTempTrial(:)				! trial vector of layer temperature (K)
+   real(dp), allocatable              	:: mLayerTempPrev(:)				! vector of layer temperature (K) at previous step
    real(dp), allocatable              	:: dBaseflow_dMatric(:,:) 			! derivative in baseflow w.r.t. matric head (s-1)
    integer(i4b)          				:: err                    			! error code
    character(len = 50)          		:: message                			! error message
