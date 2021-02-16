@@ -146,7 +146,7 @@ contains
  ! provide access to subroutines
  USE varExtrFida_module, only:varExtract           ! extract variables from the state vector
  USE varExtrFida_module, only:varExtractFida
- USE updateVarsFida_module, only:updateVarsFida           ! update prognostic variables
+ USE updateVarsFida_module, only:updateVarsFida           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
  USE soilCmpresFida_module, only:soilCmpresFida            ! compute soil compression
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector

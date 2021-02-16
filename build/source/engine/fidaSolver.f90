@@ -4,10 +4,10 @@
 module fidaSolver_module
 
 
-  !======= Inclusions ===========
-  use, intrinsic :: iso_c_binding
-  use nrtype
-  use fida_datatypes
+!======= Inclusions ===========
+USE, intrinsic :: iso_c_binding
+USE nrtype
+USE fida_datatypes
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag
@@ -44,10 +44,10 @@ USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric 
 USE globalData,only:model_decisions ! model decision structure
 
 ! global metadata
-USE globalData,only:flux_meta                        ! metadata on the model fluxes
-USE globalData,only:diag_meta                        ! metadata on the model diagnostic variables
-USE globalData,only:prog_meta                        ! metadata on the model prognostic variables
-USE globalData,only:deriv_meta                       ! metadata on the model derivatives
+USE globalData,only:flux_meta       ! metadata on the model fluxes
+USE globalData,only:diag_meta       ! metadata on the model diagnostic variables
+USE globalData,only:prog_meta       ! metadata on the model prognostic variables
+USE globalData,only:deriv_meta      ! metadata on the model derivatives
 
 ! constants
 USE multiconst,only:&
@@ -59,12 +59,8 @@ USE multiconst,only:&
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
-USE var_lookup,only:iLookFLUX       ! named variables for structure elements
-USE var_lookup,only:iLookFORCE      ! named variables for structure elements
-USE var_lookup,only:iLookPARAM      ! named variables for structure elements
-USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
- USE var_lookup,only:iLookDERIV     ! named variables for structure elements
+USE var_lookup,only:iLookDERIV     ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -72,34 +68,25 @@ USE data_types,only:&
                     var_d,        & ! data vector (dp)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
-                    zLookup,      & ! data vector
-                    model_options   ! defines the model decisions
+                    zLookup         ! data vector
 
-! look-up values for the choice of groundwater representation (local-column, or single-basin)
-USE mDecisions_module,only:       &
- localColumn,                     & ! separate groundwater representation in each local soil column
- singleBasin                        ! single groundwater store over the entire basin
 
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:      &
- qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
- bigBucket,                      & ! a big bucket (lumped aquifer model)
- noExplicit                        ! no explicit groundwater parameterization
+USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterization
 
   
 
-  ! privacy
-  implicit none
-  private
-  public::fidaSolver
+! privacy
+ implicit none
+ private::setInitialCondition
+ public::fidaSolver
 
 
 contains
 
  !-------------------
- ! * subroutine fidaSolver: solve F(y,y') = 0 by FIDA. Here, y is the state vector
+ ! * subroutine fidaSolver: solve F(y,y') = 0 by FIDA (y is the state vector)
  ! ------------------
-
  subroutine fidaSolver(                         &  
                        dt,                      & ! intent(in):    data time step
                        atol,                    & ! intent(in):    absolute telerance
@@ -115,7 +102,7 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector              
-                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
+                       sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                        ! input: data structures
                        lookup_data,             & ! intent(in):    lookup tables
@@ -146,29 +133,23 @@ contains
                       )
 
   !======= Inclusions ===========
-  use, intrinsic :: iso_c_binding
-  use nrtype
-  use fida_datatypes
-  use evalEqnsFida_module,only:evalEqnsFida
-  use allocspace_module,only:allocLocal         ! allocate local data structures
-
-
-  use fida_mod                      			! Fortran interface to IDA
-  use fnvector_serial_mod           			! Fortran interface to serial N_Vector
-  use fsunmatrix_dense_mod          			! Fortran interface to dense SUNMatrix
-  use fsunlinsol_dense_mod          			! Fortran interface to dense SUNLinearSolver
-  use fsunmatrix_band_mod           			! Fortran interface to banded SUNMatrix
-  use fsunlinsol_band_mod           			! Fortran interface to banded SUNLinearSolver
-  use fsunnonlinsol_newton_mod      			! Fortran interface to Newton SUNNonlinearSolver
-  use fsundials_matrix_mod          			! Fortran interface to generic SUNMatrix
-  use fsundials_nvector_mod         			! Fortran interface to generic N_Vector
-  use fsundials_linearsolver_mod    			! Fortran interface to generic SUNLinearSolver
-  use fsundials_nonlinearsolver_mod 			! Fortran interface to generic SUNNonlinearSolver
-  use evalEqnsFida_module,only:evalEqnsFida     ! DAE/ODE functions 
-  use evalJacFida_module,only:evalJacFida       ! system Jacobian
-  use tolFida_module,only:computWeightFida
-  use convTestFida_module,only:convTestFida
-  use eval8summaFida_module,only:eval8summaFida
+  USE fida_mod                      			! Fortran interface to IDA
+  USE fnvector_serial_mod           			! Fortran interface to serial N_Vector
+  USE fsunmatrix_dense_mod          			! Fortran interface to dense SUNMatrix
+  USE fsunlinsol_dense_mod          			! Fortran interface to dense SUNLinearSolver
+  USE fsunmatrix_band_mod           			! Fortran interface to banded SUNMatrix
+  USE fsunlinsol_band_mod           			! Fortran interface to banded SUNLinearSolver
+  USE fsunnonlinsol_newton_mod      			! Fortran interface to Newton SUNNonlinearSolver
+  USE fsundials_matrix_mod          			! Fortran interface to generic SUNMatrix
+  USE fsundials_nvector_mod         			! Fortran interface to generic N_Vector
+  USE fsundials_linearsolver_mod    			! Fortran interface to generic SUNLinearSolver
+  USE fsundials_nonlinearsolver_mod 			! Fortran interface to generic SUNNonlinearSolver
+  USE allocspace_module,only:allocLocal         ! allocate local data structures
+  USE evalEqnsFida_module,only:evalEqnsFida     ! DAE/ODE functions 
+  USE evalJacFida_module,only:evalJacFida       ! system Jacobian
+  USE tolFida_module,only:computWeightFida
+  USE convTestFida_module,only:convTestFida
+  USE eval8summaFida_module,only:eval8summaFida
   USE computEnthalpy_module,only:computEnthalpy
 
   !======= Declarations =========
@@ -202,20 +183,20 @@ contains
  type(var_d),        intent(in)  :: forc_data              ! model forcing data
  type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
  type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
- ! output: data structures
- type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
+ type(var_ilength),	 intent(in)  :: indx_data              ! indices defining model states and layers
+ ! input-output: data structures
  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_temp             ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
+  type(var_dlength),intent(inout):: flux_data              ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: flux_sum
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
  integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  real(dp),intent(inout)          :: mLayerCmpress_sum(:)
- ! output: flux and residual vectors
-  real(dp),intent(inout)         :: stateVec(:)       ! model state vector
- real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector
+ ! output: state vectors
+ real(dp),intent(inout)          :: stateVec(:)            ! model state vector (y)
+ real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector (y')
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -738,9 +719,9 @@ contains
 subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 
   !======= Inclusions ===========
-  use, intrinsic :: iso_c_binding
-  use fsundials_nvector_mod
-  use fnvector_serial_mod
+  USE, intrinsic :: iso_c_binding
+  USE fsundials_nvector_mod
+  USE fnvector_serial_mod
 
   !======= Declarations =========
   implicit none
