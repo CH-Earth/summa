@@ -79,6 +79,7 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
 ! privacy
  implicit none
  private::setInitialCondition
+ private::setSolverParams
  public::fidaSolver
 
 
@@ -379,85 +380,14 @@ contains
    if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetJacFn'; return; endif  
   endif
 
-  ! Create Newton SUNNonlinearSolver object. IDA uses a
-  ! Newton SUNNonlinearSolver by default, so it is not necessary
-  ! to create it and attach it. It is done here for demonstration purposes.
+  ! Create Newton SUNNonlinearSolver object
   sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y)
-  if (.not. associated(sunnonlin_NLS)) then
-     print *, 'ERROR: sunnonlinsol = NULL'
-     stop 1
-  end if
+  if (.not. associated(sunnonlin_NLS)) then; err=20; message='fidaSolver: sunnonlinsol = NULL'; return; endif 
   
 
   ! Attach the nonlinear solver
   retval = FIDASetNonlinearSolver(ida_mem, sunnonlin_NLS)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetNonlinearSolver, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  
-  ! Set the maximum BDF order,  default = 5
-  retval = FIDASetMaxOrd(ida_mem, 5)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetMaxOrd, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  
-  ! Set Coeff. in the nonlinear convergence test, default = 0.33
-  coef_nonlin = 0.33
-  retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetNonlinConvCoef, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-   
-  ! Set maximun number of nonliear iterations, default = 4
-  retval = FIDASetMaxNonlinIters(ida_mem, 100)
-  if (retval /= 0) then
-     print *, 'Error in IDASetMaxNonlinIters, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  !  Set maximum number of convergence test failures, default = 10
-  retval = FIDASetMaxConvFails(ida_mem, 50)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetMaxConvFails, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  !  Set maximum number of error test failures, default = 10
-  retval = FIDASetMaxErrTestFails(ida_mem, 50)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetMaxErrTestFails, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  ! Set maximum number of steps,  dafault = 500
-   maxstep = 999999
-  retval = FIDASetMaxNumSteps(ida_mem, maxstep)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetMaxNumSteps, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  ! Set maximum stepsize,  dafault = infinity
-  h_max = dt
-  retval = FIDASetMaxStep(ida_mem, h_max)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetMaxSteps, retval = ', retval, '; halting'
-     stop 1
-  end if
-  
-  ! Set initial stepsize
-  h_init = 0
-  retval = FIDASetInitStep(ida_mem, h_init)
-  if (retval /= 0) then
-     print *, 'Error in FIDASetInitStep, retval = ', retval, '; halting'
-     stop 1
-  end if
+  if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetNonlinearSolver'; return; endif 
   
   ! enforce the solver to stop at the end of the data time step
   retval = FIDASetStopTime(ida_mem, dt)
@@ -465,6 +395,8 @@ contains
      print *, 'Error in FIDASetStopTime, retval = ', retval, '; halting'
      stop 1
   end if
+  
+  call setSolverParams(dt, ida_mem, retval)
   
  ! scalling_on 1 and off 0
  ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)  
@@ -597,7 +529,7 @@ contains
  
  !****************************** End of Main Solver ***************************************
  
-  ! copy the output data      
+  ! copy to output data      
   diag_data 		= eqns_data%diag_data              
   flux_data 		= eqns_data%flux_data             
   deriv_data 		= eqns_data%deriv_data    
@@ -673,6 +605,55 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 
 
 end subroutine setInitialCondition
+
+! ----------------------------------------------------------------
+! setSolverParams: routine to set paprmeters in ida solver
+! ----------------------------------------------------------------
+subroutine setSolverParams(dt,ida_mem,retval)
+  !======= Inclusions ===========
+  USE, intrinsic :: iso_c_binding
+  USE fida_mod                      								! Fortran interface to IDA
+implicit none
+
+	real(dp),intent(in)	  				:: dt			   			! time step
+	type(c_ptr),intent(inout)   		:: ida_mem       			! IDA memory	
+	integer(i4b),intent(out)            :: retval					! return value
+
+	real(qp),parameter     					:: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
+	integer,parameter 	   					:: max_order = 5		! maximum BDF order,  default = 5
+	integer,parameter 	   					:: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4	
+	integer,parameter 	   					:: acurtest_fail = 50	! maximum number of error test failures, default = 10
+	integer,parameter 	   					:: convtest_fail = 50	! maximum number of convergence test failures, default = 10
+	integer(kind = 8),parameter 	   		:: max_step = 999999	! maximum number of steps,  dafault = 500 
+	real(qp),parameter		                :: h_init = 0			! initial stepsize
+	real(qp)   				                :: h_max				! maximum stepsize,  dafault = infinity
+
+  ! Set the maximum BDF order
+  retval = FIDASetMaxOrd(ida_mem, max_order)  
+  
+  ! Set Coeff. in the nonlinear convergence test
+  retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
+     
+  ! Set maximun number of nonliear iterations
+  retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+  
+  !  Set maximum number of convergence test failures
+  retval = FIDASetMaxConvFails(ida_mem, convtest_fail)
+  
+  !  Set maximum number of error test failures
+  retval = FIDASetMaxErrTestFails(ida_mem, acurtest_fail)
+  
+  ! Set maximum number of steps
+  retval = FIDASetMaxNumSteps(ida_mem, max_step)
+  
+  ! Set maximum stepsize
+  h_max = dt
+  retval = FIDASetMaxStep(ida_mem, h_max)
+  
+  ! Set initial stepsize
+  retval = FIDASetInitStep(ida_mem, h_init)
+  
+end subroutine setSolverParams				
 
 end module fidaSolver_module
 
