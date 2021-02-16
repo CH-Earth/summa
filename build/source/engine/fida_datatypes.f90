@@ -18,6 +18,7 @@ USE data_types,only:&
 implicit none
 
  type eqnsData
+   type(c_ptr)                       	:: ida_mem
    real(dp)             				:: dt                     ! time step
    integer(i4b)         				:: nSnow                  ! number of snow layers
    integer(i4b)         				:: nSoil                  ! number of soil layers
@@ -65,8 +66,6 @@ implicit none
    real(dp), allocatable   				:: rtol(:) 
    integer(i4b)          				:: err                    ! error code
    character(len = 50)          		:: message                ! error message
-   type(c_ptr)                       	:: ida_mem
-   real(dp) 							:: t_cur
  end type eqnsData
  
  
