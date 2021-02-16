@@ -289,9 +289,6 @@ contains
   allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
  end if
   
-  allocate( eqns_data%mLayerCmpress_sum(nSoil) )
-  eqns_data%mLayerCmpress_sum = mLayerCmpress_sum
-  
   allocate( eqns_data%mLayerMatricHeadLiqTrial(nSoil) )
 
   allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
@@ -653,7 +650,6 @@ contains
   deallocate(eqns_data%sMul)
   deallocate(eqns_data%dMat)
   deallocate(eqns_data%dBaseflow_dMatric)
-  deallocate(eqns_data%mLayerCmpress_sum)
   deallocate(eqns_data%mLayerMatricHeadLiqTrial)
   deallocate(eqns_data%mLayerMatricHeadTrial)
   deallocate(eqns_data%mLayerMatricHeadPrev)
