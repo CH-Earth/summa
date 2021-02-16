@@ -373,8 +373,6 @@ contains
   retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
   if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetLinearSolver'; return; endif
   
-  
-  
   if(ixMatrix == ixFullMatrix)then
      ! Set the user-supplied Jacobian routine    
     retval = FIDASetJacFn(ida_mem, c_funloc(evalJacFida))
