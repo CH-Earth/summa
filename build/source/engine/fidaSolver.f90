@@ -414,14 +414,11 @@ contains
  tret(1) = t0                                
  do while(tret(1) < dt) 
   ! call IDASolve
-  retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP) 
+  retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)   
+  ! if( retval < 0 ) return
   
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, dt_last)
-  if (retval /= 0) then
-     print *, 'Error in FIDAGetLastStep, retval = ', retval, '; halting'
-     stop 1
-  end if  
     
   ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
