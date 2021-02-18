@@ -470,7 +470,7 @@ contains
 
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
- firstFluxCall = .true.
+ firstFluxCall = .false.
  ! compute the fluxes for a given state vector
  call computFlux(&
                  ! input-output: model control
