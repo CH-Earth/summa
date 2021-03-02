@@ -10,4 +10,4 @@ This page provides simple, high-level documentation about what has changed in ea
 - Fixes a segfault of mysterious origin when using JRDN snow layering
 - Fixes a water balance error w.r.t transpiration
 - Fixes the output message to report the correct solution type
-
+- Adds tolerance to balance check in updatState.f90
