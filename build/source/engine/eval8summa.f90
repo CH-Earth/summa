@@ -119,7 +119,7 @@ contains
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    model state vector
                        fScale,                  & ! intent(in):    function scaling vector
-                       sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
                        lookup_data,             & ! intent(in):    lookup tables
@@ -172,7 +172,7 @@ contains
  ! input: state vectors
  real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector
  real(dp),intent(in)             :: fScale(:)              ! function scaling vector
- real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+ real(qp),intent(inout)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
@@ -564,6 +564,21 @@ contains
                        mLayerHeatCapTrial,           & ! intent(out): heat capacity for snow and soil
                        ! output: error control
                        err,message)                    ! intent(out): error control
+                       
+   ! compute multiplier of state vector
+   call computStatMult(&
+                 ! input
+                 heatCapVegTrial,                  & ! intent(in) volumetric heat capacity of vegetation canopy
+                 mLayerHeatCapTrial,               & ! intent(in) volumetric heat capacity of soil and snow
+                 diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                 indx_data,                        & ! intent(in):    indices defining model states and layers
+                 ! output
+                 sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                 err,cmessage)                       ! intent(out):   error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ 
+   diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
+   diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
                        
   endif  ! if computing enthalpy
  
