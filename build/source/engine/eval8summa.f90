@@ -152,6 +152,7 @@ contains
  USE t2enthalpy_module, only:t2enthalpy_T
  USE computHeatCap_module,only:computHeatCap      ! compute diagnostic energy variables -- thermal conductivity and heat capacity
  USE computHeatCap_module, only:computStatMult
+ USE computThermConduct_module,only:computThermConduct
  USE computFlux_module, only:soilCmpres           ! compute soil compression
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
  USE computResid_module,only:computResid          ! compute residuals given a state vector
@@ -579,6 +580,25 @@ contains
  
    diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
    diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
+   
+   
+   ! update thermal conductivity
+   call computThermConduct(&
+                       ! input: control variables
+                       computeVegFlux,               & ! intent(in): flag to denote if computing the vegetation flux
+                       canopyDepth,                  & ! intent(in): canopy depth (m)
+                       ! input: state variables
+                       scalarCanopyIceTrial,         & ! intent(in)
+                       scalarCanopyLiqTrial,         & ! intent(in)
+                       mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                        ! input/output: data structures
+                       mpar_data,               & ! intent(in):    model parameters
+                       indx_data,               & ! intent(in):    model layer indices
+                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                       err,message)               ! intent(out): error control
+   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
                        
   endif  ! if computing enthalpy
  

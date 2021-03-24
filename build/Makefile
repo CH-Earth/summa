@@ -215,6 +215,7 @@ SUMMA_SOLVER= \
       soilCmpresFida.f90 \
 		computFlux.f90 \
 		computHeatCap.f90 \
+		computThermConduct.f90 \
 		computResid.f90 \
 		computJacob.f90 \
 		eval8summa.f90 \
@@ -223,7 +224,6 @@ SUMMA_SOLVER= \
       fida_datatypes.f90 \
       tolFida.f90 \
       computEnthalpy.f90 \
-      computThermConduct.f90 \
       printResidFida.f90 \
       computResidFida.f90 \
       eval8summaFida.f90 \
