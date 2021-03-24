@@ -545,6 +545,7 @@ contains
                        waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
+ USE t2enthalpy_module,only:t2enthalpy               ! compute enthalpy
  implicit none
  ! model control
  real(dp)         ,intent(in)    :: dt                             ! time step (s)
@@ -601,6 +602,9 @@ contains
  real(dp)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
  real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
+ real(dp)                        :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
+ real(dp)                        :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3
+ real(dp),dimension(nLayers)     :: mLayerEnthalpyTrial
  ! -------------------------------------------------------------------------------------------------------------------
 
  ! -------------------------------------------------------------------------------------------------------------------
@@ -727,6 +731,30 @@ contains
  !print*, 'after updateVars: scalarCanopyLiqTrial  =', scalarCanopyLiqTrial    ! trial value of canopy liquid water (kg m-2)
  !print*, 'after updateVars: scalarCanopyIceTrial  =', scalarCanopyIceTrial    ! trial value of canopy ice content (kg m-2)
 
+  ! compute enthalpy at t_{n+1}
+  call t2enthalpy(&
+                  ! input: data structures
+                  diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
+                  mpar_data,                   & ! intent(in):  parameter data structure
+                  indx_data,                   & ! intent(in):  model indices
+                  lookup_data,                 & ! intent(in):  lookup table data structure
+                  ! input: state variables for the vegetation canopy
+                  scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
+                  scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
+                  scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
+                  scalarCanopyIceTrial,        & ! intent(in):  trial value of canopy ice content (kg m-2)
+                  ! input: variables for the snow-soil domain
+                  mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
+                  mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
+                  mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
+                  mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
+                  ! output: enthalpy
+                  scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
+                  scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
+                  mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                  ! output: error control
+                  err,cmessage)                  ! intent(out): error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! -----
  ! * check mass balance...
  ! -----------------------
