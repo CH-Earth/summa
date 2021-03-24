@@ -649,6 +649,11 @@ contains
  mLayerVolFracWat          => prog_data%var(iLookPROG%mLayerVolFracWat)%dat              ,& ! intent(inout) : [dp(:)]  volumetric fraction of total water (-)
  mLayerMatricHead          => prog_data%var(iLookPROG%mLayerMatricHead)%dat              ,& ! intent(inout) : [dp(:)]  matric head (m)
  mLayerMatricHeadLiq       => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat           ,& ! intent(inout) : [dp(:)]  matric potential of liquid water (m)
+ 
+ ! enthalpy
+ scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(inout): [dp]    enthalpy of the canopy air space (J m-3)
+ scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-3)
+ mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(inout): [dp(:)] enthalpy of the snow+soil layers (J m-3)
  ! model state variables (aquifer)
  scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout) : [dp(:)]  storage of water in the aquifer (m)
  ! error tolerance
@@ -995,6 +1000,14 @@ contains
   endif  ! (if we removed too much water)
 
  endif  ! (if energy state variables exist)
+ 
+ 
+  ! -----
+ ! * update enthalpy as a diagnostic variable...
+ ! --------------------------------
+ ! mLayerEnthalpy = mLayerEnthalpyTrial
+ ! scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
+ ! scalarCanairEnthalpy = scalarCanairEnthalpyTrial
 
  ! -----
  ! * update prognostic variables...
