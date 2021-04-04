@@ -445,12 +445,12 @@ contains
                   dGroundNetFlux_dCanairTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
                   dGroundNetFlux_dCanopyTemp,             & ! intent(out): derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
                   dGroundNetFlux_dGroundTemp,             & ! intent(out): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-                  ! output: liquid water flux derivarives (canopy evap)
+                  ! output: liquid water flux derivatives (canopy evap)
                   dCanopyEvaporation_dCanLiq,             & ! intent(out): derivative in canopy evaporation w.r.t. canopy liquid water content (s-1)
                   dCanopyEvaporation_dTCanair,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                   dCanopyEvaporation_dTCanopy,            & ! intent(out): derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
                   dCanopyEvaporation_dTGround,            & ! intent(out): derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-                  ! output: liquid water flux derivarives (ground evap)
+                  ! output: liquid water flux derivatives (ground evap)
                   dGroundEvaporation_dCanLiq,             & ! intent(out): derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
                   dGroundEvaporation_dTCanair,            & ! intent(out): derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
                   dGroundEvaporation_dTCanopy,            & ! intent(out): derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
@@ -713,7 +713,7 @@ contains
  ! check if computing soil hydrology
  if(nSoilOnlyHyd>0)then
 
-  ! set baseflow fluxes to zero if the baseflow routine is not used
+  ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
   if(local_ixGroundwater/=qbaseTopmodel)then
    ! (diagnostic variables in the data structures)
    scalarExfiltration     = 0._dp  ! exfiltration from the soil profile (m s-1)
@@ -729,7 +729,7 @@ contains
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
    endif
-
+   
    ! compute the baseflow flux
    call groundwatr(&
                    ! input: model control
@@ -760,6 +760,8 @@ contains
   scalarSoilBaseflow = sum(mLayerBaseflow)
 
   ! compute total runoff
+  ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
+  ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if part of it flow into neighboring soil rather than exfiltrate)
   scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow
 
  endif  ! if computing soil hydrology
@@ -771,7 +773,7 @@ contains
 
  ! check if computing aquifer fluxes
  if(ixAqWat/=integerMissing)then
-
+ 
   ! identify modeling decision
   if(local_ixGroundwater==bigBucket)then
 
@@ -793,9 +795,10 @@ contains
                    err,cmessage)                   ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! compute total runoff (overwrite previously calculated value before considering aquifer)
+   ! compute total runoff (overwrite previously calculated value before considering aquifer).  
+   !   (Note:  SoilDrainage goes into aquifer, not runoff)
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
-
+   
   ! if no aquifer, then fluxes are zero
   else
    scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1)

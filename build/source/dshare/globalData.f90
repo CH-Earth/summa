@@ -209,7 +209,7 @@ MODULE globalData
  type(var_info),save,public                  :: forc_meta(maxvarForc)        ! model forcing data
  type(var_info),save,public                  :: attr_meta(maxvarAttr)        ! local attributes
  type(var_info),save,public                  :: type_meta(maxvarType)        ! local classification of veg, soil, etc.
- type(var_info),save,public                  :: id_meta(maxvarId)        ! local classification of veg, soil, etc.
+ type(var_info),save,public                  :: id_meta(maxvarId)            ! local classification of veg, soil, etc.
  type(var_info),save,public                  :: mpar_meta(maxvarMpar)        ! local model parameters for each HRU
  type(var_info),save,public                  :: indx_meta(maxvarIndx)        ! local model indices for each HRU
  type(var_info),save,public                  :: prog_meta(maxvarProg)        ! local state variables for each HRU

@@ -106,6 +106,7 @@ contains
  attr_meta(iLookATTR%contourLength)          = var_info('contourLength' , 'length of contour at downslope edge of HRU'            , 'm'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  attr_meta(iLookATTR%HRUarea)                = var_info('HRUarea'       , 'area of each HRU'                                      , 'm2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  attr_meta(iLookATTR%mHeight)                = var_info('mHeight'       , 'measurement height above bare ground'                  , 'm'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ attr_meta(iLookATTR%aspect)                 = var_info('aspect'        , 'mean azimuth of HRU in degrees East of North (0)'      , 'degrees'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * local parameter data...
@@ -588,6 +589,7 @@ contains
  bvar_meta(iLookBVAR%basin__AquiferRecharge)  = var_info('basin__AquiferRecharge' , 'recharge to the aquifer'                                , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%basin__AquiferBaseflow)  = var_info('basin__AquiferBaseflow' , 'baseflow from the aquifer'                              , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%basin__AquiferTranspire) = var_info('basin__AquiferTranspire', 'transpiration loss from the aquifer'                    , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bvar_meta(iLookBVAR%basin__TotalRunoff)      = var_info('basin__TotalRunoff'     , 'total runoff to channel from all active components'     , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%routingRunoffFuture)     = var_info('routingRunoffFuture'    , 'runoff in future time steps'                            , 'm s-1' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                   , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

@@ -321,7 +321,7 @@ end subroutine read_dimension
     end do
 
    ! ** numerical data
-   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight')
+   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
 
     ! get the index of the variable
     varType = numerical
@@ -349,6 +349,20 @@ end subroutine read_dimension
   end select ! select variable
 
  end do ! (looping through netcdf local attribute file)
+ 
+ ! ** now handle the optional aspect variable if it's missing
+ varIndx = get_ixAttr('aspect')
+ ! check that the variable was not found in the attribute file
+ if(.not. checkAttr(varIndx)) then
+   write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
+
+   do iGRU=1,nGRU
+    do iHRU = 1, gru_struc(iGRU)%hruCount
+     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = -1._dp      ! populate variable with out-of-range value, used later
+    end do
+   end do
+   checkAttr(varIndx) = .true.
+ endif
 
  ! **********************************************************************************************
  ! (4) check that we have all the desired varaibles

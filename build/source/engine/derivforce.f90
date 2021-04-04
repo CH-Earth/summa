@@ -92,8 +92,8 @@ contains
  ! cosine of the solar zenith angle
  real(dp)                        :: ahour                    ! hour at start of time step
  real(dp)                        :: dataStep                 ! data step (hours)
- real(dp),parameter              :: slope=0._dp              ! terrain slope (assume flat)
- real(dp),parameter              :: azimuth=0._dp            ! terrain azimuth (assume zero)
+ real(dp)                        :: slope                    ! HRU terrain slope (degrees)
+ real(dp)                        :: azimuth                  ! HRU terrain azimuth (degrees)
  real(dp)                        :: hri                      ! average radiation index over time step DT
  ! general local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
@@ -134,6 +134,7 @@ contains
  newSnowDenMultWind      => mpar_data%var(iLookPARAM%newSnowDenMultWind)%dat(1)   , & ! Pahaut 1976, multiplier for new snow density applied to wind speed (kg m-7/2 s-1/2)
  newSnowDenMultAnd       => mpar_data%var(iLookPARAM%newSnowDenMultAnd)%dat(1)    , & ! Anderson 1976, multiplier for new snow density for Anderson function (K-1)
  newSnowDenBase          => mpar_data%var(iLookPARAM%newSnowDenBase)%dat(1)       , & ! Anderson 1976, base value that is rasied to the (3/2) power (K)
+ heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
  ! radiation geometry variables
  iyyy                    => time_data(iLookTIME%iyyy)                             , & ! year
  im                      => time_data(iLookTIME%im)                               , & ! month
@@ -142,12 +143,13 @@ contains
  imin                    => time_data(iLookTIME%imin)                             , & ! minute
  latitude                => attr_data(iLookATTR%latitude)                         , & ! latitude (degrees north)
  longitude               => attr_data(iLookATTR%longitude)                        , & ! longitude (degrees east)
+ tan_slope               => attr_data(iLookATTR%tan_slope)                        , & ! tan HRU ground surface slope (-)
+ aspect                  => attr_data(iLookATTR%aspect)                           , & ! mean azimuth of HRU in degrees E of N (degrees)
  cosZenith               => diag_data%var(iLookDIAG%scalarCosZenith)%dat(1)       , & ! average cosine of the zenith angle over time step DT
  ! measurement height
  mHeight                 => attr_data(iLookATTR%mHeight)                          , & ! latitude (degrees north)
  adjMeasHeight           => diag_data%var(iLookDIAG%scalarAdjMeasHeight)%dat(1)   , & ! adjusted measurement height (m)
  scalarSnowDepth         => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)       , & ! snow depth on the ground surface (m)
- heightCanopyTop         => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1)      , & ! height of the top of the canopy layer (m)
  ! model time
  secondsSinceRefTime     => forc_data(iLookFORCE%time)                            , & ! time = seconds since reference time
  ! model forcing data
@@ -215,9 +217,9 @@ contains
  end select ! identifying option tmZoneInfo
 
  ! constrain timeOffset so that it is in the [-0.5, 0.5] range
- if(timeOffset<-0.5)then
+ if(timeOffset < -0.5)then
   timeOffset = timeOffset+1
- else if(timeOffset>0.5)then
+ else if(timeOffset > 0.5)then
   timeOffset = timeOffset-1
  endif
 
@@ -234,11 +236,21 @@ contains
  dataStep = data_step/secprhour  ! time step (hours)
  ahour    = real(jh,kind(dp)) + real(jmin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
+ ! check slope/aspect intent for radiation calculation
+ if(aspect == -1)then
+  azimuth = 0._dp              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
+  slope   = 0._dp
+ else
+  azimuth = aspect                               ! in degrees
+  slope   = atan(abs(tan_slope))*180.0D0/PI_D    ! convert from m/m to degrees
+ endif
+
  ! compute the cosine of the solar zenith angle
  call clrsky_rad(jm,jd,ahour,dataStep,   &  ! intent(in): time variables
                  slope,azimuth,latitude, &  ! intent(in): location variables
                  hri,cosZenith)             ! intent(out): cosine of the solar zenith angle
- !write(*,'(a,1x,4(i2,1x),3(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,cosZenith = ', &
+ !write(*,'(a,1x,4(i2,1x),5(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,azimuth,slope,cosZenith = ', &
+ !  im,id,ih,imin,ahour,dataStep,azimuth,slope,cosZenith
 
  ! ensure solar radiation is non-negative
  if(SWRadAtm < 0._dp) SWRadAtm = 0._dp
@@ -254,6 +266,9 @@ contains
  ! compute diffuse shortwave radiation, in the visible and near-infra-red part of the spectrum
  spectralIncomingDiffuse(1) = SWRadAtm*(1._dp - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
  spectralIncomingDiffuse(2) = SWRadAtm*(1._dp - scalarFractionDirect)*(1._dp - Frad_vis)    ! (diffuse nir)
+
+ !print*,'Frad_direct,scalarFractionDirect,directScale,SWRadAtm,Frad_vis,spectralIncomingDirect: ', &
+ !  frad_direct,scalarFractionDirect,directScale,SWRadAtm,Frad_vis,spectralIncomingDirect
 
  ! ensure wind speed is above a prescribed minimum value
  if(windspd < minwind) windspd=minwind
@@ -289,8 +304,6 @@ contains
   fracrain     = (Tmax - tempCritRain)/(Tmax - Tmin)
   snowfallTemp = 0.5_dp*(Tmin + maxFrozenSnowTemp)
  end if
- !write(*,'(a,1x,10(f20.10,1x))') 'Tmin, twetbulb, tempRangeTimestep, tempCritRain = ', &
- !                                 Tmin, twetbulb, tempRangeTimestep, tempCritRain
 
  ! ensure that snowfall temperature creates predominantely solid precipitation
  snowfallTemp      = min(maxFrozenSnowTemp,snowfallTemp) ! snowfall temperature
@@ -305,9 +318,6 @@ contains
   rainfall = fracrain*pptrate
   snowfall = (1._dp - fracrain)*pptrate*frozenPrecipMultip
  end if
-
- !print*, 'tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp = '
- !print*, tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp
 
  ! compute density of new snow
  if(snowfall > tiny(fracrain))then
