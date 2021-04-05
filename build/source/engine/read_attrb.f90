@@ -358,7 +358,7 @@ end subroutine read_dimension
 
    do iGRU=1,nGRU
     do iHRU = 1, gru_struc(iGRU)%hruCount
-     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = -1._dp      ! populate variable with out-of-range value, used later
+     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
     end do
    end do
    checkAttr(varIndx) = .true.

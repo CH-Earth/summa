@@ -218,9 +218,9 @@ contains
 
  ! constrain timeOffset so that it is in the [-0.5, 0.5] range
  if(timeOffset < -0.5)then
-  timeOffset = timeOffset+1
+  timeOffset = timeOffset + 1
  else if(timeOffset > 0.5)then
-  timeOffset = timeOffset-1
+  timeOffset = timeOffset - 1
  endif
 
  ! compute the local time
@@ -237,7 +237,7 @@ contains
  ahour    = real(jh,kind(dp)) + real(jmin,kind(dp))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
  ! check slope/aspect intent for radiation calculation
- if(aspect == -1)then
+ if(aspect == nr_realMissing)then
   azimuth = 0._dp              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
   slope   = 0._dp
  else

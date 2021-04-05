@@ -729,7 +729,7 @@ contains
     message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
     err=20; return
    endif
-   
+
    ! compute the baseflow flux
    call groundwatr(&
                    ! input: model control
@@ -773,7 +773,7 @@ contains
 
  ! check if computing aquifer fluxes
  if(ixAqWat/=integerMissing)then
- 
+
   ! identify modeling decision
   if(local_ixGroundwater==bigBucket)then
 
@@ -798,7 +798,7 @@ contains
    ! compute total runoff (overwrite previously calculated value before considering aquifer).  
    !   (Note:  SoilDrainage goes into aquifer, not runoff)
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
-   
+
   ! if no aquifer, then fluxes are zero
   else
    scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1)
