@@ -761,7 +761,7 @@ contains
 
   ! compute total runoff
   ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
-  ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if part of it flow into neighboring soil rather than exfiltrate)
+  ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
   scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow
 
  endif  ! if computing soil hydrology

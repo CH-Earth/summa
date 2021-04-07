@@ -142,6 +142,7 @@ contains
 
  ! initialize runoff variables
  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._dp  ! surface runoff (m s-1)
+ bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)     = 0._dp  ! soil drainage (m s-1)
  bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)    = 0._dp  ! outflow from all "outlet" HRUs (those with no downstream HRU)
  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1)      = 0._dp  ! total runoff to the channel from all active components (m s-1)
 
@@ -235,23 +236,22 @@ contains
 
   ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
   
-  ! increment basin total runoff (m s-1)
-  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1)    = bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1)     + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)    * fracHRU
-
   ! increment basin surface runoff (m s-1)
-  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)     + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)    * fracHRU
+  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracHRU
 
-  ! increment basin-average baseflow input variables (m s-1)
-  bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
-  bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
+  ! increment basin soil drainage (m s-1)
+  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)  * fracHRU
 
-  ! increment aquifer baseflow -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
+  ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
+  
+   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
    bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  =  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  &
            +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
   end if
-  
+
   ! averaging more fluxes (and/or states) can be added to this section as desired
 
  end do  ! (looping through HRUs)
@@ -265,6 +265,15 @@ contains
   message=trim(message)//'multi_driver/bigBucket groundwater code not transferred from old code base yet'
   err=20; return
  end if
+
+ ! calculate total runoff depending on whether aquifer is connected
+ if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
+  ! aquifer
+  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
+ else
+  ! no aquifer
+  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
+ endif  
 
  ! perform the routing
  associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )

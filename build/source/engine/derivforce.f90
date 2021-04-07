@@ -242,7 +242,7 @@ contains
   slope   = 0._dp
  else
   azimuth = aspect                               ! in degrees
-  slope   = atan(abs(tan_slope))*180.0D0/PI_D    ! convert from m/m to degrees
+  slope   = atan(abs(tan_slope))*180._dp/PI_D    ! convert from m/m to degrees
  endif
 
  ! compute the cosine of the solar zenith angle
