@@ -62,8 +62,7 @@ FC_EXE = /usr/bin/gfortran-7
 INCLUDES = -I/usr/include -I/usr/share/doc/liblapack3 -I/usr/lib/x86_64-linux-gnu -I/usr/local/include \
             -I/usr/local/lib -I/usr/local/fortran 
 LDFLAGS += -L/usr/local/lib
-LIBRARIES = -llapack -lgfortran -lnetcdff -lnetcdf -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod \
-            -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
+LIBRARIES = -llapack -lgfortran -lnetcdff -lnetcdf 
        
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -189,9 +188,7 @@ SUMMA_UTILMS= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
-      soil_utils_fida.f90 \
 		updatState.f90 \
-      updatStateFida.f90 \
 		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
@@ -212,7 +209,6 @@ SUMMA_SOLVER= \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \
-      soilCmpresFida.f90 \
 		computFlux.f90 \
 		computHeatCap.f90 \
 		computThermConduct.f90 \
@@ -221,23 +217,8 @@ SUMMA_SOLVER= \
 		eval8summa.f90 \
 		summaSolve.f90 \
 		systemSolv.f90 \
-      fida_datatypes.f90 \
-      tolFida.f90 \
-      computEnthalpy.f90 \
-      printResidFida.f90 \
-      computResidFida.f90 \
-      eval8summaFida.f90 \
-      evalEqnsFida.f90 \
-      computJacobFida.f90 \
-      computJacobFidaCpVar.f90 \
-      eval8FidaJac.f90 \
-      evalJacFida.f90 \
-      nonlinSolvFida.f90 \
-		findDiscontinuity.f90 \
-      fidaSolver.f90 \
-      sysSolvFida.f90 \
-      varSubstep.f90 \
-      varSubstepFida.f90 \
+		computEnthalpy.f90 \
+		varSubstep.f90 \
 		opSplittin.f90 \
 		coupled_em.f90 \
 		run_oneHRU.f90 \
@@ -272,11 +253,8 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 SUMMA_MODRUN = \
       indexState.f90 \
       getVectorz.f90 \
-      varExtrFida.f90 \
       t2enthalpy.f90 \
       updateVars.f90 \
-      updateVarsFida.f90 \
-      updateVarsFida2.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \
