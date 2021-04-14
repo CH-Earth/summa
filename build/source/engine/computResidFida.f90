@@ -206,7 +206,7 @@ contains
  ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
  ! --> energy balance
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg) + rAdd(ixCasNrg) )
- if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = scalarCanopyEnthalpyPrime - fVec(ixVegNrg)
+ if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
  ! --> mass balance
  if(ixVegHyd/=integerMissing)then    
   scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )  
@@ -216,7 +216,7 @@ contains
  ! compute the residual vector for the snow and soil sub-domains for energy
  if(nSnowSoilNrg>0)then 
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-   rVec( ixSnowSoilNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) -  fVec( ixSnowSoilNrg(iLayer) )
+   rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) ) + rAdd( ixSnowSoilNrg(iLayer) ) )
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
