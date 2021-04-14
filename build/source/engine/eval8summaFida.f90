@@ -150,6 +150,7 @@ contains
  USE soilCmpresFida_module, only:soilCmpresFida            ! compute soil compression
  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
  USE computHeatCap_module,only:computHeatCapAnalytic      ! compute heat capacity
+ USE computHeatCap_module,only:computCm
  USE computHeatCap_module, only:computStatMult
  USE computResidFida_module,only:computResidFida          ! compute residuals given a state vector
  USE computThermConduct_module,only:computThermConduct
@@ -254,6 +255,8 @@ contains
  real(qp)                        :: scalarCanopyEnthalpyPrime
  logical(lgt)					 :: firstFluxCall
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
+ real(dp)						 :: scalarCanopyCmTrial
+ real(dp),dimension(nLayers)	 :: mLayerCmTrial
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -584,6 +587,22 @@ contains
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+   
+   ! compute C_m
+   call computCm(&
+                  ! input: control variables
+                  computeVegFlux,          	& ! intent(in): flag to denote if computing the vegetation flux
+                  ! input: state variables
+                  scalarCanopyTempTrial,    & ! intent(in)
+                  mLayerTempTrial,       	& ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                  mLayerMatricHeadTrial,    & ! intent(in)
+                  ! input data structures
+                  mpar_data,               	& ! intent(in):    model parameters
+                  indx_data,               	& ! intent(in):    model layer indices
+                  ! output
+                  scalarCanopyCmTrial,      & ! intent(out):   Cm for vegetation
+                  mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
+                  err,message)                ! intent(out): error control
    
    ! to conserve energy compute finite difference approximation of (theta_ice)'
    scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
