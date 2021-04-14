@@ -78,8 +78,8 @@ contains
                         mLayerVolFracIcePrime,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
                         mLayerVolFracWatPrime,     &
                         mLayerVolFracLiqPrime,     &
-                        scalarCanopyEnthalpyPrime,           &
-                        mLayerEnthalpyPrime,       & ! intent(in)
+                        scalarCanopyCmTrial,       &
+                        mLayerCmTrial,             & ! intent(in)
                         ! input: data structures
                         prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                         diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
@@ -112,9 +112,9 @@ contains
  real(dp),intent(in)             :: scalarCanopyLiqPrime 
  real(dp),intent(in)             :: mLayerVolFracIcePrime(:)  ! trial value for volumetric fraction of ice (-)
  real(dp),intent(in)             :: mLayerVolFracLiqPrime(:)
- real(dp),intent(in)            ::  mLayerVolFracWatPrime(:)
- real(qp),intent(in)            ::  scalarCanopyEnthalpyPrime
- real(qp),intent(in)            ::  mLayerEnthalpyPrime(:)
+ real(dp),intent(in)             ::  mLayerVolFracWatPrime(:)
+ real(qp),intent(in)             ::  scalarCanopyCmTrial
+ real(qp),intent(in)             ::  mLayerCmTrial(:)
  ! input: data structures
  type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
  type(var_dlength),intent(in)    :: diag_data                 ! diagnostic variables for a local HRU
@@ -206,7 +206,7 @@ contains
  ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
  ! --> energy balance
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg) + rAdd(ixCasNrg) )
- if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
+ if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime  - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
  ! --> mass balance
  if(ixVegHyd/=integerMissing)then    
   scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )  
@@ -216,7 +216,7 @@ contains
  ! compute the residual vector for the snow and soil sub-domains for energy
  if(nSnowSoilNrg>0)then 
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-   rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) ) + rAdd( ixSnowSoilNrg(iLayer) ) )
+   rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) ) + rAdd( ixSnowSoilNrg(iLayer) ) )
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 

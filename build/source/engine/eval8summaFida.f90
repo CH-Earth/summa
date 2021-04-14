@@ -634,8 +634,8 @@ contains
                   mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (-)
                   mLayerVolFracWatPrime,     &
                   mLayerVolFracLiqPrime,     &
-                  scalarCanopyEnthalpyPrime, & ! intent(in) derivarive of enthalpy of vegetation canopy
-                  mLayerEnthalpyPrime,       & ! intent(in) derivative of enthalpy of soil and snow
+                  scalarCanopyCmTrial,       & ! intent(in) Cm of vegetation canopy
+                  mLayerCmTrial,             & ! intent(in) Cm of soil and snow
                   ! input: data structures
                   prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                   diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
