@@ -403,10 +403,8 @@ contains
  ! public subroutine computCm
  ! **********************************************************************************************************
  subroutine computCm(&
- 					   nLayers,                 	 & ! intent(in): number of layers (soil+snow)
                        ! input: control variables
                        computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in): canopy depth (m)
                        ! input: state variables
                        scalarCanopyTemp,        & ! intent(in)
                        mLayerTemp,       		& ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
@@ -415,8 +413,8 @@ contains
                        mpar_data,               & ! intent(in):    model parameters
                        indx_data,               & ! intent(in):    model layer indices
                        ! output
-                       scalarCanopyCm,          &
-                       mLayerCm,                &
+                       scalarCanopyCm,          & ! intent(out):   Cm for vegetation
+                       mLayerCm,                & ! intent(out):   Cm for soil and snow
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -425,9 +423,7 @@ contains
  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- integer(i4b),intent(in)         :: nLayers
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  real(dp),intent(in)             :: scalarCanopyTemp        !  value of canopy ice content (kg m-2)
  real(dp),intent(in)             :: mLayerTemp(:)        !  vector of volumetric liquid water content (-)
  real(dp),intent(in)             :: mLayerMatricHead(:)  !  vector of total water matric potential (m)
@@ -444,10 +440,8 @@ contains
  character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
  integer(i4b)                      :: iSoil                  ! index of soil layer
- real(dp)						   :: scalarCanopyG1
- real(dp)						   :: scalarCanopyG2
- real(dp)						   :: mLayerG1(nLayers)
- real(dp)						   :: mLayerG2(nLayers)
+ real(dp)						   :: g1
+ real(dp)						   :: g2
  real(dp)                          :: Tcrit                     ! temperature where all water is unfrozen (K)
  
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -455,6 +449,7 @@ contains
  associate(&
  ! input: coordinate variables
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
+ nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),                  & ! intent(in): total number of layers
  layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
 snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
  )  ! end associate statement
@@ -467,12 +462,12 @@ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! 
 
  ! compute Cm of vegetation
  if(computeVegFlux)then
-  scalarCanopyG2 = scalarCanopyTemp - Tfreeze
-  scalarCanopyG1 = (1._dp/snowfrz_scale) * atan(snowfrz_scale * scalarCanopyG2)
+  g2 = scalarCanopyTemp - Tfreeze
+  g1 = (1._dp/snowfrz_scale) * atan(snowfrz_scale * g2)
   if(scalarCanopyTemp < Tfreeze)then
-  	scalarCanopyCm =  iden_water * Cp_water * scalarCanopyG1 + iden_water * Cp_ice * (scalarCanopyG2 - scalarCanopyG1) 
+  	scalarCanopyCm =  iden_water * Cp_water * g1 + iden_water * Cp_ice * (g2 - g1) 
   else
-  	scalarCanopyCm =  iden_water * Cp_water * scalarCanopyG2
+  	scalarCanopyCm =  iden_water * Cp_water * g2
   end if            
  end if
 
@@ -488,19 +483,19 @@ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! 
   select case(layerType(iLayer))
    ! * soil
    case(iname_soil)
-    mLayerG2(iLayer) = mLayerTemp(iLayer) - Tfreeze
+    g2 = mLayerTemp(iLayer) - Tfreeze
     Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
     if( mLayerTemp(iLayer) < Tcrit)then
-    	mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * mLayerG2(iLayer)
+    	mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * g2
     else
-    	mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * mLayerG2(iLayer)
+    	mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * g2
     end if
     
    case(iname_snow)
-    mLayerG2(iLayer) = mLayerTemp(iLayer) - Tfreeze
-    mLayerG1(iLayer) = (1._dp/snowfrz_scale) * atan(snowfrz_scale * mLayerG2(iLayer))
-    mLayerCm(iLayer) =  (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( mLayerG2(iLayer) - mLayerG1(iLayer) ) &
-    				 +  (iden_water * Cp_water - iden_air * Cp_air) * mLayerG1(iLayer)
+    g2 = mLayerTemp(iLayer) - Tfreeze
+    g1 = (1._dp/snowfrz_scale) * atan(snowfrz_scale * g2)
+    mLayerCm(iLayer) =  (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( g2 - g1 ) &
+    				 +  (iden_water * Cp_water - iden_air * Cp_air) * g1
     				 
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute Cm'; return
   end select
