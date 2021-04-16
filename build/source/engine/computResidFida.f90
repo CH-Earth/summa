@@ -206,7 +206,7 @@ contains
  ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
  ! --> energy balance
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg) + rAdd(ixCasNrg) )
- if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime  - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
+ if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth  - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
  ! --> mass balance
  if(ixVegHyd/=integerMissing)then    
   scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )  

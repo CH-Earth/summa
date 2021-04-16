@@ -461,13 +461,14 @@ snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! 
  iSoil=integerMissing
 
  ! compute Cm of vegetation
+ ! Note that scalarCanopyCm/iden_water is computed 
  if(computeVegFlux)then
   g2 = scalarCanopyTemp - Tfreeze
   g1 = (1._dp/snowfrz_scale) * atan(snowfrz_scale * g2)
   if(scalarCanopyTemp < Tfreeze)then
-  	scalarCanopyCm =  iden_water * Cp_water * g1 + iden_water * Cp_ice * (g2 - g1) 
+  	scalarCanopyCm =  Cp_water * g1 + Cp_ice * (g2 - g1) 
   else
-  	scalarCanopyCm =  iden_water * Cp_water * g2
+  	scalarCanopyCm =  Cp_water * g2
   end if            
  end if
 
