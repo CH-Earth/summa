@@ -535,6 +535,8 @@ contains
                  dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
                  err,cmessage)                             ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ 
+ if(1==0)then
 
  ! *** compute volumetric heat capacity C_p
  call computHeatCapAnalytic(&
@@ -605,13 +607,15 @@ contains
                   err,message)                ! intent(out): error control
    
    ! to conserve energy compute finite difference approximation of (theta_ice)'
-   scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
-   do concurrent (iLayer=1:nLayers)
-      mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-   end do
+  ! scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
+  ! do concurrent (iLayer=1:nLayers)
+  !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+  ! end do
+  
+  end if
  
- ! scalarCanopyCmTrial = 0._dp
- ! mLayerCmTrial = 0._dp
+  scalarCanopyCmTrial = 0._dp
+  mLayerCmTrial = 0._dp
                     
 
  ! compute the residual vector
