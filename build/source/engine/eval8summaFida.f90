@@ -605,13 +605,13 @@ contains
                   err,message)                ! intent(out): error control
    
    ! to conserve energy compute finite difference approximation of (theta_ice)'
- !  scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
- !  do concurrent (iLayer=1:nLayers)
- !     mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
- !  end do
+   scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
+   do concurrent (iLayer=1:nLayers)
+      mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+   end do
  
- scalarCanopyCmTrial = 0._dp
- mLayerCmTrial = 0._dp
+ ! scalarCanopyCmTrial = 0._dp
+ ! mLayerCmTrial = 0._dp
                     
 
  ! compute the residual vector
