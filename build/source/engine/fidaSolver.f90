@@ -610,8 +610,8 @@ implicit none
 	type(c_ptr),intent(inout)   			:: ida_mem       		! IDA memory	
 	integer(i4b),intent(out)            	:: retval				! return value
 
-	real(qp),parameter     					:: coef_nonlin = 1e-4	! Coeff. in the nonlinear convergence test, default = 0.33
-	integer,parameter 	   					:: max_order = 1		! maximum BDF order,  default = 5
+	real(qp),parameter     					:: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
+	integer,parameter 	   					:: max_order = 5		! maximum BDF order,  default = 5
 	integer,parameter 	   					:: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4	
 	integer,parameter 	   					:: acurtest_fail = 50	! maximum number of error test failures, default = 10
 	integer,parameter 	   					:: convtest_fail = 50	! maximum number of convergence test failures, default = 10
