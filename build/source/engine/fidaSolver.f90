@@ -48,7 +48,7 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 USE globalData,only:diag_meta       ! metadata on the model diagnostic variables
 USE globalData,only:prog_meta       ! metadata on the model prognostic variables
 USE globalData,only:deriv_meta      ! metadata on the model derivatives
-
+USE globalData, only: tempPrintFlag
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J K-1)
@@ -476,6 +476,11 @@ contains
                  rVec,                  			& ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control 
                  
+!  if(tempPrintFlag)then
+!  	print *, 'rVec = ', rVec
+!  	print *, '----------------------------------------------------------------'
+!  end if
+                 
   
   select case(ixQuadrature)
        ! sum of flux
@@ -611,7 +616,7 @@ implicit none
 	integer(i4b),intent(out)            	:: retval				! return value
 
 	real(qp),parameter     					:: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
-	integer,parameter 	   					:: max_order = 5		! maximum BDF order,  default = 5
+	integer,parameter 	   					:: max_order = 1		! maximum BDF order,  default = 5
 	integer,parameter 	   					:: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4	
 	integer,parameter 	   					:: acurtest_fail = 50	! maximum number of error test failures, default = 10
 	integer,parameter 	   					:: convtest_fail = 50	! maximum number of convergence test failures, default = 10
