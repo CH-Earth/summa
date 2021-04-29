@@ -415,7 +415,7 @@ contains
  do while(tret(1) < dt) 
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)   
-  ! if( retval < 0 ) return
+  if( retval < 0 ) exit
   
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, dt_last)

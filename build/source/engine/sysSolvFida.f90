@@ -419,7 +419,7 @@ contains
  ! * solving F(y,y') = 0 by FIDA. Here, y is the state vector
  ! ------------------
  
- do tol_iter=1,5
+ do tol_iter=1,3
  
    ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
@@ -482,8 +482,9 @@ contains
    
   ! check if fida is successful
  if( .not.idaSucceeds )then
+  err = 20
   message=trim(message)//trim(cmessage)
-  reduceCoupledStep  = .true.
+! reduceCoupledStep  = .true.
   return
  endif
  
