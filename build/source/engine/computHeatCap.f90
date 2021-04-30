@@ -317,8 +317,6 @@ contains
                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
- ! provide access to external subroutines
- USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
@@ -419,7 +417,6 @@ contains
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to external subroutines
- USE snow_utils_module,only:tcond_snow            ! compute thermal conductivity of snow
  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
