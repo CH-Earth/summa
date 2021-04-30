@@ -270,7 +270,7 @@ contains
  where(ixStateType_subset==iname_liqCanopy) sMul = 1._dp             ! nothing else on the left hand side
 
 
- ! define the energy multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
+ ! define the energy multiplier for the state vector for residual calculations (snow-soil domain)
  if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    ixStateSubset        = ixSnowSoilNrg(iLayer)      ! index within the state vector

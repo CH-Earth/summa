@@ -470,6 +470,88 @@ contains
   if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial(iJac1:min(iJac2,nSnow))
   if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial(iJac1:min(iJac2,nSnow))
  endif
+ 
+ 
+ if(1==1)then
+
+ ! *** compute volumetric heat capacity C_p
+ call computHeatCapAnalytic(&
+                       ! input: control variables
+                       computeVegFlux,          		& ! intent(in): flag to denote if computing the vegetation flux
+                       canopyDepth,             		& ! intent(in): canopy depth (m)
+                       ! input: state variables
+                       scalarCanopyIceTrial,         	& ! intent(in)
+                       scalarCanopyLiqTrial,      		& ! intent(in)
+                       mLayerVolFracIceTrial,        	& ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiqTrial,        	& ! intent(in): fraction of liquid water at the start of the sub-step (-)
+                       ! input data structures
+                       mpar_data,               		& ! intent(in):    model parameters
+                       indx_data,               		& ! intent(in):    model layer indices
+                       ! output
+                       heatCapVegTrial,                 & ! intent(out)
+                       mLayerHeatCapTrial,              & ! intent(out)
+                       ! output: error control
+                       err,message)               		! intent(out): error control
+   
+   ! compute multiplier of state vector
+   call computStatMult(&
+                 ! input
+                 heatCapVegTrial,                  & ! intent(in) volumetric heat capacity of vegetation canopy
+                 mLayerHeatCapTrial,               & ! intent(in) volumetric heat capacity of soil and snow
+                 diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                 indx_data,                        & ! intent(in):    indices defining model states and layers
+                 ! output
+                 sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                 err,cmessage)                       ! intent(out):   error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ 
+   diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
+   diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
+   
+   ! update thermal conductivity
+   call computThermConduct(&
+                       ! input: control variables
+                       computeVegFlux,               & ! intent(in): flag to denote if computing the vegetation flux
+                       canopyDepth,                  & ! intent(in): canopy depth (m)
+                       ! input: state variables
+                       scalarCanopyIceTrial,         & ! intent(in)
+                       scalarCanopyLiqTrial,         & ! intent(in)
+                       mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                        ! input/output: data structures
+                       mpar_data,               & ! intent(in):    model parameters
+                       indx_data,               & ! intent(in):    model layer indices
+                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                       err,message)               ! intent(out): error control
+   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+   
+   ! compute C_m
+   call computCm(&
+                  ! input: control variables
+                  computeVegFlux,          	& ! intent(in): flag to denote if computing the vegetation flux
+                  ! input: state variables
+                  scalarCanopyTempTrial,    & ! intent(in)
+                  mLayerTempTrial,       	& ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                  mLayerMatricHeadTrial,    & ! intent(in)
+                  ! input data structures
+                  mpar_data,               	& ! intent(in):    model parameters
+                  indx_data,               	& ! intent(in):    model layer indices
+                  ! output
+                  scalarCanopyCmTrial,      & ! intent(out):   Cm for vegetation
+                  mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
+                  err,message)                ! intent(out): error control
+   
+   ! to conserve energy compute finite difference approximation of (theta_ice)'
+  ! scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
+  ! do concurrent (iLayer=1:nLayers)
+  !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+  ! end do
+  
+  end if
+ 
+  scalarCanopyCmTrial = 0._dp
+  mLayerCmTrial = 0._dp
 
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
@@ -536,86 +618,7 @@ contains
                  err,cmessage)                             ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
- if(1==1)then
 
- ! *** compute volumetric heat capacity C_p
- call computHeatCapAnalytic(&
-                       ! input: control variables
-                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in): canopy depth (m)
-                       ! input: state variables
-                       scalarCanopyIceTrial,         & ! intent(in)
-                       scalarCanopyLiqTrial,      & ! intent(in)
-                       mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                       mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                       ! input data structures
-                       mpar_data,               & ! intent(in):    model parameters
-                       indx_data,               & ! intent(in):    model layer indices
-                       ! output
-                       heatCapVegTrial,                   &
-                       mLayerHeatCapTrial,                    &
-                       ! output: error control
-                       err,message)               ! intent(out): error control
-   
-   ! compute multiplier of state vector
-   call computStatMult(&
-                 ! input
-                 heatCapVegTrial,                  & ! intent(in) volumetric heat capacity of vegetation canopy
-                 mLayerHeatCapTrial,               & ! intent(in) volumetric heat capacity of soil and snow
-                 diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
-                 indx_data,                        & ! intent(in):    indices defining model states and layers
-                 ! output
-                 sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                 err,cmessage)                       ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
-   diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
-   diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
-   
-   ! update thermal conductivity
-   call computThermConduct(&
-                       ! input: control variables
-                       computeVegFlux,               & ! intent(in): flag to denote if computing the vegetation flux
-                       canopyDepth,                  & ! intent(in): canopy depth (m)
-                       ! input: state variables
-                       scalarCanopyIceTrial,         & ! intent(in)
-                       scalarCanopyLiqTrial,         & ! intent(in)
-                       mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                       mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                        ! input/output: data structures
-                       mpar_data,               & ! intent(in):    model parameters
-                       indx_data,               & ! intent(in):    model layer indices
-                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       err,message)               ! intent(out): error control
-   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-   
-   ! compute C_m
-   call computCm(&
-                  ! input: control variables
-                  computeVegFlux,          	& ! intent(in): flag to denote if computing the vegetation flux
-                  ! input: state variables
-                  scalarCanopyTempTrial,    & ! intent(in)
-                  mLayerTempTrial,       	& ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                  mLayerMatricHeadTrial,    & ! intent(in)
-                  ! input data structures
-                  mpar_data,               	& ! intent(in):    model parameters
-                  indx_data,               	& ! intent(in):    model layer indices
-                  ! output
-                  scalarCanopyCmTrial,      & ! intent(out):   Cm for vegetation
-                  mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
-                  err,message)                ! intent(out): error control
-   
-   ! to conserve energy compute finite difference approximation of (theta_ice)'
-  ! scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
-  ! do concurrent (iLayer=1:nLayers)
-  !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-  ! end do
-  
-  end if
- 
-  scalarCanopyCmTrial = 0._dp
-  mLayerCmTrial = 0._dp
                     
 
  ! compute the residual vector
