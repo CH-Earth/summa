@@ -550,8 +550,8 @@ contains
   
   end if
  
-  scalarCanopyCmTrial = 0._dp
-  mLayerCmTrial = 0._dp
+!  scalarCanopyCmTrial = 0._dp
+!  mLayerCmTrial = 0._dp
 
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
