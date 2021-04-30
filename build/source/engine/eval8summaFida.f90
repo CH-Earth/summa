@@ -536,7 +536,7 @@ contains
                  err,cmessage)                             ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
- if(1==0)then
+ if(1==1)then
 
  ! *** compute volumetric heat capacity C_p
  call computHeatCapAnalytic(&

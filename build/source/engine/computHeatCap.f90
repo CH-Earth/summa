@@ -297,7 +297,7 @@ contains
  end subroutine computStatMult
  
   ! **********************************************************************************************************
- ! public subroutine computHeatCap: compute diagnostic energy variables (thermal conductivity and heat capacity)
+ ! public subroutine computHeatCapAnalytic: compute diagnostic energy variables (heat capacity)
  ! **********************************************************************************************************
  subroutine computHeatCapAnalytic(&
                        ! input: control variables

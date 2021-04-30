@@ -185,7 +185,7 @@ contains
  else
   scalarBulkVolHeatCapVeg = valueMissing
  end if
- !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
+
 
  ! loop through layers
  do iLayer=1,nLayers
