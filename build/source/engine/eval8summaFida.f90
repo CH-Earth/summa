@@ -241,7 +241,6 @@ contains
  real(dp),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
  ! enthalpy
  real(dp)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
- real(dp),dimension(nLayers)     :: mLayerHeatCapTrial        ! heat capacity of each snow+soil layer
  real(dp),dimension(nLayers)     :: mLayerEnthalpyPrime       ! enthalpy of each snow+soil layer (J m-3)
  ! other local variables
  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
@@ -251,7 +250,6 @@ contains
  real(dp)                        :: xMin,xMax                 ! minimum and maximum values for water content
  real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
- real(qp)                        :: heatCapVegTrial
  real(qp)                        :: scalarCanopyEnthalpyPrime
  logical(lgt)					 :: firstFluxCall
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
@@ -294,7 +292,9 @@ contains
  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
  ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
  ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
- layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat                 ,&  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+ heatCapVegTrial		 =>  diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) ,&  
+ mLayerHeatCapTrial		 =>  diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat         &
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -504,9 +504,6 @@ contains
                  sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
                  err,cmessage)                       ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
-   diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
-   diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
    
    ! update thermal conductivity
    call computThermConduct(&
