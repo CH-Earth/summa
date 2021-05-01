@@ -255,6 +255,9 @@ contains
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
+ logical(lgt),parameter			 :: updateCp=.true.
+ logical(lgt),parameter			 :: needCm=.true.
+ 
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -472,10 +475,9 @@ contains
  endif
  
  
- if(1==1)then
-
- ! *** compute volumetric heat capacity C_p
- call computHeatCapAnalytic(&
+ if(updateCp)then
+ 	! *** compute volumetric heat capacity C_p
+ 	call computHeatCapAnalytic(&
                        ! input: control variables
                        computeVegFlux,          		& ! intent(in): flag to denote if computing the vegetation flux
                        canopyDepth,             		& ! intent(in): canopy depth (m)
@@ -522,7 +524,10 @@ contains
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-   
+ end if ! updateCp
+ 
+ 
+ if(needCm)then   
    ! compute C_m
    call computCm(&
                   ! input: control variables
@@ -538,17 +543,11 @@ contains
                   scalarCanopyCmTrial,      & ! intent(out):   Cm for vegetation
                   mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
                   err,message)                ! intent(out): error control
+ else
+   scalarCanopyCmTrial = 0._dp
+   mLayerCmTrial = 0._dp
+ end if ! needCm
    
-   ! to conserve energy compute finite difference approximation of (theta_ice)'
-  ! scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
-  ! do concurrent (iLayer=1:nLayers)
-  !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-  ! end do
-  
-  end if
- 
-!  scalarCanopyCmTrial = 0._dp
-!  mLayerCmTrial = 0._dp
 
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1

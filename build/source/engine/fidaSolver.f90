@@ -170,7 +170,7 @@ contains
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
- real(qp),intent(inout)          :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
+ real(qp),intent(in)             :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
  real(dp), intent(inout)         :: dMat(:)
  ! input: data structures
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
