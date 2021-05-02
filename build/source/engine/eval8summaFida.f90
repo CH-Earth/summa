@@ -255,8 +255,8 @@ contains
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
- logical(lgt),parameter			 :: updateCp=.true.
- logical(lgt),parameter			 :: needCm=.true.
+ logical(lgt),parameter			 :: updateCp=.false.
+ logical(lgt),parameter			 :: needCm=.false.
  
 
 
@@ -544,8 +544,8 @@ contains
                   mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
                   err,message)                ! intent(out): error control
  else
-   scalarCanopyCmTrial = 0._dp
-   mLayerCmTrial = 0._dp
+   scalarCanopyCmTrial = 0._qp
+   mLayerCmTrial = 0._qp
  end if ! needCm
    
 

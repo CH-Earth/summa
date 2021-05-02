@@ -269,7 +269,8 @@ contains
  scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1)               ,& ! intent(in): [dp]     soil control on infiltration, zero or one
  ! canopy and layer depth
  canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)               ,& ! intent(in): [dp   ]  canopy depth (m)
- mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                         & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+ mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                        ,& ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat                 & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
  ) ! making association with data in structures
  ! --------------------------------------------------------------
  ! initialize error control
@@ -300,9 +301,16 @@ contains
  ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
  do iLayer=1,nLayers
   if(ixSnowSoilNrg(iLayer)/=integerMissing) then
-       dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
-                                     + LH_fus*iden_water  *  mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
-                                     + LH_fus*iden_water *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)   
+    select case( layerType(iLayer) )
+    	case(iname_snow)
+       		dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_ice*mLayerdTheta_dTk(iLayer) ) * cj &
+                                     	+ LH_fus*iden_ice  *  mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
+                                     	+ LH_fus*iden_ice *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)  
+    	case(iname_soil)
+       		dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
+                                     	+ LH_fus*iden_water  *  mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
+                                     	+ LH_fus*iden_water *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) 
+    end select
   end if
  end do
 
@@ -700,8 +708,8 @@ contains
 
        ! (cross-derivative terms for the current layer)
     !   print *, '3'  
-       aJac(nrgState,watState) = (-1._dp + mLayerFracLiqSnow(iLayer))*LH_fus*iden_water * cj  &
-                                 + LH_fus*iden_water * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
+       aJac(nrgState,watState) = (-1._dp + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj  &
+                                 + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
        aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
 
        ! (cross-derivative terms for the layer below)
