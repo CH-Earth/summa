@@ -374,7 +374,19 @@ contains
   ixEnd  = nSoil
  endif
  
- 
+  ! initialize to state variable from the last update
+ !scalarCanairTempTrial = scalarCanairTempPrev
+ scalarCanopyTempTrial = scalarCanopyTempPrev
+ !scalarCanopyWatTrial  = scalarCanopyWatPrev
+ !scalarCanopyLiqTrial  = scalarCanopyLiqPrev
+ scalarCanopyIceTrial  = scalarCanopyIcePrev
+ mLayerTempTrial           = mLayerTempPrev
+ mLayerVolFracWatTrial     = mLayerVolFracWatPrev
+ !mLayerVolFracLiqTrial     = mLayerVolFracLiqPrev
+ mLayerVolFracIceTrial     = mLayerVolFracIcePrev
+ mLayerMatricHeadTrial     = mLayerMatricHeadPrev      ! total water matric potential
+ !mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiqPrev   ! liquid water matric potential
+ !scalarAquiferStorageTrial = scalarAquiferStoragePrev
 
  ! extract variables from the model state vector
  call varExtract(&
@@ -401,7 +413,6 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
  
- 
   
  call varExtractFida(&                  
                  ! input
@@ -426,8 +437,6 @@ contains
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
- 
-
                  
  call updateVarsFida(&                
                  ! input
