@@ -255,8 +255,8 @@ contains
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
- logical(lgt),parameter			 :: updateCp=.false.
- logical(lgt),parameter			 :: needCm=.false.
+ logical(lgt),parameter			 :: updateCp=.true.
+ logical(lgt),parameter			 :: needCm=.true.
  
 
 
