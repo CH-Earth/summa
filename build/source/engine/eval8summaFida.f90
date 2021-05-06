@@ -96,6 +96,7 @@ contains
                        nLayers,                 & ! intent(in):    total number of layers
                        nState,                  & ! intent(in):    total number of state variables
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                       firstFluxCall,			& ! intent(inout)
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
@@ -167,6 +168,7 @@ contains
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
  integer,intent(in)              :: nState                 ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(inout)      :: firstFluxCall
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
@@ -251,7 +253,6 @@ contains
  real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: scalarCanopyEnthalpyPrime
- logical(lgt)					 :: firstFluxCall
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
@@ -560,7 +561,6 @@ contains
 
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
- firstFluxCall = .false.
  ! compute the fluxes for a given state vector
  call computFlux(&
                  ! input-output: model control
