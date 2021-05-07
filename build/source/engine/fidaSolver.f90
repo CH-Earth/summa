@@ -305,6 +305,9 @@ contains
   allocate( eqns_data%mLayerVolFracIceTrial(nLayers) )
   allocate( eqns_data%mLayerVolFracIcePrev(nLayers) )
   
+  allocate( eqns_data%mLayerVolFracLiqTrial(nLayers) )
+  allocate( eqns_data%mLayerVolFracLiqPrev(nLayers) )
+  
   allocate( eqns_data%mLayerEnthalpyTrial(nLayers) )
   allocate( eqns_data%mLayerEnthalpyPrev(nLayers) )
     
@@ -401,7 +404,8 @@ contains
  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) 
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
  eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
- eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)   
+ eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)  
+ eqns_data%mLayerVolFracLiqPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:) 
  eqns_data%mLayerMatricHeadPrev(:) 	= prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
  eqns_data%mLayerEnthalpyPrev(:) 	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
@@ -469,6 +473,8 @@ contains
                  eqns_data%mLayerVolFracWatPrev,     &
                  eqns_data%mLayerVolFracIceTrial,    &
                  eqns_data%mLayerVolFracIcePrev,     &
+                 eqns_data%mLayerVolFracLiqTrial,    &
+                 eqns_data%mLayerVolFracLiqPrev,     &                 
                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out)
                  ! output
@@ -520,6 +526,7 @@ contains
    eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
    eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
    eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
+   eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
 
@@ -553,6 +560,7 @@ contains
   deallocate( eqns_data%mLayerTempPrev )
   deallocate( eqns_data%mLayerTempTrial )
   deallocate( eqns_data%mLayerVolFracIcePrev )
+  deallocate( eqns_data%mLayerVolFracLiqPrev )
   deallocate( eqns_data%mLayerEnthalpyTrial )
   deallocate( eqns_data%mLayerEnthalpyPrev )
   

@@ -135,6 +135,8 @@ contains
                        mLayerVolFracWatPrev,    & !intent(inout)
                        mLayerVolFracIceTrial,   & !intent(inout)
                        mLayerVolFracIcePrev,    & !intent(in)
+                       mLayerVolFracLiqTrial,   & !intent(inout)
+                       mLayerVolFracLiqPrev,    & !intent(in)
                        mLayerEnthalpyPrev,      & ! intent(in)
                        mLayerEnthalpyTrial,     & ! intent(out)
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
@@ -207,6 +209,8 @@ contains
  real(dp),intent(in)             :: mLayerVolFracWatPrev(:)
  real(dp),intent(inout)          :: mLayerVolFracIceTrial(:)
  real(dp),intent(in)             :: mLayerVolFracIcePrev(:)
+ real(dp),intent(inout)          :: mLayerVolFracLiqTrial(:)
+ real(dp),intent(in)             :: mLayerVolFracLiqPrev(:)
  real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
  real(dp),intent(out)            :: mLayerEnthalpyTrial(:)
  logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
@@ -225,7 +229,6 @@ contains
  real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
  real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
  
   ! derivative of state variables
  real(dp)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
