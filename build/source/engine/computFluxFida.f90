@@ -115,6 +115,7 @@ contains
                        drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
                        mLayerVolFracIce,		 & ! intent(in)
+                       mLayerMatricHead,		 & ! intent(in)
                        scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
                        scalarCanopyTempTrial,    & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                        mLayerTempTrial,          & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
@@ -167,7 +168,8 @@ contains
  logical(lgt),intent(in)         :: scalarSolution              ! flag to denote if implementing the scalar solution
  real(dp),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
- real(dp),intent(in)			 :: mLayerVolFracIce(:)		 	!
+ real(dp),intent(in)			 :: mLayerVolFracIce(:)		 	! 
+ real(dp),intent(in)			 :: mLayerMatricHead(:)			! 
  real(dp),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
  real(dp),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
  real(dp),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)

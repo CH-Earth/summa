@@ -257,7 +257,7 @@ contains
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
  logical(lgt),parameter			 :: updateCp=.true.
- logical(lgt),parameter			 :: needCm=.true.
+ logical(lgt),parameter			 :: needCm=.false.
  
 
 
@@ -576,6 +576,7 @@ contains
                  scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
                  mLayerVolFracIcePrev,		& ! intent(in)
+                 mLayerMatricHeadPrev,		& ! intent(in)
                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                  mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)

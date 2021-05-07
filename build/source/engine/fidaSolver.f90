@@ -413,7 +413,7 @@ contains
  !********************************************************************************** 
  tret(1) = t0                                
  do while(tret(1) < dt) 
-  eqns_data%firstFluxCall = .false.
+  eqns_data%firstFluxCall = .true.
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)   
   if( retval < 0 ) exit
