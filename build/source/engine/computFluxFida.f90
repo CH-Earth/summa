@@ -146,7 +146,7 @@ contains
                        ! output: error control
                        err,message)               ! intent(out):   error code and error message
  ! provide access to flux subroutines
- USE vegNrgFlux_module,only:vegNrgFlux            ! compute energy fluxes over vegetation
+ USE vegNrgFluxFida_module,only:vegNrgFluxFida            ! compute energy fluxes over vegetation
  USE ssdNrgFlux_module,only:ssdNrgFlux            ! compute energy fluxes throughout the snow and soil subdomains
  USE vegLiqFlux_module,only:vegLiqFlux            ! compute liquid water fluxes through vegetation
  USE snowLiqFlx_module,only:snowLiqFlxFida            ! compute liquid water fluxes through snow
@@ -407,7 +407,7 @@ contains
   dCanLiq_dTcanopy = dTheta_dTkCanopy*iden_water*canopyDepth  ! kg m-2 K-1
 
   ! calculate the energy fluxes over vegetation
-  call vegNrgFlux(&
+  call vegNrgFluxFida(&
                   ! input: model control
                   firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                   firstFluxCall,                          & ! intent(in): flag to indicate if we are processing the first flux call
@@ -419,6 +419,7 @@ contains
                   mLayerTempTrial(1),                     & ! intent(in): trial value of ground temperature (K)
                   scalarCanopyIceTrial,                   & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                   scalarCanopyLiqTrial,                   & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                  mLayerMatricHead,						  & ! intent(in)
                   ! input: model derivatives
                   dCanLiq_dTcanopy,                       & ! intent(in): derivative in canopy liquid storage w.r.t. canopy temperature (kg m-2 K-1)
                   ! input/output: data structures

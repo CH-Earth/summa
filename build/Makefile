@@ -207,6 +207,7 @@ SUMMA_SOLVER= \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
 		vegNrgFlux.f90 \
+		vegNrgFluxFida.f90 \
 		ssdNrgFlux.f90 \
 		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \

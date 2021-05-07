@@ -138,6 +138,7 @@ contains
                        groundTempTrial,                         & ! intent(in): trial value of ground temperature (K)
                        canopyIceTrial,                          & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                        canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                       mLayerMatricHead,						& ! intent(in)
 
                        ! input: model derivatives
                        dCanLiq_dTcanopy,                        & ! intent(in): derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
@@ -219,6 +220,7 @@ contains
  real(dp),intent(in)             :: groundTempTrial                 ! trial value of ground temperature (K)
  real(dp),intent(in)             :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp),intent(in)			 :: mLayerMatricHead(:)				! 
 
  ! input: model derivatives
  real(dp),intent(in)             :: dCanLiq_dTcanopy                ! intent(in): derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
@@ -508,7 +510,6 @@ contains
  scalarSWE                       => prog_data%var(iLookPROG%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
  scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
  mLayerVolFracLiq                => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,                  & ! intent(in): [dp(:)] volumetric fraction of liquid water in each layer (-)
- mLayerMatricHead                => prog_data%var(iLookPROG%mLayerMatricHead)%dat,                  & ! intent(in): [dp(:)] matric head in each soil layer (m)
  localAquiferStorage             => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1),           & ! intent(in): [dp]    aquifer storage for the local column (m)
  basinAquiferStorage             => bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),          & ! intent(in): [dp]    aquifer storage for the single basin (m)
 
