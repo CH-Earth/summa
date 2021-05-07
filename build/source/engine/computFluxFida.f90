@@ -115,6 +115,7 @@ contains
                        drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
                        mLayerVolFracIce,		 & ! intent(in)
+                       mLayerVolFracLiq,		 & ! intent(in)
                        mLayerMatricHead,		 & ! intent(in)
                        scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
                        scalarCanopyTempTrial,    & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
@@ -169,6 +170,7 @@ contains
  real(dp),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
  real(dp),intent(in)			 :: mLayerVolFracIce(:)		 	! 
+ real(dp),intent(in)			 :: mLayerVolFracLiq(:)		 	! 
  real(dp),intent(in)			 :: mLayerMatricHead(:)			! 
  real(dp),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
  real(dp),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
@@ -420,6 +422,7 @@ contains
                   scalarCanopyIceTrial,                   & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                   scalarCanopyLiqTrial,                   & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
                   mLayerMatricHead,						  & ! intent(in)
+                  mLayerVolFracLiq,						  & ! intent(in)
                   ! input: model derivatives
                   dCanLiq_dTcanopy,                       & ! intent(in): derivative in canopy liquid storage w.r.t. canopy temperature (kg m-2 K-1)
                   ! input/output: data structures

@@ -580,6 +580,7 @@ contains
                  ! input: state variables
                  mLayerVolFracIcePrev,		& ! intent(in)
                  mLayerMatricHeadPrev,		& ! intent(in)
+                 mLayerVolFracLiqPrev,		& ! intent(in)
                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                  mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
