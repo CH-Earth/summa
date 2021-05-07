@@ -386,7 +386,7 @@ contains
  ! NOTE: used in the energy routines, which is called before the hydrology routines
  if(firstFluxCall)then
   if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._dp
-                iLayerLiqFluxSoil(0:nSoil) = 0._dp
+  iLayerLiqFluxSoil(0:nSoil) = 0._dp
  end if
 
  ! *****
