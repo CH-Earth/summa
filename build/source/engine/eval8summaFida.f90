@@ -196,24 +196,24 @@ contains
  ! input-output: baseflow
  real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
- real(dp),intent(inout)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(dp),intent(out)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
  real(dp),intent(in)             :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
- real(dp),intent(inout)          :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(out)          :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: scalarCanopyIcePrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(inout)          :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
+ real(dp),intent(out)          :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
  real(dp),intent(in)             :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(inout)          :: mLayerTempTrial(:)
+ real(dp),intent(out)          :: mLayerTempTrial(:)
  real(dp),intent(in)             :: mLayerTempPrev(:)
- real(dp),intent(inout)          :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
- real(dp),intent(inout)          :: mLayerMatricHeadTrial(:)  ! trial value for liquid water matric potential (m)
+ real(dp),intent(out)          :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
+ real(dp),intent(out)          :: mLayerMatricHeadTrial(:)  ! trial value for liquid water matric potential (m)
  real(dp),intent(in)             :: mLayerMatricHeadPrev(:)
- real(dp),intent(inout)          :: mLayerVolFracWatTrial(:)
+ real(dp),intent(out)          :: mLayerVolFracWatTrial(:)
  real(dp),intent(in)             :: mLayerVolFracWatPrev(:)
- real(dp),intent(inout)          :: mLayerVolFracIceTrial(:)
+ real(dp),intent(out)          :: mLayerVolFracIceTrial(:)
  real(dp),intent(in)             :: mLayerVolFracIcePrev(:)
- real(dp),intent(inout)          :: mLayerVolFracLiqTrial(:)
+ real(dp),intent(out)          :: mLayerVolFracLiqTrial(:)
  real(dp),intent(in)             :: mLayerVolFracLiqPrev(:)
- real(dp),intent(inout)          :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m) 
+ real(dp),intent(out)          :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m) 
  real(dp),intent(in)             :: scalarAquiferStoragePrev  ! previous value of storage of water in the aquifer (m)
  real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
  real(dp),intent(out)            :: mLayerEnthalpyTrial(:)
@@ -262,7 +262,7 @@ contains
  integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
- logical(lgt),parameter			 :: updateCp=.true.
+ logical(lgt),parameter			 :: updateCp=.false.
  logical(lgt),parameter			 :: needCm=.false.
  
 

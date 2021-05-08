@@ -660,7 +660,7 @@ contains
                   ! input-output: data structures
                   mpar_data,                                 & ! intent(in):    model parameters
                   indx_data,                                 & ! intent(in):    model indices
-                  prog_data,                                 & ! intent(inout): model prognostic variables for a local HRU
+                  prog_data,                                 & ! intent(in): model prognostic variables for a local HRU
                   diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                   flux_data,                                 & ! intent(inout): model fluxes for a local HRU
                   ! output: diagnostic variables for surface runoff
