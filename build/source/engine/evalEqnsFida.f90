@@ -145,6 +145,8 @@ contains
                  eqns_data%mLayerVolFracIcePrev,   	&
                  eqns_data%mLayerVolFracLiqTrial,   &
                  eqns_data%mLayerVolFracLiqPrev,   	&
+                 eqns_data%scalarAquiferStorageTrial, &
+                 eqns_data%scalarAquiferStoragePrev, &   
                  eqns_data%mLayerEnthalpyPrev,      & ! intent(in)
                  eqns_data%mLayerEnthalpyTrial,     & ! intent(out)                
                  ! output

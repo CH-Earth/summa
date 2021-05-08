@@ -408,6 +408,7 @@ contains
  eqns_data%mLayerVolFracLiqPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:) 
  eqns_data%mLayerMatricHeadPrev(:) 	= prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
  eqns_data%mLayerEnthalpyPrev(:) 	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+ eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
   
@@ -474,7 +475,9 @@ contains
                  eqns_data%mLayerVolFracIceTrial,    &
                  eqns_data%mLayerVolFracIcePrev,     &
                  eqns_data%mLayerVolFracLiqTrial,    &
-                 eqns_data%mLayerVolFracLiqPrev,     &                 
+                 eqns_data%mLayerVolFracLiqPrev,     &   
+                 eqns_data%scalarAquiferStorageTrial, &
+                 eqns_data%scalarAquiferStoragePrev, &              
                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out)
                  ! output
@@ -527,6 +530,7 @@ contains
    eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
    eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
    eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
+   eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
 

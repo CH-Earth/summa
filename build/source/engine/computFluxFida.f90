@@ -114,6 +114,7 @@ contains
                        scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
                        drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
+                       scalarAquiferStorage,	 & ! intent(in)
                        mLayerVolFracIce,		 & ! intent(in)
                        mLayerVolFracLiq,		 & ! intent(in)
                        mLayerMatricHead,		 & ! intent(in)
@@ -169,6 +170,7 @@ contains
  logical(lgt),intent(in)         :: scalarSolution              ! flag to denote if implementing the scalar solution
  real(dp),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
+ real(dp),intent(in)			 :: scalarAquiferStorage
  real(dp),intent(in)			 :: mLayerVolFracIce(:)		 	! 
  real(dp),intent(in)			 :: mLayerVolFracLiq(:)		 	! 
  real(dp),intent(in)			 :: mLayerMatricHead(:)			! 

@@ -58,8 +58,10 @@ implicit none
    real(dp), allocatable              	:: mLayerVolFracWatPrev(:)			! value for volumetric fraction of total water (-) at previous step
    real(dp), allocatable              	:: mLayerVolFracIceTrial(:)     	! trial value for volumetric fraction of ice (-)
    real(dp), allocatable              	:: mLayerVolFracIcePrev(:)			! value for volumetric fraction of ice (-) at previous step
-   real(dp), allocatable              	:: mLayerVolFracLiqTrial(:)     	! trial value for volumetric fraction of ice (-)
-   real(dp), allocatable              	:: mLayerVolFracLiqPrev(:)			! value for volumetric fraction of ice (-) at previous step
+   real(dp), allocatable              	:: mLayerVolFracLiqTrial(:)     	! trial value for volumetric fraction of liquid water (-)
+   real(dp), allocatable              	:: mLayerVolFracLiqPrev(:)			! value for volumetric fraction of liquid water (-) at previous step
+   real(dp)								:: scalarAquiferStoragePrev
+   real(dp)								:: scalarAquiferStorageTrial
    real(dp), allocatable              	:: mLayerEnthalpyTrial(:)			! trial enthalpy of snow and soil (J m-3)
    real(dp), allocatable              	:: mLayerEnthalpyPrev(:)			! enthalpy of snow and soil (J m-3) at previous step
    real(dp), allocatable              	:: mLayerTempTrial(:)				! trial vector of layer temperature (K)

@@ -137,6 +137,8 @@ contains
                        mLayerVolFracIcePrev,    & !intent(in)
                        mLayerVolFracLiqTrial,   & !intent(inout)
                        mLayerVolFracLiqPrev,    & !intent(in)
+                       scalarAquiferStorageTrial, & 
+                 	   scalarAquiferStoragePrev, &   
                        mLayerEnthalpyPrev,      & ! intent(in)
                        mLayerEnthalpyTrial,     & ! intent(out)
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
@@ -211,6 +213,8 @@ contains
  real(dp),intent(in)             :: mLayerVolFracIcePrev(:)
  real(dp),intent(inout)          :: mLayerVolFracLiqTrial(:)
  real(dp),intent(in)             :: mLayerVolFracLiqPrev(:)
+ real(dp),intent(inout)          :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m) 
+ real(dp),intent(in)             :: scalarAquiferStoragePrev  ! previous value of storage of water in the aquifer (m)
  real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
  real(dp),intent(out)            :: mLayerEnthalpyTrial(:)
  logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
@@ -226,7 +230,6 @@ contains
  ! state variables
  real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
  real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
  real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
  
@@ -578,9 +581,10 @@ contains
                  scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                  scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
+                 scalarAquiferStoragePrev,  & ! intent(in)
                  mLayerVolFracIcePrev,		& ! intent(in)
-                 mLayerMatricHeadPrev,		& ! intent(in)
                  mLayerVolFracLiqPrev,		& ! intent(in)
+                 mLayerMatricHeadPrev,		& ! intent(in)
                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                  mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
