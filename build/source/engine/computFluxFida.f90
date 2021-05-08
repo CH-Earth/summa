@@ -423,6 +423,7 @@ contains
                   mLayerTempTrial(1),                     & ! intent(in): trial value of ground temperature (K)
                   scalarCanopyIceTrial,                   & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                   scalarCanopyLiqTrial,                   & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                  scalarAquiferStorage,				      & ! intent(in)
                   mLayerMatricHead,						  & ! intent(in)
                   mLayerVolFracLiq,						  & ! intent(in)
                   ! input: model derivatives

@@ -138,6 +138,7 @@ contains
                        groundTempTrial,                         & ! intent(in): trial value of ground temperature (K)
                        canopyIceTrial,                          & ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
                        canopyLiqTrial,                          & ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+                       localAquiferStorage,						& ! intent(in)
                        mLayerMatricHead,						& ! intent(in)
                        mLayerVolFracLiq,						& ! intent(in)
 
@@ -221,6 +222,7 @@ contains
  real(dp),intent(in)             :: groundTempTrial                 ! trial value of ground temperature (K)
  real(dp),intent(in)             :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp),intent(in)			 :: localAquiferStorage
  real(dp),intent(in)			 :: mLayerMatricHead(:)				! 
  real(dp),intent(in)			 :: mLayerVolFracLiq(:)
 
@@ -511,7 +513,6 @@ contains
  ! NOTE: soil stress only computed at the start of the substep (firstFluxCall=.true.)
  scalarSWE                       => prog_data%var(iLookPROG%scalarSWE)%dat(1),                      & ! intent(in): [dp]    snow water equivalent on the ground (kg m-2)
  scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),                & ! intent(in): [dp]    snow depth on the ground surface (m)
- localAquiferStorage             => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1),           & ! intent(in): [dp]    aquifer storage for the local column (m)
  basinAquiferStorage             => bvar_data%var(iLookBVAR%basin__AquiferStorage)%dat(1),          & ! intent(in): [dp]    aquifer storage for the single basin (m)
 
  ! input: shortwave radiation fluxes

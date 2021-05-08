@@ -389,16 +389,16 @@ contains
  scalarCanopyIceTrial  = scalarCanopyIcePrev
  mLayerTempTrial           = mLayerTempPrev
  mLayerVolFracWatTrial     = mLayerVolFracWatPrev
- !mLayerVolFracLiqTrial     = mLayerVolFracLiqPrev
+ mLayerVolFracLiqTrial     = mLayerVolFracLiqPrev
  mLayerVolFracIceTrial     = mLayerVolFracIcePrev
  mLayerMatricHeadTrial     = mLayerMatricHeadPrev      ! total water matric potential
  !mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiqPrev   ! liquid water matric potential
- !scalarAquiferStorageTrial = scalarAquiferStoragePrev
+ scalarAquiferStorageTrial = scalarAquiferStoragePrev
 
  ! extract variables from the model state vector
  call varExtract(&
                  ! input
-                 stateVec,            & ! intent(in):    model state vector (mixed units)
+                 stateVec,                 & ! intent(in):    model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
