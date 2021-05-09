@@ -750,7 +750,7 @@ contains
                    nLayers,                                 & ! intent(in):    total number of layers
                    firstFluxCall,                           & ! intent(in):    logical flag to compute index of the lowest saturated layer
                    ! input: state and diagnostic variables
-                   mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+                   mLayerdTheta_dPsi,                       & ! intent(in):    derivative in the soil water characteristic w.r.t. matric head
                    mLayerMatricHeadLiqTrial,                & ! intent(in):    liquid water matric potential (m)
                    mLayerVolFracLiqTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of liquid water (-)
                    mLayerVolFracIceTrial(nSnow+1:nLayers),  & ! intent(in):    volumetric fraction of ice (-)
