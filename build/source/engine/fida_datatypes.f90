@@ -26,6 +26,7 @@ implicit none
    integer(i4b)         				:: ixMatrix               			! form of matrix (dense or banded)
    logical(lgt)         				:: firstSubStep           			! flag to indicate if we are processing the first sub-step
    logical(lgt)							:: firstFluxCall
+   logical(lgt)							:: firstSplitOper
    logical(lgt)         				:: computeVegFlux         			! flag to indicate if computing fluxes over vegetation
    logical(lgt)         				:: scalarSolution         			! flag to denote if implementing the scalar solution
    type(zLookup)         				:: lookup_data            			! lookup tables

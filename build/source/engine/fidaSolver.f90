@@ -418,13 +418,15 @@ contains
  !********************************************************************************** 
  tret(1) = t0                                
  do while(tret(1) < dt) 
-  eqns_data%firstFluxCall = .false.
+  eqns_data%firstFluxCall = .true.
+  eqns_data%firstSplitOper = .false.
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)   
   if( retval < 0 ) exit
   
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, dt_last)
+  eqns_data%firstSplitOper = .true.
     
   ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
@@ -437,6 +439,7 @@ contains
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  eqns_data%firstFluxCall,           & ! intent(inout)
+                 eqns_data%firstSplitOper,			& ! intent(in)
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
