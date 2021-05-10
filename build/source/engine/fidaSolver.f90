@@ -121,6 +121,7 @@ contains
                        flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! output 
+                       ixSaturation,			& ! intent(out)
                        idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
                        dt_last,                 & ! intent(out):   last stepsize 
@@ -189,6 +190,7 @@ contains
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  real(dp),intent(inout)          :: mLayerCmpress_sum(:)
  ! output: state vectors
+ integer(i4b),intent(out)		 :: ixSaturation		   
  real(dp),intent(inout)          :: stateVec(:)            ! model state vector (y)
  real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector (y')
  logical(lgt),intent(out)		 :: idaSucceeds
@@ -411,6 +413,7 @@ contains
  eqns_data%mLayerEnthalpyPrev(:) 	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
+ eqns_data%ixSaturation = ixSaturation
   
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -482,6 +485,7 @@ contains
                  eqns_data%scalarAquiferStoragePrev, &              
                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out)
+                 eqns_data%ixSaturation,			 &
                  ! output
                  feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                 & ! intent(out):   flux vector
@@ -540,13 +544,15 @@ contains
  
  !****************************** End of Main Solver ***************************************
  
-  ! copy to output data      
-  diag_data 		= eqns_data%diag_data              
-  flux_data 		= eqns_data%flux_data             
-  deriv_data 		= eqns_data%deriv_data    
+    
   err 				= eqns_data%err
   message 			= eqns_data%message   
   if( tret(1) == dt .and. feasible)then
+      ! copy to output data      
+  	diag_data 		= eqns_data%diag_data              
+  	flux_data 		= eqns_data%flux_data             
+  	deriv_data 		= eqns_data%deriv_data
+  	ixSaturation    = eqns_data%ixSaturation
   	idaSucceeds = .true.
   endif     
   

@@ -68,6 +68,7 @@ implicit none
    real(dp), allocatable              	:: mLayerTempTrial(:)				! trial vector of layer temperature (K)
    real(dp), allocatable              	:: mLayerTempPrev(:)				! vector of layer temperature (K) at previous step
    real(dp), allocatable              	:: dBaseflow_dMatric(:,:) 			! derivative in baseflow w.r.t. matric head (s-1)
+   integer								:: ixSaturation
    integer(i4b)          				:: err                    			! error code
    character(len = 50)          		:: message                			! error message
  end type eqnsData

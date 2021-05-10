@@ -142,6 +142,7 @@ contains
                  	   scalarAquiferStoragePrev, &   
                        mLayerEnthalpyPrev,      & ! intent(in)
                        mLayerEnthalpyTrial,     & ! intent(out)
+                       ixSaturation,			& ! intent(inout)
                        feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                        fluxVec,                 & ! intent(out):   flux vector
                        resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
@@ -219,6 +220,7 @@ contains
  real(dp),intent(in)             :: scalarAquiferStoragePrev  ! previous value of storage of water in the aquifer (m)
  real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
  real(dp),intent(out)            :: mLayerEnthalpyTrial(:)
+ integer(i4b),intent(inout)      :: ixSaturation              ! index of the lowest saturated layer
  logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
  real(dp),intent(out)            :: fluxVec(:)             ! flux vector
  real(dp),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
@@ -261,7 +263,6 @@ contains
  real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: scalarCanopyEnthalpyPrime
- integer(i4b)                    :: ixSaturation              ! index of the lowest saturated layer
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
  logical(lgt),parameter			 :: updateCp=.false.

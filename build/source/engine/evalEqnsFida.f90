@@ -149,7 +149,8 @@ contains
                  eqns_data%scalarAquiferStorageTrial, &
                  eqns_data%scalarAquiferStoragePrev, &   
                  eqns_data%mLayerEnthalpyPrev,      & ! intent(in)
-                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out)                
+                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out)   
+                 eqns_data%ixSaturation,			& ! intent(inout)             
                  ! output
                  feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                 & ! intent(out):   flux vector

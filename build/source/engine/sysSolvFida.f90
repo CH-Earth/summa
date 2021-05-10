@@ -462,6 +462,7 @@ contains
                  flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output
+                 ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
                  dt_last,                 & ! intent(out):	 last stepsize 
