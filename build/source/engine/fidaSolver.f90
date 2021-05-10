@@ -418,15 +418,14 @@ contains
  !********************************************************************************** 
  tret(1) = t0                                
  do while(tret(1) < dt) 
-  eqns_data%firstFluxCall = .true.
-  eqns_data%firstSplitOper = .false.
+  eqns_data%firstFluxCall = .false.
+  eqns_data%firstSplitOper = .true.
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)   
   if( retval < 0 ) exit
   
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, dt_last)
-  eqns_data%firstSplitOper = .true.
     
   ! compute the flux and the residual vector for a given state vector
   call eval8summaFida(&
