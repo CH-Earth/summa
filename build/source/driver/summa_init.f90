@@ -175,9 +175,9 @@ contains
  ncid(:) = integerMissing
 
  ! initialize the elapsed time for cumulative quantities
- elapsedRead=0._dp
- elapsedWrite=0._dp
- elapsedPhysics=0._dp
+ elapsedRead=0._rkind
+ elapsedWrite=0._rkind
+ elapsedPhysics=0._rkind
 
  ! get the command line arguments
  call getCommandArguments(summa1_struc,err,cmessage)
