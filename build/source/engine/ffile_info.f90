@@ -74,7 +74,7 @@ contains
  integer(i4b)                         :: nForcing         ! number of forcing variables
  integer(i4b)                         :: iGRU,localHRU_ix ! index of GRU and HRU
  integer(8)                           :: ncHruId(1)       ! hruID from the forcing files
- real(dp)                             :: dataStep_iFile   ! data step for a given forcing data file
+ real(rk)                             :: dataStep_iFile   ! data step for a given forcing data file
  logical(lgt)                         :: xist             ! .TRUE. if the file exists
 
  ! Start procedure here

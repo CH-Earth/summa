@@ -3,7 +3,7 @@ USE nrtype
 ! contains functions that should really be part of the fortran standard, but are not
 implicit none
 INTERFACE arth
- MODULE PROCEDURE arth_r, arth_d, arth_i
+ MODULE PROCEDURE arth_d, arth_i
 END INTERFACE
 ! (everything private unless otherwise specifed)
 private
@@ -15,25 +15,25 @@ contains
  ! *************************************************************************************************
  ! * the arth function, used to build a vector of regularly spaced numbers
  ! *************************************************************************************************
- FUNCTION arth_r(first,increment,n)
- implicit none
- REAL(SP), INTENT(IN) :: first,increment
- INTEGER(I4B), INTENT(IN) :: n
- REAL(SP), DIMENSION(n) :: arth_r
- INTEGER(I4B) :: k
- arth_r(1)=first
- if(n>1)then
-  do k=2,n
-   arth_r(k) = arth_r(k-1) + increment
-  end do
- end if
- END FUNCTION arth_r
+ !FUNCTION arth_r(first,increment,n)
+ !implicit none
+ !REAL(SP), INTENT(IN) :: first,increment
+ !INTEGER(I4B), INTENT(IN) :: n
+ !REAL(SP), DIMENSION(n) :: arth_r
+ !INTEGER(I4B) :: k
+ !arth_r(1)=first
+ !if(n>1)then
+ ! do k=2,n
+ !  arth_r(k) = arth_r(k-1) + increment
+ ! end do
+ !end if
+ !END FUNCTION arth_r
  ! ------------------------------------------------------------------------------------------------
  FUNCTION arth_d(first,increment,n)
  implicit none
- REAL(DP), INTENT(IN) :: first,increment
+ real(rk), INTENT(IN) :: first,increment
  INTEGER(I4B), INTENT(IN) :: n
- REAL(DP), DIMENSION(n) :: arth_d
+ real(rk), DIMENSION(n) :: arth_d
  INTEGER(I4B) :: k
  arth_d(1)=first
  if(n>1)then
@@ -62,11 +62,11 @@ contains
  SUBROUTINE indexx(arr,index)
  IMPLICIT NONE
  !INTEGER(I4B), DIMENSION(:), INTENT(IN) :: arr
- REAL(DP), DIMENSION(:), INTENT(IN) :: arr
+ real(rk), DIMENSION(:), INTENT(IN) :: arr
  INTEGER(I4B), DIMENSION(:), INTENT(OUT) :: index
  INTEGER(I4B), PARAMETER :: NN=15, NSTACK=50
  !INTEGER(I4B) :: a
- REAL(DP) :: a
+ real(rk) :: a
  INTEGER(I4B) :: n,k,i,j,indext,jstack,l,r
  INTEGER(I4B), DIMENSION(NSTACK) :: istack
  n=size(arr)

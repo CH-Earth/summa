@@ -75,18 +75,18 @@ contains
  logical(lgt),intent(in)         :: firstFluxCall              ! the first flux call
  logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution
  ! input: forcing for the snow domain
- real(dp),intent(in)             :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
- real(dp),intent(in)             :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
+ real(rk),intent(in)             :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
+ real(rk),intent(in)             :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
  ! input: model state vector
- real(dp),intent(in)             :: mLayerVolFracLiqTrial(:)   ! trial value of volumetric fraction of liquid water at the current iteration (-)
+ real(rk),intent(in)             :: mLayerVolFracLiqTrial(:)   ! trial value of volumetric fraction of liquid water at the current iteration (-)
  ! input-output: data structures
  type(var_ilength),intent(in)    :: indx_data                  ! model indices
  type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
  type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                  ! diagnostic variables for a local HRU
  ! output: fluxes and derivatives
- real(dp),intent(inout)          :: iLayerLiqFluxSnow(0:)      ! vertical liquid water flux at layer interfaces (m s-1)
- real(dp),intent(inout)          :: iLayerLiqFluxSnowDeriv(0:) ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+ real(rk),intent(inout)          :: iLayerLiqFluxSnow(0:)      ! vertical liquid water flux at layer interfaces (m s-1)
+ real(rk),intent(inout)          :: iLayerLiqFluxSnowDeriv(0:) ! derivative in vertical liquid water flux at layer interfaces (m s-1)
  ! output: error control
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
@@ -96,12 +96,12 @@ contains
  integer(i4b)                    :: iLayer                     ! layer index
  integer(i4b)                    :: ixTop                      ! top layer in subroutine call
  integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
- real(dp)                        :: multResid                  ! multiplier for the residual water content (-)
- real(dp),parameter              :: residThrs=550._dp          ! ice density threshold to reduce residual liquid water content (kg m-3)
- real(dp),parameter              :: residScal=10._dp           ! scaling factor for residual liquid water content reduction factor (kg m-3)
- real(dp),parameter              :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
- real(dp)                        :: availCap                   ! available storage capacity [0,1] (-)
- real(dp)                        :: relSaturn                  ! relative saturation [0,1] (-)
+ real(rk)                        :: multResid                  ! multiplier for the residual water content (-)
+ real(rk),parameter              :: residThrs=550._rk          ! ice density threshold to reduce residual liquid water content (kg m-3)
+ real(rk),parameter              :: residScal=10._rk           ! scaling factor for residual liquid water content reduction factor (kg m-3)
+ real(rk),parameter              :: maxVolIceContent=0.7_rk    ! maximum volumetric ice content to store water (-)
+ real(rk)                        :: availCap                   ! available storage capacity [0,1] (-)
+ real(rk)                        :: relSaturn                  ! relative saturation [0,1] (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&
@@ -128,7 +128,7 @@ contains
  end if
 
  ! check the meltwater exponent is >=1
- if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
+ if(mw_exp<1._rk)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
  ! get the indices for the snow+soil layers
  ixTop = integerMissing
@@ -159,16 +159,16 @@ contains
 
  ! define the liquid flux at the upper boundary (m s-1)
  iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
- iLayerLiqFluxSnowDeriv(0) = 0._dp
+ iLayerLiqFluxSnowDeriv(0) = 0._rk
 
  ! compute properties fixed over the time step
  if(firstFluxCall)then
   ! loop through snow layers
   do iLayer=1,nSnow
    ! compute the reduction in liquid water holding capacity at high snow density (-)
-   multResid = 1._dp / ( 1._dp + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
+   multResid = 1._rk / ( 1._rk + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
    ! compute the pore space (-)
-   mLayerPoreSpace(iLayer)  = 1._dp - mLayerVolFracIce(iLayer)
+   mLayerPoreSpace(iLayer)  = 1._rk - mLayerVolFracIce(iLayer)
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
   end do  ! (looping through snow layers)
@@ -182,14 +182,14 @@ contains
    availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
    relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
-   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
+   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rk)
    if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
      ! ** allow liquid water to pass through under very high ice density
      iLayerLiqFluxSnow(iLayer) = iLayerLiqFluxSnow(iLayer) + iLayerLiqFluxSnow(iLayer-1) !NOTE: derivative may need to be updated in future.
    end if
   else  ! flow does not occur
-   iLayerLiqFluxSnow(iLayer)      = 0._dp
-   iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
+   iLayerLiqFluxSnow(iLayer)      = 0._rk
+   iLayerLiqFluxSnowDeriv(iLayer) = 0._rk
   endif  ! storage above residual content
  end do  ! loop through snow layers
 

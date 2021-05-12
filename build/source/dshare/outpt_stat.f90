@@ -54,7 +54,7 @@ contains
  character(256)                 :: cmessage         ! error message
  integer(i4b)                   :: iVar             ! index for varaiable loop
  integer(i4b)                   :: pVar             ! index into parent structure
- real(dp)                       :: tdata            ! dummy for pulling info from dat structure
+ real(rk)                       :: tdata            ! dummy for pulling info from dat structure
 
  ! initialize error control
  err=0; message='calcStats/'
@@ -73,9 +73,9 @@ contains
 
    ! extract data from the structures
    select type (dat)
-    type is (real(dp));  tdata = dat(pVar)
+    type is (real(rk));  tdata = dat(pVar)
     class is (dlength) ; tdata = dat(pVar)%dat(1)
-    class is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(dp))
+    class is (ilength) ; tdata = real(dat(pVar)%dat(1), kind(rk))
     class default;err=20;message=trim(message)//'dat type not found';return
    end select
 
@@ -114,7 +114,7 @@ contains
  ! input variables
  class(var_info),intent(in)         :: meta              ! meta data structure
  class(*)       ,intent(inout)      :: stat              ! statistics structure
- real(dp)       ,intent(in)         :: tdata             ! data value
+ real(rk)       ,intent(in)         :: tdata             ! data value
  logical(lgt)   ,intent(in)         :: resetStats(:)     ! vector of flags to reset statistics
  logical(lgt)   ,intent(in)         :: finalizeStats(:)  ! vector of flags to reset statistics
  integer(i4b)   ,intent(in)         :: statCounter(:)   ! number of time steps in each output frequency
@@ -122,7 +122,7 @@ contains
  integer(i4b)   ,intent(out)        :: err               ! error code
  character(*)   ,intent(out)        :: message           ! error message
  ! internals
- real(dp),dimension(maxvarFreq*2)   :: tstat             ! temporary stats vector
+ real(rk),dimension(maxvarFreq*2)   :: tstat             ! temporary stats vector
  integer(i4b)                       :: iFreq             ! index of output frequency
  ! initialize error control
  err=0; message='calc_stats/'
@@ -144,12 +144,12 @@ contains
    select case(meta%statIndex(iFreq))               ! act depending on the statistic
     ! -------------------------------------------------------------------------------------
     case (iLookStat%totl)                           ! * summation over period                  
-     tstat(iFreq) = 0._dp                           !     - resets stat at beginning of period
+     tstat(iFreq) = 0._rk                           !     - resets stat at beginning of period
     case (iLookStat%mean)                           ! * mean over period                       
-     tstat(iFreq) = 0._dp                           !     - resets stat at beginning of period
+     tstat(iFreq) = 0._rk                           !     - resets stat at beginning of period
     case (iLookStat%vari)                           ! * variance over period                   
-     tstat(iFreq) = 0._dp                           !     - resets E[X^2] term in var calc    
-     tstat(maxVarFreq+iFreq) = 0._dp                !     - resets E[X]^2 term                 
+     tstat(iFreq) = 0._rk                           !     - resets E[X^2] term in var calc    
+     tstat(maxVarFreq+iFreq) = 0._rk                !     - resets E[X]^2 term                 
     case (iLookStat%mini)                           ! * minimum over period                    
      tstat(iFreq) = huge(tstat(iFreq))              !     - resets stat at beginning of period 
     case (iLookStat%maxi)                           ! * maximum over period                    

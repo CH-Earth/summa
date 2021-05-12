@@ -51,7 +51,7 @@ contains
  integer(i4b),intent(in)              :: ixVeg           ! vegetation category
  integer(i4b),intent(in)              :: ixSoil          ! soil category
  ! define output
- real(dp),intent(inout)               :: defaultParam(:) ! default model parameters
+ real(rk),intent(inout)               :: defaultParam(:) ! default model parameters
  integer(i4b),intent(out)             :: err             ! error code
  character(*),intent(out)             :: message         ! error message
  ! Start procedure here

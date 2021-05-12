@@ -49,9 +49,9 @@ contains
  character(*),intent(out)        :: message              ! error message
  ! local variables
  integer(i4b)                    :: iLayer               ! index of model layers
- real(dp),dimension(5)           :: zminLayer            ! minimum layer depth in each layer (m)
- real(dp),dimension(4)           :: zmaxLayer_lower      ! lower value of maximum layer depth
- real(dp),dimension(4)           :: zmaxLayer_upper      ! upper value of maximum layer depth
+ real(rk),dimension(5)           :: zminLayer            ! minimum layer depth in each layer (m)
+ real(rk),dimension(4)           :: zmaxLayer_lower      ! lower value of maximum layer depth
+ real(rk),dimension(4)           :: zmaxLayer_upper      ! upper value of maximum layer depth
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -63,7 +63,7 @@ contains
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
   ! SNTHERM option
   case(sameRulesAllLayers)
-   if(mpar_data%var(iLookPARAM%zmax)%dat(1)/mpar_data%var(iLookPARAM%zmin)%dat(1) < 2.5_dp)then
+   if(mpar_data%var(iLookPARAM%zmax)%dat(1)/mpar_data%var(iLookPARAM%zmin)%dat(1) < 2.5_rk)then
     message=trim(message)//'zmax must be at least 2.5 times larger than zmin: this avoids merging layers that have just been divided'
     err=20; return
    end if
@@ -93,7 +93,7 @@ contains
      err=20; return
     end if
     ! ensure that the maximum thickness is 3 times greater than the minimum thickness
-    if(zmaxLayer_upper(iLayer)/zminLayer(iLayer) < 2.5_dp .or. zmaxLayer_upper(iLayer)/zminLayer(iLayer+1) < 2.5_dp)then
+    if(zmaxLayer_upper(iLayer)/zminLayer(iLayer) < 2.5_rk .or. zmaxLayer_upper(iLayer)/zminLayer(iLayer+1) < 2.5_rk)then
      write(*,'(a,1x,3(f20.10,1x))') 'zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1) = ', &
                                      zmaxLayer_upper(iLayer), zminLayer(iLayer), zminLayer(iLayer+1)
      write(message,'(a,3(i0,a))') trim(message)//'zmaxLayer_upper for layer ',iLayer,' must be 2.5 times larger than zminLayer for layers ',&

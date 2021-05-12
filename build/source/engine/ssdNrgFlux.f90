@@ -83,8 +83,8 @@ implicit none
 private
 public::ssdNrgFlux
 ! global parameters
-real(dp),parameter            :: dx=1.e-10_dp             ! finite difference increment (K)
-real(dp),parameter            :: valueMissing=-9999._dp   ! missing value parameter
+real(rk),parameter            :: dx=1.e-10_rk             ! finite difference increment (K)
+real(rk),parameter            :: valueMissing=-9999._rk   ! missing value parameter
 contains
 
  ! ************************************************************************************************
@@ -117,13 +117,13 @@ contains
  ! input: model control
  logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution
  ! input: fluxes and derivatives at the upper boundary
- real(dp),intent(in)             :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
- real(dp),intent(in)             :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+ real(rk),intent(in)             :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
+ real(rk),intent(in)             :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
  ! input: liquid water fluxes
- real(dp),intent(in)             :: iLayerLiqFluxSnow(0:)      ! intent(in): liquid flux at the interface of each snow layer (m s-1)
- real(dp),intent(in)             :: iLayerLiqFluxSoil(0:)      ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+ real(rk),intent(in)             :: iLayerLiqFluxSnow(0:)      ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+ real(rk),intent(in)             :: iLayerLiqFluxSoil(0:)      ! intent(in): liquid flux at the interface of each soil layer (m s-1)
  ! input: trial value of model state variables
- real(dp),intent(in)             :: mLayerTempTrial(:)         ! trial temperature of each snow/soil layer at the current iteration (K)
+ real(rk),intent(in)             :: mLayerTempTrial(:)         ! trial temperature of each snow/soil layer at the current iteration (K)
  ! input-output: data structures
  type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
  type(var_ilength),intent(in)    :: indx_data                  ! state vector geometry
@@ -131,9 +131,9 @@ contains
  type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                  ! model fluxes for a local HRU
  ! output: fluxes and derivatives at all layer interfaces
- real(dp),intent(out)            :: iLayerNrgFlux(0:)          ! energy flux at the layer interfaces (W m-2)
- real(dp),intent(out)            :: dFlux_dTempAbove(0:)       ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
- real(dp),intent(out)            :: dFlux_dTempBelow(0:)       ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+ real(rk),intent(out)            :: iLayerNrgFlux(0:)          ! energy flux at the layer interfaces (W m-2)
+ real(rk),intent(out)            :: dFlux_dTempAbove(0:)       ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+ real(rk),intent(out)            :: dFlux_dTempBelow(0:)       ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
  ! output: error control
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
@@ -143,9 +143,9 @@ contains
  integer(i4b)                    :: ixLayerDesired(1)          ! layer desired (scalar solution)
  integer(i4b)                    :: ixTop                      ! top layer in subroutine call
  integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
- real(dp)                        :: qFlux                      ! liquid flux at layer interfaces (m s-1)
- real(dp)                        :: dz                         ! height difference (m)
- real(dp)                        :: flux0,flux1,flux2          ! fluxes used to calculate derivatives (W m-2)
+ real(rk)                        :: qFlux                      ! liquid flux at layer interfaces (m s-1)
+ real(rk)                        :: dz                         ! height difference (m)
+ real(rk)                        :: flux0,flux1,flux2          ! fluxes used to calculate derivatives (W m-2)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&
@@ -194,8 +194,8 @@ contains
   if(iLayer==nLayers)then
    ! flux depends on the type of lower boundary condition
    select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
-    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_dp)
-    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._dp
+    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rk)
+    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._rk
     case default;         err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
    end select  ! (identifying the lower boundary condition for thermodynamics)
 
@@ -257,7 +257,7 @@ contains
     ! * prescribed temperature at the lower boundary
     case(prescribedTemp)
 
-     dz = mLayerDepth(iLayer)*0.5_dp
+     dz = mLayerDepth(iLayer)*0.5_rk
      if(ix_fDerivMeth==analytical)then    ! ** analytical derivatives
       dFlux_dTempAbove(iLayer) = iLayerThermalC(iLayer)/dz
      else                              ! ** numerical derivatives
@@ -268,7 +268,7 @@ contains
 
      ! * zero flux at the lower boundary
      case(zeroFlux)
-      dFlux_dTempAbove(iLayer) = 0._dp
+      dFlux_dTempAbove(iLayer) = 0._rk
 
      case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
 
