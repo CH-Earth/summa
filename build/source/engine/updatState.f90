@@ -52,16 +52,17 @@ contains
  USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
  implicit none
  ! input variables
- real(rk),intent(in)           :: mLayerTemp           ! temperature (K)
- real(rk),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
- real(rk),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
+ real(rk),intent(in)           :: mLayerTemp              ! temperature (K)
+ real(rk),intent(in)           :: mLayerTheta             ! volume fraction of total water (-)
+ real(rk),intent(in)           :: snowfrz_scale           ! scaling parameter for the snow freezing curve (K-1)
  ! output variables
- real(rk),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(rk),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
- real(rk),intent(out)          :: fLiq                 ! fraction of liquid water (-)
+ real(rk),intent(out)          :: mLayerVolFracLiq        ! volumetric fraction of liquid water (-)
+ real(rk),intent(out)          :: mLayerVolFracIce        ! volumetric fraction of ice (-)
+ real(rk),intent(out)          :: fLiq                    ! fraction of liquid water (-)
  ! error control
- integer(i4b),intent(out)      :: err                  ! error code
- character(*),intent(out)      :: message              ! error message
+ integer(i4b),intent(out)      :: err                     ! error code
+ character(*),intent(out)      :: message                 ! error message
+
  ! initialize error control
  err=0; message="updateSnow/"
 
@@ -115,12 +116,24 @@ contains
  real(rk)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
  real(rk)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(rk)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
+ real(rk),parameter            :: tinyVal=epsilon(1._rk) ! used in balance check
  ! initialize error control
  err=0; message="updateSoil/"
 
  ! compute fractional **volume** of total water (liquid plus ice)
  mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
+ if(mLayerVolFracWat > (theta_sat + tinyVal)) then
+  err=20
+  message=trim(message)//'volume of liquid and ice (mLayerVolFracWat) exceeds porosity'
+  print*, 'mLayerVolFracWat     = ', mLayerVolFracWat
+  print*, 'theta_sat (porosity) = ', theta_sat
+  print*, 'mLayerMatricHead     = ', mLayerMatricHead
+  print*, 'theta_res            = ', theta_res
+  print*, 'vGn_alpha            = ', vGn_alpha
+  print*, 'vGn_n                = ', vGn_n
+  print*, 'vGn_m                = ', vGn_m
+  return
+ end if
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
