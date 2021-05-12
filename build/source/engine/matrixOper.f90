@@ -51,11 +51,11 @@ contains
  ! input variables
  integer(i4b),intent(in)         :: ixMatrix          ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)         :: nState            ! number of state variables
- real(summa_prec),intent(in)             :: aJac(:,:)         ! original Jacobian matrix
- real(summa_prec),intent(in)             :: fScale(:)         ! function scaling vector
- real(summa_prec),intent(in)             :: xScale(:)         ! "variable" scaling vector, i.e., for state variables
+ real(rk),intent(in)             :: aJac(:,:)         ! original Jacobian matrix
+ real(rk),intent(in)             :: fScale(:)         ! function scaling vector
+ real(rk),intent(in)             :: xScale(:)         ! "variable" scaling vector, i.e., for state variables
  ! output variables
- real(summa_prec),intent(out)            :: aJacScaled(:,:)   ! scaled Jacobian matrix
+ real(rk),intent(out)            :: aJacScaled(:,:)   ! scaled Jacobian matrix
  integer(i4b),intent(out)        :: err               ! error code
  character(*),intent(out)        :: message           ! error message
  ! ---------------------------------------------------------------------------------------------------------
@@ -84,7 +84,7 @@ contains
   case(ixBandMatrix)
 
    ! initialize the matrix to zero (some un-used elements)
-   aJacScaled(:,:) = 0._summa_prec
+   aJacScaled(:,:) = 0._rk
 
    ! scale the rows by the function scaling factor and the colmns by the variable scaling factor
    do jState=1,nState       ! (loop through model state variables)
@@ -110,10 +110,10 @@ contains
  ! input
  integer(i4b),intent(in)        :: ixMatrix   ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState     ! number of state variables
- real(summa_prec),intent(in)            :: aJac(:,:)  ! jacobian matrix
- real(summa_prec),intent(in)            :: rVec(:)    ! residual vector
+ real(rk),intent(in)            :: aJac(:,:)  ! jacobian matrix
+ real(rk),intent(in)            :: rVec(:)    ! residual vector
  ! output
- real(summa_prec),intent(out)           :: grad(:)    ! gradient
+ real(rk),intent(out)           :: grad(:)    ! gradient
  integer(i4b),intent(out)       :: err        ! error code
  character(*),intent(out)       :: message    ! error message
  ! local
@@ -135,7 +135,7 @@ contains
   case(ixBandMatrix)
 
    ! compute the gradient
-   grad(:) = 0._summa_prec
+   grad(:) = 0._rk
    do iJac=1,nState  ! (loop through state variables)
     do iState=max(1,iJac-ku),min(nState,iJac+kl)
      grad(iJac) = grad(iJac) + aJac(kl+ku+1+iState-iJac,iJac)*rVec(iState)
@@ -158,13 +158,13 @@ contains
  ! dummy
  integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState        ! number of state variables
- real(summa_prec),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
- real(summa_prec),intent(in)            :: rVec(:)       ! the residual vector B
- real(summa_prec),intent(out)           :: xInc(:)       ! the solution vector X
+ real(rk),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
+ real(rk),intent(in)            :: rVec(:)       ! the residual vector B
+ real(rk),intent(out)           :: xInc(:)       ! the solution vector X
  integer(i4b),intent(out)       :: err           ! error code
  character(*),intent(out)       :: message       ! error message
  ! local
- real(summa_prec)                       :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
+ real(rk)                       :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b)                   :: iPiv(nState)  ! defines if row i of the matrix was interchanged with row iPiv(i)
  ! initialize error control
  select case(ixMatrix)

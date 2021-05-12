@@ -164,18 +164,18 @@ contains
  logical(lgt),intent(in)         :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution              ! flag to denote if implementing the scalar solution
- real(summa_prec),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
+ real(rk),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
- real(summa_prec),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
- real(summa_prec),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
- real(summa_prec),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
- real(summa_prec),intent(in)             :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
- real(summa_prec),intent(in)             :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
+ real(rk),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
+ real(rk),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
+ real(rk),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
+ real(rk),intent(in)             :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
+ real(rk),intent(in)             :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
  ! input: diagnostic variables
- real(summa_prec),intent(in)             :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(summa_prec),intent(in)             :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(summa_prec),intent(in)             :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
- real(summa_prec),intent(in)             :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
+ real(rk),intent(in)             :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rk),intent(in)             :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rk),intent(in)             :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
+ real(rk),intent(in)             :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
  type(var_i),        intent(in)  :: type_data                   ! type of vegetation and soil
@@ -191,8 +191,8 @@ contains
  type(var_dlength),intent(inout) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: flux vector and baseflow derivatives
  integer(i4b),intent(inout)      :: ixSaturation                ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(summa_prec),intent(out)            :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
- real(summa_prec),intent(out)            :: fluxVec(:)                  ! model flux vector (mixed units)
+ real(rk),intent(out)            :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rk),intent(out)            :: fluxVec(:)                  ! model flux vector (mixed units)
  ! output: error control
  integer(i4b),intent(out)        :: err                         ! error code
  character(*),intent(out)        :: message                     ! error message
@@ -202,7 +202,7 @@ contains
  integer(i4b)                    :: local_ixGroundwater         ! local index for groundwater representation
  integer(i4b)                    :: iLayer                      ! index of model layers
  logical(lgt)                    :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
- real(summa_prec),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+ real(rk),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  character(LEN=256)              :: cmessage                    ! error message of downwind routine
  ! --------------------------------------------------------------
  ! initialize error control
@@ -385,8 +385,8 @@ contains
  ! initialize liquid water fluxes throughout the snow and soil domains
  ! NOTE: used in the energy routines, which is called before the hydrology routines
  if(firstFluxCall)then
-  if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._summa_prec
-                iLayerLiqFluxSoil(0:nSoil) = 0._summa_prec
+  if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._rk
+                iLayerLiqFluxSoil(0:nSoil) = 0._rk
  end if
 
  ! *****
@@ -686,13 +686,13 @@ contains
   if(nSnow==0) then
    ! * case of infiltration into soil
    if(scalarMaxInfilRate > scalarRainPlusMelt)then  ! infiltration is not rate-limited
-    scalarSoilControl = (1._summa_prec - scalarFrozenArea)*scalarInfilArea
+    scalarSoilControl = (1._rk - scalarFrozenArea)*scalarInfilArea
    else
-    scalarSoilControl = 0._summa_prec  ! (scalarRainPlusMelt exceeds maximum infiltration rate
+    scalarSoilControl = 0._rk  ! (scalarRainPlusMelt exceeds maximum infiltration rate
    endif
   else
    ! * case of infiltration into snow
-   scalarSoilControl = 1._summa_prec
+   scalarSoilControl = 1._rk
   endif
 
   ! compute drainage from the soil zone (needed for mass balance checks)
@@ -716,10 +716,10 @@ contains
   ! set baseflow fluxes to zero if the baseflow routine is not used
   if(local_ixGroundwater/=qbaseTopmodel)then
    ! (diagnostic variables in the data structures)
-   scalarExfiltration     = 0._summa_prec  ! exfiltration from the soil profile (m s-1)
-   mLayerColumnOutflow(:) = 0._summa_prec  ! column outflow from each soil layer (m3 s-1)
+   scalarExfiltration     = 0._rk  ! exfiltration from the soil profile (m s-1)
+   mLayerColumnOutflow(:) = 0._rk  ! column outflow from each soil layer (m3 s-1)
    ! (variables needed for the numerical solution)
-   mLayerBaseflow(:)      = 0._summa_prec  ! baseflow from each soil layer (m s-1)
+   mLayerBaseflow(:)      = 0._rk  ! baseflow from each soil layer (m s-1)
 
   ! topmodel-ish shallow groundwater
   else ! local_ixGroundwater==qbaseTopmodel
@@ -798,10 +798,10 @@ contains
 
   ! if no aquifer, then fluxes are zero
   else
-   scalarAquiferTranspire = 0._summa_prec  ! transpiration loss from the aquifer (m s-1)
-   scalarAquiferRecharge  = 0._summa_prec  ! recharge to the aquifer (m s-1)
-   scalarAquiferBaseflow  = 0._summa_prec  ! total baseflow from the aquifer (m s-1)
-   dBaseflow_dAquifer     = 0._summa_prec  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+   scalarAquiferTranspire = 0._rk  ! transpiration loss from the aquifer (m s-1)
+   scalarAquiferRecharge  = 0._rk  ! recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow  = 0._rk  ! total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer     = 0._rk  ! change in baseflow flux w.r.t. aquifer storage (s-1)
   end if ! no aquifer
 
  endif  ! if computing aquifer fluxes
@@ -869,15 +869,15 @@ contains
  ! input:
  integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
  integer(i4b),intent(in)        :: ixBeg,ixEnd               ! start and end indices defining desired layers
- real(summa_prec),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
- real(summa_prec),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
- real(summa_prec),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
- real(summa_prec),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
- real(summa_prec),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
- real(summa_prec),intent(in)            :: theta_sat(:)              ! soil porosity (-)
+ real(rk),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
+ real(rk),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
+ real(rk),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+ real(rk),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+ real(rk),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
+ real(rk),intent(in)            :: theta_sat(:)              ! soil porosity (-)
  ! output:
- real(summa_prec),intent(inout)         :: compress(:)               ! soil compressibility (-)
- real(summa_prec),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+ real(rk),intent(inout)         :: compress(:)               ! soil compressibility (-)
+ real(rk),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
  integer(i4b),intent(out)       :: err                       ! error code
  character(*),intent(out)       :: message                   ! error message
  ! local variables
@@ -896,8 +896,8 @@ contains
    endif
   end do
  else
-  compress(:)       = 0._summa_prec
-  dCompress_dPsi(:) = 0._summa_prec
+  compress(:)       = 0._rk
+  dCompress_dPsi(:) = 0._rk
  end if
  end subroutine soilCmpres
 

@@ -48,8 +48,8 @@ MODULE data_types
   integer(i4b),allocatable               :: var_ix(:)                ! index of each forcing data variable in the data structure
   integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
   character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
-  real(summa_prec)                               :: firstJulDay              ! first julian day in forcing file
-  real(summa_prec)                               :: convTime2Days            ! factor to convert time to days
+  real(rk)                               :: firstJulDay              ! first julian day in forcing file
+  real(rk)                               :: convTime2Days            ! factor to convert time to days
  end type file_info
 
  ! ***********************************************************************************************************
@@ -57,9 +57,9 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define a data type to store model parameter information
  type,public  :: par_info
-  real(summa_prec)                               :: default_val              ! default parameter value
-  real(summa_prec)                               :: lower_limit              ! lower bound
-  real(summa_prec)                               :: upper_limit              ! upper bound
+  real(rk)                               :: default_val              ! default parameter value
+  real(rk)                               :: lower_limit              ! lower bound
+  real(rk)                               :: upper_limit              ! upper bound
  endtype par_info
 
  ! ***********************************************************************************************************
@@ -131,7 +131,7 @@ MODULE data_types
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
  type, public :: dlength
-  real(summa_prec),allocatable                :: dat(:)    ! dat(:)
+  real(rk),allocatable                :: dat(:)    ! dat(:)
  endtype dlength
  ! ** integer type (4 byte)
  type, public :: ilength
@@ -168,7 +168,7 @@ MODULE data_types
 
  ! ** double precision type of fixed length
  type, public :: var_d
-  real(summa_prec),allocatable                :: var(:)    ! var(:)
+  real(rk),allocatable                :: var(:)    ! var(:)
  endtype var_d
  ! ** integer type of fixed length (4 byte)
  type, public :: var_i
@@ -181,7 +181,7 @@ MODULE data_types
 
  ! ** double precision type of fixed length
  type, public :: hru_d
-  real(summa_prec),allocatable                :: hru(:)    ! hru(:)
+  real(rk),allocatable                :: hru(:)    ! hru(:)
  endtype hru_d
  ! ** integer type of fixed length (4 byte)
  type, public :: hru_i

@@ -8,7 +8,7 @@ MODULE nrtype
  INTEGER,      PARAMETER :: SP = KIND(1.0)
  INTEGER,      PARAMETER :: DP = KIND(1.0D0)
  INTEGER,      PARAMETER :: QP = KIND(1.0D0)
- INTEGER,      PARAMETER :: SUMMA_PREC = SP
+ INTEGER,      PARAMETER :: rk = DP
  !INTEGER,      PARAMETER :: QP = SELECTED_REAL_KIND(32)
  INTEGER,      PARAMETER :: SPC = KIND((1.0,1.0))
  INTEGER,      PARAMETER :: DPC = KIND((1.0D0,1.0D0))
@@ -19,11 +19,11 @@ MODULE nrtype
  REAL(SP),     PARAMETER :: TWOPI=6.283185307179586476925286766559005768394_sp
  REAL(SP),     PARAMETER :: SQRT2=1.41421356237309504880168872420969807856967_sp
  REAL(SP),     PARAMETER :: EULER=0.5772156649015328606065120900824024310422_sp
- real(summa_prec),     PARAMETER :: PI_D=3.141592653589793238462643383279502884197_summa_prec
- real(summa_prec),     PARAMETER :: PIO2_D=1.57079632679489661923132169163975144209858_summa_prec
- real(summa_prec),     PARAMETER :: TWOPI_D=6.283185307179586476925286766559005768394_summa_prec
+ real(rk),     PARAMETER :: PI_D=3.141592653589793238462643383279502884197_rk
+ real(rk),     PARAMETER :: PIO2_D=1.57079632679489661923132169163975144209858_rk
+ real(rk),     PARAMETER :: TWOPI_D=6.283185307179586476925286766559005768394_rk
  ! missing values
- real(summa_prec),     parameter :: nr_quadMissing=-9999._qp   ! missing quadruple precision number
- real(summa_prec),     parameter :: nr_realMissing=-9999._summa_prec   ! missing double precision number
+ real(rk),     parameter :: nr_quadMissing=-9999._qp   ! missing quadruple precision number
+ real(rk),     parameter :: nr_realMissing=-9999._rk   ! missing double precision number
  integer(i4b), parameter :: nr_integerMissing=-9999    ! missing integer
 END MODULE nrtype

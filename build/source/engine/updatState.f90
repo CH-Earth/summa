@@ -52,13 +52,13 @@ contains
  USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
  implicit none
  ! input variables
- real(summa_prec),intent(in)           :: mLayerTemp           ! temperature (K)
- real(summa_prec),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
- real(summa_prec),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
+ real(rk),intent(in)           :: mLayerTemp           ! temperature (K)
+ real(rk),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
+ real(rk),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
  ! output variables
- real(summa_prec),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(summa_prec),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
- real(summa_prec),intent(out)          :: fLiq                 ! fraction of liquid water (-)
+ real(rk),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
+ real(rk),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
+ real(rk),intent(out)          :: fLiq                 ! fraction of liquid water (-)
  ! error control
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
@@ -68,7 +68,7 @@ contains
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
  mLayerVolFracLiq = fLiq*mLayerTheta
- mLayerVolFracIce = (1._summa_prec - fLiq)*mLayerTheta*(iden_water/iden_ice)
+ mLayerVolFracIce = (1._rk - fLiq)*mLayerTheta*(iden_water/iden_ice)
  !print*, 'mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq) = ', mLayerTheta - (mLayerVolFracIce*(iden_ice/iden_water) + mLayerVolFracLiq)
  !write(*,'(a,1x,4(f20.10,1x))') 'in updateSnow: fLiq, mLayerTheta, mLayerVolFracIce = ', &
  !                                               fLiq, mLayerTheta, mLayerVolFracIce
@@ -98,23 +98,23 @@ contains
  USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric liquid water content
  implicit none
  ! input variables
- real(summa_prec),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
- real(summa_prec),intent(in)           :: mLayerMatricHead     ! matric head (m)
- real(summa_prec),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
- real(summa_prec),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
- real(summa_prec),intent(in)           :: theta_sat            ! soil porosity (-)
- real(summa_prec),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
- real(summa_prec),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
+ real(rk),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
+ real(rk),intent(in)           :: mLayerMatricHead     ! matric head (m)
+ real(rk),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
+ real(rk),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
+ real(rk),intent(in)           :: theta_sat            ! soil porosity (-)
+ real(rk),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
+ real(rk),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
  ! output variables
- real(summa_prec),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
- real(summa_prec),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(summa_prec),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
+ real(rk),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
+ real(rk),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
+ real(rk),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(summa_prec)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
- real(summa_prec)                      :: xConst               ! constant in the freezing curve function (m K-1)
- real(summa_prec)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
+ real(rk)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
+ real(rk)                      :: xConst               ! constant in the freezing curve function (m K-1)
+ real(rk)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  ! initialize error control
  err=0; message="updateSoil/"
 
@@ -124,7 +124,7 @@ contains
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
- TcSoil = Tfreeze + min(mLayerMatricHead,0._summa_prec)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+ TcSoil = Tfreeze + min(mLayerMatricHead,0._rk)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
 
  ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
@@ -145,7 +145,7 @@ contains
   ! all water is unfrozen
   mLayerPsiLiq     = mLayerMatricHead
   mLayerVolFracLiq = mLayerVolFracWat
-  mLayerVolFracIce = 0._summa_prec
+  mLayerVolFracIce = 0._rk
 
  end if  ! (check if soil is partially frozen)
 

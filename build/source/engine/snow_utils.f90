@@ -47,11 +47,11 @@ contains
  ! ***********************************************************************************************************
  function fracliquid(Tk,fc_param)
  implicit none
- real(summa_prec),intent(in) :: Tk         ! temperature (K)
- real(summa_prec),intent(in) :: fc_param   ! freezing curve parameter (K-1)
- real(summa_prec)            :: fracliquid ! fraction of liquid water (-)
+ real(rk),intent(in) :: Tk         ! temperature (K)
+ real(rk),intent(in) :: fc_param   ! freezing curve parameter (K-1)
+ real(rk)            :: fracliquid ! fraction of liquid water (-)
  ! compute fraction of liquid water (-)
- fracliquid = 1._summa_prec / ( 1._summa_prec + (fc_param*( Tfreeze - min(Tk,Tfreeze) ))**2._summa_prec )
+ fracliquid = 1._rk / ( 1._rk + (fc_param*( Tfreeze - min(Tk,Tfreeze) ))**2._rk )
  end function fracliquid
 
 
@@ -60,11 +60,11 @@ contains
  ! ***********************************************************************************************************
  function templiquid(fracliquid,fc_param)
  implicit none
- real(summa_prec),intent(in) :: fracliquid ! fraction of liquid water (-)
- real(summa_prec),intent(in) :: fc_param   ! freezing curve parameter (K-1)
- real(summa_prec)            :: templiquid ! temperature (K)
+ real(rk),intent(in) :: fracliquid ! fraction of liquid water (-)
+ real(rk),intent(in) :: fc_param   ! freezing curve parameter (K-1)
+ real(rk)            :: templiquid ! temperature (K)
  ! compute temperature based on the fraction of liquid water (K)
- templiquid = Tfreeze - ((1._summa_prec/fracliquid - 1._summa_prec)/fc_param**2._summa_prec)**(0.5_summa_prec)
+ templiquid = Tfreeze - ((1._rk/fracliquid - 1._rk)/fc_param**2._rk)**(0.5_rk)
  end function templiquid
 
 
@@ -74,17 +74,17 @@ contains
  function dFracLiq_dTk(Tk,fc_param)
  implicit none
  ! dummies
- real(summa_prec),intent(in) :: Tk           ! temperature (K)
- real(summa_prec),intent(in) :: fc_param     ! freezing curve parameter (K-1)
- real(summa_prec)            :: dFracLiq_dTk ! differentiate the freezing curve (K-1)
+ real(rk),intent(in) :: Tk           ! temperature (K)
+ real(rk),intent(in) :: fc_param     ! freezing curve parameter (K-1)
+ real(rk)            :: dFracLiq_dTk ! differentiate the freezing curve (K-1)
  ! locals
- real(summa_prec)            :: Tdep         ! temperature depression (K)
- real(summa_prec)            :: Tdim         ! dimensionless temperature (-)
+ real(rk)            :: Tdep         ! temperature depression (K)
+ real(rk)            :: Tdim         ! dimensionless temperature (-)
  ! compute local variables (just to make things more efficient)
  Tdep = Tfreeze - min(Tk,Tfreeze)
  Tdim = fc_param*Tdep
  ! differentiate the freezing curve w.r.t temperature
- dFracLiq_dTk = (fc_param*2._summa_prec*Tdim) / ( ( 1._summa_prec + Tdim**2._summa_prec)**2._summa_prec )
+ dFracLiq_dTk = (fc_param*2._rk*Tdim) / ( ( 1._rk + Tdim**2._rk)**2._rk )
  end function dFracLiq_dTk
 
 
@@ -93,17 +93,17 @@ contains
  ! ***********************************************************************************************************
  subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
  implicit none
- real(summa_prec),intent(in)      :: BulkDenIce     ! bulk density of ice (kg m-3)
- real(summa_prec),intent(out)     :: thermlcond     ! thermal conductivity of snow (W m-1 K-1)
+ real(rk),intent(in)      :: BulkDenIce     ! bulk density of ice (kg m-3)
+ real(rk),intent(out)     :: thermlcond     ! thermal conductivity of snow (W m-1 K-1)
  integer(i4b),intent(out) :: err            ! error code
  character(*),intent(out) :: message        ! error message
  ! initialize error control
  err=0; message="tcond_snow/"
  ! compute thermal conductivity of snow
  select case(model_decisions(iLookDECISIONS%thCondSnow)%iDecision)
-  case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2._summa_prec               ! Yen (1965)
-  case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._summa_prec + 7.4d-2      ! Mellor (1977)
-  case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._summa_prec)) &
+  case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2._rk               ! Yen (1965)
+  case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._rk + 7.4d-2      ! Mellor (1977)
+  case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._rk)) &
                                      * (lambda_ice-lambda_air)                ! Jordan (1991)
   case default
    err=10; message=trim(message)//"unknownOption"; return

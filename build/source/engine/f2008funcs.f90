@@ -75,11 +75,11 @@ contains
  subroutine cloneStruc_rv(dataVec,lowerBound,source,mold,err,message)
  implicit none
  ! input-output: data vector for allocation/population
- real(summa_prec),intent(inout),allocatable     :: dataVec(:)            ! data vector
+ real(rk),intent(inout),allocatable     :: dataVec(:)            ! data vector
  ! input
  integer(i4b),intent(in)                :: lowerBound            ! lower bound
- real(summa_prec),intent(in),optional           :: source(lowerBound:)   ! dataVec = shape of source + elements of source
- real(summa_prec),intent(in),optional           :: mold(lowerBound:)     ! dataVec = shape of mold
+ real(rk),intent(in),optional           :: source(lowerBound:)   ! dataVec = shape of source + elements of source
+ real(rk),intent(in),optional           :: mold(lowerBound:)     ! dataVec = shape of mold
  ! error control
  integer(i4b),intent(out)               :: err                   ! error code
  character(*),intent(out)               :: message               ! error message

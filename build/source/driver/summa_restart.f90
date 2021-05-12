@@ -178,7 +178,7 @@ contains
 
    ! initialize canopy drip
    ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
-   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._summa_prec  ! not used
+   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rk  ! not used
 
   end do  ! end looping through HRUs
 
@@ -201,14 +201,14 @@ contains
 
    ! the basin-average aquifer storage is not used if the groundwater is included in the local column
    case(localColumn)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._summa_prec ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rk ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
    case(singleBasin)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._summa_prec
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._rk
     do iHRU=1,gru_struc(iGRU)%hruCount
-     progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._summa_prec  ! set to zero to be clear that there is no local aquifer storage in this configuration
+     progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rk  ! set to zero to be clear that there is no local aquifer storage in this configuration
     end do
 
    ! error check

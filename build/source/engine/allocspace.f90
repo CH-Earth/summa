@@ -262,7 +262,7 @@ contains
  select type(dataStruct)
   class is (var_flagVec); call allocateDat_flag(metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
   class is (var_ilength); call allocateDat_int( metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
-  class is (var_dlength); call allocateDat_summa_prec(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
+  class is (var_dlength); call allocateDat_rk(  metaStruct,nSnow,nSoil,nLayers,dataStruct,err,cmessage)
   class default; err=20; message=trim(message)//'unable to identify derived data type for the data dimension'; return
  end select
 
@@ -328,7 +328,7 @@ contains
    ! double precision
    class is (var_dlength)
     select type(dataStructNew)
-     class is (var_dlength); call copyStruct_summa_prec( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
+     class is (var_dlength); call copyStruct_rk( dataStructOrig%var(iVar),dataStructNew%var(iVar),isCopy,err,cmessage)
      class default; err=20; message=trim(message)//'mismatch data structure for variable'//trim(metaStruct(iVar)%varname); return
     end select
 
@@ -349,9 +349,9 @@ contains
  end subroutine resizeData
 
  ! ************************************************************************************************
- ! private subroutine copyStruct_summa_prec: copy a given data structure
+ ! private subroutine copyStruct_rk: copy a given data structure
  ! ************************************************************************************************
- subroutine copyStruct_summa_prec(varOrig,varNew,copy,err,message)
+ subroutine copyStruct_rk(varOrig,varNew,copy,err,message)
  ! dummy variables
  type(dlength),intent(in)    :: varOrig        ! original data structure
  type(dlength),intent(inout) :: varNew         ! new data structure
@@ -366,7 +366,7 @@ contains
  integer(i4b)                :: lowerBoundNew  ! lower bound of a given variable in the new data structure
  integer(i4b)                :: upperBoundNew  ! upper bound of a given variable in the new data structure
  ! initialize error control
- err=0; message='copyStruct_summa_prec/'
+ err=0; message='copyStruct_rk/'
 
  ! get the information from the data structures
  call getVarInfo(varOrig,allocatedOrig,lowerBoundOrig,upperBoundOrig)
@@ -433,7 +433,7 @@ contains
 
   end subroutine getVarInfo
 
- end subroutine copyStruct_summa_prec
+ end subroutine copyStruct_rk
 
  ! ************************************************************************************************
  ! private subroutine copyStruct_i4b: copy a given data structure
@@ -524,9 +524,9 @@ contains
 
 
  ! ************************************************************************************************
- ! private subroutine allocateDat_summa_prec: initialize data dimension of the data structures
+ ! private subroutine allocateDat_rk: initialize data dimension of the data structures
  ! ************************************************************************************************
- subroutine allocateDat_summa_prec(metadata,nSnow,nSoil,nLayers, & ! input
+ subroutine allocateDat_rk(metadata,nSnow,nSoil,nLayers, & ! input
                            varData,err,message)            ! output
  ! access subroutines
  USE get_ixName_module,only:get_varTypeName       ! to access type strings for error messages
@@ -546,7 +546,7 @@ contains
  integer(i4b)                      :: nVars       ! number of variables in the metadata structure
 
 ! initialize error control
- err=0; message='allocateDat_summa_prec/'
+ err=0; message='allocateDat_rk/'
 
  ! get the number of variables in the metadata structure
  nVars = size(metadata)
@@ -589,7 +589,7 @@ contains
 
  end do  ! looping through variables
 
- end subroutine allocateDat_summa_prec
+ end subroutine allocateDat_rk
 
  ! ************************************************************************************************
  ! private subroutine allocateDat_int: initialize data dimension of the data structures

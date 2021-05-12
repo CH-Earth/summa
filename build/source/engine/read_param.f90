@@ -90,7 +90,7 @@ contains
  ! data in the netcdf file
  integer(i4b)                          :: parLength        ! length of the parameter data
  integer(8),allocatable                :: hruId(:)         ! HRU identifier in the file
- real(summa_prec),allocatable                  :: parVector(:)     ! model parameter vector
+ real(rk),allocatable                  :: parVector(:)     ! model parameter vector
  logical                               :: fexist           ! inquire whether the parmTrial file exists
  integer(i4b)                          :: fHRU             ! index of HRU in input file
 

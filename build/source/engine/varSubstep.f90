@@ -73,7 +73,7 @@ private
 public::varSubstep
 
 ! algorithmic parameters
-real(summa_prec),parameter     :: verySmall=1.e-6_summa_prec   ! used as an additive constant to check if substantial difference among real numbers
+real(rk),parameter     :: verySmall=1.e-6_rk   ! used as an additive constant to check if substantial difference among real numbers
 
 contains
 
@@ -130,9 +130,9 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(summa_prec),intent(in)             :: dt                            ! time step (seconds)
- real(summa_prec),intent(in)             :: dtInit                        ! initial time step (seconds)
- real(summa_prec),intent(in)             :: dt_min                        ! minimum time step (seconds)
+ real(rk),intent(in)             :: dt                            ! time step (seconds)
+ real(rk),intent(in)             :: dtInit                        ! initial time step (seconds)
+ real(rk),intent(in)             :: dt_min                        ! minimum time step (seconds)
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -156,7 +156,7 @@ contains
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  ! output: model control
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(summa_prec),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
+ real(rk),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
  integer(i4b),intent(out)        :: nSubsteps                     ! number of substeps taken for a given split
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
@@ -174,24 +174,24 @@ contains
  integer(i4b)                    :: ixLayer                       ! index in a given domain
  integer(i4b), dimension(1)      :: ixMin,ixMax                   ! bounds of a given flux vector
  ! time stepping
- real(summa_prec)                        :: dtSum                         ! sum of time from successful steps (seconds)
- real(summa_prec)                        :: dt_wght                       ! weight given to a given flux calculation
- real(summa_prec)                        :: dtSubstep                     ! length of a substep (s)
+ real(rk)                        :: dtSum                         ! sum of time from successful steps (seconds)
+ real(rk)                        :: dt_wght                       ! weight given to a given flux calculation
+ real(rk)                        :: dtSubstep                     ! length of a substep (s)
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
- real(summa_prec),parameter              :: safety=0.85_summa_prec                ! safety factor in adaptive sub-stepping
- real(summa_prec),parameter              :: reduceMin=0.1_summa_prec              ! mimimum factor that time step is reduced
- real(summa_prec),parameter              :: increaseMax=4.0_summa_prec            ! maximum factor that time step is increased
+ real(rk),parameter              :: safety=0.85_rk                ! safety factor in adaptive sub-stepping
+ real(rk),parameter              :: reduceMin=0.1_rk              ! mimimum factor that time step is reduced
+ real(rk),parameter              :: increaseMax=4.0_rk            ! maximum factor that time step is increased
  ! adaptive sub-stepping for the implicit solution
  integer(i4b)                    :: niter                         ! number of iterations taken
  integer(i4b),parameter          :: n_inc=5                       ! minimum number of iterations to increase time step
  integer(i4b),parameter          :: n_dec=15                      ! maximum number of iterations to decrease time step
- real(summa_prec),parameter              :: F_inc = 1.25_summa_prec               ! factor used to increase time step
- real(summa_prec),parameter              :: F_dec = 0.90_summa_prec               ! factor used to decrease time step
+ real(rk),parameter              :: F_inc = 1.25_rk               ! factor used to increase time step
+ real(rk),parameter              :: F_dec = 0.90_rk               ! factor used to decrease time step
  ! state and flux vectors
- real(summa_prec)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
- real(summa_prec)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
- real(summa_prec)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
+ real(rk)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
+ real(rk)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
+ real(rk)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
  ! flags
  logical(lgt)                    :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -199,11 +199,11 @@ contains
  logical(lgt)                    :: waterBalanceError             ! flag to denote that there is a water balance error
  logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
  ! energy fluxes
- real(summa_prec)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
- real(summa_prec)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- real(summa_prec)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
- real(summa_prec)                        :: sumSoilCompress
- real(summa_prec),allocatable            :: sumLayerCompress(:)
+ real(rk)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+ real(rk)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ real(rk)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+ real(rk)                        :: sumSoilCompress
+ real(rk),allocatable            :: sumLayerCompress(:)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -255,17 +255,17 @@ contains
  end do
 
  ! initialize the total energy fluxes (modified in updateProg)
- sumCanopyEvaporation = 0._summa_prec  ! canopy evaporation/condensation (kg m-2 s-1)
- sumLatHeatCanopyEvap = 0._summa_prec  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- sumSenHeatCanopy     = 0._summa_prec  ! sensible heat flux from the canopy to the canopy air space (W m-2)
- sumSoilCompress      = 0._summa_prec  ! total soil compression
- allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._summa_prec ! soil compression by layer
+ sumCanopyEvaporation = 0._rk  ! canopy evaporation/condensation (kg m-2 s-1)
+ sumLatHeatCanopyEvap = 0._rk  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ sumSenHeatCanopy     = 0._rk  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+ sumSoilCompress      = 0._rk  ! total soil compression
+ allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rk ! soil compression by layer
 
  ! define the first flux call in a splitting operation
  firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
 
  ! initialize subStep
- dtSum     = 0._summa_prec  ! keep track of the portion of the time step that is completed
+ dtSum     = 0._rk  ! keep track of the portion of the time step that is completed
  nSubsteps = 0
 
  ! loop through substeps
@@ -351,7 +351,7 @@ contains
   ! reduce step based on failure
   if(failedSubstep)then
     err=0; message='varSubstep/'  ! recover from failed convergence
-    dtMultiplier  = 0.5_summa_prec        ! system failure: step halving
+    dtMultiplier  = 0.5_rk        ! system failure: step halving
   else
 
    ! ** implicit Euler: adjust step length based on iteration count
@@ -360,7 +360,7 @@ contains
     elseif(niter>n_dec)then
      dtMultiplier = F_dec
     else
-     dtMultiplier = 1._summa_prec
+     dtMultiplier = 1._rk
     endif
 
   endif  ! switch between failure and success
@@ -420,7 +420,7 @@ contains
 
    ! modify step
    err=0  ! error recovery
-   dtSubstep = dtSubstep/2._summa_prec
+   dtSubstep = dtSubstep/2._rk
 
    ! check minimum: fail minimum step if there is an error in the update
    if(dtSubstep<dt_min)then
@@ -552,14 +552,14 @@ contains
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
  ! model control
- real(summa_prec)         ,intent(in)    :: dt                             ! time step (s)
+ real(rk)         ,intent(in)    :: dt                             ! time step (s)
  integer(i4b)     ,intent(in)    :: nSnow                          ! number of snow layers
  integer(i4b)     ,intent(in)    :: nSoil                          ! number of soil layers
  integer(i4b)     ,intent(in)    :: nLayers                        ! total number of layers
  logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
- real(summa_prec)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
- real(summa_prec)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
+ real(rk)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
+ real(rk)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
  ! data structures
  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
@@ -580,32 +580,32 @@ contains
  integer(i4b)                    :: ixSubset                       ! index within the state subset
  integer(i4b)                    :: ixFullVector                   ! index within full state vector
  integer(i4b)                    :: ixControlIndex                 ! index within a given domain
- real(summa_prec)                        :: volMelt                        ! volumetric melt (kg m-3)
- real(summa_prec),parameter              :: verySmall=epsilon(1._summa_prec)*2._summa_prec ! a very small number (deal with precision issues)
+ real(rk)                        :: volMelt                        ! volumetric melt (kg m-3)
+ real(rk),parameter              :: verySmall=epsilon(1._rk)*2._rk ! a very small number (deal with precision issues)
  ! mass balance
- real(summa_prec)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
- real(summa_prec)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
- real(summa_prec)                        :: vertFlux                       ! change in storage due to vertical fluxes
- real(summa_prec)                        :: tranSink,baseSink,compSink     ! change in storage due to sink terms
- real(summa_prec)                        :: liqError                       ! water balance error
- real(summa_prec)                        :: fluxNet                        ! net water fluxes (kg m-2 s-1)
- real(summa_prec)                        :: superflousWat                  ! superflous water used for evaporation (kg m-2 s-1)
- real(summa_prec)                        :: superflousNrg                  ! superflous energy that cannot be used for evaporation (W m-2 [J m-2 s-1])
+ real(rk)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
+ real(rk)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
+ real(rk)                        :: vertFlux                       ! change in storage due to vertical fluxes
+ real(rk)                        :: tranSink,baseSink,compSink     ! change in storage due to sink terms
+ real(rk)                        :: liqError                       ! water balance error
+ real(rk)                        :: fluxNet                        ! net water fluxes (kg m-2 s-1)
+ real(rk)                        :: superflousWat                  ! superflous water used for evaporation (kg m-2 s-1)
+ real(rk)                        :: superflousNrg                  ! superflous energy that cannot be used for evaporation (W m-2 [J m-2 s-1])
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
  ! trial state variables
- real(summa_prec)                        :: scalarCanairTempTrial          ! trial value for temperature of the canopy air space (K)
- real(summa_prec)                        :: scalarCanopyTempTrial          ! trial value for temperature of the vegetation canopy (K)
- real(summa_prec)                        :: scalarCanopyWatTrial           ! trial value for liquid water storage in the canopy (kg m-2)
- real(summa_prec),dimension(nLayers)     :: mLayerTempTrial                ! trial vector for temperature of layers in the snow and soil domains (K)
- real(summa_prec),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
- real(summa_prec),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
- real(summa_prec),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
- real(summa_prec)                        :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
+ real(rk)                        :: scalarCanairTempTrial          ! trial value for temperature of the canopy air space (K)
+ real(rk)                        :: scalarCanopyTempTrial          ! trial value for temperature of the vegetation canopy (K)
+ real(rk)                        :: scalarCanopyWatTrial           ! trial value for liquid water storage in the canopy (kg m-2)
+ real(rk),dimension(nLayers)     :: mLayerTempTrial                ! trial vector for temperature of layers in the snow and soil domains (K)
+ real(rk),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
+ real(rk),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
+ real(rk),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
+ real(rk)                        :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
  ! diagnostic variables
- real(summa_prec)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(summa_prec)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(summa_prec),dimension(nLayers)     :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
- real(summa_prec),dimension(nLayers)     :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
+ real(rk)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rk)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rk),dimension(nLayers)     :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
+ real(rk),dimension(nLayers)     :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
  ! -------------------------------------------------------------------------------------------------------------------
 
  ! -------------------------------------------------------------------------------------------------------------------
@@ -753,12 +753,12 @@ contains
 
     ! --> next, remove canopy evaporation -- put the unsatisfied evap into sensible heat
     canopyBalance1 = canopyBalance1 + scalarCanopyEvaporation*dt
-    if(canopyBalance1 < 0._summa_prec)then
+    if(canopyBalance1 < 0._rk)then
      ! * get superfluous water and energy
      superflousWat = -canopyBalance1/dt     ! kg m-2 s-1
      superflousNrg = superflousWat*LH_vap   ! W m-2 (J m-2 s-1)
      ! * update fluxes and states
-     canopyBalance1          = 0._summa_prec
+     canopyBalance1          = 0._rk
      scalarCanopyEvaporation = scalarCanopyEvaporation + superflousWat
      scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
      scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
@@ -766,9 +766,9 @@ contains
 
     ! --> next, remove canopy drainage
     canopyBalance1 = canopyBalance1 - scalarCanopyLiqDrainage*dt
-    if(canopyBalance1 < 0._summa_prec)then
+    if(canopyBalance1 < 0._rk)then
      superflousWat            = -canopyBalance1/dt     ! kg m-2 s-1
-     canopyBalance1          = 0._summa_prec
+     canopyBalance1          = 0._rk
      scalarCanopyLiqDrainage = scalarCanopyLiqDrainage + superflousWat
     endif
 
@@ -795,7 +795,7 @@ contains
    !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
    !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
    !write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError
-   if(abs(liqError) > absConvTol_liquid*10._summa_prec)then  ! *10 because of precision issues
+   if(abs(liqError) > absConvTol_liquid*10._rk)then  ! *10 because of precision issues
     waterBalanceError = .true.
     return
    endif  ! if there is a water balance error
@@ -810,7 +810,7 @@ contains
    baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
-   if(abs(liqError) > absConvTol_liquid*10._summa_prec)then   ! *10 because of precision issues
+   if(abs(liqError) > absConvTol_liquid*10._rk)then   ! *10 because of precision issues
     !write(*,'(a,1x,f20.10)') 'dt = ', dt
     !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
     !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
@@ -870,15 +870,15 @@ contains
   ! *** ice
 
   ! --> check if we removed too much water
-  if(scalarCanopyIceTrial < 0._summa_prec  .or. any(mLayerVolFracIceTrial < 0._summa_prec) )then
+  if(scalarCanopyIceTrial < 0._rk  .or. any(mLayerVolFracIceTrial < 0._rk) )then
 
    ! **
    ! canopy within numerical precision
-   if(scalarCanopyIceTrial < 0._summa_prec)then
+   if(scalarCanopyIceTrial < 0._rk)then
 
     if(scalarCanopyIceTrial > -verySmall)then
      scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
-     scalarCanopyIceTrial = 0._summa_prec
+     scalarCanopyIceTrial = 0._rk
 
     ! encountered an inconsistency: spit the dummy
     else
@@ -897,11 +897,11 @@ contains
    do iState=1,size(mLayerVolFracIceTrial)
 
     ! snow layer within numerical precision
-    if(mLayerVolFracIceTrial(iState) < 0._summa_prec)then
+    if(mLayerVolFracIceTrial(iState) < 0._rk)then
 
      if(mLayerVolFracIceTrial(iState) > -verySmall)then
       mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
-      mLayerVolFracIceTrial(iState) = 0._summa_prec
+      mLayerVolFracIceTrial(iState) = 0._rk
 
      ! encountered an inconsistency: spit the dummy
      else
@@ -924,15 +924,15 @@ contains
   ! *** liquid water
 
   ! --> check if we removed too much water
-  if(scalarCanopyLiqTrial < 0._summa_prec  .or. any(mLayerVolFracLiqTrial < 0._summa_prec) )then
+  if(scalarCanopyLiqTrial < 0._rk  .or. any(mLayerVolFracLiqTrial < 0._rk) )then
 
    ! **
    ! canopy within numerical precision
-   if(scalarCanopyLiqTrial < 0._summa_prec)then
+   if(scalarCanopyLiqTrial < 0._rk)then
 
     if(scalarCanopyLiqTrial > -verySmall)then
      scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
-     scalarCanopyLiqTrial = 0._summa_prec
+     scalarCanopyLiqTrial = 0._rk
 
     ! encountered an inconsistency: spit the dummy
     else
@@ -951,11 +951,11 @@ contains
    do iState=1,size(mLayerVolFracLiqTrial)
 
     ! snow layer within numerical precision
-    if(mLayerVolFracLiqTrial(iState) < 0._summa_prec)then
+    if(mLayerVolFracLiqTrial(iState) < 0._rk)then
 
      if(mLayerVolFracLiqTrial(iState) > -verySmall)then
       mLayerVolFracIceTrial(iState) = mLayerVolFracIceTrial(iState) - mLayerVolFracLiqTrial(iState)
-      mLayerVolFracLiqTrial(iState) = 0._summa_prec
+      mLayerVolFracLiqTrial(iState) = 0._rk
 
      ! encountered an inconsistency: spit the dummy
      else

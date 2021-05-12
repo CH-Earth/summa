@@ -201,7 +201,7 @@ contains
  integer(i4b)                           :: ixFile       ! index in file
  integer(i4b)                           :: iHRU_local   ! index of HRU in the data subset
  integer(i4b)                           :: iHRU_global  ! index of HRU in the netcdf file
- real(summa_prec),allocatable                   :: varData(:,:) ! variable data storage
+ real(rk),allocatable                   :: varData(:,:) ! variable data storage
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b)                           :: nTDH          ! number of points in time-delay histogram
  integer(i4b)                           :: iLayer,jLayer ! layer indices
@@ -319,7 +319,7 @@ contains
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
     ! fix the snow albedo
-    if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._summa_prec)then
+    if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rk)then
      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
     endif
 
@@ -376,7 +376,7 @@ contains
                     mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n              )%dat(iLayer),& ! intent(in): van Genutchen "n" parameter
                     mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_sat          )%dat(iLayer),& ! intent(in): soil porosity (-)
                     mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%theta_res          )%dat(iLayer),& ! intent(in): soil residual volumetric water content (-)
-                    1._summa_prec - 1._summa_prec/mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat(iLayer),& ! intent(in): van Genutchen "m" parameter (-)
+                    1._rk - 1._rk/mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%vGn_n)%dat(iLayer),& ! intent(in): van Genutchen "m" parameter (-)
                     ! output
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracWat    )%dat(jLayer),& ! intent(out): volumetric fraction of total water (-)
                     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq    )%dat(jLayer),& ! intent(out): volumetric fraction of liquid water (-)

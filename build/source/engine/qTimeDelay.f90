@@ -52,14 +52,14 @@ contains
  implicit none
  ! input
  integer(i4b),intent(in)    :: ixRouting              ! index for routing method
- real(summa_prec),intent(in)        :: averageSurfaceRunoff   ! surface runoff (m s-1)
- real(summa_prec),intent(in)        :: averageSoilBaseflow    ! baseflow from the soil profile (m s-1)
- real(summa_prec),intent(in)        :: averageAquiferBaseflow ! baseflow from the aquifer (m s-1)
- real(summa_prec),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
- real(summa_prec),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
+ real(rk),intent(in)        :: averageSurfaceRunoff   ! surface runoff (m s-1)
+ real(rk),intent(in)        :: averageSoilBaseflow    ! baseflow from the soil profile (m s-1)
+ real(rk),intent(in)        :: averageAquiferBaseflow ! baseflow from the aquifer (m s-1)
+ real(rk),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
+ real(rk),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
  ! output
- real(summa_prec),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
- real(summa_prec),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
+ real(rk),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
+ real(rk),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
  integer(i4b),intent(out)   :: err                    ! error code
  character(*),intent(out)   :: message                ! error message
  ! internal
@@ -89,7 +89,7 @@ contains
    do iFuture=2,nTDH
     qFuture(iFuture-1) = qFuture(iFuture)
    end do
-   qFuture(nTDH) = 0._summa_prec
+   qFuture(nTDH) = 0._rk
 
    !print*, 'averageInstantRunoff, averageRoutedRunoff = ', averageInstantRunoff, averageRoutedRunoff
    !print*, 'qFuture(1:100) = ', qFuture(1:100)

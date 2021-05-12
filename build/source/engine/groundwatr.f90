@@ -47,9 +47,9 @@ USE mDecisions_module,only:  &
 ! privacy
 implicit none
 ! constant parameters
-real(summa_prec),parameter     :: valueMissing=-9999._summa_prec    ! missing value parameter
-real(summa_prec),parameter     :: verySmall=epsilon(1.0_summa_prec) ! a very small number (used to avoid divide by zero)
-real(summa_prec),parameter     :: dx=1.e-8_summa_prec               ! finite difference increment
+real(rk),parameter     :: valueMissing=-9999._rk    ! missing value parameter
+real(rk),parameter     :: verySmall=epsilon(1.0_rk) ! a very small number (used to avoid divide by zero)
+real(rk),parameter     :: dx=1.e-8_rk               ! finite difference increment
 private
 public::groundwatr
 contains
@@ -120,10 +120,10 @@ contains
  integer(i4b),intent(in)          :: nLayers                      ! total number of layers
  logical(lgt),intent(in)          :: getSatDepth                  ! logical flag to compute index of the lowest saturated layer
  ! input: state and diagnostic variables
- real(summa_prec),intent(in)              :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
- real(summa_prec),intent(in)              :: mLayerMatricHeadLiq(:)       ! matric head in each layer at the current iteration (m)
- real(summa_prec),intent(in)              :: mLayerVolFracLiq(:)          ! volumetric fraction of liquid water (-)
- real(summa_prec),intent(in)              :: mLayerVolFracIce(:)          ! volumetric fraction of ice (-)
+ real(rk),intent(in)              :: mLayerdTheta_dPsi(:)         ! derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+ real(rk),intent(in)              :: mLayerMatricHeadLiq(:)       ! matric head in each layer at the current iteration (m)
+ real(rk),intent(in)              :: mLayerVolFracLiq(:)          ! volumetric fraction of liquid water (-)
+ real(rk),intent(in)              :: mLayerVolFracIce(:)          ! volumetric fraction of ice (-)
  ! input/output: data structures
  type(var_d),intent(in)           :: attr_data                    ! spatial attributes
  type(var_dlength),intent(in)     :: mpar_data                    ! model parameters
@@ -132,8 +132,8 @@ contains
  type(var_dlength),intent(inout)  :: flux_data                    ! model fluxes for a local HRU
  ! output: baseflow
  integer(i4b),intent(inout)       :: ixSaturation                 ! index of lowest saturated layer (NOTE: only computed on the first iteration)
- real(summa_prec),intent(out)             :: mLayerBaseflow(:)            ! baseflow from each soil layer (m s-1)
- real(summa_prec),intent(out)             :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rk),intent(out)             :: mLayerBaseflow(:)            ! baseflow from each soil layer (m s-1)
+ real(rk),intent(out)             :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
@@ -142,13 +142,13 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! general local variables
  integer(i4b)                    :: iLayer                        ! index of soil layer
- real(summa_prec),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq             ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
+ real(rk),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq             ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
  ! local variables to compute the numerical Jacobian
  logical(lgt),parameter          :: doNumericalJacobian=.false.   ! flag to compute the numerical Jacobian
- real(summa_prec),dimension(nSoil)       :: mLayerMatricHeadPerturbed     ! perturbed matric head (m)
- real(summa_prec),dimension(nSoil)       :: mLayerVolFracLiqPerturbed     ! perturbed volumetric fraction of liquid water (-)
- real(summa_prec),dimension(nSoil)       :: mLayerBaseflowPerturbed       ! perturbed baseflow (m s-1)
- real(summa_prec),dimension(nSoil,nSoil) :: nJac                          ! numerical Jacobian (s-1)
+ real(rk),dimension(nSoil)       :: mLayerMatricHeadPerturbed     ! perturbed matric head (m)
+ real(rk),dimension(nSoil)       :: mLayerVolFracLiqPerturbed     ! perturbed volumetric fraction of liquid water (-)
+ real(rk),dimension(nSoil)       :: mLayerBaseflowPerturbed       ! perturbed baseflow (m s-1)
+ real(rk),dimension(nSoil,nSoil) :: nJac                          ! numerical Jacobian (s-1)
  ! ***************************************************************************************
  ! ***************************************************************************************
  ! initialize error control
@@ -189,10 +189,10 @@ contains
 
  ! check for an early return (no layers are "active")
  if(ixSaturation > nSoil)then
-  scalarExfiltration     = 0._summa_prec   ! exfiltration from the soil profile (m s-1)
-  mLayerColumnOutflow(:) = 0._summa_prec   ! column outflow from each soil layer (m3 s-1)
-  mLayerBaseflow(:)      = 0._summa_prec   ! baseflow from each soil layer (m s-1)
-  dBaseflow_dMatric(:,:) = 0._summa_prec   ! derivative in baseflow w.r.t. matric head (s-1)
+  scalarExfiltration     = 0._rk   ! exfiltration from the soil profile (m s-1)
+  mLayerColumnOutflow(:) = 0._rk   ! column outflow from each soil layer (m3 s-1)
+  mLayerBaseflow(:)      = 0._rk   ! baseflow from each soil layer (m s-1)
+  dBaseflow_dMatric(:,:) = 0._rk   ! derivative in baseflow w.r.t. matric head (s-1)
   return
  end if  ! if some layers are saturated
 
@@ -222,7 +222,7 @@ contains
  ! use the chain rule to compute the baseflow derivative w.r.t. matric head (s-1)
  do iLayer=1,nSoil
   dBaseflow_dMatric(1:iLayer,iLayer) = dBaseflow_dVolLiq(1:iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
-  if(iLayer<nSoil) dBaseflow_dMatric(iLayer+1:nSoil,iLayer) = 0._summa_prec
+  if(iLayer<nSoil) dBaseflow_dMatric(iLayer+1:nSoil,iLayer) = 0._rk
  end do
 
  ! ************************************************************************************************
@@ -323,46 +323,46 @@ contains
  integer(i4b),intent(in)          :: nLayers                 ! total number of layers
  logical(lgt),intent(in)          :: derivDesired            ! .true. if derivatives are desired
  integer(i4b),intent(in)          :: ixSaturation            ! index of upper-most "saturated" layer
- real(summa_prec),intent(in)              :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
- real(summa_prec),intent(in)              :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
+ real(rk),intent(in)              :: mLayerVolFracLiq(:)     ! volumetric fraction of liquid water (-)
+ real(rk),intent(in)              :: mLayerVolFracIce(:)     ! volumetric fraction of ice (-)
  ! input/output: data structures
  type(var_d),intent(in)           :: attr_data               ! spatial attributes
  type(var_dlength),intent(in)     :: mpar_data               ! model parameters
  type(var_dlength),intent(in)     :: prog_data               ! prognostic variables for a local HRU
  type(var_dlength),intent(inout)  :: flux_data               ! model fluxes for a local HRU
  ! output: baseflow
- real(summa_prec),intent(out)             :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
- real(summa_prec),intent(out)             :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rk),intent(out)             :: mLayerBaseflow(:)       ! baseflow from each soil layer (m s-1)
+ real(rk),intent(out)             :: dBaseflow_dVolLiq(:,:)  ! derivative in baseflow w.r.t. matric head (s-1)
  ! ---------------------------------------------------------------------------------------
  ! * local variables
  ! ---------------------------------------------------------------------------------------
  ! general local variables
  integer(i4b)                    :: iLayer,jLayer            ! index of model layer
  ! local variables for the exfiltration
- real(summa_prec)                        :: totalColumnInflow        ! total column inflow (m s-1)
- real(summa_prec)                        :: totalColumnOutflow       ! total column outflow (m s-1)
- real(summa_prec)                        :: availStorage             ! available storage (m)
- real(summa_prec),parameter              :: xMinEval=0.002_summa_prec        ! minimum value to evaluate the exfiltration function (m)
- real(summa_prec),parameter              :: xCenter=0.001_summa_prec         ! center of the exfiltration function (m)
- real(summa_prec),parameter              :: xWidth=0.0001_summa_prec         ! width of the exfiltration function (m)
- real(summa_prec)                        :: expF,logF                ! logistic smoothing function (-)
+ real(rk)                        :: totalColumnInflow        ! total column inflow (m s-1)
+ real(rk)                        :: totalColumnOutflow       ! total column outflow (m s-1)
+ real(rk)                        :: availStorage             ! available storage (m)
+ real(rk),parameter              :: xMinEval=0.002_rk        ! minimum value to evaluate the exfiltration function (m)
+ real(rk),parameter              :: xCenter=0.001_rk         ! center of the exfiltration function (m)
+ real(rk),parameter              :: xWidth=0.0001_rk         ! width of the exfiltration function (m)
+ real(rk)                        :: expF,logF                ! logistic smoothing function (-)
  ! local variables for the lateral flux among soil columns
- real(summa_prec)                        :: activePorosity           ! "active" porosity associated with storage above a threshold (-)
- real(summa_prec)                        :: drainableWater           ! drainable water in eaxch layer (m)
- real(summa_prec)                        :: tran0                    ! maximum transmissivity (m2 s-1)
- real(summa_prec),dimension(nSoil)       :: zActive                  ! water table thickness associated with storage below and including the given layer (m)
- real(summa_prec),dimension(nSoil)       :: trTotal                  ! total transmissivity associated with total water table depth zActive (m2 s-1)
- real(summa_prec),dimension(nSoil)       :: trSoil                   ! transmissivity of water in a given layer (m2 s-1)
+ real(rk)                        :: activePorosity           ! "active" porosity associated with storage above a threshold (-)
+ real(rk)                        :: drainableWater           ! drainable water in eaxch layer (m)
+ real(rk)                        :: tran0                    ! maximum transmissivity (m2 s-1)
+ real(rk),dimension(nSoil)       :: zActive                  ! water table thickness associated with storage below and including the given layer (m)
+ real(rk),dimension(nSoil)       :: trTotal                  ! total transmissivity associated with total water table depth zActive (m2 s-1)
+ real(rk),dimension(nSoil)       :: trSoil                   ! transmissivity of water in a given layer (m2 s-1)
  ! local variables for the derivatives
- real(summa_prec)                        :: qbTotal                  ! total baseflow (m s-1)
- real(summa_prec)                        :: length2area              ! ratio of hillslope width to hillslope area (m m-2)
- real(summa_prec),dimension(nSoil)       :: depth2capacity           ! ratio of layer depth to total subsurface storage capacity (-)
- real(summa_prec),dimension(nSoil)       :: dXdS                     ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
- real(summa_prec),dimension(nSoil)       :: dLogFunc_dLiq            ! derivative in the logistic function w.r.t. volumetric liquid water content (-)
- real(summa_prec),dimension(nSoil)       :: dExfiltrate_dVolLiq      ! derivative in exfiltration w.r.t. volumetric liquid water content (-)
+ real(rk)                        :: qbTotal                  ! total baseflow (m s-1)
+ real(rk)                        :: length2area              ! ratio of hillslope width to hillslope area (m m-2)
+ real(rk),dimension(nSoil)       :: depth2capacity           ! ratio of layer depth to total subsurface storage capacity (-)
+ real(rk),dimension(nSoil)       :: dXdS                     ! change in dimensionless flux w.r.t. change in dimensionless storage (-)
+ real(rk),dimension(nSoil)       :: dLogFunc_dLiq            ! derivative in the logistic function w.r.t. volumetric liquid water content (-)
+ real(rk),dimension(nSoil)       :: dExfiltrate_dVolLiq      ! derivative in exfiltration w.r.t. volumetric liquid water content (-)
  ! local variables for testing (debugging)
  logical(lgt),parameter          :: printFlag=.false.        ! flag for printing (debugging)
- real(summa_prec)                        :: xDepth,xTran,xFlow       ! temporary variables (depth, transmissivity, flow)
+ real(rk)                        :: xDepth,xTran,xFlow       ! temporary variables (depth, transmissivity, flow)
  ! ---------------------------------------------------------------------------------------
  ! * association to data in structures
  ! ---------------------------------------------------------------------------------------
@@ -408,7 +408,7 @@ contains
  do iLayer=nSoil,ixSaturation,-1  ! loop through "active" soil layers, from lowest to highest
   ! define drainable water in each layer (m)
   activePorosity = theta_sat(iLayer) - fieldCapacity ! "active" porosity (-)
-  drainableWater = mLayerDepth(iLayer)*(max(0._summa_prec,mLayerVolFracLiq(iLayer) - fieldCapacity))/activePorosity
+  drainableWater = mLayerDepth(iLayer)*(max(0._rk,mLayerVolFracLiq(iLayer) - fieldCapacity))/activePorosity
   ! compute layer transmissivity
   if(iLayer==nSoil)then
    zActive(iLayer) = drainableWater                                       ! water table thickness associated with storage in a given layer (m)
@@ -425,9 +425,9 @@ contains
 
  ! set un-used portions of the vectors to zero
  if(ixSaturation>1)then
-  zActive(1:ixSaturation-1) = 0._summa_prec
-  trTotal(1:ixSaturation-1) = 0._summa_prec
-  trSoil(1:ixSaturation-1)  = 0._summa_prec
+  zActive(1:ixSaturation-1) = 0._rk
+  trTotal(1:ixSaturation-1) = 0._rk
+  trSoil(1:ixSaturation-1)  = 0._rk
  end if
 
  ! compute the outflow from each layer (m3 s-1)
@@ -444,26 +444,26 @@ contains
  if(availStorage < xMinEval)then
   ! (compute the logistic function)
   expF = exp((availStorage - xCenter)/xWidth)
-  logF = 1._summa_prec / (1._summa_prec + expF)
+  logF = 1._rk / (1._rk + expF)
   ! (compute the derivative in the logistic function w.r.t. volumetric liquid water content in each soil layer)
-  dLogFunc_dLiq(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._summa_prec + expF)**2._summa_prec
+  dLogFunc_dLiq(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rk + expF)**2._rk
  else
-  logF             = 0._summa_prec
-  dLogFunc_dLiq(:) = 0._summa_prec
+  logF             = 0._rk
+  dLogFunc_dLiq(:) = 0._rk
  end if
 
  ! compute the exfiltartion (m s-1)
- if(totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._summa_prec))then
+ if(totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rk))then
   scalarExfiltration = logF*(totalColumnInflow - totalColumnOutflow)  ! m s-1
   !write(*,'(a,1x,10(f30.20,1x))') 'scalarExfiltration = ', scalarExfiltration
  else
-  scalarExfiltration = 0._summa_prec
+  scalarExfiltration = 0._rk
  end if
 
  ! check
  !write(*,'(a,1x,10(f30.20,1x))') 'zActive(1), soilDepth, availStorage, logF, scalarExfiltration = ', &
  !                                 zActive(1), soilDepth, availStorage, logF, scalarExfiltration
- !if(scalarExfiltration > tiny(1.0_summa_prec))  pause 'exfiltrating'
+ !if(scalarExfiltration > tiny(1.0_rk))  pause 'exfiltrating'
 
  ! compute the baseflow in each layer (m s-1)
  mLayerBaseflow(1:nSoil) = (mLayerColumnOutflow(1:nSoil) - mLayerColumnInflow(1:nSoil))/HRUarea
@@ -494,7 +494,7 @@ contains
  ! ***********************************************************************************************************************
 
  ! initialize the derivative matrix
- dBaseflow_dVolLiq(:,:) = 0._summa_prec
+ dBaseflow_dVolLiq(:,:) = 0._rk
 
  ! check if derivatives are actually required
  if(.not.derivDesired) return
@@ -506,7 +506,7 @@ contains
  depth2capacity(1:nSoil) = mLayerDepth(1:nSoil)/sum( (theta_sat(1:nSoil) - fieldCapacity)*mLayerDepth(1:nSoil) )
 
  ! compute the change in dimensionless flux w.r.t. change in dimensionless storage (-)
- dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/SoilDepth)**(zScale_TOPMODEL - 1._summa_prec)
+ dXdS(1:nSoil) = zScale_TOPMODEL*(zActive(1:nSoil)/SoilDepth)**(zScale_TOPMODEL - 1._rk)
 
  ! loop through soil layers
  do iLayer=1,nSoil
@@ -519,7 +519,7 @@ contains
  end do  ! looping through soil layers
 
  ! compute the derivative in the exfiltration flux w.r.t. volumetric liquid water content (m s-1)
- if(qbTotal < 0._summa_prec)then
+ if(qbTotal < 0._rk)then
   do iLayer=1,nSoil
    dExfiltrate_dVolLiq(iLayer) = dBaseflow_dVolLiq(iLayer,iLayer)*logF + dLogFunc_dLiq(iLayer)*qbTotal
   end do  ! looping through soil layers

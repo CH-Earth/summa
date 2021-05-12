@@ -74,8 +74,8 @@ contains
  implicit none
  ! input variables
  integer(i4b),     intent(in)    :: time_data(:)             ! vector of time data for a given time step
- real(summa_prec),         intent(inout) :: forc_data(:)             ! vector of forcing data for a given time step
- real(summa_prec),         intent(in)    :: attr_data(:)             ! vector of model attributes
+ real(rk),         intent(inout) :: forc_data(:)             ! vector of forcing data for a given time step
+ real(rk),         intent(in)    :: attr_data(:)             ! vector of model attributes
  type(var_dlength),intent(in)    :: mpar_data                ! vector of model parameters
  type(var_dlength),intent(in)    :: prog_data                ! data structure of model prognostic variables for a local HRU
  ! output variables
@@ -86,33 +86,33 @@ contains
  ! local time
  integer(i4b)                    :: jyyy,jm,jd               ! year, month, day
  integer(i4b)                    :: jh,jmin                  ! hour, minute
- real(summa_prec)                        :: dsec                     ! double precision seconds (not used)
- real(summa_prec)                        :: timeOffset               ! time offset from Grenwich (days)
- real(summa_prec)                        :: julianTime               ! local julian time
+ real(rk)                        :: dsec                     ! double precision seconds (not used)
+ real(rk)                        :: timeOffset               ! time offset from Grenwich (days)
+ real(rk)                        :: julianTime               ! local julian time
  ! cosine of the solar zenith angle
- real(summa_prec)                        :: ahour                    ! hour at start of time step
- real(summa_prec)                        :: dataStep                 ! data step (hours)
- real(summa_prec),parameter              :: slope=0._summa_prec              ! terrain slope (assume flat)
- real(summa_prec),parameter              :: azimuth=0._summa_prec            ! terrain azimuth (assume zero)
- real(summa_prec)                        :: hri                      ! average radiation index over time step DT
+ real(rk)                        :: ahour                    ! hour at start of time step
+ real(rk)                        :: dataStep                 ! data step (hours)
+ real(rk),parameter              :: slope=0._rk              ! terrain slope (assume flat)
+ real(rk),parameter              :: azimuth=0._rk            ! terrain azimuth (assume zero)
+ real(rk)                        :: hri                      ! average radiation index over time step DT
  ! general local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
  integer(i4b),parameter          :: nBands=2                 ! number of spectral bands
- real(summa_prec),parameter              :: valueMissing=-9999._summa_prec   ! missing value
- real(summa_prec),parameter              :: co2Factor=355.e-6_summa_prec     ! empirical factor to obtain partial pressure of co2
- real(summa_prec),parameter              :: o2Factor=0.209_summa_prec        ! empirical factor to obtain partial pressure of o2
- real(summa_prec),parameter              :: minMeasHeight=1._summa_prec      ! minimum measurement height (m)
- real(summa_prec)                        :: relhum                   ! relative humidity (-)
- real(summa_prec)                        :: fracrain                 ! fraction of precipitation that falls as rain
- real(summa_prec)                        :: maxFrozenSnowTemp        ! maximum temperature of snow when the snow is predominantely frozen (K)
- real(summa_prec),parameter              :: unfrozenLiq=0.01_summa_prec      ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(summa_prec),parameter              :: eps=epsilon(fracrain)    ! a number that is almost negligible
- real(summa_prec)                        :: Tmin,Tmax                ! minimum and maximum wet bulb temperature in the time step (K)
- real(summa_prec),parameter              :: pomNewSnowDenMax=150._summa_prec   ! Upper limit for new snow density limit in Hedstrom and Pomeroy 1998. 150 was used because at was the highest observed density at air temperatures used in this study. See Figure 4 of Hedstrom and Pomeroy (1998).
- real(summa_prec),parameter              :: andersonWarmDenLimit=2._summa_prec ! Upper air temperature limit in Anderson (1976) new snow density (C)
- real(summa_prec),parameter              :: andersonColdDenLimit=15._summa_prec! Lower air temperature limit in Anderson (1976) new snow density (C)
- real(summa_prec),parameter              :: andersonDenScal=1.5_summa_prec     ! Scalar parameter in Anderson (1976) new snow density function (-)
- real(summa_prec),parameter              :: pahautDenWindScal=0.5_summa_prec   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
+ real(rk),parameter              :: valueMissing=-9999._rk   ! missing value
+ real(rk),parameter              :: co2Factor=355.e-6_rk     ! empirical factor to obtain partial pressure of co2
+ real(rk),parameter              :: o2Factor=0.209_rk        ! empirical factor to obtain partial pressure of o2
+ real(rk),parameter              :: minMeasHeight=1._rk      ! minimum measurement height (m)
+ real(rk)                        :: relhum                   ! relative humidity (-)
+ real(rk)                        :: fracrain                 ! fraction of precipitation that falls as rain
+ real(rk)                        :: maxFrozenSnowTemp        ! maximum temperature of snow when the snow is predominantely frozen (K)
+ real(rk),parameter              :: unfrozenLiq=0.01_rk      ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rk),parameter              :: eps=epsilon(fracrain)    ! a number that is almost negligible
+ real(rk)                        :: Tmin,Tmax                ! minimum and maximum wet bulb temperature in the time step (K)
+ real(rk),parameter              :: pomNewSnowDenMax=150._rk   ! Upper limit for new snow density limit in Hedstrom and Pomeroy 1998. 150 was used because at was the highest observed density at air temperatures used in this study. See Figure 4 of Hedstrom and Pomeroy (1998).
+ real(rk),parameter              :: andersonWarmDenLimit=2._rk ! Upper air temperature limit in Anderson (1976) new snow density (C)
+ real(rk),parameter              :: andersonColdDenLimit=15._rk! Lower air temperature limit in Anderson (1976) new snow density (C)
+ real(rk),parameter              :: andersonDenScal=1.5_rk     ! Scalar parameter in Anderson (1976) new snow density function (-)
+ real(rk),parameter              :: pahautDenWindScal=0.5_rk   ! Scalar parameter for wind impacts on density using Pahaut (1976) function (-)
  ! ************************************************************************************************
  ! associate local variables with the information in the data structures
  associate(&
@@ -204,13 +204,13 @@ contains
  select case(trim(NC_TIME_ZONE))
   ! Time zone information from NetCDF file
   case('ncTime')
-   timeOffset = longitude/360._summa_prec - tmZoneOffsetFracDay ! time offset in days
+   timeOffset = longitude/360._rk - tmZoneOffsetFracDay ! time offset in days
   ! All times in UTC
   case('utcTime')
-   timeOffset = longitude/360._summa_prec  ! time offset in days
+   timeOffset = longitude/360._rk  ! time offset in days
   ! All times local
   case('localTime')
-   timeOffset = 0._summa_prec  ! time offset in days
+   timeOffset = 0._rk  ! time offset in days
   case default; message=trim(message)//'unable to identify option for tmZoneInfo'; err=20; return
  end select ! identifying option tmZoneInfo
 
@@ -232,7 +232,7 @@ contains
 
  ! compute the decimal hour at the start of the time step
  dataStep = data_step/secprhour  ! time step (hours)
- ahour    = real(jh,kind(summa_prec)) + real(jmin,kind(summa_prec))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
+ ahour    = real(jh,kind(rk)) + real(jmin,kind(rk))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
  ! compute the cosine of the solar zenith angle
  call clrsky_rad(jm,jd,ahour,dataStep,   &  ! intent(in): time variables
@@ -241,19 +241,19 @@ contains
  !write(*,'(a,1x,4(i2,1x),3(f9.3,1x))') 'im,id,ih,imin,ahour,dataStep,cosZenith = ', &
 
  ! ensure solar radiation is non-negative
- if(SWRadAtm < 0._summa_prec) SWRadAtm = 0._summa_prec
+ if(SWRadAtm < 0._rk) SWRadAtm = 0._rk
  ! compute the fraction of direct radiation using the parameterization of Nijssen and Lettenmaier (1999)
- if(cosZenith > 0._summa_prec)then
+ if(cosZenith > 0._rk)then
   scalarFractionDirect = Frad_direct*cosZenith/(cosZenith + directScale)
  else
-  scalarFractionDirect = 0._summa_prec
+  scalarFractionDirect = 0._rk
  end if
  ! compute direct shortwave radiation, in the visible and near-infra-red part of the spectrum
  spectralIncomingDirect(1) = SWRadAtm*scalarFractionDirect*Frad_vis                         ! (direct vis)
- spectralIncomingDirect(2) = SWRadAtm*scalarFractionDirect*(1._summa_prec - Frad_vis)               ! (direct nir)
+ spectralIncomingDirect(2) = SWRadAtm*scalarFractionDirect*(1._rk - Frad_vis)               ! (direct nir)
  ! compute diffuse shortwave radiation, in the visible and near-infra-red part of the spectrum
- spectralIncomingDiffuse(1) = SWRadAtm*(1._summa_prec - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
- spectralIncomingDiffuse(2) = SWRadAtm*(1._summa_prec - scalarFractionDirect)*(1._summa_prec - Frad_vis)    ! (diffuse nir)
+ spectralIncomingDiffuse(1) = SWRadAtm*(1._rk - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
+ spectralIncomingDiffuse(2) = SWRadAtm*(1._rk - scalarFractionDirect)*(1._rk - Frad_vis)    ! (diffuse nir)
 
  ! ensure wind speed is above a prescribed minimum value
  if(windspd < minwind) windspd=minwind
@@ -261,8 +261,8 @@ contains
  ! compute relative humidity (-)
  relhum   = SPHM2RELHM(spechum, airpres, airtemp)
  ! if relative humidity exceeds saturation, then set relative and specific humidity to saturation
- if(relhum > 1._summa_prec)then
-  relhum  = 1._summa_prec
+ if(relhum > 1._rk)then
+  relhum  = 1._rk
   spechum = RELHM2SPHM(relhum, airpres, airtemp)
  end if
 
@@ -277,17 +277,17 @@ contains
  maxFrozenSnowTemp = templiquid(unfrozenLiq,fc_param)
 
  ! compute fraction of rain and temperature of fresh snow
- Tmin = twetbulb - tempRangeTimestep/2._summa_prec
- Tmax = twetbulb + tempRangeTimestep/2._summa_prec
+ Tmin = twetbulb - tempRangeTimestep/2._rk
+ Tmax = twetbulb + tempRangeTimestep/2._rk
  if(Tmax < tempCritRain)then
-  fracrain     = 0._summa_prec
+  fracrain     = 0._rk
   snowfallTemp = twetbulb
  elseif(Tmin > tempCritRain)then
-  fracrain     = 1._summa_prec
+  fracrain     = 1._rk
   snowfallTemp = maxFrozenSnowTemp
  else
   fracrain     = (Tmax - tempCritRain)/(Tmax - Tmin)
-  snowfallTemp = 0.5_summa_prec*(Tmin + maxFrozenSnowTemp)
+  snowfallTemp = 0.5_rk*(Tmin + maxFrozenSnowTemp)
  end if
  !write(*,'(a,1x,10(f20.10,1x))') 'Tmin, twetbulb, tempRangeTimestep, tempCritRain = ', &
  !                                 Tmin, twetbulb, tempRangeTimestep, tempCritRain
@@ -298,12 +298,12 @@ contains
  ! ensure precipitation rate can be resolved by the data model
  if(pptrate<eps)then
   ! set rainfall and snowfall to zero
-  rainfall     = 0._summa_prec
-  snowfall     = 0._summa_prec
+  rainfall     = 0._rk
+  snowfall     = 0._rk
  else
   ! compute rainfall and snowfall
   rainfall = fracrain*pptrate
-  snowfall = (1._summa_prec - fracrain)*pptrate*frozenPrecipMultip
+  snowfall = (1._rk - fracrain)*pptrate*frozenPrecipMultip
  end if
 
  !print*, 'tempCritRain, tempRangeTimestep, pptrate, airtemp, rainfall, snowfall, twetbulb, relhum, snowfallTemp = '
@@ -336,7 +336,7 @@ contains
  else
   newSnowDensity = valueMissing
   rainfall = rainfall + snowfall ! in most cases snowfall will be zero here
-  snowfall = 0._summa_prec
+  snowfall = 0._rk
  end if
 
  ! end association of local variables with the information in the data structures

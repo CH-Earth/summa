@@ -98,10 +98,10 @@ private
 public::systemSolv
 
 ! control parameters
-real(summa_prec),parameter  :: valueMissing=-9999._summa_prec     ! missing value
-real(summa_prec),parameter  :: verySmall=1.e-12_summa_prec        ! a very small number (used to check consistency)
-real(summa_prec),parameter  :: veryBig=1.e+20_summa_prec          ! a very big number
-real(summa_prec),parameter  :: dx = 1.e-8_summa_prec              ! finite difference increment
+real(rk),parameter  :: valueMissing=-9999._rk     ! missing value
+real(rk),parameter  :: verySmall=1.e-12_rk        ! a very small number (used to check consistency)
+real(rk),parameter  :: veryBig=1.e+20_rk          ! a very big number
+real(rk),parameter  :: dx = 1.e-8_rk              ! finite difference increment
 
 contains
 
@@ -152,7 +152,7 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(summa_prec),intent(in)             :: dt                            ! time step (seconds)
+ real(rk),intent(in)             :: dt                            ! time step (seconds)
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
@@ -170,12 +170,12 @@ contains
  type(var_dlength),intent(inout) :: flux_temp                     ! model fluxes for a local HRU
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
- real(summa_prec),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
+ real(rk),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
  ! output: model control
  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(summa_prec),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
- real(summa_prec),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
+ real(rk),intent(out)            :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
+ real(rk),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
@@ -193,11 +193,11 @@ contains
  integer(i4b)                    :: iState                        ! index of model state
  integer(i4b)                    :: nLeadDim                      ! length of the leading dimension of the Jacobian matrix (nBands or nState)
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
- real(summa_prec)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
- real(summa_prec)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
- real(summa_prec),parameter              :: tempAccelerate=0.00_summa_prec        ! factor to force initial canopy temperatures to be close to air temperature
- real(summa_prec),parameter              :: xMinCanopyWater=0.0001_summa_prec     ! minimum value to initialize canopy water (kg m-2)
- real(summa_prec),parameter              :: tinyStep=0.000001_summa_prec          ! stupidly small time step (s)
+ real(rk)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+ real(rk)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+ real(rk),parameter              :: tempAccelerate=0.00_rk        ! factor to force initial canopy temperatures to be close to air temperature
+ real(rk),parameter              :: xMinCanopyWater=0.0001_rk     ! minimum value to initialize canopy water (kg m-2)
+ real(rk),parameter              :: tinyStep=0.000001_rk          ! stupidly small time step (s)
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
@@ -207,22 +207,22 @@ contains
  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
  integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
- real(summa_prec),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
- real(summa_prec)                        :: stateVecNew(nState)           ! new state vector (mixed units)
- real(summa_prec)                        :: fluxVec0(nState)              ! flux vector (mixed units)
- real(summa_prec)                        :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
- real(summa_prec)                        :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
- real(summa_prec)                        :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
- real(summa_prec)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
- real(summa_prec)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
- real(summa_prec)                        :: rAdd(nState)                  ! additional terms in the residual vector
- real(summa_prec)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
- real(summa_prec)                        :: xMin,xMax                     ! state minimum and maximum (mixed units)
+ real(rk),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
+ real(rk)                        :: stateVecNew(nState)           ! new state vector (mixed units)
+ real(rk)                        :: fluxVec0(nState)              ! flux vector (mixed units)
+ real(rk)                        :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
+ real(rk)                        :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
+ real(rk)                        :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
+ real(rk)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
+ real(rk)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
+ real(rk)                        :: rAdd(nState)                  ! additional terms in the residual vector
+ real(rk)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
+ real(rk)                        :: xMin,xMax                     ! state minimum and maximum (mixed units)
  logical(lgt)                    :: converged                     ! convergence flag
  logical(lgt)                    :: feasible                      ! feasibility flag
- real(summa_prec)                        :: resSinkNew(nState)            ! additional terms in the residual vector
- real(summa_prec)                        :: fluxVecNew(nState)            ! new flux vector
- real(summa_prec)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector
+ real(rk)                        :: resSinkNew(nState)            ! additional terms in the residual vector
+ real(rk)                        :: fluxVecNew(nState)            ! new flux vector
+ real(rk)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -533,13 +533,13 @@ contains
  ! ------------------
 
  ! set untapped melt energy to zero
- untappedMelt(:) = 0._summa_prec
+ untappedMelt(:) = 0._rk
 
  ! update temperatures (ensure new temperature is consistent with the fluxes)
  if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    iState = ixSnowSoilNrg(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), summa_prec)
+   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rk)
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 

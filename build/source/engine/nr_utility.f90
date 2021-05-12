@@ -31,9 +31,9 @@ contains
  ! ------------------------------------------------------------------------------------------------
  FUNCTION arth_d(first,increment,n)
  implicit none
- real(summa_prec), INTENT(IN) :: first,increment
+ real(rk), INTENT(IN) :: first,increment
  INTEGER(I4B), INTENT(IN) :: n
- real(summa_prec), DIMENSION(n) :: arth_d
+ real(rk), DIMENSION(n) :: arth_d
  INTEGER(I4B) :: k
  arth_d(1)=first
  if(n>1)then
@@ -62,11 +62,11 @@ contains
  SUBROUTINE indexx(arr,index)
  IMPLICIT NONE
  !INTEGER(I4B), DIMENSION(:), INTENT(IN) :: arr
- real(summa_prec), DIMENSION(:), INTENT(IN) :: arr
+ real(rk), DIMENSION(:), INTENT(IN) :: arr
  INTEGER(I4B), DIMENSION(:), INTENT(OUT) :: index
  INTEGER(I4B), PARAMETER :: NN=15, NSTACK=50
  !INTEGER(I4B) :: a
- real(summa_prec) :: a
+ real(rk) :: a
  INTEGER(I4B) :: n,k,i,j,indext,jstack,l,r
  INTEGER(I4B), DIMENSION(NSTACK) :: istack
  n=size(arr)

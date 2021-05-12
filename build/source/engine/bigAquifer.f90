@@ -66,24 +66,24 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: state variables, fluxes, and parameters
- real(summa_prec),intent(in)              :: scalarAquiferStorageTrial    ! trial value of aquifer storage (m)
- real(summa_prec),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
- real(summa_prec),intent(in)              :: scalarSoilDrainage           ! soil drainage (m s-1)
+ real(rk),intent(in)              :: scalarAquiferStorageTrial    ! trial value of aquifer storage (m)
+ real(rk),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
+ real(rk),intent(in)              :: scalarSoilDrainage           ! soil drainage (m s-1)
  ! input: diagnostic variables and parameters
  type(var_dlength),intent(in)     :: mpar_data                    ! model parameters
  type(var_dlength),intent(in)     :: diag_data                    ! diagnostic variables for a local HRU
  ! output: fluxes
- real(summa_prec),intent(out)             :: scalarAquiferTranspire       ! transpiration loss from the aquifer (m s-1)
- real(summa_prec),intent(out)             :: scalarAquiferRecharge        ! recharge to the aquifer (m s-1)
- real(summa_prec),intent(out)             :: scalarAquiferBaseflow        ! total baseflow from the aquifer (m s-1)
- real(summa_prec),intent(out)             :: dBaseflow_dAquifer           ! change in baseflow flux w.r.t. aquifer storage (s-1)
+ real(rk),intent(out)             :: scalarAquiferTranspire       ! transpiration loss from the aquifer (m s-1)
+ real(rk),intent(out)             :: scalarAquiferRecharge        ! recharge to the aquifer (m s-1)
+ real(rk),intent(out)             :: scalarAquiferBaseflow        ! total baseflow from the aquifer (m s-1)
+ real(rk),intent(out)             :: dBaseflow_dAquifer           ! change in baseflow flux w.r.t. aquifer storage (s-1)
  ! output: error control
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- real(summa_prec)                         :: aquiferTranspireFrac         ! fraction of total transpiration that comes from the aquifer (-)
- real(summa_prec)                         :: xTemp                        ! temporary variable (-)
+ real(rk)                         :: aquiferTranspireFrac         ! fraction of total transpiration that comes from the aquifer (-)
+ real(rk)                         :: xTemp                        ! temporary variable (-)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='bigAquifer/'
@@ -112,7 +112,7 @@ contains
  scalarAquiferBaseflow = aquiferBaseflowRate*(xTemp**aquiferBaseflowExp)
 
  ! compute the derivative in the net aquifer flux
- dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1._summa_prec)))/aquiferScaleFactor
+ dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1._rk)))/aquiferScaleFactor
 
  ! end association to data in structures
  end associate
