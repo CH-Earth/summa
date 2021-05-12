@@ -147,10 +147,10 @@ integer(i4b),parameter  :: nStateTypes=2              ! number of state types (e
 integer(i4b),parameter  :: nDomains=4                 ! number of domains (vegetation, snow, soil, and aquifer)
 
 ! control parameters
-real(dp),parameter      :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter      :: verySmall=1.e-12_dp        ! a very small number (used to check consistency)
-real(dp),parameter      :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter      :: dx = 1.e-8_dp              ! finite difference increment
+real(summa_prec),parameter      :: valueMissing=-9999._summa_prec     ! missing value
+real(summa_prec),parameter      :: verySmall=1.e-12_summa_prec        ! a very small number (used to check consistency)
+real(summa_prec),parameter      :: veryBig=1.e+20_summa_prec          ! a very big number
+real(summa_prec),parameter      :: dx = 1.e-8_summa_prec              ! finite difference increment
 
 contains
 
@@ -210,7 +210,7 @@ contains
  integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                        ! total number of layers
  integer(i4b),intent(in)         :: nState                         ! total number of state variables
- real(dp),intent(inout)          :: dt                             ! time step (seconds)
+ real(summa_prec),intent(inout)          :: dt                             ! time step (seconds)
  logical(lgt),intent(in)         :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! input/output: data structures
@@ -225,7 +225,7 @@ contains
  type(var_dlength),intent(in)    :: bvar_data                      ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
  ! output: model control
- real(dp),intent(out)            :: dtMultiplier                   ! substep multiplier (-)
+ real(summa_prec),intent(out)            :: dtMultiplier                   ! substep multiplier (-)
  logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
  logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure
  integer(i4b),intent(out)        :: err                            ! error code
@@ -249,19 +249,19 @@ contains
  type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
  type(var_dlength)               :: flux_temp                      ! temporary model fluxes
  type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
- real(dp),dimension(nLayers)     :: mLayerVolFracIceInit           ! initial vector for volumetric fraction of ice (-)
+ real(summa_prec),dimension(nLayers)     :: mLayerVolFracIceInit           ! initial vector for volumetric fraction of ice (-)
  ! ------------------------------------------------------------------------------------------------------
  ! * operator splitting
  ! ------------------------------------------------------------------------------------------------------
  ! minimum timestep
- real(dp),parameter              :: dtmin_coupled=1800._dp         ! minimum time step for the fully coupled solution (seconds)
- real(dp),parameter              :: dtmin_split=60._dp             ! minimum time step for the fully split solution (seconds)
- real(dp),parameter              :: dtmin_scalar=10._dp            ! minimum time step for the scalar solution (seconds)
- real(dp)                        :: dt_min                         ! minimum time step (seconds)
- real(dp)                        :: dtInit                         ! initial time step (seconds)
+ real(summa_prec),parameter              :: dtmin_coupled=1800._summa_prec         ! minimum time step for the fully coupled solution (seconds)
+ real(summa_prec),parameter              :: dtmin_split=60._summa_prec             ! minimum time step for the fully split solution (seconds)
+ real(summa_prec),parameter              :: dtmin_scalar=10._summa_prec            ! minimum time step for the scalar solution (seconds)
+ real(summa_prec)                        :: dt_min                         ! minimum time step (seconds)
+ real(summa_prec)                        :: dtInit                         ! initial time step (seconds)
  ! explicit error tolerance (depends on state type split, so defined here)
- real(dp),parameter              :: errorTolLiqFlux=0.01_dp        ! error tolerance in the explicit solution (liquid flux)
- real(dp),parameter              :: errorTolNrgFlux=10._dp         ! error tolerance in the explicit solution (energy flux)
+ real(summa_prec),parameter              :: errorTolLiqFlux=0.01_summa_prec        ! error tolerance in the explicit solution (liquid flux)
+ real(summa_prec),parameter              :: errorTolNrgFlux=10._summa_prec         ! error tolerance in the explicit solution (energy flux)
  ! number of substeps taken for a given split
  integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
  ! named variables defining the coupling and solution method
@@ -443,12 +443,12 @@ contains
  do iVar=1,size(flux_meta)  ! loop through fluxes
   if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
   if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
-  flux_data%var(iVar)%dat(:) = 0._dp
+  flux_data%var(iVar)%dat(:) = 0._summa_prec
  end do
 
  ! initialize derivatives
  do iVar=1,size(deriv_meta)
-  deriv_data%var(iVar)%dat(:) = 0._dp
+  deriv_data%var(iVar)%dat(:) = 0._summa_prec
  end do
 
  ! ==========================================================================================================================================
@@ -978,7 +978,7 @@ contains
  end do
 
  ! use step halving if unable to complete the fully coupled solution in one substep
- if(ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_dp
+ if(ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_summa_prec
 
  ! compute the melt in each snow and soil layer
  if(nSnow>0) mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIce(      1:nSnow  ) - mLayerVolFracIceInit(      1:nSnow  ))*iden_ice

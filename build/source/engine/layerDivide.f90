@@ -117,21 +117,21 @@ contains
  integer(i4b)                    :: nLayers             ! total number of layers
  integer(i4b)                    :: iLayer              ! layer index
  integer(i4b)                    :: jLayer              ! layer index
- real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
- real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
- real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
+ real(summa_prec),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
+ real(summa_prec),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
+ real(summa_prec)                        :: zmaxCheck           ! value of zmax for a given snow layer
  integer(i4b)                    :: nCheck              ! number of layers to check to divide
  logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
- real(dp)                        :: depthOriginal       ! original layer depth before sub-division (m)
- real(dp),parameter              :: fracTop=0.5_dp      ! fraction of old layer used for the top layer
- real(dp)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
- real(dp)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
- real(dp),parameter              :: unfrozenLiq=0.01_dp ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(dp)                        :: volFracWater        ! volumetric fraction of total water, liquid and ice (-)
- real(dp)                        :: fracLiq             ! fraction of liquid water (-)
+ real(summa_prec)                        :: depthOriginal       ! original layer depth before sub-division (m)
+ real(summa_prec),parameter              :: fracTop=0.5_summa_prec      ! fraction of old layer used for the top layer
+ real(summa_prec)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
+ real(summa_prec)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
+ real(summa_prec),parameter              :: unfrozenLiq=0.01_summa_prec ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(summa_prec)                        :: volFracWater        ! volumetric fraction of total water, liquid and ice (-)
+ real(summa_prec)                        :: fracLiq             ! fraction of liquid water (-)
  integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
- real(dp),parameter              :: verySmall=1.e-10_dp ! a very small number (used for error checking)
+ real(summa_prec),parameter              :: verySmall=1.e-10_summa_prec ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -224,7 +224,7 @@ contains
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
-   mLayerVolFracIce(1) = (1._dp - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
+   mLayerVolFracIce(1) = (1._summa_prec - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
    mLayerVolFracLiq(1) =          fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
 
    ! end association with local variables to the information in the data structures)
@@ -243,7 +243,7 @@ contains
       prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixVisible) = mpar_data%var(iLookPARAM%albedoMaxVisible)%dat(1)
       prog_data%var(iLookPROG%spectralSnowAlbedoDiffuse)%dat(ixNearIR)  = mpar_data%var(iLookPARAM%albedoMaxNearIR)%dat(1)
       prog_data%var(iLookPROG%scalarSnowAlbedo)%dat(1)                  = (        mpar_data%var(iLookPARAM%Frad_vis)%dat(1))*mpar_data%var(iLookPARAM%albedoMaxVisible)%dat(1) + &
-                                                                          (1._dp - mpar_data%var(iLookPARAM%Frad_vis)%dat(1))*mpar_data%var(iLookPARAM%albedoMaxNearIR)%dat(1)
+                                                                          (1._summa_prec - mpar_data%var(iLookPARAM%Frad_vis)%dat(1))*mpar_data%var(iLookPARAM%albedoMaxNearIR)%dat(1)
      case default; err=20; message=trim(message)//'unable to identify option for snow albedo'; return
     end select  ! identify option for snow albedo
     ! set direct albedo to diffuse albedo
@@ -299,7 +299,7 @@ contains
     layerSplit: associate(mLayerDepth => prog_data%var(iLookPROG%mLayerDepth)%dat)
     depthOriginal = mLayerDepth(iLayer)
     mLayerDepth(iLayer)   = fracTop*depthOriginal
-    mLayerDepth(iLayer+1) = (1._dp - fracTop)*depthOriginal
+    mLayerDepth(iLayer+1) = (1._summa_prec - fracTop)*depthOriginal
     end associate layerSplit
 
     exit  ! NOTE: only sub-divide one layer per substep
@@ -337,7 +337,7 @@ contains
   iLayerHeight(0) = -scalarSnowDepth
   do jLayer=1,nLayers
    iLayerHeight(jLayer) = iLayerHeight(jLayer-1) + mLayerDepth(jLayer)
-   mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._dp
+   mLayerHeight(jLayer) = (iLayerHeight(jLayer-1) + iLayerHeight(jLayer))/2._summa_prec
   end do
 
   ! check
@@ -387,7 +387,7 @@ contains
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
  logical(lgt)                    :: stateVariable  ! .true. if variable is a state variable
- real(dp),allocatable            :: tempVec_dp(:)  ! temporary vector (double precision)
+ real(summa_prec),allocatable            :: tempVec_summa_prec(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
  character(LEN=256)              :: cmessage       ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------------
@@ -420,7 +420,7 @@ contains
     ! check allocated
     if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! assign the data vector to the temporary vector
-    call cloneStruc(tempVec_dp, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
+    call cloneStruc(tempVec_summa_prec, ix_lower, source=dataStruct%var(ivar)%dat, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! reallocate space for the new vector
     deallocate(dataStruct%var(ivar)%dat,stat=err)
@@ -431,18 +431,18 @@ contains
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_dp(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_dp(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_summa_prec(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_summa_prec(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
-       dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_dp(ix_divide+1:ix_upper)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_summa_prec(ix_divide+1:ix_upper)  ! copy data
      end if  ! if the vector exists
     ! not a state variable
     else
      dataStruct%var(ivar)%dat(:) = realMissing
     end if
     ! deallocate the temporary vector: strictly not necessary, but include to be safe
-    deallocate(tempVec_dp,stat=err)
+    deallocate(tempVec_summa_prec,stat=err)
     if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; end if
 
    ! ** integer

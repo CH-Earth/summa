@@ -114,7 +114,7 @@ contains
  
  ! model control
  integer(8)        , intent(in)    :: hruId               ! hruId
- real(dp)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
+ real(summa_prec)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers
  ! data structures (input)
@@ -137,7 +137,7 @@ contains
 
  ! local variables
  character(len=256)                :: cmessage            ! error message
- real(dp)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
+ real(summa_prec)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
  ! initialize error control
  err=0; write(message, '(A20,I0,A2)' ) 'run_oneHRU (hruId = ',hruId,')/'
@@ -201,7 +201,7 @@ contains
  ! ----- run the model --------------------------------------------------------------------------------------------------
 
  ! initialize the number of flux calls
- diagData%var(iLookDIAG%numFluxCalls)%dat(1) = 0._dp
+ diagData%var(iLookDIAG%numFluxCalls)%dat(1) = 0._summa_prec
 
  ! run the model for a single HRU
  call coupled_em(&

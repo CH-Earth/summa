@@ -117,7 +117,7 @@ contains
  ! loop through layers
  do iLayer=1,nLayers
   ! compute the height at the layer midpoint
-  mLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)/2._dp
+  mLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)/2._summa_prec
   ! compute the height at layer interfaces
   iLayerHeight(iLayer) = iLayerHeight(iLayer-1) + mLayerDepth(iLayer)
  end do ! (looping through layers)
@@ -149,10 +149,10 @@ contains
  character(*),intent(out)        :: message         ! error message
  ! declare local variables
  integer(i4b)                    :: iLayer          ! loop through layers
- real(dp)                        :: fracRootLower   ! fraction of the rooting depth at the lower interface
- real(dp)                        :: fracRootUpper   ! fraction of the rooting depth at the upper interface
- real(dp), parameter             :: rootTolerance = 0.05_dp ! tolerance for error in doubleExp rooting option
- real(dp)                        :: error           ! machine precision error in rooting distribution
+ real(summa_prec)                        :: fracRootLower   ! fraction of the rooting depth at the lower interface
+ real(summa_prec)                        :: fracRootUpper   ! fraction of the rooting depth at the upper interface
+ real(summa_prec), parameter             :: rootTolerance = 0.05_summa_prec ! tolerance for error in doubleExp rooting option
+ real(summa_prec)                        :: error           ! machine precision error in rooting distribution
  ! initialize error control
  err=0; message='rootDensty/'
 
@@ -192,16 +192,16 @@ contains
     if(iLayerHeight(iLayer-1)<rootingDepth)then
      ! compute the fraction of the rooting depth at the lower and upper interfaces
      if(iLayer==nSnow+1)then  ! height=0; avoid precision issues
-      fracRootLower = 0._dp
+      fracRootLower = 0._summa_prec
      else
       fracRootLower = iLayerHeight(iLayer-1)/rootingDepth
      end if
      fracRootUpper = iLayerHeight(iLayer)/rootingDepth
-     if(fracRootUpper>1._dp) fracRootUpper=1._dp
+     if(fracRootUpper>1._summa_prec) fracRootUpper=1._summa_prec
      ! compute the root density
      mLayerRootDensity(iLayer-nSnow) = fracRootUpper**rootDistExp - fracRootLower**rootDistExp
     else
-     mLayerRootDensity(iLayer-nSnow) = 0._dp
+     mLayerRootDensity(iLayer-nSnow) = 0._summa_prec
     end if
     !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
     !                             mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower
@@ -209,8 +209,8 @@ contains
    ! ** option 2: double expoential profile of Zeng et al. (JHM 2001)
    case(doubleExp)
     ! compute the cumulative fraction of roots at the top and bottom of the layer
-    fracRootLower = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer-1)*rootScaleFactor1) + exp(-iLayerHeight(iLayer-1)*rootScaleFactor2) )
-    fracRootUpper = 1._dp - 0.5_dp*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
+    fracRootLower = 1._summa_prec - 0.5_summa_prec*(exp(-iLayerHeight(iLayer-1)*rootScaleFactor1) + exp(-iLayerHeight(iLayer-1)*rootScaleFactor2) )
+    fracRootUpper = 1._summa_prec - 0.5_summa_prec*(exp(-iLayerHeight(iLayer  )*rootScaleFactor1) + exp(-iLayerHeight(iLayer  )*rootScaleFactor2) )
     ! compute the root density
     mLayerRootDensity(iLayer-nSnow) = fracRootUpper - fracRootLower
     !write(*,'(a,10(f11.5,1x))') 'mLayerRootDensity(iLayer-nSnow), fracRootUpper, fracRootLower = ', &
@@ -225,26 +225,26 @@ contains
 
  ! check that root density is within some reaosnable version of machine tolerance
  ! This is the case when root density is greater than 1. Can only happen with powerLaw option.
- error = sum(mLayerRootDensity) - 1._dp
- if (error > 2._dp*epsilon(rootingDepth)) then
+ error = sum(mLayerRootDensity) - 1._summa_prec
+ if (error > 2._summa_prec*epsilon(rootingDepth)) then
   message=trim(message)//'problem with the root density calaculation'
   err=20; return
  else
-  mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(dp))
+  mLayerRootDensity = mLayerRootDensity - error/real(nSoil,kind(summa_prec))
  end if
 
  ! compute fraction of roots in the aquifer
- if(sum(mLayerRootDensity) < 1._dp)then
-  scalarAquiferRootFrac = 1._dp - sum(mLayerRootDensity)
+ if(sum(mLayerRootDensity) < 1._summa_prec)then
+  scalarAquiferRootFrac = 1._summa_prec - sum(mLayerRootDensity)
  else
-  scalarAquiferRootFrac = 0._dp
+  scalarAquiferRootFrac = 0._summa_prec
  end if
 
  ! check that roots in the aquifer are appropriate
- if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._dp*epsilon(rootingDepth)))then
+ if ((ixGroundwater /= bigBucket).and.(scalarAquiferRootFrac > 2._summa_prec*epsilon(rootingDepth)))then
   if(scalarAquiferRootFrac < rootTolerance) then
-   mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(dp))
-   scalarAquiferRootFrac = 0._dp
+   mLayerRootDensity = mLayerRootDensity + scalarAquiferRootFrac/real(nSoil, kind(summa_prec))
+   scalarAquiferRootFrac = 0._summa_prec
   else
    select case(ixRootProfile)
     case(powerLaw);  message=trim(message)//'roots in the aquifer only allowed for the big bucket gw parameterization: check that rooting depth < soil depth'
@@ -274,8 +274,8 @@ contains
  character(*),intent(out)        :: message             ! error message
  ! declare local variables
  integer(i4b)                    :: iLayer              ! loop through layers
- real(dp)                        :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
- real(dp)                        :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
+ real(summa_prec)                        :: ifcDepthScaleFactor ! depth scaling factor (layer interfaces)
+ real(summa_prec)                        :: midDepthScaleFactor ! depth scaling factor (layer midpoints)
  ! initialize error control
  err=0; message='satHydCond/'
  ! ----------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ contains
      if(iLayer==nLayers)then
       iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil)
      else
-      iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) )
+      iLayerSatHydCond(iLayer-nSnow)   = 0.5_summa_prec * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) )
      endif
      ! - conductivity at layer midpoints
      mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)
@@ -327,11 +327,11 @@ contains
     ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
     
-    if(compactedDepth/iLayerHeight(nLayers) /= 1._dp) then    ! avoid divide by zero
-     ifcDepthScaleFactor = ( (1._dp - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
-                           ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+    if(compactedDepth/iLayerHeight(nLayers) /= 1._summa_prec) then    ! avoid divide by zero
+     ifcDepthScaleFactor = ( (1._summa_prec - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._summa_prec) ) / &
+                           ( (1._summa_prec -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._summa_prec) )
     else
-     ifcDepthScaleFactor = 1.0_dp
+     ifcDepthScaleFactor = 1.0_summa_prec
     endif                           
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
@@ -339,14 +339,14 @@ contains
      if(iLayer==nLayers)then
       iLayerSatHydCond(iLayer-nSnow) = k_soil(nSoil) * ifcDepthScaleFactor
      else
-      iLayerSatHydCond(iLayer-nSnow)   = 0.5_dp * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) ) * ifcDepthScaleFactor
+      iLayerSatHydCond(iLayer-nSnow)   = 0.5_summa_prec * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) ) * ifcDepthScaleFactor
      endif
      ! - conductivity at layer midpoints
-     if(compactedDepth/iLayerHeight(nLayers) /= 1._dp) then    ! avoid divide by zero
-      midDepthScaleFactor = ( (1._dp - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) ) / &
-                            ( (1._dp -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._dp) )
+     if(compactedDepth/iLayerHeight(nLayers) /= 1._summa_prec) then    ! avoid divide by zero
+      midDepthScaleFactor = ( (1._summa_prec - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._summa_prec) ) / &
+                            ( (1._summa_prec -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._summa_prec) )
      else
-      midDepthScaleFactor = 1.0_dp
+      midDepthScaleFactor = 1.0_summa_prec
      endif                            
      mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)      * midDepthScaleFactor
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow) * midDepthScaleFactor
@@ -384,21 +384,21 @@ contains
 
  implicit none
  ! input variables
- real(dp),intent(in)             :: bpar_data(:)           ! vector of basin-average model parameters
+ real(summa_prec),intent(in)             :: bpar_data(:)           ! vector of basin-average model parameters
  ! output variables
  type(var_dlength),intent(inout) :: bvar_data              ! data structure of basin-average model variables
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! internal
- real(dp)                        :: dt                     ! data time step (s)
+ real(summa_prec)                        :: dt                     ! data time step (s)
  integer(i4b)                    :: nTDH                   ! number of points in the time-delay histogram
  integer(i4b)                    :: iFuture                ! index in time delay histogram
- real(dp)                        :: aLambda                ! scale parameter in the Gamma distribution
- real(dp)                        :: tFuture                ! future time (end of step)
- real(dp)                        :: pSave                  ! cumulative probability at the start of the step
- real(dp)                        :: cumProb                ! cumulative probability at the end of the step
- real(dp)                        :: sumFrac                ! sum of runoff fractions in all steps
- real(dp),parameter              :: tolerFrac=0.01_dp      ! tolerance for missing fractional runoff by truncating histogram
+ real(summa_prec)                        :: aLambda                ! scale parameter in the Gamma distribution
+ real(summa_prec)                        :: tFuture                ! future time (end of step)
+ real(summa_prec)                        :: pSave                  ! cumulative probability at the start of the step
+ real(summa_prec)                        :: cumProb                ! cumulative probability at the end of the step
+ real(summa_prec)                        :: sumFrac                ! sum of runoff fractions in all steps
+ real(summa_prec),parameter              :: tolerFrac=0.01_summa_prec      ! tolerance for missing fractional runoff by truncating histogram
  ! initialize error control
  err=0; message='fracFuture/'
  ! ----------------------------------------------------------------------------------
@@ -419,22 +419,22 @@ contains
  nTDH = size(runoffFuture)
 
  ! initialize runoffFuture (will be overwritten by initial conditions file values if present)
- runoffFuture(1:nTDH) = 0._dp
+ runoffFuture(1:nTDH) = 0._summa_prec
 
  ! select option for sub-grid routing
  select case(ixRouting)
 
   ! ** instantaneous routing
   case(qInstant)
-   fractionFuture(1)      = 1._dp
-   fractionFuture(2:nTDH) = 0._dp
+   fractionFuture(1)      = 1._summa_prec
+   fractionFuture(2:nTDH) = 0._summa_prec
 
   ! ** time delay histogram
   case(timeDelay)
    ! initialize
-   pSave   = 0._dp ! cumulative probability at the start of the step
+   pSave   = 0._summa_prec ! cumulative probability at the start of the step
    aLambda = routingGammaShape / routingGammaScale
-   if(routingGammaShape <= 0._dp .or. aLambda < 0._dp)then
+   if(routingGammaShape <= 0._summa_prec .or. aLambda < 0._summa_prec)then
     message=trim(message)//'bad arguments for the Gamma distribution'
     err=20; return
    end if
@@ -443,19 +443,19 @@ contains
     ! get weight for a given bin
     tFuture = real(iFuture, kind(dt))*dt                  ! future time (end of step)
     cumProb = gammp(routingGammaShape,aLambda*tFuture)    ! cumulative probability at the end of the step
-    fractionFuture(iFuture) = max(0._dp, cumProb - pSave) ! fraction of runoff in the current step
+    fractionFuture(iFuture) = max(0._summa_prec, cumProb - pSave) ! fraction of runoff in the current step
     pSave   = cumProb                                     ! save the cumulative probability for use in the next step
     !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
     ! set remaining bins to zero
     if(fractionFuture(iFuture) < tiny(dt))then
-     fractionFuture(iFuture:nTDH) = 0._dp
+     fractionFuture(iFuture:nTDH) = 0._summa_prec
      exit
     end if
    end do ! (looping through future time steps)
 
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
-   if(abs(1._dp - sumFrac) > tolerFrac)then
+   if(abs(1._summa_prec - sumFrac) > tolerFrac)then
     write(*,*) 'fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
     write(*,*) 'this is less than allowed by tolerFrac = ', tolerFrac
     message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in globalData.f90'
@@ -497,7 +497,7 @@ contains
  ! ----------------------------------------------------------------------------------
 
  ! compute the van Genutchen "m" parameter
- vGn_m = 1._dp - 1._dp/vGn_n
+ vGn_m = 1._summa_prec - 1._summa_prec/vGn_n
  end associate
 
  end subroutine v_shortcut

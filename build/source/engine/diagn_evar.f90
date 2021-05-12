@@ -73,10 +73,10 @@ private
 public::diagn_evar
 
 ! algorithmic parameters
-real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
-real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
+real(summa_prec),parameter     :: valueMissing=-9999._summa_prec  ! missing value, used when diagnostic or state variables are undefined
+real(summa_prec),parameter     :: verySmall=1.e-6_summa_prec   ! used as an additive constant to check if substantial difference among real numbers
+real(summa_prec),parameter     :: mpe=1.e-6_summa_prec         ! prevents overflow error if division by zero
+real(summa_prec),parameter     :: dx=1.e-6_summa_prec          ! finite difference increment
 contains
 
 
@@ -100,7 +100,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(summa_prec),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
@@ -114,26 +114,26 @@ contains
  character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
  integer(i4b)                      :: iSoil                  ! index of soil layer
- real(dp)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
- real(dp)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
- real(dp)                          :: zdn                    ! height difference between interface and lower value (m)
- real(dp)                          :: zdp                    ! height difference between interface and upper value (m)
- real(dp)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
- real(dp)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
- real(dp)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
- real(dp)                          :: lambda_wet             ! thermal conductivity of the wet material
- real(dp)                          :: relativeSat            ! relative saturation (-)
- real(dp)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
- real(dp)                          :: den                    ! denominator in the thermal conductivity calculations
+ real(summa_prec)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
+ real(summa_prec)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
+ real(summa_prec)                          :: zdn                    ! height difference between interface and lower value (m)
+ real(summa_prec)                          :: zdp                    ! height difference between interface and upper value (m)
+ real(summa_prec)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
+ real(summa_prec)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
+ real(summa_prec)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ real(summa_prec)                          :: lambda_wet             ! thermal conductivity of the wet material
+ real(summa_prec)                          :: relativeSat            ! relative saturation (-)
+ real(summa_prec)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+ real(summa_prec)                          :: den                    ! denominator in the thermal conductivity calculations
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
- real(dp),parameter                :: c1=0.55_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter                :: c2=0.8_dp              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter                :: c3=3.07_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: c4=0.13_dp             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter                :: c5=4._dp               ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: f1=13.05_dp            ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: f2=1.06_dp             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
+ real(summa_prec),parameter                :: c1=0.55_summa_prec             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(summa_prec),parameter                :: c2=0.8_summa_prec              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(summa_prec),parameter                :: c3=3.07_summa_prec             ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(summa_prec),parameter                :: c4=0.13_summa_prec             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(summa_prec),parameter                :: c5=4._summa_prec               ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(summa_prec),parameter                :: f1=13.05_summa_prec            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(summa_prec),parameter                :: f2=1.06_summa_prec             ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(summa_prec)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
@@ -196,9 +196,9 @@ contains
   ! compute the thermal conductivity of dry and wet soils (W m-1)
   ! NOTE: this is actually constant over the simulation, and included here for clarity
   if(ixThCondSoil == funcSoilWet .and. layerType(iLayer)==iname_soil)then
-   bulkden_soil   = iden_soil(iSoil)*( 1._dp - theta_sat(iSoil) )
-   lambda_drysoil = (0.135_dp*bulkden_soil + 64.7_dp) / (iden_soil(iSoil) - 0.947_dp*bulkden_soil)
-   lambda_wetsoil = (8.80_dp*frac_sand(iSoil) + 2.92_dp*frac_clay(iSoil)) / (frac_sand(iSoil) + frac_clay(iSoil))
+   bulkden_soil   = iden_soil(iSoil)*( 1._summa_prec - theta_sat(iSoil) )
+   lambda_drysoil = (0.135_summa_prec*bulkden_soil + 64.7_summa_prec) / (iden_soil(iSoil) - 0.947_summa_prec*bulkden_soil)
+   lambda_wetsoil = (8.80_summa_prec*frac_sand(iSoil) + 2.92_summa_prec*frac_clay(iSoil)) / (frac_sand(iSoil) + frac_clay(iSoil))
   end if
 
   ! *****
@@ -206,7 +206,7 @@ contains
   ! *********************************************************
   select case(layerType(iLayer))
    case(iname_soil); mLayerVolFracAir(iLayer) = theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
-   case(iname_snow); mLayerVolFracAir(iLayer) = 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
+   case(iname_snow); mLayerVolFracAir(iLayer) = 1._summa_prec - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))
    case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric fraction of air'; return
   end select
 
@@ -216,7 +216,7 @@ contains
   select case(layerType(iLayer))
    ! * soil
    case(iname_soil)
-    mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._dp - theta_sat(iSoil) ) + & ! soil component
+    mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._summa_prec - theta_sat(iSoil) ) + & ! soil component
                                  iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
@@ -243,27 +243,27 @@ contains
      case(funcSoilWet)
 
       ! compute the thermal conductivity of the wet material (W m-1)
-      lambda_wet  = lambda_wetsoil**( 1._dp - theta_sat(iSoil) ) * lambda_water**theta_sat(iSoil) * lambda_ice**(theta_sat(iSoil) - mLayerVolFracLiq(iLayer))
+      lambda_wet  = lambda_wetsoil**( 1._summa_prec - theta_sat(iSoil) ) * lambda_water**theta_sat(iSoil) * lambda_ice**(theta_sat(iSoil) - mLayerVolFracLiq(iLayer))
       relativeSat = (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer))/theta_sat(iSoil)  ! relative saturation
       ! compute the Kersten number (-)
-      if(relativeSat > 0.1_dp)then ! log10(0.1) = -1
-       kerstenNum = log10(relativeSat) + 1._dp
+      if(relativeSat > 0.1_summa_prec)then ! log10(0.1) = -1
+       kerstenNum = log10(relativeSat) + 1._summa_prec
       else
-       kerstenNum = 0._dp  ! dry thermal conductivity
+       kerstenNum = 0._summa_prec  ! dry thermal conductivity
       endif
       ! ...and, compute the thermal conductivity
-      mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._dp - kerstenNum)*lambda_drysoil
+      mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._summa_prec - kerstenNum)*lambda_drysoil
 
      ! ** mixture of constituents
      case(mixConstit)
-      mLayerThermalC(iLayer) = thCond_soil(iSoil) * ( 1._dp - theta_sat(iSoil) ) + & ! soil component
+      mLayerThermalC(iLayer) = thCond_soil(iSoil) * ( 1._summa_prec - theta_sat(iSoil) ) + & ! soil component
                                lambda_ice         * mLayerVolFracIce(iLayer)     + & ! ice component
                                lambda_water       * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                lambda_air         * mLayerVolFracAir(iLayer)         ! air component
 
      ! ** test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
      case(hanssonVZJ)
-      fArg  = 1._dp + f1*mLayerVolFracIce(iLayer)**f2
+      fArg  = 1._summa_prec + f1*mLayerVolFracIce(iLayer)**f2
       xArg  = mLayerVolFracLiq(iLayer) + fArg*mLayerVolFracIce(iLayer)
       mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
 
@@ -315,7 +315,7 @@ contains
 
  ! special case of hansson
  if(ixThCondSoil==hanssonVZJ)then
-  iLayerThermalC(0) = 28._dp*(0.5_dp*(iLayerHeight(1) - iLayerHeight(0)))
+  iLayerThermalC(0) = 28._summa_prec*(0.5_summa_prec*(iLayerHeight(1) - iLayerHeight(0)))
  else
   iLayerThermalC(0) = mLayerThermalC(1)
  end if

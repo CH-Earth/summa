@@ -239,7 +239,7 @@ end subroutine read_dimension
  integer(i4b),parameter               :: numerical=102      ! named variable to denote numerical data
  integer(i4b),parameter               :: idrelated=103      ! named variable to denote ID related data
  integer(i4b)                         :: categorical_var(1) ! temporary categorical variable from local attributes netcdf file
- real(dp)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
+ real(summa_prec)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
  integer(8)                           :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
 
  ! define mapping variables

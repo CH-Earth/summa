@@ -58,8 +58,8 @@ implicit none
 private
 public::vegPhenlgy
 ! algorithmic parameters
-real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp      ! used as an additive constant to check if substantial difference among real numbers
+real(summa_prec),parameter     :: valueMissing=-9999._summa_prec  ! missing value, used when diagnostic or state variables are undefined
+real(summa_prec),parameter     :: verySmall=1.e-6_summa_prec      ! used as an additive constant to check if substantial difference among real numbers
 contains
 
 
@@ -93,14 +93,14 @@ contains
  type(var_dlength),intent(inout) :: diag_data           ! diagnostic variables for a local HRU
  ! output
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(dp),intent(out)            :: canopyDepth         ! canopy depth (m)
- real(dp),intent(out)            :: exposedVAI          ! exposed vegetation area index (LAI + SAI)
+ real(summa_prec),intent(out)            :: canopyDepth         ! canopy depth (m)
+ real(summa_prec),intent(out)            :: exposedVAI          ! exposed vegetation area index (LAI + SAI)
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! -------------------------------------------------------------------------------------------------
  ! local
- real(dp)                 :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
- real(dp)                 :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
+ real(summa_prec)                 :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
+ real(summa_prec)                 :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
  ! initialize error control
  err=0; message="vegPhenlgy/"
  ! ----------------------------------------------------------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ contains
   heightAboveSnow = heightCanopyTop - scalarSnowDepth     ! height top of canopy is above the snow surface (m)
 
   ! determine if need to include vegetation in the energy flux routines
-  computeVegFlux  = (exposedVAI > 0.05_dp .and. heightAboveSnow > 0.05_dp)
+  computeVegFlux  = (exposedVAI > 0.05_summa_prec .and. heightAboveSnow > 0.05_summa_prec)
   !write(*,'(a,1x,i2,1x,L1,1x,10(f12.5,1x))') 'vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth = ', &
   !                                            vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth
 

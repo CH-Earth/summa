@@ -65,43 +65,43 @@ contains
  ! compute change in snow density over the time step
  implicit none
  ! intent(in): variables
- real(dp),intent(in)                 :: dt                       ! time step (seconds)
+ real(summa_prec),intent(in)                 :: dt                       ! time step (seconds)
  integer(i4b),intent(in)             :: nSnow                    ! number of snow layers
- real(dp),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
- real(dp),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
+ real(summa_prec),intent(in)                 :: mLayerTemp(:)            ! temperature of each snow layer after iterations (K)
+ real(summa_prec),intent(in)                 :: mLayerMeltFreeze(:)      ! volumetric melt in each layer (kg m-3)
  ! intent(in): parameters
- real(dp),intent(in)                 :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
- real(dp),intent(in)                 :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
- real(dp),intent(in)                 :: grainGrowthRate          ! rate of grain growth (s-1)
- real(dp),intent(in)                 :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
- real(dp),intent(in)                 :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
- real(dp),intent(in)                 :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+ real(summa_prec),intent(in)                 :: densScalGrowth           ! density scaling factor for grain growth (kg-1 m3)
+ real(summa_prec),intent(in)                 :: tempScalGrowth           ! temperature scaling factor for grain growth (K-1)
+ real(summa_prec),intent(in)                 :: grainGrowthRate          ! rate of grain growth (s-1)
+ real(summa_prec),intent(in)                 :: densScalOvrbdn           ! density scaling factor for overburden pressure (kg-1 m3)
+ real(summa_prec),intent(in)                 :: tempScalOvrbdn           ! temperature scaling factor for overburden pressure (K-1)
+ real(summa_prec),intent(in)                 :: baseViscosity            ! viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
  ! intent(inout): state variables
- real(dp),intent(inout)              :: mLayerDepth(:)           ! depth of each layer (m)
- real(dp),intent(inout)              :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
- real(dp),intent(inout)              :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice in each snow layer after iterations (-)
+ real(summa_prec),intent(inout)              :: mLayerDepth(:)           ! depth of each layer (m)
+ real(summa_prec),intent(inout)              :: mLayerVolFracLiqNew(:)   ! volumetric fraction of liquid water in each snow layer after iterations (-)
+ real(summa_prec),intent(inout)              :: mLayerVolFracIceNew(:)   ! volumetric fraction of ice in each snow layer after iterations (-)
  ! intent(out): error control
  integer(i4b),intent(out)            :: err                      ! error code
  character(*),intent(out)            :: message                  ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! define local variables
  integer(i4b)                        :: iSnow                    ! index of snow layers
- real(dp)                            :: chi1,chi2,chi3,chi4,chi5 ! multipliers in the densification algorithm (-)
- real(dp)                            :: halfWeight               ! half of the weight of the current snow layer (kg m-2)
- real(dp)                            :: weightSnow               ! total weight of snow above the current snow layer (kg m-2)
- real(dp)                            :: CR_grainGrowth           ! compaction rate for grain growth (s-1)
- real(dp)                            :: CR_ovrvdnPress           ! compaction rate associated with over-burden pressure (s-1)
- real(dp)                            :: CR_metamorph             ! compaction rate for metamorphism (s-1)
- real(dp)                            :: massIceOld               ! mass of ice in the snow layer (kg m-2)
- real(dp)                            :: massLiqOld               ! mass of liquid water in the snow layer (kg m-2)
- real(dp)                            :: scalarDepthNew           ! updated layer depth (m)
- real(dp)                            :: scalarDepthMin           ! minimum layer depth (m)
- real(dp)                            :: volFracIceLoss           ! volumetric fraction of ice lost due to melt and sublimation (-)
- real(dp), dimension(nSnow)          :: mLayerVolFracAirNew      ! volumetric fraction of air in each layer after compaction (-)
- real(dp),parameter                  :: snwden_min=100._dp       ! minimum snow density for reducing metamorphism rate (kg m-3)
- real(dp),parameter                  :: snwDensityMax=550._dp    ! maximum snow density for collapse under melt (kg m-3)
- real(dp),parameter                  :: wetSnowThresh=0.01_dp    ! threshold to discriminate between "wet" and "dry" snow
- real(dp),parameter                  :: minLayerDensity=40._dp   ! minimum snow density allowed for any layer (kg m-3)
+ real(summa_prec)                            :: chi1,chi2,chi3,chi4,chi5 ! multipliers in the densification algorithm (-)
+ real(summa_prec)                            :: halfWeight               ! half of the weight of the current snow layer (kg m-2)
+ real(summa_prec)                            :: weightSnow               ! total weight of snow above the current snow layer (kg m-2)
+ real(summa_prec)                            :: CR_grainGrowth           ! compaction rate for grain growth (s-1)
+ real(summa_prec)                            :: CR_ovrvdnPress           ! compaction rate associated with over-burden pressure (s-1)
+ real(summa_prec)                            :: CR_metamorph             ! compaction rate for metamorphism (s-1)
+ real(summa_prec)                            :: massIceOld               ! mass of ice in the snow layer (kg m-2)
+ real(summa_prec)                            :: massLiqOld               ! mass of liquid water in the snow layer (kg m-2)
+ real(summa_prec)                            :: scalarDepthNew           ! updated layer depth (m)
+ real(summa_prec)                            :: scalarDepthMin           ! minimum layer depth (m)
+ real(summa_prec)                            :: volFracIceLoss           ! volumetric fraction of ice lost due to melt and sublimation (-)
+ real(summa_prec), dimension(nSnow)          :: mLayerVolFracAirNew      ! volumetric fraction of air in each layer after compaction (-)
+ real(summa_prec),parameter                  :: snwden_min=100._summa_prec       ! minimum snow density for reducing metamorphism rate (kg m-3)
+ real(summa_prec),parameter                  :: snwDensityMax=550._summa_prec    ! maximum snow density for collapse under melt (kg m-3)
+ real(summa_prec),parameter                  :: wetSnowThresh=0.01_summa_prec    ! threshold to discriminate between "wet" and "dry" snow
+ real(summa_prec),parameter                  :: minLayerDensity=40._summa_prec   ! minimum snow density allowed for any layer (kg m-3)
  ! -----------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="snwDensify/"
@@ -110,7 +110,7 @@ contains
  if(nSnow==0)return
 
  ! initialize the weight of snow above each layer (kg m-2)
- weightSnow = 0._dp
+ weightSnow = 0._summa_prec
 
  ! loop through snow layers
  do iSnow=1,nSnow
@@ -124,19 +124,19 @@ contains
 
   ! *** compute the compaction associated with grain growth (s-1)
   ! compute the base rate of grain growth (-)
-  if(mLayerVolFracIceNew(iSnow)*iden_ice <snwden_min) chi1=1._dp
+  if(mLayerVolFracIceNew(iSnow)*iden_ice <snwden_min) chi1=1._summa_prec
   if(mLayerVolFracIceNew(iSnow)*iden_ice>=snwden_min) chi1=exp(-densScalGrowth*(mLayerVolFracIceNew(iSnow)*iden_ice - snwden_min))
   ! compute the reduction of grain growth under colder snow temperatures (-)
   chi2 = exp(-tempScalGrowth*(Tfreeze - mLayerTemp(iSnow)))
   ! compute the acceleration of grain growth in the presence of liquid water (-)
-  if(mLayerVolFracLiqNew(iSnow) > wetSnowThresh)then; chi3=2._dp  ! snow is "wet"
-  else; chi3=1._dp; end if                                         ! snow is "dry"
+  if(mLayerVolFracLiqNew(iSnow) > wetSnowThresh)then; chi3=2._summa_prec  ! snow is "wet"
+  else; chi3=1._summa_prec; end if                                         ! snow is "dry"
   ! compute the compaction associated with grain growth (s-1)
   CR_grainGrowth = grainGrowthRate*chi1*chi2*chi3
 
   ! **** compute the compaction associated with over-burden pressure (s-1)
   ! compute the weight imposed on the current layer (kg m-2)
-  halfWeight = (massIceOld + massLiqOld)/2._dp  ! there is some over-burden pressure from the layer itself
+  halfWeight = (massIceOld + massLiqOld)/2._summa_prec  ! there is some over-burden pressure from the layer itself
   weightSnow = weightSnow + halfweight          ! add half of the weight from the current layer
   ! compute the increase in compaction under colder snow temperatures (-)
   chi4 = exp(-tempScalOvrbdn*(Tfreeze - mLayerTemp(iSnow)))
@@ -151,7 +151,7 @@ contains
   ! NOTE: loss of ice due to snowmelt is implicit, so can be updated directly
   if(iden_ice*mLayerVolFracIceNew(iSnow) < snwDensityMax)then ! only collapse layers if below a critical density
    ! (compute volumetric losses of ice due to melt and sublimation)
-   volFracIceLoss = max(0._dp,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
+   volFracIceLoss = max(0._summa_prec,mLayerMeltFreeze(iSnow)/iden_ice)  ! volumetric fraction of ice lost due to melt (-)
    ! (adjust snow depth to account for cavitation)
    scalarDepthNew = mLayerDepth(iSnow) * mLayerVolFracIceNew(iSnow)/(mLayerVolFracIceNew(iSnow) + volFracIceLoss)
    !print*, 'volFracIceLoss = ', volFracIceLoss
@@ -163,12 +163,12 @@ contains
   ! update depth due to metamorphism (implicit solution)
   ! Ensure that the new depth is in line with the maximum amount of compaction that
   ! can occur given the masses of ice and liquid in the layer
-  scalarDepthNew = scalarDepthNew/(1._dp + CR_metamorph*dt)
+  scalarDepthNew = scalarDepthNew/(1._summa_prec + CR_metamorph*dt)
   scalarDepthMin = (massIceOld / iden_ice) + (massLiqOld / iden_water)
   mLayerDepth(iSnow) = max(scalarDepthMin, scalarDepthNew)
 
   ! check that depth is reasonable
-  if(mLayerDepth(iSnow) < 0._dp)then
+  if(mLayerDepth(iSnow) < 0._summa_prec)then
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, dt, density,massIceOld, massLiqOld = ', iSnow, dt, mLayerVolFracIceNew(iSnow)*iden_ice, massIceOld, massLiqOld
    write(*,'(a,1x,i4,1x,10(f12.5,1x))') 'iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt = ', &
                                          iSnow, mLayerDepth(iSnow), scalarDepthNew, mLayerVolFracIceNew(iSnow), mLayerMeltFreeze(iSnow), CR_grainGrowth*dt, CR_ovrvdnPress*dt
@@ -177,14 +177,14 @@ contains
   ! update volumetric ice and liquid water content
   mLayerVolFracIceNew(iSnow) = massIceOld/(mLayerDepth(iSnow)*iden_ice)
   mLayerVolFracLiqNew(iSnow) = massLiqOld/(mLayerDepth(iSnow)*iden_water)
-  mLayerVolFracAirNew(iSnow) = 1.0_dp - mLayerVolFracIceNew(iSnow) - mLayerVolFracLiqNew(iSnow)
+  mLayerVolFracAirNew(iSnow) = 1.0_summa_prec - mLayerVolFracIceNew(iSnow) - mLayerVolFracLiqNew(iSnow)
   !write(*,'(a,1x,i4,1x,f9.3)') 'after compact: iSnow, density = ', iSnow, mLayerVolFracIceNew(iSnow)*iden_ice
-  !if(mLayerMeltFreeze(iSnow) > 20._dp) pause 'meaningful melt'
+  !if(mLayerMeltFreeze(iSnow) > 20._summa_prec) pause 'meaningful melt'
 
  end do  ! looping through snow layers
 
  ! check depth
- if(any(mLayerDepth(1:nSnow) < 0._dp))then
+ if(any(mLayerDepth(1:nSnow) < 0._summa_prec))then
   do iSnow=1,nSnow
    write(*,'(a,1x,i4,1x,4(f12.5,1x))') 'iSnow, mLayerDepth(iSnow)', iSnow, mLayerDepth(iSnow)
   end do
@@ -194,7 +194,7 @@ contains
 
  ! check for low/high snow density
  if(any(mLayerVolFracIceNew(1:nSnow)*iden_ice + mLayerVolFracLiqNew(1:nSnow)*iden_water + mLayerVolFracAirNew(1:nSnow)*iden_air < minLayerDensity) .or. &
-    any(mLayerVolFracIceNew(1:nSnow) + mLayerVolFracLiqNew(1:nSnow) + mLayerVolFracAirNew(1:nSnow) > 1._dp))then
+    any(mLayerVolFracIceNew(1:nSnow) + mLayerVolFracLiqNew(1:nSnow) + mLayerVolFracAirNew(1:nSnow) > 1._summa_prec))then
   do iSnow=1,nSnow
    write(*,*) 'iSnow, volFracIce, density = ', iSnow, mLayerVolFracIceNew(iSnow),  mLayerVolFracIceNew(iSnow)*iden_ice
   end do

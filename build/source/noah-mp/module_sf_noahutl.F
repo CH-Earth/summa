@@ -1,6 +1,7 @@
 MODULE module_sf_noahutl
+  USE nrtype
 
-  REAL, PARAMETER      :: CP = 1004.5, RD = 287.04, SIGMA = 5.67E-8,    &
+  REAL(SUMMA_PREC), PARAMETER      :: CP = 1004.5, RD = 287.04, SIGMA = 5.67E-8,    &
                           CPH2O = 4.218E+3,CPICE = 2.106E+3,            &
                           LSUBF = 3.335E+5
 
@@ -11,20 +12,20 @@ CONTAINS
     IMPLICIT NONE
 
     ! Input:
-    REAL, INTENT(IN)       :: T1     ! Skin temperature (K)
-    REAL, INTENT(IN)       :: SFCTMP ! Air temperature (K) at level ZLVL
-    REAL, INTENT(IN)       :: Q2     ! Specific Humidity (kg/kg) at level ZLVL
-    REAL, INTENT(IN)       :: SFCPRS ! Atmospheric pressure (Pa) at level ZLVL
-    REAL, INTENT(IN)       :: ZLVL   ! Height (m AGL) where atmospheric fields are valid
+    REAL(SUMMA_PREC), INTENT(IN)       :: T1     ! Skin temperature (K)
+    REAL(SUMMA_PREC), INTENT(IN)       :: SFCTMP ! Air temperature (K) at level ZLVL
+    REAL(SUMMA_PREC), INTENT(IN)       :: Q2     ! Specific Humidity (kg/kg) at level ZLVL
+    REAL(SUMMA_PREC), INTENT(IN)       :: SFCPRS ! Atmospheric pressure (Pa) at level ZLVL
+    REAL(SUMMA_PREC), INTENT(IN)       :: ZLVL   ! Height (m AGL) where atmospheric fields are valid
 
     ! Output:
-    REAL, INTENT(OUT)      :: TH2    ! Potential temperature (considering the reference pressure to be at the surface)
-    REAL, INTENT(OUT)      :: T1V    ! Virtual skin temperature (K)
-    REAL, INTENT(OUT)      :: TH2V   ! Virtual potential temperature at ZLVL
-    REAL, INTENT(OUT)      :: RHO    ! Density
+    REAL(SUMMA_PREC), INTENT(OUT)      :: TH2    ! Potential temperature (considering the reference pressure to be at the surface)
+    REAL(SUMMA_PREC), INTENT(OUT)      :: T1V    ! Virtual skin temperature (K)
+    REAL(SUMMA_PREC), INTENT(OUT)      :: TH2V   ! Virtual potential temperature at ZLVL
+    REAL(SUMMA_PREC), INTENT(OUT)      :: RHO    ! Density
 
     ! Local:
-    REAL                   :: T2V
+    REAL(SUMMA_PREC)                   :: T2V
 
     TH2 = SFCTMP + ( 0.0098 * ZLVL)
     T1V= T1 * (1.0+ 0.61 * Q2)
@@ -39,18 +40,18 @@ CONTAINS
     IMPLICIT NONE
 
     ! Input:
-    REAL, INTENT(IN)       :: SFCTMP
-    REAL, INTENT(IN)       :: SFCPRS
+    REAL(SUMMA_PREC), INTENT(IN)       :: SFCTMP
+    REAL(SUMMA_PREC), INTENT(IN)       :: SFCPRS
 
     ! Output:
-    REAL, INTENT(OUT)      :: Q2SAT   ! Saturated specific humidity
-    REAL, INTENT(OUT)      :: DQSDT2
+    REAL(SUMMA_PREC), INTENT(OUT)      :: Q2SAT   ! Saturated specific humidity
+    REAL(SUMMA_PREC), INTENT(OUT)      :: DQSDT2
 
     ! Local
-    REAL, PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,        &
+    REAL(SUMMA_PREC), PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,        &
                               A23M4=A2*(A3-A4), E0=611.0, RV=461.0,             &
                               EPSILON=0.622
-    REAL                   :: ES
+    REAL(SUMMA_PREC)                   :: ES
 
     ! ES:  e.g. Dutton chapter 8, eq 11
         ES = E0 * EXP ( ELWV/RV*(1./A3 - 1./SFCTMP) )

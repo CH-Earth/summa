@@ -100,7 +100,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
- real(dp),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
+ real(summa_prec),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
  logical(lgt)                    :: removeLayer         ! flag to indicate need to remove a layer
  integer(i4b)                    :: nCheck              ! number of layers to check for combination
  integer(i4b)                    :: iSnow               ! index of snow layers (looping)
@@ -316,18 +316,18 @@ contains
  ! ------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
- real(dp)                        :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
- real(dp)                        :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
- real(dp)                        :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(dp)                        :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(dp)                        :: cTemp                    ! combined layer temperature
- real(dp)                        :: cDepth                   ! combined layer depth
- real(dp)                        :: cVolFracIce              ! combined layer volumetric fraction of ice
- real(dp)                        :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
- real(dp)                        :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
- real(dp)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
- real(dp)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
- real(dp),parameter              :: eTol=1.e-1_dp            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+ real(summa_prec)                        :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
+ real(summa_prec)                        :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
+ real(summa_prec)                        :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(summa_prec)                        :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(summa_prec)                        :: cTemp                    ! combined layer temperature
+ real(summa_prec)                        :: cDepth                   ! combined layer depth
+ real(summa_prec)                        :: cVolFracIce              ! combined layer volumetric fraction of ice
+ real(summa_prec)                        :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
+ real(summa_prec)                        :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
+ real(summa_prec)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
+ real(summa_prec)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(summa_prec),parameter              :: eTol=1.e-1_summa_prec            ! tolerance for the enthalpy-->temperature conversion (J m-3)
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nSoil                    ! number of soil layers
  integer(i4b)                    :: nLayers                  ! total number of layers
@@ -390,7 +390,7 @@ contains
 
  ! compute volumetric fraction of ice and liquid water
  cVolFracLiq =          fLiq *cBulkDenWat/iden_water
- cVolFracIce = (1._dp - fLiq)*cBulkDenWat/iden_ice
+ cVolFracIce = (1._summa_prec - fLiq)*cBulkDenWat/iden_ice
 
  ! end association of local variables with information in the data structures
  end associate
@@ -459,7 +459,7 @@ contains
  integer(i4b)                    :: ivar           ! variable index
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
- real(dp),allocatable            :: tempVec_dp(:)  ! temporary vector (double precision)
+ real(summa_prec),allocatable            :: tempVec_summa_prec(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
  character(LEN=256)              :: cmessage       ! error message of downwind routine
  ! initialize error control
@@ -493,20 +493,20 @@ contains
     ! check allocated
     if(.not.allocated(dataStruct%var(ivar)%dat))then; err=20; message='data vector is not allocated'; return; end if
     ! allocate the temporary vector
-    allocate(tempVec_dp(ix_lower:ix_upper-1), stat=err)
+    allocate(tempVec_summa_prec(ix_lower:ix_upper-1), stat=err)
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate temporary vector'; return; end if
     ! copy elements across to the temporary vector
-    if(iSnow>=ix_lower)  tempVec_dp(iSnow)              = realMissing ! set merged layer to missing (fill in later)
-    if(iSnow>ix_lower)   tempVec_dp(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
-    if(iSnow+1<ix_upper) tempVec_dp(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
+    if(iSnow>=ix_lower)  tempVec_summa_prec(iSnow)              = realMissing ! set merged layer to missing (fill in later)
+    if(iSnow>ix_lower)   tempVec_summa_prec(ix_lower:iSnow-1)   = dataStruct%var(ivar)%dat(ix_lower:iSnow-1)
+    if(iSnow+1<ix_upper) tempVec_summa_prec(iSnow+1:ix_upper-1) = dataStruct%var(ivar)%dat(iSnow+2:ix_upper)  ! skip iSnow+1
     ! deallocate the data vector: strictly not necessary, but include to be safe
     deallocate(dataStruct%var(ivar)%dat,stat=err)
     if(err/=0)then; err=20; message='problem deallocating data vector'; return; end if
     ! create the new data structure using the temporary vector as the source
-    call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_dp, err=err, message=cmessage)
+    call cloneStruc(dataStruct%var(ivar)%dat, ix_lower, source=tempVec_summa_prec, err=err, message=cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
     ! deallocate the temporary data vector: strictly not necessary, but include to be safe
-    deallocate(tempVec_dp,stat=err)
+    deallocate(tempVec_summa_prec,stat=err)
     if(err/=0)then; err=20; message='problem deallocating temporary data vector'; return; end if
 
    ! ** integer

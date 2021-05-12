@@ -46,9 +46,9 @@ contains
  ! dummy variables
  character(*),intent(in)    :: refdate             ! units string (time since...)
  integer(i4b),intent(out)   :: iyyy,im,id,ih,imin  ! time (year/month/day/hour/minute)
- real(dp),intent(out)       :: dsec                ! seconds
+ real(summa_prec),intent(out)       :: dsec                ! seconds
  integer(i4b),intent(out)   :: ih_tz,imin_tz       ! time zone information (hour/minute)
- real(dp),intent(out)       :: dsec_tz             ! time zone information (seconds)
+ real(summa_prec),intent(out)       :: dsec_tz             ! time zone information (seconds)
  integer(i4b),intent(out)   :: err                 ! error code
  character(*),intent(out)   :: message             ! error message
  ! local variables
@@ -61,7 +61,7 @@ contains
  ! we'll parse each of these in order.
 
  ! Missing ih, imin, dsec, ih_tz, imin_tz and dsec_tz fields will be set to zero without causing an error.
- ih=0; imin=0; dsec=0._dp; ih_tz=0; imin_tz=0; dsec_tz=0._dp;
+ ih=0; imin=0; dsec=0._summa_prec; ih_tz=0; imin_tz=0; dsec_tz=0._summa_prec;
 
  ! get the length of the string
  n = len_trim(refdate)
@@ -121,8 +121,8 @@ contains
  if(ih   > 24)    then; err=20; message=trim(message)//'hour > 24';   return; end if
  if(imin <  0)    then; err=20; message=trim(message)//'minute < 0';  return; end if
  if(imin > 60)    then; err=20; message=trim(message)//'minute > 60'; return; end if
- if(dsec <  0._dp)then; err=20; message=trim(message)//'second < 0';  return; end if
- if(dsec > 60._dp)then; err=20; message=trim(message)//'second > 60'; return; end if
+ if(dsec <  0._summa_prec)then; err=20; message=trim(message)//'second < 0';  return; end if
+ if(dsec > 60._summa_prec)then; err=20; message=trim(message)//'second > 60'; return; end if
 
  ! FIELD 3: Advance to the ih_tz:imin_tz string
  istart=nsub+1
@@ -149,8 +149,8 @@ contains
  if(ih_tz   >   12)    then; err=20; message=trim(message)//'time zone hour > 12';   return; end if
  if(imin_tz <    0)    then; err=20; message=trim(message)//'time zone minute < 0';  return; end if
  if(imin_tz >   60)    then; err=20; message=trim(message)//'time zone minute > 60'; return; end if
- if(dsec_tz <    0._dp)then; err=20; message=trim(message)//'time zone second < 0';  return; end if
- if(dsec_tz >   60._dp)then; err=20; message=trim(message)//'time zone second > 60'; return; end if
+ if(dsec_tz <    0._summa_prec)then; err=20; message=trim(message)//'time zone second < 0';  return; end if
+ if(dsec_tz >   60._summa_prec)then; err=20; message=trim(message)//'time zone second > 60'; return; end if
 
  contains
 
@@ -231,7 +231,7 @@ contains
   ! output
   integer(i4b),intent(out)    :: hh             ! hour
   integer(i4b),intent(out)    :: mm             ! minute
-  real(dp)    ,intent(out)    :: ss             ! sec
+  real(summa_prec)    ,intent(out)    :: ss             ! sec
   integer(i4b),intent(out)    :: err            ! error code
   character(*),intent(out)    :: message        ! error message
   ! local variables
@@ -272,16 +272,16 @@ contains
  ! input variables
  integer(i4b),intent(in)   :: iyyy,mm,id   ! year, month, day
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
- real(dp),intent(in)       :: dsec         ! seconds
+ real(summa_prec),intent(in)       :: dsec         ! seconds
  ! output
- real(dp),intent(out)      :: juldayss
+ real(summa_prec),intent(out)      :: juldayss
   integer(i4b),intent(out) :: err          ! error code
   character(*),intent(out) :: message      ! error message
  ! local variables
  integer(i4b)              :: julday       ! julian day
  integer(i4b),parameter    :: igreg=15+31*(10+12*1582)  !IGREG = 588829
  integer(i4b)              :: ja,jm,jy
- real(dp)                  :: jfrac        ! fraction of julian day
+ real(summa_prec)                  :: jfrac        ! fraction of julian day
 
  ! initialize errors
  err=0; message="juldayss"
@@ -306,7 +306,7 @@ contains
  jfrac = fracDay(ih, imin, dsec)
 
  ! and return the julian day, expressed in fraction of a day
- juldayss = real(julday,kind(dp)) + jfrac
+ juldayss = real(julday,kind(summa_prec)) + jfrac
 
  end subroutine compjulday
 
@@ -320,7 +320,7 @@ contains
  implicit none
 
  ! input variables
- real(dp), intent(in)          :: julday       ! julian day
+ real(summa_prec), intent(in)          :: julday       ! julian day
 
  ! output varibles
  integer(i4b), intent(out)     :: iyyy         ! year
@@ -328,7 +328,7 @@ contains
  integer(i4b), intent(out)     :: id           ! day
  integer(i4b), intent(out)     :: ih           ! hour
  integer(i4b), intent(out)     :: imin         ! minute
- real(dp),     intent(out)     :: dsec         ! seconds
+ real(summa_prec),     intent(out)     :: dsec         ! seconds
  integer(i4b), intent(out)     :: err          ! error code
  character(*), intent(out)     :: message      ! error message
 
@@ -345,14 +345,14 @@ contains
  integer(i4b),parameter       :: w = 2
  integer(i4b),parameter       :: b = 274277
  integer(i4b),parameter       :: c = -38
- real(dp),parameter           :: hr_per_day = 24.0_dp
- real(dp),parameter           :: min_per_hour = 60.0_dp
+ real(summa_prec),parameter           :: hr_per_day = 24.0_summa_prec
+ real(summa_prec),parameter           :: min_per_hour = 60.0_summa_prec
 
  ! local variables
  integer(i4b)          :: f,e,g,h                            ! various step variables from wikipedia
  integer(i4b)          :: step_1a,step_1b,step_1c,step_1d    ! temporary variables for calendar calculations
- real(dp)              :: frac_day  ! fractional day
- real(dp)              :: remainder ! remainder of modulus operation
+ real(summa_prec)              :: frac_day  ! fractional day
+ real(summa_prec)              :: remainder ! remainder of modulus operation
 
  ! initialize errors
  err=0; message="compcalday"
@@ -402,7 +402,7 @@ contains
  ! ***************************************************************************************
  function elapsedSec(startTime, endTime)
  integer(i4b),intent(in)        :: startTime(8),endTime(8)            ! state time and end time
- real(dp)                       :: elapsedSec                         ! elapsed time in seconds
+ real(summa_prec)                       :: elapsedSec                         ! elapsed time in seconds
  ! local variables
  integer(i4b)                   :: elapsedDay                         ! elapsed full days
  integer(i4b)                   :: yy                                 ! index of year
@@ -411,7 +411,7 @@ contains
  integer(i4b)                   :: days2(12) = (/31,28,31,30,31,30,31,31,30,31,30,31/)
 
  ! calculate the elapsed time smaller than a day
- elapsedSec = (endTime(8)-startTime(8))*.001_dp + (endTime(7)-startTime(7)) + (endTime(6)-startTime(6))*secprmin + (endTime(5)-startTime(5))*secprhour
+ elapsedSec = (endTime(8)-startTime(8))*.001_summa_prec + (endTime(7)-startTime(7)) + (endTime(6)-startTime(6))*secprmin + (endTime(5)-startTime(5))*secprhour
 
  ! check if the run is within the same day otherwise calculate how many days
  if (endTime(1) > startTime(1) .or. endTime(2) > startTime(2) .or. endTime(3) > startTime(3)) then
@@ -440,11 +440,11 @@ contains
  ! ***************************************************************************************
  function fracDay(ih, imin, dsec)
  integer(i4b),intent(in)   :: ih,imin      ! hour, minute
- real(dp),intent(in)       :: dsec         ! seconds
- real(dp)                  :: fracDay      ! fraction of a day
+ real(summa_prec),intent(in)       :: dsec         ! seconds
+ real(summa_prec)                  :: fracDay      ! fraction of a day
  ! local variable
 
- fracDay = (real(ih,kind(dp))*secprhour + real(imin,kind(dp))*secprmin + dsec) / secprday
+ fracDay = (real(ih,kind(summa_prec))*secprhour + real(imin,kind(summa_prec))*secprmin + dsec) / secprday
  if(ih < 0) fracDay=-fracDay
  return
  end function fracDay
