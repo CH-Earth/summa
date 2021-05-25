@@ -233,7 +233,7 @@ contains
   ! initialize error control
   err=0; message="fidaSolver/"
   nState = nStat
-  idaSucceeds = .false.
+  idaSucceeds = .true.
   ! fill eqns_data which will be required later to call eval8summaFida 
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow       
@@ -425,7 +425,10 @@ contains
   eqns_data%firstSplitOper = .true.
   ! call IDASolve
   retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)   
-  if( retval < 0 ) exit
+  if( retval < 0 )then
+   idaSucceeds = .false.
+   exit
+  endif
   
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, dt_last)
@@ -546,14 +549,15 @@ contains
  
     
   err 				= eqns_data%err
-  message 			= eqns_data%message   
-  if( tret(1) == dt .and. feasible)then
+  message 			= eqns_data%message 
+  if( .not. feasible) idaSucceeds = .false.
+   
+  if( idaSucceeds .eqv. .true.)then
       ! copy to output data      
   	diag_data 		= eqns_data%diag_data              
   	flux_data 		= eqns_data%flux_data             
   	deriv_data 		= eqns_data%deriv_data
   	ixSaturation    = eqns_data%ixSaturation
-  	idaSucceeds = .true.
   endif     
   
 
