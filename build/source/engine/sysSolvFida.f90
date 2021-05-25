@@ -207,6 +207,7 @@ contains
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: dt_last(1)					  ! last stepsize taken by ida solver
  real(qp) 						 :: dt_past						  ! one step before the last stepsize taken by ida solver
+ real(qp)						 :: dt_out
  real(dp)                        :: atol(nState)     		 	  ! absolute telerance
  real(dp)                        :: rtol(nState)     			  ! relative tolerance     
  type(var_dlength)               :: flux_sum					  ! sum of fluxes model fluxes for a local HRU over a data step					
@@ -467,6 +468,7 @@ contains
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
                  dt_last,                 & ! intent(out):	 last stepsize 
                  dt_past,                 & ! intent(out):	 one stepsize before the last one
+                 dt_out,				  & ! intent(out)
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
@@ -479,6 +481,9 @@ contains
    endif
  
  end do  ! iteration over tolerances
+ 
+ 
+ if(dt /= dt_out) stop 1
  
    
   ! check if fida is successful

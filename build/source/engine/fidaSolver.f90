@@ -126,6 +126,7 @@ contains
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
                        dt_last,                 & ! intent(out):   last stepsize 
                        dt_past,           		& ! intent(out):   one stepsize before the last one
+                       dt_out,					& ! intent(out)
                        stateVec,                & ! intent(out):   model state vector
                        stateVecPrime,           & ! intent(out):   derivative of model state vector   
                        err,message              & ! intent(out):   error control
@@ -196,6 +197,7 @@ contains
  logical(lgt),intent(out)		 :: idaSucceeds
  real(qp),intent(out)            :: dt_last(1)
  real(qp),intent(out)            :: dt_past
+ real(qp),intent(out)			 :: dt_out
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -558,6 +560,7 @@ contains
   	flux_data 		= eqns_data%flux_data             
   	deriv_data 		= eqns_data%deriv_data
   	ixSaturation    = eqns_data%ixSaturation
+  	dt_out 			= tret(1)
   endif     
   
 
