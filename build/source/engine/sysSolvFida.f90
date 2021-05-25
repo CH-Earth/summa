@@ -123,6 +123,7 @@ contains
                        stateVecPrime,     & ! intent(out):   updated state vector
                        reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                        tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
+                       dt_out,			  & ! intent(out)
                        err,message)         ! intent(out):   error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -169,6 +170,7 @@ contains
  real(dp),intent(out)            :: stateVecPrime(:)              ! trial state vector (mixed units)
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
+ real(qp),intent(out)  			 :: dt_out
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
  ! *********************************************************************************************************************************************************
@@ -207,7 +209,6 @@ contains
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(dp)                        :: dt_last(1)					  ! last stepsize taken by ida solver
  real(qp) 						 :: dt_past						  ! one step before the last stepsize taken by ida solver
- real(qp)						 :: dt_out
  real(dp)                        :: atol(nState)     		 	  ! absolute telerance
  real(dp)                        :: rtol(nState)     			  ! relative tolerance     
  type(var_dlength)               :: flux_sum					  ! sum of fluxes model fluxes for a local HRU over a data step					
@@ -483,7 +484,7 @@ contains
  end do  ! iteration over tolerances
  
  
- if(dt /= dt_out) stop 1
+! if(dt /= dt_out) stop 1
  
    
   ! check if fida is successful
@@ -498,15 +499,15 @@ contains
  ! compute average flux  
   select case(ixQuadrature)
       case(ixRectangular)
-        ! divide by dt. Now we have average flux
+        ! divide by dt_out. Now we have average flux
         do iVar=1,size(flux_meta) 
-          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt
+          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
         end do
       case(ixTrapezoidal)
-        ! add the last part of the integral, then divide by dt. Now we have average flux
+        ! add the last part of the integral, then divide by dt_out. Now we have average flux
         do iVar=1,size(flux_meta) 
           flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) + flux_init%var(iVar)%dat(:) * (dt_last(1) + dt_past) &
-                                                                   + flux_temp%var(iVar)%dat(:) * dt_last(1) ) /  (2.0*dt)
+                                                                   + flux_temp%var(iVar)%dat(:) * dt_last(1) ) /  (2.0*dt_out)
         end do
       ! check
       case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return

@@ -121,6 +121,7 @@ contains
                        failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
                        reduceCoupledStep, & ! intent(out)   : flag to denote need to reduce the length of the coupled step
                        tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
+                       dt_out,			  & ! intent(out)
                        err,message)         ! intent(out)   : error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -171,6 +172,7 @@ contains
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
+ real(qp),intent(out)   		 :: dt_out
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
  ! ---------------------------------------------------------------------------------------
@@ -340,6 +342,7 @@ contains
                   stateVecPrime,     & ! intent(out):   updated state vector
                   reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
+                  dt_out,			 & ! intent(out)
                   err,cmessage)        ! intent(out):   error code and error message
                 
   if(err/=0)then
@@ -398,7 +401,7 @@ contains
   checkNrgBalance = .true.
 
   ! update prognostic variables
-  call updateProgFida(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
+  call updateProgFida(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
                   lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                               & ! input-output: data structures
                   waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
   if(err/=0)then
@@ -436,13 +439,13 @@ contains
 
   ! get the total energy fluxes (modified in updateProgFida)
   if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
-   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
-   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+   sumCanopyEvaporation = sumCanopyEvaporation + dt_out*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_out*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   sumSenHeatCanopy     = sumSenHeatCanopy     + dt_out*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   else
-   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
-   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+   sumCanopyEvaporation = sumCanopyEvaporation + dt_out*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_out*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   sumSenHeatCanopy     = sumSenHeatCanopy     + dt_out*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
   ! get the total soil compression
@@ -462,7 +465,7 @@ contains
   write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
   ! increment fluxes
-  dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
+  dt_wght = dt_out/dt ! (define weight applied to each splitting operation)
   do iVar=1,size(flux_meta)
    if(count(fluxMask%var(iVar)%dat)>0) then
 

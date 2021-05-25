@@ -298,6 +298,7 @@ contains
  integer(i4b),parameter          :: BE=2
  integer(i4b)                    :: solver=IDA   				   ! BE or IDA
  integer(i4b)                    :: nCoupling
+ real(qp)						 :: dt_out
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -809,6 +810,7 @@ contains
                        failedMinimumStep,          & ! intent(out)   : flag for failed substeps
                        reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
+                       dt_out,					   & ! intent(out)
                        err,cmessage)                 ! intent(out)   : error code and error message
         case(BE) 
              call varSubstep(&
@@ -848,7 +850,9 @@ contains
                        err,cmessage)                 ! intent(out)   : error code and error message 
                      ! check
           case default; err=20; message=trim(message)//'expect case to be ida or be'; return  
-        end select  
+        end select 
+        
+        dt = dt_out 
         
          
              
