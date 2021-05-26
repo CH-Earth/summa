@@ -40,7 +40,7 @@ contains
  subroutine qOverland(&
                       ! input
                       ixRouting,             &  ! index for routing method
-                      averageTotalRunoff,    &  ! total runoff to the channel from all active components (m s-1)                
+                      averageTotalRunoff,    &  ! total runoff to the channel from all active components (m s-1)
                       fracFuture,            &  ! fraction of runoff in future time steps (m s-1)
                       qFuture,               &  ! runoff in future time steps (m s-1)
                       ! output
@@ -50,12 +50,12 @@ contains
  implicit none
  ! input
  integer(i4b),intent(in)    :: ixRouting              ! index for routing method
- real(dp),intent(in)        :: averageTotalRunoff     ! total runoff to the channel from all active components (m s-1)
- real(dp),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
- real(dp),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
+ real(rkind),intent(in)        :: averageTotalRunoff     ! total runoff to the channel from all active components (m s-1)
+ real(rkind),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
+ real(rkind),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
  ! output
- real(dp),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
- real(dp),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
+ real(rkind),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
+ real(rkind),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
  integer(i4b),intent(out)   :: err                    ! error code
  character(*),intent(out)   :: message                ! error message
  ! internal
@@ -85,7 +85,7 @@ contains
    do iFuture=2,nTDH
     qFuture(iFuture-1) = qFuture(iFuture)
    end do
-   qFuture(nTDH) = 0._dp
+   qFuture(nTDH) = 0._rkind
 
   ! ** error checking
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return
