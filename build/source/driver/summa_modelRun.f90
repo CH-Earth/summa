@@ -72,16 +72,16 @@ contains
  integer(i4b)                          :: iGRU,jGRU,kGRU        ! GRU indices
  ! local variables: veg phenology
  logical(lgt)                          :: computeVegFluxFlag    ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(rk)                              :: notUsed_canopyDepth   ! NOT USED: canopy depth (m)
- real(rk)                              :: notUsed_exposedVAI    ! NOT USED: exposed vegetation area index (m2 m-2)
+ real(dp)                              :: notUsed_canopyDepth   ! NOT USED: canopy depth (m)
+ real(dp)                              :: notUsed_exposedVAI    ! NOT USED: exposed vegetation area index (m2 m-2)
  ! local variables: parallelize the model run
  integer(i4b), allocatable             :: ixExpense(:)          ! ranked index GRU w.r.t. computational expense
  integer(i4b), allocatable             :: totalFluxCalls(:)     ! total number of flux calls for each GRU
  ! local variables: timing information
  integer*8                             :: openMPstart,openMPend ! time for the start of the parallelization section
  integer*8, allocatable                :: timeGRUstart(:)       ! time GRUs start
- real(rk),  allocatable                :: timeGRUcompleted(:)   ! time required to complete each GRU
- real(rk),  allocatable                :: timeGRU(:)            ! time spent on each GRU
+ real(dp),  allocatable                :: timeGRUcompleted(:)   ! time required to complete each GRU
+ real(dp),  allocatable                :: timeGRU(:)            ! time spent on each GRU
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -171,7 +171,7 @@ contains
 
  ! compute the total number of flux calls from the previous time step
  do jGRU=1,nGRU
-  totalFluxCalls(jGRU) = 0._rk
+  totalFluxCalls(jGRU) = 0._dp
   do iHRU=1,gru_struc(jGRU)%hruCount
    totalFluxCalls(jGRU) = totalFluxCalls(jGRU) + indxStruct%gru(jGRU)%hru(iHRU)%var(iLookINDEX%numberFluxCalc)%dat(1)
   end do
@@ -268,8 +268,8 @@ contains
   !$omp critical(saveTiming)
   ! save timing information
   call system_clock(openMPend)
-  timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(rk))
-  timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(rk))
+  timeGRU(iGRU)          = real(openMPend - timeGRUstart(iGRU), kind(dp))
+  timeGRUcompleted(iGRU) = real(openMPend - openMPstart       , kind(dp))
   !$omp end critical(saveTiming)
 
  end do  ! (looping through GRUs)

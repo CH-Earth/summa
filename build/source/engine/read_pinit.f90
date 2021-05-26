@@ -132,9 +132,9 @@ contains
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
-  if(any(parFallback(:)%default_val < 0.99_rk*realMissing))then
+  if(any(parFallback(:)%default_val < 0.99_dp*realMissing))then
    do ivar=1,size(parFallback)
-    if(parFallback(ivar)%default_val < 0.99_rk*realMissing)then
+    if(parFallback(ivar)%default_val < 0.99_dp*realMissing)then
      err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
     end if
    end do
@@ -143,8 +143,8 @@ contains
  else ! (need backwards compatibility)
   if(isLocal)then
    if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
-    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._rk             ! maximum wetted fraction of the canopy (-)
-    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_rk    ! exponent in canopy wetting function (-)
+    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._dp             ! maximum wetted fraction of the canopy (-)
+    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_dp    ! exponent in canopy wetting function (-)
    end if
   end if
  end if

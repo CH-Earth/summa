@@ -350,7 +350,7 @@ contains
  integer(i4b)                       :: endModelRun(8)  ! final time
  integer(i4b)                       :: localErr        ! local error code
  integer(i4b)                       :: iFreq           ! loop through output frequencies
- real(rk)                           :: elpSec          ! elapsed seconds
+ real(dp)                           :: elpSec          ! elapsed seconds
 
  ! close any remaining output files
  ! NOTE: use the direct NetCDF call with no error checking since the file may already be closed
@@ -392,9 +392,9 @@ contains
 
  ! print total elapsed time
  write(outunit,"(/,A,1PG15.7,A)")                                             '     elapsed time = ', elpSec,                ' s'
- write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_rk,          ' m'
- write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_rk,        ' h'
- write(outunit,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_rk,       ' d'
+ write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/60_dp,          ' m'
+ write(outunit,"(A,1PG15.7,A)")                                               '       or           ', elpSec/3600_dp,        ' h'
+ write(outunit,"(A,1PG15.7,A/)")                                              '       or           ', elpSec/86400_dp,       ' d'
 
  ! print the number of threads
  write(outunit,"(A,i10,/)")                                                   '   number threads = ', nThreads

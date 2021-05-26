@@ -105,31 +105,31 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: model control
- real(rk),intent(in)             :: dt                        ! length of the time step (seconds)
+ real(dp),intent(in)             :: dt                        ! length of the time step (seconds)
  integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
  ! input: flux vectors
- real(rk),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
- real(rk),intent(in)             :: fVec(:)                   ! flux vector
+ real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
+ real(dp),intent(in)             :: fVec(:)                   ! flux vector
  ! input: state variables (already disaggregated into scalars and vectors)
- real(rk),intent(in)             :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
- real(rk),intent(in)             :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(rk),intent(in)             :: scalarCanopyHydTrial      ! trial value for canopy water (kg m-2), either liquid water content or total water content
- real(rk),intent(in)             :: mLayerTempTrial(:)        ! trial value for temperature of each snow/soil layer (K)
- real(rk),intent(in)             :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content
- real(rk),intent(in)             :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+ real(dp),intent(in)             :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
+ real(dp),intent(in)             :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(dp),intent(in)             :: scalarCanopyHydTrial      ! trial value for canopy water (kg m-2), either liquid water content or total water content
+ real(dp),intent(in)             :: mLayerTempTrial(:)        ! trial value for temperature of each snow/soil layer (K)
+ real(dp),intent(in)             :: mLayerVolFracHydTrial(:)  ! trial vector of volumetric water content (-), either liquid water content or total water content
+ real(dp),intent(in)             :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
  ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
- real(rk),intent(in)             :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(rk),intent(in)             :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+ real(dp),intent(in)             :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)             :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
  ! input: data structures
  type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
  type(var_dlength),intent(in)    :: diag_data                 ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: flux_data                 ! model fluxes for a local HRU
  type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
  ! output
- real(rk),intent(out)            :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
- real(rk),intent(out)            :: rVec(:)   ! NOTE: qp      ! residual vector
+ real(dp),intent(out)            :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
+ real(qp),intent(out)            :: rVec(:)   ! NOTE: qp      ! residual vector
  integer(i4b),intent(out)        :: err                       ! error code
  character(*),intent(out)        :: message                   ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -137,8 +137,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  integer(i4b)                    :: iLayer                    ! index of layer within the snow+soil domain
  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
- real(rk)                        :: scalarCanopyHyd           ! canopy water content (kg m-2), either liquid water content or total water content
- real(rk),dimension(nLayers)     :: mLayerVolFracHyd          ! vector of volumetric water content (-), either liquid water content or total water content
+ real(dp)                        :: scalarCanopyHyd           ! canopy water content (kg m-2), either liquid water content or total water content
+ real(dp),dimension(nLayers)     :: mLayerVolFracHyd          ! vector of volumetric water content (-), either liquid water content or total water content
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! link to the necessary variables for the residual computations
@@ -189,7 +189,7 @@ contains
  ! -----------------------
 
  ! intialize additional terms on the RHS as zero
- rAdd(:) = 0._rk
+ rAdd(:) = 0._dp
 
  ! compute energy associated with melt freeze for the vegetation canopy
  if(ixVegNrg/=integerMissing) rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*(scalarCanopyIceTrial - scalarCanopyIce)/canopyDepth   ! energy associated with melt/freeze (J m-3)

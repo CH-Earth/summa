@@ -41,8 +41,8 @@ public::temp2ethpy
 
 ! define the look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter            :: nlook=10001       ! number of elements in the lookup table
-real(rk),dimension(nlook),public  :: E_lookup          ! enthalpy values (J kg-1)
-real(rk),dimension(nlook),public  :: T_lookup          ! temperature values (K)
+real(dp),dimension(nlook),public  :: E_lookup          ! enthalpy values (J kg-1)
+real(dp),dimension(nlook),public  :: T_lookup          ! temperature values (K)
 contains
 
 
@@ -59,29 +59,29 @@ contains
  character(*),intent(out)      :: message              ! error message
  ! declare local variables
  character(len=128)            :: cmessage             ! error message in downwind routine
- real(rk),parameter            :: T_start=260.0_rk     ! start temperature value where all liquid water is assumed frozen (K)
- real(rk)                      :: T_incr,E_incr        ! temperature/enthalpy increments
- real(rk),dimension(nlook)     :: Tk                   ! initial temperature vector
- real(rk),dimension(nlook)     :: Ey                   ! initial enthalpy vector
- real(rk),parameter            :: waterWght=1._rk      ! weight applied to total water (kg m-3) --- cancels out
- real(rk),dimension(nlook)     :: T2deriv              ! 2nd derivatives of the interpolating function at tabulated points
+ real(dp),parameter            :: T_start=260.0_dp     ! start temperature value where all liquid water is assumed frozen (K)
+ real(dp)                      :: T_incr,E_incr        ! temperature/enthalpy increments
+ real(dp),dimension(nlook)     :: Tk                   ! initial temperature vector
+ real(dp),dimension(nlook)     :: Ey                   ! initial enthalpy vector
+ real(dp),parameter            :: waterWght=1._dp      ! weight applied to total water (kg m-3) --- cancels out
+ real(dp),dimension(nlook)     :: T2deriv              ! 2nd derivatives of the interpolating function at tabulated points
  integer(i4b)                  :: ilook                ! loop through lookup table
  ! initialize error control
  err=0; message="E2T_lookup/"
  ! associate
  associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
  ! define initial temperature vector
- T_incr = (Tfreeze - T_start) / real(nlook-1, kind(rk))  ! temperature increment
+ T_incr = (Tfreeze - T_start) / real(nlook-1, kind(dp))  ! temperature increment
  Tk     = arth(T_start,T_incr,nlook)
  ! ***** compute specific enthalpy (NOTE: J m-3 --> J kg-1) *****
  do ilook=1,nlook
   Ey(ilook) = temp2ethpy(Tk(ilook),waterWght,snowfrz_scale)/waterWght  ! (J m-3 --> J kg-1)
  end do
  ! define the final enthalpy vector
- E_incr   = (-Ey(1)) / real(nlook-1, kind(rk))  ! enthalpy increment
+ E_incr   = (-Ey(1)) / real(nlook-1, kind(dp))  ! enthalpy increment
  E_lookup = arth(Ey(1),E_incr,nlook)
  ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
- call spline(Ey,Tk,1.e30_rk,1.e30_rk,T2deriv,err,cmessage)  ! get the second derivatives
+ call spline(Ey,Tk,1.e30_dp,1.e30_dp,T2deriv,err,cmessage)  ! get the second derivatives
  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
  do ilook=1,nlook
   call splint(Ey,Tk,T2deriv,E_lookup(ilook),T_lookup(ilook),err,cmessage)
@@ -99,25 +99,25 @@ contains
  ! compute temperature based on enthalpy -- appropriate when no dry mass, as in snow
  implicit none
  ! declare dummy variables
- real(rk),intent(in)      :: Ey            ! total enthalpy (J m-3)
- real(rk),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
- real(rk),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
- real(rk),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
+ real(dp),intent(in)      :: Ey            ! total enthalpy (J m-3)
+ real(dp),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
+ real(dp),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
+ real(dp),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
  integer(i4b),intent(out) :: err           ! error code
  character(*),intent(out) :: message       ! error message
  ! declare local variables
- real(rk),parameter       :: dx=1.d-8      ! finite difference increment (J kg-1)
- real(rk),parameter       :: atol=1.d-12   ! convergence criteria (J kg-1)
- real(rk)                 :: E_spec        ! specific enthalpy (J kg-1)
- real(rk)                 :: E_incr        ! enthalpy increment
+ real(dp),parameter       :: dx=1.d-8      ! finite difference increment (J kg-1)
+ real(dp),parameter       :: atol=1.d-12   ! convergence criteria (J kg-1)
+ real(dp)                 :: E_spec        ! specific enthalpy (J kg-1)
+ real(dp)                 :: E_incr        ! enthalpy increment
  integer(i4b)             :: niter=15      ! maximum number of iterations
  integer(i4b)             :: iter          ! iteration index
  integer(i4b)             :: i0            ! position in lookup table
- real(rk)                 :: Tg0,Tg1       ! trial temperatures (K)
- real(rk)                 :: Ht0,Ht1       ! specific enthalpy, based on the trial temperatures (J kg-1)
- real(rk)                 :: f0,f1         ! function evaluations (difference between enthalpy guesses)
- real(rk)                 :: dh            ! enthalpy derivative
- real(rk)                 :: dT            ! temperature increment
+ real(dp)                 :: Tg0,Tg1       ! trial temperatures (K)
+ real(dp)                 :: Ht0,Ht1       ! specific enthalpy, based on the trial temperatures (J kg-1)
+ real(dp)                 :: f0,f1         ! function evaluations (difference between enthalpy guesses)
+ real(dp)                 :: dh            ! enthalpy derivative
+ real(dp)                 :: dT            ! temperature increment
  ! initialize error control
  err=0; message="E2T_nosoil/"
  ! convert input of total enthalpy (J m-3) to total specific enthalpy (J kg-1)
@@ -130,8 +130,8 @@ contains
   Tg0 = (E_spec - E_lookup(1))/Cp_ice + T_lookup(1)
   Tg1 = Tg0+dx
   ! compute enthalpy
-  Ht0 = temp2ethpy(Tg0,1._rk,fc_param)
-  Ht1 = temp2ethpy(Tg1,1._rk,fc_param)
+  Ht0 = temp2ethpy(Tg0,1._dp,fc_param)
+  Ht1 = temp2ethpy(Tg1,1._dp,fc_param)
   ! compute function evaluations
   f0  = Ht0 - E_spec
   f1  = Ht1 - E_spec
@@ -171,7 +171,7 @@ contains
   ! comute new value of Tg
   Tg1 = Tg0+dT
   ! get new function evaluation
-  Ht1 = temp2ethpy(Tg1,1._rk,fc_param)
+  Ht1 = temp2ethpy(Tg1,1._dp,fc_param)
   f1  = Ht1 - E_spec
   ! compute derivative if dT
   dh  = (f1 - f0)/dT
@@ -201,17 +201,17 @@ contains
  ! NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
  implicit none
  ! declare dummy variables
- real(rk),intent(in)  :: Tk            ! layer temperature (K)
- real(rk),intent(in)  :: BulkDenWater  ! bulk density of water (kg m-3)
- real(rk),intent(in)  :: fc_param      ! freezing curve parameter (K-1)
- real(rk)             :: temp2ethpy    ! return value of the function, total specific enthalpy (J m-3)
+ real(dp),intent(in)  :: Tk            ! layer temperature (K)
+ real(dp),intent(in)  :: BulkDenWater  ! bulk density of water (kg m-3)
+ real(dp),intent(in)  :: fc_param      ! freezing curve parameter (K-1)
+ real(dp)             :: temp2ethpy    ! return value of the function, total specific enthalpy (J m-3)
  ! declare local variables
- real(rk)             :: frac_liq      ! fraction of liquid water
- real(rk)             :: enthTempWater ! temperature component of specific enthalpy for total water (liquid and ice) (J kg-1)
- real(rk)             :: enthMass      ! mass component of specific enthalpy (J kg-1)
+ real(dp)             :: frac_liq      ! fraction of liquid water
+ real(dp)             :: enthTempWater ! temperature component of specific enthalpy for total water (liquid and ice) (J kg-1)
+ real(dp)             :: enthMass      ! mass component of specific enthalpy (J kg-1)
  ! NOTE: this function assumes the freezing curve for snow ... it needs modification to use vanGenuchten functions for soil
  ! compute the fraction of liquid water in the given layer
- frac_liq     = 1._rk / ( 1._rk + ( fc_param*( Tfreeze - min(Tk,Tfreeze) ) )**2._rk )
+ frac_liq     = 1._dp / ( 1._dp + ( fc_param*( Tfreeze - min(Tk,Tfreeze) ) )**2._dp )
  ! compute the temperature component of enthalpy for the soil constituent (J kg-1)
  !enthTempSoil = Cp_soil*(Tk - Tfreeze)
  ! compute the temperature component of enthalpy for total water (J kg-1)
@@ -220,7 +220,7 @@ contains
  if(Tk>=Tfreeze) enthTempWater = Cp_water*(Tk - Tfreeze)
  ! compute the mass component of enthalpy -- energy required to melt ice (J kg-1)
  ! NOTE: negative enthalpy means require energy to bring to Tfreeze
- enthMass     = -LH_fus*(1._rk - frac_liq)
+ enthMass     = -LH_fus*(1._dp - frac_liq)
  ! finally, compute the total enthalpy (J m-3)
  ! NOTE: this is the case for snow (no soil).. function needs modification to use vanGenuchten functions for soil
  temp2ethpy   = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
