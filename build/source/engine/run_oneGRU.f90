@@ -259,6 +259,8 @@ contains
  ! ***********************************************************************************************************************
  ! ********** END LOOP THROUGH HRUS **************************************************************************************
  ! ***********************************************************************************************************************
+ ! perform the routing
+ associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
@@ -275,8 +277,6 @@ contains
   bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
  endif
 
- ! perform the routing
- associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
  call qOverland(&
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,          &  ! intent(in): index for routing method

@@ -888,6 +888,7 @@ contains
   case('basin__AquiferBaseflow'        ); get_ixbvar = iLookBVAR%basin__AquiferBaseflow          ! baseflow from the aquifer (m s-1)
   case('basin__AquiferTranspire'       ); get_ixbvar = iLookBVAR%basin__AquiferTranspire         ! transpiration from the aquifer (m s-1)
   case('basin__TotalRunoff'            ); get_ixbvar = iLookBVAR%basin__TotalRunoff              ! total runoff to channel from all active components (m s-1)
+  case('basin__SoilDrainage'           ); get_ixbvar = iLookBVAR%basin__SoilDrainage             ! soil drainage (m s-1)
   ! variables to compute runoff
   case('routingRunoffFuture'           ); get_ixbvar = iLookBVAR%routingRunoffFuture             ! runoff in future time steps (m s-1)
   case('routingFractionFuture'         ); get_ixbvar = iLookBVAR%routingFractionFuture           ! fraction of runoff in future time steps (-)
