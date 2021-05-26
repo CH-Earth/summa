@@ -432,6 +432,7 @@ contains
    exit
   endif
   
+  
   ! get the last stepsize  
   retval = FIDAGetLastStep(ida_mem, dt_last)
     
@@ -544,6 +545,8 @@ contains
    eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
+   
+   if(tret(1) > 1000._qp) exit
 
  end do ! while loop on one_step mode
  
@@ -554,7 +557,7 @@ contains
   message 			= eqns_data%message 
   if( .not. feasible) idaSucceeds = .false.
    
-  if( idaSucceeds .eqv. .true.)then
+  if(idaSucceeds)then
       ! copy to output data      
   	diag_data 		= eqns_data%diag_data              
   	flux_data 		= eqns_data%flux_data             

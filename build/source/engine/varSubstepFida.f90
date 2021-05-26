@@ -308,7 +308,7 @@ contains
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
-!  print *, 'dt in varSubstepFida = ', dtSubstep
+  print *, 'dt in varSubstepFida = ', dtSubstep
   ! -----
   ! * iterative solution...
   ! -----------------------
@@ -465,7 +465,7 @@ contains
   write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
   ! increment fluxes
-  dt_wght = dt_out/dt ! (define weight applied to each splitting operation)
+  dt_wght = 1._qp !dt_out/dt ! (define weight applied to each splitting operation)
   do iVar=1,size(flux_meta)
    if(count(fluxMask%var(iVar)%dat)>0) then
 

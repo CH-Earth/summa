@@ -726,7 +726,7 @@ contains
                   nSoil,                                  & ! intent(in):    number of soil layers
                   nLayers,                                & ! intent(in):    total number of layers
                   nState,                                 & ! intent(in):    total number of layers
-                  dt_sub,                                 & ! intent(in):    length of the model sub-step
+                  dt_sub,                                 & ! intent(inout):    length of the model sub-step
                   (nsub==1),                              & ! intent(in):    logical flag to denote the first substep
                   computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
                   ! input/output: data structures
@@ -747,6 +747,8 @@ contains
                   stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed
                   ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
+                  
+   print *, 'dt_sub = ', dt_sub 
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -943,7 +945,7 @@ contains
   endif
 
   ! adjust length of the sub-step (make sure that we don't exceed the step)
-  dt_sub = min(data_step - dt_solv, dt_sub)
+  dt_sub = data_step - dt_solv !min(data_step - dt_solv, dt_sub)
   !print*, 'dt_sub = ', dt_sub
 
  end do  substeps ! (sub-step loop)

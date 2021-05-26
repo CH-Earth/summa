@@ -459,7 +459,7 @@ contains
                  indx_data,               & ! intent(in):    index data
                  ! input-output: data structures
                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                 flux_init,               & ! intent(inout):  model fluxes for a local HRU (initial flux structure)
+                 flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  flux_temp,               & ! intent(inout): model fluxes for a local HRU 
                  flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -482,6 +482,8 @@ contains
    endif
  
  end do  ! iteration over tolerances
+ 
+  print *, 'dt_out in sysSolveFida', dt_out
  
  
 ! if(dt /= dt_out) stop 1
