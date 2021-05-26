@@ -107,7 +107,7 @@ contains
  doJacobian=.false.        ! initialize the Jacobian flag
 
  ! define double precision NaNs (shared in globalData)
- dNaN = ieee_value(1._dp, ieee_quiet_nan)
+ dNaN = ieee_value(1._rkind, ieee_quiet_nan)
 
  ! populate metadata for all model variables
  call popMetadat(err,cmessage)

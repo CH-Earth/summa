@@ -97,7 +97,7 @@ public::getScaling
 public::varExtract
 
 ! common variables
-real(dp),parameter :: valueMissing=-9999._dp ! missing value
+real(rkind),parameter :: valueMissing=-9999._rkind ! missing value
 
 contains
 
@@ -120,7 +120,7 @@ contains
  type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
  ! output
- real(dp),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
+ real(rkind),intent(out)            :: stateVec(:)            ! model state vector (mixed units)
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -266,10 +266,10 @@ contains
  type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
  ! output: state vectors
- real(dp),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
- real(dp),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
- real(qp),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
- real(dp),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
+ real(rkind),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
+ real(rkind),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
+ real(rkind),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
+ real(rkind),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -277,12 +277,12 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! scaling parameters
- real(dp),parameter              :: fScaleLiq=0.01_dp      ! func eval: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: fScaleMat=10._dp       ! func eval: characteristic scale for matric head (m)
- real(dp),parameter              :: fScaleNrg=1000000._dp  ! func eval: characteristic scale for energy (J m-3)
- real(dp),parameter              :: xScaleLiq=0.1_dp       ! state var: characteristic scale for volumetric liquid water content (-)
- real(dp),parameter              :: xScaleMat=10._dp       ! state var: characteristic scale for matric head (m)
- real(dp),parameter              :: xScaleTemp=1._dp       ! state var: characteristic scale for temperature (K)
+ real(rkind),parameter              :: fScaleLiq=0.01_rkind      ! func eval: characteristic scale for volumetric liquid water content (-)
+ real(rkind),parameter              :: fScaleMat=10._rkind       ! func eval: characteristic scale for matric head (m)
+ real(rkind),parameter              :: fScaleNrg=1000000._rkind  ! func eval: characteristic scale for energy (J m-3)
+ real(rkind),parameter              :: xScaleLiq=0.1_rkind       ! state var: characteristic scale for volumetric liquid water content (-)
+ real(rkind),parameter              :: xScaleMat=10._rkind       ! state var: characteristic scale for matric head (m)
+ real(rkind),parameter              :: xScaleTemp=1._rkind       ! state var: characteristic scale for temperature (K)
  ! state subsets
  integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
  integer(i4b)                    :: ixStateSubset          ! index within the state subset
@@ -320,32 +320,32 @@ contains
 
  ! define the function and variable scaling factors for energy
  where(ixStateType_subset==iname_nrgCanair .or. ixStateType_subset==iname_nrgCanopy .or. ixStateType_subset==iname_nrgLayer)
-  fScale = 1._dp / fScaleNrg  ! 1/(J m-3)
-  xScale = 1._dp  ! K
+  fScale = 1._rkind / fScaleNrg  ! 1/(J m-3)
+  xScale = 1._rkind  ! K
  endwhere
 
  ! define the function and variable scaling factors for water on the vegetation canopy
  where(ixStateType_subset==iname_watCanopy .or. ixStateType_subset==iname_liqCanopy)
-  fScale = 1._dp / (fScaleLiq*canopyDepth*iden_water)  ! 1/(kg m-2)
-  xScale = 1._dp  ! (kg m-2)
+  fScale = 1._rkind / (fScaleLiq*canopyDepth*iden_water)  ! 1/(kg m-2)
+  xScale = 1._rkind  ! (kg m-2)
  endwhere
 
  ! define the function and variable scaling factors for water in the snow+soil domain
  where(ixStateType_subset==iname_watLayer .or. ixStateType_subset==iname_liqLayer)
-  fScale = 1._dp / fScaleLiq  ! (-)
-  xScale = 1._dp  ! (-)
+  fScale = 1._rkind / fScaleLiq  ! (-)
+  xScale = 1._rkind  ! (-)
  end where
 
  ! define the function and variable scaling factors for water in the snow+soil domain
  where(ixStateType_subset==iname_matLayer .or. ixStateType_subset==iname_lmpLayer)
-  fScale = 1._dp / fScaleLiq  ! (-)
-  xScale = 1._dp  ! (m)
+  fScale = 1._rkind / fScaleLiq  ! (-)
+  xScale = 1._rkind  ! (m)
  end where
 
  ! define the function and variable scaling factors for water storage in the aquifer
  where(ixStateType_subset==iname_watAquifer)
-  fScale = 1._dp
-  xScale = 1._dp
+  fScale = 1._rkind
+  xScale = 1._rkind
  endwhere
 
  ! -----
@@ -357,8 +357,8 @@ contains
 
  where(ixStateType_subset==iname_nrgCanair) sMul = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
  where(ixStateType_subset==iname_nrgCanopy) sMul = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
- where(ixStateType_subset==iname_watCanopy) sMul = 1._dp             ! nothing else on the left hand side
- where(ixStateType_subset==iname_liqCanopy) sMul = 1._dp             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_watCanopy) sMul = 1._rkind             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_liqCanopy) sMul = 1._rkind             ! nothing else on the left hand side
 
  ! compute terms in the Jacobian for vegetation (excluding fluxes)
  ! NOTE: This is computed outside the iteration loop because it does not depend on state variables
@@ -366,8 +366,8 @@ contains
  ! NOTE: Use the "where" statement to generalize to multiple canopy layers (currently one canopy layer)
  where(ixStateType_subset==iname_nrgCanair) dMat = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
  where(ixStateType_subset==iname_nrgCanopy) dMat = realMissing       ! populated within the iteration loop
- where(ixStateType_subset==iname_watCanopy) dMat = 1._dp             ! nothing else on the left hand side
- where(ixStateType_subset==iname_liqCanopy) dMat = 1._dp             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_watCanopy) dMat = 1._rkind             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_liqCanopy) dMat = 1._rkind             ! nothing else on the left hand side
 
  ! define the energy multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
  if(nSnowSoilNrg>0)then
@@ -382,15 +382,15 @@ contains
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    ixStateSubset        = ixSnowSoilHyd(iLayer)      ! index within the state vector
-   sMul(ixStateSubset)  = 1._dp                      ! state multiplier = 1 (nothing else on the left-hand-side)
-   dMat(ixStateSubset)  = 1._dp                      ! diagonal element = 1 (nothing else on the left-hand-side)
+   sMul(ixStateSubset)  = 1._rkind                      ! state multiplier = 1 (nothing else on the left-hand-side)
+   dMat(ixStateSubset)  = 1._rkind                      ! diagonal element = 1 (nothing else on the left-hand-side)
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
  ! define the scaling factor and diagonal elements for the aquifer
  where(ixStateType_subset==iname_watAquifer)
-  sMul = 1._dp
-  dMat = 1._dp
+  sMul = 1._rkind
+  dMat = 1._rkind
  endwhere
 
  ! ------------------------------------------------------------------------------------------
@@ -431,25 +431,25 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(dp),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
+ real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
  ! output: variables for the vegetation canopy
- real(dp),intent(out)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
- real(dp),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
- real(dp),intent(out)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
- real(dp),intent(out)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
- real(dp),intent(out)            :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(out)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
+ real(rkind),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+ real(rkind),intent(out)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(out)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
+ real(rkind),intent(out)            :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
  ! output: variables for the snow-soil domain
- real(dp),intent(out)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
- real(dp),intent(out)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
- real(dp),intent(out)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(out)            :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
- real(dp),intent(out)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
- real(dp),intent(out)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+ real(rkind),intent(out)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+ real(rkind),intent(out)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
+ real(rkind),intent(out)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(out)            :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
+ real(rkind),intent(out)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
+ real(rkind),intent(out)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
  ! output: variables for the aquifer
- real(dp),intent(out)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
+ real(rkind),intent(out)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
  ! output: error control
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message

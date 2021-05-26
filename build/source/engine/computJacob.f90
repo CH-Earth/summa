@@ -74,7 +74,7 @@ USE multiconst,only:&
 
 implicit none
 ! define constants
-real(dp),parameter     :: verySmall=tiny(1.0_dp)     ! a very small number
+real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 integer(i4b),parameter :: ixBandOffset=kl+ku+1       ! offset in the band Jacobian matrix
 
 private
@@ -107,7 +107,7 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: model control
- real(dp),intent(in)               :: dt              ! length of the time step (seconds)
+ real(rkind),intent(in)               :: dt              ! length of the time step (seconds)
  integer(i4b),intent(in)           :: nSnow           ! number of snow layers
  integer(i4b),intent(in)           :: nSoil           ! number of soil layers
  integer(i4b),intent(in)           :: nLayers         ! total number of layers in the snow+soil domain
@@ -119,10 +119,10 @@ contains
  type(var_dlength),intent(in)      :: prog_data       ! prognostic variables for a local HRU
  type(var_dlength),intent(in)      :: diag_data       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
- real(dp),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! input-output: Jacobian and its diagonal
- real(dp),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
- real(dp),intent(out)              :: aJac(:,:)       ! Jacobian matrix
+ real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
+ real(rkind),intent(out)              :: aJac(:,:)       ! Jacobian matrix
  ! output variables
  integer(i4b),intent(out)          :: err             ! error code
  character(*),intent(out)          :: message         ! error message
@@ -140,7 +140,7 @@ contains
  integer(i4b)                      :: jLayer          ! index of model layer within the full state vector (hydrology)
  integer(i4b)                      :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
  ! conversion factors
- real(dp)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
+ real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
  ! --------------------------------------------------------------
  ! associate variables from data structures
  associate(&
@@ -244,7 +244,7 @@ contains
 
  ! initialize the Jacobian
  ! NOTE: this needs to be done every time, since Jacobian matrix is modified in the solver
- aJac(:,:) = 0._dp  ! analytical Jacobian matrix
+ aJac(:,:) = 0._rkind  ! analytical Jacobian matrix
 
  ! compute terms in the Jacobian for vegetation (excluding fluxes)
  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
@@ -285,7 +285,7 @@ contains
     ! * diagonal elements for the vegetation canopy (-)
     if(ixCasNrg/=integerMissing) aJac(ixDiag,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg)
     if(ixVegNrg/=integerMissing) aJac(ixDiag,ixVegNrg) = (dt/canopyDepth)*(-dCanopyNetFlux_dCanopyTemp) + dMat(ixVegNrg)
-    if(ixVegHyd/=integerMissing) aJac(ixDiag,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp     ! ixVegHyd: CORRECT
+    if(ixVegHyd/=integerMissing) aJac(ixDiag,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._rkind     ! ixVegHyd: CORRECT
 
     ! * cross-derivative terms w.r.t. canopy water
     if(ixVegHyd/=integerMissing)then
@@ -297,7 +297,7 @@ contains
      if(ixTopHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
      ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
-     if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegNrg,ixVegHyd),ixVegHyd) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
+     if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixVegNrg,ixVegHyd),ixVegHyd) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._rkind - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
      if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopNrg,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
     endif
 
@@ -369,7 +369,7 @@ contains
      ! compute factor to convert liquid water derivative to total water derivative
      select case( ixHydType(iLayer) )
       case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
-      case default;         convLiq2tot = 1._dp
+      case default;         convLiq2tot = 1._rkind
      end select
 
      ! - diagonal elements
@@ -377,7 +377,7 @@ contains
 
      ! - lower-diagonal elements
      if(iLayer > 1)then
-      if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer-1),watState),watState) = 0._dp  ! sub-diagonal: no dependence on other layers
+      if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixOffDiag(ixSnowOnlyHyd(iLayer-1),watState),watState) = 0._rkind  ! sub-diagonal: no dependence on other layers
      endif
 
      ! - upper diagonal elements
@@ -394,7 +394,7 @@ contains
       if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
        ! (cross-derivative terms for the current layer)
-       aJac(ixOffDiag(nrgState,watState),watState) = -(1._dp - mLayerFracLiqSnow(iLayer))*LH_fus*iden_water     ! (dF/dLiq)
+       aJac(ixOffDiag(nrgState,watState),watState) = -(1._rkind - mLayerFracLiqSnow(iLayer))*LH_fus*iden_water     ! (dF/dLiq)
        aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
 
        ! (cross-derivative terms for the layer below)
@@ -483,7 +483,7 @@ contains
       if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
        aJac(ixOffDiag(nrgState,watState),watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water    ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
       else
-       aJac(ixOffDiag(nrgState,watState),watState) = 0._dp
+       aJac(ixOffDiag(nrgState,watState),watState) = 0._rkind
       endif
 
       ! - compute lower diagonal elements
@@ -529,7 +529,7 @@ contains
    if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
 
     ! * liquid water fluxes for vegetation canopy (-)
-    if(ixVegHyd/=integerMissing) aJac(ixVegHyd,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._dp
+    if(ixVegHyd/=integerMissing) aJac(ixVegHyd,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._rkind
 
     ! * cross-derivative terms for canopy water
     if(ixVegHyd/=integerMissing)then
@@ -541,7 +541,7 @@ contains
      if(ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
      ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
-     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._dp - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
+     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (dt/canopyDepth)   *(-dCanopyNetFlux_dCanLiq) - (1._rkind - scalarFracLiqVeg)*LH_fus/canopyDepth   ! dF/dLiq
      if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
     endif
 
@@ -615,7 +615,7 @@ contains
      ! compute factor to convert liquid water derivative to total water derivative
      select case( ixHydType(iLayer) )
       case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
-      case default;         convLiq2tot = 1._dp
+      case default;         convLiq2tot = 1._rkind
      end select
 
      ! - diagonal elements
@@ -623,7 +623,7 @@ contains
 
      ! - lower-diagonal elements
      if(iLayer > 1)then
-      if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer-1),watState) = 0._dp  ! sub-diagonal: no dependence on other layers
+      if(ixSnowOnlyHyd(iLayer-1)/=integerMissing) aJac(ixSnowOnlyHyd(iLayer-1),watState) = 0._rkind  ! sub-diagonal: no dependence on other layers
      endif
 
      ! - upper diagonal elements
@@ -640,7 +640,7 @@ contains
       if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
        ! (cross-derivative terms for the current layer)
-       aJac(nrgState,watState) = -(1._dp - mLayerFracLiqSnow(iLayer))*LH_fus*iden_water     ! (dF/dLiq)
+       aJac(nrgState,watState) = -(1._rkind - mLayerFracLiqSnow(iLayer))*LH_fus*iden_water     ! (dF/dLiq)
        aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
 
        ! (cross-derivative terms for the layer below)
@@ -738,7 +738,7 @@ contains
       if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
        aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water    ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
       else
-       aJac(nrgState,watState) = 0._dp
+       aJac(nrgState,watState) = 0._rkind
       endif
 
       ! - compute lower diagonal elements
