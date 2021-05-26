@@ -73,8 +73,8 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: model control
- real(rk),intent(in)             :: dt                  ! time step (seconds)
- real(rk),intent(in)             :: exposedVAI          ! exposed vegetation area index -- leaf + stem -- after burial by snow (m2 m-2)
+ real(dp),intent(in)             :: dt                  ! time step (seconds)
+ real(dp),intent(in)             :: exposedVAI          ! exposed vegetation area index -- leaf + stem -- after burial by snow (m2 m-2)
  logical(lgt),intent(in)         :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
@@ -87,23 +87,23 @@ contains
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! local variables
- real(rk),parameter            :: valueMissing=-9999._rk     ! missing value
+ real(dp),parameter            :: valueMissing=-9999._dp     ! missing value
  integer(i4b)                  :: iter                       ! iteration index
  integer(i4b),parameter        :: maxiter=50                 ! maximum number of iterations
- real(rk)                      :: unloading_melt             ! unloading associated with canopy drip (kg m-2 s-1)
- real(rk)                      :: airtemp_degC               ! value of air temperature in degrees Celcius
- real(rk)                      :: leafScaleFactor            ! scaling factor for interception based on temperature (-)
- real(rk)                      :: leafInterceptCapSnow       ! storage capacity for snow per unit leaf area (kg m-2)
- real(rk)                      :: canopyIceScaleFactor       ! capacity scaling factor for throughfall (kg m-2)
- real(rk)                      :: throughfallDeriv           ! derivative in throughfall flux w.r.t. canopy storage (s-1)
- real(rk)                      :: unloadingDeriv             ! derivative in unloading flux w.r.t. canopy storage (s-1)
- real(rk)                      :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
- real(rk)                      :: flux                       ! net flux (kg m-2 s-1)
- real(rk)                      :: delS                       ! change in storage (kg m-2)
- real(rk)                      :: resMass                    ! residual in mass equation (kg m-2)
- real(rk)                      :: tempUnloadingFun           ! temperature unloading functions, Eq. 14 in Roesch et al. 2001
- real(rk)                      :: windUnloadingFun           ! temperature unloading functions, Eq. 15 in Roesch et al. 2001
- real(rk),parameter            :: convTolerMass=0.0001_rk    ! convergence tolerance for mass (kg m-2)
+ real(dp)                      :: unloading_melt             ! unloading associated with canopy drip (kg m-2 s-1)
+ real(dp)                      :: airtemp_degC               ! value of air temperature in degrees Celcius
+ real(dp)                      :: leafScaleFactor            ! scaling factor for interception based on temperature (-)
+ real(dp)                      :: leafInterceptCapSnow       ! storage capacity for snow per unit leaf area (kg m-2)
+ real(dp)                      :: canopyIceScaleFactor       ! capacity scaling factor for throughfall (kg m-2)
+ real(dp)                      :: throughfallDeriv           ! derivative in throughfall flux w.r.t. canopy storage (s-1)
+ real(dp)                      :: unloadingDeriv             ! derivative in unloading flux w.r.t. canopy storage (s-1)
+ real(dp)                      :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
+ real(dp)                      :: flux                       ! net flux (kg m-2 s-1)
+ real(dp)                      :: delS                       ! change in storage (kg m-2)
+ real(dp)                      :: resMass                    ! residual in mass equation (kg m-2)
+ real(dp)                      :: tempUnloadingFun           ! temperature unloading functions, Eq. 14 in Roesch et al. 2001
+ real(dp)                      :: windUnloadingFun           ! temperature unloading functions, Eq. 15 in Roesch et al. 2001
+ real(dp),parameter            :: convTolerMass=0.0001_dp    ! convergence tolerance for mass (kg m-2)
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='canopySnow/'
@@ -151,7 +151,7 @@ contains
  if(computeVegFlux)then
   unloading_melt = min(ratioDrip2Unloading*scalarCanopyLiqDrainage, scalarCanopyIce/dt)  ! kg m-2 s-1
  else
-  unloading_melt = 0._rk
+  unloading_melt = 0._dp
  end if
  scalarCanopyIce = scalarCanopyIce - unloading_melt*dt
 
@@ -173,11 +173,11 @@ contains
          scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
          unloadingDeriv            = snowUnloadingCoeff
      else if (ixSnowUnload==windUnload) then
-         tempUnloadingFun = max(scalarCanairTemp - minTempUnloading, 0._rk) / rateTempUnloading   ! (s-1)
+         tempUnloadingFun = max(scalarCanairTemp - minTempUnloading, 0._dp) / rateTempUnloading   ! (s-1)
          if (scalarWindspdCanopyTop >= minWindUnloading) then
             windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
          else
-            windUnloadingFun = 0._rk ! (s-1)
+            windUnloadingFun = 0._dp ! (s-1)
          end if
          ! implement the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
          scalarCanopySnowUnloading = scalarCanopyIceIter * (tempUnloadingFun + windUnloadingFun)
@@ -187,24 +187,24 @@ contains
      if(scalarSnowfall<tiny(dt))then ! no snow
          scalarThroughfallSnow = scalarSnowfall  ! throughfall (kg m-2 s-1)
          canopyIceScaleFactor  = valueMissing    ! not used
-         throughfallDeriv      = 0._rk
+         throughfallDeriv      = 0._dp
      else
          ! ** process different options for maximum branch snow interception
          select case(ixSnowInterception)
              case(lightSnow)
                  ! (check new snow density is valid)
-                 if(scalarNewSnowDensity < 0._rk)then; err=20; message=trim(message)//'invalid new snow density'; return; end if
+                 if(scalarNewSnowDensity < 0._dp)then; err=20; message=trim(message)//'invalid new snow density'; return; end if
                  ! (compute storage capacity of new snow)
-                 leafScaleFactor       = 0.27_rk + 46._rk/scalarNewSnowDensity
+                 leafScaleFactor       = 0.27_dp + 46._dp/scalarNewSnowDensity
                  leafInterceptCapSnow  = refInterceptCapSnow*leafScaleFactor  ! per unit leaf area (kg m-2)
              case(stickySnow)
                  airtemp_degC = scalarAirtemp - Tfreeze
-                 if (airtemp_degC > -1._rk) then
-                    leafScaleFactor = 4.0_rk
-                 elseif(airtemp_degC > -3._rk) then
-                    leafScaleFactor = 1.5_rk*airtemp_degC + 5.5_rk
+                 if (airtemp_degC > -1._dp) then
+                    leafScaleFactor = 4.0_dp
+                 elseif(airtemp_degC > -3._dp) then
+                    leafScaleFactor = 1.5_dp*airtemp_degC + 5.5_dp
                  else
-                    leafScaleFactor = 1.0_rk
+                    leafScaleFactor = 1.0_dp
                  end if
                  leafInterceptCapSnow = refInterceptCapSnow*leafScaleFactor
              case default
@@ -219,7 +219,7 @@ contains
      end if  ! (if snow is falling)
      ! ** compute iteration increment
      flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
-     delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._rk + (throughfallDeriv + unloadingDeriv)*dt)
+     delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._dp + (throughfallDeriv + unloadingDeriv)*dt)
      ! ** check for convergence
      resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)
      if(abs(resMass) < convTolerMass)exit

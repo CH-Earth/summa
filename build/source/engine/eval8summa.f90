@@ -153,7 +153,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- real(rk),intent(in)             :: dt                     ! length of the time step (seconds)
+ real(dp),intent(in)             :: dt                     ! length of the time step (seconds)
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -164,9 +164,9 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(rk),intent(in)             :: stateVecTrial(:)       ! model state vector
- real(rk),intent(in)             :: fScale(:)              ! function scaling vector
- real(rk),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+ real(dp),intent(in)             :: stateVecTrial(:)       ! model state vector
+ real(dp),intent(in)             :: fScale(:)              ! function scaling vector
+ real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
@@ -182,13 +182,13 @@ contains
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
  integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rk),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+ real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
  logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
- real(rk),intent(out)            :: fluxVec(:)             ! flux vector
- real(rk),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
- real(rk),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
- real(rk),intent(out)            :: fEval                  ! function evaluation
+ real(dp),intent(out)            :: fluxVec(:)             ! flux vector
+ real(dp),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
+ real(qp),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
+ real(dp),intent(out)            :: fEval                  ! function evaluation
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -196,29 +196,29 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state variables
- real(rk)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
- real(rk)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(rk)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
- real(rk),dimension(nLayers)     :: mLayerTempTrial           ! trial value for temperature of layers in the snow and soil domains (K)
- real(rk),dimension(nLayers)     :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
- real(rk),dimension(nSoil)       :: mLayerMatricHeadTrial     ! trial value for total water matric potential (m)
- real(rk),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
- real(rk)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
+ real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
+ real(dp)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerTempTrial           ! trial value for temperature of layers in the snow and soil domains (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial     ! trial value for total water matric potential (m)
+ real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
+ real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
- real(rk)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(rk)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(rk),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
- real(rk),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
+ real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(dp)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
+ real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
  ! other local variables
  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
  integer(i4b)                    :: jState(1)                 ! index of model state for the scalar solution within the soil domain
  integer(i4b)                    :: ixBeg,ixEnd               ! index of indices for the soil compression routine
  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
- real(rk)                        :: xMin,xMax                 ! minimum and maximum values for water content
- real(rk)                        :: scalarCanopyHydTrial      ! trial value for mass of water on the vegetation canopy (kg m-2)
- real(rk),parameter              :: canopyTempMax=500._rk     ! expected maximum value for the canopy temperature (K)
- real(rk),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
- real(rk),dimension(nState)      :: rVecScaled                ! scaled residual vector
+ real(dp)                        :: xMin,xMax                 ! minimum and maximum values for water content
+ real(dp)                        :: scalarCanopyHydTrial      ! trial value for mass of water on the vegetation canopy (kg m-2)
+ real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
+ real(dp),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
+ real(dp),dimension(nState)      :: rVecScaled                ! scaled residual vector
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
@@ -281,7 +281,7 @@ contains
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
-  if(stateVecTrial(ixVegHyd) < 0._rk) feasible=.false.
+  if(stateVecTrial(ixVegHyd) < 0._dp) feasible=.false.
  end if
 
  ! check snow temperature is below freezing
@@ -299,12 +299,12 @@ contains
    if (layerType(iLayer) == iname_soil) then
     xMin = theta_sat(iLayer-nSnow)
    else
-    xMin = 0._rk
+    xMin = 0._dp
    endif
 
    ! --> maximum
    select case( layerType(iLayer) )
-    case(iname_snow); xMax = merge(iden_ice,  1._rk - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+    case(iname_snow); xMax = merge(iden_ice,  1._dp - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
     case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
    end select
 
@@ -517,8 +517,8 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the function evaluation
- rVecScaled = fScale(:)*real(resVec(:), rk)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
- fEval      = 0.5_rk*dot_product(rVecScaled,rVecScaled)
+ rVecScaled = fScale(:)*real(resVec(:), dp)   ! scale the residual vector (NOTE: residual vector is in quadruple precision)
+ fEval      = 0.5_dp*dot_product(rVecScaled,rVecScaled)
 
  ! end association with the information in the data structures
  end associate
