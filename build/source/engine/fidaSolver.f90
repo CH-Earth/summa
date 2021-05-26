@@ -546,7 +546,7 @@ contains
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
    
-   if(tret(1) > 1000._qp) exit
+   if(tret(1) > 1700._qp) exit
 
  end do ! while loop on one_step mode
  

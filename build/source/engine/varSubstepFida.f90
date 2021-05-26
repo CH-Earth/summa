@@ -308,7 +308,6 @@ contains
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
-  print *, 'dt in varSubstepFida = ', dtSubstep
   ! -----
   ! * iterative solution...
   ! -----------------------

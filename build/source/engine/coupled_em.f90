@@ -748,7 +748,6 @@ contains
                   ixSolution,                             & ! intent(out):   solution method used in this iteration
                   err,cmessage)                             ! intent(out):   error code and error message
                   
-   print *, 'dt_sub = ', dt_sub 
 
   ! check for all errors (error recovery within opSplittin)
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if

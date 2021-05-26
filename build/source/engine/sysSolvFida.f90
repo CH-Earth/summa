@@ -483,11 +483,8 @@ contains
  
  end do  ! iteration over tolerances
  
-  print *, 'dt_out in sysSolveFida', dt_out
- 
- 
-! if(dt /= dt_out) stop 1
- 
+
+
    
   ! check if fida is successful
  if( .not.idaSucceeds )then
