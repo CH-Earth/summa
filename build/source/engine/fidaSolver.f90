@@ -61,6 +61,8 @@ USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 USE var_lookup,only:iLookDERIV     ! named variables for structure elements
+USE var_lookup,only:iLookFLUX       ! named variables for structure elements
+USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -150,6 +152,7 @@ contains
   USE tolFida_module,only:computWeightFida
   USE eval8summaFida_module,only:eval8summaFida
   USE computEnthalpy_module,only:computEnthalpy
+  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
 
   !======= Declarations =========
   implicit none
@@ -229,6 +232,9 @@ contains
   integer(c_long)                   :: nState                 ! total number of state variables
   real(dp)                          :: rVec(nStat)
   real(qp)                          :: tret(1)
+  real(dp)                          :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+  real(dp)                          :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+  logical(lgt)						:: tooMuchMelt
   
   !======= Internals ============
   
@@ -545,6 +551,16 @@ contains
    eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
+   
+   
+ ! check the need to merge snow layers
+ tooMuchMelt = .false.
+ if(eqns_data%nSnow>0)then
+   ! compute the energy required to melt the top snow layer (J m-2)
+   bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
+   volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
+   if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
+ endif
    
    if(tret(1) > 1000._qp) exit
 
