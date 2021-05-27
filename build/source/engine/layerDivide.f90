@@ -109,7 +109,6 @@ contains
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
- character(LEN=256)              :: cmessage            ! error message of downwind routine
  integer(i4b)                    :: iLayer              ! layer index
  integer(i4b)                    :: jLayer              ! layer index
  real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
