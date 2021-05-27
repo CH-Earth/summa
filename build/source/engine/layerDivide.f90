@@ -78,23 +78,21 @@ public::doesLayerDivide
 contains
 
  ! ***********************************************************************************************************
- ! public subroutine doesLayerDivide: add new snowfall to the system, and increase number of snow layers if needed
+ ! public subroutine doesLayerDivide: check to see if we need to add new snowfall to the system
  ! ***********************************************************************************************************
  subroutine doesLayerDivide(&
                         ! input/output: model data structures
                         model_decisions,             & ! intent(in):    model decisions
                         mpar_data,                   & ! intent(in):    model parameters
-                        indx_data,                   & ! intent(inout): type of each layer
-                        prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                        diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                        flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                        nSnow,                       & ! intent(in):    number of snow layers
+                        mLayerDepth,                 & ! intent(in): 
+                        scalarSnowDepth,			 & ! intent(in)
                         ! output
                         divideLayer,                 & ! intent(out): flag to denote that a layer was divided
                         err,message)                   ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! computational modules
- USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
  USE globalData,only:maxSnowLayers, &    ! maximum number of snow layers
                      veryBig
  implicit none
@@ -102,10 +100,9 @@ contains
  ! input/output: model data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- type(var_ilength),intent(inout) :: indx_data           ! type of each layer
- type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ integer(i4b),intent(in) 	     :: nSnow               ! number of snow layers
+ real(dp),intent(in) 			 :: mLayerDepth(:)          
+ real(dp),intent(in)			 :: scalarSnowDepth
  ! output
  logical(lgt),intent(out)        :: divideLayer         ! flag to denote that a layer was divided
  integer(i4b),intent(out)        :: err                 ! error code
@@ -113,9 +110,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
  character(LEN=256)              :: cmessage            ! error message of downwind routine
- integer(i4b)                    :: nSnow               ! number of snow layers
- integer(i4b)                    :: nSoil               ! number of soil layers
- integer(i4b)                    :: nLayers             ! total number of layers
  integer(i4b)                    :: iLayer              ! layer index
  integer(i4b)                    :: jLayer              ! layer index
  real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
@@ -123,16 +117,6 @@ contains
  real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
  integer(i4b)                    :: nCheck              ! number of layers to check to divide
  logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
- real(dp)                        :: depthOriginal       ! original layer depth before sub-division (m)
- real(dp),parameter              :: fracTop=0.5_dp      ! fraction of old layer used for the top layer
- real(dp)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
- real(dp)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
- real(dp),parameter              :: unfrozenLiq=0.01_dp ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(dp)                        :: volFracWater        ! volumetric fraction of total water, liquid and ice (-)
- real(dp)                        :: fracLiq             ! fraction of liquid water (-)
- integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
- integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
- real(dp),parameter              :: verySmall=1.e-10_dp ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="doesLayerDivide/"
@@ -141,12 +125,6 @@ contains
  associate(&
  ! model decisions
  ix_snowLayers          => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
- ! model parameters (compute layer temperature)
- fc_param               => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),       & ! freezing curve parameter for snow (K-1)
- ! model parameters (new snow density)
- newSnowDenMin          => mpar_data%var(iLookPARAM%newSnowDenMin)%dat(1),       & ! minimum new snow density (kg m-3)
- newSnowDenMult         => mpar_data%var(iLookPARAM%newSnowDenMult)%dat(1),      & ! multiplier for new snow density (kg m-3)
- newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1),      & ! scaling factor for new snow density (K)
  ! model parameters (control the depth of snow layers)
  zmax                   => mpar_data%var(iLookPARAM%zmax)%dat(1),                & ! maximum layer depth (m)
  zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower)%dat(1),    & ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
@@ -156,12 +134,7 @@ contains
  zmaxLayer1_upper       => mpar_data%var(iLookPARAM%zmaxLayer1_upper)%dat(1),    & ! maximum layer depth for the 1st (top) layer when > 1 layer (m)
  zmaxLayer2_upper       => mpar_data%var(iLookPARAM%zmaxLayer2_upper)%dat(1),    & ! maximum layer depth for the 2nd layer when > 2 layers (m)
  zmaxLayer3_upper       => mpar_data%var(iLookPARAM%zmaxLayer3_upper)%dat(1),    & ! maximum layer depth for the 3rd layer when > 3 layers (m)
- zmaxLayer4_upper       => mpar_data%var(iLookPARAM%zmaxLayer4_upper)%dat(1),    & ! maximum layer depth for the 4th layer when > 4 layers (m)
- ! diagnostic scalar variables
- scalarSnowfall         => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),       & ! snowfall flux (kg m-2 s-1)
- scalarSnowfallTemp     => diag_data%var(iLookDIAG%scalarSnowfallTemp)%dat(1),   & ! computed temperature of fresh snow (K)
- scalarSnowDepth        => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
- scalarSWE              => prog_data%var(iLookPROG%scalarSWE)%dat(1)             & ! SWE (kg m-2)
+ zmaxLayer4_upper       => mpar_data%var(iLookPARAM%zmaxLayer4_upper)%dat(1)     & ! maximum layer depth for the 4th layer when > 4 layers (m)
  )  ! end associate statement
 
  ! ---------------------------------------------------------------------------------------------------
@@ -172,9 +145,6 @@ contains
  ! identify algorithmic control parameters to syb-divide and combine snow layers
  zmax_lower = (/zmaxLayer1_lower, zmaxLayer2_lower, zmaxLayer3_lower, zmaxLayer4_lower/)
  zmax_upper = (/zmaxLayer1_upper, zmaxLayer2_upper, zmaxLayer3_upper, zmaxLayer4_upper/)
-
- ! initialize the number of snow layers
- nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
 
  ! ***** special case of no snow layers
  if(nSnow==0)then
@@ -221,7 +191,7 @@ contains
    end select ! (option to combine/sub-divide snow layers)
 
    ! check the need to sub-divide
-   if(prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) > zmaxCheck)then
+   if(mLayerDepth(iLayer) > zmaxCheck)then
     ! flag that layers were divided
     divideLayer=.true.
     return
