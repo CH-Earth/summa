@@ -62,8 +62,146 @@ USE var_derive_module,only:calcHeight ! module to calculate height at layer inte
 implicit none
 private
 public::layerMerge
+public::doesLayerMerge
 
 contains
+
+
+ ! *****************************************************************************************************************
+ ! public subroutine doesLayerMerge: Should we merge layers? (if the thickness is less than zmin)
+ ! *****************************************************************************************************************
+ subroutine doesLayerMerge(&
+                       ! input/output: model data structures
+                       tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
+                       model_decisions,             & ! intent(in):    model decisions
+                       mpar_data,                   & ! intent(in):    model parameters
+                       indx_data,                   & ! intent(inout): type of each layer
+                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                       diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                       ! output
+                       mergedLayers,                & ! intent(out): flag to denote that layers were merged
+                       err,message)                   ! intent(out): error control
+ ! --------------------------------------------------------------------------------------------------------
+ ! --------------------------------------------------------------------------------------------------------
+ implicit none
+ ! --------------------------------------------------------------------------------------------------------
+ ! input/output: model data structures
+ logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
+ type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
+ type(var_dlength),intent(in)    :: mpar_data           ! model parameters
+ type(var_ilength),intent(inout) :: indx_data           ! type of each layer
+ type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ ! output
+ logical(lgt),intent(out)        :: mergedLayers        ! flag to denote that layers were merged
+ integer(i4b),intent(out)        :: err                 ! error code
+ character(*),intent(out)        :: message             ! error message
+ ! --------------------------------------------------------------------------------------------------------
+ ! define local variables
+ character(LEN=256)              :: cmessage            ! error message of downwind routine
+ real(dp),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
+ logical(lgt)                    :: removeLayer         ! flag to indicate need to remove a layer
+ integer(i4b)                    :: nCheck              ! number of layers to check for combination
+ integer(i4b)                    :: iSnow               ! index of snow layers (looping)
+ integer(i4b)                    :: jSnow               ! index of snow layer identified for combination with iSnow
+ integer(i4b)                    :: kSnow               ! index of the upper layer of the two layers identified for combination
+ integer(i4b)                    :: nSnow               ! number of snow layers
+ integer(i4b)                    :: nSoil               ! number of soil layers
+ integer(i4b)                    :: nLayers             ! total number of layers
+ ! initialize error control
+ err=0; message="doesLayerMerge/"
+ ! --------------------------------------------------------------------------------------------------------
+ ! associate variables to the data structures
+ associate(&
+
+ ! model decisions
+ ix_snowLayers    => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
+
+ ! model parameters (control the depth of snow layers)
+ zmin             => mpar_data%var(iLookPARAM%zmin)%dat(1),                & ! minimum layer depth (m)
+ zminLayer1       => mpar_data%var(iLookPARAM%zminLayer1)%dat(1),          & ! minimum layer depth for the 1st (top) layer (m)
+ zminLayer2       => mpar_data%var(iLookPARAM%zminLayer2)%dat(1),          & ! minimum layer depth for the 2nd layer (m)
+ zminLayer3       => mpar_data%var(iLookPARAM%zminLayer3)%dat(1),          & ! minimum layer depth for the 3rd layer (m)
+ zminLayer4       => mpar_data%var(iLookPARAM%zminLayer4)%dat(1),          & ! minimum layer depth for the 4th layer (m)
+ zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5)%dat(1),          & ! minimum layer depth for the 5th (bottom) layer (m)
+
+ ! diagnostic scalar variables
+ scalarSnowDepth  => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),      & ! total snow depth (m)
+ scalarSWE        => prog_data%var(iLookPROG%scalarSWE)%dat(1)             & ! SWE (kg m-2)
+
+ ) ! end associate statement
+ ! --------------------------------------------------------------------------------------------------------
+
+ ! identify algorithmic control parameters to syb-divide and combine snow layers
+ zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
+
+ ! intialize the modified layers flag
+ mergedLayers=.false.
+
+ ! initialize the number of snow layers
+ nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+ nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+ nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+
+ kSnow=0 ! initialize first layer to test (top layer)
+ do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
+
+  ! special case of >5 layers: add an offset to use maximum threshold from layer above
+  if(ix_snowLayers == rulesDependLayerIndex .and. nSnow > 5)then
+   nCheck=5
+  else
+   nCheck=nSnow
+  end if
+
+  ! loop through snow layers
+  do iSnow=kSnow+1,nCheck
+
+   ! associate local variables with the information in the data structures
+   ! NOTE: do this here, since the layer variables are re-defined
+   associate(&
+   mLayerDepth      => prog_data%var(iLookPROG%mLayerDepth)%dat         , &    ! depth of each layer (m)
+   mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat    , &    ! volumetric fraction of ice in each layer  (-)
+   mLayerVolFracLiq => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat      &    ! volumetric fraction of liquid water in each layer (-)
+   ) ! (associating local variables with the information in the data structures)
+
+   ! check if the layer depth is less than the depth threshold
+   select case(ix_snowLayers)
+    case(sameRulesAllLayers);    removeLayer = (mLayerDepth(iSnow) < zmin)
+    case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iSnow) < zminLayer(iSnow))
+    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
+   end select ! (option to combine/sub-divide snow layers)
+
+   ! check if we have too much melt
+   ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
+   if(tooMuchMelt .and. iSnow==1) removeLayer=.true.
+
+   ! check if need to remove a layer
+   if(removeLayer)then
+    	! flag that we modified a layer
+    	mergedLayers=.true.
+    	return
+   end if  ! (if layer is below the mass threshold)
+
+   kSnow=iSnow ! ksnow is used for completion test, so include here
+
+   ! end association of local variables with the information in the data structures
+   end associate
+
+  end do ! (looping through snow layers)
+
+  !print*, 'ksnow = ', ksnow
+
+  ! exit if finished
+  if(kSnow==nCheck)exit
+
+ end do ! continuous do
+
+ ! end association to variables in the data structure
+ end associate
+
+ end subroutine doesLayerMerge
 
 
  ! *****************************************************************************************************************
