@@ -189,7 +189,7 @@ contains
  ! input-output: data structures
  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_temp             ! model fluxes for a local HRU
-  type(var_dlength),intent(inout):: flux_data              ! model fluxes for a local HRU
+ type(var_dlength),intent(inout):: flux_data              ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: flux_sum
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  real(dp),intent(inout)          :: mLayerCmpress_sum(:)
