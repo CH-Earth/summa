@@ -33,7 +33,7 @@ USE globalData,only:iname_soil             ! named variables for soil
 ! privacy
 implicit none
 private
-public::computeSnowDepth
+public::computSnowDepth
 
 real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
 
@@ -45,8 +45,8 @@ contains
  subroutine computSnowDepth(&
  							dt_sub,					&
  							nSnow,					& ! intent(in)
- 							mLayerVolFracLiq,   	& ! intent(in)
- 							mLayerVolFracIce,		& ! intent(in)
+ 							mLayerVolFracLiq,   	& ! intent(inout)
+ 							mLayerVolFracIce,		& ! intent(inout)
  							mLayerTemp,				& ! intent(in)
  							mLayerMeltFreez,		& ! intent(in)
  							mpar_data,				& ! intent(in)
@@ -61,14 +61,15 @@ contains
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
 
  implicit none
- 
+  real(qp),intent(in)				   :: dt_sub
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
-  real(dp),intent(in)				   :: mLayerVolFracLiq(:)
-  real(dp),intent(in)				   :: mLayerVolFracIce(:)
+  real(dp),intent(inout)			   :: mLayerVolFracLiq(:)
+  real(dp),intent(inout)			   :: mLayerVolFracIce(:)
   real(dp),intent(in)				   :: mLayerTemp(:)
   real(dp),intent(in)				   :: mLayerMeltFreez(:)
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   type(var_dlength),intent(in)		   :: flux_data              ! model fluxes for a local HRU
+  type(var_dlength),intent(in)         :: diag_data              ! diagnostic variables for a local HRU
   real(dp),intent(out)				   :: mLayerDepth(:)
   real(dp),intent(out)				   :: scalarSnowDepth
   integer(i4b),intent(out)             :: err                    ! error code
@@ -107,8 +108,8 @@ contains
     doLayerMerge = .false.
    endif
 
-   ! update the volumetric fraction of liquid water   TODO: sould work on this part later
-!   mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)
+   ! update the volumetric fraction of liquid water   
+   mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)
 
   ! no snow
   else
