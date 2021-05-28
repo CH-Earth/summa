@@ -100,11 +100,11 @@ contains
  ! *** define the name of the model output file
  ! *****************************************************************************
 
- ! define full name of output file 
+ ! define full name of output file
  if(modelTimeStep==1)then
   select case(newOutputFile)
    case(noNewFiles);          ! do nothing, just ensure validity of outputfile option
-   case(newFileEveryOct1);    
+   case(newFileEveryOct1);
    case default; err=20; message=trim(message)//'unable to identify the option to define new output files'; return
   end select
 
@@ -141,7 +141,7 @@ contains
   end do  ! (looping through HRUs)
 
   ! write GRU parameters
-  call writeParm(integerMissing,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
+  call writeParm(iGRU,bparStruct%gru(iGRU),bpar_meta,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! (looping through GRUs)
