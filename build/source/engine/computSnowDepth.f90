@@ -43,14 +43,15 @@ contains
  ! public subroutine coupled_em: run the coupled energy-mass model for one timestep
  ! ************************************************************************************************
  subroutine computSnowDepth(&
- 							dt_sub,				&
- 							nSnow,				& ! intent(in)
- 							mLayerVolFracLiq,   & ! intent(in)
- 							mLayerVolFracIce,	& ! intent(in)
- 							mLayerTemp,			& ! intent(in)
- 							mLayerMeltFreez,	& ! intent(in)
- 							mpar_data,			& ! intent(in)
- 							flux_data,			& ! intent(in)
+ 							dt_sub,					&
+ 							nSnow,					& ! intent(in)
+ 							mLayerVolFracLiq,   	& ! intent(in)
+ 							mLayerVolFracIce,		& ! intent(in)
+ 							mLayerTemp,				& ! intent(in)
+ 							mLayerMeltFreez,		& ! intent(in)
+ 							mpar_data,				& ! intent(in)
+ 							flux_data,				& ! intent(in)
+ 							diag_data,				& ! intent(in)
  					   		! output
  					   		mLayerDepth,			& ! intent(out)
  					   		scalarSnowDepth,		& ! intent(out)
@@ -128,7 +129,7 @@ contains
                    dt_sub,                                                  & ! intent(in): time step (s)
                    nSnow,                 									& ! intent(in): number of snow layers
                    mLayerTemp(1:nSnow),       								& ! intent(in): temperature of each layer (K)
-                   mLayerMeltFreeze(1:nSnow), 								& ! intent(in): volumetric melt in each layer (kg m-3)
+                   diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow), 	& ! intent(in): volumetric melt in each layer (kg m-3)
                    ! intent(in): parameters
                    mpar_data%var(iLookPARAM%densScalGrowth)%dat(1),         & ! intent(in): density scaling factor for grain growth (kg-1 m3)
                    mpar_data%var(iLookPARAM%tempScalGrowth)%dat(1),         & ! intent(in): temperature scaling factor for grain growth (K-1)
@@ -145,21 +146,9 @@ contains
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
 
-  ! update coordinate variables
-  call calcHeight(&
-                  ! input/output: data structures
-                  indx_data,   & ! intent(in): layer type
-                  prog_data,   & ! intent(inout): model variables for a local HRU
-                  ! output: error control
-                  err,cmessage)
-  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
   ! recompute snow depth and SWE
   if(nSnow > 0)then
-   prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
-   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                           prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                         * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+   scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
   end if
   
   end associate

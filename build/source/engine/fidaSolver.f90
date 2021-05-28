@@ -153,6 +153,7 @@ contains
   USE eval8summaFida_module,only:eval8summaFida
   USE computEnthalpy_module,only:computEnthalpy
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
+!  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
 
   !======= Declarations =========
   implicit none
@@ -561,8 +562,19 @@ contains
    volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
    if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
  endif
+ 
+ 
+  
+  ! update coordinate variables
+!  call calcHeight(&
+                  ! input/output: data structures
+!                  indx_data,   & ! intent(in): layer type
+!                  prog_data,   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+!                  err,cmessage)
+!  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
    
-   if(tret(1) > 1000._qp) exit
+!   if(tret(1) > 1000._qp) exit
 
  end do ! while loop on one_step mode
  
