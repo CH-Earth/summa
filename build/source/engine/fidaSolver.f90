@@ -153,6 +153,7 @@ contains
   USE eval8summaFida_module,only:eval8summaFida
   USE computEnthalpy_module,only:computEnthalpy
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
+  USE computSnowDepth_module,only:computSnowDepth
 !  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
 
   !======= Declarations =========
