@@ -154,7 +154,7 @@ contains
   USE computEnthalpy_module,only:computEnthalpy
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
   USE computSnowDepth_module,only:computSnowDepth
-!  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
+  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
 
   !======= Declarations =========
   implicit none
@@ -556,11 +556,20 @@ contains
  						eqns_data%flux_data,				& ! intent(in)
  						eqns_data%diag_data,				& ! intent(in)
  					   	! output
- 					   	mLayerDepth,						& ! intent(out)
+ 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,						& ! intent(out)
  					   	scalarSnowDepth,					& ! intent(out)
                        	! error control
                        	err,message)         				  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
+   
+   ! update coordinate variables
+  call calcHeight(&
+                  ! input/output: data structures
+                  eqns_data%indx_data,   & ! intent(in): layer type
+                  eqns_data%prog_data,   & ! intent(inout): model variables for a local HRU
+                  ! output: error control
+                  err,message)
+  if(err/=0)then; err=20; return; end if
                        	
  ! check the need to merge snow layers
  tooMuchMelt = .false.
@@ -584,16 +593,6 @@ contains
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
    
-   
-  
-  ! update coordinate variables
-!  call calcHeight(&
-                  ! input/output: data structures
-!                  indx_data,   & ! intent(in): layer type
-!                  prog_data,   & ! intent(inout): model variables for a local HRU
-                  ! output: error control
-!                  err,cmessage)
-!  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
    
 !   if(tret(1) > 1000._qp) exit
 
