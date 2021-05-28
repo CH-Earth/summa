@@ -237,6 +237,8 @@ contains
   real(dp)                          :: bulkDensity                   ! bulk density of a given layer (kg m-3)
   real(dp)                          :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
   logical(lgt)						:: tooMuchMelt
+  real(dp)							:: mLayerDepth(nLayers)
+  real(dp)							:: scalarSnowDepth
   
   !======= Internals ============
   
@@ -424,6 +426,7 @@ contains
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  eqns_data%ixSaturation = ixSaturation
+ mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)
   
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -541,6 +544,33 @@ contains
    ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
+                                    
+                                    
+   call computSnowDepth(&
+ 						dt_last(1),			    			&
+ 						eqns_data%nSnow,					& ! intent(in)
+ 						eqns_data%mLayerVolFracLiqTrial,   	& ! intent(inout)
+ 						eqns_data%mLayerVolFracIceTrial,	& ! intent(inout)
+ 						eqns_data%mLayerTempTrial,			& ! intent(in)
+ 						eqns_data%mpar_data,				& ! intent(in)
+ 						eqns_data%flux_data,				& ! intent(in)
+ 						eqns_data%diag_data,				& ! intent(in)
+ 					   	! output
+ 					   	mLayerDepth,						& ! intent(out)
+ 					   	scalarSnowDepth,					& ! intent(out)
+                       	! error control
+                       	err,message)         				  ! intent(out):   error control
+   if(err/=0)then; err=55; return; end if
+                       	
+ ! check the need to merge snow layers
+ tooMuchMelt = .false.
+ if(eqns_data%nSnow>0)then
+   ! compute the energy required to melt the top snow layer (J m-2)
+   bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
+   volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
+   if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
+ endif
+                       	
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
    eqns_data%scalarCanopyIcePrev		= eqns_data%scalarCanopyIceTrial
@@ -555,16 +585,6 @@ contains
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
    
    
- ! check the need to merge snow layers
- tooMuchMelt = .false.
- if(eqns_data%nSnow>0)then
-   ! compute the energy required to melt the top snow layer (J m-2)
-   bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
-   volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
-   if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
- endif
- 
- 
   
   ! update coordinate variables
 !  call calcHeight(&

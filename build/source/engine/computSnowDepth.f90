@@ -48,7 +48,6 @@ contains
  							mLayerVolFracLiq,   	& ! intent(inout)
  							mLayerVolFracIce,		& ! intent(inout)
  							mLayerTemp,				& ! intent(in)
- 							mLayerMeltFreez,		& ! intent(in)
  							mpar_data,				& ! intent(in)
  							flux_data,				& ! intent(in)
  							diag_data,				& ! intent(in)
@@ -66,7 +65,6 @@ contains
   real(dp),intent(inout)			   :: mLayerVolFracLiq(:)
   real(dp),intent(inout)			   :: mLayerVolFracIce(:)
   real(dp),intent(in)				   :: mLayerTemp(:)
-  real(dp),intent(in)				   :: mLayerMeltFreez(:)
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   type(var_dlength),intent(in)		   :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(in)         :: diag_data              ! diagnostic variables for a local HRU
