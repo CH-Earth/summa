@@ -155,6 +155,8 @@ contains
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
   USE computSnowDepth_module,only:computSnowDepth
   USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
+  USE layerDivide_module,only:doesLayerDivide
+  Use layerMerge_module,only:doesLayerMerge
 
   !======= Declarations =========
   implicit none
