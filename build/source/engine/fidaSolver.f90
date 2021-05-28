@@ -241,6 +241,7 @@ contains
   logical(lgt)						:: tooMuchMelt
   real(dp)							:: mLayerDepth(nLayers)
   real(dp)							:: scalarSnowDepth
+  logical(lgt)						:: divideLayer
   
   !======= Internals ============
   
@@ -581,6 +582,20 @@ contains
    volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
    if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
  endif
+ 
+ if(tooMuchMelt) exit
+ 
+ call  doesLayerDivide(&
+                        ! input/output: model data structures
+                        model_decisions,             & ! intent(in):    model decisions
+                        eqns_data%mpar_data,                   & ! intent(in):    model parameters
+                        eqns_data%nSnow,                       & ! intent(in):    number of snow layers
+                        eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,                 & ! intent(in): 
+                        scalarSnowDepth,			 & ! intent(in)
+                        ! output
+                        divideLayer,                 & ! intent(out): flag to denote that a layer was divided
+                        err,message)                   ! intent(out): error control
+   if(divideLayer) exit
                        	
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
