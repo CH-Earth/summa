@@ -77,7 +77,6 @@ contains
  character(len=256)                   :: cmessage               ! error message
  integer(i4b)                         :: iSnow                  ! index of snow layers
  real(dp)                             :: massLiquid             ! mass liquid water (kg m-2)
- logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
  
  
  associate(&
@@ -98,13 +97,6 @@ contains
    ! add/remove the depth of snow gained/lost by frost/sublimation (m)
    ! NOTE: assume constant density
    mLayerDepth(iSnow) = mLayerDepth(iSnow) + dt_sub*scalarSnowSublimation/(mLayerVolFracIce(iSnow)*iden_ice)
-
-   ! check that we did not remove the entire layer
-   if(mLayerDepth(iSnow) < verySmall)then
-    doLayerMerge = .true.
-   else
-    doLayerMerge = .false.
-   endif
 
    ! update the volumetric fraction of liquid water   
    mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)

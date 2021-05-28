@@ -514,11 +514,6 @@ contains
                  rVec,                  			& ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control 
                  
-!  if(tempPrintFlag)then
-!  	print *, 'rVec = ', rVec
-!  	print *, '----------------------------------------------------------------'
-!  end if
-                 
   
   select case(ixQuadrature)
        ! sum of flux
@@ -574,10 +569,12 @@ contains
                   ! output: error control
                   err,message)
   if(err/=0)then; err=20; return; end if
-                       	
+                	
   ! check the need to merge snow layers
   tooMuchMelt = .false.
   if(eqns_data%nSnow>0)then
+    ! check that we did not remove the entire layer
+    if(eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1) < 1.e-6_dp) exit
     ! compute the energy required to melt the top snow layer (J m-2)
     bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
     volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
