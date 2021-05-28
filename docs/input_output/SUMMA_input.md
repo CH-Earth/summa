@@ -16,6 +16,16 @@ ASCII or text files are in a format that can be modified using a text editor. Co
 
 SUMMA input files in NetCDF format can include variables (and dimensions) other than those specified below. They will simply not be read by SUMMA, but may be useful to facilitate further analysis and/or visualization. For example, it may be convenient to include latitude and longitude in many of the spatial files to allow visualization.
 
+#### Note on GRU and HRU order in NetCDF files
+SUMMA makes certain assumptions about GRU and HRU order in its input files, as determined in the `gruId` and `hruId` variables in these files. SUMMA expects the `gruId` and `hruId` variables to have identical orders in the forcing, attributes, coldState and trialParameter `.nc` files. Note that this is unrelated to the actual values of the `gruId` and `hruId` variables. In cases where each GRU contains exactly one HRU, no action is needed beyond ensuring that these files use the same order of IDs. In cases where a GRU contains multiple HRUs, SUMMA additionally expects that the HRUs inside a given GRU are found at subsequent indices in each NetCDF file (see table for an example of correct [left] and incorrect [right] order specification; `gruId` and `hruId` values set at arbitrary values to emphasize it is the order that matters, not the values themselves). 
+
+| Index in file | gruId    | hruId | < correct <br> incorrect > | gruId     | hruId |
+|---------------|----------|-------|:---------------------------|-----------|-------|
+| 1             | 10       | 100   |                            | 10        | 100   |
+| 2             | 10       | 300   |                            | 20        | 200   |
+| 3             | 20       | 200   |                            | 10        | 300   |
+| 4             | 20       | 400   |                            | 20        | 400   |
+
 <a id="infile_master_configuration"></a>
 ## Master configuration file
 The master configuration file is an [ASCII file](#infile_format_ASCII) and is provided to SUMMA at run-time as a command-line option. The path to this file needs to be supplied with the `-m` or `--master` command-line flag. The contents of this file orchestrate the remainder of the SUMMA run and are processed by the code in `build/source/hookup/summaFileManager.f90`. The file contents mostly consist of file paths that provide the actual information about the model configuration.  It also contains the run period and forcing time zone information.

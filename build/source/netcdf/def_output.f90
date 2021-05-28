@@ -327,6 +327,7 @@ contains
     ! (scalar variable -- many different types)
     case(iLookvarType%scalarv)
      if(spatialDesire==needGRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, int(timeChunk/gruChunk)+1 /); endif
+     if(spatialDesire==needGRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID/),                err=err, message=cmessage); writechunk=(/ gruChunk /); endif
      if(spatialDesire==needHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
      if(spatialDesire==needHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage); writechunk=(/ hruChunk /); endif
      if(spatialDesire==  noHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/) , err=err, message=cmessage);               writechunk=(/ gruChunk /); endif
