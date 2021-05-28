@@ -586,6 +586,7 @@ contains
  
   if(tooMuchMelt) exit
  
+  divideLayer = .false.
   call doesLayerDivide(&
                         ! input/output: model data structures
                         model_decisions,             							& ! intent(in):    model decisions
@@ -598,6 +599,8 @@ contains
                         err,message)                   							  ! intent(out): error control
    if(divideLayer) exit
    
+   
+   mergedLayers = .false.
    call doesLayerMerge(&
                        ! input/output: model data structures
                        tooMuchMelt,                 							& ! intent(in):    flag to force merge of snow layers
