@@ -624,6 +624,8 @@ contains
   endif
   
  endif ! checkSnow
+ 
+ if(tret(1) > 1000) exit
                        	
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
