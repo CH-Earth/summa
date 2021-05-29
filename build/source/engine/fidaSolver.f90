@@ -546,19 +546,20 @@ contains
                                     
                                     
    call computSnowDepth(&
- 						dt_last(1),			    								& ! intent(in)
- 						eqns_data%nSnow,										& ! intent(in)
- 						eqns_data%mLayerVolFracLiqTrial,   						& ! intent(inout)
- 						eqns_data%mLayerVolFracIceTrial,						& ! intent(inout)
- 						eqns_data%mLayerTempTrial,								& ! intent(in)
- 						eqns_data%mpar_data,									& ! intent(in)
- 						eqns_data%flux_data,									& ! intent(in)
- 						eqns_data%diag_data,									& ! intent(in)
+ 						dt_last(1),			    									& ! intent(in)
+ 						eqns_data%nSnow,											& ! intent(in)
+ 						eqns_data%mLayerVolFracLiqTrial,   							& ! intent(inout)
+ 						eqns_data%mLayerVolFracIceTrial,							& ! intent(inout)
+ 						eqns_data%mLayerTempTrial,									& ! intent(in)
+ 						eqns_data%mpar_data,										& ! intent(in)
+ 						eqns_data%flux_data,										& ! intent(in)
+ 						eqns_data%diag_data,										& ! intent(in)
  					   	! output
- 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,		& ! intent(out)
- 					   	scalarSnowDepth,										& ! intent(out)
+ 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,			& ! intent(out)
+ 					   	eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),	& ! intent(out)
+ 					   	eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1),		&
                        	! error control
-                       	err,message)         				  					  ! intent(out):   error control
+                       	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
    
    ! update coordinate variables
@@ -590,7 +591,7 @@ contains
                         eqns_data%mpar_data,                   					& ! intent(in):    model parameters
                         eqns_data%nSnow,                       					& ! intent(in):    number of snow layers
                         eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,     & ! intent(in): 
-                        scalarSnowDepth,			 							& ! intent(in)
+                        eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1), & ! intent(in)
                         ! output
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
