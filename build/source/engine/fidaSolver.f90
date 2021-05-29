@@ -243,7 +243,7 @@ contains
   real(dp)							:: scalarSnowDepth
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
-  logical(lgt),parameter			:: checkSnow = .false.
+  logical(lgt),parameter			:: checkSnow = .true.
   
   !======= Internals ============
   
@@ -623,9 +623,28 @@ contains
    exit
   endif
   
+  ! *** compute melt of the "snow without a layer"...
+  ! -------------------------------------------------
+  ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
+  ! (check for the special case of "snow without a layer")
+  if(eqns_data%nSnow==0)then
+   call implctMelt(&
+                   ! input/output: integrated snowpack properties
+                   eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
+                   eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
+                   eqns_data%prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
+                   ! input/output: properties of the upper-most soil layer
+                   eqns_data%mLayerTempTrial(nSnow+1),        						  & ! intent(inout): surface layer temperature (K)
+                   eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
+                   eqns_data%diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                   ! output: error control
+                   err,message)														    ! intent(out): error control
+   if(err/=0)then; err=20; return; end if
+  end if
+  
  endif ! checkSnow
  
- if(tret(1) > 1000) exit
+! if(tret(1) > 1000) exit
                        	
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
@@ -786,7 +805,70 @@ implicit none
  ! retval = FIDASetLinearSolutionScaling(ida_mem, 0)
  ! if (retval /= 0) return
   
-end subroutine setSolverParams				
+end subroutine setSolverParams	
+
+ ! *********************************************************************************************************
+ ! private subroutine implctMelt: compute melt of the "snow without a layer"
+ ! *********************************************************************************************************
+ subroutine implctMelt(&
+                       ! input/output: integrated snowpack properties
+                       scalarSWE,         & ! intent(inout): snow water equivalent (kg m-2)
+                       scalarSnowDepth,   & ! intent(inout): snow depth (m)
+                       scalarSfcMeltPond, & ! intent(inout): surface melt pond (kg m-2)
+                       ! input/output: properties of the upper-most soil layer
+                       soilTemp,          & ! intent(inout): surface layer temperature (K)
+                       soilDepth,         & ! intent(inout): surface layer depth (m)
+                       soilHeatcap,       & ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                       ! output: error control
+                       err,message        ) ! intent(out): error control
+ implicit none
+ ! input/output: integrated snowpack properties
+ real(dp),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
+ real(dp),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
+ real(dp),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
+ ! input/output: properties of the upper-most soil layer
+ real(dp),intent(inout)    :: soilTemp           ! surface layer temperature (K)
+ real(dp),intent(inout)    :: soilDepth          ! surface layer depth (m)
+ real(dp),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
+ ! output: error control
+ integer(i4b),intent(out)  :: err                ! error code
+ character(*),intent(out)  :: message            ! error message
+ ! local variables
+ real(dp)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
+ real(dp)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
+ real(dp)                  :: snwDensity         ! snow density (kg m-3)
+ ! initialize error control
+ err=0; message='implctMelt/'
+
+ if(scalarSWE > 0._dp)then
+  ! only melt if temperature of the top soil layer is greater than Tfreeze
+  if(soilTemp > Tfreeze)then
+   ! compute the energy required to melt all the snow (J m-2)
+   nrgRequired     = scalarSWE*LH_fus
+   ! compute the energy available to melt the snow (J m-2)
+   nrgAvailable    = soilHeatcap*(soilTemp - Tfreeze)*soilDepth
+   ! compute the snow density (not saved)
+   snwDensity      = scalarSWE/scalarSnowDepth
+   ! compute the amount of melt, and update SWE (kg m-2)
+   if(nrgAvailable > nrgRequired)then
+    scalarSfcMeltPond  = scalarSWE
+    scalarSWE          = 0._dp
+   else
+    scalarSfcMeltPond  = nrgAvailable/LH_fus
+    scalarSWE          = scalarSWE - scalarSfcMeltPond
+   end if
+   ! update depth
+   scalarSnowDepth = scalarSWE/snwDensity
+   ! update temperature of the top soil layer (K)
+   soilTemp =  soilTemp - (LH_fus*scalarSfcMeltPond/soilDepth)/soilHeatcap
+  else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
+   scalarSfcMeltPond = 0._dp  ! kg m-2
+  end if ! (if the temperature of the top soil layer is greater than Tfreeze)
+ else  ! melt is zero if the "snow without a layer" does not exist
+  scalarSfcMeltPond = 0._dp  ! kg m-2
+ end if ! (if the "snow without a layer" exists)
+
+ end subroutine implctMelt			
 
 end module fidaSolver_module
 
