@@ -243,6 +243,7 @@ contains
   real(dp)							:: scalarSnowDepth
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
+  logical(lgt),parameter			:: checkSnow = .false.
   
   !======= Internals ============
   
@@ -544,7 +545,7 @@ contains
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
                                     
-                                    
+ if(checkSnow)then                                  
    call computSnowDepth(&
  						dt_last(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)
@@ -581,8 +582,12 @@ contains
     volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
     if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
   endif
+  
  
-  if(tooMuchMelt) exit
+  if(tooMuchMelt)then
+   print *, 'tooMuchMelt, tret = ', tret(1)
+   exit
+  endif
  
   divideLayer = .false.
   call doesLayerDivide(&
@@ -595,7 +600,10 @@ contains
                         ! output
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
-   if(divideLayer) exit
+   if(divideLayer) then
+   print *, 'divideLayer, tret = ', tret(1)
+   exit
+  endif
    
    
    mergedLayers = .false.
@@ -610,7 +618,12 @@ contains
                        mergedLayers,                							& ! intent(out): flag to denote that layers were merged
                        err,message)                   							  ! intent(out): error control
                        
-   if(mergedLayers) exit
+   if(mergedLayers) then
+   print *, 'mergedLayers, tret = ', tret(1)
+   exit
+  endif
+  
+ endif ! checkSnow
                        	
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
