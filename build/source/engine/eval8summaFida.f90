@@ -125,6 +125,8 @@ contains
                        scalarCanopyTempPrev,    & ! intent(in):  previous value of canopy temperature (K)
                        scalarCanopyIceTrial,	&
                        scalarCanopyIcePrev,		&
+                       scalarCanopyLiqTrial,	&
+                       scalarCanopyLiqPrev,		&
                        scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                        scalarCanopyEnthalpyPrev,& ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                        mLayerTempTrial,         & ! intent(inout)
@@ -203,6 +205,8 @@ contains
  real(dp),intent(in)             :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
  real(dp),intent(out)          :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(in)             :: scalarCanopyIcePrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(out)          :: scalarCanopyLiqTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(dp),intent(in)             :: scalarCanopyLiqPrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
  real(dp),intent(out)          :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
  real(dp),intent(in)             :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
  real(dp),intent(out)          :: mLayerTempTrial(:)
@@ -234,9 +238,6 @@ contains
  ! state variables
  real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
  real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
- ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- 
   ! derivative of state variables
  real(dp)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
  real(dp)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
@@ -388,7 +389,7 @@ contains
  !scalarCanairTempTrial = scalarCanairTempPrev
  scalarCanopyTempTrial = scalarCanopyTempPrev
  !scalarCanopyWatTrial  = scalarCanopyWatPrev
- !scalarCanopyLiqTrial  = scalarCanopyLiqPrev
+ scalarCanopyLiqTrial  = scalarCanopyLiqPrev
  scalarCanopyIceTrial  = scalarCanopyIcePrev
  mLayerTempTrial           = mLayerTempPrev
  mLayerVolFracWatTrial     = mLayerVolFracWatPrev

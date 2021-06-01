@@ -52,6 +52,7 @@ USE globalData, only: tempPrintFlag
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J K-1)
+                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
                     Tfreeze,      & ! temperature at freezing              (K)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
@@ -242,6 +243,8 @@ contains
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
   logical(lgt),parameter			:: checkSnow = .true.
+  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
+  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   
   !======= Internals ============
   
@@ -418,7 +421,8 @@ contains
   
   ! need the following values for the first substep
  eqns_data%scalarCanopyTempPrev		= prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
- eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1) 
+ eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
+ eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)  
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
  eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
  eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)  
@@ -487,6 +491,8 @@ contains
                  eqns_data%scalarCanopyTempPrev,     & ! intent(in):   previous value of canopy temperature (K)
                  eqns_data%scalarCanopyIceTrial,	 &
                  eqns_data%scalarCanopyIcePrev,		 &
+                 eqns_data%scalarCanopyLiqTrial,	 &
+                 eqns_data%scalarCanopyLiqPrev,		 &                 
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                  eqns_data%mLayerTempTrial,          &
@@ -542,7 +548,49 @@ contains
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
                                     
- if(checkSnow)then                                  
+ if(checkSnow)then  
+ 
+  ! ***  remove ice due to sublimation...
+  ! --------------------------------------------------------------
+  sublime: associate(&
+   scalarCanopySublimation => eqns_data%flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
+   scalarSnowSublimation   => eqns_data%flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
+   scalarLatHeatCanopyEvap => eqns_data%flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   scalarSenHeatCanopy     => eqns_data%flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1),     & ! sensible heat flux from the canopy to the canopy air space (W m-2)
+   scalarLatHeatGround     => eqns_data%flux_data%var(iLookFLUX%scalarLatHeatGround)%dat(1),     & ! latent heat flux from ground surface below vegetation (W m-2)
+   scalarSenHeatGround     => eqns_data%flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1)      & ! sensible heat flux from ground surface below vegetation (W m-2)
+  ) ! associations to variables in data structures
+
+  ! * compute change in canopy ice content due to sublimation...
+  ! ------------------------------------------------------------
+  if(eqns_data%computeVegFlux)then
+
+   ! remove mass of ice on the canopy
+   eqns_data%scalarCanopyIceTrial = eqns_data%scalarCanopyIceTrial + scalarCanopySublimation*dt_last(1)
+
+   ! if removed all ice, take the remaining sublimation from water
+   if(eqns_data%scalarCanopyIceTrial < 0._dp)then
+    eqns_data%scalarCanopyLiqTrial = eqns_data%scalarCanopyLiqTrial + eqns_data%scalarCanopyIceTrial
+    eqns_data%scalarCanopyIceTrial = 0._dp
+   endif
+
+   ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_last(1)
+   if(eqns_data%scalarCanopyLiqTrial < 0._dp)then
+    ! --> superfluous sublimation flux
+    superflousSub = -eqns_data%scalarCanopyLiqTrial/dt_last(1)  ! kg m-2 s-1
+    superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
+    ! --> update fluxes and states
+    scalarCanopySublimation = scalarCanopySublimation + superflousSub
+    scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
+    scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
+    eqns_data%scalarCanopyLiqTrial         = 0._dp
+   endif
+
+  end if  ! (if computing the vegetation flux)  
+  
+  end associate sublime
+  
+                                
    call computSnowDepth(&
  						dt_last(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)

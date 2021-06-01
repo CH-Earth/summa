@@ -44,6 +44,8 @@ implicit none
    real(dp)								:: scalarCanopyTempPrev   			! previous value of canopy temperature (K)
    real(dp)								:: scalarCanopyIceTrial				! trial value of canopy ice content (kg m-2)
    real(dp)								:: scalarCanopyIcePrev				! value of canopy ice content (kg m-2) at previous step
+   real(dp)								:: scalarCanopyLiqTrial				! trial value of canopy ice content (kg m-2)
+   real(dp)								:: scalarCanopyLiqPrev				! value of canopy ice content (kg m-2) at previous step
    real(dp)								:: scalarCanopyEnthalpyTrial  		! trial enthalpy of the vegetation canopy (J m-3)
    real(dp)								:: scalarCanopyEnthalpyPrev 		! previous enthalpy of the vegetation canopy (J m-3)
    real(qp), allocatable             	:: sMul(:)      		   			! state vector multiplier (used in the residual calculations)

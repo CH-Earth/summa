@@ -133,6 +133,8 @@ contains
                  eqns_data%scalarCanopyTempPrev,     & ! intent(in):  previous value of canopy temperature (K)
                  eqns_data%scalarCanopyIceTrial,	&
                  eqns_data%scalarCanopyIcePrev,		&
+                 eqns_data%scalarCanopyLiqTrial,	 &
+                 eqns_data%scalarCanopyLiqPrev,		 &
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                  eqns_data%mLayerTempTrial,         &
