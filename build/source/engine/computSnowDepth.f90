@@ -113,6 +113,7 @@ contains
    end if
 
   end if  ! (if snow layers exist)
+  
 
   ! *** account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -138,6 +139,8 @@ contains
                    err,cmessage)                     ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
+  
+  
 
   ! recompute snow depth and SWE
   if(nSnow > 0)then

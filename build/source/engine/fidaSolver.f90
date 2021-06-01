@@ -239,8 +239,6 @@ contains
   real(dp)                          :: bulkDensity                   ! bulk density of a given layer (kg m-3)
   real(dp)                          :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
   logical(lgt)						:: tooMuchMelt
-  real(dp)							:: mLayerDepth(nLayers)
-  real(dp)							:: scalarSnowDepth
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
   logical(lgt),parameter			:: checkSnow = .true.
@@ -431,7 +429,6 @@ contains
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  eqns_data%ixSaturation = ixSaturation
- mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)
   
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -640,11 +637,10 @@ contains
                    ! output: error control
                    err,message)														    ! intent(out): error control
    if(err/=0)then; err=20; return; end if
-  end if
-  
+  end if 
  endif ! checkSnow
  
-! if(tret(1) > 1000) exit
+! if(tret(1) > 6700) exit
                        	
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
