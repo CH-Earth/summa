@@ -243,8 +243,11 @@ contains
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
   logical(lgt),parameter			:: checkSnow = .true.
-  real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
-  real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+  real(dp)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
+  real(dp)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+  real(dp)							:: mLayerDepth(nLayers)
+  real(dp)							:: scalarSnowDepth
+  real(dp)							:: scalarSWE
   
   !======= Internals ============
   
@@ -433,6 +436,9 @@ contains
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  eqns_data%ixSaturation = ixSaturation
+ mLayerDepth						= prog_data%var(iLookPROG%mLayerDepth)%dat(1)
+ scalarSnowDepth					= prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
+ scalarSWE							= prog_data%var(iLookPROG%scalarSWE)%dat(1)
   
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -589,7 +595,8 @@ contains
   end if  ! (if computing the vegetation flux)  
   
   end associate sublime
-  
+
+if( 1==0 )then  
                                 
    call computSnowDepth(&
  						dt_last(1),			    									& ! intent(in)
@@ -601,9 +608,9 @@ contains
  						eqns_data%flux_data,										& ! intent(in)
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
- 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,			& ! intent(out)
- 					   	eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),	& ! intent(out)
- 					   	eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1),		&
+ 					   	mLayerDepth,												& ! intent(out)
+ 					    scalarSnowDepth,											& ! intent(out)
+ 					   	scalarSWE,													&
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
@@ -686,6 +693,7 @@ contains
                    err,message)														    ! intent(out): error control
    if(err/=0)then; err=20; return; end if
   end if 
+endif
  endif ! checkSnow
  
 ! if(tret(1) > 6700) exit
@@ -714,6 +722,7 @@ contains
   if( .not. feasible) idaSucceeds = .false.
    
   if(idaSucceeds)then
+
       ! copy to output data      
   	diag_data 		= eqns_data%diag_data              
   	flux_data 		= eqns_data%flux_data             

@@ -548,6 +548,7 @@ contains
  USE varExtrFida_module, only:varExtractFida
  USE computEnthalpy_module,only:computEnthalpy
  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
+ USE computSnowDepth_module,only:computSnowDepth
  implicit none
  ! model control
  real(dp)         ,intent(in)    :: dt                             ! time step (s)
@@ -1063,6 +1064,23 @@ endif  ! if checking the mass balance
  ! -----
  ! * update prognostic variables...
  ! --------------------------------
+ 
+ call computSnowDepth(&
+ 						dt,					    									& ! intent(in)
+ 						nSnow,														& ! intent(in)
+ 						mLayerVolFracLiqTrial, 			  							& ! intent(inout)
+ 						mLayerVolFracIceTrial,										& ! intent(inout)
+ 						mLayerTempTrial,											& ! intent(in)
+ 						mpar_data,													& ! intent(in)
+ 						flux_data,													& ! intent(in)
+ 						diag_data,													& ! intent(in)
+ 					   	! output
+ 					   	prog_data%var(iLookPROG%mLayerDepth)%dat,					& ! intent(out)
+ 					    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),			& ! intent(out)
+ 					   	prog_data%var(iLookPROG%scalarSWE)%dat(1),					&
+                       	! error control
+                       	err,message)         				  					  	  ! intent(out):   error control
+ if(err/=0)then; err=55; return; end if
 
  ! update state variables for the vegetation canopy
  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
@@ -1081,7 +1099,7 @@ endif  ! if checking the mass balance
 
  ! update state variables for the aquifer
  scalarAquiferStorage = scalarAquiferStorageTrial
-
+ 
  ! end associations to info in the data structures
  end associate
 
