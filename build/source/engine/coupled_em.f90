@@ -829,10 +829,7 @@ contains
 
   end if  ! (if computing the vegetation flux)
   
-  if (1 == 0)then
-  
-  !  end associate sublime
- 	call computSnowDepth(&
+  call computSnowDepth(&
  						dt_sub,					    									& ! intent(in)
  						nSnow,														& ! intent(in)
  						mLayerVolFracLiq, 			  							& ! intent(inout)
@@ -847,76 +844,8 @@ contains
                        	err,message)         				  					  	  ! intent(out):   error control
  	if(err/=0)then; err=55; return; end if
  	
-  endif
-
-if( 1==0 )then
-  ! * compute change in ice content of the top snow layer due to sublimation...
-  ! ---------------------------------------------------------------------------
-  ! NOTE: this is done BEFORE densification
-  if(nSnow > 0)then ! snow layers exist
-
-   ! try to remove ice from the top layer
-   iSnow=1
-
-   ! save the mass of liquid water (kg m-2)
-   massLiquid = mLayerDepth(iSnow)*mLayerVolFracLiq(iSnow)*iden_water
-
-   ! add/remove the depth of snow gained/lost by frost/sublimation (m)
-   ! NOTE: assume constant density
-   mLayerDepth(iSnow) = mLayerDepth(iSnow) + dt_sub*scalarSnowSublimation/(mLayerVolFracIce(iSnow)*iden_ice)
-
-   ! check that we did not remove the entire layer
-   if(mLayerDepth(iSnow) < verySmall)then
-    stepFailure  = .true.
-    doLayerMerge = .true.
-    dt_sub      = max(dtSave/2._dp, minstep)
-    cycle substeps
-   else
-    stepFailure  = .false.
-    doLayerMerge = .false.
-   endif
-
-   ! update the volumetric fraction of liquid water
-   mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)
-
-  ! no snow
-  else
-
-   ! no snow: check that sublimation is zero
-   if(abs(scalarSnowSublimation) > verySmall)then
-    message=trim(message)//'sublimation of snow has been computed when no snow exists'
-    err=20; return
-   end if
-
-  end if  ! (if snow layers exist)
-endif
   end associate sublime
-
-  ! *** account for compaction and cavitation in the snowpack...
-  ! ------------------------------------------------------------
-  if(nSnow>0)then
-   call snwDensify(&
-                   ! intent(in): variables
-                   dt_sub,                                                 & ! intent(in): time step (s)
-                   indx_data%var(iLookINDEX%nSnow)%dat(1),                 & ! intent(in): number of snow layers
-                   prog_data%var(iLookPROG%mLayerTemp)%dat(1:nSnow),       & ! intent(in): temperature of each layer (K)
-                   diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow), & ! intent(in): volumetric melt in each layer (kg m-3)
-                   ! intent(in): parameters
-                   mpar_data%var(iLookPARAM%densScalGrowth)%dat(1),        & ! intent(in): density scaling factor for grain growth (kg-1 m3)
-                   mpar_data%var(iLookPARAM%tempScalGrowth)%dat(1),        & ! intent(in): temperature scaling factor for grain growth (K-1)
-                   mpar_data%var(iLookPARAM%grainGrowthRate)%dat(1),       & ! intent(in): rate of grain growth (s-1)
-                   mpar_data%var(iLookPARAM%densScalOvrbdn)%dat(1),        & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
-                   mpar_data%var(iLookPARAM%tempScalOvrbdn)%dat(1),        & ! intent(in): temperature scaling factor for overburden pressure (K-1)
-                   mpar_data%var(iLookPARAM%baseViscosity)%dat(1),         & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
-                   ! intent(inout): state variables
-                   prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow),      & ! intent(inout): depth of each layer (m)
-                   prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of liquid water after itertations (-)
-                   prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(inout):  volumetric fraction of ice after itertations (-)
-                   ! output: error control
-                   err,cmessage)                     ! intent(out): error control
-   if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-  end if  ! if snow layers exist
-
+  
   ! update coordinate variables
   call calcHeight(&
                   ! input/output: data structures

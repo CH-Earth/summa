@@ -1065,6 +1065,8 @@ endif  ! if checking the mass balance
  ! * update prognostic variables...
  ! --------------------------------
  
+ if(1==0)then
+ 
  call computSnowDepth(&
  						dt,					    									& ! intent(in)
  						nSnow,														& ! intent(in)
@@ -1085,6 +1087,8 @@ endif  ! if checking the mass balance
    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( mLayerDepth(1:nSnow) )
    prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (mLayerVolFracLiqTrial(1:nSnow)*iden_water + mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
   end if
+  
+ endif
 
  ! update state variables for the vegetation canopy
  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)
