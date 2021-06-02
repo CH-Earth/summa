@@ -242,7 +242,7 @@ contains
   logical(lgt)						:: tooMuchMelt
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
-  logical(lgt),parameter			:: checkSnow = .false.
+  logical(lgt),parameter			:: checkSnow = .true.
   real(dp)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(dp)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   real(dp)							:: mLayerDepth(nLayers)
@@ -568,7 +568,9 @@ contains
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
    
-   
+
+ ! if(tret(1) > 500) exit  
+  
  if(checkSnow)then  
                                
   call computSnowDepth(&
@@ -581,7 +583,7 @@ contains
  						eqns_data%flux_data,										& ! intent(in)
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
- 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,												& ! intent(out)
+ 					   	mLayerDepth,												& ! intent(out)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
@@ -589,15 +591,15 @@ contains
    
   ! recompute snow depth and SWE
   if(eqns_data%nSnow > 0)then
-   eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
-   eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+   scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
+   scalarSWE       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
   end if
                 	
   ! check the need to merge snow layers
   tooMuchMelt = .false.
   if(eqns_data%nSnow>0)then
     ! check that we did not remove the entire layer
-    if(eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1) < 1.e-6_dp) exit
+    if(mLayerDepth(1) < 1.e-6_dp) exit
     ! compute the energy required to melt the top snow layer (J m-2)
     bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
     volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
@@ -616,8 +618,8 @@ contains
                         model_decisions,             							& ! intent(in):    model decisions
                         eqns_data%mpar_data,                   					& ! intent(in):    model parameters
                         eqns_data%nSnow,                       					& ! intent(in):    number of snow layers
-                        eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,     										& ! intent(in): 
-                        eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1), 										& ! intent(in)
+                        mLayerDepth,     										& ! intent(in): 
+                        scalarSnowDepth, 										& ! intent(in)
                         ! output
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
@@ -634,7 +636,7 @@ contains
                        model_decisions,             							& ! intent(in):    model decisions
                        eqns_data%mpar_data,                   					& ! intent(in):    model parameters
                        eqns_data%nSnow,                       					& ! intent(in):
-                       eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,      & ! intent(inout): model prognostic variables for a local HRU
+                       mLayerDepth,      										& ! intent(inout): model prognostic variables for a local HRU
                        ! output
                        mergedLayers,                							& ! intent(out): flag to denote that layers were merged
                        err,message)                   							  ! intent(out): error control
@@ -645,8 +647,6 @@ contains
    endif
  
  endif ! checkSnow
- 
- ! if(tret(1) > 500) exit
  
 
  end do ! while loop on one_step mode
