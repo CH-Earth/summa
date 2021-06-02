@@ -138,6 +138,7 @@ contains
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
+ USE computSnowDepth_module,only:computSnowDepth
  ! look-up values for the numerical method
  USE mDecisions_module,only:         &
   iterative,                         &      ! iterative
@@ -827,6 +828,26 @@ contains
    endif
 
   end if  ! (if computing the vegetation flux)
+  
+  if (1 == 0)then
+  
+  !  end associate sublime
+ 	call computSnowDepth(&
+ 						dt_sub,					    									& ! intent(in)
+ 						nSnow,														& ! intent(in)
+ 						mLayerVolFracLiq, 			  							& ! intent(inout)
+ 						mLayerVolFracIce,										& ! intent(inout)
+ 						prog_data%var(iLookPROG%mLayerTemp)%dat,											& ! intent(in)
+ 						mpar_data,													& ! intent(in)
+ 						flux_data,													& ! intent(in)
+ 						diag_data,													& ! intent(in)
+ 					   	! output
+ 					   	mLayerDepth,												& ! intent(out)
+                       	! error control
+                       	err,message)         				  					  	  ! intent(out):   error control
+ 	if(err/=0)then; err=55; return; end if
+ 	
+  endif
 
 if( 1==0 )then
   ! * compute change in ice content of the top snow layer due to sublimation...
