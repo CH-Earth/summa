@@ -110,6 +110,8 @@ contains
                   divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ 
+ print *, 'in coupled_em divideLayer = ', divideLayer
 
  ! merge snow layers if they are too thin
  call layerMerge(&
@@ -125,6 +127,8 @@ contains
                  mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ 
+ print *, 'in coupled_em mergeLayers = ', mergedLayers
 
  ! update the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)

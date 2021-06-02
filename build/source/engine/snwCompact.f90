@@ -52,7 +52,7 @@ contains
                        grainGrowthRate,                & ! intent(in): rate of grain growth (s-1)
                        densScalOvrbdn,                 & ! intent(in): density scaling factor for overburden pressure (kg-1 m3)
                        tempScalOvrbdn,                 & ! intent(in): temperature scaling factor for overburden pressure (K-1)
-                       baseViscosity,                      & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
+                       baseViscosity,                  & ! intent(in): viscosity coefficient at T=T_frz and snow density=0 (kg m-2 s)
 
                        ! intent(inout): state variables
                        mLayerDepth,                    & ! intent(inout): depth of each layer (m)

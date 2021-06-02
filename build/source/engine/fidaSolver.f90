@@ -156,8 +156,8 @@ contains
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
   USE computSnowDepth_module,only:computSnowDepth
   USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
-  USE layerDivide_module,only:doesLayerDivide
-  Use layerMerge_module,only:doesLayerMerge
+  USE layerDivide_module,only:needDivideLayer
+  Use layerMerge_module,only:needMergeLayers
 
   !======= Declarations =========
   implicit none
@@ -436,7 +436,7 @@ contains
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  eqns_data%ixSaturation = ixSaturation
- mLayerDepth						= prog_data%var(iLookPROG%mLayerDepth)%dat(1)
+ mLayerDepth						= prog_data%var(iLookPROG%mLayerDepth)%dat
  scalarSnowDepth					= prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
  scalarSWE							= prog_data%var(iLookPROG%scalarSWE)%dat(1)
   
@@ -569,50 +569,9 @@ contains
    eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
    
    
-  if(checkSnow)then  
- 
-  ! ***  remove ice due to sublimation...
-  ! --------------------------------------------------------------
-  sublime: associate(&
-   scalarCanopySublimation => eqns_data%flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
-   scalarSnowSublimation   => eqns_data%flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
-   scalarLatHeatCanopyEvap => eqns_data%flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   scalarSenHeatCanopy     => eqns_data%flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1),     & ! sensible heat flux from the canopy to the canopy air space (W m-2)
-   scalarLatHeatGround     => eqns_data%flux_data%var(iLookFLUX%scalarLatHeatGround)%dat(1),     & ! latent heat flux from ground surface below vegetation (W m-2)
-   scalarSenHeatGround     => eqns_data%flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1)      & ! sensible heat flux from ground surface below vegetation (W m-2)
-  ) ! associations to variables in data structures
-
-  ! * compute change in canopy ice content due to sublimation...
-  ! ------------------------------------------------------------
-  if(eqns_data%computeVegFlux)then
-
-   ! remove mass of ice on the canopy
-   eqns_data%scalarCanopyIceTrial = eqns_data%scalarCanopyIceTrial + scalarCanopySublimation*dt_last(1)
-
-   ! if removed all ice, take the remaining sublimation from water
-   if(eqns_data%scalarCanopyIceTrial < 0._dp)then
-    eqns_data%scalarCanopyLiqTrial = eqns_data%scalarCanopyLiqTrial + eqns_data%scalarCanopyIceTrial
-    eqns_data%scalarCanopyIceTrial = 0._dp
-   endif
-
-   ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_last(1)
-   if(eqns_data%scalarCanopyLiqTrial < 0._dp)then
-    ! --> superfluous sublimation flux
-    superflousSub = -eqns_data%scalarCanopyLiqTrial/dt_last(1)  ! kg m-2 s-1
-    superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
-    ! --> update fluxes and states
-    scalarCanopySublimation = scalarCanopySublimation + superflousSub
-    scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
-    scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
-    eqns_data%scalarCanopyLiqTrial         = 0._dp
-   endif
-
-  end if  ! (if computing the vegetation flux)  
-  
-  end associate sublime
-  
-                                
-   call computSnowDepth(&
+ if(checkSnow)then  
+                               
+  call computSnowDepth(&
  						dt_last(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)
  						eqns_data%mLayerVolFracLiqTrial,   							& ! intent(inout)
@@ -622,7 +581,7 @@ contains
  						eqns_data%flux_data,										& ! intent(in)
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
- 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,			& ! intent(out)
+ 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,												& ! intent(out)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
@@ -633,15 +592,6 @@ contains
    eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
    eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
   end if
-   
-   ! update coordinate variables
-  call calcHeight(&
-                  ! input/output: data structures
-                  eqns_data%indx_data,   & ! intent(in): layer type
-                  eqns_data%prog_data,   & ! intent(inout): model variables for a local HRU
-                  ! output: error control
-                  err,message)
-  if(err/=0)then; err=20; return; end if
                 	
   ! check the need to merge snow layers
   tooMuchMelt = .false.
@@ -661,24 +611,24 @@ contains
   endif
  
   divideLayer = .false.
-  call doesLayerDivide(&
+  call needDivideLayer(&
                         ! input/output: model data structures
                         model_decisions,             							& ! intent(in):    model decisions
                         eqns_data%mpar_data,                   					& ! intent(in):    model parameters
                         eqns_data%nSnow,                       					& ! intent(in):    number of snow layers
-                        eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,     & ! intent(in): 
-                        eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1), & ! intent(in)
+                        eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,     										& ! intent(in): 
+                        eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1), 										& ! intent(in)
                         ! output
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
    if(divideLayer) then
-   print *, 'divideLayer, tret = ', tret(1)
-   exit
+	   print *, 'divideLayer, tret = ', tret(1)
+	   exit
   endif
    
    
    mergedLayers = .false.
-   call doesLayerMerge(&
+   call needMergeLayers(&
                        ! input/output: model data structures
                        tooMuchMelt,                 							& ! intent(in):    flag to force merge of snow layers
                        model_decisions,             							& ! intent(in):    model decisions
@@ -690,29 +640,10 @@ contains
                        err,message)                   							  ! intent(out): error control
                        
    if(mergedLayers) then
-   print *, 'mergedLayers, tret = ', tret(1)
-   exit
-  endif
-  
-  ! *** compute melt of the "snow without a layer"...
-  ! -------------------------------------------------
-  ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
-  ! (check for the special case of "snow without a layer")
-  if(eqns_data%nSnow==0)then
-   call implctMelt(&
-                   ! input/output: integrated snowpack properties
-                   eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
-                   eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
-                   eqns_data%prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
-                   ! input/output: properties of the upper-most soil layer
-                   eqns_data%mLayerTempTrial(nSnow+1),        						  & ! intent(inout): surface layer temperature (K)
-                   eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
-                   eqns_data%diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
-                   ! output: error control
-                   err,message)														    ! intent(out): error control
-   if(err/=0)then; err=20; return; end if
-  end if 
-
+	   print *, 'mergedLayers, tret = ', tret(1)
+   	   exit
+   endif
+ 
  endif ! checkSnow
  
 

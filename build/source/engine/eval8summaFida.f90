@@ -266,7 +266,7 @@ contains
  real(qp)                        :: scalarCanopyEnthalpyPrime
  real(dp)						 :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	 :: mLayerCmTrial
- logical(lgt),parameter			 :: updateCp=.true.
+ logical(lgt),parameter			 :: updateCp=.false.
  logical(lgt),parameter			 :: needCm=.false.
  
 

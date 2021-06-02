@@ -73,14 +73,14 @@ USE mDecisions_module,only:& ! identify model options for snow albedo
 implicit none
 private
 public::layerDivide
-public::doesLayerDivide
+public::needDivideLayer
 
 contains
 
  ! ***********************************************************************************************************
- ! public subroutine doesLayerDivide: check to see if we need to add new snowfall to the system
+ ! public subroutine needDivideLayer: check to see if we need to add new snowfall to the system
  ! ***********************************************************************************************************
- subroutine doesLayerDivide(&
+ subroutine needDivideLayer(&
                         ! input/output: model data structures
                         model_decisions,             & ! intent(in):    model decisions
                         mpar_data,                   & ! intent(in):    model parameters
@@ -118,7 +118,7 @@ contains
  logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="doesLayerDivide/"
+ err=0; message="needDivideLayer/"
  ! --------------------------------------------------------------------------------------------------------
  ! associate variables in the data structures
  associate(&
@@ -203,7 +203,7 @@ contains
  ! end associate variables in data structure
  end associate
 
- end subroutine doesLayerDivide
+ end subroutine needDivideLayer
  
  
   ! ***********************************************************************************************************

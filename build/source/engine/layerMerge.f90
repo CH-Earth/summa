@@ -62,15 +62,15 @@ USE var_derive_module,only:calcHeight ! module to calculate height at layer inte
 implicit none
 private
 public::layerMerge
-public::doesLayerMerge
+public::needMergeLayers
 
 contains
 
 
  ! *****************************************************************************************************************
- ! public subroutine doesLayerMerge: Should we merge layers? (if the thickness is less than zmin)
+ ! public subroutine needMergeLayers: Should we merge layers? (if the thickness is less than zmin)
  ! *****************************************************************************************************************
- subroutine doesLayerMerge(&
+ subroutine needMergeLayers(&
                        ! input/output: model data structures
                        tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
                        model_decisions,             & ! intent(in):    model decisions
@@ -103,7 +103,7 @@ contains
  integer(i4b)                    :: jSnow               ! index of snow layer identified for combination with iSnow
  integer(i4b)                    :: kSnow               ! index of the upper layer of the two layers identified for combination
  ! initialize error control
- err=0; message="doesLayerMerge/"
+ err=0; message="needMergeLayers/"
  ! --------------------------------------------------------------------------------------------------------
  ! associate variables to the data structures
  associate(&
@@ -169,7 +169,7 @@ contains
  ! end association to variables in the data structure
  end associate
 
- end subroutine doesLayerMerge
+ end subroutine needMergeLayers
 
 
  ! *****************************************************************************************************************
