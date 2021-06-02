@@ -242,7 +242,7 @@ contains
   logical(lgt)						:: tooMuchMelt
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
-  logical(lgt),parameter			:: checkSnow = .false.
+  logical(lgt),parameter			:: checkSnow = .true.
   real(dp)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(dp)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   real(dp)							:: mLayerDepth(nLayers)
@@ -554,7 +554,22 @@ contains
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
                                     
- if(checkSnow)then  
+              	
+   ! save required quantities for next step
+   eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
+   eqns_data%scalarCanopyIcePrev		= eqns_data%scalarCanopyIceTrial
+   eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
+   mLayerMatricHeadLiqPrev(:) 			= eqns_data%mLayerMatricHeadLiqTrial(:)
+   eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
+   eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
+   eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
+   eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
+   eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
+   eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
+   eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
+   
+   
+  if(checkSnow)then  
  
   ! ***  remove ice due to sublimation...
   ! --------------------------------------------------------------
@@ -607,19 +622,16 @@ contains
  						eqns_data%flux_data,										& ! intent(in)
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
- 					   	mLayerDepth,												& ! intent(out)
+ 					   	eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat,			& ! intent(out)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
    
-if( 1==0 )then
-
-  
-
+   
   ! recompute snow depth and SWE
   if(eqns_data%nSnow > 0)then
-   scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
-   scalarSWE       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
+   eqns_data%prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+   eqns_data%prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * eqns_data%prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
   end if
    
    ! update coordinate variables
@@ -700,24 +712,9 @@ if( 1==0 )then
                    err,message)														    ! intent(out): error control
    if(err/=0)then; err=20; return; end if
   end if 
-endif
+
  endif ! checkSnow
  
-! if(tret(1) > 6700) exit
-                       	
-   ! save required quantities for next step
-   eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
-   eqns_data%scalarCanopyIcePrev		= eqns_data%scalarCanopyIceTrial
-   eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
-   mLayerMatricHeadLiqPrev(:) 			= eqns_data%mLayerMatricHeadLiqTrial(:)
-   eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
-   eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
-   eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
-   eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
-   eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
-   eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
-   eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
-   
 
  end do ! while loop on one_step mode
  

@@ -1065,8 +1065,8 @@ endif  ! if checking the mass balance
  ! * update prognostic variables...
  ! --------------------------------
  
- if(1==0)then
- 
+
+ if(1==0)then  
  call computSnowDepth(&
  						dt,					    									& ! intent(in)
  						nSnow,														& ! intent(in)
@@ -1081,7 +1081,7 @@ endif  ! if checking the mass balance
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
  if(err/=0)then; err=55; return; end if
- 
+
   ! recompute snow depth and SWE
   if(nSnow > 0)then
    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( mLayerDepth(1:nSnow) )

@@ -830,16 +830,16 @@ contains
   end if  ! (if computing the vegetation flux)
   
   call computSnowDepth(&
- 						dt_sub,					    									& ! intent(in)
- 						nSnow,														& ! intent(in)
+ 						dt_sub,					    							& ! intent(in)
+ 						nSnow,													& ! intent(in)
  						mLayerVolFracLiq, 			  							& ! intent(inout)
  						mLayerVolFracIce,										& ! intent(inout)
- 						prog_data%var(iLookPROG%mLayerTemp)%dat,											& ! intent(in)
- 						mpar_data,													& ! intent(in)
- 						flux_data,													& ! intent(in)
- 						diag_data,													& ! intent(in)
+ 						prog_data%var(iLookPROG%mLayerTemp)%dat,				& ! intent(in)
+ 						mpar_data,												& ! intent(in)
+ 						flux_data,												& ! intent(in)
+ 						diag_data,												& ! intent(in)
  					   	! output
- 					   	mLayerDepth,												& ! intent(out)
+ 					   	mLayerDepth,											& ! intent(out)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
  	if(err/=0)then; err=55; return; end if
