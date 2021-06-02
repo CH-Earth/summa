@@ -828,6 +828,7 @@ contains
 
   end if  ! (if computing the vegetation flux)
 
+if( 1==0 )then
   ! * compute change in ice content of the top snow layer due to sublimation...
   ! ---------------------------------------------------------------------------
   ! NOTE: this is done BEFORE densification
@@ -867,7 +868,7 @@ contains
    end if
 
   end if  ! (if snow layers exist)
-
+endif
   end associate sublime
 
   ! *** account for compaction and cavitation in the snowpack...

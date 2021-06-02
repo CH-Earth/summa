@@ -1075,12 +1075,16 @@ endif  ! if checking the mass balance
  						flux_data,													& ! intent(in)
  						diag_data,													& ! intent(in)
  					   	! output
- 					   	prog_data%var(iLookPROG%mLayerDepth)%dat,					& ! intent(out)
- 					    prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),			& ! intent(out)
- 					   	prog_data%var(iLookPROG%scalarSWE)%dat(1),					&
+ 					   	mLayerDepth,												& ! intent(out)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
  if(err/=0)then; err=55; return; end if
+ 
+  ! recompute snow depth and SWE
+  if(nSnow > 0)then
+   prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( mLayerDepth(1:nSnow) )
+   prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (mLayerVolFracLiqTrial(1:nSnow)*iden_water + mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
+  end if
 
  ! update state variables for the vegetation canopy
  scalarCanairTemp    = scalarCanairTempTrial    ! trial value of canopy air temperature (K)

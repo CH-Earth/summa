@@ -53,8 +53,6 @@ contains
  							diag_data,				& ! intent(in)
  					   		! output
  					   		mLayerDepth,			& ! intent(out)
- 					   		scalarSnowDepth,		& ! intent(out)
- 					   		scalarSWE,				& ! intetn(out)
                        		! error control
                        		err,message)         ! intent(out):   error control
                        		
@@ -70,8 +68,6 @@ contains
   type(var_dlength),intent(in)		   :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(in)         :: diag_data              ! diagnostic variables for a local HRU
   real(dp),intent(out)				   :: mLayerDepth(:)
-  real(dp),intent(out)				   :: scalarSnowDepth
-  real(dp),intent(out)				   :: scalarSWE
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
  
@@ -139,14 +135,6 @@ contains
                    err,cmessage)                     ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
-  
-  
-
-  ! recompute snow depth and SWE
-  if(nSnow > 0)then
-   scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
-   scalarSWE       = sum( (mLayerVolFracLiq(1:nSnow)*iden_water + mLayerVolFracIce(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
-  end if
   
   end associate
   

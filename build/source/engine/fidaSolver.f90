@@ -595,8 +595,7 @@ contains
   end if  ! (if computing the vegetation flux)  
   
   end associate sublime
-
-if( 1==0 )then  
+  
                                 
    call computSnowDepth(&
  						dt_last(1),			    									& ! intent(in)
@@ -609,11 +608,19 @@ if( 1==0 )then
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
  					   	mLayerDepth,												& ! intent(out)
- 					    scalarSnowDepth,											& ! intent(out)
- 					   	scalarSWE,													&
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
+   
+if( 1==0 )then
+
+  
+
+  ! recompute snow depth and SWE
+  if(eqns_data%nSnow > 0)then
+   scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
+   scalarSWE       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
+  end if
    
    ! update coordinate variables
   call calcHeight(&
