@@ -727,7 +727,7 @@ contains
                   nSoil,                                  & ! intent(in):    number of soil layers
                   nLayers,                                & ! intent(in):    total number of layers
                   nState,                                 & ! intent(in):    total number of layers
-                  dt_sub,                                 & ! intent(inout):    length of the model sub-step
+                  dt_sub,                                 & ! intent(inout): length of the model sub-step
                   (nsub==1),                              & ! intent(in):    logical flag to denote the first substep
                   computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
                   ! input/output: data structures

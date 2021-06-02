@@ -242,7 +242,7 @@ contains
   logical(lgt)						:: tooMuchMelt
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
-  logical(lgt),parameter			:: checkSnow = .true.
+  logical(lgt),parameter			:: checkSnow = .false.
   real(dp)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(dp)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   real(dp)							:: mLayerDepth(nLayers)
@@ -645,6 +645,8 @@ contains
    endif
  
  endif ! checkSnow
+ 
+ ! if(tret(1) > 500) exit
  
 
  end do ! while loop on one_step mode
