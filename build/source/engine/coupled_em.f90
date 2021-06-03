@@ -844,6 +844,15 @@ contains
                        	err,message)         				  					  	  ! intent(out):   error control
  	if(err/=0)then; err=55; return; end if
  	
+  print *, '--------- coupled_em---------'
+  print *, 'dt_sub = ', dt_sub
+  print *, 'nSnow = ', nSnow
+  print *, 'mLayerVolFracLiq = ', mLayerVolFracLiq(:)
+  print *, 'mLayerVolFracIce = ', mLayerVolFracIce(:)
+  print *, 'mLayerTemp = ', prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+  print *, 'mLayerDepth = ', mLayerDepth(:)
+  print *, '--------------------------------------------------------'
+ 	
   end associate sublime
   
   ! update coordinate variables

@@ -550,6 +550,10 @@ contains
   end select
   dt_past = dt_last(1)
   
+  do iVar=1,size(flux_meta) 
+     flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  tret(1)
+  end do
+  
    ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
@@ -574,13 +578,13 @@ contains
  if(checkSnow)then  
                                
   call computSnowDepth(&
- 						dt_last(1),			    									& ! intent(in)
+ 						tret(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)
  						eqns_data%mLayerVolFracLiqTrial,   							& ! intent(inout)
  						eqns_data%mLayerVolFracIceTrial,							& ! intent(inout)
  						eqns_data%mLayerTempTrial,									& ! intent(in)
  						eqns_data%mpar_data,										& ! intent(in)
- 						eqns_data%flux_data,										& ! intent(in)
+ 						flux_data,													& ! intent(in)
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
  					   	mLayerDepth,												& ! intent(out)
@@ -603,7 +607,7 @@ contains
     ! compute the energy required to melt the top snow layer (J m-2)
     bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
     volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
-    if(-volEnthalpy < eqns_data%flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_last(1)) tooMuchMelt = .true.     
+    if(-volEnthalpy < flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*tret(1)) tooMuchMelt = .true.     
   endif
   
  
@@ -624,8 +628,13 @@ contains
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
    if(divideLayer) then
-	   print *, 'divideLayer, tret = ', tret(1)
-	   exit
+	    print *, 'divideLayer, tret = ', tret(1)
+  		print *, 'nSnow = ', eqns_data%nSnow
+  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
+  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
+  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
+  		print *, 'mLayerDepth = ', mLayerDepth(:)
+	    exit
   endif
    
    
@@ -642,8 +651,13 @@ contains
                        err,message)                   							  ! intent(out): error control
                        
    if(mergedLayers) then
-	   print *, 'mergedLayers, tret = ', tret(1)
-   	   exit
+	    print *, 'mergedLayers, tret = ', tret(1)
+  		print *, 'nSnow = ', eqns_data%nSnow
+  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
+  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
+  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
+  		print *, 'mLayerDepth = ', mLayerDepth(:)
+	    exit
    endif
  
  endif ! checkSnow
