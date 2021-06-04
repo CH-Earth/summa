@@ -587,7 +587,7 @@ contains
  						flux_data,													& ! intent(in)
  						eqns_data%diag_data,										& ! intent(in)
  					   	! output
- 					   	mLayerDepth,												& ! intent(out)
+ 					   	mLayerDepth,												& ! intent(inout)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
@@ -629,13 +629,13 @@ contains
                         err,message)                   							  ! intent(out): error control
    if(divideLayer .and. tret(1)>50) then
 	    print *, 'divideLayer, tret = ', tret(1)
-if(1==0)then
-  		print *, 'nSnow = ', eqns_data%nSnow
+!if(1==0)then
+		print *, 'mLayerMeltFreeze = ', eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
-  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
-  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
-  		print *, 'mLayerDepth = ', mLayerDepth(:)
-endif
+!  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
+!  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
+!  		print *, 'mLayerDepth = ', mLayerDepth(:)
+!endif
 	    exit
   endif
    
@@ -654,13 +654,13 @@ endif
                        
    if(mergedLayers .and. tret(1)>50) then
 	    print *, 'mergedLayers, tret = ', tret(1)
-if(1==0)then
-  		print *, 'nSnow = ', eqns_data%nSnow
+!if(1==0)then
+        print *, 'mLayerMeltFreeze = ', eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
-  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
-  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
-  		print *, 'mLayerDepth = ', mLayerDepth(:)
-endif
+!  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
+!  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
+!  		print *, 'mLayerDepth = ', mLayerDepth(:)
+!endif
 	    exit
    endif
  

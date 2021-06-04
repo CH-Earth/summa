@@ -844,14 +844,15 @@ contains
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
  	if(err/=0)then; err=55; return; end if
-if(1==0)then 	
+!if(1==0)then 	
   print *, '--------- coupled_em---------'
+  print *, 'mLayerMeltFreeze = ', diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
   print *, 'mLayerVolFracLiq = ', mLayerVolFracLiq(:)
-  print *, 'mLayerVolFracIce = ', mLayerVolFracIce(:)
-  print *, 'mLayerTemp = ', prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  print *, 'mLayerDepth = ', mLayerDepth(:)
+!  print *, 'mLayerVolFracIce = ', mLayerVolFracIce(:)
+!  print *, 'mLayerTemp = ', prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+!  print *, 'mLayerDepth = ', mLayerDepth(:)
   print *, '--------------------------------------------------------'
-endif 	
+!endif 	
   end associate sublime
   
   ! update coordinate variables
