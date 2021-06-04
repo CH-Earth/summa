@@ -619,7 +619,7 @@ contains
   
  
   if(tooMuchMelt)then
-   print *, 'tooMuchMelt, tret = ', tret(1)
+!   print *, 'tooMuchMelt, tret = ', tret(1)
    exit
   endif
  
@@ -635,14 +635,12 @@ contains
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
    if(divideLayer .and. tret(1)>50) then
-	    print *, 'divideLayer, tret = ', tret(1)
-if(1==0)then
-		print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
-  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
+!	    print *, 'divideLayer, tret = ', tret(1)
+!		print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
+!  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
 !  		print *, 'mLayerDepth = ', mLayerDepth(:)
-endif
 	    exit
   endif
    
@@ -660,14 +658,12 @@ endif
                        err,message)                   							  ! intent(out): error control
                        
    if(mergedLayers .and. tret(1)>50) then
-	    print *, 'mergedLayers, tret = ', tret(1)
-if(1==0)then
-        print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
-  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
+!	    print *, 'mergedLayers, tret = ', tret(1)
+!        print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
+!  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
 !  		print *, 'mLayerDepth = ', mLayerDepth(:)
-endif
 	    exit
    endif
  
