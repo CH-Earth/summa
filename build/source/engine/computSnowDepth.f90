@@ -45,12 +45,12 @@ contains
  subroutine computSnowDepth(&
  							dt_sub,					&
  							nSnow,					& ! intent(in)
+ 							scalarSnowSublimation,  & ! intent(in)
  							mLayerVolFracLiq,   	& ! intent(inout)
  							mLayerVolFracIce,		& ! intent(inout)
  							mLayerTemp,				& ! intent(in)
+ 							mLayerMeltFreeze,		& ! intent(in)
  							mpar_data,				& ! intent(in)
- 							flux_data,				& ! intent(in)
- 							diag_data,				& ! intent(in)
  					   		! output
  					   		mLayerDepth,			& ! intent(inout)
                        		! error control
@@ -61,12 +61,12 @@ contains
  implicit none
   real(qp),intent(in)				   :: dt_sub
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
+  real(dp),intent(in)				   :: scalarSnowSublimation
   real(dp),intent(inout)			   :: mLayerVolFracLiq(:)
   real(dp),intent(inout)			   :: mLayerVolFracIce(:)
   real(dp),intent(in)				   :: mLayerTemp(:)
+  real(dp),intent(in)				   :: mLayerMeltFreeze(:)
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
-  type(var_dlength),intent(in)		   :: flux_data              ! model fluxes for a local HRU
-  type(var_dlength),intent(in)         :: diag_data              ! diagnostic variables for a local HRU
   real(dp),intent(inout)			   :: mLayerDepth(:)
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
@@ -75,11 +75,6 @@ contains
  character(len=256)                   :: cmessage               ! error message
  integer(i4b)                         :: iSnow                  ! index of snow layers
  real(dp)                             :: massLiquid             ! mass liquid water (kg m-2)
- 
- 
- associate(&
-   scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)   & ! sublimation from the snow surface (kg m-2 s-1)
-   )
 
   ! * compute change in ice content of the top snow layer due to sublimation...
   ! ---------------------------------------------------------------------------
@@ -119,7 +114,7 @@ contains
                    dt_sub,                                                  & ! intent(in): time step (s)
                    nSnow,                 									& ! intent(in): number of snow layers
                    mLayerTemp(1:nSnow),       								& ! intent(in): temperature of each layer (K)
-                   diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow), 	& ! intent(in): volumetric melt in each layer (kg m-3)
+                   mLayerMeltFreeze(1:nSnow),							 	& ! intent(in): volumetric melt in each layer (kg m-3)
                    ! intent(in): parameters
                    mpar_data%var(iLookPARAM%densScalGrowth)%dat(1),         & ! intent(in): density scaling factor for grain growth (kg-1 m3)
                    mpar_data%var(iLookPARAM%tempScalGrowth)%dat(1),         & ! intent(in): temperature scaling factor for grain growth (K-1)
@@ -136,7 +131,6 @@ contains
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
   
-  end associate
   
  end subroutine computSnowDepth
   

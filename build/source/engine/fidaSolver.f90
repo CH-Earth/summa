@@ -580,12 +580,12 @@ contains
   call computSnowDepth(&
  						tret(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)
+ 						flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),		& ! intent(in)
  						eqns_data%mLayerVolFracLiqTrial,   							& ! intent(inout)
  						eqns_data%mLayerVolFracIceTrial,							& ! intent(inout)
  						eqns_data%mLayerTempTrial,									& ! intent(in)
+ 						eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,    & ! intent(in)			
  						eqns_data%mpar_data,										& ! intent(in)
- 						flux_data,													& ! intent(in)
- 						eqns_data%diag_data,										& ! intent(in)
  					   	! output
  					   	mLayerDepth,												& ! intent(inout)
                        	! error control
@@ -629,13 +629,13 @@ contains
                         err,message)                   							  ! intent(out): error control
    if(divideLayer .and. tret(1)>50) then
 	    print *, 'divideLayer, tret = ', tret(1)
-!if(1==0)then
+if(1==0)then
 		print *, 'mLayerMeltFreeze = ', eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
 !  		print *, 'mLayerDepth = ', mLayerDepth(:)
-!endif
+endif
 	    exit
   endif
    
@@ -654,13 +654,13 @@ contains
                        
    if(mergedLayers .and. tret(1)>50) then
 	    print *, 'mergedLayers, tret = ', tret(1)
-!if(1==0)then
+if(1==0)then
         print *, 'mLayerMeltFreeze = ', eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
 !  		print *, 'mLayerDepth = ', mLayerDepth(:)
-!endif
+endif
 	    exit
    endif
  

@@ -833,18 +833,18 @@ contains
   call computSnowDepth(&
  						dt_sub,					    							& ! intent(in)
  						nSnow,													& ! intent(in)
+ 						scalarSnowSublimation,									& ! intent(in)
  						mLayerVolFracLiq, 			  							& ! intent(inout)
  						mLayerVolFracIce,										& ! intent(inout)
  						prog_data%var(iLookPROG%mLayerTemp)%dat,				& ! intent(in)
+ 						diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,			& ! intent(in)
  						mpar_data,												& ! intent(in)
- 						flux_data,												& ! intent(in)
- 						diag_data,												& ! intent(in)
  					   	! output
  					   	mLayerDepth,											& ! intent(inout)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
  	if(err/=0)then; err=55; return; end if
-!if(1==0)then 	
+if(1==0)then 	
   print *, '--------- coupled_em---------'
   print *, 'mLayerMeltFreeze = ', diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
   print *, 'mLayerVolFracLiq = ', mLayerVolFracLiq(:)
@@ -852,7 +852,7 @@ contains
 !  print *, 'mLayerTemp = ', prog_data%var(iLookPROG%mLayerTemp)%dat(:)
 !  print *, 'mLayerDepth = ', mLayerDepth(:)
   print *, '--------------------------------------------------------'
-!endif 	
+endif 	
   end associate sublime
   
   ! update coordinate variables
