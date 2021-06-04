@@ -248,6 +248,7 @@ contains
   real(dp)							:: mLayerDepth(nLayers)
   real(dp)							:: scalarSnowDepth
   real(dp)							:: scalarSWE
+  real(dp)							:: mLayerMeltFreeze(nLayers)
   
   !======= Internals ============
   
@@ -576,7 +577,13 @@ contains
  ! if(tret(1) > 500) exit  
   
  if(checkSnow)then  
-  mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)                             
+  mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)   
+  ! compute the melt in each snow and soil layer
+  if(nSnow>0)then
+  mLayerMeltFreeze(1:nSnow) = -( eqns_data%mLayerVolFracIceTrial(1:nSnow) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow) ) * iden_ice
+  mLayerMeltFreeze(nSnow+1:nLayers) = -(eqns_data%mLayerVolFracIceTrial(nSnow+1:nLayers) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers))*iden_water
+  endif   
+                         
   call computSnowDepth(&
  						tret(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)
@@ -584,7 +591,7 @@ contains
  						eqns_data%mLayerVolFracLiqTrial,   							& ! intent(inout)
  						eqns_data%mLayerVolFracIceTrial,							& ! intent(inout)
  						eqns_data%mLayerTempTrial,									& ! intent(in)
- 						eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,    & ! intent(in)			
+ 						mLayerMeltFreeze,										    & ! intent(in)			
  						eqns_data%mpar_data,										& ! intent(in)
  					   	! output
  					   	mLayerDepth,												& ! intent(inout)
@@ -630,7 +637,7 @@ contains
    if(divideLayer .and. tret(1)>50) then
 	    print *, 'divideLayer, tret = ', tret(1)
 if(1==0)then
-		print *, 'mLayerMeltFreeze = ', eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
+		print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
@@ -655,7 +662,7 @@ endif
    if(mergedLayers .and. tret(1)>50) then
 	    print *, 'mergedLayers, tret = ', tret(1)
 if(1==0)then
-        print *, 'mLayerMeltFreeze = ', eqns_data%diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow)
+        print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
