@@ -576,7 +576,7 @@ contains
  ! if(tret(1) > 500) exit  
   
  if(checkSnow)then  
-                               
+  mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)                             
   call computSnowDepth(&
  						tret(1),			    									& ! intent(in)
  						eqns_data%nSnow,											& ! intent(in)
@@ -627,13 +627,15 @@ contains
                         ! output
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
-   if(divideLayer) then
+   if(divideLayer .and. tret(1)>50) then
 	    print *, 'divideLayer, tret = ', tret(1)
+if(1==0)then
   		print *, 'nSnow = ', eqns_data%nSnow
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
   		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
   		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
   		print *, 'mLayerDepth = ', mLayerDepth(:)
+endif
 	    exit
   endif
    
@@ -650,13 +652,15 @@ contains
                        mergedLayers,                							& ! intent(out): flag to denote that layers were merged
                        err,message)                   							  ! intent(out): error control
                        
-   if(mergedLayers) then
+   if(mergedLayers .and. tret(1)>50) then
 	    print *, 'mergedLayers, tret = ', tret(1)
+if(1==0)then
   		print *, 'nSnow = ', eqns_data%nSnow
   		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
   		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
   		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
   		print *, 'mLayerDepth = ', mLayerDepth(:)
+endif
 	    exit
    endif
  

@@ -719,6 +719,7 @@ contains
   ! save input step
   dtSave = dt_sub
   !write(*,'(a,1x,3(f12.5,1x))') trim(message)//'before opSplittin: dt_init, dt_sub, dt_solv = ', dt_init, dt_sub, dt_solv
+  
 
   ! get the new solution
   call opSplittin(&
@@ -839,20 +840,18 @@ contains
  						flux_data,												& ! intent(in)
  						diag_data,												& ! intent(in)
  					   	! output
- 					   	mLayerDepth,											& ! intent(out)
+ 					   	mLayerDepth,											& ! intent(inout)
                        	! error control
                        	err,message)         				  					  	  ! intent(out):   error control
  	if(err/=0)then; err=55; return; end if
- 	
+if(1==0)then 	
   print *, '--------- coupled_em---------'
-  print *, 'dt_sub = ', dt_sub
-  print *, 'nSnow = ', nSnow
   print *, 'mLayerVolFracLiq = ', mLayerVolFracLiq(:)
   print *, 'mLayerVolFracIce = ', mLayerVolFracIce(:)
   print *, 'mLayerTemp = ', prog_data%var(iLookPROG%mLayerTemp)%dat(:)
   print *, 'mLayerDepth = ', mLayerDepth(:)
   print *, '--------------------------------------------------------'
- 	
+endif 	
   end associate sublime
   
   ! update coordinate variables

@@ -52,7 +52,7 @@ contains
  							flux_data,				& ! intent(in)
  							diag_data,				& ! intent(in)
  					   		! output
- 					   		mLayerDepth,			& ! intent(out)
+ 					   		mLayerDepth,			& ! intent(inout)
                        		! error control
                        		err,message)         ! intent(out):   error control
                        		
@@ -67,7 +67,7 @@ contains
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   type(var_dlength),intent(in)		   :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(in)         :: diag_data              ! diagnostic variables for a local HRU
-  real(dp),intent(out)				   :: mLayerDepth(:)
+  real(dp),intent(inout)			   :: mLayerDepth(:)
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
  
