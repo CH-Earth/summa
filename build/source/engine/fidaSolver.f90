@@ -471,7 +471,7 @@ contains
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  eqns_data%firstFluxCall,           & ! intent(inout)
-                 eqns_data%firstSplitOper,			& ! intent(in)
+                 eqns_data%firstSplitOper,			    & ! intent(in)
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
@@ -493,13 +493,13 @@ contains
                  eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
-                 eqns_data%dBaseflow_dMatric,        & ! intent(out):  derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
-                 eqns_data%scalarCanopyTempTrial,    & ! intent(in):   trial value of canopy temperature (K)
-                 eqns_data%scalarCanopyTempPrev,     & ! intent(in):   previous value of canopy temperature (K)
-                 eqns_data%scalarCanopyIceTrial,	 &
-                 eqns_data%scalarCanopyIcePrev,		 &
-                 eqns_data%scalarCanopyLiqTrial,	 &
-                 eqns_data%scalarCanopyLiqPrev,		 &                 
+                 eqns_data%dBaseflow_dMatric,       & ! intent(out):  derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
+                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):   trial value of canopy temperature (K)
+                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):   previous value of canopy temperature (K)
+                 eqns_data%scalarCanopyIceTrial,	  &
+                 eqns_data%scalarCanopyIcePrev,		  &
+                 eqns_data%scalarCanopyLiqTrial,	  &
+                 eqns_data%scalarCanopyLiqPrev,		  &                 
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
                  eqns_data%mLayerTempTrial,          &
@@ -517,12 +517,12 @@ contains
                  eqns_data%scalarAquiferStoragePrev, &              
                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out)
-                 eqns_data%ixSaturation,			 &
+                 eqns_data%ixSaturation,			       &
                  ! output
-                 feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
-                 eqns_data%fluxVec,                 & ! intent(out):   flux vector
-                 eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                 rVec,                  			& ! intent(out):   residual vector
+                 feasible,                           & ! intent(out):   flag to denote the feasibility of the solution
+                 eqns_data%fluxVec,                  & ! intent(out):   flux vector
+                 eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                 rVec,                  			       & ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control 
                  
   
@@ -561,17 +561,17 @@ contains
                                     
               	
    ! save required quantities for next step
-   eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
-   eqns_data%scalarCanopyIcePrev		= eqns_data%scalarCanopyIceTrial
-   eqns_data%mLayerTempPrev(:) 			= eqns_data%mLayerTempTrial(:)
-   mLayerMatricHeadLiqPrev(:) 			= eqns_data%mLayerMatricHeadLiqTrial(:)
+   eqns_data%scalarCanopyTempPrev		  = eqns_data%scalarCanopyTempTrial
+   eqns_data%scalarCanopyIcePrev		  = eqns_data%scalarCanopyIceTrial
+   eqns_data%mLayerTempPrev(:) 			  = eqns_data%mLayerTempTrial(:)
+   mLayerMatricHeadLiqPrev(:) 			  = eqns_data%mLayerMatricHeadLiqTrial(:)
    eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
    eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
    eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
    eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
    eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
-   eqns_data%scalarCanopyEnthalpyPrev 	= eqns_data%scalarCanopyEnthalpyTrial
+   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
    
 
  ! if(tret(1) > 500) exit  
@@ -585,18 +585,18 @@ contains
   endif   
                          
   call computSnowDepth(&
- 						tret(1),			    									& ! intent(in)
- 						eqns_data%nSnow,											& ! intent(in)
+ 						tret(1),                      			    									& ! intent(in)
+ 						eqns_data%nSnow,										                    	& ! intent(in)
  						flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),		& ! intent(in)
- 						eqns_data%mLayerVolFracLiqTrial,   							& ! intent(inout)
- 						eqns_data%mLayerVolFracIceTrial,							& ! intent(inout)
- 						eqns_data%mLayerTempTrial,									& ! intent(in)
- 						mLayerMeltFreeze,										    & ! intent(in)			
- 						eqns_data%mpar_data,										& ! intent(in)
- 					   	! output
- 					   	mLayerDepth,												& ! intent(inout)
-                       	! error control
-                       	err,message)         				  					  	  ! intent(out):   error control
+ 						eqns_data%mLayerVolFracLiqTrial,   						          	& ! intent(inout)
+ 						eqns_data%mLayerVolFracIceTrial,							            & ! intent(inout)
+ 						eqns_data%mLayerTempTrial,								              	& ! intent(in)
+ 						mLayerMeltFreeze,										                      & ! intent(in)			
+ 						eqns_data%mpar_data,									                  	& ! intent(in)
+ 					  ! output
+ 					  mLayerDepth,												                      & ! intent(inout)
+            ! error control
+            err,message)         				  					  	                ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
    
    
@@ -627,16 +627,16 @@ contains
   call needDivideLayer(&
                         ! input/output: model data structures
                         model_decisions,             							& ! intent(in):    model decisions
-                        eqns_data%mpar_data,                   					& ! intent(in):    model parameters
-                        eqns_data%nSnow,                       					& ! intent(in):    number of snow layers
-                        mLayerDepth,     										& ! intent(in): 
-                        scalarSnowDepth, 										& ! intent(in)
+                        eqns_data%mpar_data,                   		& ! intent(in):    model parameters
+                        eqns_data%nSnow,                       		& ! intent(in):    number of snow layers
+                        mLayerDepth,     										      & ! intent(in): 
+                        scalarSnowDepth, 										      & ! intent(in)
                         ! output
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
    if(divideLayer .and. tret(1)>50) then
 !	    print *, 'divideLayer, tret = ', tret(1)
-!		print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
+!		  print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
 !  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
@@ -659,7 +659,7 @@ contains
                        
    if(mergedLayers .and. tret(1)>50) then
 !	    print *, 'mergedLayers, tret = ', tret(1)
-!        print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
+!     print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
 !  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
 !  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
 !  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
