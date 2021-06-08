@@ -548,21 +548,21 @@ contains
                        indx_data,               	 & ! intent(in):    model layer indices
                        diag_data,               	 & ! intent(in):    model diagnostic variables for a local HRU
                        ! input: state variables
-                       scalarCanopyIceTrial,         & ! intent(in):  trial value for canopy ice content (kg m-2)
-                       scalarCanopyLiqTrial,         & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
+                       scalarCanopyIceTrial,       & ! intent(in):  trial value for canopy ice content (kg m-2)
+                       scalarCanopyLiqTrial,       & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                        scalarCanopyTempTrial,   	 & ! intent(in):  trial value of canopy temperature (K)
                        scalarCanopyTemp,  	    	 & ! intent(in):  previous value of canopy temperature (K)
-                       scalarCanopyEnthalpyTrial,    & ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
-                       scalarCanopyEnthalpy,         & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
-                       mLayerVolFracIceTrial,     	 & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                       mLayerVolFracLiqTrial,      	 & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                       scalarCanopyEnthalpyTrial,  & ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
+                       scalarCanopyEnthalpy,       & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
+                       mLayerVolFracIceTrial,      & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                       mLayerVolFracLiqTrial,      & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                        mLayerTempTrial,          	 & ! intent(in): trial temperature
                        mLayerTemp,		           	 & ! intent(in): previous temperature
                        mLayerEnthalpyTrial,      	 & ! intent(in): trial enthalpy for snow and soil
                        mLayerEnthalpy,		       	 & ! intent(in): previous enthalpy for snow and soil
                        ! output
-                       heatCapVegTrial,              & ! intent(out): volumetric heat capacity of vegetation canopy
-                       mLayerHeatCapTrial,           & ! intent(out): heat capacity for snow and soil
+                       heatCapVegTrial,            & ! intent(out): volumetric heat capacity of vegetation canopy
+                       mLayerHeatCapTrial,         & ! intent(out): heat capacity for snow and soil
                        ! output: error control
                        err,message)                    ! intent(out): error control
                        
@@ -593,10 +593,10 @@ contains
                        mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                        mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                         ! input/output: data structures
-                       mpar_data,               & ! intent(in):    model parameters
-                       indx_data,               & ! intent(in):    model layer indices
-                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                       mpar_data,                    & ! intent(in):    model parameters
+                       indx_data,                    & ! intent(in):    model layer indices
+                       prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
                        
