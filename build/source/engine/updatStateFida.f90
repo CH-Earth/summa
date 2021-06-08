@@ -16,7 +16,7 @@ public::updateSoilFida
 public::updateSoilFida2
 public::updateVegFida
 
-real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used to avoid divide by zero)
+real(dp),parameter     :: verySmall=1e-14_dp ! a very small number (used to avoid divide by zero)
 
 contains
  
@@ -183,9 +183,13 @@ contains
  
  ! compute fractional **volume** of total water (liquid plus ice)
   mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  ! mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
- ! mLayerVolFracWatPrime = mLayerMatricHeadPrime * (mLayerVolFracWat - mLayerVolFracWatPrev) / (mLayerMatricHead - mLayerMatricHeadPrev + verySmall)
-  mLayerVolFracWatPrime =  (mLayerVolFracWat - mLayerVolFracWatPrev) / dt_cur
+ ! mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
+  if( abs(mLayerMatricHead - mLayerMatricHeadPrev) < verySmall )then
+      mLayerVolFracWatPrime =  (mLayerVolFracWat - mLayerVolFracWatPrev) / dt_cur
+  else
+      mLayerVolFracWatPrime = mLayerMatricHeadPrime * (mLayerVolFracWat - mLayerVolFracWatPrev) / (mLayerMatricHead - mLayerMatricHeadPrev)
+  endif
+
   
 
 
