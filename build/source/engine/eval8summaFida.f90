@@ -157,7 +157,7 @@ contains
  USE updateVarsFida_module, only:updateVarsFida           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
  USE soilCmpresFida_module, only:soilCmpresFida            ! compute soil compression
- USE computFluxFida_module, only:computFluxFida           ! compute fluxes given a state vector
+ USE computFlux_module, only:computFlux          ! compute fluxes given a state vector
  USE computHeatCap_module,only:computHeatCapAnalytic      ! compute heat capacity
  USE computHeatCap_module,only:computCm
  USE computHeatCap_module, only:computStatMult
@@ -573,7 +573,7 @@ contains
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
  ! compute the fluxes for a given state vector
- call computFluxFida(&
+ call computFlux(&
                  ! input-output: model control
                  nSnow,                     & ! intent(in):    number of snow layers
                  nSoil,                     & ! intent(in):    number of soil layers
@@ -585,10 +585,6 @@ contains
                  scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
                  scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
-                 scalarAquiferStoragePrev,  & ! intent(in)
-                 mLayerVolFracIcePrev,		& ! intent(in)
-                 mLayerVolFracLiqPrev,		& ! intent(in)
-                 mLayerMatricHeadPrev,		& ! intent(in)
                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                  scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                  mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
