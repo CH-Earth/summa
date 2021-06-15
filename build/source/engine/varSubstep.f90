@@ -1002,12 +1002,12 @@ contains
  endif  ! (if energy state variables exist)
  
  
-  ! -----
+ ! -----
  ! * update enthalpy as a diagnostic variable...
  ! --------------------------------
- ! mLayerEnthalpy = mLayerEnthalpyTrial
- ! scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
- ! scalarCanairEnthalpy = scalarCanairEnthalpyTrial
+  mLayerEnthalpy = mLayerEnthalpyTrial
+  scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
+  scalarCanairEnthalpy = scalarCanairEnthalpyTrial
 
  ! -----
  ! * update prognostic variables...
