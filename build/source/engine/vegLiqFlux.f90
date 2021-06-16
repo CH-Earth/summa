@@ -67,16 +67,16 @@ contains
  implicit none
  ! input
  logical(lgt),intent(in)         :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(dp),intent(in)             :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
- real(dp),intent(in)             :: scalarRainfall               ! rainfall (kg m-2 s-1)
+ real(rkind),intent(in)             :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+ real(rkind),intent(in)             :: scalarRainfall               ! rainfall (kg m-2 s-1)
  ! input-output: data structures
  type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
  type(var_dlength),intent(inout) :: diag_data                    ! model diagnostic variables for the local basin
  ! output
- real(dp),intent(out)            :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
- real(dp),intent(out)            :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
- real(dp),intent(out)            :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
- real(dp),intent(out)            :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+ real(rkind),intent(out)            :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ real(rkind),intent(out)            :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+ real(rkind),intent(out)            :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
+ real(rkind),intent(out)            :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
  integer(i4b),intent(out)        :: err                          ! error code
  character(*),intent(out)        :: message                      ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -94,9 +94,9 @@ contains
  ! set throughfall to inputs if vegetation is completely buried with snow
  if(.not.computeVegFlux)then
   scalarThroughfallRain        = scalarRainfall
-  scalarCanopyLiqDrainage      = 0._dp
-  scalarThroughfallRainDeriv   = 0._dp
-  scalarCanopyLiqDrainageDeriv = 0._dp
+  scalarCanopyLiqDrainage      = 0._rkind
+  scalarThroughfallRainDeriv   = 0._rkind
+  scalarCanopyLiqDrainageDeriv = 0._rkind
   return
  end if
 
@@ -106,13 +106,13 @@ contains
   ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
   ! NOTE: this could be done with scalarThroughfallScaleRain=0, though requires setting scalarThroughfallScaleRain in all test cases
   case(unDefined)
-   scalarThroughfallRain      = 0._dp
-   scalarThroughfallRainDeriv = 0._dp
+   scalarThroughfallRain      = 0._rkind
+   scalarThroughfallRainDeriv = 0._rkind
 
   ! fraction of rainfall hits the ground without ever touching the canopy
   case(sparseCanopy)
    scalarThroughfallRain      = scalarThroughfallScaleRain*scalarRainfall
-   scalarThroughfallRainDeriv = 0._dp
+   scalarThroughfallRainDeriv = 0._rkind
 
   ! throughfall a function of canopy storage
   case(storageFunc)
@@ -125,7 +125,7 @@ contains
    ! all rain falls through the canopy when the canopy is at capacity
    else
     scalarThroughfallRain      = scalarRainfall
-    scalarThroughfallRainDeriv = 0._dp
+    scalarThroughfallRainDeriv = 0._rkind
    end if
 
   case default; err=20; message=trim(message)//'unable to identify option for canopy interception'; return
@@ -137,8 +137,8 @@ contains
   scalarCanopyLiqDrainage       = scalarCanopyDrainageCoeff*(scalarCanopyLiqTrial - scalarCanopyLiqMax)
   scalarCanopyLiqDrainageDeriv  = scalarCanopyDrainageCoeff
  else
-  scalarCanopyLiqDrainage       = 0._dp
-  scalarCanopyLiqDrainageDeriv  = 0._dp
+  scalarCanopyLiqDrainage       = 0._rkind
+  scalarCanopyLiqDrainageDeriv  = 0._rkind
  end if
 
  !write(*,'(a,1x,f25.15)') 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage

@@ -176,8 +176,8 @@ contains
  ! output arrays
  integer(i4b)                     :: datLength         ! length of each data vector
  integer(i4b)                     :: maxLength         ! maximum length of each data vector
- real(dp)                         :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
- real(dp)                         :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
+ real(rkind)                         :: realVec(nHRUrun)  ! real vector for all HRUs in the run domain
+ real(rkind)                         :: realArray(nHRUrun,maxLayers+1)  ! real array for all HRUs in the run domain
  integer(i4b)                     :: intArray(nHRUrun,maxLayers+1)   ! integer array for all HRUs in the run domain
  integer(i4b)                     :: dataType          ! type of data
  integer(i4b),parameter           :: ixInteger=1001    ! named variable for integer

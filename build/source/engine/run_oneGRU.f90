@@ -56,8 +56,9 @@ USE var_lookup,only:iLookDECISIONS     ! look-up values for model decisions
 
 ! provide access to the named variables that describe model decisions
 USE mDecisions_module,only:&           ! look-up values for the choice of method for the spatial representation of groundwater
- localColumn, & ! separate groundwater representation in each local soil column
- singleBasin    ! single groundwater store over the entire basin
+ localColumn, &                        ! separate groundwater representation in each local soil column
+ singleBasin, &                        ! single groundwater store over the entire basin
+ bigBucket                             ! a big bucket (lumped aquifer model)
 
 ! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
@@ -75,7 +76,7 @@ contains
  ! simulation for a single GRU
  subroutine run_oneGRU(&
                        ! model control
-                       gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers) 
+                       gruInfo,            & ! intent(inout): HRU information for given GRU (# HRUs, #snow+soil layers)
                        dt_init,            & ! intent(inout): used to initialize the length of the sub-step for each HRU
                        ixComputeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
                        ! data structures (input)
@@ -101,12 +102,12 @@ contains
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
- 
+
  implicit none
 
  ! model control
- type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers) 
- real(dp)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
+ type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
+ real(rkind)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
  integer(i4b)        , intent(inout) :: ixComputeVegFlux(:)  ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  ! data structures (input)
  integer(i4b)        , intent(in)    :: timeVec(:)           ! integer vector      -- model time data
@@ -131,11 +132,11 @@ contains
  ! general local variables
  character(len=256)                      :: cmessage               ! error message
  integer(i4b)                            :: iHRU                   ! HRU index
- integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit 
+ integer(i4b)                            :: jHRU,kHRU              ! index of the hydrologic response unit
  integer(i4b)                            :: nSnow                  ! number of snow layers
  integer(i4b)                            :: nSoil                  ! number of soil layers
  integer(i4b)                            :: nLayers                ! total number of layers
- real(dp)                                :: fracHRU                ! fractional area of a given HRU (-)
+ real(rkind)                                :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control
@@ -144,17 +145,19 @@ contains
  ! ----- basin initialization --------------------------------------------------------------------------------------------
 
  ! initialize runoff variables
- bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._dp  ! surface runoff (m s-1)
- bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)    = 0._dp  ! outflow from all "outlet" HRUs (those with no downstream HRU)
+ bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = 0._rkind  ! surface runoff (m s-1)
+ bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)     = 0._rkind  ! soil drainage (m s-1)
+ bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)    = 0._rkind  ! outflow from all "outlet" HRUs (those with no downstream HRU)
+ bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1)      = 0._rkind  ! total runoff to the channel from all active components (m s-1)
 
  ! initialize baseflow variables
- bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = 0._dp ! recharge to the aquifer (m s-1)
- bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._dp ! baseflow from the aquifer (m s-1)
- bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._dp ! transpiration loss from the aquifer (m s-1)
+ bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = 0._rkind ! recharge to the aquifer (m s-1)
+ bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = 0._rkind ! baseflow from the aquifer (m s-1)
+ bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = 0._rkind ! transpiration loss from the aquifer (m s-1)
 
  ! initialize total inflow for each layer in a soil column
  do iHRU=1,gruInfo%hruCount
-  fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._dp
+  fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
  end do
 
  ! ***********************************************************************************************************************
@@ -199,20 +202,23 @@ contains
                   ! error control
                   err,cmessage)                      ! intent(out):   error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
- 
+
   ! update layer numbers that could be changed in run_oneHRU -- needed for model output
   gruInfo%hruInfo(iHRU)%nSnow = nSnow
   gruInfo%hruInfo(iHRU)%nSoil = nSoil
 
   ! save the flag for computing the vegetation fluxes
-  if(computeVegFluxFlag)      ixComputeVegFlux(iHRU) = yes
-  if(.not.computeVegFluxFlag) ixComputeVegFlux(iHRU) = no
+  if(computeVegFluxFlag)       ixComputeVegFlux(iHRU) = yes
+  if(.not. computeVegFluxFlag) ixComputeVegFlux(iHRU) = no
+
+  ! identify the area covered by the current HRU
+  fracHRU = attrHRU%hru(iHRU)%var(iLookATTR%HRUarea) / bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
+  ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
 
   ! ----- compute fluxes across HRUs --------------------------------------------------------------------------------------------------
 
-  ! identify the area covered by the current HRU
-  fracHRU =  attrHRU%hru(iHRU)%var(iLookATTR%HRUarea) / bvarData%var(iLookBVAR%basin__totalArea)%dat(1)
-
+  ! identify lateral connectivity
+  ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
   kHRU = 0
   ! identify the downslope HRU
   dsHRU: do jHRU=1,gruInfo%hruCount
@@ -224,35 +230,42 @@ contains
    end if  ! (if identified a downslope HRU)
   end do dsHRU
 
-  ! add inflow to the downslope HRU
+  ! if lateral flows are active, add inflow to the downslope HRU
   if(kHRU > 0)then  ! if there is a downslope HRU
    fluxHRU%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = fluxHRU%hru(kHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:)  + fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:)
 
-  ! increment basin column outflow (m3 s-1)
+  ! otherwise just increment basin (GRU) column outflow (m3 s-1) with the hru fraction
   else
-   bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)   = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
+   bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) = bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1) + sum(fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnOutflow)%dat(:))
   end if
+
+  ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
 
   ! increment basin surface runoff (m s-1)
-  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)    = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)     + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)    * fracHRU
+  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracHRU
 
-  ! increment basin-average baseflow input variables (m s-1)
-  bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
-  bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
+  ! increment basin soil drainage (m s-1)
+  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)  * fracHRU
 
-  ! increment aquifer baseflow -- ONLY if baseflow is computed individually for each HRU
+  ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
   ! NOTE: groundwater computed later for singleBasin
-  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn)then
+  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
+
+   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
    bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  =  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  &
-           +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU  &
-           +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)    * fracHRU
+           +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
   end if
+
+  ! averaging more fluxes (and/or states) can be added to this section as desired
 
  end do  ! (looping through HRUs)
 
  ! ***********************************************************************************************************************
  ! ********** END LOOP THROUGH HRUS **************************************************************************************
  ! ***********************************************************************************************************************
+ ! perform the routing
+ associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
 
  ! compute water balance for the basin aquifer
  if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == singleBasin)then
@@ -260,14 +273,19 @@ contains
   err=20; return
  end if
 
- ! perform the routing
- associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
+ ! calculate total runoff depending on whether aquifer is connected
+ if(model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
+  ! aquifer
+  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)
+ else
+  ! no aquifer
+  bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1) = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea + bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)
+ endif
+
  call qOverland(&
                 ! input
                 model_decisions(iLookDECISIONS%subRouting)%iDecision,          &  ! intent(in): index for routing method
-                bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1),           &  ! intent(in): surface runoff (m s-1)
-                bvarData%var(iLookBVAR%basin__ColumnOutflow)%dat(1)/totalArea, &  ! intent(in): outflow from all "outlet" HRUs (those with no downstream HRU)
-                bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1),         &  ! intent(in): baseflow from the aquifer (m s-1)
+                bvarData%var(iLookBVAR%basin__TotalRunoff)%dat(1),             &  ! intent(in): total runoff to the channel from all active components (m s-1)
                 bvarData%var(iLookBVAR%routingFractionFuture)%dat,             &  ! intent(in): fraction of runoff in future time steps (m s-1)
                 bvarData%var(iLookBVAR%routingRunoffFuture)%dat,               &  ! intent(in): runoff in future time steps (m s-1)
                 ! output

@@ -63,8 +63,8 @@ private
 public::read_force
 
 ! global parameters
-real(dp),parameter  :: verySmall=1e-3_dp      ! tiny number
-real(dp),parameter  :: smallOffset=1.e-8_dp   ! small offset (units=days) to force ih=0 at the start of the day
+real(rkind),parameter  :: verySmall=1e-3_rkind      ! tiny number
+real(rkind),parameter  :: smallOffset=1.e-8_rkind   ! small offset (units=days) to force ih=0 at the start of the day
 
 contains
 
@@ -95,8 +95,8 @@ contains
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
- real(dp)                          :: startJulDay      ! julian day at the start of the year
- real(dp)                          :: currentJulday    ! Julian day of current time step
+ real(rkind)                          :: startJulDay      ! julian day at the start of the year
+ real(rkind)                          :: currentJulday    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  ! Start procedure here
  err=0; message="read_force/"
@@ -173,7 +173,7 @@ contains
 
  ! compute the julian day at the start of the year
  call compjulday(time_data(iLookTIME%iyyy),          & ! input  = year
-                 1, 1, 1, 1, 0._dp,                  & ! input  = month, day, hour, minute, second
+                 1, 1, 1, 1, 0._rkind,                  & ! input  = month, day, hour, minute, second
                  startJulDay,err,cmessage)                 ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -182,7 +182,7 @@ contains
                  time_data(iLookTIME%im),             & ! input  = month
                  time_data(iLookTIME%id),             & ! input  = day
                  time_data(iLookTIME%ih),             & ! input  = hour
-                 time_data(iLookTIME%imin),0._dp,     & ! input  = minute/second
+                 time_data(iLookTIME%imin),0._rkind,     & ! input  = minute/second
                  currentJulday,err,cmessage)            ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! compute the time since the start of the year (in fractional days)
@@ -235,7 +235,7 @@ contains
  USE nr_utility_module,only:arth                       ! get a sequence of numbers
  implicit none
  ! define input
- real(dp),intent(in)               :: currentJulday    ! Julian day of current time step
+ real(rkind),intent(in)               :: currentJulday    ! Julian day of current time step
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
  integer(i4b),intent(inout)        :: iRead            ! index of read position in time dimension in current netcdf file
@@ -252,9 +252,9 @@ contains
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  integer(i4b)                      :: nFiles           ! number of forcing files
- real(dp)                          :: timeVal(1)       ! single time value (restrict time read)
- real(dp),allocatable              :: fileTime(:)      ! array of time from netcdf file
- real(dp),allocatable              :: diffTime(:)      ! array of time differences
+ real(rkind)                          :: timeVal(1)       ! single time value (restrict time read)
+ real(rkind),allocatable              :: fileTime(:)      ! array of time from netcdf file
+ real(rkind),allocatable              :: diffTime(:)      ! array of time differences
  ! Start procedure here
  err=0; message="getFirstTimestep/"
 
@@ -348,7 +348,7 @@ contains
  character(len=256)                :: cmessage           ! error message for downwind routine
  integer(i4b)                      :: iyyy,im,id,ih,imin ! date
  integer(i4b)                      :: ih_tz,imin_tz      ! time zone information
- real(dp)                          :: dsec,dsec_tz       ! seconds
+ real(rkind)                          :: dsec,dsec_tz       ! seconds
  integer(i4b)                      :: varId              ! variable identifier
  integer(i4b)                      :: mode               ! netcdf file mode
  integer(i4b)                      :: attLen             ! attribute length
@@ -378,8 +378,8 @@ contains
   case('ncTime'); tmZoneOffsetFracDay = sign(1, ih_tz) * fracDay(ih_tz,   & ! time zone hour
                                                                imin_tz, & ! time zone minute
                                                                dsec_tz)                        ! time zone second
-  case('utcTime');   tmZoneOffsetFracDay = 0._dp
-  case('localTime'); tmZoneOffsetFracDay = 0._dp
+  case('utcTime');   tmZoneOffsetFracDay = 0._rkind
+  case('localTime'); tmZoneOffsetFracDay = 0._rkind
   case default; err=20; message=trim(message)//'unable to identify time zone info option'; return
  end select ! (option time zone option)
 
@@ -391,10 +391,10 @@ contains
 
  ! get the time multiplier needed to convert time to units of days
  select case( trim( refTimeString(1:index(refTimeString,' ')) ) )
-  case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._dp
-  case('minutes'); forcFileInfo(iFile)%convTime2Days=1440._dp
-  case('hours');   forcFileInfo(iFile)%convTime2Days=24._dp
-  case('days');    forcFileInfo(iFile)%convTime2Days=1._dp
+  case('seconds'); forcFileInfo(iFile)%convTime2Days=86400._rkind
+  case('minutes'); forcFileInfo(iFile)%convTime2Days=1440._rkind
+  case('hours');   forcFileInfo(iFile)%convTime2Days=24._rkind
+  case('days');    forcFileInfo(iFile)%convTime2Days=1._rkind
   case default;    message=trim(message)//'unable to identify time units'; err=20; return
  end select
 
@@ -409,7 +409,7 @@ contains
  USE time_utils_module,only:compJulday                 ! convert calendar date to julian day
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
  ! dummy variables
- real(dp),intent(in)               :: currentJulday    ! Julian day of current time step
+ real(rkind),intent(in)               :: currentJulday    ! Julian day of current time step
  integer(i4b) ,intent(in)          :: ncId             ! NetCDF ID
  integer(i4b) ,intent(in)          :: iFile            ! index of forcing file
  integer(i4b) ,intent(in)          :: iRead            ! index in data file
@@ -422,7 +422,7 @@ contains
  character(len=256)                :: cmessage         ! error message for downwind routine
  integer(i4b)                      :: varId            ! variable identifier
  character(len = nf90_max_name)    :: varName          ! dimenison name
- real(dp)                          :: varTime(1)       ! time variable of current forcing data step being read
+ real(rkind)                          :: varTime(1)       ! time variable of current forcing data step being read
  ! other local variables
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
@@ -431,11 +431,11 @@ contains
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
- real(dp)                          :: dsec             ! double precision seconds (not used)
- real(dp)                          :: dataJulDay       ! julian day of current forcing data step being read
- real(dp),dimension(nHRUlocal)     :: dataVec          ! vector of data
- real(dp),dimension(1)             :: dataVal          ! single data value
- real(dp),parameter                :: dataMin=-1._dp   ! minimum allowable data value (all forcing variables should be positive)
+ real(rkind)                          :: dsec             ! double precision seconds (not used)
+ real(rkind)                          :: dataJulDay       ! julian day of current forcing data step being read
+ real(rkind),dimension(nHRUlocal)     :: dataVec          ! vector of data
+ real(rkind),dimension(1)             :: dataVal          ! single data value
+ real(rkind),parameter                :: dataMin=-1._rkind   ! minimum allowable data value (all forcing variables should be positive)
  logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
  logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
  ! Start procedure here

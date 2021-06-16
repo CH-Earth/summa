@@ -40,9 +40,7 @@ contains
  subroutine qOverland(&
                       ! input
                       ixRouting,             &  ! index for routing method
-                      averageSurfaceRunoff,  &  ! surface runoff (m s-1)
-                      averageSoilBaseflow,   &  ! baseflow from the soil profile (m s-1)
-                      averageAquiferBaseflow,&  ! baseflow from the aquifer (m s-1)
+                      averageTotalRunoff,    &  ! total runoff to the channel from all active components (m s-1)
                       fracFuture,            &  ! fraction of runoff in future time steps (m s-1)
                       qFuture,               &  ! runoff in future time steps (m s-1)
                       ! output
@@ -52,14 +50,12 @@ contains
  implicit none
  ! input
  integer(i4b),intent(in)    :: ixRouting              ! index for routing method
- real(dp),intent(in)        :: averageSurfaceRunoff   ! surface runoff (m s-1)
- real(dp),intent(in)        :: averageSoilBaseflow    ! baseflow from the soil profile (m s-1)
- real(dp),intent(in)        :: averageAquiferBaseflow ! baseflow from the aquifer (m s-1)
- real(dp),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
- real(dp),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
+ real(rkind),intent(in)        :: averageTotalRunoff     ! total runoff to the channel from all active components (m s-1)
+ real(rkind),intent(in)        :: fracFuture(:)          ! fraction of runoff in future time steps (m s-1)
+ real(rkind),intent(inout)     :: qFuture(:)             ! runoff in future time steps (m s-1)
  ! output
- real(dp),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
- real(dp),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
+ real(rkind),intent(out)       :: averageInstantRunoff   ! instantaneous runoff (m s-1)
+ real(rkind),intent(out)       :: averageRoutedRunoff    ! routed runoff (m s-1)
  integer(i4b),intent(out)   :: err                    ! error code
  character(*),intent(out)   :: message                ! error message
  ! internal
@@ -68,8 +64,8 @@ contains
  ! initialize error control
  err=0; message='qOverland/'
 
- ! compute instantaneous runoff (m s-1)
- averageInstantRunoff = averageSurfaceRunoff + averageAquiferBaseflow + averageSoilBaseflow
+ ! assign instantaneous runoff (m s-1)  (Note: this variable is redundant with averageTotalRunoff, could remove)
+ averageInstantRunoff = averageTotalRunoff
 
  ! compute routed runoff (m s-1)
  select case(ixRouting)  ! (select option for sub-grid routing)
@@ -89,11 +85,7 @@ contains
    do iFuture=2,nTDH
     qFuture(iFuture-1) = qFuture(iFuture)
    end do
-   qFuture(nTDH) = 0._dp
-
-   !print*, 'averageInstantRunoff, averageRoutedRunoff = ', averageInstantRunoff, averageRoutedRunoff
-   !print*, 'qFuture(1:100) = ', qFuture(1:100)
-   !pause
+   qFuture(nTDH) = 0._rkind
 
   ! ** error checking
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return
