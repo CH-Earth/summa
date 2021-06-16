@@ -439,8 +439,9 @@ MODULE var_lookup
   integer(i4b)    :: scalarVGn_m                     = integerMissing ! van Genuchten "m" parameter (-)
   integer(i4b)    :: scalarKappa                     = integerMissing ! constant in the freezing curve function (m K-1)
   integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
-  ! number of function evaluations
+  ! timing information
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
+  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
  endtype iLook_diag
 
  ! ***********************************************************************************************************

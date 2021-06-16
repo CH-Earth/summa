@@ -134,6 +134,7 @@ contains
  ! the model solver
  USE indexState_module,only:indexState      ! define indices for all model state variables and layers
  USE opSplittin_module,only:opSplittin      ! solve the system of thermodynamic and hydrology equations for a given substep
+ USE time_utils_module,only:elapsedSec      ! calculate the elapsed time
  ! additional subroutines
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
@@ -237,11 +238,17 @@ contains
  logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
  real(rkind), allocatable                :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
  real(rkind), allocatable                :: liqSoilInit(:)         ! soil moisture at the start of the time step
+ ! timing information
+ real(rkind)                             :: startTime              ! start time (used to compute wall clock time)
+ real(rkind)                             :: endTime                ! end time (used to compute wall clock time)
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="coupled_em/"
 
  ! This is the start of a data step for a local HRU
+
+ ! get the start time
+ call cpu_time(startTime)
 
  ! check that the decision is supported
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
@@ -1216,6 +1223,12 @@ contains
   write(message,'(a,i0)') trim(cmessage)//'number of sub-steps > 50000 for HRU ', hruID
   err=20; return
  end if
+
+ ! get the end time
+ call cpu_time(endTime)
+
+ ! get the elapsed time
+ diag_data%var(iLookDIAG%wallClockTime)%dat(1) = endTime - startTime
 
  end subroutine coupled_em
 
