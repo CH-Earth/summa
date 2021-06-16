@@ -217,7 +217,6 @@ SUMMA_SOLVER= \
 		eval8summa.f90 \
 		summaSolve.f90 \
 		systemSolv.f90 \
-		computEnthalpy.f90 \
 		varSubstep.f90 \
 		opSplittin.f90 \
 		coupled_em.f90 \
