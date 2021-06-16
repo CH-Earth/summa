@@ -94,12 +94,12 @@ ifeq "$(FC)" "gfortran"
 	endif
 
 # Production runs
-FLAGS_NOAH = -O3 -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_NOAH = -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
 # Debug runs
-#FLAGS_NOAH = -p -g -ffree-form -fdefault-real-8 -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
+#FLAGS_NOAH = -p -g -ffree-form -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument
 #FLAGS_COMM = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 #FLAGS_SUMMA = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
 
@@ -113,12 +113,12 @@ ifeq "$(FC)" "ifort"
 	endif
 
 # Production runs
-FLAGS_NOAH = -O3 -autodouble -noerror_limit -FR -auto -fltconsistency $(FLAGS_OMP)
+FLAGS_NOAH = -O3 -noerror_limit -FR -auto -fltconsistency $(FLAGS_OMP)
 FLAGS_COMM = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
 FLAGS_SUMMA = -O3 -FR -auto -fltconsistency -fpe0 $(FLAGS_OMP)
 
 # Debug runs
-#FLAGS_NOAH = -O0 -p -g -warn nounused -autodouble -noerror_limit -FR -auto -WB -traceback -fltconsistency
+#FLAGS_NOAH = -O0 -p -g -warn nounused -noerror_limit -FR -auto -WB -traceback -fltconsistency
 #FLAGS_COMM = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 #FLAGS_SUMMA = -O0 -p -g -debug -warn all -check all -FR -auto -WB -traceback -fltconsistency -fpe0
 endif
@@ -360,7 +360,7 @@ update_version:
 
 # compile Noah-MP routines
 compile_noah:
-	$(FC_EXE) $(FLAGS_NOAH) -c $(NOAHMP)
+	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
 # compile common routines
 compile_comm:

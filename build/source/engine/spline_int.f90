@@ -13,15 +13,15 @@ contains
  ! computes 2nd derivatives of the interpolating function at tabulated points
  IMPLICIT NONE
  ! dummy variables
- REAL(DP), DIMENSION(:), INTENT(IN) :: x,y
- REAL(DP), INTENT(IN) :: yp1,ypn
- REAL(DP), DIMENSION(:), INTENT(OUT) :: y2
+ real(rkind), DIMENSION(:), INTENT(IN) :: x,y
+ real(rkind), INTENT(IN) :: yp1,ypn
+ real(rkind), DIMENSION(:), INTENT(OUT) :: y2
  integer(i4b),intent(out)      :: err
  character(*),intent(out)      :: message
  ! local variables
  character(len=128) :: cmessage
  INTEGER(I4B) :: n
- REAL(DP), DIMENSION(size(x)) :: a,b,c,r
+ real(rkind), DIMENSION(size(x)) :: a,b,c,r
  ! initialize error control
  err=0; message="f-spline/"
  ! check that the size of the vectors match
@@ -32,24 +32,24 @@ contains
  end if
  ! start procedure
  c(1:n-1)=x(2:n)-x(1:n-1)
- r(1:n-1)=6.0_dp*((y(2:n)-y(1:n-1))/c(1:n-1))
+ r(1:n-1)=6.0_rkind*((y(2:n)-y(1:n-1))/c(1:n-1))
  r(2:n-1)=r(2:n-1)-r(1:n-2)
  a(2:n-1)=c(1:n-2)
- b(2:n-1)=2.0_dp*(c(2:n-1)+a(2:n-1))
+ b(2:n-1)=2.0_rkind*(c(2:n-1)+a(2:n-1))
  b(1)=1.0
  b(n)=1.0
- if (yp1 > 0.99e30_dp) then
+ if (yp1 > 0.99e30_rkind) then
   r(1)=0.0
   c(1)=0.0
  else
-  r(1)=(3.0_dp/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
+  r(1)=(3.0_rkind/(x(2)-x(1)))*((y(2)-y(1))/(x(2)-x(1))-yp1)
   c(1)=0.5
  end if
- if (ypn > 0.99e30_dp) then
+ if (ypn > 0.99e30_rkind) then
   r(n)=0.0
   a(n)=0.0
  else
-  r(n)=(-3.0_dp/(x(n)-x(n-1)))*((y(n)-y(n-1))/(x(n)-x(n-1))-ypn)
+  r(n)=(-3.0_rkind/(x(n)-x(n-1)))*((y(n)-y(n-1))/(x(n)-x(n-1))-ypn)
   a(n)=0.5
  end if
  call tridag(a(2:n),b(1:n),c(1:n-1),r(1:n),y2(1:n),err,cmessage)
@@ -62,14 +62,14 @@ contains
  SUBROUTINE splint(xa,ya,y2a,x,y,err,message)
  IMPLICIT NONE
  ! declare dummy variables
- REAL(DP), DIMENSION(:), INTENT(IN)  :: xa,ya,y2a
- REAL(DP), INTENT(IN)  :: x
- REAL(DP), INTENT(OUT) :: y
+ real(rkind), DIMENSION(:), INTENT(IN)  :: xa,ya,y2a
+ real(rkind), INTENT(IN)  :: x
+ real(rkind), INTENT(OUT) :: y
  integer(i4b),intent(out)      :: err
  character(*),intent(out)      :: message
  ! declare local variables
  INTEGER(I4B) :: khi,klo,n
- REAL(DP) :: a,b,h
+ real(rkind) :: a,b,h
  ! check size of input vectors
  if (size(xa)==size(ya) .and. size(ya)==size(y2a)) then
   n=size(xa)
@@ -80,10 +80,10 @@ contains
  klo=max(min(locate(xa,x),n-1),1)
  khi=klo+1
  h=xa(khi)-xa(klo)
- if (h == 0.0_dp) then; err=20; message="f-splint/badXinput"; return; end if
+ if (h == 0.0_rkind) then; err=20; message="f-splint/badXinput"; return; end if
  a=(xa(khi)-x)/h
  b=(x-xa(klo))/h
- y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6.0_dp
+ y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6.0_rkind
  END SUBROUTINE splint
 
  ! *************************************************************
@@ -91,8 +91,8 @@ contains
  ! *************************************************************
  FUNCTION locate(xx,x)
  IMPLICIT NONE
- REAL(DP), DIMENSION(:), INTENT(IN) :: xx
- REAL(DP), INTENT(IN) :: x
+ real(rkind), DIMENSION(:), INTENT(IN) :: xx
+ real(rkind), INTENT(IN) :: x
  INTEGER(I4B) :: locate
  INTEGER(I4B) :: n,jl,jm,ju
  LOGICAL :: ascnd
@@ -124,14 +124,14 @@ contains
  SUBROUTINE tridag(a,b,c,r,u,err,message)
  IMPLICIT NONE
  ! dummy variables
- REAL(DP), DIMENSION(:), INTENT(IN) :: a,b,c,r
- REAL(DP), DIMENSION(:), INTENT(OUT) :: u
+ real(rkind), DIMENSION(:), INTENT(IN) :: a,b,c,r
+ real(rkind), DIMENSION(:), INTENT(OUT) :: u
  integer(i4b),intent(out)      :: err
  character(*),intent(out)      :: message
  ! local variables
- REAL(DP), DIMENSION(size(b)) :: gam
+ real(rkind), DIMENSION(size(b)) :: gam
  INTEGER(I4B) :: n,j
- REAL(DP) :: bet
+ real(rkind) :: bet
  ! initialize error control
  err=0; message="f-spline/OK"
  ! check that the size of the vectors match
@@ -142,12 +142,12 @@ contains
  end if
  ! start procedure
  bet=b(1)
- if (bet == 0.0_dp) then; err=20; message="f-tridag/errorAtCodeStage-1"; return; end if
+ if (bet == 0.0_rkind) then; err=20; message="f-tridag/errorAtCodeStage-1"; return; end if
  u(1)=r(1)/bet
  do j=2,n
   gam(j)=c(j-1)/bet
   bet=b(j)-a(j-1)*gam(j)
-  if (bet == 0.0_dp) then; err=20; message="f-tridag/errorAtCodeStage-2"; return; end if
+  if (bet == 0.0_rkind) then; err=20; message="f-tridag/errorAtCodeStage-2"; return; end if
   u(j)=(r(j)-a(j-1)*u(j-1))/bet
  end do
  do j=n-1,1,-1

@@ -191,7 +191,7 @@ contains
  ! *****************************************************************************
 
  ! define monthly fraction of green vegetation
- greenVegFrac_monthly = (/0.01_dp, 0.02_dp, 0.03_dp, 0.07_dp, 0.50_dp, 0.90_dp, 0.95_dp, 0.96_dp, 0.65_dp, 0.24_dp, 0.11_dp, 0.02_dp/)
+ greenVegFrac_monthly = (/0.01_rkind, 0.02_rkind, 0.03_rkind, 0.07_rkind, 0.50_rkind, 0.90_rkind, 0.95_rkind, 0.96_rkind, 0.65_rkind, 0.24_rkind, 0.11_rkind, 0.02_rkind/)
 
  ! read Noah soil and vegetation tables
  call soil_veg_gen_parm(trim(SETTINGS_PATH)//trim(VEGPARM),                            & ! filename for vegetation table
@@ -298,7 +298,7 @@ contains
 
   ! compute total area of the upstream HRUS that flow into each HRU
   do iHRU=1,gru_struc(iGRU)%hruCount
-   upArea%gru(iGRU)%hru(iHRU) = 0._dp
+   upArea%gru(iGRU)%hru(iHRU) = 0._rkind
    do jHRU=1,gru_struc(iGRU)%hruCount
     ! check if jHRU flows into iHRU; assume no exchange between GRUs
     if(typeStruct%gru(iGRU)%hru(jHRU)%var(iLookTYPE%downHRUindex)==typeStruct%gru(iGRU)%hru(iHRU)%var(iLookID%hruId))then
@@ -309,7 +309,7 @@ contains
 
   ! identify the total basin area for a GRU (m2)
   associate(totalArea => bvarStruct%gru(iGRU)%var(iLookBVAR%basin__totalArea)%dat(1) )
-  totalArea = 0._dp
+  totalArea = 0._rkind
   do iHRU=1,gru_struc(iGRU)%hruCount
    totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
   end do

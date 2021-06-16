@@ -1,4 +1,5 @@
 module noahmp_globals
+  USE nrtype
 
   ! Maybe most of these can be moved to a REDPRM use statement?
   ! MPC -- yes, all of these variables can be local to REDPRM (see additional comments)
@@ -36,33 +37,33 @@ module noahmp_globals
 ! Physical Constants:                                                                      !
 !------------------------------------------------------------------------------------------!
 
-  REAL, PARAMETER :: GRAV   = 9.80616   !acceleration due to gravity (m/s2)
-  REAL, PARAMETER :: SB     = 5.67E-08  !Stefan-Boltzmann constant (w/m2/k4)
-  REAL, PARAMETER :: VKC    = 0.40      !von Karman constant
-  REAL, PARAMETER :: TFRZ   = 273.16    !freezing/melting point (k)
-  REAL, PARAMETER :: HSUB   = 2.8440E06 !latent heat of sublimation (j/kg)
-  REAL, PARAMETER :: HVAP   = 2.5104E06 !latent heat of vaporization (j/kg)
-  REAL, PARAMETER :: HFUS   = 0.3336E06 !latent heat of fusion (j/kg)
-  REAL, PARAMETER :: CWAT   = 4.188E06  !specific heat capacity of water (j/m3/k)
-  REAL, PARAMETER :: CICE   = 2.094E06  !specific heat capacity of ice (j/m3/k)
-  REAL, PARAMETER :: CPAIR  = 1004.64   !heat capacity dry air at const pres (j/kg/k)
-  REAL, PARAMETER :: TKWAT  = 0.6       !thermal conductivity of water (w/m/k)
-  REAL, PARAMETER :: TKICE  = 2.2       !thermal conductivity of ice (w/m/k)
-  REAL, PARAMETER :: TKAIR  = 0.023     !thermal conductivity of air (w/m/k)
-  REAL, PARAMETER :: RAIR   = 287.04    !gas constant for dry air (j/kg/k)
-  REAL, PARAMETER :: RW     = 461.269   !gas constant for  water vapor (j/kg/k)
-  REAL, PARAMETER :: DENH2O = 1000.     !density of water (kg/m3)
-  REAL, PARAMETER :: DENICE = 917.      !density of ice (kg/m3)
+  REAL(rkind), PARAMETER :: GRAV   = 9.80616   !acceleration due to gravity (m/s2)
+  REAL(rkind), PARAMETER :: SB     = 5.67E-08  !Stefan-Boltzmann constant (w/m2/k4)
+  REAL(rkind), PARAMETER :: VKC    = 0.40      !von Karman constant
+  REAL(rkind), PARAMETER :: TFRZ   = 273.16    !freezing/melting point (k)
+  REAL(rkind), PARAMETER :: HSUB   = 2.8440E06 !latent heat of sublimation (j/kg)
+  REAL(rkind), PARAMETER :: HVAP   = 2.5104E06 !latent heat of vaporization (j/kg)
+  REAL(rkind), PARAMETER :: HFUS   = 0.3336E06 !latent heat of fusion (j/kg)
+  REAL(rkind), PARAMETER :: CWAT   = 4.188E06  !specific heat capacity of water (j/m3/k)
+  REAL(rkind), PARAMETER :: CICE   = 2.094E06  !specific heat capacity of ice (j/m3/k)
+  REAL(rkind), PARAMETER :: CPAIR  = 1004.64   !heat capacity dry air at const pres (j/kg/k)
+  REAL(rkind), PARAMETER :: TKWAT  = 0.6       !thermal conductivity of water (w/m/k)
+  REAL(rkind), PARAMETER :: TKICE  = 2.2       !thermal conductivity of ice (w/m/k)
+  REAL(rkind), PARAMETER :: TKAIR  = 0.023     !thermal conductivity of air (w/m/k)
+  REAL(rkind), PARAMETER :: RAIR   = 287.04    !gas constant for dry air (j/kg/k)
+  REAL(rkind), PARAMETER :: RW     = 461.269   !gas constant for  water vapor (j/kg/k)
+  REAL(rkind), PARAMETER :: DENH2O = 1000.     !density of water (kg/m3)
+  REAL(rkind), PARAMETER :: DENICE = 917.      !density of ice (kg/m3)
 
 !------------------------------------------------------------------------------------------!
 ! From the VEGPARM.TBL tables, as functions of vegetation category.
 !------------------------------------------------------------------------------------------!
   INTEGER :: NROOT        !rooting depth [as the number of layers] ( Assigned in REDPRM )
-  REAL    :: RGL          !parameter used in radiation stress function ( Assigned in REDPRM )
-  REAL    :: RSMIN        !minimum Canopy Resistance [s/m] ( Assigned in REDPRM )
-  REAL    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
-  REAL    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
-  REAL    :: TOPT         !optimum transpiration air temperature.
+  REAL(rkind)    :: RGL          !parameter used in radiation stress function ( Assigned in REDPRM )
+  REAL(rkind)    :: RSMIN        !minimum Canopy Resistance [s/m] ( Assigned in REDPRM )
+  REAL(rkind)    :: HS           !parameter used in vapor pressure deficit function ( Assigned in REDPRM )
+  REAL(rkind)    :: RSMAX        !maximum stomatal resistance ( Assigned in REDPRM )
+  REAL(rkind)    :: TOPT         !optimum transpiration air temperature.
 
   ! MPC change: make variables private for a given thread
   !$omp threadprivate(NROOT, RGL, RSMIN, HS, RSMAX, TOPT)
@@ -70,17 +71,17 @@ module noahmp_globals
 !------------------------------------------------------------------------------------------!
 ! From the SOILPARM.TBL tables, as functions of soil category.
 !------------------------------------------------------------------------------------------!
-  REAL    :: BEXP         !B parameter ( Assigned in REDPRM )
-  REAL    :: SMCDRY       !dry soil moisture threshold where direct evap from top
+  REAL(rkind)    :: BEXP         !B parameter ( Assigned in REDPRM )
+  REAL(rkind)    :: SMCDRY       !dry soil moisture threshold where direct evap from top
                           !layer ends (volumetric) ( Assigned in REDPRM )
-  REAL    :: F1           !soil thermal diffusivity/conductivity coef ( Assigned in REDPRM )
-  REAL    :: SMCMAX       !porosity, saturated value of soil moisture (volumetric)
-  REAL    :: SMCREF       !reference soil moisture (field capacity) (volumetric) ( Assigned in REDPRM )
-  REAL    :: PSISAT       !saturated soil matric potential ( Assigned in REDPRM )
-  REAL    :: DKSAT        !saturated soil hydraulic conductivity ( Assigned in REDPRM )
-  REAL    :: DWSAT        !saturated soil hydraulic diffusivity ( Assigned in REDPRM )
-  REAL    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
-  REAL    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
+  REAL(rkind)    :: F1           !soil thermal diffusivity/conductivity coef ( Assigned in REDPRM )
+  REAL(rkind)    :: SMCMAX       !porosity, saturated value of soil moisture (volumetric)
+  REAL(rkind)    :: SMCREF       !reference soil moisture (field capacity) (volumetric) ( Assigned in REDPRM )
+  REAL(rkind)    :: PSISAT       !saturated soil matric potential ( Assigned in REDPRM )
+  REAL(rkind)    :: DKSAT        !saturated soil hydraulic conductivity ( Assigned in REDPRM )
+  REAL(rkind)    :: DWSAT        !saturated soil hydraulic diffusivity ( Assigned in REDPRM )
+  REAL(rkind)    :: SMCWLT       !wilting point soil moisture (volumetric) ( Assigned in REDPRM )
+  REAL(rkind)    :: QUARTZ       !soil quartz content ( Assigned in REDPRM )
 
   ! MPC change: make variables private for a given thread
   !$omp threadprivate(BEXP, SMCDRY, F1, SMCMAX, SMCREF, PSISAT, DKSAT, DWSAT, SMCWLT, QUARTZ)
@@ -88,16 +89,16 @@ module noahmp_globals
 !------------------------------------------------------------------------------------------!
 ! From the GENPARM.TBL file
 !------------------------------------------------------------------------------------------!
-  REAL    :: SLOPE       !slope index (0 - 1) ( Assigned in REDPRM )
-  REAL    :: CSOIL       !vol. soil heat capacity [j/m3/K] ( Assigned in REDPRM )
-  REAL    :: ZBOT        !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
-  REAL    :: CZIL        !Calculate roughness length of heat ( Assigned in REDPRM )
+  REAL(rkind)    :: SLOPE       !slope index (0 - 1) ( Assigned in REDPRM )
+  REAL(rkind)    :: CSOIL       !vol. soil heat capacity [j/m3/K] ( Assigned in REDPRM )
+  REAL(rkind)    :: ZBOT        !Depth (m) of lower boundary soil temperature ( Assigned in REDPRM )
+  REAL(rkind)    :: CZIL        !Calculate roughness length of heat ( Assigned in REDPRM )
 
   ! MPC note: FRZK_DATA, REFDK_DATA, and REFKDT_DATA are used in REDPRM to compute KDT and FRZX
   !           (FRZK, REFDK, and REFKDT are local variables within REDPRM and do not need to be thread private)
 
-  REAL    :: KDT         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
-  REAL    :: FRZX        !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+  REAL(rkind)    :: KDT         !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
+  REAL(rkind)    :: FRZX        !used in compute maximum infiltration rate (in INFIL) ( Assigned in REDPRM )
 
   ! MPC change: make variables private for a given thread
   !$omp threadprivate(SLOPE, CSOIL, ZBOT, CZIL, KDT, FRZX)
@@ -178,15 +179,15 @@ module noahmp_globals
   INTEGER :: OPT_STC != 1    !(suggested 1)
 ! ==================================================================================================
 ! runoff parameters used for SIMTOP and SIMGM:
-  REAL, PARAMETER :: TIMEAN = 10.5   !gridcell mean topgraphic index (global mean)
-  REAL, PARAMETER :: FSATMX = 0.38   !maximum surface saturated fraction (global mean)
+  REAL(rkind), PARAMETER :: TIMEAN = 10.5   !gridcell mean topgraphic index (global mean)
+  REAL(rkind), PARAMETER :: FSATMX = 0.38   !maximum surface saturated fraction (global mean)
 
 ! adjustable parameters for snow processes
 
-  REAL, PARAMETER :: M      = 1.0 ! 2.50   !melting factor (-)
-  REAL, PARAMETER :: Z0SNO  = 0.002  !snow surface roughness length (m) (0.002)
-  REAL, PARAMETER :: SSI    = 0.03   !liquid water holding capacity for snowpack (m3/m3) (0.03)
-  REAL, PARAMETER :: SWEMX  = 1.00   !new snow mass to fully cover old snow (mm)
+  REAL(rkind), PARAMETER :: M      = 1.0 ! 2.50   !melting factor (-)
+  REAL(rkind), PARAMETER :: Z0SNO  = 0.002  !snow surface roughness length (m) (0.002)
+  REAL(rkind), PARAMETER :: SSI    = 0.03   !liquid water holding capacity for snowpack (m3/m3) (0.03)
+  REAL(rkind), PARAMETER :: SWEMX  = 1.00   !new snow mass to fully cover old snow (mm)
                                      !equivalent to 10mm depth (density = 100 kg/m3)
 
 ! NOTES: things to add or improve
@@ -200,7 +201,7 @@ END MODULE NOAHMP_GLOBALS
 !------------------------------------------------------------------------------------------!
 !------------------------------------------------------------------------------------------!
 MODULE NOAHMP_VEG_PARAMETERS
-
+    use nrtype
     IMPLICIT NONE
 
     INTEGER, PARAMETER :: MAX_VEG_PARAMS = 33
@@ -213,63 +214,63 @@ MODULE NOAHMP_VEG_PARAMETERS
     INTEGER :: ISSNOW
     INTEGER :: EBLFOREST
 
-    REAL :: CH2OP(MVT)       !maximum intercepted h2o per unit lai+sai (mm)
-    REAL :: DLEAF(MVT)       !characteristic leaf dimension (m)
-    REAL :: Z0MVT(MVT)       !momentum roughness length (m)
-    REAL :: HVT(MVT)         !top of canopy (m)
-    REAL :: HVB(MVT)         !bottom of canopy (m)
-    REAL :: DEN(MVT)         !tree density (no. of trunks per m2)
-    REAL :: RC(MVT)          !tree crown radius (m)
-    REAL :: SAIM(MVT,12)     !monthly stem area index, one-sided
-    REAL :: LAIM(MVT,12)     !monthly leaf area index, one-sided
-    REAL :: SLA(MVT)         !single-side leaf area per Kg [m2/kg]
-    REAL :: DILEFC(MVT)      !coeficient for leaf stress death [1/s]
-    REAL :: DILEFW(MVT)      !coeficient for leaf stress death [1/s]
-    REAL :: FRAGR(MVT)       !fraction of growth respiration  !original was 0.3
-    REAL :: LTOVRC(MVT)      !leaf turnover [1/s]
+    REAL(rkind) :: CH2OP(MVT)       !maximum intercepted h2o per unit lai+sai (mm)
+    REAL(rkind) :: DLEAF(MVT)       !characteristic leaf dimension (m)
+    REAL(rkind) :: Z0MVT(MVT)       !momentum roughness length (m)
+    REAL(rkind) :: HVT(MVT)         !top of canopy (m)
+    REAL(rkind) :: HVB(MVT)         !bottom of canopy (m)
+    REAL(rkind) :: DEN(MVT)         !tree density (no. of trunks per m2)
+    REAL(rkind) :: RC(MVT)          !tree crown radius (m)
+    REAL(rkind) :: SAIM(MVT,12)     !monthly stem area index, one-sided
+    REAL(rkind) :: LAIM(MVT,12)     !monthly leaf area index, one-sided
+    REAL(rkind) :: SLA(MVT)         !single-side leaf area per Kg [m2/kg]
+    REAL(rkind) :: DILEFC(MVT)      !coeficient for leaf stress death [1/s]
+    REAL(rkind) :: DILEFW(MVT)      !coeficient for leaf stress death [1/s]
+    REAL(rkind) :: FRAGR(MVT)       !fraction of growth respiration  !original was 0.3
+    REAL(rkind) :: LTOVRC(MVT)      !leaf turnover [1/s]
 
-    REAL :: C3PSN(MVT)       !photosynthetic pathway: 0. = c4, 1. = c3
-    REAL :: KC25(MVT)        !co2 michaelis-menten constant at 25c (pa)
-    REAL :: AKC(MVT)         !q10 for kc25
-    REAL :: KO25(MVT)        !o2 michaelis-menten constant at 25c (pa)
-    REAL :: AKO(MVT)         !q10 for ko25
-    REAL :: VCMX25(MVT)      !maximum rate of carboxylation at 25c (umol co2/m**2/s)
-    REAL :: AVCMX(MVT)       !q10 for vcmx25
-    REAL :: BP(MVT)          !minimum leaf conductance (umol/m**2/s)
-    REAL :: MP(MVT)          !slope of conductance-to-photosynthesis relationship
-    REAL :: QE25(MVT)        !quantum efficiency at 25c (umol co2 / umol photon)
-    REAL :: AQE(MVT)         !q10 for qe25
-    REAL :: RMF25(MVT)       !leaf maintenance respiration at 25c (umol co2/m**2/s)
-    REAL :: RMS25(MVT)       !stem maintenance respiration at 25c (umol co2/kg bio/s)
-    REAL :: RMR25(MVT)       !root maintenance respiration at 25c (umol co2/kg bio/s)
-    REAL :: ARM(MVT)         !q10 for maintenance respiration
-    REAL :: FOLNMX(MVT)      !foliage nitrogen concentration when f(n)=1 (%)
-    REAL :: TMIN(MVT)        !minimum temperature for photosynthesis (k)
+    REAL(rkind) :: C3PSN(MVT)       !photosynthetic pathway: 0. = c4, 1. = c3
+    REAL(rkind) :: KC25(MVT)        !co2 michaelis-menten constant at 25c (pa)
+    REAL(rkind) :: AKC(MVT)         !q10 for kc25
+    REAL(rkind) :: KO25(MVT)        !o2 michaelis-menten constant at 25c (pa)
+    REAL(rkind) :: AKO(MVT)         !q10 for ko25
+    REAL(rkind) :: VCMX25(MVT)      !maximum rate of carboxylation at 25c (umol co2/m**2/s)
+    REAL(rkind) :: AVCMX(MVT)       !q10 for vcmx25
+    REAL(rkind) :: BP(MVT)          !minimum leaf conductance (umol/m**2/s)
+    REAL(rkind) :: MP(MVT)          !slope of conductance-to-photosynthesis relationship
+    REAL(rkind) :: QE25(MVT)        !quantum efficiency at 25c (umol co2 / umol photon)
+    REAL(rkind) :: AQE(MVT)         !q10 for qe25
+    REAL(rkind) :: RMF25(MVT)       !leaf maintenance respiration at 25c (umol co2/m**2/s)
+    REAL(rkind) :: RMS25(MVT)       !stem maintenance respiration at 25c (umol co2/kg bio/s)
+    REAL(rkind) :: RMR25(MVT)       !root maintenance respiration at 25c (umol co2/kg bio/s)
+    REAL(rkind) :: ARM(MVT)         !q10 for maintenance respiration
+    REAL(rkind) :: FOLNMX(MVT)      !foliage nitrogen concentration when f(n)=1 (%)
+    REAL(rkind) :: TMIN(MVT)        !minimum temperature for photosynthesis (k)
 
-    REAL :: XL(MVT)          !leaf/stem orientation index
-    REAL :: RHOL(MVT,MBAND)  !leaf reflectance: 1=vis, 2=nir
-    REAL :: RHOS(MVT,MBAND)  !stem reflectance: 1=vis, 2=nir
-    REAL :: TAUL(MVT,MBAND)  !leaf transmittance: 1=vis, 2=nir
-    REAL :: TAUS(MVT,MBAND)  !stem transmittance: 1=vis, 2=nir
+    REAL(rkind) :: XL(MVT)          !leaf/stem orientation index
+    REAL(rkind) :: RHOL(MVT,MBAND)  !leaf reflectance: 1=vis, 2=nir
+    REAL(rkind) :: RHOS(MVT,MBAND)  !stem reflectance: 1=vis, 2=nir
+    REAL(rkind) :: TAUL(MVT,MBAND)  !leaf transmittance: 1=vis, 2=nir
+    REAL(rkind) :: TAUS(MVT,MBAND)  !stem transmittance: 1=vis, 2=nir
 
-    REAL :: MRP(MVT)         !microbial respiration parameter (umol co2 /kg c/ s)
-    REAL :: CWPVT(MVT)       !empirical canopy wind parameter
+    REAL(rkind) :: MRP(MVT)         !microbial respiration parameter (umol co2 /kg c/ s)
+    REAL(rkind) :: CWPVT(MVT)       !empirical canopy wind parameter
 
-    REAL :: WRRAT(MVT)       !wood to non-wood ratio
-    REAL :: WDPOOL(MVT)      !wood pool (switch 1 or 0) depending on woody or not [-]
-    REAL :: TDLEF(MVT)       !characteristic T for leaf freezing [K]
+    REAL(rkind) :: WRRAT(MVT)       !wood to non-wood ratio
+    REAL(rkind) :: WDPOOL(MVT)      !wood pool (switch 1 or 0) depending on woody or not [-]
+    REAL(rkind) :: TDLEF(MVT)       !characteristic T for leaf freezing [K]
 
     INTEGER :: IK,IM
-    REAL :: TMP10(MVT*MBAND)
-    REAL :: TMP11(MVT*MBAND)
-    REAL :: TMP12(MVT*MBAND)
-    REAL :: TMP13(MVT*MBAND)
-    REAL :: TMP14(MVT*12)
-    REAL :: TMP15(MVT*12)
-    REAL :: TMP16(MVT*5)
+    REAL(rkind) :: TMP10(MVT*MBAND)
+    REAL(rkind) :: TMP11(MVT*MBAND)
+    REAL(rkind) :: TMP12(MVT*MBAND)
+    REAL(rkind) :: TMP13(MVT*MBAND)
+    REAL(rkind) :: TMP14(MVT*12)
+    REAL(rkind) :: TMP15(MVT*12)
+    REAL(rkind) :: TMP16(MVT*5)
 
-    real slarea(MVT)
-    real eps(MVT,5)
+    real(rkind) slarea(MVT)
+    real(rkind) eps(MVT,5)
 
 CONTAINS
   subroutine read_mp_veg_parameters(FILENAME_VEGTABLE,DATASET_IDENTIFIER)
@@ -279,13 +280,13 @@ CONTAINS
     integer :: ierr
 
     ! Temporary arrays used in reshaping namelist arrays
-    REAL :: TMP10(MVT*MBAND)
-    REAL :: TMP11(MVT*MBAND)
-    REAL :: TMP12(MVT*MBAND)
-    REAL :: TMP13(MVT*MBAND)
-    REAL :: TMP14(MVT*12)
-    REAL :: TMP15(MVT*12)
-    REAL :: TMP16(MVT*5)
+    REAL(rkind) :: TMP10(MVT*MBAND)
+    REAL(rkind) :: TMP11(MVT*MBAND)
+    REAL(rkind) :: TMP12(MVT*MBAND)
+    REAL(rkind) :: TMP13(MVT*MBAND)
+    REAL(rkind) :: TMP14(MVT*12)
+    REAL(rkind) :: TMP15(MVT*12)
+    REAL(rkind) :: TMP16(MVT*5)
 
     integer :: NVEG
     character(len=256) :: VEG_DATASET_DESCRIPTION
@@ -439,6 +440,7 @@ END MODULE NOAHMP_VEG_PARAMETERS
 ! ==================================================================================================
 ! ==================================================================================================
 MODULE NOAHMP_RAD_PARAMETERS
+    use nrtype
 
     IMPLICIT NONE
 
@@ -446,14 +448,14 @@ MODULE NOAHMP_RAD_PARAMETERS
     INTEGER, PARAMETER :: MSC   = 9
     INTEGER, PARAMETER :: MBAND = 2
 
-    REAL :: ALBSAT(MSC,MBAND)   !saturated soil albedos: 1=vis, 2=nir
-    REAL :: ALBDRY(MSC,MBAND)   !dry soil albedos: 1=vis, 2=nir
-    REAL :: ALBICE(MBAND)       !albedo land ice: 1=vis, 2=nir
-    REAL :: ALBLAK(MBAND)       !albedo frozen lakes: 1=vis, 2=nir
-    REAL :: OMEGAS(MBAND)       !two-stream parameter omega for snow
-    REAL :: BETADS              !two-stream parameter betad for snow
-    REAL :: BETAIS              !two-stream parameter betad for snow
-    REAL :: EG(2)               !emissivity
+    REAL(rkind) :: ALBSAT(MSC,MBAND)   !saturated soil albedos: 1=vis, 2=nir
+    REAL(rkind) :: ALBDRY(MSC,MBAND)   !dry soil albedos: 1=vis, 2=nir
+    REAL(rkind) :: ALBICE(MBAND)       !albedo land ice: 1=vis, 2=nir
+    REAL(rkind) :: ALBLAK(MBAND)       !albedo frozen lakes: 1=vis, 2=nir
+    REAL(rkind) :: OMEGAS(MBAND)       !two-stream parameter omega for snow
+    REAL(rkind) :: BETADS              !two-stream parameter betad for snow
+    REAL(rkind) :: BETAIS              !two-stream parameter betad for snow
+    REAL(rkind) :: EG(2)               !emissivity
 
 ! saturated soil albedos: 1=vis, 2=nir
     DATA(ALBSAT(I,1),I=1,8)/0.15,0.11,0.10,0.09,0.08,0.07,0.06,0.05/
@@ -480,6 +482,7 @@ END MODULE NOAHMP_RAD_PARAMETERS
 ! ==================================================================================================
 
 MODULE NOAHMP_ROUTINES
+    use nrtype
   USE NOAHMP_GLOBALS
   IMPLICIT NONE
 
@@ -515,33 +518,33 @@ contains
 ! inputs
   INTEGER                , INTENT(IN   ) :: VEGTYP !vegetation type
   INTEGER                , INTENT(IN   ) :: ISURBAN!urban category
-  REAL                   , INTENT(IN   ) :: SNOWH  !snow height [m]
-  REAL                   , INTENT(IN   ) :: TV     !vegetation temperature (k)
-  REAL                   , INTENT(IN   ) :: LAT    !latitude (radians)
+  REAL(rkind)                   , INTENT(IN   ) :: SNOWH  !snow height [m]
+  REAL(rkind)                   , INTENT(IN   ) :: TV     !vegetation temperature (k)
+  REAL(rkind)                   , INTENT(IN   ) :: LAT    !latitude (radians)
   INTEGER                , INTENT(IN   ) :: YEARLEN!Number of days in the particular year
-  REAL                   , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
-  real                   , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
-  REAL                   , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
-  REAL                   , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
+  REAL(rkind)                   , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
+  real(rkind)                   , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
+  REAL(rkind)                   , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
+  REAL(rkind)                   , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
 
 ! outputs
-  REAL                   , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
-  REAL                   , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
-  REAL                   , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
-  REAL                   , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
+  REAL(rkind)                   , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
+  REAL(rkind)                   , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
+  REAL(rkind)                   , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
+  REAL(rkind)                   , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
 
 ! locals
 
-  REAL                                   :: DB     !thickness of canopy buried by snow (m)
-  REAL                                   :: FB     !fraction of canopy buried by snow
-  REAL                                   :: SNOWHC !critical snow depth at which short vege
+  REAL(rkind)                                   :: DB     !thickness of canopy buried by snow (m)
+  REAL(rkind)                                   :: FB     !fraction of canopy buried by snow
+  REAL(rkind)                                   :: SNOWHC !critical snow depth at which short vege
                                                    !is fully covered by snow
 
   INTEGER                                :: K       !index
   INTEGER                                :: IT1,IT2 !interpolation months
-  REAL                                   :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
-  REAL                                   :: WT1,WT2 !interpolation weights
-  REAL                                   :: T       !current month (1.00, ..., 12.00)
+  REAL(rkind)                                   :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
+  REAL(rkind)                                   :: WT1,WT2 !interpolation weights
+  REAL(rkind)                                   :: T       !current month (1.00, ..., 12.00)
 ! --------------------------------------------------------------------------------------------------
 
   IF ( DVEG == 1 .or. DVEG == 3 .or. DVEG == 4 ) THEN
@@ -626,67 +629,67 @@ contains
   INTEGER, INTENT(IN)                  :: ICE    !ice (ice = 1)
   INTEGER, INTENT(IN)                  :: NSOIL  !number of soil layers
 
-  REAL, INTENT(IN)                     :: DT     !time step [s]
-  REAL, INTENT(IN)                     :: QSNOW  !snowfall (mm/s)
-  REAL, INTENT(IN)                     :: SNEQVO !snow mass at last time step(mm)
-  REAL, INTENT(IN)                     :: SNEQV  !snow mass (mm)
-  REAL, INTENT(IN)                     :: SNOWH  !snow height (mm)
-  REAL, INTENT(IN)                     :: COSZ   !cosine solar zenith angle (0-1)
-  REAL, INTENT(IN)                     :: TG     !ground temperature (k)
-  REAL, INTENT(IN)                     :: TV     !vegetation temperature (k)
-  REAL, INTENT(IN)                     :: ELAI   !LAI, one-sided, adjusted for burying by snow
-  REAL, INTENT(IN)                     :: ESAI   !SAI, one-sided, adjusted for burying by snow
-  REAL, INTENT(IN)                     :: FWET   !fraction of canopy that is wet
-  REAL, DIMENSION(1:NSOIL), INTENT(IN) :: SMC    !volumetric soil water [m3/m3]
-  REAL, DIMENSION(1:2)    , INTENT(IN) :: SOLAD  !incoming direct solar radiation (w/m2)
-  REAL, DIMENSION(1:2)    , INTENT(IN) :: SOLAI  !incoming diffuse solar radiation (w/m2)
-  REAL, INTENT(IN)                     :: FSNO   !snow cover fraction (-)
-  REAL, INTENT(IN)                     :: FVEG   !green vegetation fraction [0.0-1.0]
+  REAL(rkind), INTENT(IN)                     :: DT     !time step [s]
+  REAL(rkind), INTENT(IN)                     :: QSNOW  !snowfall (mm/s)
+  REAL(rkind), INTENT(IN)                     :: SNEQVO !snow mass at last time step(mm)
+  REAL(rkind), INTENT(IN)                     :: SNEQV  !snow mass (mm)
+  REAL(rkind), INTENT(IN)                     :: SNOWH  !snow height (mm)
+  REAL(rkind), INTENT(IN)                     :: COSZ   !cosine solar zenith angle (0-1)
+  REAL(rkind), INTENT(IN)                     :: TG     !ground temperature (k)
+  REAL(rkind), INTENT(IN)                     :: TV     !vegetation temperature (k)
+  REAL(rkind), INTENT(IN)                     :: ELAI   !LAI, one-sided, adjusted for burying by snow
+  REAL(rkind), INTENT(IN)                     :: ESAI   !SAI, one-sided, adjusted for burying by snow
+  REAL(rkind), INTENT(IN)                     :: FWET   !fraction of canopy that is wet
+  REAL(rkind), DIMENSION(1:NSOIL), INTENT(IN) :: SMC    !volumetric soil water [m3/m3]
+  REAL(rkind), DIMENSION(1:2)    , INTENT(IN) :: SOLAD  !incoming direct solar radiation (w/m2)
+  REAL(rkind), DIMENSION(1:2)    , INTENT(IN) :: SOLAI  !incoming diffuse solar radiation (w/m2)
+  REAL(rkind), INTENT(IN)                     :: FSNO   !snow cover fraction (-)
+  REAL(rkind), INTENT(IN)                     :: FVEG   !green vegetation fraction [0.0-1.0]
 
 ! inout
-  REAL,                  INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
-  REAL,                  INTENT(INOUT) :: TAUSS  !non-dimensional snow age.
+  REAL(rkind),                  INTENT(INOUT) :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL(rkind),                  INTENT(INOUT) :: TAUSS  !non-dimensional snow age.
 
 ! output
-  REAL, INTENT(OUT)                    :: FSUN   !sunlit fraction of canopy (-)
-  REAL, INTENT(OUT)                    :: LAISUN !sunlit leaf area (-)
-  REAL, INTENT(OUT)                    :: LAISHA !shaded leaf area (-)
-  REAL, INTENT(OUT)                    :: PARSUN !average absorbed par for sunlit leaves (w/m2)
-  REAL, INTENT(OUT)                    :: PARSHA !average absorbed par for shaded leaves (w/m2)
-  REAL, INTENT(OUT)                    :: SAV    !solar radiation absorbed by vegetation (w/m2)
-  REAL, INTENT(OUT)                    :: SAG    !solar radiation absorbed by ground (w/m2)
-  REAL, INTENT(OUT)                    :: FSA    !total absorbed solar radiation (w/m2)
-  REAL, INTENT(OUT)                    :: FSR    !total reflected solar radiation (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: FSUN   !sunlit fraction of canopy (-)
+  REAL(rkind), INTENT(OUT)                    :: LAISUN !sunlit leaf area (-)
+  REAL(rkind), INTENT(OUT)                    :: LAISHA !shaded leaf area (-)
+  REAL(rkind), INTENT(OUT)                    :: PARSUN !average absorbed par for sunlit leaves (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: PARSHA !average absorbed par for shaded leaves (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: SAV    !solar radiation absorbed by vegetation (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: SAG    !solar radiation absorbed by ground (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: FSA    !total absorbed solar radiation (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: FSR    !total reflected solar radiation (w/m2)
 
 !jref:start
-  REAL, INTENT(OUT)                    :: FSRV    !veg. reflected solar radiation (w/m2)
-  REAL, INTENT(OUT)                    :: FSRG    !ground reflected solar radiation (w/m2)
-  REAL, INTENT(OUT)                    :: BGAP
-  REAL, INTENT(OUT)                    :: WGAP
+  REAL(rkind), INTENT(OUT)                    :: FSRV    !veg. reflected solar radiation (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: FSRG    !ground reflected solar radiation (w/m2)
+  REAL(rkind), INTENT(OUT)                    :: BGAP
+  REAL(rkind), INTENT(OUT)                    :: WGAP
 !jref:end
 
 ! local
-  REAL                                 :: FAGE   !snow age function (0 - new snow)
-  REAL, DIMENSION(1:2)                 :: ALBGRD !ground albedo (direct)
-  REAL, DIMENSION(1:2)                 :: ALBGRI !ground albedo (diffuse)
-  REAL, DIMENSION(1:2)                 :: ALBD   !surface albedo (direct)
-  REAL, DIMENSION(1:2)                 :: ALBI   !surface albedo (diffuse)
-  REAL, DIMENSION(1:2)                 :: FABD   !flux abs by veg (per unit direct flux)
-  REAL, DIMENSION(1:2)                 :: FABI   !flux abs by veg (per unit diffuse flux)
-  REAL, DIMENSION(1:2)                 :: FTDD   !down direct flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:2)                 :: FTID   !down diffuse flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:2)                 :: FTII   !down diffuse flux below veg (per unit dif flux)
+  REAL(rkind)                                 :: FAGE   !snow age function (0 - new snow)
+  REAL(rkind), DIMENSION(1:2)                 :: ALBGRD !ground albedo (direct)
+  REAL(rkind), DIMENSION(1:2)                 :: ALBGRI !ground albedo (diffuse)
+  REAL(rkind), DIMENSION(1:2)                 :: ALBD   !surface albedo (direct)
+  REAL(rkind), DIMENSION(1:2)                 :: ALBI   !surface albedo (diffuse)
+  REAL(rkind), DIMENSION(1:2)                 :: FABD   !flux abs by veg (per unit direct flux)
+  REAL(rkind), DIMENSION(1:2)                 :: FABI   !flux abs by veg (per unit diffuse flux)
+  REAL(rkind), DIMENSION(1:2)                 :: FTDD   !down direct flux below veg (per unit dir flux)
+  REAL(rkind), DIMENSION(1:2)                 :: FTID   !down diffuse flux below veg (per unit dir flux)
+  REAL(rkind), DIMENSION(1:2)                 :: FTII   !down diffuse flux below veg (per unit dif flux)
 !jref:start
-  REAL, DIMENSION(1:2)                 :: FREVI
-  REAL, DIMENSION(1:2)                 :: FREVD
-  REAL, DIMENSION(1:2)                 :: FREGI
-  REAL, DIMENSION(1:2)                 :: FREGD
+  REAL(rkind), DIMENSION(1:2)                 :: FREVI
+  REAL(rkind), DIMENSION(1:2)                 :: FREVD
+  REAL(rkind), DIMENSION(1:2)                 :: FREGI
+  REAL(rkind), DIMENSION(1:2)                 :: FREGD
 !jref:end
 
-  REAL                                 :: FSHA   !shaded fraction of canopy
-  REAL                                 :: VAI    !total LAI + stem area index, one sided
+  REAL(rkind)                                 :: FSHA   !shaded fraction of canopy
+  REAL(rkind)                                 :: VAI    !total LAI + stem area index, one sided
 
-  REAL,PARAMETER :: MPE = 1.E-6
+  REAL(rkind),PARAMETER :: MPE = 1.E-6
   LOGICAL VEG  !true: vegetated for surface temperature calculation
 
 ! --------------------------------------------------------------------------------------------------
@@ -757,67 +760,67 @@ contains
   INTEGER,                  INTENT(IN)  :: ISC    !soil color type (1-lighest; 8-darkest)
   INTEGER,                  INTENT(IN)  :: ICE    !ice (ice = 1)
 
-  REAL,                     INTENT(IN)  :: DT     !time step [sec]
-  REAL,                     INTENT(IN)  :: QSNOW  !snowfall
-  REAL,                     INTENT(IN)  :: COSZ   !cosine solar zenith angle for next time step
-  REAL,                     INTENT(IN)  :: SNOWH  !snow height (mm)
-  REAL,                     INTENT(IN)  :: TG     !ground temperature (k)
-  REAL,                     INTENT(IN)  :: TV     !vegetation temperature (k)
-  REAL,                     INTENT(IN)  :: ELAI   !LAI, one-sided, adjusted for burying by snow
-  REAL,                     INTENT(IN)  :: ESAI   !SAI, one-sided, adjusted for burying by snow
-  REAL,                     INTENT(IN)  :: FSNO   !fraction of grid covered by snow
-  REAL,                     INTENT(IN)  :: FWET   !fraction of canopy that is wet
-  REAL,                     INTENT(IN)  :: SNEQVO !snow mass at last time step(mm)
-  REAL,                     INTENT(IN)  :: SNEQV  !snow mass (mm)
-  REAL,                     INTENT(IN)  :: FVEG   !green vegetation fraction [0.0-1.0]
-  REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water (m3/m3)
+  REAL(rkind),                     INTENT(IN)  :: DT     !time step [sec]
+  REAL(rkind),                     INTENT(IN)  :: QSNOW  !snowfall
+  REAL(rkind),                     INTENT(IN)  :: COSZ   !cosine solar zenith angle for next time step
+  REAL(rkind),                     INTENT(IN)  :: SNOWH  !snow height (mm)
+  REAL(rkind),                     INTENT(IN)  :: TG     !ground temperature (k)
+  REAL(rkind),                     INTENT(IN)  :: TV     !vegetation temperature (k)
+  REAL(rkind),                     INTENT(IN)  :: ELAI   !LAI, one-sided, adjusted for burying by snow
+  REAL(rkind),                     INTENT(IN)  :: ESAI   !SAI, one-sided, adjusted for burying by snow
+  REAL(rkind),                     INTENT(IN)  :: FSNO   !fraction of grid covered by snow
+  REAL(rkind),                     INTENT(IN)  :: FWET   !fraction of canopy that is wet
+  REAL(rkind),                     INTENT(IN)  :: SNEQVO !snow mass at last time step(mm)
+  REAL(rkind),                     INTENT(IN)  :: SNEQV  !snow mass (mm)
+  REAL(rkind),                     INTENT(IN)  :: FVEG   !green vegetation fraction [0.0-1.0]
+  REAL(rkind), DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water (m3/m3)
 
 ! inout
-  REAL,                  INTENT(INOUT)  :: ALBOLD !snow albedo at last time step (CLASS type)
-  REAL,                  INTENT(INOUT)  :: TAUSS  !non-dimensional snow age
+  REAL(rkind),                  INTENT(INOUT)  :: ALBOLD !snow albedo at last time step (CLASS type)
+  REAL(rkind),                  INTENT(INOUT)  :: TAUSS  !non-dimensional snow age
 
 ! output
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBD   !surface albedo (direct)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBI   !surface albedo (diffuse)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FABD   !flux abs by veg (per unit direct flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FABI   !flux abs by veg (per unit diffuse flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FTDD   !down direct flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FTID   !down diffuse flux below veg (per unit dir flux)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FTII   !down diffuse flux below veg (per unit dif flux)
-  REAL,                     INTENT(OUT) :: FSUN   !sunlit fraction of canopy (-)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: ALBD   !surface albedo (direct)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: ALBI   !surface albedo (diffuse)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FABD   !flux abs by veg (per unit direct flux)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FABI   !flux abs by veg (per unit diffuse flux)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FTDD   !down direct flux below veg (per unit dir flux)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FTID   !down diffuse flux below veg (per unit dir flux)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FTII   !down diffuse flux below veg (per unit dif flux)
+  REAL(rkind),                     INTENT(OUT) :: FSUN   !sunlit fraction of canopy (-)
 !jref:start
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREVD
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREVI
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREGD
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: FREGI
-  REAL, INTENT(OUT) :: BGAP
-  REAL, INTENT(OUT) :: WGAP
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FREVD
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FREVI
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FREGD
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: FREGI
+  REAL(rkind), INTENT(OUT) :: BGAP
+  REAL(rkind), INTENT(OUT) :: WGAP
 !jref:end
 
 ! ------------------------------------------------------------------------
 ! ------------------------ local variables -------------------------------
 ! local
-  REAL                 :: FAGE     !snow age function
-  REAL                 :: ALB
+  REAL(rkind)                 :: FAGE     !snow age function
+  REAL(rkind)                 :: ALB
   INTEGER              :: IB       !indices
   INTEGER              :: NBAND    !number of solar radiation wave bands
   INTEGER              :: IC       !direct beam: ic=0; diffuse: ic=1
 
-  REAL                 :: WL       !fraction of LAI+SAI that is LAI
-  REAL                 :: WS       !fraction of LAI+SAI that is SAI
-  REAL                 :: MPE      !prevents overflow for division by zero
+  REAL(rkind)                 :: WL       !fraction of LAI+SAI that is LAI
+  REAL(rkind)                 :: WS       !fraction of LAI+SAI that is SAI
+  REAL(rkind)                 :: MPE      !prevents overflow for division by zero
 
-  REAL, DIMENSION(1:2) :: RHO      !leaf/stem reflectance weighted by fraction LAI and SAI
-  REAL, DIMENSION(1:2) :: TAU      !leaf/stem transmittance weighted by fraction LAI and SAI
-  REAL, DIMENSION(1:2) :: FTDI     !down direct flux below veg per unit dif flux = 0
-  REAL, DIMENSION(1:2) :: ALBSND   !snow albedo (direct)
-  REAL, DIMENSION(1:2) :: ALBSNI   !snow albedo (diffuse)
+  REAL(rkind), DIMENSION(1:2) :: RHO      !leaf/stem reflectance weighted by fraction LAI and SAI
+  REAL(rkind), DIMENSION(1:2) :: TAU      !leaf/stem transmittance weighted by fraction LAI and SAI
+  REAL(rkind), DIMENSION(1:2) :: FTDI     !down direct flux below veg per unit dif flux = 0
+  REAL(rkind), DIMENSION(1:2) :: ALBSND   !snow albedo (direct)
+  REAL(rkind), DIMENSION(1:2) :: ALBSNI   !snow albedo (diffuse)
 
-  REAL                 :: VAI      !ELAI+ESAI
-  REAL                 :: GDIR     !average projected leaf/stem area in solar direction
-  REAL                 :: EXT      !optical depth direct beam per unit leaf + stem area
+  REAL(rkind)                 :: VAI      !ELAI+ESAI
+  REAL(rkind)                 :: GDIR     !average projected leaf/stem area in solar direction
+  REAL(rkind)                 :: EXT      !optical depth direct beam per unit leaf + stem area
 
 ! --------------------------------------------------------------------------------------------------
 
@@ -928,55 +931,55 @@ contains
 
   INTEGER, INTENT(IN)              :: ILOC
   INTEGER, INTENT(IN)              :: JLOC
-  REAL, INTENT(IN)                 :: MPE     !prevents underflow errors if division by zero
+  REAL(rkind), INTENT(IN)                 :: MPE     !prevents underflow errors if division by zero
 
-  REAL, INTENT(IN)                 :: FSUN    !sunlit fraction of canopy
-  REAL, INTENT(IN)                 :: FSHA    !shaded fraction of canopy
-  REAL, INTENT(IN)                 :: ELAI    !leaf area, one-sided
-  REAL, INTENT(IN)                 :: VAI     !leaf + stem area, one-sided
-  REAL, INTENT(IN)                 :: LAISUN  !sunlit leaf area index, one-sided
-  REAL, INTENT(IN)                 :: LAISHA  !shaded leaf area index, one-sided
+  REAL(rkind), INTENT(IN)                 :: FSUN    !sunlit fraction of canopy
+  REAL(rkind), INTENT(IN)                 :: FSHA    !shaded fraction of canopy
+  REAL(rkind), INTENT(IN)                 :: ELAI    !leaf area, one-sided
+  REAL(rkind), INTENT(IN)                 :: VAI     !leaf + stem area, one-sided
+  REAL(rkind), INTENT(IN)                 :: LAISUN  !sunlit leaf area index, one-sided
+  REAL(rkind), INTENT(IN)                 :: LAISHA  !shaded leaf area index, one-sided
 
-  REAL, DIMENSION(1:2), INTENT(IN) :: SOLAD   !incoming direct solar radiation (w/m2)
-  REAL, DIMENSION(1:2), INTENT(IN) :: SOLAI   !incoming diffuse solar radiation (w/m2)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FABD    !flux abs by veg (per unit incoming direct flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FABI    !flux abs by veg (per unit incoming diffuse flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FTDD    !down dir flux below veg (per incoming dir flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FTID    !down dif flux below veg (per incoming dir flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FTII    !down dif flux below veg (per incoming dif flux)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBGRD  !ground albedo (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBGRI  !ground albedo (diffuse)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBD    !overall surface albedo (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: ALBI    !overall surface albedo (diffuse)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: SOLAD   !incoming direct solar radiation (w/m2)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: SOLAI   !incoming diffuse solar radiation (w/m2)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FABD    !flux abs by veg (per unit incoming direct flux)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FABI    !flux abs by veg (per unit incoming diffuse flux)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FTDD    !down dir flux below veg (per incoming dir flux)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FTID    !down dif flux below veg (per incoming dir flux)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FTII    !down dif flux below veg (per incoming dif flux)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: ALBGRD  !ground albedo (direct)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: ALBGRI  !ground albedo (diffuse)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: ALBD    !overall surface albedo (direct)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: ALBI    !overall surface albedo (diffuse)
 
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREVD    !overall surface albedo veg (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREVI    !overall surface albedo veg (diffuse)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREGD    !overall surface albedo grd (direct)
-  REAL, DIMENSION(1:2), INTENT(IN) :: FREGI    !overall surface albedo grd (diffuse)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FREVD    !overall surface albedo veg (direct)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FREVI    !overall surface albedo veg (diffuse)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FREGD    !overall surface albedo grd (direct)
+  REAL(rkind), DIMENSION(1:2), INTENT(IN) :: FREGI    !overall surface albedo grd (diffuse)
 
 ! output
 
-  REAL, INTENT(OUT)                :: PARSUN  !average absorbed par for sunlit leaves (w/m2)
-  REAL, INTENT(OUT)                :: PARSHA  !average absorbed par for shaded leaves (w/m2)
-  REAL, INTENT(OUT)                :: SAV     !solar radiation absorbed by vegetation (w/m2)
-  REAL, INTENT(OUT)                :: SAG     !solar radiation absorbed by ground (w/m2)
-  REAL, INTENT(OUT)                :: FSA     !total absorbed solar radiation (w/m2)
-  REAL, INTENT(OUT)                :: FSR     !total reflected solar radiation (w/m2)
-  REAL, INTENT(OUT)                :: FSRV    !reflected solar radiation by vegetation
-  REAL, INTENT(OUT)                :: FSRG    !reflected solar radiation by ground
+  REAL(rkind), INTENT(OUT)                :: PARSUN  !average absorbed par for sunlit leaves (w/m2)
+  REAL(rkind), INTENT(OUT)                :: PARSHA  !average absorbed par for shaded leaves (w/m2)
+  REAL(rkind), INTENT(OUT)                :: SAV     !solar radiation absorbed by vegetation (w/m2)
+  REAL(rkind), INTENT(OUT)                :: SAG     !solar radiation absorbed by ground (w/m2)
+  REAL(rkind), INTENT(OUT)                :: FSA     !total absorbed solar radiation (w/m2)
+  REAL(rkind), INTENT(OUT)                :: FSR     !total reflected solar radiation (w/m2)
+  REAL(rkind), INTENT(OUT)                :: FSRV    !reflected solar radiation by vegetation
+  REAL(rkind), INTENT(OUT)                :: FSRG    !reflected solar radiation by ground
 
 ! ------------------------ local variables ----------------------------------------------------
   INTEGER                          :: IB      !waveband number (1=vis, 2=nir)
   INTEGER                          :: NBAND   !number of solar radiation waveband classes
 
-  REAL                             :: ABS     !absorbed solar radiation (w/m2)
-  REAL                             :: RNIR    !reflected solar radiation [nir] (w/m2)
-  REAL                             :: RVIS    !reflected solar radiation [vis] (w/m2)
-  REAL                             :: LAIFRA  !leaf area fraction of canopy
-  REAL                             :: TRD     !transmitted solar radiation: direct (w/m2)
-  REAL                             :: TRI     !transmitted solar radiation: diffuse (w/m2)
-  REAL, DIMENSION(1:2)             :: CAD     !direct beam absorbed by canopy (w/m2)
-  REAL, DIMENSION(1:2)             :: CAI     !diffuse radiation absorbed by canopy (w/m2)
+  REAL(rkind)                             :: ABS     !absorbed solar radiation (w/m2)
+  REAL(rkind)                             :: RNIR    !reflected solar radiation [nir] (w/m2)
+  REAL(rkind)                             :: RVIS    !reflected solar radiation [vis] (w/m2)
+  REAL(rkind)                             :: LAIFRA  !leaf area fraction of canopy
+  REAL(rkind)                             :: TRD     !transmitted solar radiation: direct (w/m2)
+  REAL(rkind)                             :: TRI     !transmitted solar radiation: diffuse (w/m2)
+  REAL(rkind), DIMENSION(1:2)             :: CAD     !direct beam absorbed by canopy (w/m2)
+  REAL(rkind), DIMENSION(1:2)             :: CAI     !diffuse radiation absorbed by canopy (w/m2)
 ! ---------------------------------------------------------------------------------------------
    NBAND = 2
 
@@ -1041,26 +1044,26 @@ contains
 ! from BATS
 ! ------------------------ input/output variables --------------------------------------------------
 !input
-   REAL, INTENT(IN) :: DT        !main time step (s)
-   REAL, INTENT(IN) :: TG        !ground temperature (k)
-   REAL, INTENT(IN) :: SNEQVO    !snow mass at last time step(mm)
-   REAL, INTENT(IN) :: SNEQV     !snow water per unit ground area (mm)
+   REAL(rkind), INTENT(IN) :: DT        !main time step (s)
+   REAL(rkind), INTENT(IN) :: TG        !ground temperature (k)
+   REAL(rkind), INTENT(IN) :: SNEQVO    !snow mass at last time step(mm)
+   REAL(rkind), INTENT(IN) :: SNEQV     !snow water per unit ground area (mm)
 
 !output
-   REAL, INTENT(OUT) :: FAGE     !snow age
+   REAL(rkind), INTENT(OUT) :: FAGE     !snow age
 
 !input/output
-   REAL, INTENT(INOUT) :: TAUSS      !non-dimensional snow age
+   REAL(rkind), INTENT(INOUT) :: TAUSS      !non-dimensional snow age
 !local
-   REAL            :: TAGE       !total aging effects
-   REAL            :: AGE1       !effects of grain growth due to vapor diffusion
-   REAL            :: AGE2       !effects of grain growth at freezing of melt water
-   REAL            :: AGE3       !effects of soot
-   REAL            :: DELA       !temporary variable
-   REAL            :: SGE        !temporary variable
-   REAL            :: DELS       !temporary variable
-   REAL            :: DELA0      !temporary variable
-   REAL            :: ARG        !temporary variable
+   REAL(rkind)            :: TAGE       !total aging effects
+   REAL(rkind)            :: AGE1       !effects of grain growth due to vapor diffusion
+   REAL(rkind)            :: AGE2       !effects of grain growth at freezing of melt water
+   REAL(rkind)            :: AGE3       !effects of soot
+   REAL(rkind)            :: DELA       !temporary variable
+   REAL(rkind)            :: SGE        !temporary variable
+   REAL(rkind)            :: DELS       !temporary variable
+   REAL(rkind)            :: DELA0      !temporary variable
+   REAL(rkind)            :: ARG        !temporary variable
 ! See Yang et al. (1997) J.of Climate for detail.
 !---------------------------------------------------------------------------------------------------
 
@@ -1095,28 +1098,28 @@ contains
 
   INTEGER,INTENT(IN) :: NBAND  !number of waveband classes
 
-  REAL,INTENT(IN) :: COSZ    !cosine solar zenith angle
-  REAL,INTENT(IN) :: FSNO    !snow cover fraction (-)
-  REAL,INTENT(IN) :: FAGE    !snow age correction
+  REAL(rkind),INTENT(IN) :: COSZ    !cosine solar zenith angle
+  REAL(rkind),INTENT(IN) :: FSNO    !snow cover fraction (-)
+  REAL(rkind),INTENT(IN) :: FAGE    !snow age correction
 
 ! output
 
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
+  REAL(rkind), DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
+  REAL(rkind), DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
   INTEGER :: IB          !waveband class
 
-  REAL :: FZEN                 !zenith angle correction
-  REAL :: CF1                  !temperary variable
-  REAL :: SL2                  !2.*SL
-  REAL :: SL1                  !1/SL
-  REAL :: SL                   !adjustable parameter
-  REAL, PARAMETER :: C1 = 0.2  !default in BATS
-  REAL, PARAMETER :: C2 = 0.5  !default in BATS
-!  REAL, PARAMETER :: C1 = 0.2 * 2. ! double the default to match Sleepers River's
-!  REAL, PARAMETER :: C2 = 0.5 * 2. ! snow surface albedo (double aging effects)
+  REAL(rkind) :: FZEN                 !zenith angle correction
+  REAL(rkind) :: CF1                  !temperary variable
+  REAL(rkind) :: SL2                  !2.*SL
+  REAL(rkind) :: SL1                  !1/SL
+  REAL(rkind) :: SL                   !adjustable parameter
+  REAL(rkind), PARAMETER :: C1 = 0.2  !default in BATS
+  REAL(rkind), PARAMETER :: C2 = 0.5  !default in BATS
+!  REAL(rkind), PARAMETER :: C1 = 0.2 * 2. ! double the default to match Sleepers River's
+!  REAL(rkind), PARAMETER :: C2 = 0.5 * 2. ! snow surface albedo (double aging effects)
 ! ---------------------------------------------------------------------------------------------
 ! zero albedos for all points
 
@@ -1150,17 +1153,17 @@ contains
   INTEGER,INTENT(IN) :: JLOC !grid index
   INTEGER,INTENT(IN) :: NBAND  !number of waveband classes
 
-  REAL,INTENT(IN) :: QSNOW     !snowfall (mm/s)
-  REAL,INTENT(IN) :: DT        !time step (sec)
-  REAL,INTENT(IN) :: ALBOLD    !snow albedo at last time step
+  REAL(rkind),INTENT(IN) :: QSNOW     !snowfall (mm/s)
+  REAL(rkind),INTENT(IN) :: DT        !time step (sec)
+  REAL(rkind),INTENT(IN) :: ALBOLD    !snow albedo at last time step
 
 ! in & out
 
-  REAL,                INTENT(INOUT) :: ALB        !
+  REAL(rkind),                INTENT(INOUT) :: ALB        !
 ! output
 
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
-  REAL, DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
+  REAL(rkind), DIMENSION(1:2),INTENT(OUT) :: ALBSND !snow albedo for direct(1=vis, 2=nir)
+  REAL(rkind), DIMENSION(1:2),INTENT(OUT) :: ALBSNI !snow albedo for diffuse
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
@@ -1210,24 +1213,24 @@ contains
   INTEGER,                  INTENT(IN)  :: ICE    !value of ist for land ice
   INTEGER,                  INTENT(IN)  :: IST    !surface type
   INTEGER,                  INTENT(IN)  :: ISC    !soil color class (1-lighest; 8-darkest)
-  REAL,                     INTENT(IN)  :: FSNO   !fraction of surface covered with snow (-)
-  REAL,                     INTENT(IN)  :: TG     !ground temperature (k)
-  REAL,                     INTENT(IN)  :: COSZ   !cosine solar zenith angle (0-1)
-  REAL, DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water content (m3/m3)
-  REAL, DIMENSION(1:    2), INTENT(IN)  :: ALBSND !direct beam snow albedo (vis, nir)
-  REAL, DIMENSION(1:    2), INTENT(IN)  :: ALBSNI !diffuse snow albedo (vis, nir)
+  REAL(rkind),                     INTENT(IN)  :: FSNO   !fraction of surface covered with snow (-)
+  REAL(rkind),                     INTENT(IN)  :: TG     !ground temperature (k)
+  REAL(rkind),                     INTENT(IN)  :: COSZ   !cosine solar zenith angle (0-1)
+  REAL(rkind), DIMENSION(1:NSOIL), INTENT(IN)  :: SMC    !volumetric soil water content (m3/m3)
+  REAL(rkind), DIMENSION(1:    2), INTENT(IN)  :: ALBSND !direct beam snow albedo (vis, nir)
+  REAL(rkind), DIMENSION(1:    2), INTENT(IN)  :: ALBSNI !diffuse snow albedo (vis, nir)
 
 !output
 
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct beam: vis, nir)
-  REAL, DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse: vis, nir)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: ALBGRD !ground albedo (direct beam: vis, nir)
+  REAL(rkind), DIMENSION(1:    2), INTENT(OUT) :: ALBGRI !ground albedo (diffuse: vis, nir)
 
 !local
 
   INTEGER                               :: IB     !waveband number (1=vis, 2=nir)
-  REAL                                  :: INC    !soil water correction factor for soil albedo
-  REAL                                  :: ALBSOD !soil albedo (direct)
-  REAL                                  :: ALBSOI !soil albedo (diffuse)
+  REAL(rkind)                                  :: INC    !soil water correction factor for soil albedo
+  REAL(rkind)                                  :: ALBSOD !soil albedo (direct)
+  REAL(rkind)                                  :: ALBSOI !soil albedo (diffuse)
 ! --------------------------------------------------------------------------------------------------
 
   DO IB = 1, NBAND
@@ -1284,68 +1287,68 @@ contains
    INTEGER,              INTENT(IN)  :: IC      !0=unit incoming direct; 1=unit incoming diffuse
    INTEGER,              INTENT(IN)  :: VEGTYP  !vegetation type
 
-   REAL,                 INTENT(IN)  :: COSZ    !cosine of direct zenith angle (0-1)
-   REAL,                 INTENT(IN)  :: VAI     !one-sided leaf+stem area index (m2/m2)
-   REAL,                 INTENT(IN)  :: FWET    !fraction of lai, sai that is wetted (-)
-   REAL,                 INTENT(IN)  :: T       !surface temperature (k)
+   REAL(rkind),                 INTENT(IN)  :: COSZ    !cosine of direct zenith angle (0-1)
+   REAL(rkind),                 INTENT(IN)  :: VAI     !one-sided leaf+stem area index (m2/m2)
+   REAL(rkind),                 INTENT(IN)  :: FWET    !fraction of lai, sai that is wetted (-)
+   REAL(rkind),                 INTENT(IN)  :: T       !surface temperature (k)
 
-   REAL, DIMENSION(1:2), INTENT(IN)  :: ALBGRD  !direct  albedo of underlying surface (-)
-   REAL, DIMENSION(1:2), INTENT(IN)  :: ALBGRI  !diffuse albedo of underlying surface (-)
-   REAL, DIMENSION(1:2), INTENT(IN)  :: RHO     !leaf+stem reflectance
-   REAL, DIMENSION(1:2), INTENT(IN)  :: TAU     !leaf+stem transmittance
-   REAL,                 INTENT(IN)  :: FVEG    !green vegetation fraction [0.0-1.0]
+   REAL(rkind), DIMENSION(1:2), INTENT(IN)  :: ALBGRD  !direct  albedo of underlying surface (-)
+   REAL(rkind), DIMENSION(1:2), INTENT(IN)  :: ALBGRI  !diffuse albedo of underlying surface (-)
+   REAL(rkind), DIMENSION(1:2), INTENT(IN)  :: RHO     !leaf+stem reflectance
+   REAL(rkind), DIMENSION(1:2), INTENT(IN)  :: TAU     !leaf+stem transmittance
+   REAL(rkind),                 INTENT(IN)  :: FVEG    !green vegetation fraction [0.0-1.0]
 
 ! output
 
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FAB     !flux abs by veg layer (per unit incoming flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FRE     !flux refl above veg layer (per unit incoming flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FTD     !down dir flux below veg layer (per unit in flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FTI     !down dif flux below veg layer (per unit in flux)
-   REAL,                 INTENT(OUT) :: GDIR    !projected leaf+stem area in solar direction
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FREV    !flux reflected by veg layer   (per unit incoming flux)
-   REAL, DIMENSION(1:2), INTENT(OUT) :: FREG    !flux reflected by ground (per unit incoming flux)
+   REAL(rkind), DIMENSION(1:2), INTENT(OUT) :: FAB     !flux abs by veg layer (per unit incoming flux)
+   REAL(rkind), DIMENSION(1:2), INTENT(OUT) :: FRE     !flux refl above veg layer (per unit incoming flux)
+   REAL(rkind), DIMENSION(1:2), INTENT(OUT) :: FTD     !down dir flux below veg layer (per unit in flux)
+   REAL(rkind), DIMENSION(1:2), INTENT(OUT) :: FTI     !down dif flux below veg layer (per unit in flux)
+   REAL(rkind),                 INTENT(OUT) :: GDIR    !projected leaf+stem area in solar direction
+   REAL(rkind), DIMENSION(1:2), INTENT(OUT) :: FREV    !flux reflected by veg layer   (per unit incoming flux)
+   REAL(rkind), DIMENSION(1:2), INTENT(OUT) :: FREG    !flux reflected by ground (per unit incoming flux)
 
 ! local
-   REAL                              :: OMEGA   !fraction of intercepted radiation that is scattered
-   REAL                              :: OMEGAL  !omega for leaves
-   REAL                              :: BETAI   !upscatter parameter for diffuse radiation
-   REAL                              :: BETAIL  !betai for leaves
-   REAL                              :: BETAD   !upscatter parameter for direct beam radiation
-   REAL                              :: BETADL  !betad for leaves
-   REAL                              :: EXT     !optical depth of direct beam per unit leaf area
-   REAL                              :: AVMU    !average diffuse optical depth
+   REAL(rkind)                              :: OMEGA   !fraction of intercepted radiation that is scattered
+   REAL(rkind)                              :: OMEGAL  !omega for leaves
+   REAL(rkind)                              :: BETAI   !upscatter parameter for diffuse radiation
+   REAL(rkind)                              :: BETAIL  !betai for leaves
+   REAL(rkind)                              :: BETAD   !upscatter parameter for direct beam radiation
+   REAL(rkind)                              :: BETADL  !betad for leaves
+   REAL(rkind)                              :: EXT     !optical depth of direct beam per unit leaf area
+   REAL(rkind)                              :: AVMU    !average diffuse optical depth
 
-   REAL                              :: COSZI   !0.001 <= cosz <= 1.000
-   REAL                              :: ASU     !single scattering albedo
-   REAL                              :: CHIL    ! -0.4 <= xl <= 0.6
+   REAL(rkind)                              :: COSZI   !0.001 <= cosz <= 1.000
+   REAL(rkind)                              :: ASU     !single scattering albedo
+   REAL(rkind)                              :: CHIL    ! -0.4 <= xl <= 0.6
 
-   REAL                              :: TMP0,TMP1,TMP2,TMP3,TMP4,TMP5,TMP6,TMP7,TMP8,TMP9
-   REAL                              :: P1,P2,P3,P4,S1,S2,U1,U2,U3
-   REAL                              :: B,C,D,D1,D2,F,H,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10
-   REAL                              :: PHI1,PHI2,SIGMA
-   REAL                              :: FTDS,FTIS,FRES
-   REAL                              :: DENFVEG
-   REAL                              :: VAI_SPREAD
+   REAL(rkind)                              :: TMP0,TMP1,TMP2,TMP3,TMP4,TMP5,TMP6,TMP7,TMP8,TMP9
+   REAL(rkind)                              :: P1,P2,P3,P4,S1,S2,U1,U2,U3
+   REAL(rkind)                              :: B,C,D,D1,D2,F,H,H1,H2,H3,H4,H5,H6,H7,H8,H9,H10
+   REAL(rkind)                              :: PHI1,PHI2,SIGMA
+   REAL(rkind)                              :: FTDS,FTIS,FRES
+   REAL(rkind)                              :: DENFVEG
+   REAL(rkind)                              :: VAI_SPREAD
 !jref:start
-   REAL                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
-   REAL                              :: THETAZ
+   REAL(rkind)                              :: FREVEG,FREBAR,FTDVEG,FTIVEG,FTDBAR,FTIBAR
+   REAL(rkind)                              :: THETAZ
 !jref:end
 
 !  variables for the modified two-stream scheme
 !  Niu and Yang (2004), JGR
 
-   REAL, PARAMETER :: PAI = 3.14159265
-   REAL :: HD       !crown depth (m)
-   REAL :: BB       !vertical crown radius (m)
-   REAL :: THETAP   !angle conversion from SZA
-   REAL :: FA       !foliage volume density (m-1)
-   REAL :: NEWVAI   !effective LSAI (-)
+   REAL(rkind), PARAMETER :: PAI = 3.14159265
+   REAL(rkind) :: HD       !crown depth (m)
+   REAL(rkind) :: BB       !vertical crown radius (m)
+   REAL(rkind) :: THETAP   !angle conversion from SZA
+   REAL(rkind) :: FA       !foliage volume density (m-1)
+   REAL(rkind) :: NEWVAI   !effective LSAI (-)
 
-   REAL,INTENT(INOUT) :: BGAP     !between canopy gap fraction for beam (-)
-   REAL,INTENT(INOUT) :: WGAP     !within canopy gap fraction for beam (-)
+   REAL(rkind),INTENT(INOUT) :: BGAP     !between canopy gap fraction for beam (-)
+   REAL(rkind),INTENT(INOUT) :: WGAP     !within canopy gap fraction for beam (-)
 
-   REAL :: KOPEN    !gap fraction for diffue light (-)
-   REAL :: GAP      !total gap fraction for beam ( <=1-shafac )
+   REAL(rkind) :: KOPEN    !gap fraction for diffue light (-)
+   REAL(rkind) :: GAP      !total gap fraction for beam ( <=1-shafac )
 
 ! -----------------------------------------------------------------
 ! compute within and between gaps
@@ -1429,7 +1432,7 @@ contains
      TMP1 = B*B - C*C
      H = SQRT(TMP1) / AVMU
      SIGMA = TMP0*TMP0 - TMP1
-     if ( ABS (SIGMA) < 1.e-6 ) SIGMA = SIGN(1.e-6,SIGMA)
+     if ( ABS (SIGMA) < 1.e-6 ) SIGMA = SIGN(1.e-6,REAL(SIGMA))
      P1 = B + AVMU*H
      P2 = B - AVMU*H
      P3 = B + TMP0
@@ -1524,27 +1527,27 @@ contains
       INTEGER,INTENT(IN)  :: JLOC   !grid index
       INTEGER,INTENT(IN)  :: VEGTYP !vegetation physiology type
 
-      REAL, INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
-      REAL, INTENT(IN)    :: MPE    !prevents division by zero errors
+      REAL(rkind), INTENT(IN)    :: IGS    !growing season index (0=off, 1=on)
+      REAL(rkind), INTENT(IN)    :: MPE    !prevents division by zero errors
 
-      REAL, INTENT(IN)    :: TV     !foliage temperature (k)
-      REAL, INTENT(IN)    :: EI     !vapor pressure inside leaf (sat vapor press at tv) (pa)
-      REAL, INTENT(IN)    :: EA     !vapor pressure of canopy air (pa)
-      REAL, INTENT(IN)    :: APAR   !par absorbed per unit lai (w/m2)
-      REAL, INTENT(IN)    :: O2     !atmospheric o2 concentration (pa)
-      REAL, INTENT(IN)    :: CO2    !atmospheric co2 concentration (pa)
-      REAL, INTENT(IN)    :: SFCPRS !air pressure at reference height (pa)
-      REAL, INTENT(IN)    :: SFCTMP !air temperature at reference height (k)
-      REAL, INTENT(IN)    :: BTRAN  !soil water transpiration factor (0 to 1)
-      REAL, INTENT(IN)    :: FOLN   !foliage nitrogen concentration (%)
-      REAL, INTENT(IN)    :: RB     !boundary layer resistance (s/m)
+      REAL(rkind), INTENT(IN)    :: TV     !foliage temperature (k)
+      REAL(rkind), INTENT(IN)    :: EI     !vapor pressure inside leaf (sat vapor press at tv) (pa)
+      REAL(rkind), INTENT(IN)    :: EA     !vapor pressure of canopy air (pa)
+      REAL(rkind), INTENT(IN)    :: APAR   !par absorbed per unit lai (w/m2)
+      REAL(rkind), INTENT(IN)    :: O2     !atmospheric o2 concentration (pa)
+      REAL(rkind), INTENT(IN)    :: CO2    !atmospheric co2 concentration (pa)
+      REAL(rkind), INTENT(IN)    :: SFCPRS !air pressure at reference height (pa)
+      REAL(rkind), INTENT(IN)    :: SFCTMP !air temperature at reference height (k)
+      REAL(rkind), INTENT(IN)    :: BTRAN  !soil water transpiration factor (0 to 1)
+      REAL(rkind), INTENT(IN)    :: FOLN   !foliage nitrogen concentration (%)
+      REAL(rkind), INTENT(IN)    :: RB     !boundary layer resistance (s/m)
 
 ! output
-      REAL, INTENT(OUT)   :: RS     !leaf stomatal resistance (s/m)
-      REAL, INTENT(OUT)   :: PSN    !foliage photosynthesis (umol co2 /m2/ s) [always +]
+      REAL(rkind), INTENT(OUT)   :: RS     !leaf stomatal resistance (s/m)
+      REAL(rkind), INTENT(OUT)   :: PSN    !foliage photosynthesis (umol co2 /m2/ s) [always +]
 
 ! in&out
-      REAL                :: RLB    !boundary layer resistance (s m2 / umol)
+      REAL(rkind)                :: RLB    !boundary layer resistance (s m2 / umol)
 ! ---------------------------------------------------------------------------------------------
 
 ! ------------------------ local variables ----------------------------------------------------
@@ -1554,32 +1557,32 @@ contains
       DATA NITER /3/
       SAVE NITER
 
-      REAL :: AB          !used in statement functions
-      REAL :: BC          !used in statement functions
-      REAL :: F1          !generic temperature response (statement function)
-      REAL :: F2          !generic temperature inhibition (statement function)
-      REAL :: TC          !foliage temperature (degree Celsius)
-      REAL :: CS          !co2 concentration at leaf surface (pa)
-      REAL :: KC          !co2 Michaelis-Menten constant (pa)
-      REAL :: KO          !o2 Michaelis-Menten constant (pa)
-      REAL :: A,B,C,Q     !intermediate calculations for RS
-      REAL :: R1,R2       !roots for RS
-      REAL :: FNF         !foliage nitrogen adjustment factor (0 to 1)
-      REAL :: PPF         !absorb photosynthetic photon flux (umol photons/m2/s)
-      REAL :: WC          !Rubisco limited photosynthesis (umol co2/m2/s)
-      REAL :: WJ          !light limited photosynthesis (umol co2/m2/s)
-      REAL :: WE          !export limited photosynthesis (umol co2/m2/s)
-      REAL :: CP          !co2 compensation point (pa)
-      REAL :: CI          !internal co2 (pa)
-      REAL :: AWC         !intermediate calculation for wc
-      REAL :: VCMX        !maximum rate of carbonylation (umol co2/m2/s)
-      REAL :: J           !electron transport (umol co2/m2/s)
-      REAL :: CEA         !constrain ea or else model blows up
-      REAL :: CF          !s m2/umol -> s/m
+      REAL(rkind) :: AB          !used in statement functions
+      REAL(rkind) :: BC          !used in statement functions
+      REAL(rkind) :: F1          !generic temperature response (statement function)
+      REAL(rkind) :: F2          !generic temperature inhibition (statement function)
+      REAL(rkind) :: TC          !foliage temperature (degree Celsius)
+      REAL(rkind) :: CS          !co2 concentration at leaf surface (pa)
+      REAL(rkind) :: KC          !co2 Michaelis-Menten constant (pa)
+      REAL(rkind) :: KO          !o2 Michaelis-Menten constant (pa)
+      REAL(rkind) :: A,B,C,Q     !intermediate calculations for RS
+      REAL(rkind) :: R1,R2       !roots for RS
+      REAL(rkind) :: FNF         !foliage nitrogen adjustment factor (0 to 1)
+      REAL(rkind) :: PPF         !absorb photosynthetic photon flux (umol photons/m2/s)
+      REAL(rkind) :: WC          !Rubisco limited photosynthesis (umol co2/m2/s)
+      REAL(rkind) :: WJ          !light limited photosynthesis (umol co2/m2/s)
+      REAL(rkind) :: WE          !export limited photosynthesis (umol co2/m2/s)
+      REAL(rkind) :: CP          !co2 compensation point (pa)
+      REAL(rkind) :: CI          !internal co2 (pa)
+      REAL(rkind) :: AWC         !intermediate calculation for wc
+      REAL(rkind) :: VCMX        !maximum rate of carbonylation (umol co2/m2/s)
+      REAL(rkind) :: J           !electron transport (umol co2/m2/s)
+      REAL(rkind) :: CEA         !constrain ea or else model blows up
+      REAL(rkind) :: CF          !s m2/umol -> s/m
 
       F1(AB,BC) = AB**((BC-25.)/10.)
       F2(AB) = 1. + EXP((-2.2E05+710.*(AB+273.16))/(8.314*(AB+273.16)))
-      REAL :: T
+      REAL(rkind) :: T
 ! ---------------------------------------------------------------------------------------------
 
 ! MPC change
@@ -1686,26 +1689,26 @@ contains
 
     INTEGER,                  INTENT(IN)  :: ILOC   !grid index
     INTEGER,                  INTENT(IN)  :: JLOC   !grid index
-    REAL,                     INTENT(IN)  :: PAR    !par absorbed per unit sunlit lai (w/m2)
-    REAL,                     INTENT(IN)  :: SFCTMP !canopy air temperature
-    REAL,                     INTENT(IN)  :: SFCPRS !surface pressure (pa)
-    REAL,                     INTENT(IN)  :: EAH    !water vapor pressure (pa)
-    REAL,                     INTENT(IN)  :: RCSOIL !soil moisture stress factor
+    REAL(rkind),                     INTENT(IN)  :: PAR    !par absorbed per unit sunlit lai (w/m2)
+    REAL(rkind),                     INTENT(IN)  :: SFCTMP !canopy air temperature
+    REAL(rkind),                     INTENT(IN)  :: SFCPRS !surface pressure (pa)
+    REAL(rkind),                     INTENT(IN)  :: EAH    !water vapor pressure (pa)
+    REAL(rkind),                     INTENT(IN)  :: RCSOIL !soil moisture stress factor
 
 !outputs
 
-    REAL,                     INTENT(OUT) :: RC     !canopy resistance per unit LAI
-    REAL,                     INTENT(OUT) :: PSN    !foliage photosynthesis (umolco2/m2/s)
+    REAL(rkind),                     INTENT(OUT) :: RC     !canopy resistance per unit LAI
+    REAL(rkind),                     INTENT(OUT) :: PSN    !foliage photosynthesis (umolco2/m2/s)
 
 !local
 
-    REAL                                  :: RCQ
-    REAL                                  :: RCS
-    REAL                                  :: RCT
-    REAL                                  :: FF
-    REAL                                  :: Q2     !water vapor mixing ratio (kg/kg)
-    REAL                                  :: Q2SAT  !saturation Q2
-    REAL                                  :: DQSDT2 !d(Q2SAT)/d(T)
+    REAL(rkind)                                  :: RCQ
+    REAL(rkind)                                  :: RCS
+    REAL(rkind)                                  :: RCT
+    REAL(rkind)                                  :: FF
+    REAL(rkind)                                  :: Q2     !water vapor mixing ratio (kg/kg)
+    REAL(rkind)                                  :: Q2SAT  !saturation Q2
+    REAL(rkind)                                  :: DQSDT2 !d(Q2SAT)/d(T)
 
 ! RSMIN, RSMAX, TOPT, RGL, HS are canopy stress parameters set in REDPRM
 ! ----------------------------------------------------------------------
@@ -1748,12 +1751,12 @@ contains
 ! ==================================================================================================
   SUBROUTINE CALHUM(SFCTMP, SFCPRS, Q2SAT, DQSDT2)
         IMPLICIT NONE
-        REAL, INTENT(IN)       :: SFCTMP, SFCPRS
-        REAL, INTENT(OUT)      :: Q2SAT, DQSDT2
-        REAL, PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,         &
+        REAL(rkind), INTENT(IN)       :: SFCTMP, SFCPRS
+        REAL(rkind), INTENT(OUT)      :: Q2SAT, DQSDT2
+        REAL(rkind), PARAMETER        :: A2=17.67,A3=273.15,A4=29.65, ELWV=2.501E6,         &
                                   A23M4=A2*(A3-A4), E0=0.611, RV=461.0,             &
                                   EPSILON=0.622
-        REAL                   :: ES, SFCPRSX
+        REAL(rkind)                   :: ES, SFCPRSX
 ! Q2SAT: saturated mixing ratio
         ES = E0 * EXP ( ELWV/RV*(1./A3 - 1./SFCTMP) )
 ! convert SFCPRS from Pa to KPa
@@ -1823,13 +1826,13 @@ contains
 ! General parameters
     INTEGER, INTENT(IN)    :: NSOIL
 ! Layer parameters
-    REAL,DIMENSION(NSOIL),INTENT(IN) :: ZSOIL
+    REAL(rkind),DIMENSION(NSOIL),INTENT(IN) :: ZSOIL
 
 ! Locals
-    REAL    :: REFDK
-    REAL    :: REFKDT
-    REAL    :: FRZK
-    REAL                   :: FRZFACT
+    REAL(rkind)    :: REFDK
+    REAL(rkind)    :: REFKDT
+    REAL(rkind)    :: FRZK
+    REAL(rkind)                   :: FRZFACT
     INTEGER                :: I
     CHARACTER(len=256)     :: message
 ! ----------------------------------------------------------------------
@@ -1962,6 +1965,7 @@ END MODULE NOAHMP_ROUTINES
 ! ==================================================================================================
 
 MODULE MODULE_SF_NOAHMPLSM
+    use nrtype
 
   USE NOAHMP_ROUTINES
   USE NOAHMP_GLOBALS
