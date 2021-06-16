@@ -157,7 +157,7 @@ contains
  ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
  if(computeVegFlux)then
    delT = scalarCanopyTempTrial - scalarCanopyTempPrev
-   if(abs(delT) <= 1e-14_dp)then   
+   if(abs(delT) <= 1e-14_rkind)then   
 	  heatCapVeg =  specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
                     Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
                     Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
@@ -170,20 +170,20 @@ contains
  ! loop through layers
  do iLayer=1,nLayers
    delT = mLayerTempTrial(iLayer) - mLayerTempPrev(iLayer)
-   if(abs(delT) <= 1e-14_dp)then
+   if(abs(delT) <= 1e-14_rkind)then
       ! get the soil layer
       if(iLayer>nSnow) iSoil = iLayer-nSnow
          select case(layerType(iLayer))
             ! * soil
             case(iname_soil)
-                  mLayerHeatCap(iLayer) =  iden_soil(iSoil)  * Cp_soil  * ( 1._dp - theta_sat(iSoil) ) + & ! soil component
+                  mLayerHeatCap(iLayer) =  iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
                                            iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                            iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                            iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
             case(iname_snow)
                   mLayerHeatCap(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                           iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
-                                          iden_air   * Cp_air   * ( 1._dp - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
+                                          iden_air   * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
             case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
          end select
    else
@@ -264,8 +264,8 @@ contains
 
  where(ixStateType_subset==iname_nrgCanair) sMul = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
  where(ixStateType_subset==iname_nrgCanopy) sMul = heatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
- where(ixStateType_subset==iname_watCanopy) sMul = 1._dp             ! nothing else on the left hand side
- where(ixStateType_subset==iname_liqCanopy) sMul = 1._dp             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_watCanopy) sMul = 1._rkind             ! nothing else on the left hand side
+ where(ixStateType_subset==iname_liqCanopy) sMul = 1._rkind             ! nothing else on the left hand side
 
 
  ! define the energy multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
@@ -280,12 +280,12 @@ contains
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    ixStateSubset        = ixSnowSoilHyd(iLayer)      ! index within the state vector
-   sMul(ixStateSubset)  = 1._dp                      ! state multiplier = 1 (nothing else on the left-hand-side)
+   sMul(ixStateSubset)  = 1._rkind                      ! state multiplier = 1 (nothing else on the left-hand-side)
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
  ! define the scaling factor and diagonal elements for the aquifer
- where(ixStateType_subset==iname_watAquifer)  sMul = 1._dp
+ where(ixStateType_subset==iname_watAquifer)  sMul = 1._rkind
 
  ! ------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------

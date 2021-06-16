@@ -91,11 +91,11 @@ contains
  logical(lgt),parameter        :: doTest=.false.       ! flag to test
  integer(i4b),parameter        :: nLook=100            ! number of elements in the lookup table
  integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
- real(dp),parameter            :: T_lower=260.0_dp     ! lowest temperature value where all liquid water is assumed frozen (K)
+ real(dp),parameter            :: T_lower=260.0_rkind     ! lowest temperature value where all liquid water is assumed frozen (K)
  real(dp),dimension(nLook)     :: xTemp                ! temporary vector
  real(dp)                      :: xIncr                ! temporary increment
  real(dp)                      :: T_incr               ! temperature increment
- real(dp),parameter            :: T_test=272.9742_dp   ! test value for temperature (K)
+ real(dp),parameter            :: T_test=272.9742_rkind   ! test value for temperature (K)
  real(dp)                      :: E_test               ! test value for enthalpy (J m-3)
  integer(i4b)                  :: iVar                 ! loop through variables
  integer(i4b)                  :: iSoil                ! loop through soil layers
@@ -110,8 +110,8 @@ contains
  err=0; message="T2E_lookup/"
 
  ! get the values of temperature for the lookup table
- xIncr = 1._dp/real(nLook-1, kind(dp))
- xTemp = T_lower + (Tfreeze - T_lower)*arth(0._dp,xIncr,nLook)**0.25_dp ! use **0.25 to give more values near freezing
+ xIncr = 1._rkind/real(nLook-1, kind(dp))
+ xTemp = T_lower + (Tfreeze - T_lower)*arth(0._rkind,xIncr,nLook)**0.25_rkind ! use **0.25 to give more values near freezing
 
  ! -----
  ! * allocate space for the lookup table...
@@ -165,7 +165,7 @@ contains
   ) ! end associate statement
 
   ! compute vGn_m
-  vGn_m = 1._dp - 1._dp/vGn_n
+  vGn_m = 1._rkind - 1._rkind/vGn_n
 
   ! -----
   ! * populate the lookup table...
@@ -173,7 +173,7 @@ contains
 
   ! initialize temperature and enthalpy
   Tk(nLook) = Tfreeze
-  Ey(nLook) = 0._dp
+  Ey(nLook) = 0._rkind
 
   ! loop through lookup table
   do iLook=(nLook-1),1,-1
@@ -207,7 +207,7 @@ contains
   end do  ! loop through lookup table
 
   ! use cubic spline interpolation to obtain enthalpy values at the desired values of temperature
-  call spline(Tk,Ey,1.e30_dp,1.e30_dp,E2,err,cmessage)  ! get the second derivatives
+  call spline(Tk,Ey,1.e30_rkind,1.e30_rkind,E2,err,cmessage)  ! get the second derivatives
   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
   ! check
@@ -392,12 +392,12 @@ contains
 
       diffT = scalarCanopyTempTrial - Tfreeze
       enthVeg = specificHeatVeg * maxMassVegetation * diffT / canopyDepth
-      if(diffT>=0._dp)then
+      if(diffT>=0._rkind)then
          enthLiq = Cp_water * scalarCanopyWatTrial * diffT / canopyDepth
-         enthIce = 0._dp
-         enthPhase = 0._dp
+         enthIce = 0._rkind
+         enthPhase = 0._rkind
       else
-         integral = (1._dp/snowfrz_scale) * atan(snowfrz_scale * diffT)
+         integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
          enthLiq = Cp_water * scalarCanopyWatTrial * integral / canopyDepth
          enthIce = Cp_ice * scalarCanopyWatTrial * ( diffT - integral ) / canopyDepth
          enthPhase = LH_fus * scalarCanopyIceTrial / canopyDepth
@@ -419,13 +419,13 @@ contains
       ) 
 
       diffT = mLayerTempTrial(iLayer) - Tfreeze
-      if(diffT>=0._dp)then
+      if(diffT>=0._rkind)then
          enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * diffT
-         enthIce = 0._dp
-         enthAir = iden_air * Cp_air * ( 1._dp - mLayerVolFracWatTrial(iLayer) ) * diffT
-         enthPhase = 0._dp
+         enthIce = 0._rkind
+         enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWatTrial(iLayer) ) * diffT
+         enthPhase = 0._rkind
       else
-         integral = (1._dp/snowfrz_scale) * atan(snowfrz_scale * diffT)
+         integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
          enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * integral
          enthIce = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( diffT - integral )
          enthAir = iden_air * Cp_air * ( diffT - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(diffT-integral) + integral ) ) 
@@ -460,7 +460,7 @@ contains
      ) ! end associate statement
 
      ! diagnostic variables
-     vGn_m    = 1._dp - 1._dp/vGn_n
+     vGn_m    = 1._rkind - 1._rkind/vGn_n
      Tcrit    = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
      vFracWat = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      
@@ -468,7 +468,7 @@ contains
      ! *** compute enthalpy of water for unfrozen conditions
      if(mlayerTempTrial(iLayer) > Tcrit)then
       enthWater = iden_water*Cp_water*vFracWat*(mlayerTempTrial(iLayer) - Tfreeze) ! valid for temperatures below freezing also
-      enthPhase = 0._dp
+      enthPhase = 0._rkind
 
      ! *** compute enthalpy of water for frozen conditions
      else
@@ -494,10 +494,10 @@ contains
      endif ! (if frozen conditions)
 
      ! *** compute the enthalpy of soil
-     enthSoil  = soil_dens_intr*Cp_soil*(1._dp - theta_sat)*(mlayerTempTrial(iLayer) - Tfreeze)
+     enthSoil  = soil_dens_intr*Cp_soil*(1._rkind - theta_sat)*(mlayerTempTrial(iLayer) - Tfreeze)
 
      ! *** compute the enthalpy of air
-     enthAir   = iden_air*Cp_air*(1._dp - theta_sat - vFracWat)*(mlayerTempTrial(iLayer) - Tfreeze)
+     enthAir   = iden_air*Cp_air*(1._rkind - theta_sat - vFracWat)*(mlayerTempTrial(iLayer) - Tfreeze)
 
      ! *** compute the total enthalpy (J m-3)
      mLayerEnthalpy(iLayer) = enthSoil + enthWater + enthAir - enthPhase
@@ -671,12 +671,12 @@ contains
 
       diffT = scalarCanopyTempTrial - Tfreeze
       enthVeg = specificHeatVeg * maxMassVegetation * diffT / canopyDepth
-      if(diffT>=0._dp)then
+      if(diffT>=0._rkind)then
          enthLiq = Cp_water * scalarCanopyWatTrial * diffT / canopyDepth
-         enthIce = 0._dp
-         enthPhase = 0._dp
+         enthIce = 0._rkind
+         enthPhase = 0._rkind
       else
-         integral = (1._dp/snowfrz_scale) * atan(snowfrz_scale * diffT)
+         integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
          enthLiq = Cp_water * scalarCanopyWatTrial * integral / canopyDepth
          enthIce = Cp_ice * scalarCanopyWatTrial * ( diffT - integral ) / canopyDepth
          enthPhase = LH_fus * scalarCanopyIceTrial / canopyDepth
@@ -698,13 +698,13 @@ contains
       ) 
 
       diffT = mLayerTempTrial(iLayer) - Tfreeze
-      if(diffT>=0._dp)then
+      if(diffT>=0._rkind)then
          enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * diffT
-         enthIce = 0._dp
-         enthAir = iden_air * Cp_air * ( 1._dp - mLayerVolFracWatTrial(iLayer) ) * diffT
-         enthPhase = 0._dp
+         enthIce = 0._rkind
+         enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWatTrial(iLayer) ) * diffT
+         enthPhase = 0._rkind
       else
-         integral = (1._dp/snowfrz_scale) * atan(snowfrz_scale * diffT)
+         integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
          enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * integral
          enthIce = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( diffT - integral )
          enthAir = iden_air * Cp_air * ( diffT - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(diffT-integral) + integral ) ) 
@@ -739,7 +739,7 @@ contains
      ) ! end associate statement
 
      ! diagnostic variables
-     vGn_m    = 1._dp - 1._dp/vGn_n
+     vGn_m    = 1._rkind - 1._rkind/vGn_n
      Tcrit    = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
      vFracWat = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
      
@@ -747,7 +747,7 @@ contains
      ! *** compute enthalpy of water for unfrozen conditions
      if(mlayerTempTrial(iLayer) > Tcrit)then
       enthWater = iden_water*Cp_water*vFracWat*(mlayerTempTrial(iLayer) - Tfreeze) ! valid for temperatures below freezing also
-      enthPhase = 0._dp
+      enthPhase = 0._rkind
 
      ! *** compute enthalpy of water for frozen conditions
      else
@@ -773,10 +773,10 @@ contains
      endif ! (if frozen conditions)
 
      ! *** compute the enthalpy of soil
-     enthSoil  = soil_dens_intr*Cp_soil*(1._dp - theta_sat)*(mlayerTempTrial(iLayer) - Tfreeze)
+     enthSoil  = soil_dens_intr*Cp_soil*(1._rkind - theta_sat)*(mlayerTempTrial(iLayer) - Tfreeze)
 
      ! *** compute the enthalpy of air
-     enthAir   = iden_air*Cp_air*(1._dp - theta_sat - vFracWat)*(mlayerTempTrial(iLayer) - Tfreeze)
+     enthAir   = iden_air*Cp_air*(1._rkind - theta_sat - vFracWat)*(mlayerTempTrial(iLayer) - Tfreeze)
 
      ! *** compute the total enthalpy (J m-3)
      mLayerEnthalpy(iLayer) = enthSoil + enthWater + enthAir
