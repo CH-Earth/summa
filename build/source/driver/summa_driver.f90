@@ -53,7 +53,6 @@ integer(i4b)                       :: modelTimeStep              ! index of mode
 ! error control
 integer(i4b)                       :: err=0                      ! error code
 character(len=1024)                :: message=''                 ! error message
-integer(i4b) :: iStep
 
 ! *****************************************************************************
 ! * preliminaries
@@ -82,14 +81,12 @@ call handle_err(err, message)
 ! *****************************************************************************
 ! * model simulation
 ! *****************************************************************************
-iStep = 1
 ! loop through time
 do modelTimeStep=1,numtim
 
  ! read model forcing data
  call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
- print *, 'step ---> ', iStep
  ! run the summa physics for one time step
  call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
@@ -97,7 +94,6 @@ do modelTimeStep=1,numtim
  ! write the model output
  call summa_writeOutputFiles(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
- iStep = iStep + 1
 end do  ! looping through time
 
 ! successful end

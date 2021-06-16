@@ -230,9 +230,9 @@ contains
  real(rkind),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
  real(rkind),dimension(nState)      :: rVecScaled                ! scaled residual vector
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
- real(dp)			                   :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
- real(dp)                        :: mLayerEnthalpyTrial(nLayers) ! enthalpy of snow+soil layer (J m-3)
- real(dp),dimension(nLayers)     :: mLayerHeatCapTrial        ! heat capacity of each snow+soil layer
+ real(rkind)			                   :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
+ real(rkind)                        :: mLayerEnthalpyTrial(nLayers) ! enthalpy of snow+soil layer (J m-3)
+ real(rkind),dimension(nLayers)     :: mLayerHeatCapTrial        ! heat capacity of each snow+soil layer
  real(qp)                        :: heatCapVegTrial           ! heat capacity of vegetation canopy
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
