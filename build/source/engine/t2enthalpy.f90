@@ -91,26 +91,26 @@ contains
  logical(lgt),parameter        :: doTest=.false.       ! flag to test
  integer(i4b),parameter        :: nLook=100            ! number of elements in the lookup table
  integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
- real(dp),parameter            :: T_lower=260.0_rkind     ! lowest temperature value where all liquid water is assumed frozen (K)
- real(dp),dimension(nLook)     :: xTemp                ! temporary vector
- real(dp)                      :: xIncr                ! temporary increment
- real(dp)                      :: T_incr               ! temperature increment
- real(dp),parameter            :: T_test=272.9742_rkind   ! test value for temperature (K)
- real(dp)                      :: E_test               ! test value for enthalpy (J m-3)
+ real(rkind),parameter            :: T_lower=260.0_rkind     ! lowest temperature value where all liquid water is assumed frozen (K)
+ real(rkind),dimension(nLook)     :: xTemp                ! temporary vector
+ real(rkind)                      :: xIncr                ! temporary increment
+ real(rkind)                      :: T_incr               ! temperature increment
+ real(rkind),parameter            :: T_test=272.9742_rkind   ! test value for temperature (K)
+ real(rkind)                      :: E_test               ! test value for enthalpy (J m-3)
  integer(i4b)                  :: iVar                 ! loop through variables
  integer(i4b)                  :: iSoil                ! loop through soil layers
  integer(i4b)                  :: iLook                ! loop through lookup table
  integer(i4b)                  :: jIntegr8             ! index for numerical integration
  logical(lgt)                  :: check                ! flag to check allocation
- real(dp)                      :: vGn_m                ! van Genuchten "m" parameter (-)
- real(dp)                      :: vFracLiq             ! volumetric fraction of liquid water (-)
- real(dp)                      :: vFracIce             ! volumetric fraction of ice (-)
- real(dp)                      :: matricHead           ! matric head (m)
+ real(rkind)                      :: vGn_m                ! van Genuchten "m" parameter (-)
+ real(rkind)                      :: vFracLiq             ! volumetric fraction of liquid water (-)
+ real(rkind)                      :: vFracIce             ! volumetric fraction of ice (-)
+ real(rkind)                      :: matricHead           ! matric head (m)
  ! initialize error control
  err=0; message="T2E_lookup/"
 
  ! get the values of temperature for the lookup table
- xIncr = 1._rkind/real(nLook-1, kind(dp))
+ xIncr = 1._rkind/real(nLook-1, kind(rkind))
  xTemp = T_lower + (Tfreeze - T_lower)*arth(0._rkind,xIncr,nLook)**0.25_rkind ! use **0.25 to give more values near freezing
 
  ! -----
@@ -183,7 +183,7 @@ contains
    Ey(iLook) = Ey(iLook+1)
 
    ! get the temperature increment for the numerical integration
-   T_incr = (xTemp(iLook)-xTemp(iLook+1))/real(nIntegr8, kind(dp))
+   T_incr = (xTemp(iLook)-xTemp(iLook+1))/real(nIntegr8, kind(rkind))
 
    ! numerical integration between different values of the lookup table
    do jIntegr8=1,nIntegr8
@@ -281,19 +281,19 @@ contains
  type(var_ilength),intent(in)  :: indx_data                 ! model indices
  type(zLookup),intent(in)      :: lookup_data               ! lookup tables
  ! input: state variables for the vegetation canopy
- real(dp),intent(in)           :: scalarCanairTempTrial     ! trial value of canopy air temperature (K)
- real(dp),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
- real(dp),intent(in)           :: scalarCanopyWatTrial      ! trial value of canopy total water (kg m-2)
- real(dp),intent(in)           :: scalarCanopyIceTrial      ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(in)           :: scalarCanairTempTrial     ! trial value of canopy air temperature (K)
+ real(rkind),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
+ real(rkind),intent(in)           :: scalarCanopyWatTrial      ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(in)           :: scalarCanopyIceTrial      ! trial value of canopy ice content (kg m-2)
  ! input: variables for the snow-soil domain
- real(dp),intent(in)           :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
- real(dp),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
- real(dp),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
- real(dp),intent(in)           :: mLayerVolFracIceTrial(:)  ! trial vector of volumetric fraction of Ice (-)
+ real(rkind),intent(in)           :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
+ real(rkind),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
+ real(rkind),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
+ real(rkind),intent(in)           :: mLayerVolFracIceTrial(:)  ! trial vector of volumetric fraction of Ice (-)
  ! output: enthalpy
- real(dp),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
- real(dp),intent(out)          :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(out)          :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
+ real(rkind),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
+ real(rkind),intent(out)          :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
+ real(rkind),intent(out)          :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
@@ -305,24 +305,24 @@ contains
  integer(i4b)                  :: ixFullVector              ! index within full state vector
  integer(i4b)                  :: ixDomainType              ! name of a given model domain
  integer(i4b)                  :: ixControlIndex            ! index within a given model domain
- real(dp)                      :: vGn_m                     ! van Genuchten "m" parameter (-)
- real(dp)                      :: Tcrit                     ! temperature where all water is unfrozen (K)
- real(dp)                      :: psiLiq                    ! matric head of liquid water (m)
- real(dp)                      :: vFracWat                  ! volumetric fraction of total water, liquid+ice (-)
- real(dp)                      :: vFracLiq                  ! volumetric fraction of liquid water (-)
- real(dp)                      :: vFracIce                  ! volumetric fraction of ice (-)
- real(dp)                      :: enthTemp                  ! enthalpy at the temperature of the control volume (J m-3)
- real(dp)                      :: enthTcrit                 ! enthalpy at the critical temperature where all water is unfrozen (J m-3)
- real(dp)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
- real(dp)                      :: enthWater                 ! enthalpy of total water (J m-3)
- real(dp)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
- real(dp)                      :: enthMix                   ! enthalpy of the mixed region, liquid+ice (J m-3)
- real(dp)                      :: enthLiq                   ! enthalpy of the liquid region (J m-3)
- real(dp)                      :: enthAir                   ! enthalpy of air (J m-3)
- real(dp)                      :: diffT
- real(dp)                      :: integral
- real(dp)                      :: enthIce
- real(dp)                      :: enthVeg
+ real(rkind)                      :: vGn_m                     ! van Genuchten "m" parameter (-)
+ real(rkind)                      :: Tcrit                     ! temperature where all water is unfrozen (K)
+ real(rkind)                      :: psiLiq                    ! matric head of liquid water (m)
+ real(rkind)                      :: vFracWat                  ! volumetric fraction of total water, liquid+ice (-)
+ real(rkind)                      :: vFracLiq                  ! volumetric fraction of liquid water (-)
+ real(rkind)                      :: vFracIce                  ! volumetric fraction of ice (-)
+ real(rkind)                      :: enthTemp                  ! enthalpy at the temperature of the control volume (J m-3)
+ real(rkind)                      :: enthTcrit                 ! enthalpy at the critical temperature where all water is unfrozen (J m-3)
+ real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
+ real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
+ real(rkind)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
+ real(rkind)                      :: enthMix                   ! enthalpy of the mixed region, liquid+ice (J m-3)
+ real(rkind)                      :: enthLiq                   ! enthalpy of the liquid region (J m-3)
+ real(rkind)                      :: enthAir                   ! enthalpy of air (J m-3)
+ real(rkind)                      :: diffT
+ real(rkind)                      :: integral
+ real(rkind)                      :: enthIce
+ real(rkind)                      :: enthVeg
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  generalVars: associate(&
@@ -560,19 +560,19 @@ contains
  type(var_ilength),intent(in)  :: indx_data                 ! model indices
  type(zLookup),intent(in)      :: lookup_data               ! lookup tables
  ! input: state variables for the vegetation canopy
- real(dp),intent(in)           :: scalarCanairTempTrial     ! trial value of canopy air temperature (K)
- real(dp),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
- real(dp),intent(in)           :: scalarCanopyWatTrial      ! trial value of canopy total water (kg m-2)
- real(dp),intent(in)           :: scalarCanopyIceTrial      ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(in)           :: scalarCanairTempTrial     ! trial value of canopy air temperature (K)
+ real(rkind),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
+ real(rkind),intent(in)           :: scalarCanopyWatTrial      ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(in)           :: scalarCanopyIceTrial      ! trial value of canopy ice content (kg m-2)
  ! input: variables for the snow-soil domain
- real(dp),intent(in)           :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
- real(dp),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
- real(dp),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
- real(dp),intent(in)           :: mLayerVolFracIceTrial(:)  ! trial vector of volumetric fraction of Ice (-)
+ real(rkind),intent(in)           :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
+ real(rkind),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
+ real(rkind),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
+ real(rkind),intent(in)           :: mLayerVolFracIceTrial(:)  ! trial vector of volumetric fraction of Ice (-)
  ! output: enthalpy
- real(dp),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
- real(dp),intent(out)          :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(out)          :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
+ real(rkind),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
+ real(rkind),intent(out)          :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
+ real(rkind),intent(out)          :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
  ! output: error control
  integer(i4b),intent(out)      :: err                       ! error code
  character(*),intent(out)      :: message                   ! error message
@@ -584,24 +584,24 @@ contains
  integer(i4b)                  :: ixFullVector              ! index within full state vector
  integer(i4b)                  :: ixDomainType              ! name of a given model domain
  integer(i4b)                  :: ixControlIndex            ! index within a given model domain
- real(dp)                      :: vGn_m                     ! van Genuchten "m" parameter (-)
- real(dp)                      :: Tcrit                     ! temperature where all water is unfrozen (K)
- real(dp)                      :: psiLiq                    ! matric head of liquid water (m)
- real(dp)                      :: vFracWat                  ! volumetric fraction of total water, liquid+ice (-)
- real(dp)                      :: vFracLiq                  ! volumetric fraction of liquid water (-)
- real(dp)                      :: vFracIce                  ! volumetric fraction of ice (-)
- real(dp)                      :: enthTemp                  ! enthalpy at the temperature of the control volume (J m-3)
- real(dp)                      :: enthTcrit                 ! enthalpy at the critical temperature where all water is unfrozen (J m-3)
- real(dp)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
- real(dp)                      :: enthWater                 ! enthalpy of total water (J m-3)
- real(dp)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
- real(dp)                      :: enthMix                   ! enthalpy of the mixed region, liquid+ice (J m-3)
- real(dp)                      :: enthLiq                   ! enthalpy of the liquid region (J m-3)
- real(dp)                      :: enthAir                   ! enthalpy of air (J m-3)
- real(dp)                      :: diffT
- real(dp)                      :: integral
- real(dp)                      :: enthIce
- real(dp)                      :: enthVeg
+ real(rkind)                      :: vGn_m                     ! van Genuchten "m" parameter (-)
+ real(rkind)                      :: Tcrit                     ! temperature where all water is unfrozen (K)
+ real(rkind)                      :: psiLiq                    ! matric head of liquid water (m)
+ real(rkind)                      :: vFracWat                  ! volumetric fraction of total water, liquid+ice (-)
+ real(rkind)                      :: vFracLiq                  ! volumetric fraction of liquid water (-)
+ real(rkind)                      :: vFracIce                  ! volumetric fraction of ice (-)
+ real(rkind)                      :: enthTemp                  ! enthalpy at the temperature of the control volume (J m-3)
+ real(rkind)                      :: enthTcrit                 ! enthalpy at the critical temperature where all water is unfrozen (J m-3)
+ real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
+ real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
+ real(rkind)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
+ real(rkind)                      :: enthMix                   ! enthalpy of the mixed region, liquid+ice (J m-3)
+ real(rkind)                      :: enthLiq                   ! enthalpy of the liquid region (J m-3)
+ real(rkind)                      :: enthAir                   ! enthalpy of air (J m-3)
+ real(rkind)                      :: diffT
+ real(rkind)                      :: integral
+ real(rkind)                      :: enthIce
+ real(rkind)                      :: enthVeg
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  generalVars: associate(&
