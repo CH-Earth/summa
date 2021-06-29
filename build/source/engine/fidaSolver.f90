@@ -48,7 +48,7 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 USE globalData,only:diag_meta       ! metadata on the model diagnostic variables
 USE globalData,only:prog_meta       ! metadata on the model prognostic variables
 USE globalData,only:deriv_meta      ! metadata on the model derivatives
-USE globalData, only: tempPrintFlag
+
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J K-1)

@@ -39,7 +39,6 @@ USE summa_util, only: stop_program                          ! used to stop the s
 USE summa_util, only: handle_err                            ! used to process errors
 ! global data
 USE globalData, only: numtim                                ! number of model time steps
-USE globalData, only: tempPrintFlag
 implicit none
 
 ! *****************************************************************************
@@ -90,7 +89,7 @@ do modelTimeStep=1,numtim
  ! read model forcing data
  call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
-! if(iStep >= 4524) tempPrintFlag=.true.
+
  print *, 'step ---> ', iStep
  ! run the summa physics for one time step
  call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
