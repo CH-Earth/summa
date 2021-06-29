@@ -87,7 +87,7 @@ contains
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
  real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
- real(dp),intent(in)            :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+ real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
  real(dp),intent(in)             :: scalarCanopyLiquid
  real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
  real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
