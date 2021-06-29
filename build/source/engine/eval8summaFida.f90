@@ -264,10 +264,11 @@ contains
  real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: scalarCanopyEnthalpyPrime
- real(dp)						 :: scalarCanopyCmTrial
- real(dp),dimension(nLayers)	 :: mLayerCmTrial
- logical(lgt),parameter			 :: updateCp=.false.
- logical(lgt),parameter			 :: needCm=.false.
+ real(dp)						             :: scalarCanopyCmTrial
+ real(dp),dimension(nLayers)	   :: mLayerCmTrial
+ logical(lgt),parameter			     :: updateCp=.false.
+ logical(lgt),parameter          :: enthalpyFD=.false.
+ logical(lgt),parameter			     :: needCm=.false.
  
 
 
@@ -497,7 +498,10 @@ contains
  
  if(updateCp)then
  	! *** compute volumetric heat capacity C_p
- 	call computHeatCapAnalytic(&
+  if(enthalpyFD)then
+    ! do nothing
+  else
+ 	  call computHeatCapAnalytic(&
                        ! input: control variables
                        computeVegFlux,          		& ! intent(in): flag to denote if computing the vegetation flux
                        canopyDepth,             		& ! intent(in): canopy depth (m)
@@ -514,6 +518,7 @@ contains
                        mLayerHeatCapTrial,              & ! intent(out)
                        ! output: error control
                        err,message)               		! intent(out): error control
+  endif
    
    ! compute multiplier of state vector
    call computStatMult(&
