@@ -267,8 +267,8 @@ contains
  real(qp)                        :: scalarCanopyEnthalpyPrime
  real(dp)						             :: scalarCanopyCmTrial
  real(dp),dimension(nLayers)	   :: mLayerCmTrial
- logical(lgt),parameter			     :: updateCp=.false.
- logical(lgt),parameter          :: enthalpyFD=.false.
+ logical(lgt),parameter			     :: updateCp=.true.
+ logical(lgt),parameter          :: enthalpyFD=.true.
  logical(lgt),parameter			     :: needCm=.false.
  
 
@@ -553,6 +553,11 @@ contains
                         mLayerHeatCapTrial,           & ! intent(out): heat capacity for snow and soil
                         ! output: error control
                         err,message)                    ! intent(out): error control
+    ! to conserve energy compute finite difference approximation of (theta_ice)'
+    scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
+    do concurrent (iLayer=1:nLayers)
+            mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+    end do
   else
  	  call computHeatCapAnalytic(&
                        ! input: control variables
@@ -584,6 +589,9 @@ contains
                  sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
                  err,cmessage)                       ! intent(out):   error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+   diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1) = heatCapVegTrial
+   diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(:) = mLayerHeatCapTrial(:)
    
    ! update thermal conductivity
    call computThermConduct(&
@@ -596,12 +604,13 @@ contains
                        mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
                        mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
                         ! input/output: data structures
-                       mpar_data,               & ! intent(in):    model parameters
+                       mpar_data,                    & ! intent(in):    model parameters
                        indx_data,               & ! intent(in):    model layer indices
                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        err,message)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+
  end if ! updateCp
  
  
