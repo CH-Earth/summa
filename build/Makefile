@@ -212,7 +212,6 @@ SUMMA_SOLVER= \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \
-      soilCmpresFida.f90 \
 		computFlux.f90 \
 		computResid.f90 \
 		computJacob.f90 \

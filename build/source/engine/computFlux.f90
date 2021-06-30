@@ -97,6 +97,7 @@ implicit none
 private
 public::computFlux
 public::soilCmpres
+public::soilCmpresFida
 contains
 
  ! *********************************************************************************************************
@@ -903,5 +904,57 @@ contains
   dCompress_dPsi(:) = 0._rkind
  end if
  end subroutine soilCmpres
+
+
+  ! **********************************************************************************************************
+ ! public subroutine soilCmpres: compute soil compressibility (-) and its derivative w.r.t matric head (m-1)
+ ! **********************************************************************************************************
+ subroutine soilCmpresFida(&
+                            ! input:
+                            ixRichards,                         & ! intent(in): choice of option for Richards' equation
+                            ixBeg,ixEnd,                        & ! intent(in): start and end indices defining desired layers
+                            mLayerMatricHeadPrime,              & ! intent(in): matric head at the start of the time step (m)
+                            mLayerVolFracLiqTrial,              & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
+                            mLayerVolFracIceTrial,              & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
+                            specificStorage,                    & ! intent(in): specific storage coefficient (m-1)
+                            theta_sat,                          & ! intent(in): soil porosity (-)
+                            ! output:
+                            compress,                           & ! intent(out): compressibility of the soil matrix (-)
+                            dCompress_dPsi,                     & ! intent(out): derivative in compressibility w.r.t. matric head (m-1)
+                            err,message)                          ! intent(out): error code and error message
+implicit none
+! input:
+integer(i4b),intent(in)           :: ixRichards                ! choice of option for Richards' equation
+integer(i4b),intent(in)           :: ixBeg,ixEnd               ! start and end indices defining desired layers
+real(rkind),intent(in)            :: mLayerMatricHeadPrime(:)       ! matric head at the start of the time step (m)
+real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+real(rkind),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+real(rkind),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
+real(rkind),intent(in)            :: theta_sat(:)              ! soil porosity (-)
+! output:
+real(rkind),intent(inout)         :: compress(:)               ! soil compressibility (-)
+real(rkind),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+integer(i4b),intent(out)          :: err                       ! error code
+character(*),intent(out)          :: message                   ! error message
+! local variables
+integer(i4b)                      :: iLayer                    ! index of soil layer
+! --------------------------------------------------------------
+! initialize error control
+err=0; message='soilCmpresFida/'
+! (only compute for the mixed form of Richards' equation)
+if(ixRichards==mixdform)then
+    do iLayer=1,size(mLayerMatricHeadPrime)
+        if(iLayer>=ixBeg .and. iLayer<=ixEnd)then
+            ! compute the derivative for the compressibility term (m-1)
+            dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
+            ! compute the compressibility term (-)
+            compress(iLayer)       =   mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
+        endif
+    end do
+else
+    compress(:)       = 0._rkind
+    dCompress_dPsi(:) = 0._rkind
+end if
+end subroutine soilCmpresFida
 
 end module computFlux_module
