@@ -90,7 +90,6 @@ contains
                         rVec,                      & ! intent(out):   residual vector
                         err,message)                 ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
-! use printResidFida_module,only:printResidFida
  implicit none
  ! input: model control
  integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
@@ -244,7 +243,6 @@ contains
   ! print *, 'rVec = ', rVec(indx_data%var(iLookINDEX%ixMatOnly)%dat) 
  ! check
  if(any(isNan(rVec)))then
-!  call printResidFida(nSnow, nSoil, nLayers, indx_data, rAdd, rVec)
   message=trim(message)//'we found NaN'
   err=20; return
  endif

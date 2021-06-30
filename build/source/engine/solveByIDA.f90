@@ -150,7 +150,7 @@ contains
   USE allocspace_module,only:allocLocal         ! allocate local data structures
   USE evalDAE4IDA_module,only:evalDAE4IDA     ! DAE/ODE functions 
   USE evalJac4IDA_module,only:evalJac4IDA       ! system Jacobian
-  USE tolFida_module,only:computWeightFida
+  USE tol4IDA_module,only:computWeight4IDA
   USE eval8DAE_module,only:eval8DAE
   USE computEnthalpy_module,only:computEnthalpy
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
@@ -368,7 +368,7 @@ contains
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAInit'; return; endif
 
   ! set tolerances
-  retval = FIDAWFtolerances(ida_mem, c_funloc(computWeightFida))
+  retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4IDA))
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAWFtolerances'; return; endif
   
  ! define the form of the matrix

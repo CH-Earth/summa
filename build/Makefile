@@ -222,11 +222,10 @@ SUMMA_SOLVER= \
 		summaSolve.f90 \
 		systemSolv.f90 \
       type4IDA.f90 \
-      tolFida.f90 \
+      tol4IDA.f90 \
       computEnthalpy.f90 \
       computHeatCap.f90 \
       computThermConduct.f90 \
-      printResidFida.f90 \
       computResidDAE.f90 \
       eval8DAE.f90 \
       evalDAE4IDA.f90 \

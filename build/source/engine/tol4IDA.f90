@@ -1,7 +1,7 @@
 
 
 
-module tolFida_module
+module tol4IDA_module
 
 
   !======= Inclusions ===========
@@ -65,21 +65,21 @@ USE var_lookup,only:iLookINDEX            ! named variables for structure elemen
   ! privacy
   implicit none
   private
-  public::computWeightFida
-  public::popTolFida
+  public::computWeight4IDA
+  public::popTol4IDA
 
 
 contains
 
   ! **********************************************************************************************************
-  ! public function computWeightFida: compute w_i = 1 / ( rtol_i * y_i + atol_i ) 
+  ! public function computWeight4IDA: compute w_i = 1 / ( rtol_i * y_i + atol_i ) 
   ! **********************************************************************************************************
   ! Return values:
   !    0 = success,
   !   -1 = non-recoverable error, NaN or negative values
   ! ----------------------------------------------------------------
-  integer(c_int) function computWeightFida(sunvec_y, sunvec_ewt, user_data) &
-       result(ierr) bind(C,name='computWeightFida')
+  integer(c_int) function computWeight4IDA(sunvec_y, sunvec_ewt, user_data) &
+       result(ierr) bind(C,name='computWeight4IDA')
 
     !======= Inclusions ===========
     use, intrinsic :: iso_c_binding
@@ -122,13 +122,13 @@ contains
    ierr = 0
    return
 
- end function computWeightFida
+ end function computWeight4IDA
  
   
  ! **********************************************************************************************************
- ! public subroutine popTolFida: populate tolerances for state vectors
+ ! public subroutine popTol4IDA: populate tolerances for state vectors
  ! **********************************************************************************************************
- subroutine popTolFida(&
+ subroutine popTol4IDA(&
                         ! input: data structures
                         nState,                  & ! intent(in):    number of desired state variables
                         prog_data,               & ! intent(in):    model prognostic variables for a local HRU
@@ -211,7 +211,7 @@ contains
  )  ! end association with variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='popTolFida/'
+ err=0; message='popTol4IDA/'
 
  ! -----
  ! * initialize state vectors...
@@ -285,7 +285,7 @@ contains
  endif
 
  end associate fixedLength      ! end association to variables in the data structure where vector length does not change
- end subroutine popTolFida
+ end subroutine popTol4IDA
 
 
-end module tolFida_module
+end module tol4IDA_module

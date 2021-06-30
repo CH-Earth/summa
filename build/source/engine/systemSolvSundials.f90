@@ -134,7 +134,7 @@ contains
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
- USE tolFida_module,only:popTolFida
+ USE tol4IDA_module,only:popTol4IDA
  USE solveByIDA_module,only:solveByIDA
 ! use varExtrFida_module, only:countDiscontinuity
  use, intrinsic :: iso_c_binding
@@ -400,7 +400,7 @@ contains
  endif
   
   ! get tolerance vectors
-  call popTolFida(&
+  call popTol4IDA(&
                    ! input
                    nState,                           & ! intent(in):    number of desired state variables
                    prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
