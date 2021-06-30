@@ -232,7 +232,7 @@ SUMMA_SOLVER= \
       evalDAE4IDA.f90 \
       computJacobFida.f90 \
       computJacobFidaCpVar.f90 \
-      eval8FidaJac.f90 \
+      eval8JacDAE.f90 \
       evalJac4IDA.f90 \
       nonlinSolvFida.f90 \
 		findDiscontinuity.f90 \

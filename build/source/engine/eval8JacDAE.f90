@@ -1,5 +1,5 @@
 
-module eval8FidaJac_module
+module eval8JacDAE_module
 
 ! data types
 USE nrtype
@@ -80,14 +80,14 @@ USE mDecisions_module,only:  &
 
 implicit none
 private
-public::eval8FidaJac
+public::eval8JacDAE
 
 contains
 
  ! **********************************************************************************************************
- ! public subroutine eval8FidaJac: compute the residual vector and the Jacobian matrix
+ ! public subroutine eval8JacDAE: compute the residual vector and the Jacobian matrix
  ! **********************************************************************************************************
- subroutine eval8FidaJac(&
+ subroutine eval8JacDAE(&
                        ! input: model control
                        cj,                      & ! intent(in)
                        dt,                      & ! intent(in):    time step
@@ -212,7 +212,7 @@ contains
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="eval8FidaJac/"
+ err=0; message="eval8JacDAE/"
  
 
  ! extract variables from the model state vector
@@ -364,5 +364,5 @@ contains
  end associate
  
 
- end subroutine eval8FidaJac
-end module eval8FidaJac_module
+ end subroutine eval8JacDAE
+end module eval8JacDAE_module

@@ -46,7 +46,7 @@ contains
     use fsunmatrix_dense_mod
     use nrtype
     use fida_datatypes
-    use eval8FidaJac_module,only:eval8FidaJac
+    use eval8JacDAE_module,only:eval8JacDAE
     !======= Declarations =========
     implicit none
 
@@ -88,7 +88,7 @@ contains
     ! compute the flux and the residual vector for a given state vector
     ! NOTE 1: The derivatives computed in eval8DAE are used to calculate the Jacobian matrix for the first iteration
     ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
-    call eval8FidaJac(&
+    call eval8JacDAE(&
                  ! input: model control
                  cj,                                & ! intent(in)
                  eqns_data%dt,                      & ! intent(in)
