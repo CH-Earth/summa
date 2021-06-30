@@ -135,7 +135,7 @@ contains
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
  USE tolFida_module,only:popTolFida
- USE fidaSolver_module,only:fidaSolver
+ USE solveByIDA_module,only:solveByIDA
 ! use varExtrFida_module, only:countDiscontinuity
  use, intrinsic :: iso_c_binding
  implicit none
@@ -431,7 +431,7 @@ contains
     ! initialize sum of compression of the soil matrix
     mLayerCmpress_sum(:) = 0._rkind
 
-   call fidaSolver(&
+   call solveByIDA(&
                  dt,                      & ! intent (in) 	 data time step
                  atol,                    & ! intent (in) 	 absolute telerance
                  rtol,                    & ! intent (in) 	 relative tolerance 
