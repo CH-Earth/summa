@@ -233,7 +233,6 @@ SUMMA_SOLVER= \
       computJacDAE.f90 \
       eval8JacDAE.f90 \
       evalJac4IDA.f90 \
-      nonlinSolvFida.f90 \
 		computSnowDepth.f90 \
       solveByIDA.f90 \
       systemSolvSundials.f90 \
