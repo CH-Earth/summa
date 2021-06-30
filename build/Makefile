@@ -233,7 +233,7 @@ SUMMA_SOLVER= \
       computJacobFida.f90 \
       computJacobFidaCpVar.f90 \
       eval8FidaJac.f90 \
-      evalJacFida.f90 \
+      evalJac4IDA.f90 \
       nonlinSolvFida.f90 \
 		findDiscontinuity.f90 \
 		computSnowDepth.f90 \

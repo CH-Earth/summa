@@ -149,7 +149,7 @@ contains
   USE fsundials_nonlinearsolver_mod 			! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal         ! allocate local data structures
   USE evalDAE4IDA_module,only:evalDAE4IDA     ! DAE/ODE functions 
-  USE evalJacFida_module,only:evalJacFida       ! system Jacobian
+  USE evalJac4IDA_module,only:evalJac4IDA       ! system Jacobian
   USE tolFida_module,only:computWeightFida
   USE eval8DAE_module,only:eval8DAE
   USE computEnthalpy_module,only:computEnthalpy
@@ -403,7 +403,7 @@ contains
   
   if(ixMatrix == ixFullMatrix)then
      ! Set the user-supplied Jacobian routine    
-    retval = FIDASetJacFn(ida_mem, c_funloc(evalJacFida))
+    retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetJacFn'; return; endif  
   endif
 

@@ -1,6 +1,6 @@
 
 
-module evalJacFida_module
+module evalJac4IDA_module
 
 
   !======= Inclusions ===========
@@ -21,22 +21,22 @@ module evalJacFida_module
   ! privacy
   implicit none
   private
-  public::evalJacFida
+  public::evalJac4IDA
 
 
 contains
 
   ! **********************************************************************************************************
-  ! public function evalJacFida: compute the residual vector F(t,y,y') required for FIDA solver
+  ! public function evalJac4IDA: compute the residual vector F(t,y,y') required for FIDA solver
   ! **********************************************************************************************************
   ! Return values:
   !    0 = success,
   !    1 = recoverable error,
   !   -1 = non-recoverable error
   ! ----------------------------------------------------------------
-  integer(c_int) function evalJacFida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
+  integer(c_int) function evalJac4IDA(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                       sunmat_J, user_data, sunvec_temp1, sunvec_temp2, sunvec_temp3) &
-                      result(ierr) bind(C,name='evalJacFida')
+                      result(ierr) bind(C,name='evalJac4IDA')
                       
     !======= Inclusions ===========
     use, intrinsic :: iso_c_binding
@@ -125,7 +125,7 @@ contains
 
 
 
- end function evalJacFida
+ end function evalJac4IDA
 
 
-end module evalJacFida_module
+end module evalJac4IDA_module
