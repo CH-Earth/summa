@@ -148,7 +148,7 @@ contains
   USE fsundials_linearsolver_mod    			! Fortran interface to generic SUNLinearSolver
   USE fsundials_nonlinearsolver_mod 			! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal         ! allocate local data structures
-  USE evalEqnsFida_module,only:evalEqnsFida     ! DAE/ODE functions 
+  USE evalDAE4IDA_module,only:evalDAE4IDA     ! DAE/ODE functions 
   USE evalJacFida_module,only:evalJacFida       ! system Jacobian
   USE tolFida_module,only:computWeightFida
   USE eval8summaFida_module,only:eval8summaFida
@@ -364,7 +364,7 @@ contains
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetUserData'; return; endif
   
   t0 = 0._rkind
-  retval = FIDAInit(ida_mem, c_funloc(evalEqnsFida), t0, sunvec_y, sunvec_yp)
+  retval = FIDAInit(ida_mem, c_funloc(evalDAE4IDA), t0, sunvec_y, sunvec_yp)
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAInit'; return; endif
 
   ! set tolerances

@@ -229,7 +229,7 @@ SUMMA_SOLVER= \
       printResidFida.f90 \
       computResidFida.f90 \
       eval8summaFida.f90 \
-      evalEqnsFida.f90 \
+      evalDAE4IDA.f90 \
       computJacobFida.f90 \
       computJacobFidaCpVar.f90 \
       eval8FidaJac.f90 \

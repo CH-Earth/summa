@@ -1,6 +1,6 @@
 
 
-module evalEqnsFida_module
+module evalDAE4IDA_module
 
 
   !======= Inclusions ===========
@@ -26,21 +26,21 @@ module evalEqnsFida_module
   ! privacy
   implicit none
   private
-  public::evalEqnsFida
+  public::evalDAE4IDA
 
 
 contains
 
   ! **********************************************************************************************************
-  ! public function evalEqnsFida: compute the residual vector F(t,y,y') required for FIDA solver
+  ! public function evalDAE4IDA: compute the residual vector F(t,y,y') required for FIDA solver
   ! **********************************************************************************************************
   ! Return values:
   !    0 = success,
   !    1 = recoverable error,
   !   -1 = non-recoverable error
   ! ----------------------------------------------------------------
-  integer(c_int) function evalEqnsFida(tres, sunvec_y, sunvec_yp, sunvec_r, user_data) &
-       result(ierr) bind(C,name='evalEqnsFida')
+  integer(c_int) function evalDAE4IDA(tres, sunvec_y, sunvec_yp, sunvec_r, user_data) &
+       result(ierr) bind(C,name='evalDAE4IDA')
 
     !======= Inclusions ===========
     use, intrinsic :: iso_c_binding
@@ -168,7 +168,7 @@ contains
    ierr = 0
    return
 
- end function evalEqnsFida
+ end function evalDAE4IDA
 
 
-end module evalEqnsFida_module
+end module evalDAE4IDA_module
