@@ -43,7 +43,7 @@ public::d2Theta_dPsi2
 public::d2Theta_dTk2
 
 ! constant parameters
-real(dp),parameter     :: verySmall=epsilon(1.0_rkind) ! a very small number (used to avoid divide by zero)
+real(rkind),parameter     :: verySmall=epsilon(1.0_rkind) ! a very small number (used to avoid divide by zero)
 contains
 
 
@@ -71,31 +71,31 @@ contains
  ! computes the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  implicit none
  ! input
- real(dp),intent(in)            :: matricHeadTotal                           ! total water matric potential (m)
-  real(dp),intent(in)           :: matricHeadTotalPrime
- real(dp),intent(in)            :: volFracLiq                                ! volumetric fraction of liquid water (-)
- real(dp),intent(in)            :: volFracIce                                ! volumetric fraction of ice (-)
- real(dp),intent(in)            :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
- real(dp),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
- real(dp),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
- real(dp),intent(in)            :: TempPrime
- real(dp),intent(in)            :: volFracLiqPrime
- real(dp),intent(in)            :: volFracIcePrime
+ real(rkind),intent(in)            :: matricHeadTotal                           ! total water matric potential (m)
+  real(rkind),intent(in)           :: matricHeadTotalPrime
+ real(rkind),intent(in)            :: volFracLiq                                ! volumetric fraction of liquid water (-)
+ real(rkind),intent(in)            :: volFracIce                                ! volumetric fraction of ice (-)
+ real(rkind),intent(in)            :: vGn_alpha,vGn_n,theta_sat,theta_res,vGn_m ! soil parameters
+ real(rkind),intent(in)  ,optional :: dVolTot_dPsi0                             ! derivative in the soil water characteristic (m-1)
+ real(rkind),intent(in)  ,optional :: dTheta_dT                                 ! derivative in volumetric total water w.r.t. temperature (K-1)
+ real(rkind),intent(in)            :: TempPrime
+ real(rkind),intent(in)            :: volFracLiqPrime
+ real(rkind),intent(in)            :: volFracIcePrime
  ! output
- real(dp),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
-  real(dp),intent(out)          :: matricHeadLiqPrime 
- real(dp),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
- real(dp),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+ real(rkind),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
+  real(rkind),intent(out)          :: matricHeadLiqPrime 
+ real(rkind),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+ real(rkind),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
  ! output: error control
  integer(i4b),intent(out)       :: err                                       ! error code
  character(*),intent(out)       :: message                                   ! error message
  ! local
- real(dp)                       :: xNum,xDen                                 ! temporary variables (numeratir, denominator)
- real(dp)                       :: effSat                                    ! effective saturation (-)
- real(dp)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
- real(dp)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
- real(dp)                       :: dEffSat_dFracLiq
- real(dp)                       :: effSatPrime
+ real(rkind)                       :: xNum,xDen                                 ! temporary variables (numeratir, denominator)
+ real(rkind)                       :: effSat                                    ! effective saturation (-)
+ real(rkind)                       :: dPsiLiq_dEffSat                           ! derivative in liquid water matric potential w.r.t. effective saturation (m)
+ real(rkind)                       :: dEffSat_dTemp                             ! derivative in effective saturation w.r.t. temperature (K-1)
+ real(rkind)                       :: dEffSat_dFracLiq
+ real(rkind)                       :: effSatPrime
  ! ------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='liquidHeadFida/'
@@ -185,15 +185,15 @@ contains
  ! ******************************************************************************************************************************
  function d2Theta_dPsi2(psi,alpha,theta_res,theta_sat,n,m)
  implicit none
- real(dp),intent(in) :: psi         ! soil water suction (m)
- real(dp),intent(in) :: alpha       ! scaling parameter (m-1)
- real(dp),intent(in) :: theta_res   ! residual volumetric water content (-)
- real(dp),intent(in) :: theta_sat   ! porosity (-)
- real(dp),intent(in) :: n           ! vGn "n" parameter (-)
- real(dp),intent(in) :: m           ! vGn "m" parameter (-)
- real(dp)            :: d2Theta_dPsi2 ! derivative of the soil water characteristic (m-1)
- real(dp)            :: mult_fcn
- real(dp)            :: mult_fcnp
+ real(rkind),intent(in) :: psi         ! soil water suction (m)
+ real(rkind),intent(in) :: alpha       ! scaling parameter (m-1)
+ real(rkind),intent(in) :: theta_res   ! residual volumetric water content (-)
+ real(rkind),intent(in) :: theta_sat   ! porosity (-)
+ real(rkind),intent(in) :: n           ! vGn "n" parameter (-)
+ real(rkind),intent(in) :: m           ! vGn "m" parameter (-)
+ real(rkind)            :: d2Theta_dPsi2 ! derivative of the soil water characteristic (m-1)
+ real(rkind)            :: mult_fcn
+ real(rkind)            :: mult_fcnp
  if(psi<0._rkind)then
   mult_fcn = (-m*n*alpha*(alpha*psi)**(n-1._rkind)) * ( 1._rkind + (psi*alpha)**n )**(-1._rkind)
   mult_fcnp = -m*n*alpha*(n-1._rkind)*alpha*(alpha*psi)**(n-2._rkind)*( 1._rkind + (psi*alpha)**n )**(-1._rkind) - &
@@ -211,16 +211,16 @@ contains
  ! ******************************************************************************************************************************
  function d2Theta_dTk2(Tk,theta_res,theta_sat,alpha,n,m)
  implicit none
- real(dp),intent(in) :: Tk            ! temperature (K)
- real(dp),intent(in) :: theta_res     ! residual liquid water content (-)
- real(dp),intent(in) :: theta_sat     ! porosity (-)
- real(dp),intent(in) :: alpha         ! vGn scaling parameter (m-1)
- real(dp),intent(in) :: n             ! vGn "n" parameter (-)
- real(dp),intent(in) :: m             ! vGn "m" parameter (-)
- real(dp)            :: d2Theta_dTk2    ! derivative of the freezing curve w.r.t. temperature (K-1)
+ real(rkind),intent(in) :: Tk            ! temperature (K)
+ real(rkind),intent(in) :: theta_res     ! residual liquid water content (-)
+ real(rkind),intent(in) :: theta_sat     ! porosity (-)
+ real(rkind),intent(in) :: alpha         ! vGn scaling parameter (m-1)
+ real(rkind),intent(in) :: n             ! vGn "n" parameter (-)
+ real(rkind),intent(in) :: m             ! vGn "m" parameter (-)
+ real(rkind)            :: d2Theta_dTk2    ! derivative of the freezing curve w.r.t. temperature (K-1)
  ! local variables
- real(dp)            :: kappa         ! constant (m K-1)
- real(dp)            :: xtemp         ! alpha*kappa*(Tk-Tfreeze) -- dimensionless variable (used more than once)
+ real(rkind)            :: kappa         ! constant (m K-1)
+ real(rkind)            :: xtemp         ! alpha*kappa*(Tk-Tfreeze) -- dimensionless variable (used more than once)
  ! compute kappa (m K-1)
  kappa =  LH_fus/(gravity*Tfreeze)    ! NOTE: J = kg m2 s-2
  ! define a tempory variable that is used more than once (-)

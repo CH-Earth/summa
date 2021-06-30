@@ -8,7 +8,7 @@ USE nrtype
 ! derived types to define the data structures
 USE data_types,only:&
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -75,7 +75,7 @@ contains
  integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
  type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
  ! output
- real(dp),intent(in)            :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
+ real(rkind),intent(in)            :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
  real(qp),intent(in)            :: rVec(:)   ! NOTE: qp      ! residual vector
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables

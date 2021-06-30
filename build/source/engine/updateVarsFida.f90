@@ -64,9 +64,9 @@ USE multiconst,only:&
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookDIAG             ! named variables for structure elements
@@ -142,39 +142,39 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(dp),intent(in)             :: dt_cur
+ real(rkind),intent(in)             :: dt_cur
  logical(lgt)     ,intent(in)    :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- real(dp),intent(in)             :: mLayerMatricHeadPrev(:)
- real(dp),intent(in)             :: mLayerVolFracWatPrev(:)
+ real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)
+ real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)
  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
  ! output: variables for the vegetation canopy
- real(dp),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
- real(dp),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
- real(dp),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
- real(dp),intent(inout)          :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+ real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
+ real(rkind),intent(inout)          :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
  
- real(dp),intent(inout)          :: scalarCanopyTempPrime           ! trial value of canopy temperature (K)
- real(dp),intent(inout)          :: scalarCanopyWatPrime            ! trial value of canopy total water (kg m-2)
- real(dp),intent(inout)          :: scalarCanopyLiqPrime            ! trial value of canopy liquid water (kg m-2)
- real(dp),intent(inout)          :: scalarCanopyIcePrime            ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(inout)          :: scalarCanopyTempPrime           ! trial value of canopy temperature (K)
+ real(rkind),intent(inout)          :: scalarCanopyWatPrime            ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(inout)          :: scalarCanopyLiqPrime            ! trial value of canopy liquid water (kg m-2)
+ real(rkind),intent(inout)          :: scalarCanopyIcePrime            ! trial value of canopy ice content (kg m-2)
  ! output: variables for the snow-soil domain
- real(dp),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
- real(dp),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
- real(dp),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(inout)          :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
- real(dp),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
- real(dp),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+ real(rkind),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+ real(rkind),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
+ real(rkind),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(inout)          :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
+ real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
+ real(rkind),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
  
- real(dp),intent(inout)          :: mLayerTempPrime(:)
- real(dp),intent(inout)          :: mLayerVolFracWatPrime(:)        ! reza
- real(dp),intent(inout)          :: mLayerVolFracLiqPrime(:)        ! reza
- real(dp),intent(inout)          :: mLayerVolFracIcePrime(:)        ! reza
- real(dp),intent(inout)          :: mLayerMatricHeadPrime(:)        ! reza
- real(dp),intent(inout)          :: mLayerMatricHeadLiqPrime(:)     ! reza
+ real(rkind),intent(inout)          :: mLayerTempPrime(:)
+ real(rkind),intent(inout)          :: mLayerVolFracWatPrime(:)        ! reza
+ real(rkind),intent(inout)          :: mLayerVolFracLiqPrime(:)        ! reza
+ real(rkind),intent(inout)          :: mLayerVolFracIcePrime(:)        ! reza
+ real(rkind),intent(inout)          :: mLayerMatricHeadPrime(:)        ! reza
+ real(rkind),intent(inout)          :: mLayerMatricHeadLiqPrime(:)     ! reza
  
  ! output: error control
  integer(i4b),intent(out)        :: err                             ! error code
@@ -190,31 +190,31 @@ contains
  logical(lgt)                    :: isCoupled                       ! .true. if a given variable shared another state variable in the same control volume
  logical(lgt)                    :: isNrgState                      ! .true. if a given variable is an energy state
  logical(lgt),allocatable        :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
- real(dp)                        :: scalarVolFracLiq                ! volumetric fraction of liquid water (-)
- real(dp)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
- real(dp)                        :: scalarVolFracLiqPrime           ! volumetric fraction of liquid water (-)
- real(dp)                        :: scalarVolFracIcePrime           ! volumetric fraction of ice (-)
- real(dp)                        :: Tcrit                           ! critical soil temperature below which ice exists (K)
- real(dp)                        :: xTemp                           ! temporary temperature (K)
- real(dp)                        :: effSat                          ! effective saturation (-)
- real(dp)                        :: avPore                          ! available pore space (-)
+ real(rkind)                        :: scalarVolFracLiq                ! volumetric fraction of liquid water (-)
+ real(rkind)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
+ real(rkind)                        :: scalarVolFracLiqPrime           ! volumetric fraction of liquid water (-)
+ real(rkind)                        :: scalarVolFracIcePrime           ! volumetric fraction of ice (-)
+ real(rkind)                        :: Tcrit                           ! critical soil temperature below which ice exists (K)
+ real(rkind)                        :: xTemp                           ! temporary temperature (K)
+ real(rkind)                        :: effSat                          ! effective saturation (-)
+ real(rkind)                        :: avPore                          ! available pore space (-)
  character(len=256)              :: cMessage                        ! error message of downwind routine
  logical(lgt),parameter          :: printFlag=.false.               ! flag to turn on printing
  ! iterative solution for temperature
- real(dp)                        :: meltNrg                         ! energy for melt+freeze (J m-3)
- real(dp)                        :: residual                        ! residual in the energy equation (J m-3)
- real(dp)                        :: derivative                      ! derivative in the energy equation (J m-3 K-1)
- real(dp)                        :: tempInc                         ! iteration increment (K)
+ real(rkind)                        :: meltNrg                         ! energy for melt+freeze (J m-3)
+ real(rkind)                        :: residual                        ! residual in the energy equation (J m-3)
+ real(rkind)                        :: derivative                      ! derivative in the energy equation (J m-3 K-1)
+ real(rkind)                        :: tempInc                         ! iteration increment (K)
  integer(i4b)                    :: iter                            ! iteration index
  integer(i4b)                    :: niter                           ! number of iterations
  integer(i4b),parameter          :: maxiter=100                     ! maximum number of iterations
- real(dp),parameter              :: nrgConvTol=1.e-4_rkind             ! convergence tolerance for energy (J m-3)
- real(dp),parameter              :: tempConvTol=1.e-6_rkind            ! convergence tolerance for temperature (K)
- real(dp)                        :: critDiff                        ! temperature difference from critical (K)
- real(dp)                        :: tempMin                         ! minimum bracket for temperature (K)
- real(dp)                        :: tempMax                         ! maximum bracket for temperature (K)
+ real(rkind),parameter              :: nrgConvTol=1.e-4_rkind             ! convergence tolerance for energy (J m-3)
+ real(rkind),parameter              :: tempConvTol=1.e-6_rkind            ! convergence tolerance for temperature (K)
+ real(rkind)                        :: critDiff                        ! temperature difference from critical (K)
+ real(rkind)                        :: tempMin                         ! minimum bracket for temperature (K)
+ real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
  logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
- real(dp),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
+ real(rkind),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&

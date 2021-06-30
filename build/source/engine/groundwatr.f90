@@ -28,8 +28,8 @@ USE multiconst,only:iden_water ! density of water (kg m-3)
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,     & ! data vector (dp)
-                    var_dlength  ! data vector with variable length dimension (dp)
+                    var_d,     & ! data vector (rkind)
+                    var_dlength  ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookATTR    ! named variables for structure elements

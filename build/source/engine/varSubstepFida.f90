@@ -43,11 +43,11 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
-                    zLookup,      & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! provide access to indices that define elements of the data structures
@@ -79,7 +79,7 @@ private
 public::varSubstepFida
 
 ! algorithmic parameters
-real(dp),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
+real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
 
 contains
 
@@ -140,9 +140,9 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(dp),intent(in)             :: dt                            ! time step (seconds)
- real(dp),intent(in)             :: dtInit                        ! initial time step (seconds)
- real(dp),intent(in)             :: dt_min                        ! minimum time step (seconds)
+ real(rkind),intent(in)             :: dt                            ! time step (seconds)
+ real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
+ real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -167,7 +167,7 @@ contains
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  ! output: model control
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(dp),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
+ real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
  integer(i4b),intent(out)        :: nSubsteps                     ! number of substeps taken for a given split
  logical(lgt),intent(out)        :: failedMinimumStep             ! flag to denote success of substepping for a given split
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
@@ -186,24 +186,24 @@ contains
  integer(i4b)                    :: ixLayer                       ! index in a given domain
  integer(i4b), dimension(1)      :: ixMin,ixMax                   ! bounds of a given flux vector
  ! time stepping
- real(dp)                        :: dtSum                         ! sum of time from successful steps (seconds)
- real(dp)                        :: dt_wght                       ! weight given to a given flux calculation
- real(dp)                        :: dtSubstep                     ! length of a substep (s)
+ real(rkind)                        :: dtSum                         ! sum of time from successful steps (seconds)
+ real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
+ real(rkind)                        :: dtSubstep                     ! length of a substep (s)
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
- real(dp),parameter              :: safety=0.85_rkind                ! safety factor in adaptive sub-stepping
- real(dp),parameter              :: reduceMin=0.1_rkind              ! mimimum factor that time step is reduced
- real(dp),parameter              :: increaseMax=4.0_rkind            ! maximum factor that time step is increased
+ real(rkind),parameter              :: safety=0.85_rkind                ! safety factor in adaptive sub-stepping
+ real(rkind),parameter              :: reduceMin=0.1_rkind              ! mimimum factor that time step is reduced
+ real(rkind),parameter              :: increaseMax=4.0_rkind            ! maximum factor that time step is increased
  ! adaptive sub-stepping for the implicit solution
  integer(i4b),parameter          :: n_inc=5                       ! minimum number of iterations to increase time step
  integer(i4b),parameter          :: n_dec=15                      ! maximum number of iterations to decrease time step
- real(dp),parameter              :: F_inc = 1.25_rkind               ! factor used to increase time step
- real(dp),parameter              :: F_dec = 0.90_rkind               ! factor used to decrease time step
+ real(rkind),parameter              :: F_inc = 1.25_rkind               ! factor used to increase time step
+ real(rkind),parameter              :: F_dec = 0.90_rkind               ! factor used to decrease time step
  ! state and flux vectors
- real(dp)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
- real(dp)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
- real(dp)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
- real(dp)                        :: stateVecPrime(nState)         ! trial state vector (mixed units)
+ real(rkind)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
+ real(rkind)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
+ real(rkind)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
+ real(rkind)                        :: stateVecPrime(nState)         ! trial state vector (mixed units)
  type(var_dlength)               :: flux_temp                     ! temporary model fluxes
  ! flags
  logical(lgt)                    :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -212,11 +212,11 @@ contains
  logical(lgt)                    :: waterBalanceError             ! flag to denote that there is a water balance error
  logical(lgt)                    :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
  ! energy fluxes
- real(dp)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
- real(dp)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- real(dp)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
- real(dp)                        :: sumSoilCompress
- real(dp),allocatable            :: sumLayerCompress(:)
+ real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+ real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+ real(rkind)                        :: sumSoilCompress
+ real(rkind),allocatable            :: sumLayerCompress(:)
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -550,15 +550,15 @@ contains
  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
  implicit none
  ! model control
- real(dp)         ,intent(in)    :: dt                             ! time step (s)
+ real(rkind)         ,intent(in)    :: dt                             ! time step (s)
  integer(i4b)     ,intent(in)    :: nSnow                          ! number of snow layers
  integer(i4b)     ,intent(in)    :: nSoil                          ! number of soil layers
  integer(i4b)     ,intent(in)    :: nLayers                        ! total number of layers
  logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
- real(dp)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
- real(dp)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
- real(dp)         ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
+ real(rkind)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
+ real(rkind)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
+ real(rkind)         ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
  logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance 
  ! data structures
@@ -580,49 +580,49 @@ contains
  integer(i4b)                    :: ixSubset                       ! index within the state subset
  integer(i4b)                    :: ixFullVector                   ! index within full state vector
  integer(i4b)                    :: ixControlIndex                 ! index within a given domain
- real(dp)                        :: volMelt                        ! volumetric melt (kg m-3)
- real(dp),parameter              :: verySmall=epsilon(1._rkind)*2._rkind ! a very small number (deal with precision issues)
+ real(rkind)                        :: volMelt                        ! volumetric melt (kg m-3)
+ real(rkind),parameter              :: verySmall=epsilon(1._rkind)*2._rkind ! a very small number (deal with precision issues)
  ! mass balance
- real(dp)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
- real(dp)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
- real(dp)                        :: vertFlux                       ! change in storage due to vertical fluxes
- real(dp)                        :: tranSink,baseSink,compSink     ! change in storage due to sink terms
- real(dp)                        :: liqError                       ! water balance error
- real(dp)                        :: fluxNet                        ! net water fluxes (kg m-2 s-1)
- real(dp)                        :: superflousWat                  ! superflous water used for evaporation (kg m-2 s-1)
- real(dp)                        :: superflousNrg                  ! superflous energy that cannot be used for evaporation (W m-2 [J m-2 s-1])
+ real(rkind)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
+ real(rkind)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
+ real(rkind)                        :: vertFlux                       ! change in storage due to vertical fluxes
+ real(rkind)                        :: tranSink,baseSink,compSink     ! change in storage due to sink terms
+ real(rkind)                        :: liqError                       ! water balance error
+ real(rkind)                        :: fluxNet                        ! net water fluxes (kg m-2 s-1)
+ real(rkind)                        :: superflousWat                  ! superflous water used for evaporation (kg m-2 s-1)
+ real(rkind)                        :: superflousNrg                  ! superflous energy that cannot be used for evaporation (W m-2 [J m-2 s-1])
  character(LEN=256)              :: cmessage                       ! error message of downwind routine
  ! trial state variables
- real(dp)                        :: scalarCanairTempTrial          ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial          ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatTrial           ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempTrial                ! trial vector for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
- real(dp)                        :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
+ real(rkind)                        :: scalarCanairTempTrial          ! trial value for temperature of the canopy air space (K)
+ real(rkind)                        :: scalarCanopyTempTrial          ! trial value for temperature of the vegetation canopy (K)
+ real(rkind)                        :: scalarCanopyWatTrial           ! trial value for liquid water storage in the canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerTempTrial                ! trial vector for temperature of layers in the snow and soil domains (K)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracWatTrial          ! trial vector for volumetric fraction of total water (-)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
+ real(rkind)                        :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
+ real(rkind)                        :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rkind)                        :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
   ! derivative of state variables
- real(dp)                        :: scalarCanairTempPrime          ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempPrime          ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatPrime           ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempPrime                ! trial vector for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatPrime          ! trial vector for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadPrime          ! trial vector for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqPrime       ! trial vector for liquid water matric potential (m)
- real(dp)                        :: scalarAquiferStoragePrime      ! trial value for storage of water in the aquifer (m)
+ real(rkind)                        :: scalarCanairTempPrime          ! trial value for temperature of the canopy air space (K)
+ real(rkind)                        :: scalarCanopyTempPrime          ! trial value for temperature of the vegetation canopy (K)
+ real(rkind)                        :: scalarCanopyWatPrime           ! trial value for liquid water storage in the canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerTempPrime                ! trial vector for temperature of layers in the snow and soil domains (K)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracWatPrime          ! trial vector for volumetric fraction of total water (-)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadPrime          ! trial vector for total water matric potential (m)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqPrime       ! trial vector for liquid water matric potential (m)
+ real(rkind)                        :: scalarAquiferStoragePrime      ! trial value for storage of water in the aquifer (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqPrime           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIcePrime           ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
- real(dp)                        :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
- real(dp)                        :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3
- real(dp),dimension(nLayers)     :: mLayerEnthalpyTrial
+ real(rkind)                        :: scalarCanopyLiqPrime           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rkind)                        :: scalarCanopyIcePrime           ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
+ real(rkind)                        :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
+ real(rkind)                        :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3
+ real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial
  integer(i4b) 					 :: iLayer
  ! -------------------------------------------------------------------------------------------------------------------
 

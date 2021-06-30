@@ -11,9 +11,9 @@ module evalJacFida_module
   ! provide access to the derived types to define the data structures
   USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
   
@@ -51,8 +51,8 @@ contains
     implicit none
 
     ! calling variables
-    real(dp), value         :: t              ! current time
-    real(dp), value         :: cj             ! step size scaling factor
+    real(rkind), value         :: t              ! current time
+    real(rkind), value         :: cj             ! step size scaling factor
     type(N_Vector)          :: sunvec_y       ! solution N_Vector
     type(N_Vector)          :: sunvec_yp      ! derivative N_Vector
     type(N_Vector)          :: sunvec_r       ! residual N_Vector
@@ -63,10 +63,10 @@ contains
     type(N_Vector)          :: sunvec_temp3
     
     ! pointers to data in SUNDIALS vectors
-    real(dp), pointer          :: stateVec(:)
-    real(dp), pointer          :: stateVecPrime(:)
-    real(dp), pointer          :: rVec(:)
-    real(dp), pointer          :: Jac(:,:)
+    real(rkind), pointer          :: stateVec(:)
+    real(rkind), pointer          :: stateVecPrime(:)
+    real(rkind), pointer          :: rVec(:)
+    real(rkind), pointer          :: Jac(:,:)
     type(eqnsData), pointer    :: eqns_data      ! equations data  
 
 

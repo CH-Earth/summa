@@ -48,9 +48,9 @@ USE multiconst,only:&
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -126,8 +126,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
-  real(dp),intent(in)            :: cj 
- real(dp),intent(in)             :: dt                     ! time step
+  real(rkind),intent(in)            :: cj 
+ real(rkind),intent(in)             :: dt                     ! time step
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -135,8 +135,8 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(dp),intent(in)             :: stateVec(:)       ! model state vector
- real(dp),intent(in)             :: stateVecPrime(:)       ! model state vector
+ real(rkind),intent(in)             :: stateVec(:)       ! model state vector
+ real(rkind),intent(in)             :: stateVecPrime(:)       ! model state vector
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
@@ -147,10 +147,10 @@ contains
  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
- real(dp),intent(in)             :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(in)             :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: Jacobian
- real(dp), intent(inout)         :: dMat(:)
- real(dp), intent(out)           :: Jac(:,:)                    ! jacobian matrix
+ real(rkind), intent(inout)         :: dMat(:)
+ real(rkind), intent(out)           :: Jac(:,:)                    ! jacobian matrix
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -158,42 +158,42 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state variables
- real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempTrial           ! trial value for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadTrial     ! trial value for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
- real(dp)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
+ real(rkind)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
+ real(rkind)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerTempTrial           ! trial value for temperature of layers in the snow and soil domains (K)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadTrial     ! trial value for total water matric potential (m)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
+ real(rkind)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
  ! diagnostic variables
- real(dp)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
+ real(rkind)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rkind)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
  
   ! derivative of state variables
- real(dp)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadPrime     ! derivative value for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
- real(dp)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
+ real(rkind)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
+ real(rkind)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
+ real(rkind)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadPrime     ! derivative value for total water matric potential (m)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
+ real(rkind)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
  ! derivative of diagnostic variables
- real(dp)                        :: scalarCanopyLiqPrime      ! derivative value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIcePrime      ! derivative value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
+ real(rkind)                        :: scalarCanopyLiqPrime      ! derivative value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rkind)                        :: scalarCanopyIcePrime      ! derivative value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
  ! other local variables
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
- real(dp)                        :: dt1
- real(dp)                        :: mLayerd2Theta_dTk2(nLayers)
- real(dp)                        :: d2VolTot_d2Psi0(nLayers)
- real(dp)                        :: dFracLiqSnow_dTk(nLayers)
- real(dp)                        :: d2Theta_dTkCanopy2
- real(dp)                        :: dFracLiqVeg_dTkCanopy
+ real(rkind)                        :: dt1
+ real(rkind)                        :: mLayerd2Theta_dTk2(nLayers)
+ real(rkind)                        :: d2VolTot_d2Psi0(nLayers)
+ real(rkind)                        :: dFracLiqSnow_dTk(nLayers)
+ real(rkind)                        :: d2Theta_dTkCanopy2
+ real(rkind)                        :: dFracLiqVeg_dTkCanopy
  
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures

@@ -130,7 +130,7 @@ MODULE data_types
   ! define derived types to hold look-up tables for each soil layer
  ! ** double precision type
  type, public :: dLookup
-  real(dp),allocatable                :: lookup(:)   ! lookup(:)
+  real(rkind),allocatable                :: lookup(:)   ! lookup(:)
  endtype dLookup
  ! ** double precision type for a variable number of soil layers; variable length
  type, public :: vLookup

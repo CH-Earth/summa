@@ -31,24 +31,24 @@ USE data_types,only:&
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
                     var_i8,              & ! x%var(:)            integer(8)
-                    var_d,               & ! x%var(:)            (dp)
+                    var_d,               & ! x%var(:)            (rkind)
                     var_flagVec,         & ! x%var(:)%dat        (logical)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
-                    var_dlength,         & ! x%var(:)%dat        (dp)
+                    var_dlength,         & ! x%var(:)%dat        (rkind)
                     ! gru dimension
                     gru_int,             & ! x%gru(:)%var(:)     (i4b)
                     gru_int8,            & ! x%gru(:)%var(:)     integer(8)
-                    gru_double,          & ! x%gru(:)%var(:)     (dp)
+                    gru_double,          & ! x%gru(:)%var(:)     (rkind)
                     gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
+                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (rkind)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
-                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
+                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (rkind)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (rkind)
                     ! gru+hru+z dimension
-                    gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup (dp)
+                    gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup (rkind)
 
 ! metadata structure
 USE data_types,only:var_info               ! data type for metadata

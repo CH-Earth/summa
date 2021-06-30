@@ -7,9 +7,9 @@ USE nrtype
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -101,14 +101,14 @@ contains
  ! input:
  integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
  integer(i4b),intent(in)        :: ixBeg,ixEnd               ! start and end indices defining desired layers
- real(dp),intent(in)            :: mLayerMatricHeadPrime(:)       ! matric head at the start of the time step (m)
- real(dp),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
- real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
- real(dp),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
- real(dp),intent(in)            :: theta_sat(:)              ! soil porosity (-)
+ real(rkind),intent(in)            :: mLayerMatricHeadPrime(:)       ! matric head at the start of the time step (m)
+ real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+ real(rkind),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+ real(rkind),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
+ real(rkind),intent(in)            :: theta_sat(:)              ! soil porosity (-)
  ! output:
- real(dp),intent(inout)         :: compress(:)               ! soil compressibility (-)
- real(dp),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+ real(rkind),intent(inout)         :: compress(:)               ! soil compressibility (-)
+ real(rkind),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
  integer(i4b),intent(out)       :: err                       ! error code
  character(*),intent(out)       :: message                   ! error message
  ! local variables

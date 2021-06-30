@@ -41,9 +41,9 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
@@ -101,8 +101,8 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  integer(i4b),intent(in) 	     :: nSnow               ! number of snow layers
- real(dp),intent(in) 			 :: mLayerDepth(:)          
- real(dp),intent(in)			 :: scalarSnowDepth
+ real(rkind),intent(in) 			 :: mLayerDepth(:)          
+ real(rkind),intent(in)			 :: scalarSnowDepth
  ! output
  logical(lgt),intent(out)        :: divideLayer         ! flag to denote that a layer was divided
  integer(i4b),intent(out)        :: err                 ! error code
@@ -111,9 +111,9 @@ contains
  ! define local variables
  integer(i4b)                    :: iLayer              ! layer index
  integer(i4b)                    :: jLayer              ! layer index
- real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
- real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
- real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
+ real(rkind),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
+ real(rkind),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
+ real(rkind)                        :: zmaxCheck           ! value of zmax for a given snow layer
  integer(i4b)                    :: nCheck              ! number of layers to check to divide
  logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
  ! --------------------------------------------------------------------------------------------------------

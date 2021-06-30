@@ -7,7 +7,7 @@ USE nrtype
 ! derived types to define the data structures
 USE data_types,only:&
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -63,10 +63,10 @@ contains
  ! input: model control
  type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
  integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
- real(dp),intent(in)             :: mLayerTemp(:)             ! temperature of each snow/soil layer (K)
- real(dp),intent(in)             :: mLayerVolFracIce(:)       ! volumetric fraction of ice (-)
- real(dp),intent(in)             :: mLayerHeatCap(:)
- real(dp),intent(out)            :: mLayerEnthalpy(:)
+ real(rkind),intent(in)             :: mLayerTemp(:)             ! temperature of each snow/soil layer (K)
+ real(rkind),intent(in)             :: mLayerVolFracIce(:)       ! volumetric fraction of ice (-)
+ real(rkind),intent(in)             :: mLayerHeatCap(:)
+ real(rkind),intent(out)            :: mLayerEnthalpy(:)
  
  ! local variables
  integer(i4b)                    :: iLayer
@@ -116,15 +116,15 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         		! logical flag to denote if computing the vegetation flux
  type(var_ilength),intent(in)    :: indx_data                 	! indices defining model states and layers
  integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
- real(dp),intent(in)			 :: canopyDepth					! canopy depth (m)
- real(dp),intent(in)			 :: scalarCanopyTempPrime       ! Prime value for the temperature of the vegetation canopy (K)
- real(dp),intent(in)			 :: scalarCanopyIcePrime		! Prime value for the ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)			 :: heatCapVeg
- real(dp),intent(in)             :: mLayerTempPrime(:)          ! temperature of each snow/soil layer (K)
- real(dp),intent(in)             :: mLayerVolFracIcePrime(:)    ! volumetric fraction of ice (-)
- real(dp),intent(in)             :: mLayerHeatCap(:)
- real(dp),intent(out)			 :: scalarCanopyEnthalpyPrime
- real(dp),intent(out)            :: mLayerEnthalpyPrime(:)
+ real(rkind),intent(in)			 :: canopyDepth					! canopy depth (m)
+ real(rkind),intent(in)			 :: scalarCanopyTempPrime       ! Prime value for the temperature of the vegetation canopy (K)
+ real(rkind),intent(in)			 :: scalarCanopyIcePrime		! Prime value for the ice on the vegetation canopy (kg m-2)
+ real(rkind),intent(in)			 :: heatCapVeg
+ real(rkind),intent(in)             :: mLayerTempPrime(:)          ! temperature of each snow/soil layer (K)
+ real(rkind),intent(in)             :: mLayerVolFracIcePrime(:)    ! volumetric fraction of ice (-)
+ real(rkind),intent(in)             :: mLayerHeatCap(:)
+ real(rkind),intent(out)			 :: scalarCanopyEnthalpyPrime
+ real(rkind),intent(out)            :: mLayerEnthalpyPrime(:)
  
  ! local variables
  integer(i4b)                    :: iLayer

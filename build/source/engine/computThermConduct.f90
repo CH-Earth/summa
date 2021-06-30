@@ -6,9 +6,9 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (dp)
+                    var_dlength         ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
@@ -54,10 +54,10 @@ private
 public::computThermConduct
 
 ! algorithmic parameters
-real(dp),parameter     :: valueMissing=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_rkind         ! prevents overflow error if division by zero
-real(dp),parameter     :: dx=1.e-6_rkind          ! finite difference increment
+real(rkind),parameter     :: valueMissing=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
+real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
+real(rkind),parameter     :: mpe=1.e-6_rkind         ! prevents overflow error if division by zero
+real(rkind),parameter     :: dx=1.e-6_rkind          ! finite difference increment
 contains
 
 
@@ -86,11 +86,11 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
- real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
- real(dp),intent(in)             :: scalarCanopyLiquid
- real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
+ real(rkind),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(rkind),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(in)             :: scalarCanopyLiquid
+ real(rkind),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
@@ -104,26 +104,26 @@ contains
  character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
  integer(i4b)                      :: iSoil                  ! index of soil layer
- real(dp)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
- real(dp)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
- real(dp)                          :: zdn                    ! height difference between interface and lower value (m)
- real(dp)                          :: zdp                    ! height difference between interface and upper value (m)
- real(dp)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
- real(dp)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
- real(dp)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
- real(dp)                          :: lambda_wet             ! thermal conductivity of the wet material
- real(dp)                          :: relativeSat            ! relative saturation (-)
- real(dp)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
- real(dp)                          :: den                    ! denominator in the thermal conductivity calculations
+ real(rkind)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
+ real(rkind)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
+ real(rkind)                          :: zdn                    ! height difference between interface and lower value (m)
+ real(rkind)                          :: zdp                    ! height difference between interface and upper value (m)
+ real(rkind)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
+ real(rkind)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
+ real(rkind)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ real(rkind)                          :: lambda_wet             ! thermal conductivity of the wet material
+ real(rkind)                          :: relativeSat            ! relative saturation (-)
+ real(rkind)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+ real(rkind)                          :: den                    ! denominator in the thermal conductivity calculations
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
- real(dp),parameter                :: c1=0.55_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter                :: c2=0.8_rkind              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter                :: c3=3.07_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: c4=0.13_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(dp),parameter                :: c5=4._rkind               ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: f1=13.05_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp),parameter                :: f2=1.06_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(dp)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
+ real(rkind),parameter                :: c1=0.55_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter                :: c2=0.8_rkind              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter                :: c3=3.07_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter                :: c4=0.13_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter                :: c5=4._rkind               ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter                :: f1=13.05_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter                :: f2=1.06_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&

@@ -46,9 +46,9 @@ USE multiconst,only:&
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookDIAG             ! named variables for structure elements
@@ -111,23 +111,23 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(dp),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
+ real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
  ! output: variables for the vegetation canopy
- real(dp),intent(out)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
- real(dp),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
- real(dp),intent(out)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
- real(dp),intent(out)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
+ real(rkind),intent(out)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
+ real(rkind),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+ real(rkind),intent(out)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(out)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
  ! output: variables for the snow-soil domain
- real(dp),intent(out)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
- real(dp),intent(out)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
- real(dp),intent(out)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(out)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
- real(dp),intent(out)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+ real(rkind),intent(out)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+ real(rkind),intent(out)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
+ real(rkind),intent(out)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(out)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
+ real(rkind),intent(out)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
  ! output: variables for the aquifer
- real(dp),intent(out)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
+ real(rkind),intent(out)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
  ! output: error control
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message
@@ -242,23 +242,23 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(dp),intent(in)             :: stateVecPrime(:)                     ! model state vector (mixed units)
+ real(rkind),intent(in)             :: stateVecPrime(:)                     ! model state vector (mixed units)
  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
  ! output: variables for the vegetation canopy
- real(dp),intent(out)            :: scalarCanairTempPrime           ! trial value of canopy air temperature (K)
- real(dp),intent(out)            :: scalarCanopyTempPrime           ! trial value of canopy temperature (K)
- real(dp),intent(out)            :: scalarCanopyWatPrime            ! trial value of canopy total water (kg m-2)
- real(dp),intent(out)            :: scalarCanopyLiqPrime            ! trial value of canopy liquid water (kg m-2)
+ real(rkind),intent(out)            :: scalarCanairTempPrime           ! trial value of canopy air temperature (K)
+ real(rkind),intent(out)            :: scalarCanopyTempPrime           ! trial value of canopy temperature (K)
+ real(rkind),intent(out)            :: scalarCanopyWatPrime            ! trial value of canopy total water (kg m-2)
+ real(rkind),intent(out)            :: scalarCanopyLiqPrime            ! trial value of canopy liquid water (kg m-2)
  ! output: variables for the snow-soil domain
- real(dp),intent(out)            :: mLayerTempPrime(:)              ! trial vector of layer temperature (K)
- real(dp),intent(out)            :: mLayerVolFracWatPrime(:)        ! trial vector of volumetric total water content (-)
- real(dp),intent(out)            :: mLayerVolFracLiqPrime(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(out)            :: mLayerMatricHeadPrime(:)        ! trial vector of total water matric potential (m)
- real(dp),intent(out)            :: mLayerMatricHeadLiqPrime(:)     ! trial vector of liquid water matric potential (m)
+ real(rkind),intent(out)            :: mLayerTempPrime(:)              ! trial vector of layer temperature (K)
+ real(rkind),intent(out)            :: mLayerVolFracWatPrime(:)        ! trial vector of volumetric total water content (-)
+ real(rkind),intent(out)            :: mLayerVolFracLiqPrime(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(out)            :: mLayerMatricHeadPrime(:)        ! trial vector of total water matric potential (m)
+ real(rkind),intent(out)            :: mLayerMatricHeadLiqPrime(:)     ! trial vector of liquid water matric potential (m)
  ! output: variables for the aquifer
- real(dp),intent(out)            :: scalarAquiferStoragePrime       ! trial value of storage of water in the aquifer (m)
+ real(rkind),intent(out)            :: scalarAquiferStoragePrime       ! trial value of storage of water in the aquifer (m)
  ! output: error control
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message
@@ -358,7 +358,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(dp),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
+ real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
@@ -446,7 +446,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(dp),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
+ real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers

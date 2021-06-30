@@ -26,7 +26,7 @@ USE nrtype
 ! derived types to define the data structures
 USE data_types,only:&
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -80,7 +80,7 @@ USE multiconst,only:&
 
 implicit none
 ! define constants
-real(dp),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
+real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 integer(i4b),parameter :: ixBandOffset=kl+ku+1       ! offset in the band Jacobian matrix
 
 private
@@ -131,40 +131,40 @@ contains
  ! -----------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: model control
- real(dp),intent(in)               :: cj
- real(dp),intent(in)               :: dt              ! length of the time step (seconds)
+ real(rkind),intent(in)               :: cj
+ real(rkind),intent(in)               :: dt              ! length of the time step (seconds)
  integer(i4b),intent(in)           :: nSnow           ! number of snow layers
  integer(i4b),intent(in)           :: nSoil           ! number of soil layers
  integer(i4b),intent(in)           :: nLayers         ! total number of layers in the snow+soil domain
  logical(lgt),intent(in)           :: computeVegFlux  ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)           :: computeBaseflow ! flag to indicate if computing baseflow
  integer(i4b),intent(in)           :: ixMatrix        ! form of the Jacobian matrix
- real(dp),intent(in)               :: specificStorage           ! specific storage coefficient (m-1)
- real(dp),intent(in)               :: theta_sat(:)              ! soil porosity (-)
+ real(rkind),intent(in)               :: specificStorage           ! specific storage coefficient (m-1)
+ real(rkind),intent(in)               :: theta_sat(:)              ! soil porosity (-)
  integer(i4b),intent(in)           :: ixRichards                ! choice of option for Richards' equation
  ! input: data structures
  type(var_ilength),intent(in)      :: indx_data       ! indices defining model states and layers
  type(var_dlength),intent(in)      :: prog_data       ! prognostic variables for a local HRU
  type(var_dlength),intent(in)      :: diag_data       ! diagnostic variables for a local HRU
  type(var_dlength),intent(in)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
- real(dp),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! input: state variables
- real(dp),intent(in)               :: mLayerTemp(:)
- real(dp),intent(in)               :: mLayerTempPrime(:) 
- real(dp),intent(in)               :: mLayerMatricHeadPrime(:)
- real(dp),intent(in)               :: mLayerMatricHeadLiqPrime(:)
- real(dp),intent(in)               :: mLayerd2Theta_dTk2(:) 
- real(dp),intent(in)               :: mLayerVolFracWatPrime(:)
- real(dp),intent(in)               :: scalarCanopyTemp
- real(dp),intent(in)               :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
- real(dp),intent(in)               :: scalarCanopyWatPrime 
- real(dp),intent(in)               :: d2VolTot_d2Psi0(:)
- real(dp),intent(in)               :: dFracLiqSnow_dTk(:)
- real(dp),intent(in)               :: d2Theta_dTkCanopy2
- real(dp),intent(in)               :: dFracLiqVeg_dTkCanopy
+ real(rkind),intent(in)               :: mLayerTemp(:)
+ real(rkind),intent(in)               :: mLayerTempPrime(:) 
+ real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)
+ real(rkind),intent(in)               :: mLayerMatricHeadLiqPrime(:)
+ real(rkind),intent(in)               :: mLayerd2Theta_dTk2(:) 
+ real(rkind),intent(in)               :: mLayerVolFracWatPrime(:)
+ real(rkind),intent(in)               :: scalarCanopyTemp
+ real(rkind),intent(in)               :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
+ real(rkind),intent(in)               :: scalarCanopyWatPrime 
+ real(rkind),intent(in)               :: d2VolTot_d2Psi0(:)
+ real(rkind),intent(in)               :: dFracLiqSnow_dTk(:)
+ real(rkind),intent(in)               :: d2Theta_dTkCanopy2
+ real(rkind),intent(in)               :: dFracLiqVeg_dTkCanopy
  ! input-output: Jacobian and its diagonal
- real(dp),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
- real(dp),intent(out)              :: aJac(:,:)       ! Jacobian matrix
+ real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
+ real(rkind),intent(out)              :: aJac(:,:)       ! Jacobian matrix
  ! output variables
  integer(i4b),intent(out)          :: err             ! error code
  character(*),intent(out)          :: message         ! error message
@@ -182,7 +182,7 @@ contains
  integer(i4b)                      :: jLayer          ! index of model layer within the full state vector (hydrology)
  integer(i4b)                      :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
  ! conversion factors
- real(dp)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
+ real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
  ! --------------------------------------------------------------
  ! associate variables from data structures
  associate(&

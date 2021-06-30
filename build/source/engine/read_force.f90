@@ -24,7 +24,7 @@ module read_force_module
 USE nrtype                                    ! variable types, etc.
 
 ! derived data types
-USE data_types,only:gru_hru_double            ! x%gru(:)%hru(:)%var(:)     (dp)
+USE data_types,only:gru_hru_double            ! x%gru(:)%hru(:)%var(:)     (rkind)
 
 ! constants
 USE multiconst,only:secprday                  ! number of seconds in a day

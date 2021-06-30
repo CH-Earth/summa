@@ -22,7 +22,7 @@ module derivforce_module
 
 ! data types
 USE nrtype
-USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (dp)
+USE data_types,only:var_dlength                             ! data structure: x%var(:)%dat (rkind)
 
 ! model constants
 USE multiconst,only:Tfreeze                                 ! freezing point of pure water (K)

@@ -26,9 +26,9 @@ USE nrtype
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -168,22 +168,22 @@ contains
  logical(lgt),intent(in)         :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution              ! flag to denote if implementing the scalar solution
- real(dp),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
+ real(rkind),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
- real(dp),intent(in)			 :: scalarAquiferStorage
- real(dp),intent(in)			 :: mLayerVolFracIce(:)		 	! 
- real(dp),intent(in)			 :: mLayerVolFracLiq(:)		 	! 
- real(dp),intent(in)			 :: mLayerMatricHead(:)			! 
- real(dp),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
- real(dp),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
- real(dp),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
- real(dp),intent(in)             :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
- real(dp),intent(in)             :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
+ real(rkind),intent(in)			 :: scalarAquiferStorage
+ real(rkind),intent(in)			 :: mLayerVolFracIce(:)		 	! 
+ real(rkind),intent(in)			 :: mLayerVolFracLiq(:)		 	! 
+ real(rkind),intent(in)			 :: mLayerMatricHead(:)			! 
+ real(rkind),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
+ real(rkind),intent(in)             :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
+ real(rkind),intent(in)             :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
+ real(rkind),intent(in)             :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
+ real(rkind),intent(in)             :: scalarAquiferStorageTrial   ! trial value of aquifer storage (m)
  ! input: diagnostic variables
- real(dp),intent(in)             :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp),intent(in)             :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)             :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
- real(dp),intent(in)             :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
+ real(rkind),intent(in)             :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rkind),intent(in)             :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),intent(in)             :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
+ real(rkind),intent(in)             :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)          ! model decisions
  type(var_i),        intent(in)  :: type_data                   ! type of vegetation and soil
@@ -199,8 +199,8 @@ contains
  type(var_dlength),intent(inout) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: flux vector and baseflow derivatives
  integer(i4b),intent(inout)      :: ixSaturation                ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(dp),intent(out)            :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
- real(dp),intent(out)            :: fluxVec(:)                  ! model flux vector (mixed units)
+ real(rkind),intent(out)            :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(out)            :: fluxVec(:)                  ! model flux vector (mixed units)
  ! output: error control
  integer(i4b),intent(out)        :: err                         ! error code
  character(*),intent(out)        :: message                     ! error message
@@ -210,7 +210,7 @@ contains
  integer(i4b)                    :: local_ixGroundwater         ! local index for groundwater representation
  integer(i4b)                    :: iLayer                      ! index of model layers
  logical(lgt)                    :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
- real(dp),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
+ real(rkind),dimension(nSoil)       :: dHydCond_dMatric            ! derivative in hydraulic conductivity w.r.t matric head (s-1)
  character(LEN=256)              :: cmessage                    ! error message of downwind routine
  ! --------------------------------------------------------------
  ! initialize error control
@@ -881,15 +881,15 @@ contains
  ! input:
  integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
  integer(i4b),intent(in)        :: ixBeg,ixEnd               ! start and end indices defining desired layers
- real(dp),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
- real(dp),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
- real(dp),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
- real(dp),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
- real(dp),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
- real(dp),intent(in)            :: theta_sat(:)              ! soil porosity (-)
+ real(rkind),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
+ real(rkind),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
+ real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+ real(rkind),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+ real(rkind),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
+ real(rkind),intent(in)            :: theta_sat(:)              ! soil porosity (-)
  ! output:
- real(dp),intent(inout)         :: compress(:)               ! soil compressibility (-)
- real(dp),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+ real(rkind),intent(inout)         :: compress(:)               ! soil compressibility (-)
+ real(rkind),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
  integer(i4b),intent(out)       :: err                       ! error code
  character(*),intent(out)       :: message                   ! error message
  ! local variables

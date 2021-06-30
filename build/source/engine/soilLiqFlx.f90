@@ -23,9 +23,9 @@ module soilLiqFlx_module
 
 ! data types
 USE nrtype
-USE data_types,only:var_d                  ! x%var(:)       (dp)
+USE data_types,only:var_d                  ! x%var(:)       (rkind)
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
-USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
+USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer

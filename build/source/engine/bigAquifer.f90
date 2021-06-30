@@ -62,7 +62,7 @@ contains
  USE var_lookup,only:iLookDIAG              ! named variables for structure elements
  USE var_lookup,only:iLookPARAM             ! named variables for structure elements
  ! data types
- USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
+ USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: state variables, fluxes, and parameters

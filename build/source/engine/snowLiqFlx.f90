@@ -35,8 +35,8 @@ USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 
 ! data types
-USE data_types,only:var_d           ! x%var(:)       (dp)
-USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_d           ! x%var(:)       (rkind)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (rkind)
 USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 
 ! privacy
@@ -231,19 +231,19 @@ contains
  logical(lgt),intent(in)         :: firstFluxCall              ! the first flux call
  logical(lgt),intent(in)         :: scalarSolution             ! flag to denote if implementing the scalar solution
  ! input: forcing for the snow domain
- real(dp),intent(in)             :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
- real(dp),intent(in)             :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
+ real(rkind),intent(in)             :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
+ real(rkind),intent(in)             :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
  ! input: model state vector
- real(dp),intent(in)			 :: mLayerVolFracIce(:)
- real(dp),intent(in)             :: mLayerVolFracLiqTrial(:)   ! trial value of volumetric fraction of liquid water at the current iteration (-)
+ real(rkind),intent(in)			 :: mLayerVolFracIce(:)
+ real(rkind),intent(in)             :: mLayerVolFracLiqTrial(:)   ! trial value of volumetric fraction of liquid water at the current iteration (-)
  ! input-output: data structures
  type(var_ilength),intent(in)    :: indx_data                  ! model indices
  type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
  type(var_dlength),intent(in)    :: prog_data                  ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data                  ! diagnostic variables for a local HRU
  ! output: fluxes and derivatives
- real(dp),intent(inout)          :: iLayerLiqFluxSnow(0:)      ! vertical liquid water flux at layer interfaces (m s-1)
- real(dp),intent(inout)          :: iLayerLiqFluxSnowDeriv(0:) ! derivative in vertical liquid water flux at layer interfaces (m s-1)
+ real(rkind),intent(inout)          :: iLayerLiqFluxSnow(0:)      ! vertical liquid water flux at layer interfaces (m s-1)
+ real(rkind),intent(inout)          :: iLayerLiqFluxSnowDeriv(0:) ! derivative in vertical liquid water flux at layer interfaces (m s-1)
  ! output: error control
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
@@ -253,12 +253,12 @@ contains
  integer(i4b)                    :: iLayer                     ! layer index
  integer(i4b)                    :: ixTop                      ! top layer in subroutine call
  integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
- real(dp)                        :: multResid                  ! multiplier for the residual water content (-)
- real(dp),parameter              :: residThrs=550._rkind          ! ice density threshold to reduce residual liquid water content (kg m-3)
- real(dp),parameter              :: residScal=10._rkind           ! scaling factor for residual liquid water content reduction factor (kg m-3)
- real(dp),parameter              :: maxVolIceContent=0.7_rkind    ! maximum volumetric ice content to store water (-)
- real(dp)                        :: availCap                   ! available storage capacity [0,1] (-)
- real(dp)                        :: relSaturn                  ! relative saturation [0,1] (-)
+ real(rkind)                        :: multResid                  ! multiplier for the residual water content (-)
+ real(rkind),parameter              :: residThrs=550._rkind          ! ice density threshold to reduce residual liquid water content (kg m-3)
+ real(rkind),parameter              :: residScal=10._rkind           ! scaling factor for residual liquid water content reduction factor (kg m-3)
+ real(rkind),parameter              :: maxVolIceContent=0.7_rkind    ! maximum volumetric ice content to store water (-)
+ real(rkind)                        :: availCap                   ! available storage capacity [0,1] (-)
+ real(rkind)                        :: relSaturn                  ! relative saturation [0,1] (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&

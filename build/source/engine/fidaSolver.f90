@@ -68,9 +68,9 @@ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     zLookup         ! data vector
 
 
@@ -179,9 +179,9 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(dp),intent(in)             :: stateVecInit(:)        ! model state vector
+ real(rkind),intent(in)             :: stateVecInit(:)        ! model state vector
  real(qp),intent(in)             :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
- real(dp), intent(inout)         :: dMat(:)
+ real(rkind), intent(inout)         :: dMat(:)
  ! input: data structures
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
@@ -197,11 +197,11 @@ contains
  type(var_dlength),intent(inout):: flux_data              ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: flux_sum
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
- real(dp),intent(inout)          :: mLayerCmpress_sum(:)
+ real(rkind),intent(inout)          :: mLayerCmpress_sum(:)
  ! output: state vectors
  integer(i4b),intent(out)		 :: ixSaturation		   
- real(dp),intent(inout)          :: stateVec(:)            ! model state vector (y)
- real(dp),intent(inout)          :: stateVecPrime(:)       ! model state vector (y')
+ real(rkind),intent(inout)          :: stateVec(:)            ! model state vector (y)
+ real(rkind),intent(inout)          :: stateVecPrime(:)       ! model state vector (y')
  logical(lgt),intent(out)		 :: idaSucceeds
  real(qp),intent(out)            :: dt_last(1)
  real(qp),intent(out)            :: dt_past
@@ -232,23 +232,23 @@ contains
   integer(i4b),parameter     		:: ixTrapezoidal=2
   integer(i4b)               		:: iVar  
   logical(lgt)               		:: startQuadrature
-  real(dp)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
+  real(rkind)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState                 ! total number of state variables
-  real(dp)                          :: rVec(nStat)
+  real(rkind)                          :: rVec(nStat)
   real(qp)                          :: tret(1)
-  real(dp)                          :: bulkDensity                   ! bulk density of a given layer (kg m-3)
-  real(dp)                          :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+  real(rkind)                          :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+  real(rkind)                          :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
   logical(lgt)						:: tooMuchMelt
   logical(lgt)						:: divideLayer
   logical(lgt)						:: mergedLayers
   logical(lgt),parameter			:: checkSnow = .true.
-  real(dp)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
-  real(dp)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  real(dp)							:: mLayerDepth(nLayers)
-  real(dp)							:: scalarSnowDepth
-  real(dp)							:: scalarSWE
-  real(dp)							:: mLayerMeltFreeze(nLayers)
+  real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
+  real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+  real(rkind)							:: mLayerDepth(nLayers)
+  real(rkind)							:: scalarSnowDepth
+  real(rkind)							:: scalarSWE
+  real(rkind)							:: mLayerMeltFreeze(nLayers)
   
   !======= Internals ============
   
@@ -737,7 +737,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   type(N_Vector)  :: sunvec_u  ! solution N_Vector
   type(N_Vector)  :: sunvec_up ! derivative N_Vector
   integer(c_long) :: neq
-  real(dp)        :: y(neq)
+  real(rkind)        :: y(neq)
 
   ! pointers to data in SUNDIALS vectors
   real(c_double), pointer :: uu(:)
@@ -766,7 +766,7 @@ subroutine setSolverParams(dt,ida_mem,retval)
   USE fida_mod                      								! Fortran interface to IDA
 implicit none
 
-	real(dp),intent(in)	  					:: dt			   		! time step
+	real(rkind),intent(in)	  					:: dt			   		! time step
 	type(c_ptr),intent(inout)   			:: ida_mem       		! IDA memory	
 	integer(i4b),intent(out)            	:: retval				! return value
 
@@ -834,20 +834,20 @@ end subroutine setSolverParams
                        err,message        ) ! intent(out): error control
  implicit none
  ! input/output: integrated snowpack properties
- real(dp),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
- real(dp),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
- real(dp),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
+ real(rkind),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
+ real(rkind),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
+ real(rkind),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
  ! input/output: properties of the upper-most soil layer
- real(dp),intent(inout)    :: soilTemp           ! surface layer temperature (K)
- real(dp),intent(inout)    :: soilDepth          ! surface layer depth (m)
- real(dp),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
+ real(rkind),intent(inout)    :: soilTemp           ! surface layer temperature (K)
+ real(rkind),intent(inout)    :: soilDepth          ! surface layer depth (m)
+ real(rkind),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
  ! output: error control
  integer(i4b),intent(out)  :: err                ! error code
  character(*),intent(out)  :: message            ! error message
  ! local variables
- real(dp)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
- real(dp)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
- real(dp)                  :: snwDensity         ! snow density (kg m-3)
+ real(rkind)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
+ real(rkind)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
+ real(rkind)                  :: snwDensity         ! snow density (kg m-3)
  ! initialize error control
  err=0; message='implctMelt/'
 

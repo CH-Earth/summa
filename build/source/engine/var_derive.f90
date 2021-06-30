@@ -25,7 +25,7 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:var_ilength    ! x%var(:)%dat (i4b)
-USE data_types,only:var_dlength    ! x%var(:)%dat (dp)
+USE data_types,only:var_dlength    ! x%var(:)%dat (rkind)
 
 ! named variables for snow and soil
 USE globalData,only:iname_snow     ! named variables for snow

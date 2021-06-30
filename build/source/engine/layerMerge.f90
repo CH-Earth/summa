@@ -41,9 +41,9 @@ USE multiconst,only:&
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
@@ -89,14 +89,14 @@ contains
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  integer(i4b),intent(in)		 :: nSnow          
- real(dp),intent(in)			 :: mLayerDepth(:)      ! model prognostic variables for a local HRU
+ real(rkind),intent(in)			 :: mLayerDepth(:)      ! model prognostic variables for a local HRU
  ! output
  logical(lgt),intent(out)        :: mergedLayers        ! flag to denote that layers were merged
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
- real(dp),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
+ real(rkind),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
  logical(lgt)                    :: removeLayer         ! flag to indicate need to remove a layer
  integer(i4b)                    :: nCheck              ! number of layers to check for combination
  integer(i4b)                    :: iSnow               ! index of snow layers (looping)

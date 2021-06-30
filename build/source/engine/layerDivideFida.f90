@@ -41,9 +41,9 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
@@ -117,21 +117,21 @@ contains
  integer(i4b)                    :: nLayers             ! total number of layers
  integer(i4b)                    :: iLayer              ! layer index
  integer(i4b)                    :: jLayer              ! layer index
- real(dp),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
- real(dp),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
- real(dp)                        :: zmaxCheck           ! value of zmax for a given snow layer
+ real(rkind),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
+ real(rkind),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
+ real(rkind)                        :: zmaxCheck           ! value of zmax for a given snow layer
  integer(i4b)                    :: nCheck              ! number of layers to check to divide
  logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
- real(dp)                        :: depthOriginal       ! original layer depth before sub-division (m)
- real(dp),parameter              :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
- real(dp)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
- real(dp)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
- real(dp),parameter              :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(dp)                        :: volFracWater        ! volumetric fraction of total water, liquid and ice (-)
- real(dp)                        :: fracLiq             ! fraction of liquid water (-)
+ real(rkind)                        :: depthOriginal       ! original layer depth before sub-division (m)
+ real(rkind),parameter              :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
+ real(rkind)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
+ real(rkind)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
+ real(rkind),parameter              :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rkind)                        :: volFracWater        ! volumetric fraction of total water, liquid and ice (-)
+ real(rkind)                        :: fracLiq             ! fraction of liquid water (-)
  integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
  integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
- real(dp),parameter              :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
+ real(rkind),parameter              :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivideFida/"
@@ -387,7 +387,7 @@ contains
  integer(i4b)                    :: ix_lower       ! lower bound of the vector
  integer(i4b)                    :: ix_upper       ! upper bound of the vector
  logical(lgt)                    :: stateVariable  ! .true. if variable is a state variable
- real(dp),allocatable            :: tempVec_rkind(:)  ! temporary vector (double precision)
+ real(rkind),allocatable            :: tempVec_rkind(:)  ! temporary vector (double precision)
  integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
  character(LEN=256)              :: cmessage       ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------------

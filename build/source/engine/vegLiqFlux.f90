@@ -24,8 +24,8 @@ module vegLiqFlux_module
 USE nrtype
 
 ! data types
-USE data_types,only:var_d           ! x%var(:)       (dp)
-USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_d           ! x%var(:)       (rkind)
+USE data_types,only:var_dlength     ! x%var(:)%dat   (rkind)
 
 ! named variables
 USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements

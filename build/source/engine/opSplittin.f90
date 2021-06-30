@@ -96,11 +96,11 @@ USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
-                    zLookup,      & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)

@@ -31,8 +31,8 @@ USE multiconst, only: ave_slp  ! standard pressure (Pa)
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,            & ! data vector (i4b)
-                    var_d,            & ! data vector (dp)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_d,            & ! data vector (rkind)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! indices that define elements of the data structures

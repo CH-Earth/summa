@@ -50,9 +50,9 @@ USE multiconst,only:&
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookDIAG             ! named variables for structure elements
@@ -99,8 +99,8 @@ contains
 
     ! pointers to data in SUNDIALS vectors
     type(eqnsData), pointer    :: tol_data ! equations data
-    real(dp), pointer          :: stateVec(:)
-    real(dp), pointer          :: weightVec(:) 
+    real(rkind), pointer          :: stateVec(:)
+    real(rkind), pointer          :: weightVec(:) 
     integer(c_int)             :: iState
 
     !======= Internals ============
@@ -147,8 +147,8 @@ contains
  type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  ! output
- real(dp),intent(out)            :: absTol(:)            ! model state vector (mixed units)
- real(dp),intent(out)            :: relTol(:)            ! model state vector (mixed units)
+ real(rkind),intent(out)            :: absTol(:)            ! model state vector (mixed units)
+ real(rkind),intent(out)            :: relTol(:)            ! model state vector (mixed units)
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -159,20 +159,20 @@ contains
  integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
  integer(i4b)                    :: ixStateSubset          ! index within the state subset
  logical(lgt),dimension(nState)  :: tolFlag              ! flag to denote that the state is populated
- real(dp)                        :: absTolTempCas = 1e-6
- real(dp)                        :: relTolTempCas = 1e-6
- real(dp)                        :: absTolTempVeg = 1e-6
- real(dp)                        :: relTolTempVeg = 1e-6
- real(dp)                        :: absTolWatVeg = 1e-6
- real(dp)                        :: relTolWatVeg = 1e-6
- real(dp)                        :: absTolTempSoilSnow = 1e-6
- real(dp)                        :: relTolTempSoilSnow = 1e-6
- real(dp)                        :: absTolWatSnow = 1e-6
- real(dp)                        :: relTolWatSnow = 1e-6
- real(dp)                        :: absTolMatric = 1e-6
- real(dp)                        :: relTolMatric = 1e-6
- real(dp)                        :: absTolAquifr = 1e-6
- real(dp)                        :: relTolAquifr = 1e-6
+ real(rkind)                        :: absTolTempCas = 1e-6
+ real(rkind)                        :: relTolTempCas = 1e-6
+ real(rkind)                        :: absTolTempVeg = 1e-6
+ real(rkind)                        :: relTolTempVeg = 1e-6
+ real(rkind)                        :: absTolWatVeg = 1e-6
+ real(rkind)                        :: relTolWatVeg = 1e-6
+ real(rkind)                        :: absTolTempSoilSnow = 1e-6
+ real(rkind)                        :: relTolTempSoilSnow = 1e-6
+ real(rkind)                        :: absTolWatSnow = 1e-6
+ real(rkind)                        :: relTolWatSnow = 1e-6
+ real(rkind)                        :: absTolMatric = 1e-6
+ real(rkind)                        :: relTolMatric = 1e-6
+ real(rkind)                        :: absTolAquifr = 1e-6
+ real(rkind)                        :: relTolAquifr = 1e-6
 
 
  ! --------------------------------------------------------------------------------------------------------------------------------

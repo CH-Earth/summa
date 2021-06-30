@@ -47,9 +47,9 @@ USE multiconst,only:&
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     zlookup,      &
                     model_options   ! defines the model decisions
 
@@ -170,8 +170,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- real(dp),intent(in)             :: dt_cur
- real(dp),intent(in)             :: dt                     ! time step
+ real(rkind),intent(in)             :: dt_cur
+ real(rkind),intent(in)             :: dt                     ! time step
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -182,8 +182,8 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(dp),intent(in)             :: stateVec(:)            ! model state vector
- real(dp),intent(in)             :: stateVecPrime(:)       ! model state vector
+ real(rkind),intent(in)             :: stateVec(:)            ! model state vector
+ real(rkind),intent(in)             :: stateVecPrime(:)       ! model state vector
  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
@@ -200,35 +200,35 @@ contains
  type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
- real(dp),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
- real(dp),intent(out)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
- real(dp),intent(in)             :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
- real(dp),intent(out)          :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)             :: scalarCanopyIcePrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(out)          :: scalarCanopyLiqTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(in)             :: scalarCanopyLiqPrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),intent(out)          :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(in)             :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(out)          :: mLayerTempTrial(:)
- real(dp),intent(in)             :: mLayerTempPrev(:)
- real(dp),intent(out)          :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
- real(dp),intent(out)          :: mLayerMatricHeadTrial(:)  ! trial value for liquid water matric potential (m)
- real(dp),intent(in)             :: mLayerMatricHeadPrev(:)
- real(dp),intent(out)          :: mLayerVolFracWatTrial(:)
- real(dp),intent(in)             :: mLayerVolFracWatPrev(:)
- real(dp),intent(out)          :: mLayerVolFracIceTrial(:)
- real(dp),intent(in)             :: mLayerVolFracIcePrev(:)
- real(dp),intent(out)          :: mLayerVolFracLiqTrial(:)
- real(dp),intent(in)             :: mLayerVolFracLiqPrev(:)
- real(dp),intent(out)          :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m) 
- real(dp),intent(in)             :: scalarAquiferStoragePrev  ! previous value of storage of water in the aquifer (m)
- real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
- real(dp),intent(out)            :: mLayerEnthalpyTrial(:)
+ real(rkind),intent(out)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
+ real(rkind),intent(in)             :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
+ real(rkind),intent(out)          :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),intent(in)             :: scalarCanopyIcePrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),intent(out)          :: scalarCanopyLiqTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),intent(in)             :: scalarCanopyLiqPrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),intent(out)          :: scalarCanopyEnthalpyTrial ! enthalpy of the vegetation canopy (J m-3)
+ real(rkind),intent(in)             :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
+ real(rkind),intent(out)          :: mLayerTempTrial(:)
+ real(rkind),intent(in)             :: mLayerTempPrev(:)
+ real(rkind),intent(out)          :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
+ real(rkind),intent(out)          :: mLayerMatricHeadTrial(:)  ! trial value for liquid water matric potential (m)
+ real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)
+ real(rkind),intent(out)          :: mLayerVolFracWatTrial(:)
+ real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)
+ real(rkind),intent(out)          :: mLayerVolFracIceTrial(:)
+ real(rkind),intent(in)             :: mLayerVolFracIcePrev(:)
+ real(rkind),intent(out)          :: mLayerVolFracLiqTrial(:)
+ real(rkind),intent(in)             :: mLayerVolFracLiqPrev(:)
+ real(rkind),intent(out)          :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m) 
+ real(rkind),intent(in)             :: scalarAquiferStoragePrev  ! previous value of storage of water in the aquifer (m)
+ real(rkind),intent(in)             :: mLayerEnthalpyPrev(:)
+ real(rkind),intent(out)            :: mLayerEnthalpyTrial(:)
  integer(i4b),intent(inout)      :: ixSaturation              ! index of the lowest saturated layer
  logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
- real(dp),intent(out)            :: fluxVec(:)             ! flux vector
- real(dp),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
+ real(rkind),intent(out)            :: fluxVec(:)             ! flux vector
+ real(rkind),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
@@ -237,36 +237,36 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state variables
- real(dp)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
+ real(rkind)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
+ real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
   ! derivative of state variables
- real(dp)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
- real(dp)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
- real(dp)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
- real(dp),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadPrime     ! derivative value for total water matric potential (m)
- real(dp),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
- real(dp)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
+ real(rkind)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
+ real(rkind)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
+ real(rkind)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadPrime     ! derivative value for total water matric potential (m)
+ real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
+ real(rkind)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
  ! derivative of diagnostic variables
- real(dp)                        :: scalarCanopyLiqPrime      ! derivative value for mass of liquid water on the vegetation canopy (kg m-2)
- real(dp)                        :: scalarCanopyIcePrime      ! derivative value for mass of ice on the vegetation canopy (kg m-2)
- real(dp),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
- real(dp),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
+ real(rkind)                        :: scalarCanopyLiqPrime      ! derivative value for mass of liquid water on the vegetation canopy (kg m-2)
+ real(rkind)                        :: scalarCanopyIcePrime      ! derivative value for mass of ice on the vegetation canopy (kg m-2)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
+ real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
  ! enthalpy
- real(dp)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
- real(dp),dimension(nLayers)     :: mLayerEnthalpyPrime       ! enthalpy of each snow+soil layer (J m-3)
+ real(rkind)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
+ real(rkind),dimension(nLayers)     :: mLayerEnthalpyPrime       ! enthalpy of each snow+soil layer (J m-3)
  ! other local variables
  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
  integer(i4b)                    :: jState(1)                 ! index of model state for the scalar solution within the soil domain
  integer(i4b)                    :: ixBeg,ixEnd               ! index of indices for the soil compression routine
  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
- real(dp)                        :: xMin,xMax                 ! minimum and maximum values for water content
- real(dp),parameter              :: canopyTempMax=500._rkind     ! expected maximum value for the canopy temperature (K)
+ real(rkind)                        :: xMin,xMax                 ! minimum and maximum values for water content
+ real(rkind),parameter              :: canopyTempMax=500._rkind     ! expected maximum value for the canopy temperature (K)
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: scalarCanopyEnthalpyPrime
- real(dp)						             :: scalarCanopyCmTrial
- real(dp),dimension(nLayers)	   :: mLayerCmTrial
+ real(rkind)						             :: scalarCanopyCmTrial
+ real(rkind),dimension(nLayers)	   :: mLayerCmTrial
  logical(lgt),parameter			     :: updateCp=.true.
  logical(lgt),parameter          :: enthalpyFD=.false.
  logical(lgt),parameter			     :: needCm=.false.

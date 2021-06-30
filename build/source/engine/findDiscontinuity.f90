@@ -12,9 +12,9 @@ module findDiscontinuity_module
   ! provide access to the derived types to define the data structures
   USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
  USE multiconst,only:iden_water      ! intrinsic density of liquid water    (kg m-3)
  USE var_lookup,only:iLookDIAG 
@@ -53,7 +53,7 @@ contains
     implicit none
 
     ! calling variables
-    real(dp), value         :: tres      ! current time                 
+    real(rkind), value         :: tres      ! current time                 
     type(N_Vector)          :: sunvec_y  ! solution N_Vector    y
     type(N_Vector)          :: sunvec_yp ! derivative N_Vector  y'
     real(c_double)          :: fval(1000)   ! root function values         
@@ -62,8 +62,8 @@ contains
 
     ! pointers to data in SUNDIALS vectors
     type(eqnsData), pointer    :: eqns_data ! equations data
-    real(dp), pointer          :: stateVec(:)
-    real(dp), pointer          :: stateVecPrime(:) 
+    real(rkind), pointer          :: stateVec(:)
+    real(rkind), pointer          :: stateVecPrime(:) 
     integer(i4b)               :: retval  
 
     

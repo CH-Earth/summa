@@ -34,10 +34,10 @@ USE multiconst,only:&
 ! data types
 USE data_types,only:&
                     var_i,               & ! x%var(:)                (i4b)
-                    var_d,               & ! x%var(:)                (dp)
+                    var_d,               & ! x%var(:)                (rkind)
                     var_ilength,         & ! x%var(:)%dat            (i4b)
-                    var_dlength,         & ! x%var(:)%dat            (dp)
-                    zLookup                ! x%z(:)%var(:)%lookup(:) (dp)
+                    var_dlength,         & ! x%var(:)%dat            (rkind)
+                    zLookup                ! x%z(:)%var(:)%lookup(:) (rkind)
 
 ! named variables for parent structures
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure

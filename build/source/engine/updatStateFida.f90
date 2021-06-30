@@ -16,7 +16,7 @@ public::updateSoilFida
 public::updateSoilFida2
 public::updateVegFida
 
-real(dp),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
+real(rkind),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
 
 contains
  
@@ -45,17 +45,17 @@ contains
  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
  implicit none
  ! input variables
- real(dp),intent(in)           :: Temp           ! temperature (K)
- real(dp),intent(in)           :: Theta          ! volume fraction of total water (-)
- real(dp),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
- real(dp),intent(in)           :: TempPrime           ! temperature (K)
- real(dp),intent(in)           :: ThetaPrime          ! volume fraction of total water (-)
+ real(rkind),intent(in)           :: Temp           ! temperature (K)
+ real(rkind),intent(in)           :: Theta          ! volume fraction of total water (-)
+ real(rkind),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
+ real(rkind),intent(in)           :: TempPrime           ! temperature (K)
+ real(rkind),intent(in)           :: ThetaPrime          ! volume fraction of total water (-)
  ! output variables
- real(dp),intent(out)          :: VolFracLiq     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: VolFracIce     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: VolFracLiqPrime     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: VolFracIcePrime     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: fLiq                 ! fraction of liquid water (-)
+ real(rkind),intent(out)          :: VolFracLiq     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: VolFracIce     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: VolFracLiqPrime     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: VolFracIcePrime     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: fLiq                 ! fraction of liquid water (-)
  ! error control
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
@@ -95,17 +95,17 @@ contains
  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
  implicit none
  ! input variables
- real(dp),intent(in)           :: mLayerTemp           ! temperature (K)
- real(dp),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
- real(dp),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
- real(dp),intent(in)           :: mLayerTempPrime           ! temperature (K)
- real(dp),intent(in)           :: mLayerThetaPrime          ! volume fraction of total water (-)
+ real(rkind),intent(in)           :: mLayerTemp           ! temperature (K)
+ real(rkind),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
+ real(rkind),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
+ real(rkind),intent(in)           :: mLayerTempPrime           ! temperature (K)
+ real(rkind),intent(in)           :: mLayerThetaPrime          ! volume fraction of total water (-)
  ! output variables
- real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: fLiq                 ! fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: fLiq                 ! fraction of liquid water (-)
  ! error control
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
@@ -153,31 +153,31 @@ contains
  USE soil_utils_module,only:dTheta_dPsi 
  implicit none
  ! input variables
- real(dp),intent(in)           :: dt_cur
- real(dp),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
- real(dp),intent(in)           :: mLayerMatricHead     ! matric head (m)
- real(dp),intent(in)           :: mLayerMatricHeadPrev     ! matric head (m)
- real(dp),intent(in)           :: mLayerVolFracWatPrev
- real(dp),intent(in)           :: mLayerTempPrime
- real(dp),intent(in)           :: mLayerMatricHeadPrime ! matric head (m)
- real(dp),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
- real(dp),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
- real(dp),intent(in)           :: theta_sat            ! soil porosity (-)
- real(dp),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
- real(dp),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
+ real(rkind),intent(in)           :: dt_cur
+ real(rkind),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
+ real(rkind),intent(in)           :: mLayerMatricHead     ! matric head (m)
+ real(rkind),intent(in)           :: mLayerMatricHeadPrev     ! matric head (m)
+ real(rkind),intent(in)           :: mLayerVolFracWatPrev
+ real(rkind),intent(in)           :: mLayerTempPrime
+ real(rkind),intent(in)           :: mLayerMatricHeadPrime ! matric head (m)
+ real(rkind),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
+ real(rkind),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
+ real(rkind),intent(in)           :: theta_sat            ! soil porosity (-)
+ real(rkind),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
+ real(rkind),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
  ! output variables
- real(dp),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
- real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: mLayerVolFracWatPrime     ! fractional volume of total water (-)
- real(dp),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
+ real(rkind),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: mLayerVolFracWatPrime     ! fractional volume of total water (-)
+ real(rkind),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(dp)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
- real(dp)                      :: xConst               ! constant in the freezing curve function (m K-1)
- real(dp)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
+ real(rkind)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
+ real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
+ real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  ! initialize error control
  err=0; message="updateSoilFida/"
  
@@ -262,28 +262,28 @@ contains
  USE soil_utils_module,only:dTheta_dPsi 
  implicit none
  ! input variables
- real(dp),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
- real(dp),intent(in)           :: mLayerMatricHead     ! matric head (m)
- real(dp),intent(in)           :: mLayerTempPrime
- real(dp),intent(in)           :: mLayerMatricHeadPrime ! matric head (m)
- real(dp),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
- real(dp),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
- real(dp),intent(in)           :: theta_sat            ! soil porosity (-)
- real(dp),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
- real(dp),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
+ real(rkind),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
+ real(rkind),intent(in)           :: mLayerMatricHead     ! matric head (m)
+ real(rkind),intent(in)           :: mLayerTempPrime
+ real(rkind),intent(in)           :: mLayerMatricHeadPrime ! matric head (m)
+ real(rkind),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
+ real(rkind),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
+ real(rkind),intent(in)           :: theta_sat            ! soil porosity (-)
+ real(rkind),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
+ real(rkind),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
  ! output variables
- real(dp),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
- real(dp),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
- real(dp),intent(out)          :: mLayerVolFracWatPrime     ! fractional volume of total water (-)
- real(dp),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
- real(dp),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
+ real(rkind),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
+ real(rkind),intent(out)          :: mLayerVolFracWatPrime     ! fractional volume of total water (-)
+ real(rkind),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
+ real(rkind),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! define local variables
- real(dp)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
- real(dp)                      :: xConst               ! constant in the freezing curve function (m K-1)
- real(dp)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
+ real(rkind)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
+ real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
+ real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  ! initialize error control
  err=0; message="updateSoilFida2/"
  

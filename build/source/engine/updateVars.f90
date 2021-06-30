@@ -64,10 +64,10 @@ USE multiconst,only:&
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    zLookup,      & ! data vector with variable length dimension (dp)
-                    var_dlength     ! data vector with variable length dimension (dp)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
+                    var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookDIAG             ! named variables for structure elements

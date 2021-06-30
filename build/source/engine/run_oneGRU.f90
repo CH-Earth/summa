@@ -32,13 +32,13 @@ USE data_types,only:&
                     gru2hru_map,     & ! HRU info
                     ! no spatial dimension
                     var_ilength,     & ! x%var(:)%dat        (i4b)
-                    var_dlength,     & ! x%var(:)%dat        (dp)
+                    var_dlength,     & ! x%var(:)%dat        (rkind)
                     ! hru dimension
                     hru_int,         & ! x%hru(:)%var(:)     (i4b)
                     hru_int8,        & ! x%hru(:)%var(:)     integer(8)
-                    hru_double,      & ! x%hru(:)%var(:)     (dp)
+                    hru_double,      & ! x%hru(:)%var(:)     (rkind)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
-                    hru_doubleVec,   & ! x%hru(:)%var(:)%dat (dp)
+                    hru_doubleVec,   & ! x%hru(:)%var(:)%dat (rkind)
                     ! hru+z dimension
                     hru_z_vLookup      ! x%hru(:)%z(:)%var(:)%lookup(:)
 

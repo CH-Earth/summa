@@ -14,10 +14,10 @@ USE multiconst,only:&
 ! data types
 USE data_types,only:&
                     var_i,               & ! x%var(:)                (i4b)
-                    var_d,               & ! x%var(:)                (dp)
+                    var_d,               & ! x%var(:)                (rkind)
                     var_ilength,         & ! x%var(:)%dat            (i4b)
-                    var_dlength,         & ! x%var(:)%dat            (dp)
-                    zLookup                ! x%z(:)%var(:)%lookup(:) (dp)
+                    var_dlength,         & ! x%var(:)%dat            (rkind)
+                    zLookup                ! x%z(:)%var(:)%lookup(:) (rkind)
 
 ! named variables for parent structures
 USE var_lookup,only:iLookDECISIONS         ! named variables for elements of the decision structure
@@ -35,7 +35,7 @@ implicit none
 private
 public::computSnowDepth
 
-real(dp),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
+real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
 
 contains
 
@@ -61,20 +61,20 @@ contains
  implicit none
   real(qp),intent(in)				   :: dt_sub
   integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
-  real(dp),intent(in)				   :: scalarSnowSublimation
-  real(dp),intent(inout)			   :: mLayerVolFracLiq(:)
-  real(dp),intent(inout)			   :: mLayerVolFracIce(:)
-  real(dp),intent(in)				   :: mLayerTemp(:)
-  real(dp),intent(in)				   :: mLayerMeltFreeze(:)
+  real(rkind),intent(in)				   :: scalarSnowSublimation
+  real(rkind),intent(inout)			   :: mLayerVolFracLiq(:)
+  real(rkind),intent(inout)			   :: mLayerVolFracIce(:)
+  real(rkind),intent(in)				   :: mLayerTemp(:)
+  real(rkind),intent(in)				   :: mLayerMeltFreeze(:)
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
-  real(dp),intent(inout)			   :: mLayerDepth(:)
+  real(rkind),intent(inout)			   :: mLayerDepth(:)
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
  
  ! local variables
  character(len=256)                   :: cmessage               ! error message
  integer(i4b)                         :: iSnow                  ! index of snow layers
- real(dp)                             :: massLiquid             ! mass liquid water (kg m-2)
+ real(rkind)                             :: massLiquid             ! mass liquid water (kg m-2)
 
   ! * compute change in ice content of the top snow layer due to sublimation...
   ! ---------------------------------------------------------------------------

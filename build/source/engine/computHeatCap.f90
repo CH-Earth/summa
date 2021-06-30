@@ -25,9 +25,9 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (dp)
+                    var_dlength         ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookPARAM,iLookDIAG,iLookINDEX  ! named variables for structure elements
@@ -107,25 +107,25 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: control variables
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(rkind),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
  ! input:
  integer(i4b),intent(in)         :: nLayers
  type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
- real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
- real(dp),intent(in)             :: scalarCanopyLiquid
- real(dp),intent(in)		     :: scalarCanopyTempTrial  ! trial value of canopy temperature
- real(dp),intent(in)             :: scalarCanopyEnthalpyTrial ! trial enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(in)             :: scalarCanopyEnthalpyPrev  ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
- real(dp),intent(in)		     :: scalarCanopyTempPrev   ! Previous value of canopy temperature
- real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
- real(dp),intent(in)             :: mLayerTempTrial(:)
- real(dp),intent(in)             :: mLayerTempPrev(:)
- real(dp),intent(in)             :: mLayerEnthalpyTrial(:)
- real(dp),intent(in)             :: mLayerEnthalpyPrev(:)
+ real(rkind),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(in)             :: scalarCanopyLiquid
+ real(rkind),intent(in)		     :: scalarCanopyTempTrial  ! trial value of canopy temperature
+ real(rkind),intent(in)             :: scalarCanopyEnthalpyTrial ! trial enthalpy of the vegetation canopy (J m-3)
+ real(rkind),intent(in)             :: scalarCanopyEnthalpyPrev  ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
+ real(rkind),intent(in)		     :: scalarCanopyTempPrev   ! Previous value of canopy temperature
+ real(rkind),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
+ real(rkind),intent(in)             :: mLayerTempTrial(:)
+ real(rkind),intent(in)             :: mLayerTempPrev(:)
+ real(rkind),intent(in)             :: mLayerEnthalpyTrial(:)
+ real(rkind),intent(in)             :: mLayerEnthalpyPrev(:)
  ! output:
  real(qp),intent(out)            :: heatCapVeg
  real(qp),intent(out)            :: mLayerHeatCap(:)
@@ -134,8 +134,8 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: iLayer                 ! index of model layer
- real(dp)                        :: delT
- real(dp)                        :: delEnt
+ real(rkind)                        :: delT
+ real(rkind)                        :: delEnt
  integer(i4b)                    :: iSoil                  ! index of soil layer
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
@@ -320,11 +320,11 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
- real(dp),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
- real(dp),intent(in)             :: scalarCanopyLiquid
- real(dp),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
- real(dp),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
+ real(rkind),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(rkind),intent(in)             :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+ real(rkind),intent(in)             :: scalarCanopyLiquid
+ real(rkind),intent(in)             :: mLayerVolFracLiq(:)        ! trial vector of volumetric liquid water content (-)
+ real(rkind),intent(in)             :: mLayerVolFracIce(:)        ! trial vector of volumetric ice water content (-)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
@@ -421,9 +421,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(dp),intent(in)             :: scalarCanopyTemp        !  value of canopy ice content (kg m-2)
- real(dp),intent(in)             :: mLayerTemp(:)        !  vector of volumetric liquid water content (-)
- real(dp),intent(in)             :: mLayerMatricHead(:)  !  vector of total water matric potential (m)
+ real(rkind),intent(in)             :: scalarCanopyTemp        !  value of canopy ice content (kg m-2)
+ real(rkind),intent(in)             :: mLayerTemp(:)        !  vector of volumetric liquid water content (-)
+ real(rkind),intent(in)             :: mLayerMatricHead(:)  !  vector of total water matric potential (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
@@ -437,9 +437,9 @@ contains
  character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
  integer(i4b)                      :: iSoil                  ! index of soil layer
- real(dp)						   :: g1
- real(dp)						   :: g2
- real(dp)                          :: Tcrit                     ! temperature where all water is unfrozen (K)
+ real(rkind)						   :: g1
+ real(rkind)						   :: g2
+ real(rkind)                          :: Tcrit                     ! temperature where all water is unfrozen (K)
  
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
