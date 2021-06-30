@@ -159,8 +159,7 @@ contains
 
    ! check that this variable is populated
    if (trim(metadata(iVar)%varname)=='empty') then
-    write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar, &
-     ' in structure iLook'//trim(structInfo(iStruct)%lookName)
+    write(message,'(a,i0,a)') trim(message)//trim(structInfo(iStruct)%structName)//'_meta structure is not populated for named variable # ',iVar,' in structure iLook'//trim(structInfo(iStruct)%lookName)
     err=20; return
    end if
 

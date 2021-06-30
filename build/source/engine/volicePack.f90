@@ -168,37 +168,37 @@ contains
  ! add new snowfall to the system
  implicit none
  ! input: model control
- real(dp),intent(in)                 :: dt                         ! time step (seconds)
+ real(rkind),intent(in)                 :: dt                         ! time step (seconds)
  logical(lgt),intent(in)             :: snowLayers                 ! logical flag if snow layers exist
- real(dp),intent(in)                 :: fc_param                   ! freeezing curve parameter for snow (K-1)
+ real(rkind),intent(in)                 :: fc_param                   ! freeezing curve parameter for snow (K-1)
  ! input: diagnostic scalar variables
- real(dp),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
- real(dp),intent(in)                 :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
- real(dp),intent(in)                 :: scalarThroughfallSnow      ! throughfall of snow through the canopy (kg m-2 s-1)
- real(dp),intent(in)                 :: scalarCanopySnowUnloading  ! unloading of snow from the canopy (kg m-2 s-1)
+ real(rkind),intent(in)                 :: scalarSnowfallTemp         ! computed temperature of fresh snow (K)
+ real(rkind),intent(in)                 :: scalarNewSnowDensity       ! computed density of new snow (kg m-3)
+ real(rkind),intent(in)                 :: scalarThroughfallSnow      ! throughfall of snow through the canopy (kg m-2 s-1)
+ real(rkind),intent(in)                 :: scalarCanopySnowUnloading  ! unloading of snow from the canopy (kg m-2 s-1)
  ! input/output: state variables
- real(dp),intent(inout)              :: scalarSWE                  ! SWE (kg m-2)
- real(dp),intent(inout)              :: scalarSnowDepth            ! total snow depth (m)
- real(dp),intent(inout)              :: surfaceLayerTemp           ! temperature of each layer (K)
- real(dp),intent(inout)              :: surfaceLayerDepth          ! depth of each layer (m)
- real(dp),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
- real(dp),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
+ real(rkind),intent(inout)              :: scalarSWE                  ! SWE (kg m-2)
+ real(rkind),intent(inout)              :: scalarSnowDepth            ! total snow depth (m)
+ real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of each layer (K)
+ real(rkind),intent(inout)              :: surfaceLayerDepth          ! depth of each layer (m)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
  ! output: error control
  integer(i4b),intent(out)            :: err                        ! error code
  character(*),intent(out)            :: message                    ! error message
  ! define local variables
- real(dp)                            :: newSnowfall                ! new snowfall -- throughfall and unloading (kg m-2 s-1)
- real(dp)                            :: newSnowDepth               ! new snow depth (m)
- real(dp),parameter                  :: densityCanopySnow=200._dp  ! density of snow on the vegetation canopy (kg m-3)
- real(dp)                            :: totalMassIceSurfLayer      ! total mass of ice in the surface layer (kg m-2)
- real(dp)                            :: totalDepthSurfLayer        ! total depth of the surface layer (m)
- real(dp)                            :: volFracWater               ! volumetric fraction of total water, liquid and ice (-)
- real(dp)                            :: fracLiq                    ! fraction of liquid water (-)
- real(dp)                            :: SWE                        ! snow water equivalent after snowfall (kg m-2)
- real(dp)                            :: tempSWE0                   ! temporary SWE before snowfall, used to check mass balance (kg m-2)
- real(dp)                            :: tempSWE1                   ! temporary SWE after snowfall, used to check mass balance (kg m-2)
- real(dp)                            :: xMassBalance               ! mass balance check (kg m-2)
- real(dp),parameter                  :: verySmall=1.e-8_dp         ! a very small number -- used to check mass balance
+ real(rkind)                            :: newSnowfall                ! new snowfall -- throughfall and unloading (kg m-2 s-1)
+ real(rkind)                            :: newSnowDepth               ! new snow depth (m)
+ real(rkind),parameter                  :: densityCanopySnow=200._rkind  ! density of snow on the vegetation canopy (kg m-3)
+ real(rkind)                            :: totalMassIceSurfLayer      ! total mass of ice in the surface layer (kg m-2)
+ real(rkind)                            :: totalDepthSurfLayer        ! total depth of the surface layer (m)
+ real(rkind)                            :: volFracWater               ! volumetric fraction of total water, liquid and ice (-)
+ real(rkind)                            :: fracLiq                    ! fraction of liquid water (-)
+ real(rkind)                            :: SWE                        ! snow water equivalent after snowfall (kg m-2)
+ real(rkind)                            :: tempSWE0                   ! temporary SWE before snowfall, used to check mass balance (kg m-2)
+ real(rkind)                            :: tempSWE1                   ! temporary SWE after snowfall, used to check mass balance (kg m-2)
+ real(rkind)                            :: xMassBalance               ! mass balance check (kg m-2)
+ real(rkind),parameter                  :: verySmall=1.e-8_rkind         ! a very small number -- used to check mass balance
  ! initialize error control
  err=0; message="newsnwfall/"
 
@@ -237,7 +237,7 @@ contains
   ! compute new volumetric fraction of liquid water and ice (-)
   volFracWater = (SWE/totalDepthSurfLayer)/iden_water
   fracLiq      = fracliquid(surfaceLayerTemp,fc_param)                           ! fraction of liquid water
-  surfaceLayerVolFracIce = (1._dp - fracLiq)*volFracWater*(iden_water/iden_ice)  ! volumetric fraction of ice (-)
+  surfaceLayerVolFracIce = (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice)  ! volumetric fraction of ice (-)
   surfaceLayerVolFracLiq =          fracLiq *volFracWater                        ! volumetric fraction of liquid water (-)
   ! update new layer depth (m)
   surfaceLayerDepth      = totalDepthSurfLayer
