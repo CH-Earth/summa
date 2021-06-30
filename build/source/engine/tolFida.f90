@@ -116,7 +116,7 @@ contains
     
    do iState = 1,tol_data%nState
       weightVec(iState) = tol_data%rtol(iState) * abs( stateVec(iState) ) + tol_data%atol(iState)
-      weightVec(iState) = 1._dp / weightVec(iState)    
+      weightVec(iState) = 1._rkind / weightVec(iState)    
    end do 
  
    ierr = 0

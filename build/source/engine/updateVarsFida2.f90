@@ -212,13 +212,13 @@ contains
  integer(i4b)                    :: iter                            ! iteration index
  integer(i4b)                    :: niter                           ! number of iterations
  integer(i4b),parameter          :: maxiter=100                     ! maximum number of iterations
- real(dp),parameter              :: nrgConvTol=1.e-4_dp             ! convergence tolerance for energy (J m-3)
- real(dp),parameter              :: tempConvTol=1.e-6_dp            ! convergence tolerance for temperature (K)
+ real(dp),parameter              :: nrgConvTol=1.e-4_rkind             ! convergence tolerance for energy (J m-3)
+ real(dp),parameter              :: tempConvTol=1.e-6_rkind            ! convergence tolerance for temperature (K)
  real(dp)                        :: critDiff                        ! temperature difference from critical (K)
  real(dp)                        :: tempMin                         ! minimum bracket for temperature (K)
  real(dp)                        :: tempMax                         ! maximum bracket for temperature (K)
  logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
- real(dp),parameter              :: epsT=1.e-7_dp                   ! small interval above/below critical temperature (K)
+ real(dp),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
@@ -379,7 +379,7 @@ contains
      ! --> update the total water from the liquid water matric potential
      case(iname_lmpLayer)
     
-      effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._dp,1._dp,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
+      effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
       avPore = theta_sat(ixControlIndex) - mLayerVolFracIceTrial(iLayer) - theta_res(ixControlIndex)  ! available pore space
       mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
       mLayerVolFracWatTrial(iLayer) = mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer) ! no volume expansion
@@ -420,8 +420,8 @@ contains
 
   ! define brackets for the root
   ! NOTE: start with an enormous range; updated quickly in the iterations
-  tempMin = xTemp - 10._dp
-  tempMax = xTemp + 10._dp
+  tempMin = xTemp - 10._rkind
+  tempMax = xTemp + 10._rkind
 
   ! get iterations (set to maximum iterations if adjusting the temperature)
   niter = merge(maxiter, 1, do_adjustTemp)
@@ -431,7 +431,7 @@ contains
 
    ! restrict temperature
    if(xTemp <= tempMin .or. xTemp >= tempMax)then
-    xTemp = 0.5_dp*(tempMin + tempMax)  ! new value
+    xTemp = 0.5_rkind*(tempMin + tempMax)  ! new value
     bFlag = .true.
    else
     bFlag = .false.
@@ -447,8 +447,8 @@ contains
    if(ixDomainType==iname_soil)then
     select case( ixStateType(ixFullVector) )
      case(iname_lmpLayer) 
-       dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._dp,1._dp,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-       d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._dp,1._dp,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+       dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+       d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
      case default
      dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
        d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
@@ -463,13 +463,13 @@ contains
      case(iname_veg)
         dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
         dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
-        d2Theta_dTkCanopy2 = 2._dp * snowfrz_scale**2._dp * ( (Tfreeze - xTemp) * 2._dp * fracliquid(xTemp,snowfrz_scale) * dFracLiq_dTk(xTemp,snowfrz_scale) - fracliquid(xTemp,snowfrz_scale)**2._dp ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
+        d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fracliquid(xTemp,snowfrz_scale) * dFracLiq_dTk(xTemp,snowfrz_scale) - fracliquid(xTemp,snowfrz_scale)**2._rkind ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
      case(iname_snow)
        dFracLiqSnow_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
        mLayerdTheta_dTk(iLayer) = dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
-       mLayerd2Theta_dTk2(iLayer) = 2._dp * snowfrz_scale**2._dp * ( (Tfreeze - xTemp) * 2._dp * fracliquid(xTemp,snowfrz_scale) * dFracLiq_dTk(xTemp,snowfrz_scale) - fracliquid(xTemp,snowfrz_scale)**2._dp ) * mLayerVolFracWatTrial(iLayer)
+       mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fracliquid(xTemp,snowfrz_scale) * dFracLiq_dTk(xTemp,snowfrz_scale) - fracliquid(xTemp,snowfrz_scale)**2._rkind ) * mLayerVolFracWatTrial(iLayer)
      case(iname_soil)
-      dFracLiqSnow_dTk(iLayer) = 0._dp
+      dFracLiqSnow_dTk(iLayer) = 0._rkind
       mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
       mLayerd2Theta_dTk2(iLayer) =  d2Theta_dTk2(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) 
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
@@ -478,8 +478,8 @@ contains
    ! --> unfrozen: no dependence of liquid water on temperature
    else
     select case(ixDomainType)
-     case(iname_veg);             dTheta_dTkCanopy         = 0._dp; d2Theta_dTkCanopy2 = 0; dFracLiqVeg_dTkCanopy = 0
-     case(iname_snow, iname_soil);   mLayerdTheta_dTk(iLayer) = 0._dp; mLayerd2Theta_dTk2(iLayer) = 0._dp; dFracLiqSnow_dTk(iLayer) = 0
+     case(iname_veg);             dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2 = 0; dFracLiqVeg_dTkCanopy = 0
+     case(iname_snow, iname_soil);   mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqSnow_dTk(iLayer) = 0
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
     end select  ! domain type
    endif
@@ -648,7 +648,7 @@ contains
     endif
 
     ! update bracket
-    if(residual < 0._dp)then
+    if(residual < 0._rkind)then
      tempMax = min(xTemp,tempMax)
     else
      tempMin = max(tempMin,xTemp)
@@ -666,7 +666,7 @@ contains
 
     ! add constraints for snow temperature
     if(ixDomainType==iname_veg .or. ixDomainType==iname_snow)then
-     if(tempInc > Tcrit - xTemp) tempInc=(Tcrit - xTemp)*0.5_dp  ! simple bi-section method
+     if(tempInc > Tcrit - xTemp) tempInc=(Tcrit - xTemp)*0.5_rkind  ! simple bi-section method
     endif  ! if the domain is vegetation or snow
 
     ! deal with the discontinuity between partially frozen and unfrozen soil
@@ -674,7 +674,7 @@ contains
      ! difference from the temperature below which ice exists
      critDiff = Tcrit - xTemp
      ! --> initially frozen (T < Tcrit)
-     if(critDiff > 0._dp)then
+     if(critDiff > 0._rkind)then
       if(tempInc > critDiff) tempInc = critDiff + epsT  ! set iteration increment to slightly above critical temperature
      ! --> initially unfrozen (T > Tcrit)
      else
@@ -721,8 +721,8 @@ contains
    if(.not.isNrgState .and. .not.isCoupled)then
 
     ! derivatives relating liquid water matric potential to total water matric potential and temperature
-    dPsiLiq_dPsi0(ixControlIndex) = 1._dp  ! exact correspondence (psiLiq=psi0)
-    dPsiLiq_dTemp(ixControlIndex) = 0._dp  ! no relationship between liquid water matric potential and temperature
+    dPsiLiq_dPsi0(ixControlIndex) = 1._rkind  ! exact correspondence (psiLiq=psi0)
+    dPsiLiq_dTemp(ixControlIndex) = 0._rkind  ! no relationship between liquid water matric potential and temperature
 
    ! case of energy state or coupled solution
    else

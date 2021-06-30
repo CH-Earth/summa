@@ -254,9 +254,9 @@ contains
  integer(i4b)                    :: ixTop                      ! top layer in subroutine call
  integer(i4b)                    :: ixBot                      ! bottom layer in subroutine call
  real(dp)                        :: multResid                  ! multiplier for the residual water content (-)
- real(dp),parameter              :: residThrs=550._dp          ! ice density threshold to reduce residual liquid water content (kg m-3)
- real(dp),parameter              :: residScal=10._dp           ! scaling factor for residual liquid water content reduction factor (kg m-3)
- real(dp),parameter              :: maxVolIceContent=0.7_dp    ! maximum volumetric ice content to store water (-)
+ real(dp),parameter              :: residThrs=550._rkind          ! ice density threshold to reduce residual liquid water content (kg m-3)
+ real(dp),parameter              :: residScal=10._rkind           ! scaling factor for residual liquid water content reduction factor (kg m-3)
+ real(dp),parameter              :: maxVolIceContent=0.7_rkind    ! maximum volumetric ice content to store water (-)
  real(dp)                        :: availCap                   ! available storage capacity [0,1] (-)
  real(dp)                        :: relSaturn                  ! relative saturation [0,1] (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------
@@ -284,7 +284,7 @@ contains
  end if
 
  ! check the meltwater exponent is >=1
- if(mw_exp<1._dp)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
+ if(mw_exp<1._rkind)then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
  ! get the indices for the snow+soil layers
  ixTop = integerMissing
@@ -315,16 +315,16 @@ contains
 
  ! define the liquid flux at the upper boundary (m s-1)
  iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
- iLayerLiqFluxSnowDeriv(0) = 0._dp
+ iLayerLiqFluxSnowDeriv(0) = 0._rkind
 
  ! compute properties fixed over the time step
  if(firstFluxCall)then
   ! loop through snow layers
   do iLayer=1,nSnow
    ! compute the reduction in liquid water holding capacity at high snow density (-)
-   multResid = 1._dp / ( 1._dp + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
+   multResid = 1._rkind / ( 1._rkind + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
    ! compute the pore space (-)
-   mLayerPoreSpace(iLayer)  = 1._dp - mLayerVolFracIce(iLayer)
+   mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer)
    ! compute the residual volumetric liquid water content (-)
    mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
   end do  ! (looping through snow layers)
@@ -338,14 +338,14 @@ contains
    availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
    relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
-   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._dp)
+   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
    if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
      ! ** allow liquid water to pass through under very high ice density
      iLayerLiqFluxSnow(iLayer) = iLayerLiqFluxSnow(iLayer) + iLayerLiqFluxSnow(iLayer-1) !NOTE: derivative may need to be updated in future.
    end if
   else  ! flow does not occur
-   iLayerLiqFluxSnow(iLayer)      = 0._dp
-   iLayerLiqFluxSnowDeriv(iLayer) = 0._dp
+   iLayerLiqFluxSnow(iLayer)      = 0._rkind
+   iLayerLiqFluxSnowDeriv(iLayer) = 0._rkind
   endif  ! storage above residual content
  end do  ! loop through snow layers
 

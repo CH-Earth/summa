@@ -43,7 +43,7 @@ public::d2Theta_dPsi2
 public::d2Theta_dTk2
 
 ! constant parameters
-real(dp),parameter     :: verySmall=epsilon(1.0_dp) ! a very small number (used to avoid divide by zero)
+real(dp),parameter     :: verySmall=epsilon(1.0_rkind) ! a very small number (used to avoid divide by zero)
 contains
 
 
@@ -101,7 +101,7 @@ contains
  err=0; message='liquidHeadFida/'
 
  ! ** partially frozen soil
- if(volFracIce > verySmall .and. matricHeadTotal < 0._dp)then  ! check that ice exists and that the soil is unsaturated
+ if(volFracIce > verySmall .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
  
 
   ! -----
@@ -116,18 +116,18 @@ contains
   effSat = xNum/xDen          ! effective saturation
 
   ! - matric head associated with liquid water
-  matricHeadLiq = matricHead(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
-  if (effSat < 1._dp .and. effSat > 0._dp)then
-    effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2._dp
-    matricHeadLiqPrime = -( 1._dp/(vGn_alpha*vGn_n*vGn_m) ) * effSat**(-1._dp-1._dp/vGn_m) * ( effSat**(-1._dp/vGn_m) - 1._dp )**(-1._dp+1._dp/vGn_n) * effSatPrime
+  matricHeadLiq = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
+  if (effSat < 1._rkind .and. effSat > 0._rkind)then
+    effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2._rkind
+    matricHeadLiqPrime = -( 1._rkind/(vGn_alpha*vGn_n*vGn_m) ) * effSat**(-1._rkind-1._rkind/vGn_m) * ( effSat**(-1._rkind/vGn_m) - 1._rkind )**(-1._rkind+1._rkind/vGn_n) * effSatPrime
   else
-   matricHeadLiqPrime = 0._dp
+   matricHeadLiqPrime = 0._rkind
   endif
   
 
   ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
   if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
-   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._dp,1._dp,vGn_n,vGn_m)
+   dPsiLiq_dEffSat = dPsi_dTheta(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)
   endif
 
   ! -----
@@ -143,7 +143,7 @@ contains
    endif
 
    ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
-   dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2._dp)
+   dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2._rkind)
  !  matricHeadLiqPrime = dPsiLiq_dPsi0 * matricHeadTotalPrime
 
   endif  ! if dPsiLiq_dTemp is desired
@@ -161,7 +161,7 @@ contains
     err=20; return
    endif
    ! (compute the derivative in the liquid water matric potential w.r.t. temperature)
-   dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2._dp) + dTheta_dT/xDen
+   dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2._rkind) + dTheta_dT/xDen
    dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
   ! matricHeadLiqPrime = dPsiLiq_dTemp * tempPrime
 
@@ -173,8 +173,8 @@ contains
  else   ! (no ice)
   matricHeadLiq = matricHeadTotal
   matricHeadLiqPrime = matricHeadTotalPrime
-  if(present(dPsiLiq_dTemp)) dPsiLiq_dPsi0 = 1._dp  ! derivative=1 because values are identical
-  if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._dp  ! derivative=0 because no impact of temperature for unfrozen conditions
+  if(present(dPsiLiq_dTemp)) dPsiLiq_dPsi0 = 1._rkind  ! derivative=1 because values are identical
+  if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
  end if  ! (if ice exists)
 
  end subroutine liquidHeadFida
@@ -194,14 +194,14 @@ contains
  real(dp)            :: d2Theta_dPsi2 ! derivative of the soil water characteristic (m-1)
  real(dp)            :: mult_fcn
  real(dp)            :: mult_fcnp
- if(psi<0._dp)then
-  mult_fcn = (-m*n*alpha*(alpha*psi)**(n-1._dp)) * ( 1._dp + (psi*alpha)**n )**(-1._dp)
-  mult_fcnp = -m*n*alpha*(n-1._dp)*alpha*(alpha*psi)**(n-2._dp)*( 1._dp + (psi*alpha)**n )**(-1._dp) - &
-              ( n*alpha*(alpha*psi)**(n-1._dp)*(1._dp + (psi*alpha)**n)**(-2._dp) ) * ( -m*n*alpha*(alpha*psi)**(n-1._dp) )
+ if(psi<0._rkind)then
+  mult_fcn = (-m*n*alpha*(alpha*psi)**(n-1._rkind)) * ( 1._rkind + (psi*alpha)**n )**(-1._rkind)
+  mult_fcnp = -m*n*alpha*(n-1._rkind)*alpha*(alpha*psi)**(n-2._rkind)*( 1._rkind + (psi*alpha)**n )**(-1._rkind) - &
+              ( n*alpha*(alpha*psi)**(n-1._rkind)*(1._rkind + (psi*alpha)**n)**(-2._rkind) ) * ( -m*n*alpha*(alpha*psi)**(n-1._rkind) )
   d2Theta_dPsi2 = mult_fcn * dTheta_dPsi(psi,alpha,theta_res,theta_sat,n,m) + &
                   mult_fcnp * ( volFracLiq(psi,alpha,theta_res,theta_sat,n,m) - theta_res )
  else
-  d2Theta_dPsi2 = 0._dp
+  d2Theta_dPsi2 = 0._rkind
  end if
  end function d2Theta_dPsi2
  
@@ -226,8 +226,8 @@ contains
  ! define a tempory variable that is used more than once (-)
  xtemp = alpha*kappa*(Tk-Tfreeze)
  ! differentiate the freezing curve w.r.t. temperature -- making use of the chain rule
- d2Theta_dTk2 = (-alpha*kappa*m*n*alpha*kappa)* (theta_sat - theta_res) * (  (n-1)*xtemp**(n - 2._dp) * (1._dp + xtemp**n)**(-m - 1._dp) &
-                                                                        + n*(-m-1)*xtemp**(2*n - 2._dp) * (1._dp + xtemp**n)**(-m - 2._dp) )
+ d2Theta_dTk2 = (-alpha*kappa*m*n*alpha*kappa)* (theta_sat - theta_res) * (  (n-1)*xtemp**(n - 2._rkind) * (1._rkind + xtemp**n)**(-m - 1._rkind) &
+                                                                        + n*(-m-1)*xtemp**(2*n - 2._rkind) * (1._rkind + xtemp**n)**(-m - 2._rkind) )
  end function d2Theta_dTk2
 
 

@@ -393,8 +393,8 @@ contains
  ! initialize liquid water fluxes throughout the snow and soil domains
  ! NOTE: used in the energy routines, which is called before the hydrology routines
  if(firstFluxCall)then
-  if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._dp
-  iLayerLiqFluxSoil(0:nSoil) = 0._dp
+  if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._rkind
+  iLayerLiqFluxSoil(0:nSoil) = 0._rkind
  end if
 
  ! *****
@@ -698,13 +698,13 @@ contains
   if(nSnow==0) then
    ! * case of infiltration into soil
    if(scalarMaxInfilRate > scalarRainPlusMelt)then  ! infiltration is not rate-limited
-    scalarSoilControl = (1._dp - scalarFrozenArea)*scalarInfilArea
+    scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea
    else
-    scalarSoilControl = 0._dp  ! (scalarRainPlusMelt exceeds maximum infiltration rate
+    scalarSoilControl = 0._rkind  ! (scalarRainPlusMelt exceeds maximum infiltration rate
    endif
   else
    ! * case of infiltration into snow
-   scalarSoilControl = 1._dp
+   scalarSoilControl = 1._rkind
   endif
 
   ! compute drainage from the soil zone (needed for mass balance checks)
@@ -728,10 +728,10 @@ contains
   ! set baseflow fluxes to zero if the baseflow routine is not used
   if(local_ixGroundwater/=qbaseTopmodel)then
    ! (diagnostic variables in the data structures)
-   scalarExfiltration     = 0._dp  ! exfiltration from the soil profile (m s-1)
-   mLayerColumnOutflow(:) = 0._dp  ! column outflow from each soil layer (m3 s-1)
+   scalarExfiltration     = 0._rkind  ! exfiltration from the soil profile (m s-1)
+   mLayerColumnOutflow(:) = 0._rkind  ! column outflow from each soil layer (m3 s-1)
    ! (variables needed for the numerical solution)
-   mLayerBaseflow(:)      = 0._dp  ! baseflow from each soil layer (m s-1)
+   mLayerBaseflow(:)      = 0._rkind  ! baseflow from each soil layer (m s-1)
 
   ! topmodel-ish shallow groundwater
   else ! local_ixGroundwater==qbaseTopmodel
@@ -810,10 +810,10 @@ contains
 
   ! if no aquifer, then fluxes are zero
   else
-   scalarAquiferTranspire = 0._dp  ! transpiration loss from the aquifer (m s-1)
-   scalarAquiferRecharge  = 0._dp  ! recharge to the aquifer (m s-1)
-   scalarAquiferBaseflow  = 0._dp  ! total baseflow from the aquifer (m s-1)
-   dBaseflow_dAquifer     = 0._dp  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+   scalarAquiferTranspire = 0._rkind  ! transpiration loss from the aquifer (m s-1)
+   scalarAquiferRecharge  = 0._rkind  ! recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow  = 0._rkind  ! total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer     = 0._rkind  ! change in baseflow flux w.r.t. aquifer storage (s-1)
   end if ! no aquifer
 
  endif  ! if computing aquifer fluxes
@@ -908,8 +908,8 @@ contains
    endif
   end do
  else
-  compress(:)       = 0._dp
-  dCompress_dPsi(:) = 0._dp
+  compress(:)       = 0._rkind
+  dCompress_dPsi(:) = 0._rkind
  end if
  end subroutine soilCmpres
 

@@ -1070,7 +1070,7 @@ contains
   newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   delSWE      = newSWE - (oldSWE - sfcMeltPond)
   massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
-  if(abs(massBalance) > absConvTol_liquid*iden_water*10._dp)then
+  if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind)then
    print*,                  'nSnow       = ', nSnow
    print*,                  'nSub        = ', nSub
    write(*,'(a,1x,f20.10)') 'data_step   = ', data_step

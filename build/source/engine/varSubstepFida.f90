@@ -79,7 +79,7 @@ private
 public::varSubstepFida
 
 ! algorithmic parameters
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
 
 contains
 
@@ -191,14 +191,14 @@ contains
  real(dp)                        :: dtSubstep                     ! length of a substep (s)
  ! adaptive sub-stepping for the explicit solution
  logical(lgt)                    :: failedSubstep                 ! flag to denote success of substepping for a given split
- real(dp),parameter              :: safety=0.85_dp                ! safety factor in adaptive sub-stepping
- real(dp),parameter              :: reduceMin=0.1_dp              ! mimimum factor that time step is reduced
- real(dp),parameter              :: increaseMax=4.0_dp            ! maximum factor that time step is increased
+ real(dp),parameter              :: safety=0.85_rkind                ! safety factor in adaptive sub-stepping
+ real(dp),parameter              :: reduceMin=0.1_rkind              ! mimimum factor that time step is reduced
+ real(dp),parameter              :: increaseMax=4.0_rkind            ! maximum factor that time step is increased
  ! adaptive sub-stepping for the implicit solution
  integer(i4b),parameter          :: n_inc=5                       ! minimum number of iterations to increase time step
  integer(i4b),parameter          :: n_dec=15                      ! maximum number of iterations to decrease time step
- real(dp),parameter              :: F_inc = 1.25_dp               ! factor used to increase time step
- real(dp),parameter              :: F_dec = 0.90_dp               ! factor used to decrease time step
+ real(dp),parameter              :: F_inc = 1.25_rkind               ! factor used to increase time step
+ real(dp),parameter              :: F_dec = 0.90_rkind               ! factor used to decrease time step
  ! state and flux vectors
  real(dp)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
  real(dp)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
@@ -268,17 +268,17 @@ contains
  end do
 
  ! initialize the total energy fluxes (modified in updateProgFida)
- sumCanopyEvaporation = 0._dp  ! canopy evaporation/condensation (kg m-2 s-1)
- sumLatHeatCanopyEvap = 0._dp  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- sumSenHeatCanopy     = 0._dp  ! sensible heat flux from the canopy to the canopy air space (W m-2)
- sumSoilCompress      = 0._dp  ! total soil compression
- allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._dp ! soil compression by layer
+ sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
+ sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+ sumSoilCompress      = 0._rkind  ! total soil compression
+ allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
 
  ! define the first flux call in a splitting operation
  firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
 
  ! initialize subStep
- dtSum     = 0._dp  ! keep track of the portion of the time step that is completed
+ dtSum     = 0._rkind  ! keep track of the portion of the time step that is completed
  nSubsteps = 0
 
  ! loop through substeps
@@ -350,7 +350,7 @@ contains
   endif
   
   ! set untapped melt energy to zero
-  untappedMelt(:) = 0._dp
+  untappedMelt(:) = 0._rkind
 
   ! if too much melt or need to reduce length of the coupled step then return
   ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
@@ -362,7 +362,7 @@ contains
   ! reduce step based on failure
   if(failedSubstep)then
     err=0; message='varSubstepFida/'  ! recover from failed convergence
-    dtMultiplier  = 0.5_dp        ! system failure: step halving
+    dtMultiplier  = 0.5_rkind        ! system failure: step halving
   else
 
   endif  ! switch between failure and success
@@ -423,7 +423,7 @@ contains
 
    ! modify step
    err=0  ! error recovery
-   dtSubstep = dtSubstep/2._dp
+   dtSubstep = dtSubstep/2._rkind
 
    ! check minimum: fail minimum step if there is an error in the update
    if(dtSubstep<dt_min)then
@@ -581,7 +581,7 @@ contains
  integer(i4b)                    :: ixFullVector                   ! index within full state vector
  integer(i4b)                    :: ixControlIndex                 ! index within a given domain
  real(dp)                        :: volMelt                        ! volumetric melt (kg m-3)
- real(dp),parameter              :: verySmall=epsilon(1._dp)*2._dp ! a very small number (deal with precision issues)
+ real(dp),parameter              :: verySmall=epsilon(1._rkind)*2._rkind ! a very small number (deal with precision issues)
  ! mass balance
  real(dp)                        :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
  real(dp)                        :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
@@ -832,12 +832,12 @@ contains
 
     ! --> next, remove canopy evaporation -- put the unsatisfied evap into sensible heat
     canopyBalance1 = canopyBalance1 + scalarCanopyEvaporation*dt
-    if(canopyBalance1 < 0._dp)then
+    if(canopyBalance1 < 0._rkind)then
      ! * get superfluous water and energy
      superflousWat = -canopyBalance1/dt     ! kg m-2 s-1
      superflousNrg = superflousWat*LH_vap   ! W m-2 (J m-2 s-1)
      ! * update fluxes and states
-     canopyBalance1          = 0._dp
+     canopyBalance1          = 0._rkind
      scalarCanopyEvaporation = scalarCanopyEvaporation + superflousWat
      scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
      scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
@@ -845,9 +845,9 @@ contains
 
     ! --> next, remove canopy drainage
     canopyBalance1 = canopyBalance1 - scalarCanopyLiqDrainage*dt
-    if(canopyBalance1 < 0._dp)then
+    if(canopyBalance1 < 0._rkind)then
      superflousWat            = -canopyBalance1/dt     ! kg m-2 s-1
-     canopyBalance1          = 0._dp
+     canopyBalance1          = 0._rkind
      scalarCanopyLiqDrainage = scalarCanopyLiqDrainage + superflousWat
     endif
 
@@ -865,7 +865,7 @@ contains
    ! check the mass balance
    fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
    liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
-   if(abs(liqError) > absConvTol_liquid*10._dp*iden_water)then  ! *10 because of precision issues
+   if(abs(liqError) > absConvTol_liquid*10._rkind*iden_water)then  ! *10 because of precision issues
    write(*,'(a,1x,f20.10)') 'dt = ', dt
    write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
    write(*,'(a,1x,f20.10)') 'canopyBalance0             = ', canopyBalance0
@@ -890,7 +890,7 @@ contains
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
  !  write(1,*) liqError 
-   if(abs(liqError) > absConvTol_liquid*10._dp)then   ! *10 because of precision issues
+   if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
     write(*,'(a,1x,f20.10)') 'dt = ', dt
     write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
     write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
@@ -950,15 +950,15 @@ endif  ! if checking the mass balance
   ! *** ice
 
   ! --> check if we removed too much water
-  if(scalarCanopyIceTrial < 0._dp  .or. any(mLayerVolFracIceTrial < 0._dp) )then
+  if(scalarCanopyIceTrial < 0._rkind  .or. any(mLayerVolFracIceTrial < 0._rkind) )then
 
    ! **
    ! canopy within numerical precision
-   if(scalarCanopyIceTrial < 0._dp)then
+   if(scalarCanopyIceTrial < 0._rkind)then
 
     if(scalarCanopyIceTrial > -verySmall)then
      scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
-     scalarCanopyIceTrial = 0._dp
+     scalarCanopyIceTrial = 0._rkind
 
     ! encountered an inconsistency: spit the dummy
     else
@@ -976,11 +976,11 @@ endif  ! if checking the mass balance
    do iState=1,size(mLayerVolFracIceTrial)
 
     ! snow layer within numerical precision
-    if(mLayerVolFracIceTrial(iState) < 0._dp)then
+    if(mLayerVolFracIceTrial(iState) < 0._rkind)then
 
      if(mLayerVolFracIceTrial(iState) > -verySmall)then
       mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
-      mLayerVolFracIceTrial(iState) = 0._dp
+      mLayerVolFracIceTrial(iState) = 0._rkind
 
      ! encountered an inconsistency: spit the dummy
      else
@@ -1003,15 +1003,15 @@ endif  ! if checking the mass balance
   ! *** liquid water
 
   ! --> check if we removed too much water
-  if(scalarCanopyLiqTrial < 0._dp  .or. any(mLayerVolFracLiqTrial < 0._dp) )then
+  if(scalarCanopyLiqTrial < 0._rkind  .or. any(mLayerVolFracLiqTrial < 0._rkind) )then
 
    ! **
    ! canopy within numerical precision
-   if(scalarCanopyLiqTrial < 0._dp)then
+   if(scalarCanopyLiqTrial < 0._rkind)then
 
     if(scalarCanopyLiqTrial > -verySmall)then
      scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
-     scalarCanopyLiqTrial = 0._dp
+     scalarCanopyLiqTrial = 0._rkind
      
 
     ! encountered an inconsistency: spit the dummy
@@ -1031,11 +1031,11 @@ endif  ! if checking the mass balance
    do iState=1,size(mLayerVolFracLiqTrial)
 
     ! snow layer within numerical precision
-    if(mLayerVolFracLiqTrial(iState) < 0._dp)then
+    if(mLayerVolFracLiqTrial(iState) < 0._rkind)then
 
      if(mLayerVolFracLiqTrial(iState) > -verySmall)then
       mLayerVolFracIceTrial(iState) = mLayerVolFracIceTrial(iState) - mLayerVolFracLiqTrial(iState)
-      mLayerVolFracLiqTrial(iState) = 0._dp
+      mLayerVolFracLiqTrial(iState) = 0._rkind
 
      ! encountered an inconsistency: spit the dummy
      else

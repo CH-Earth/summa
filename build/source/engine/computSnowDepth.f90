@@ -35,7 +35,7 @@ implicit none
 private
 public::computSnowDepth
 
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
+real(dp),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
 
 contains
 

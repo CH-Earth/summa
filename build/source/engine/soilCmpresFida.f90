@@ -127,8 +127,8 @@ contains
    endif
   end do
  else
-  compress(:)       = 0._dp
-  dCompress_dPsi(:) = 0._dp
+  compress(:)       = 0._rkind
+  dCompress_dPsi(:) = 0._rkind
  end if
  end subroutine soilCmpresFida
 

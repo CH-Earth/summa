@@ -262,7 +262,7 @@ contains
  integer(i4b)                    :: ixBeg,ixEnd               ! index of indices for the soil compression routine
  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
  real(dp)                        :: xMin,xMax                 ! minimum and maximum values for water content
- real(dp),parameter              :: canopyTempMax=500._dp     ! expected maximum value for the canopy temperature (K)
+ real(dp),parameter              :: canopyTempMax=500._rkind     ! expected maximum value for the canopy temperature (K)
  character(LEN=256)              :: cmessage                  ! error message of downwind routine
  real(qp)                        :: scalarCanopyEnthalpyPrime
  real(dp)						             :: scalarCanopyCmTrial
@@ -331,7 +331,7 @@ contains
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
-  if(stateVec(ixVegHyd) < 0._dp) feasible=.false.
+  if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
  end if
 
  ! check snow temperature is below freezing
@@ -353,12 +353,12 @@ contains
    if (layerType(iLayer) == iname_soil) then
     xMin = theta_sat(iLayer-nSnow)
    else
-    xMin = 0._dp
+    xMin = 0._rkind
    endif
 
    ! --> maximum
    select case( layerType(iLayer) )
-    case(iname_snow); xMax = merge(iden_ice,  1._dp - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+    case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
     case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
    end select
 

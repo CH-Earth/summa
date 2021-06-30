@@ -170,7 +170,7 @@ contains
  ! -----------------------
 
  ! intialize additional terms on the RHS as zero
- rAdd(:) = 0._dp
+ rAdd(:) = 0._rkind
 
  ! compute energy associated with melt freeze for the vegetation canopy
  if(ixVegNrg/=integerMissing) rAdd(ixVegNrg) = rAdd(ixVegNrg) + LH_fus*scalarCanopyIcePrime/canopyDepth   ! energy associated with melt/freeze (J m-3)

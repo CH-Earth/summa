@@ -363,7 +363,7 @@ contains
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
   if (retval /= 0) then; err=20; message='fidaSolver: error in FIDASetUserData'; return; endif
   
-  t0 = 0._dp
+  t0 = 0._rkind
   retval = FIDAInit(ida_mem, c_funloc(evalEqnsFida), t0, sunvec_y, sunvec_yp)
   if (retval /= 0) then; err=20; message='fidaSolver: error in FIDAInit'; return; endif
 
@@ -610,7 +610,7 @@ contains
   tooMuchMelt = .false.
   if(eqns_data%nSnow>0)then
     ! check that we did not remove the entire layer
-    if(mLayerDepth(1) < 1.e-6_dp) exit
+    if(mLayerDepth(1) < 1.e-6_rkind) exit
     ! compute the energy required to melt the top snow layer (J m-2)
     bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
     volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
@@ -752,7 +752,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 
 
   uu = y
-  up = 0._dp
+  up = 0._rkind
 
 
 end subroutine setInitialCondition
@@ -851,7 +851,7 @@ end subroutine setSolverParams
  ! initialize error control
  err=0; message='implctMelt/'
 
- if(scalarSWE > 0._dp)then
+ if(scalarSWE > 0._rkind)then
   ! only melt if temperature of the top soil layer is greater than Tfreeze
   if(soilTemp > Tfreeze)then
    ! compute the energy required to melt all the snow (J m-2)
@@ -863,7 +863,7 @@ end subroutine setSolverParams
    ! compute the amount of melt, and update SWE (kg m-2)
    if(nrgAvailable > nrgRequired)then
     scalarSfcMeltPond  = scalarSWE
-    scalarSWE          = 0._dp
+    scalarSWE          = 0._rkind
    else
     scalarSfcMeltPond  = nrgAvailable/LH_fus
     scalarSWE          = scalarSWE - scalarSfcMeltPond
@@ -873,10 +873,10 @@ end subroutine setSolverParams
    ! update temperature of the top soil layer (K)
    soilTemp =  soilTemp - (LH_fus*scalarSfcMeltPond/soilDepth)/soilHeatcap
   else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
-   scalarSfcMeltPond = 0._dp  ! kg m-2
+   scalarSfcMeltPond = 0._rkind  ! kg m-2
   end if ! (if the temperature of the top soil layer is greater than Tfreeze)
  else  ! melt is zero if the "snow without a layer" does not exist
-  scalarSfcMeltPond = 0._dp  ! kg m-2
+  scalarSfcMeltPond = 0._rkind  ! kg m-2
  end if ! (if the "snow without a layer" exists)
 
  end subroutine implctMelt			

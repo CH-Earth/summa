@@ -83,10 +83,10 @@ private
 public::sysSolvFida
 
 ! control parameters
-real(dp),parameter  :: valueMissing=-9999._dp     ! missing value
-real(dp),parameter  :: verySmall=1.e-12_dp        ! a very small number (used to check consistency)
-real(dp),parameter  :: veryBig=1.e+20_dp          ! a very big number
-real(dp),parameter  :: dx = 1.e-8_dp              ! finite difference increment
+real(dp),parameter  :: valueMissing=-9999._rkind     ! missing value
+real(dp),parameter  :: verySmall=1.e-12_rkind        ! a very small number (used to check consistency)
+real(dp),parameter  :: veryBig=1.e+20_rkind          ! a very big number
+real(dp),parameter  :: dx = 1.e-8_rkind              ! finite difference increment
 
 contains
 
@@ -183,9 +183,9 @@ contains
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
  real(dp)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
  real(dp)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
- real(dp),parameter              :: tempAccelerate=0.00_dp        ! factor to force initial canopy temperatures to be close to air temperature
- real(dp),parameter              :: xMinCanopyWater=0.0001_dp     ! minimum value to initialize canopy water (kg m-2)
- real(dp),parameter              :: tinyStep=0.000001_dp          ! stupidly small time step (s)
+ real(dp),parameter              :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
+ real(dp),parameter              :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
+ real(dp),parameter              :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
  integer(i4b),parameter          :: ixRectangular=1
  integer(i4b),parameter          :: ixTrapezoidal=2
  
@@ -425,11 +425,11 @@ contains
  
    ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
-      flux_sum%var(iVar)%dat(:) = 0._dp
+      flux_sum%var(iVar)%dat(:) = 0._rkind
     end do
     
     ! initialize sum of compression of the soil matrix
-    mLayerCmpress_sum(:) = 0._dp
+    mLayerCmpress_sum(:) = 0._rkind
 
    call fidaSolver(&
                  dt,                      & ! intent (in) 	 data time step

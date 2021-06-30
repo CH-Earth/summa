@@ -16,7 +16,7 @@ public::updateSoilFida
 public::updateSoilFida2
 public::updateVegFida
 
-real(dp),parameter     :: verySmall=1e-14_dp ! a very small number (used to avoid divide by zero)
+real(dp),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
 
 contains
  
@@ -65,7 +65,7 @@ contains
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(Temp,snowfrz_scale)
  VolFracLiq = fLiq*Theta
- VolFracIce = (1._dp - fLiq)*Theta
+ VolFracIce = (1._rkind - fLiq)*Theta
  VolFracLiqPrime = fLiq * ThetaPrime + dFracLiq_dTk(Temp,snowfrz_scale) * Theta * TempPrime
  VolFracIcePrime = ( ThetaPrime - VolFracLiqPrime )
  
@@ -115,7 +115,7 @@ contains
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
  mLayerVolFracLiq = fLiq*mLayerTheta
- mLayerVolFracIce = (1._dp - fLiq)*mLayerTheta*(iden_water/iden_ice)
+ mLayerVolFracIce = (1._rkind - fLiq)*mLayerTheta*(iden_water/iden_ice)
  mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale) * mLayerTheta * mLayerTempPrime
  mLayerVolFracIcePrime = ( mLayerThetaPrime - mLayerVolFracLiqPrime ) * (iden_water/iden_ice)
  
@@ -198,7 +198,7 @@ contains
  
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
- TcSoil = Tfreeze + min(mLayerMatricHead,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+ TcSoil = Tfreeze + min(mLayerMatricHead,0._rkind)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
 
  ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
@@ -208,10 +208,10 @@ contains
   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
   mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  if(mLayerPsiLiq<0._dp)then
+  if(mLayerPsiLiq<0._rkind)then
    mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
   else
-   mLayerVolFracLiqPrime = 0._dp
+   mLayerVolFracLiqPrime = 0._rkind
   endif
 
   ! - volumetric ice content (-)
@@ -224,10 +224,10 @@ contains
  
   ! all water is unfrozen
   mLayerVolFracLiq = mLayerVolFracWat
-  mLayerVolFracIce = 0._dp
+  mLayerVolFracIce = 0._rkind
   
   mLayerVolFracLiqPrime = mLayerVolFracWatPrime
-  mLayerVolFracIcePrime = 0._dp
+  mLayerVolFracIcePrime = 0._rkind
 
  end if  ! (check if soil is partially frozen)
 
@@ -296,7 +296,7 @@ contains
 
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
- TcSoil = Tfreeze + min(mLayerMatricHead,0._dp)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
+ TcSoil = Tfreeze + min(mLayerMatricHead,0._rkind)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
 
  ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
@@ -306,10 +306,10 @@ contains
   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
   mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  if(mLayerPsiLiq<0._dp)then
+  if(mLayerPsiLiq<0._rkind)then
    mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
   else
-   mLayerVolFracLiqPrime = 0._dp
+   mLayerVolFracLiqPrime = 0._rkind
   endif
 
   ! - volumetric ice content (-)
@@ -322,10 +322,10 @@ contains
  
   ! all water is unfrozen
   mLayerVolFracLiq = mLayerVolFracWat
-  mLayerVolFracIce = 0._dp
+  mLayerVolFracIce = 0._rkind
   
   mLayerVolFracLiqPrime = mLayerVolFracWatPrime
-  mLayerVolFracIcePrime = 0._dp
+  mLayerVolFracIcePrime = 0._rkind
 
  end if  ! (check if soil is partially frozen)
 
