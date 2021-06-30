@@ -119,7 +119,7 @@ contains
  ! provide access to subroutines
  USE varExtrSundials_module, only:varExtract                    ! extract variables from the state vector
  USE varExtrSundials_module, only:varExtractSundials
- USE updateVarsSundials2_module, only:updateVarsSundials2           ! update prognostic variables
+ USE updateVars4JacDAE_module, only:updateVars4JacDAE           ! update prognostic variables
  USE computJacDAE_module,only:computJacDAE
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -267,7 +267,7 @@ contains
  
 
                  
- call updateVarsSundials2(&                
+ call updateVars4JacDAE(&                
                  ! input
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU

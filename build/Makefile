@@ -272,7 +272,7 @@ SUMMA_MODRUN = \
       t2enthalpy.f90 \
       updateVars.f90 \
       updateVarsSundials.f90 \
-      updateVarsSundials2.f90 \
+      updateVars4JacDAE.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \

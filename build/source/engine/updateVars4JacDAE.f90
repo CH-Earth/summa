@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module updateVarsSundials2_module
+module updateVars4JacDAE_module
 
 ! data types
 USE nrtype
@@ -98,14 +98,14 @@ USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
 
 implicit none
 private
-public::updateVarsSundials2
+public::updateVars4JacDAE
 
 contains
 
  ! **********************************************************************************************************
- ! public subroutine updateVarsSundials2: compute diagnostic variables
+ ! public subroutine updateVars4JacDAE: compute diagnostic variables
  ! **********************************************************************************************************
- subroutine updateVarsSundials2(&
+ subroutine updateVars4JacDAE(&
                        ! input
                        do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
@@ -284,7 +284,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  
  ! initialize error control
- err=0; message='updateVarsSundials2/'
+ err=0; message='updateVars4JacDAE/'
 
  ! allocate space and assign values to the flag vector
  allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
@@ -760,7 +760,7 @@ contains
  ! end association to the variables in the data structures
  end associate
 
- end subroutine updateVarsSundials2
+ end subroutine updateVars4JacDAE
 
 
  ! **********************************************************************************************************
@@ -797,4 +797,4 @@ contains
  derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
  end subroutine xTempSolve
 
-end module updateVarsSundials2_module
+end module updateVars4JacDAE_module
