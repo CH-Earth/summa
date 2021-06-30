@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module varSubstepFida_module
+module varSubstepSundials_module
 
 ! data types
 USE nrtype
@@ -76,7 +76,7 @@ USE multiconst,only:&
 ! safety: set private unless specified otherwise
 implicit none
 private
-public::varSubstepFida
+public::varSubstepSundials
 
 ! algorithmic parameters
 real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
@@ -85,9 +85,9 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine varSubstepFida: run the model for a collection of substeps for a given state subset
+ ! public subroutine varSubstepSundials: run the model for a collection of substeps for a given state subset
  ! **********************************************************************************************************
- subroutine varSubstepFida(&
+ subroutine varSubstepSundials(&
                        ! input: model control
                        dt,                & ! intent(in)    : time step (s)
                        dtInit,            & ! intent(in)    : initial time step (seconds)
@@ -250,7 +250,7 @@ contains
  ! Procedure starts here
 
  ! initialize error control
- err=0; message='varSubstepFida/'
+ err=0; message='varSubstepSundials/'
 
  ! initialize flag for the success of the substepping
  failedMinimumStep=.false.
@@ -286,7 +286,7 @@ contains
  substeps: do
 
   ! initialize error control
-  err=0; message='varSubstepFida/'
+  err=0; message='varSubstepSundials/'
 
   !write(*,'(a,1x,3(f13.2,1x))') '***** new subStep: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
   !print*, 'scalarCanopyIce  = ', prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
@@ -361,7 +361,7 @@ contains
 
   ! reduce step based on failure
   if(failedSubstep)then
-    err=0; message='varSubstepFida/'  ! recover from failed convergence
+    err=0; message='varSubstepSundials/'  ! recover from failed convergence
     dtMultiplier  = 0.5_rkind        ! system failure: step halving
   else
 
@@ -534,7 +534,7 @@ contains
  endif
  
 
- end subroutine varSubstepFida
+ end subroutine varSubstepSundials
 
 
  ! **********************************************************************************************************
@@ -1087,4 +1087,4 @@ endif  ! if checking the mass balance
 
  end subroutine updateProgFida
 
-end module varSubstepFida_module
+end module varSubstepSundials_module

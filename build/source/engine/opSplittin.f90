@@ -162,7 +162,7 @@ contains
  ! (1) Attempt different solutions in the following order: (a) fully coupled; (b) split by state type and by
  !      domain type for a given energy and mass split (vegetation, snow, and soil); and (c) scalar solution
  !      for a given state type and domain subset.
- ! (2) For a given split, compute a variable number of substeps (in varSubstepFida).
+ ! (2) For a given split, compute a variable number of substeps (in varSubstepSundials).
  ! **********************************************************************************************************
  subroutine opSplittin(&
                        ! input: model control
@@ -200,7 +200,7 @@ contains
  ! population/extraction of state vectors
  USE indexState_module,only:indexSplit                ! get state indices
  USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
- USE varSubstepFida_module,only:varSubstepFida                ! complete substeps for a given split
+ USE varSubstepSundials_module,only:varSubstepSundials                ! complete substeps for a given split
  ! identify name of variable type (for error message)
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  implicit none
@@ -768,7 +768,7 @@ contains
        ! * solve variable subset for one time step...
        ! --------------------------------------------
 
-       !print*, trim(message)//'before varSubstepFida: nSubset = ', nSubset
+       !print*, trim(message)//'before varSubstepSundials: nSubset = ', nSubset
 
        ! keep track of the number of scalar solutions
        if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
@@ -776,7 +776,7 @@ contains
        ! solve variable subset for one full time step
        select case(solver)
         case(IDA)
-             call varSubstepFida(&
+             call varSubstepSundials(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
                        dtInit,                     & ! intent(in)    : initial time step (seconds)
@@ -861,9 +861,9 @@ contains
         if(err>0) return
        endif  ! (check for errors)
 
-       !print*, trim(message)//'after varSubstepFida: scalarSnowDrainage = ', flux_data%var(iLookFLUX%scalarSnowDrainage)%dat
-       !print*, trim(message)//'after varSubstepFida: iLayerLiqFluxSnow  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat
-       !print*, trim(message)//'after varSubstepFida: iLayerLiqFluxSoil  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat
+       !print*, trim(message)//'after varSubstepSundials: scalarSnowDrainage = ', flux_data%var(iLookFLUX%scalarSnowDrainage)%dat
+       !print*, trim(message)//'after varSubstepSundials: iLayerLiqFluxSnow  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat
+       !print*, trim(message)//'after varSubstepSundials: iLayerLiqFluxSoil  = ', flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat
 
        ! check
        !if(ixSolution==scalar)then
@@ -876,12 +876,12 @@ contains
        ! check
        !if(ixCoupling/=fullyCoupled)then
        ! print*, 'dt = ', dt
-       ! print*, 'after varSubstepFida: err              = ', err
-       ! print*, 'after varSubstepFida: cmessage         = ', trim(cmessage)
-       ! print*, 'after varSubstepFida: computeVegFlux   = ', computeVegFlux
-       ! print*, 'after varSubstepFida: stateMask        = ', stateMask
-       ! print*, 'after varSubstepFida: coupling         = ', (ixCoupling==fullyCoupled)
-       ! print*, 'after varSubstepFida: scalar solve     = ', (ixSolution==scalar)
+       ! print*, 'after varSubstepSundials: err              = ', err
+       ! print*, 'after varSubstepSundials: cmessage         = ', trim(cmessage)
+       ! print*, 'after varSubstepSundials: computeVegFlux   = ', computeVegFlux
+       ! print*, 'after varSubstepSundials: stateMask        = ', stateMask
+       ! print*, 'after varSubstepSundials: coupling         = ', (ixCoupling==fullyCoupled)
+       ! print*, 'after varSubstepSundials: scalar solve     = ', (ixSolution==scalar)
        ! print*, 'iStateTypeSplit, nStateTypeSplit = ', iStateTypeSplit, nStateTypeSplit
        ! print*, 'iDomainSplit,    nDomainSplit    = ', iDomainSplit,    nDomainSplit
        ! print*, 'nSubset           = ', nSubset

@@ -234,7 +234,7 @@ SUMMA_SOLVER= \
       solveByIDA.f90 \
       systemSolvSundials.f90 \
       varSubstep.f90 \
-      varSubstepFida.f90 \
+      varSubstepSundials.f90 \
 		opSplittin.f90 \
 		coupled_em.f90 \
 		run_oneHRU.f90 \
