@@ -337,9 +337,6 @@ contains
   if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
  endif
  
-! print *, 'Tfreeze = ', Tfreeze
-! print *, 'stateVec = ', stateVec(1:nLayers)
-! print *, '==========================================================='
 
  ! loop through non-missing hydrology state variables in the snow+soil domain
  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)

@@ -134,8 +134,8 @@ contains
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
- USE tol4IDA_module,only:popTol4IDA
- USE solveByIDA_module,only:solveByIDA
+ USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances 
+ USE solveByIDA_module,only:solveByIDA                ! solve DAE by IDA
 ! use varExtrSundials_module, only:countDiscontinuity
  use, intrinsic :: iso_c_binding
  implicit none
@@ -143,7 +143,7 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(rkind),intent(in)             :: dt                            ! time step (seconds)
+ real(rkind),intent(in)          :: dt                            ! time step (seconds)
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
@@ -162,15 +162,15 @@ contains
  type(var_dlength),intent(inout) :: flux_temp                     ! model fluxes for a local HRU
  type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
- real(rkind),intent(in)             :: stateVecInit(:)               ! initial state vector (mixed units)
+ real(rkind),intent(in)          :: stateVecInit(:)               ! initial state vector (mixed units)
  ! output: model control
  type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
  integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rkind),intent(out)            :: stateVecTrial(:)              ! trial state vector (mixed units)
- real(rkind),intent(out)            :: stateVecPrime(:)              ! trial state vector (mixed units)
+ real(rkind),intent(out)         :: stateVecTrial(:)              ! trial state vector (mixed units)
+ real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
- real(qp),intent(out)  			 :: dt_out
+ real(qp),intent(out)  			     :: dt_out                        ! time step
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
  ! *********************************************************************************************************************************************************
@@ -181,11 +181,11 @@ contains
  character(LEN=256)              :: cmessage                      ! error message of downwind routine
  integer(i4b)                    :: iVar                          ! index of variable
  integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
- real(rkind)                        :: bulkDensity                   ! bulk density of a given layer (kg m-3)
- real(rkind)                        :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
- real(rkind),parameter              :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
- real(rkind),parameter              :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
- real(rkind),parameter              :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
+ real(rkind)                     :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+ real(rkind)                     :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+ real(rkind),parameter           :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
+ real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
+ real(rkind),parameter           :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
  integer(i4b),parameter          :: ixRectangular=1
  integer(i4b),parameter          :: ixTrapezoidal=2
  
@@ -196,25 +196,25 @@ contains
  integer(i4b)                    :: ixQuadrature=ixRectangular    ! type of quadrature method to approximate average fluxes
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
- real(rkind),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
- real(rkind)                        :: stateVecNew(nState)           ! new state vector (mixed units)
- real(rkind)                        :: fluxVec0(nState)              ! flux vector (mixed units)
- real(rkind)                        :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
- real(rkind)                        :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
- real(rkind)                        :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
+ real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
+ real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
+ real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
+ real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
+ real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
+ real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
  real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
- real(rkind)                        :: rAdd(nState)                  ! additional terms in the residual vector
- real(rkind)                        :: fOld                          ! function values (-); NOTE: dimensionless because scaled
+ real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
+ real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
- real(rkind)                        :: dt_last(1)					  ! last stepsize taken by ida solver
- real(qp) 						 :: dt_past						  ! one step before the last stepsize taken by ida solver
- real(rkind)                        :: atol(nState)     		 	  ! absolute telerance
- real(rkind)                        :: rtol(nState)     			  ! relative tolerance     
- type(var_dlength)               :: flux_sum					  ! sum of fluxes model fluxes for a local HRU over a data step					
- integer(i4b) 					 :: tol_iter					  ! iteration index 
- real(rkind), allocatable           :: mLayerCmpress_sum(:)		  ! sum of compression of the soil matrix
- logical(lgt)					 :: idaSucceeds					  ! flag to indicate if ida successfully solved the problem in current data step		
+ real(rkind)                     :: dt_last(1)					          ! last stepsize taken by ida solver
+ real(qp) 						           :: dt_past						            ! one step before the last stepsize taken by ida solver
+ real(rkind)                     :: atol(nState)     		 	        ! absolute telerance
+ real(rkind)                     :: rtol(nState)     			        ! relative tolerance     
+ type(var_dlength)               :: flux_sum					            ! sum of fluxes model fluxes for a local HRU over a data step					
+ integer(i4b) 					         :: tol_iter					            ! iteration index 
+ real(rkind), allocatable        :: mLayerCmpress_sum(:)		      ! sum of compression of the soil matrix
+ logical(lgt)					           :: idaSucceeds					          ! flag to indicate if ida successfully solved the problem in current data step		
 
 
  ! ---------------------------------------------------------------------------------------
@@ -406,10 +406,10 @@ contains
                    prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
                    diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
                    indx_data,                        & ! intent(in):    indices defining model states and layers
-                   mpar_data,                        & ! intent(in):	model parameters
+                   mpar_data,                        & ! intent(in):	  model parameters
                    ! output
                    atol,                             & ! intent(out):   absolute tolerances vector (mixed units)
-                   rtol,                             & ! intent(out):	relative tolerances vector (mixed units)
+                   rtol,                             & ! intent(out):	  relative tolerances vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
@@ -465,11 +465,11 @@ contains
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output
                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                 idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                 idaSucceeds,			        & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
                  dt_last,                 & ! intent(out):	 last stepsize 
                  dt_past,                 & ! intent(out):	 one stepsize before the last one
-                 dt_out,				  & ! intent(out)
+                 dt_out,				          & ! intent(out):   time step
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
