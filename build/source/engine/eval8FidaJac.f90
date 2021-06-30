@@ -315,8 +315,8 @@ contains
 
  ! compute the analytical Jacobian matrix
  ! NOTE: The derivatives were computed in the previous call to computFlux
- !       This occurred either at the call to eval8summaFida at the start of sysSolveFida
- !        or in the call to eval8summaFida in the previous iteration
+ !       This occurred either at the call to eval8DAE at the start of sysSolveFida
+ !        or in the call to eval8DAE in the previous iteration
  dt1 = 1._qp
  call computJacobFida(&
                   ! input: model control

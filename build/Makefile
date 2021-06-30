@@ -228,7 +228,7 @@ SUMMA_SOLVER= \
       computThermConduct.f90 \
       printResidFida.f90 \
       computResidFida.f90 \
-      eval8summaFida.f90 \
+      eval8DAE.f90 \
       evalDAE4IDA.f90 \
       computJacobFida.f90 \
       computJacobFidaCpVar.f90 \

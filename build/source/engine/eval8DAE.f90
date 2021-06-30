@@ -1,5 +1,5 @@
 
-module eval8summaFida_module
+module eval8DAE_module
 
 ! data types
 USE nrtype
@@ -80,14 +80,14 @@ USE mDecisions_module,only:  &
 
 implicit none
 private
-public::eval8summaFida
+public::eval8DAE
 
 contains
 
  ! **********************************************************************************************************
- ! public subroutine eval8summaFida: compute the residual vector and the Jacobian matrix
+ ! public subroutine eval8DAE: compute the residual vector and the Jacobian matrix
  ! **********************************************************************************************************
- subroutine eval8summaFida(&
+ subroutine eval8DAE(&
                        ! input: model control
                        dt_cur,                  &
                        dt,                      & ! intent(in):    time step
@@ -314,7 +314,7 @@ contains
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="eval8summaFida/"
+ err=0; message="eval8DAE/"
 
  ! check the feasibility of the solution
  feasible=.true.
@@ -745,5 +745,5 @@ contains
  end associate
  
 
- end subroutine eval8summaFida
-end module eval8summaFida_module
+ end subroutine eval8DAE
+end module eval8DAE_module

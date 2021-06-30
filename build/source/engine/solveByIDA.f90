@@ -151,7 +151,7 @@ contains
   USE evalDAE4IDA_module,only:evalDAE4IDA     ! DAE/ODE functions 
   USE evalJacFida_module,only:evalJacFida       ! system Jacobian
   USE tolFida_module,only:computWeightFida
-  USE eval8summaFida_module,only:eval8summaFida
+  USE eval8DAE_module,only:eval8DAE
   USE computEnthalpy_module,only:computEnthalpy
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
   USE computSnowDepth_module,only:computSnowDepth
@@ -256,7 +256,7 @@ contains
   err=0; message="solveByIDA/"
   nState = nStat
   idaSucceeds = .true.
-  ! fill eqns_data which will be required later to call eval8summaFida 
+  ! fill eqns_data which will be required later to call eval8DAE 
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow       
   eqns_data%nSoil                   = nSoil
@@ -461,7 +461,7 @@ contains
   retval = FIDAGetLastStep(ida_mem, dt_last)
     
   ! compute the flux and the residual vector for a given state vector
-  call eval8summaFida(&
+  call eval8DAE(&
                  ! input: model control
                  dt_last(1),                        & ! intent(in):    current stepsize
                  eqns_data%dt,                      & ! intent(in):    data step

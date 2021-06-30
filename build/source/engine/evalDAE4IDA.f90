@@ -49,7 +49,7 @@ contains
     use fnvector_serial_mod
     use nrtype
     use fida_datatypes
-    use eval8summaFida_module,only:eval8summaFida
+    use eval8DAE_module,only:eval8DAE
 
     !======= Declarations =========
     implicit none
@@ -96,7 +96,7 @@ contains
  
 
     ! compute the flux and the residual vector for a given state vector
-    call eval8summaFida(&
+    call eval8DAE(&
                  ! input: model control
                  stepsize_next(1),                  &
                  eqns_data%dt,                      &

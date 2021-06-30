@@ -86,7 +86,7 @@ contains
     
     
     ! compute the flux and the residual vector for a given state vector
-    ! NOTE 1: The derivatives computed in eval8summaFida are used to calculate the Jacobian matrix for the first iteration
+    ! NOTE 1: The derivatives computed in eval8DAE are used to calculate the Jacobian matrix for the first iteration
     ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
     call eval8FidaJac(&
                  ! input: model control
