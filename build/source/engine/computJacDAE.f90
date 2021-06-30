@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computJacobFida_module
+module computJacDAE_module
 
 ! data types
 USE nrtype
@@ -84,13 +84,13 @@ real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 integer(i4b),parameter :: ixBandOffset=kl+ku+1       ! offset in the band Jacobian matrix
 
 private
-public::computJacobFida
+public::computJacDAE
 contains
 
  ! **********************************************************************************************************
- ! public subroutine computJacobFida: compute the Jacobian matrix
+ ! public subroutine computJacDAE: compute the Jacobian matrix
  ! **********************************************************************************************************
- subroutine computJacobFida(&
+ subroutine computJacDAE(&
                         ! input: model control
                         cj,                         & ! intent(in)
                         dt,                         & ! intent(in):    length of the time step (seconds)
@@ -274,7 +274,7 @@ contains
  ) ! making association with data in structures
  ! --------------------------------------------------------------
  ! initialize error control
- err=0; message='computJacobFida/'
+ err=0; message='computJacDAE/'
 
  ! *********************************************************************************************************************************************************
  ! *********************************************************************************************************************************************************
@@ -853,7 +853,7 @@ contains
  end associate
  
 
- end subroutine computJacobFida
+ end subroutine computJacDAE
 
 
  ! **********************************************************************************************************
@@ -867,4 +867,4 @@ contains
  ixOffDiag = ixBandOffset + jState - iState
  end function ixOffDiag
 
-end module computJacobFida_module
+end module computJacDAE_module

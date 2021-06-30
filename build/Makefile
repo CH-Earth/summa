@@ -230,8 +230,7 @@ SUMMA_SOLVER= \
       computResidDAE.f90 \
       eval8DAE.f90 \
       evalDAE4IDA.f90 \
-      computJacobFida.f90 \
-      computJacobFidaCpVar.f90 \
+      computJacDAE.f90 \
       eval8JacDAE.f90 \
       evalJac4IDA.f90 \
       nonlinSolvFida.f90 \

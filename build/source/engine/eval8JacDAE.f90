@@ -120,8 +120,7 @@ contains
  USE varExtrFida_module, only:varExtract                    ! extract variables from the state vector
  USE varExtrFida_module, only:varExtractFida
  USE updateVarsFida2_module, only:updateVarsFida2           ! update prognostic variables
- USE computJacobFida_module,only:computJacobFida
- USE computJacobFidaCpVar_module,only:computJacobFidaCpVar
+ USE computJacDAE_module,only:computJacDAE
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -318,7 +317,7 @@ contains
  !       This occurred either at the call to eval8DAE at the start of sysSolveFida
  !        or in the call to eval8DAE in the previous iteration
  dt1 = 1._qp
- call computJacobFida(&
+ call computJacDAE(&
                   ! input: model control
                   cj,                             & ! intent(in)
                   dt1,                            & ! intent(in):    length of the time step (seconds)
