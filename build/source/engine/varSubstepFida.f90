@@ -134,7 +134,7 @@ contains
   USE varExtrFida_module, only:varExtractFida
  ! identify name of variable type (for error message)
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
- USE sysSolvFida_module,only:sysSolvFida
+ USE systemSolvSundials_module,only:systemSolvSundials
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -312,7 +312,7 @@ contains
   ! * iterative solution...
   ! -----------------------
   ! solve the system of equations for a given state subset
-  call sysSolvFida(&
+  call systemSolvSundials(&
                   ! input: model control
                   dtSubstep,         & ! intent(in):    time step (s)
                   nState,            & ! intent(in):    total number of state variables

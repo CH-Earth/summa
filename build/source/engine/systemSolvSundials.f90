@@ -1,6 +1,6 @@
 
 
-module sysSolvFida_module
+module systemSolvSundials_module
 
 ! data types
 USE nrtype
@@ -80,7 +80,7 @@ USE mDecisions_module,only:      &
 ! safety: set private unless specified otherwise
 implicit none
 private
-public::sysSolvFida
+public::systemSolvSundials
 
 ! control parameters
 real(rkind),parameter  :: valueMissing=-9999._rkind     ! missing value
@@ -92,9 +92,9 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine sysSolvFida: run the coupled energy-mass model for one timestep
+ ! public subroutine systemSolvSundials: run the coupled energy-mass model for one timestep
  ! **********************************************************************************************************
- subroutine sysSolvFida(&
+ subroutine systemSolvSundials(&
                        ! input: model control
                        dt,                & ! intent(in):    time step (s)
                        nState,            & ! intent(in):    total number of state variables
@@ -240,7 +240,7 @@ contains
  )
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="sysSolvFida/"
+ err=0; message="systemSolvSundials/"
 
  ! *****
  ! (0) PRELIMINARIES...
@@ -528,6 +528,6 @@ contains
  ! end associate statements
  end associate globalVars
 
- end subroutine sysSolvFida
+ end subroutine systemSolvSundials
 
-end module sysSolvFida_module
+end module systemSolvSundials_module

@@ -238,7 +238,7 @@ SUMMA_SOLVER= \
 		findDiscontinuity.f90 \
 		computSnowDepth.f90 \
       fidaSolver.f90 \
-      sysSolvFida.f90 \
+      systemSolvSundials.f90 \
       varSubstep.f90 \
       varSubstepFida.f90 \
 		opSplittin.f90 \
