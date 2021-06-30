@@ -97,7 +97,7 @@ contains
                        nState,                  & ! intent(in):    total number of state variables
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,			      & ! intent(inout)  flag to indicate if we are processing the first flux call
-                       firstSplitOper,			    & ! intent(in)     flag to indicate if we are processing the first flux call in a splitting operation
+                       firstSplitOper,			    & ! intent(inout)  flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
@@ -106,7 +106,7 @@ contains
                        sMul,                    & ! intent(inout):  state vector multiplier (used in the residual calculations)
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
-                       lookup_data,             & ! intent(in)     lookup data
+                       lookup_data,             & ! intent(in):    lookup data
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
@@ -130,25 +130,25 @@ contains
                        scalarCanopyEnthalpyPrev,& ! intent(in):     value for enthalpy of the vegetation canopy (J m-3)
                        mLayerTempTrial,         & ! intent(out):    trial vector of layer temperature (K)
                        mLayerTempPrev,          & ! intent(in):     vector of layer temperature (K)
-                       mLayerMatricHeadLiqTrial,& !intent(out)    trial value for liquid water matric potential (m)
-                       mLayerMatricHeadTrial, 	& !intent(out)      trial value for total water matric potential (m)
-                       mLayerMatricHeadPrev, 	  & !intent(in)     value for total water matric potential (m)
-                       mLayerVolFracWatTrial,   & !intent(out)    trial vector of volumetric total water content (-)
-                       mLayerVolFracWatPrev,    & !intent(in)     vector of volumetric total water content (-)
-                       mLayerVolFracIceTrial,   & !intent(out)    trial vector of volumetric ice water content (-)
-                       mLayerVolFracIcePrev,    & !intent(in)     vector of volumetric ice water content (-)
-                       mLayerVolFracLiqTrial,   & !intent(out)    trial vector of volumetric liquid water content (-)
-                       mLayerVolFracLiqPrev,    & !intent(in)     vector of volumetric liquid water content (-)
-                       scalarAquiferStorageTrial, & ! intent(out): trial value of storage of water in the aquifer (m) 
-                 	     scalarAquiferStoragePrev,  & ! intent(in):  value of storage of water in the aquifer (m)  
-                       mLayerEnthalpyPrev,      & ! intent(in):   vector of enthalpy for snow+soil layers (J m-3)
-                       mLayerEnthalpyTrial,     & ! intent(out): trial vector of enthalpy for snow+soil layers (J m-3)
-                       ixSaturation,			      & ! intent(inout): index of the lowest saturated layer
-                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
-                       fluxVec,                 & ! intent(out):   flux vector
-                       resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                       resVec,                  & ! intent(out):   residual vector
-                       err,message)               ! intent(out):   error control
+                       mLayerMatricHeadLiqTrial,& ! intent(out):    trial value for liquid water matric potential (m)
+                       mLayerMatricHeadTrial, 	& ! intent(out):    trial value for total water matric potential (m)
+                       mLayerMatricHeadPrev, 	  & ! intent(in):     value for total water matric potential (m)
+                       mLayerVolFracWatTrial,   & ! intent(out):    trial vector of volumetric total water content (-)
+                       mLayerVolFracWatPrev,    & ! intent(in):     vector of volumetric total water content (-)
+                       mLayerVolFracIceTrial,   & ! intent(out):    trial vector of volumetric ice water content (-)
+                       mLayerVolFracIcePrev,    & ! intent(in):     vector of volumetric ice water content (-)
+                       mLayerVolFracLiqTrial,   & ! intent(out):    trial vector of volumetric liquid water content (-)
+                       mLayerVolFracLiqPrev,    & ! intent(in):     vector of volumetric liquid water content (-)
+                       scalarAquiferStorageTrial, & ! intent(out):  trial value of storage of water in the aquifer (m) 
+                 	     scalarAquiferStoragePrev,  & ! intent(in):   value of storage of water in the aquifer (m)  
+                       mLayerEnthalpyPrev,      & ! intent(in):     vector of enthalpy for snow+soil layers (J m-3)
+                       mLayerEnthalpyTrial,     & ! intent(out):    trial vector of enthalpy for snow+soil layers (J m-3)
+                       ixSaturation,			      & ! intent(inout):  index of the lowest saturated layer
+                       feasible,                & ! intent(out):    flag to denote the feasibility of the solution
+                       fluxVec,                 & ! intent(out):    flux vector
+                       resSink,                 & ! intent(out):    additional (sink) terms on the RHS of the state equation
+                       resVec,                  & ! intent(out):    residual vector
+                       err,message)               ! intent(out):    error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
  USE varExtrSundials_module, only:varExtract           ! extract variables from the state vector

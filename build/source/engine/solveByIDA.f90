@@ -124,12 +124,12 @@ contains
                        flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! output 
-                       ixSaturation,			& ! intent(out)
-                       idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                       ixSaturation,			      & ! intent(out)
+                       idaSucceeds,			        & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
                        dt_last,                 & ! intent(out):   last stepsize 
-                       dt_past,           		& ! intent(out):   one stepsize before the last one
-                       dt_out,					& ! intent(out)
+                       dt_past,           		  & ! intent(out):   one stepsize before the last one
+                       dt_out,					        & ! intent(out):   time step 
                        stateVec,                & ! intent(out):   model state vector
                        stateVecPrime,           & ! intent(out):   derivative of model state vector   
                        err,message              & ! intent(out):   error control
@@ -166,9 +166,9 @@ contains
  ! calling variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- real(qp),intent(in)             :: dt
- real(qp),intent(inout)          :: atol(:)
- real(qp),intent(inout)          :: rtol(:)
+ real(qp),intent(in)             :: dt                     ! data time step
+ real(qp),intent(inout)          :: atol(:)                ! vector of absolute tolerances
+ real(qp),intent(inout)          :: rtol(:)                ! vector of relative tolerances
  integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -179,9 +179,9 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(rkind),intent(in)             :: stateVecInit(:)        ! model state vector
- real(qp),intent(in)             :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
- real(rkind), intent(inout)         :: dMat(:)
+ real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
+ real(qp),intent(in)             :: sMul(:)   			       ! state vector multiplier (used in the residual calculations)
+ real(rkind), intent(inout)      :: dMat(:)
  ! input: data structures
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
  type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
@@ -193,19 +193,19 @@ contains
  type(var_ilength),	 intent(in)  :: indx_data              ! indices defining model states and layers
  ! input-output: data structures
  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_temp             ! model fluxes for a local HRU
- type(var_dlength),intent(inout):: flux_data              ! model fluxes for a local HRU
- type(var_dlength),intent(inout) :: flux_sum
+ type(var_dlength),intent(inout) :: flux_temp              ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes 
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
- real(rkind),intent(inout)          :: mLayerCmpress_sum(:)
+ real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
  ! output: state vectors
- integer(i4b),intent(out)		 :: ixSaturation		   
- real(rkind),intent(inout)          :: stateVec(:)            ! model state vector (y)
- real(rkind),intent(inout)          :: stateVecPrime(:)       ! model state vector (y')
- logical(lgt),intent(out)		 :: idaSucceeds
- real(qp),intent(out)            :: dt_last(1)
- real(qp),intent(out)            :: dt_past
- real(qp),intent(out)			 :: dt_out
+ integer(i4b),intent(out)		     :: ixSaturation           ! index of the lowest saturated layer		   
+ real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
+ real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
+ logical(lgt),intent(out)		     :: idaSucceeds            ! flag to indicate if IDA is successful
+ real(qp),intent(out)            :: dt_last(1)             ! last time step
+ real(qp),intent(out)            :: dt_past                ! time step before tha last one
+ real(qp),intent(out)			       :: dt_out                 ! time step
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -213,45 +213,43 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
-  type(N_Vector),           pointer :: sunvec_y      ! sundials solution vector
-  type(N_Vector),           pointer :: sunvec_yp     ! sundials derivative vector
-  type(N_Vector),           pointer :: sunvec_av     ! sundials tolerance vector
-  type(SUNMatrix),          pointer :: sunmat_A      ! sundials matrix
-  type(SUNLinearSolver),    pointer :: sunlinsol_LS  ! sundials linear solver
-  type(SUNNonLinearSolver), pointer :: sunnonlin_NLS ! sundials nonlinear solver
-  type(c_ptr)                       :: ida_mem       ! IDA memory
-  type(eqnsData),           target  :: eqns_data
-  integer(i4b)                      :: retval
-  logical(lgt)                      :: feasible                      ! feasibility flag
-  real(qp)                          :: t0
-  integer (kind = 8) 				:: maxstep
-  integer(kind = 8) 				:: mu, lu
-  real(qp)            				:: h_max
-  real(qp)            				:: coef_nonlin
-  integer(i4b),parameter     		:: ixRectangular=1    
-  integer(i4b),parameter     		:: ixTrapezoidal=2
-  integer(i4b)               		:: iVar  
-  logical(lgt)               		:: startQuadrature
-  real(rkind)  				 		:: mLayerMatricHeadLiqPrev(nSoil)
+  type(N_Vector),           pointer :: sunvec_y             ! sundials solution vector
+  type(N_Vector),           pointer :: sunvec_yp            ! sundials derivative vector
+  type(N_Vector),           pointer :: sunvec_av            ! sundials tolerance vector
+  type(SUNMatrix),          pointer :: sunmat_A             ! sundials matrix
+  type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
+  type(SUNNonLinearSolver), pointer :: sunnonlin_NLS        ! sundials nonlinear solver
+  type(c_ptr)                       :: ida_mem              ! IDA memory
+  type(eqnsData),           target  :: eqns_data            ! IDA type
+  integer(i4b)                      :: retval               ! return value 
+  logical(lgt)                      :: feasible             ! feasibility flag
+  real(qp)                          :: t0                   ! staring time 
+  integer(kind = 8) 				        :: mu, lu
+  real(qp)            				      :: h_max
+  real(qp)            				      :: coef_nonlin
+  integer(i4b),parameter     		    :: ixRectangular=1    
+  integer(i4b),parameter     		    :: ixTrapezoidal=2
+  integer(i4b)               		    :: iVar  
+  logical(lgt)               		    :: startQuadrature
+  real(rkind)  				 		          :: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState                 ! total number of state variables
-  real(rkind)                          :: rVec(nStat)
+  real(rkind)                       :: rVec(nStat)
   real(qp)                          :: tret(1)
-  real(rkind)                          :: bulkDensity                   ! bulk density of a given layer (kg m-3)
-  real(rkind)                          :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
-  logical(lgt)						:: tooMuchMelt
-  logical(lgt)						:: divideLayer
-  logical(lgt)						:: mergedLayers
-  logical(lgt),parameter			:: checkSnow = .true.
-  real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
-  real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  real(rkind)							:: mLayerDepth(nLayers)
-  real(rkind)							:: scalarSnowDepth
-  real(rkind)							:: scalarSWE
-  real(rkind)							:: mLayerMeltFreeze(nLayers)
-  
-  !======= Internals ============
-  
+  real(rkind)                       :: bulkDensity                   ! bulk density of a given layer (kg m-3)
+  real(rkind)                       :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+  logical(lgt)						          :: tooMuchMelt
+  logical(lgt)						          :: divideLayer
+  logical(lgt)						          :: mergedLayers
+  logical(lgt),parameter			      :: checkSnow = .true.
+  real(rkind)                       :: superflousSub          ! superflous sublimation (kg m-2 s-1)
+  real(rkind)                       :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+  real(rkind)							          :: mLayerDepth(nLayers)
+  real(rkind)							          :: scalarSnowDepth
+  real(rkind)							          :: scalarSWE
+  real(rkind)							          :: mLayerMeltFreeze(nLayers)
+  ! -----------------------------------------------------------------------------------------------------
+
   ! initialize error control
   err=0; message="solveByIDA/"
   nState = nStat
@@ -307,12 +305,11 @@ contains
   eqns_data%bvar_data               = bvar_data
   eqns_data%indx_data               = indx_data
 
- ! allocate space for the baseflow derivatives
- ! NOTE: needs allocation because only used when baseflow sinks are active
+ ! allocate space 
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
-  allocate(eqns_data%dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column
+  allocate(eqns_data%dBaseflow_dMatric(nSoil,nSoil),stat=err) 
  else
-  allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
+  allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)          
  end if
   
   allocate( eqns_data%mLayerMatricHeadLiqTrial(nSoil) )
@@ -424,22 +421,22 @@ contains
   if (retval /= 0) then; err=20; message='solveByIDA: error in setSolverParams'; return; endif
   
   ! need the following values for the first substep
- eqns_data%scalarCanopyTempPrev		= prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+ eqns_data%scalarCanopyTempPrev		  = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)  
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
- eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+ eqns_data%mLayerTempPrev(:) 		    = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
  eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)  
  eqns_data%mLayerVolFracLiqPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:) 
  eqns_data%mLayerMatricHeadPrev(:) 	= prog_data%var(iLookPROG%mLayerMatricHead)%dat(:) 
  eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
- eqns_data%mLayerEnthalpyPrev(:) 	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+ eqns_data%mLayerEnthalpyPrev(:)  	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
- mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
- eqns_data%ixSaturation = ixSaturation
- mLayerDepth						= prog_data%var(iLookPROG%mLayerDepth)%dat
- scalarSnowDepth					= prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
- scalarSWE							= prog_data%var(iLookPROG%scalarSWE)%dat(1)
+ mLayerMatricHeadLiqPrev(:) 		    = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
+ eqns_data%ixSaturation             = ixSaturation
+ mLayerDepth						            = prog_data%var(iLookPROG%mLayerDepth)%dat
+ scalarSnowDepth					          = prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
+ scalarSWE							            = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -470,17 +467,17 @@ contains
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 eqns_data%firstFluxCall,           & ! intent(inout)
-                 eqns_data%firstSplitOper,			    & ! intent(in)
+                 eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                 eqns_data%firstSplitOper,			    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector
-                 eqns_data%sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
+                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  ! input: data structures
                  model_decisions,                   & ! intent(in):    model decisions
-                 eqns_data%lookup_data,             &
+                 eqns_data%lookup_data,             & ! intent(in):    lookup data
                  eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
                  eqns_data%attr_data,               & ! intent(in):    spatial attributes
                  eqns_data%mpar_data,               & ! intent(in):    model parameters
@@ -492,38 +489,38 @@ contains
                  eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: baseflow
-                 eqns_data%dBaseflow_dMatric,       & ! intent(out):  derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
-                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):   trial value of canopy temperature (K)
-                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):   previous value of canopy temperature (K)
-                 eqns_data%scalarCanopyIceTrial,	  &
-                 eqns_data%scalarCanopyIcePrev,		  &
-                 eqns_data%scalarCanopyLiqTrial,	  &
-                 eqns_data%scalarCanopyLiqPrev,		  &                 
-                 eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
-                 eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
-                 eqns_data%mLayerTempTrial,          &
-                 eqns_data%mLayerTempPrev,           &
-                 eqns_data%mLayerMatricHeadLiqTrial, &
-                 eqns_data%mLayerMatricHeadTrial,    &
-                 eqns_data%mLayerMatricHeadPrev,     &
-                 eqns_data%mLayerVolFracWatTrial,    &
-                 eqns_data%mLayerVolFracWatPrev,     &
-                 eqns_data%mLayerVolFracIceTrial,    &
-                 eqns_data%mLayerVolFracIcePrev,     &
-                 eqns_data%mLayerVolFracLiqTrial,    &
-                 eqns_data%mLayerVolFracLiqPrev,     &   
-                 eqns_data%scalarAquiferStorageTrial, &
-                 eqns_data%scalarAquiferStoragePrev, &              
-                 eqns_data%mLayerEnthalpyPrev,       & ! intent(in)
-                 eqns_data%mLayerEnthalpyTrial,      & ! intent(out)
-                 eqns_data%ixSaturation,			       &
+                 ! input-output
+                 eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
+                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):    trial value of canopy temperature (K)
+                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):    previous value of canopy temperature (K)
+                 eqns_data%scalarCanopyIceTrial,	  & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
+                 eqns_data%scalarCanopyIcePrev,		  & ! intent(in):    value for mass of ice on the vegetation canopy (kg m-2)
+                 eqns_data%scalarCanopyLiqTrial,	  & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 eqns_data%scalarCanopyLiqPrev,		  & ! intent(in):    value of canopy liquid water (kg m-2)                
+                 eqns_data%scalarCanopyEnthalpyTrial,& ! intent(out):  trial value for enthalpy of the vegetation canopy (J m-3)
+                 eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):   value for enthalpy of the vegetation canopy (J m-3)
+                 eqns_data%mLayerTempTrial,          & ! intent(out):  trial vector of layer temperature (K)
+                 eqns_data%mLayerTempPrev,           & ! intent(in):   vector of layer temperature (K)
+                 eqns_data%mLayerMatricHeadLiqTrial, & ! intent(out):  trial value for liquid water matric potential (m)
+                 eqns_data%mLayerMatricHeadTrial,    & ! intent(out):  trial value for total water matric potential (m)
+                 eqns_data%mLayerMatricHeadPrev,     & ! intent(in):   value for total water matric potential (m)
+                 eqns_data%mLayerVolFracWatTrial,    & ! intent(out):  trial vector of volumetric total water content (-)
+                 eqns_data%mLayerVolFracWatPrev,     & ! intent(in):   vector of volumetric total water content (-)
+                 eqns_data%mLayerVolFracIceTrial,    & ! intent(out):  trial vector of volumetric ice water content (-)
+                 eqns_data%mLayerVolFracIcePrev,     & ! intent(in):   vector of volumetric ice water content (-)
+                 eqns_data%mLayerVolFracLiqTrial,    & ! intent(out):  trial vector of volumetric liquid water content (-)
+                 eqns_data%mLayerVolFracLiqPrev,     & ! intent(in):   vector of volumetric liquid water content (-)   
+                 eqns_data%scalarAquiferStorageTrial, & ! intent(out): trial value of storage of water in the aquifer (m) 
+                 eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)               
+                 eqns_data%mLayerEnthalpyPrev,       & ! intent(in):   vector of enthalpy for snow+soil layers (J m-3)
+                 eqns_data%mLayerEnthalpyTrial,      & ! intent(out):  trial vector of enthalpy for snow+soil layers (J m-3)
+                 eqns_data%ixSaturation,			       & ! intent(inout): index of the lowest saturated layer
                  ! output
                  feasible,                           & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                  & ! intent(out):   flux vector
                  eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                  			       & ! intent(out):   residual vector
-                 eqns_data%err,eqns_data%message)     ! intent(out):   error control 
+                 eqns_data%err,eqns_data%message)     ! intent(out):    error control 
                  
   
   select case(ixQuadrature)
@@ -572,9 +569,7 @@ contains
    eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
    eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
    eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
-   
-
- ! if(tret(1) > 500) exit  
+    
   
  if(checkSnow)then  
   mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)   
@@ -618,10 +613,7 @@ contains
   endif
   
  
-  if(tooMuchMelt)then
-!   print *, 'tooMuchMelt, tret = ', tret(1)
-   exit
-  endif
+  if(tooMuchMelt) exit
  
   divideLayer = .false.
   call needDivideLayer(&
@@ -635,12 +627,6 @@ contains
                         divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
                         err,message)                   							  ! intent(out): error control
    if(divideLayer .and. tret(1)>50) then
-!	    print *, 'divideLayer, tret = ', tret(1)
-!		  print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
-!  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
-!  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
-!  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
-!  		print *, 'mLayerDepth = ', mLayerDepth(:)
 	    exit
   endif
    
@@ -650,22 +636,14 @@ contains
                        ! input/output: model data structures
                        tooMuchMelt,                 							& ! intent(in):    flag to force merge of snow layers
                        model_decisions,             							& ! intent(in):    model decisions
-                       eqns_data%mpar_data,                   					& ! intent(in):    model parameters
-                       eqns_data%nSnow,                       					& ! intent(in):
-                       mLayerDepth,      										& ! intent(inout): model prognostic variables for a local HRU
+                       eqns_data%mpar_data,                   		& ! intent(in):    model parameters
+                       eqns_data%nSnow,                       		& ! intent(in):
+                       mLayerDepth,      										      & ! intent(inout): model prognostic variables for a local HRU
                        ! output
                        mergedLayers,                							& ! intent(out): flag to denote that layers were merged
                        err,message)                   							  ! intent(out): error control
                        
-   if(mergedLayers .and. tret(1)>50) then
-!	    print *, 'mergedLayers, tret = ', tret(1)
-!     print *, 'mLayerMeltFreeze = ', mLayerMeltFreeze(1:nSnow)
-!  		print *, 'mLayerVolFracLiq = ', eqns_data%mLayerVolFracLiqTrial(:)
-!  		print *, 'mLayerVolFracIce = ', eqns_data%mLayerVolFracIceTrial(:)
-!  		print *, 'mLayerTemp = ', eqns_data%mLayerTempTrial(:)
-!  		print *, 'mLayerDepth = ', mLayerDepth(:)
-	    exit
-   endif
+   if(mergedLayers .and. tret(1)>50) exit
  
  endif ! checkSnow
  
@@ -680,13 +658,12 @@ contains
   if( .not. feasible) idaSucceeds = .false.
    
   if(idaSucceeds)then
-
       ! copy to output data      
   	diag_data 		= eqns_data%diag_data              
   	flux_data 		= eqns_data%flux_data             
   	deriv_data 		= eqns_data%deriv_data
-  	ixSaturation    = eqns_data%ixSaturation
-  	dt_out 			= tret(1)
+  	ixSaturation  = eqns_data%ixSaturation
+  	dt_out 			  = tret(1)
   endif     
   
 
@@ -766,18 +743,18 @@ subroutine setSolverParams(dt,ida_mem,retval)
   USE fida_mod                      								! Fortran interface to IDA
 implicit none
 
-	real(rkind),intent(in)	  					:: dt			   		! time step
-	type(c_ptr),intent(inout)   			:: ida_mem       		! IDA memory	
+	real(rkind),intent(in)	  					  :: dt			   		! time step
+	type(c_ptr),intent(inout)   			    :: ida_mem       		! IDA memory	
 	integer(i4b),intent(out)            	:: retval				! return value
 
-	real(qp),parameter     					:: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
-	integer,parameter 	   					:: max_order = 1		! maximum BDF order,  default = 5
-	integer,parameter 	   					:: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4	
-	integer,parameter 	   					:: acurtest_fail = 50	! maximum number of error test failures, default = 10
-	integer,parameter 	   					:: convtest_fail = 50	! maximum number of convergence test failures, default = 10
-	integer(kind = 8),parameter 	   		:: max_step = 999999	! maximum number of steps,  dafault = 500 
+	real(qp),parameter     					      :: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
+	integer,parameter 	   					      :: max_order = 1		! maximum BDF order,  default = 5
+	integer,parameter 	   					      :: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4	
+	integer,parameter 	   					      :: acurtest_fail = 50	! maximum number of error test failures, default = 10
+	integer,parameter 	   					      :: convtest_fail = 50	! maximum number of convergence test failures, default = 10
+	integer(kind = 8),parameter 	   		  :: max_step = 999999	! maximum number of steps,  dafault = 500 
 	real(qp),parameter		                :: h_init = 0			! initial stepsize
-	real(qp)   				                :: h_max				! maximum stepsize,  dafault = infinity
+	real(qp)   				                    :: h_max				! maximum stepsize,  dafault = infinity
 
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order) 
