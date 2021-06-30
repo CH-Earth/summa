@@ -162,7 +162,7 @@ contains
  USE computHeatCap_module,only:computHeatCapAnalytic      ! compute heat capacity
  USE computHeatCap_module,only:computCm
  USE computHeatCap_module, only:computStatMult
- USE computResidFida_module,only:computResidFida          ! compute residuals given a state vector
+ USE computResidDAE_module,only:computResidDAE          ! compute residuals given a state vector
  USE computThermConduct_module,only:computThermConduct
  USE computEnthalpy_module,only:computEnthalpy
  USE computEnthalpy_module,only:computEnthalpyPrime
@@ -705,7 +705,7 @@ contains
                      
 
  ! compute the residual vector
- call computResidFida(&
+ call computResidDAE(&
                   ! input: model control
                   nSnow,                     & ! intent(in):    number of snow layers
                   nSoil,                     & ! intent(in):    number of soil layers

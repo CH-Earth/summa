@@ -1,6 +1,6 @@
 
 
-module computResidFida_module
+module computResidDAE_module
 
 ! data types
 USE nrtype
@@ -50,13 +50,13 @@ USE multiconst,only:&
 ! privacy
 implicit none
 private
-public::computResidFida
+public::computResidDAE
 contains
 
  ! **********************************************************************************************************
- ! public subroutine computResidFida: compute the residual vector
+ ! public subroutine computResidDAE: compute the residual vector
  ! **********************************************************************************************************
- subroutine computResidFida(&
+ subroutine computResidDAE(&
                         ! input: model control
                         nSnow,                     & ! intent(in):    number of snow layers
                         nSoil,                     & ! intent(in):    number of soil layers
@@ -162,7 +162,7 @@ contains
  ) ! association to necessary variables for the residual computations
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="computResidFida/"
+ err=0; message="computResidDAE/"
  
 
  ! ---
@@ -252,6 +252,6 @@ contains
  ! end association with the necessary variabiles for the residual calculations
  end associate
 
- end subroutine computResidFida
+ end subroutine computResidDAE
 
-end module computResidFida_module
+end module computResidDAE_module
