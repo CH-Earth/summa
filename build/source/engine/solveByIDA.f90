@@ -136,28 +136,28 @@ contains
                       )
 
   !======= Inclusions ===========
-  USE fida_mod                      			! Fortran interface to IDA
-  USE fnvector_serial_mod           			! Fortran interface to serial N_Vector
-  USE fsunmatrix_dense_mod          			! Fortran interface to dense SUNMatrix
-  USE fsunlinsol_dense_mod          			! Fortran interface to dense SUNLinearSolver
-  USE fsunmatrix_band_mod           			! Fortran interface to banded SUNMatrix
-  USE fsunlinsol_band_mod           			! Fortran interface to banded SUNLinearSolver
-  USE fsunnonlinsol_newton_mod      			! Fortran interface to Newton SUNNonlinearSolver
-  USE fsundials_matrix_mod          			! Fortran interface to generic SUNMatrix
-  USE fsundials_nvector_mod         			! Fortran interface to generic N_Vector
-  USE fsundials_linearsolver_mod    			! Fortran interface to generic SUNLinearSolver
-  USE fsundials_nonlinearsolver_mod 			! Fortran interface to generic SUNNonlinearSolver
-  USE allocspace_module,only:allocLocal         ! allocate local data structures
-  USE evalDAE4IDA_module,only:evalDAE4IDA     ! DAE/ODE functions 
-  USE evalJac4IDA_module,only:evalJac4IDA       ! system Jacobian
-  USE tol4IDA_module,only:computWeight4IDA
-  USE eval8DAE_module,only:eval8DAE
-  USE computEnthalpy_module,only:computEnthalpy
-  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
-  USE computSnowDepth_module,only:computSnowDepth
-  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
-  USE layerDivide_module,only:needDivideLayer
-  Use layerMerge_module,only:needMergeLayers
+  USE fida_mod                      			        ! Fortran interface to IDA
+  USE fnvector_serial_mod           			        ! Fortran interface to serial N_Vector
+  USE fsunmatrix_dense_mod          			        ! Fortran interface to dense SUNMatrix
+  USE fsunlinsol_dense_mod          			        ! Fortran interface to dense SUNLinearSolver
+  USE fsunmatrix_band_mod           			        ! Fortran interface to banded SUNMatrix
+  USE fsunlinsol_band_mod           			        ! Fortran interface to banded SUNLinearSolver
+  USE fsunnonlinsol_newton_mod      			        ! Fortran interface to Newton SUNNonlinearSolver
+  USE fsundials_matrix_mod          			        ! Fortran interface to generic SUNMatrix
+  USE fsundials_nvector_mod         			        ! Fortran interface to generic N_Vector
+  USE fsundials_linearsolver_mod    			        ! Fortran interface to generic SUNLinearSolver
+  USE fsundials_nonlinearsolver_mod 			        ! Fortran interface to generic SUNNonlinearSolver
+  USE allocspace_module,only:allocLocal           ! allocate local data structures
+  USE evalDAE4IDA_module,only:evalDAE4IDA         ! DAE/ODE functions 
+  USE evalJac4IDA_module,only:evalJac4IDA         ! system Jacobian
+  USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
+  USE eval8DAE_module,only:eval8DAE               ! residual of DAE
+  USE computEnthalpy_module,only:computEnthalpy   ! enthalpy
+  USE convE2Temp_module,only:temp2ethpy           ! convert temperature to enthalpy
+  USE computSnowDepth_module,only:computSnowDepth ! snow depth
+  USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
+  USE layerDivide_module,only:needDivideLayer     ! do we need to divide snow layers
+  Use layerMerge_module,only:needMergeLayers      ! do we need to merge snow layers
 
   !======= Declarations =========
   implicit none
@@ -224,26 +224,24 @@ contains
   integer(i4b)                      :: retval               ! return value 
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time 
-  integer(kind = 8) 				        :: mu, lu
-  real(qp)            				      :: h_max
-  real(qp)            				      :: coef_nonlin
-  integer(i4b),parameter     		    :: ixRectangular=1    
+  integer(kind = 8) 				        :: mu, lu               ! in banded matrix mode
+  integer(i4b),parameter     		    :: ixRectangular=1          
   integer(i4b),parameter     		    :: ixTrapezoidal=2
   integer(i4b)               		    :: iVar  
   logical(lgt)               		    :: startQuadrature
   real(rkind)  				 		          :: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
-  integer(c_long)                   :: nState                 ! total number of state variables
+  integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
   real(qp)                          :: tret(1)
-  real(rkind)                       :: bulkDensity                   ! bulk density of a given layer (kg m-3)
-  real(rkind)                       :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
+  real(rkind)                       :: bulkDensity          ! bulk density of a given layer (kg m-3)
+  real(rkind)                       :: volEnthalpy          ! volumetric enthalpy of a given layer (J m-3)
   logical(lgt)						          :: tooMuchMelt
   logical(lgt)						          :: divideLayer
   logical(lgt)						          :: mergedLayers
   logical(lgt),parameter			      :: checkSnow = .true.
-  real(rkind)                       :: superflousSub          ! superflous sublimation (kg m-2 s-1)
-  real(rkind)                       :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
+  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   real(rkind)							          :: mLayerDepth(nLayers)
   real(rkind)							          :: scalarSnowDepth
   real(rkind)							          :: scalarSWE
@@ -740,21 +738,21 @@ end subroutine setInitialCondition
 subroutine setSolverParams(dt,ida_mem,retval)
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
-  USE fida_mod                      								! Fortran interface to IDA
+  USE fida_mod                      								          ! Fortran interface to IDA
 implicit none
 
-	real(rkind),intent(in)	  					  :: dt			   		! time step
-	type(c_ptr),intent(inout)   			    :: ida_mem       		! IDA memory	
-	integer(i4b),intent(out)            	:: retval				! return value
+	real(rkind),intent(in)	  					  :: dt			   		      ! time step
+	type(c_ptr),intent(inout)   			    :: ida_mem       		  ! IDA memory	
+	integer(i4b),intent(out)            	:: retval				      ! return value
 
 	real(qp),parameter     					      :: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
-	integer,parameter 	   					      :: max_order = 1		! maximum BDF order,  default = 5
+	integer,parameter 	   					      :: max_order = 1		  ! maximum BDF order,  default = 5
 	integer,parameter 	   					      :: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4	
 	integer,parameter 	   					      :: acurtest_fail = 50	! maximum number of error test failures, default = 10
 	integer,parameter 	   					      :: convtest_fail = 50	! maximum number of convergence test failures, default = 10
 	integer(kind = 8),parameter 	   		  :: max_step = 999999	! maximum number of steps,  dafault = 500 
-	real(qp),parameter		                :: h_init = 0			! initial stepsize
-	real(qp)   				                    :: h_max				! maximum stepsize,  dafault = infinity
+	real(qp),parameter		                :: h_init = 0			    ! initial stepsize
+	real(qp)   				                    :: h_max				      ! maximum stepsize,  dafault = infinity
 
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order) 
