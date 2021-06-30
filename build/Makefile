@@ -215,7 +215,6 @@ SUMMA_SOLVER= \
 		bigAquifer.f90 \
       soilCmpresFida.f90 \
 		computFlux.f90 \
-		computFluxFida.f90 \
 		computResid.f90 \
 		computJacob.f90 \
 		eval8summa.f90 \
