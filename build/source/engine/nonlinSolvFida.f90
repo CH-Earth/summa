@@ -27,7 +27,7 @@ module nonlinSolvFida_module
          use fsundials_linearsolver_mod    ! Fortran interface to generic SUNLinearSolver
          use fsundials_nonlinearsolver_mod ! Fortran interface to generic SUNNonlinearSolver
          use nrtype
-         use fida_datatypes
+         use type4IDA
             implicit none
             type(N_Vector) :: ycor
             type(N_Vector) :: F

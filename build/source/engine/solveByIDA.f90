@@ -7,7 +7,7 @@ module solveByIDA_module
 !======= Inclusions ===========
 USE, intrinsic :: iso_c_binding
 USE nrtype
-USE fida_datatypes
+USE type4IDA
 
 ! access the global print flag
 USE globalData,only:globalPrintFlag

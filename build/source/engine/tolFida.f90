@@ -7,7 +7,7 @@ module tolFida_module
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use nrtype
-  use fida_datatypes
+  use type4IDA
   
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -86,7 +86,7 @@ contains
     use fsundials_nvector_mod
     use fnvector_serial_mod
     use nrtype
-    use fida_datatypes
+    use type4IDA
 
     !======= Declarations =========
     implicit none

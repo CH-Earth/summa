@@ -6,7 +6,7 @@ module evalDAE4IDA_module
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use nrtype
-  use fida_datatypes
+  use type4IDA
   USE globalData,only:model_decisions        ! model decision structure
   USE globalData,only:flux_meta                        ! metadata on the model fluxes
   ! provide access to the derived types to define the data structures
@@ -48,7 +48,7 @@ contains
     use fsundials_nvector_mod
     use fnvector_serial_mod
     use nrtype
-    use fida_datatypes
+    use type4IDA
     use eval8DAE_module,only:eval8DAE
 
     !======= Declarations =========

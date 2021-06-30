@@ -6,7 +6,7 @@ module evalJac4IDA_module
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use nrtype
-  use fida_datatypes
+  use type4IDA
   USE globalData,only:model_decisions        ! model decision structure
   ! provide access to the derived types to define the data structures
   USE data_types,only:&
@@ -45,7 +45,7 @@ contains
     use fnvector_serial_mod
     use fsunmatrix_dense_mod
     use nrtype
-    use fida_datatypes
+    use type4IDA
     use eval8JacDAE_module,only:eval8JacDAE
     !======= Declarations =========
     implicit none

@@ -1,6 +1,6 @@
 
 
-module fida_datatypes
+module type4IDA
 
 ! data types
 USE nrtype
@@ -76,7 +76,7 @@ implicit none
  end type eqnsData
  
  
-end module fida_datatypes
+end module type4IDA
 
 
 

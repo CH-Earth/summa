@@ -221,7 +221,7 @@ SUMMA_SOLVER= \
 		eval8summa.f90 \
 		summaSolve.f90 \
 		systemSolv.f90 \
-      fida_datatypes.f90 \
+      type4IDA.f90 \
       tolFida.f90 \
       computEnthalpy.f90 \
       computHeatCap.f90 \
