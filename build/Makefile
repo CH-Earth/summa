@@ -234,7 +234,6 @@ SUMMA_SOLVER= \
       eval8JacDAE.f90 \
       evalJac4IDA.f90 \
       nonlinSolvFida.f90 \
-		findDiscontinuity.f90 \
 		computSnowDepth.f90 \
       solveByIDA.f90 \
       systemSolvSundials.f90 \
