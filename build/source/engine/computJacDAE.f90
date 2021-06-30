@@ -842,7 +842,7 @@ contains
  end select  ! type of matrix
  
    if(any(isNan(aJac)))then
-    print *, 'Nan in computeJacobFida'
+    print *, 'Nan in computeJacobSundials'
     stop 1
     message=trim(message)//'we found NaN'
     err=20; return   

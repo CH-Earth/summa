@@ -43,7 +43,7 @@ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 implicit none
 private
 public::snowLiqFlx
-public::snowLiqFlxFida
+public::snowLiqFlxSundials
 contains
 
 
@@ -202,9 +202,9 @@ contains
  
 
  ! ************************************************************************************************
- ! public subroutine snowLiqFlxFida: compute liquid water flux through the snowpack
+ ! public subroutine snowLiqFlxSundials: compute liquid water flux through the snowpack
  ! ************************************************************************************************
- subroutine snowLiqFlxFida(&
+ subroutine snowLiqFlxSundials(&
                        ! input: model control
                        nSnow,                   & ! intent(in):    number of snow layers
                        firstFluxCall,           & ! intent(in):    the first flux call
@@ -275,7 +275,7 @@ contains
  ) ! association of local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='snowLiqFlxFida/'
+ err=0; message='snowLiqFlxSundials/'
 
  ! check that the input vectors match nSnow
  if(size(mLayerVolFracLiqTrial)/=nSnow .or. size(mLayerVolFracIce)/=nSnow .or. &
@@ -352,7 +352,7 @@ contains
  ! end association of local variables with information in the data structures
  end associate
 
- end subroutine snowLiqFlxFida
+ end subroutine snowLiqFlxSundials
 
 
 end module snowLiqFlx_module

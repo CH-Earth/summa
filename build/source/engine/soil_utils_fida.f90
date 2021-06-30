@@ -38,7 +38,7 @@ private
 
 ! routines to make public
 
-public::liquidHeadFida
+public::liquidHeadSundials
 public::d2Theta_dPsi2
 public::d2Theta_dTk2
 
@@ -50,7 +50,7 @@ contains
  ! ******************************************************************************************************************************
  ! public subroutine: compute the liquid water matric potential (and the derivatives w.r.t. total matric potential and temperature)
  ! ******************************************************************************************************************************
- subroutine liquidHeadFida(&
+ subroutine liquidHeadSundials(&
                        ! input
                        matricHeadTotal                          ,& ! intent(in)    : total water matric potential (m)
                        matricHeadTotalPrime                     ,& ! intent(in)
@@ -98,7 +98,7 @@ contains
  real(rkind)                       :: effSatPrime
  ! ------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='liquidHeadFida/'
+ err=0; message='liquidHeadSundials/'
 
  ! ** partially frozen soil
  if(volFracIce > verySmall .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
@@ -177,7 +177,7 @@ contains
   if(present(dPsiLiq_dTemp)) dPsiLiq_dTemp = 0._rkind  ! derivative=0 because no impact of temperature for unfrozen conditions
  end if  ! (if ice exists)
 
- end subroutine liquidHeadFida
+ end subroutine liquidHeadSundials
  
  
   ! ******************************************************************************************************************************

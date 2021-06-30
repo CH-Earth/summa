@@ -130,8 +130,8 @@ contains
  USE systemSolv_module,only:systemSolv                ! solve the system of equations for one time step
  USE getVectorz_module,only:popStateVec               ! populate the state vector
  USE getVectorz_module,only:varExtract                ! extract variables from the state vector
- USE updateVarsFida_module,only:updateVarsFida                ! update prognostic variables
-  USE varExtrFida_module, only:varExtractFida
+ USE updateVarsSundials_module,only:updateVarsSundials                ! update prognostic variables
+  USE varExtrSundials_module, only:varExtractSundials
  ! identify name of variable type (for error message)
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  USE systemSolvSundials_module,only:systemSolvSundials
@@ -267,7 +267,7 @@ contains
   flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
  end do
 
- ! initialize the total energy fluxes (modified in updateProgFida)
+ ! initialize the total energy fluxes (modified in updateProgSundials)
  sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
  sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
  sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -400,7 +400,7 @@ contains
   checkNrgBalance = .true.
 
   ! update prognostic variables
-  call updateProgFida(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
+  call updateProgSundials(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
                   lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                               & ! input-output: data structures
                   waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
   if(err/=0)then
@@ -436,7 +436,7 @@ contains
 
   endif  ! if errors in prognostic update
 
-  ! get the total energy fluxes (modified in updateProgFida)
+  ! get the total energy fluxes (modified in updateProgSundials)
   if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
    sumCanopyEvaporation = sumCanopyEvaporation + dt_out*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
    sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_out*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -538,14 +538,14 @@ contains
 
 
  ! **********************************************************************************************************
- ! private subroutine updateProgFida: update prognostic variables
+ ! private subroutine updateProgSundials: update prognostic variables
  ! **********************************************************************************************************
- subroutine updateProgFida(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
+ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
                        lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                   & ! input-output: data structures
                        waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
- USE updateVarsFida_module,only:updateVarsFida                             ! update prognostic variables
- USE varExtrFida_module, only:varExtractFida
+ USE updateVarsSundials_module,only:updateVarsSundials                             ! update prognostic variables
+ USE varExtrSundials_module, only:varExtractSundials
  USE computEnthalpy_module,only:computEnthalpy
  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
  implicit none
@@ -680,7 +680,7 @@ contains
  ) ! associating flux variables in the data structure
  ! -------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='updateProgFida/'
+ err=0; message='updateProgSundials/'
 
  ! initialize water balancmLayerVolFracWatTriale error
  waterBalanceError=.false.
@@ -718,7 +718,7 @@ contains
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
-  call varExtractFida(&                  
+  call varExtractSundials(&                  
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -743,7 +743,7 @@ contains
  
 
   ! update diagnostic variables
- call updateVarsFida(&                
+ call updateVarsSundials(&                
                  ! input
                  dt,                                        &
                  doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to accou melt+freeze
@@ -1085,6 +1085,6 @@ endif  ! if checking the mass balance
  ! end associations to info in the data structures
  end associate
 
- end subroutine updateProgFida
+ end subroutine updateProgSundials
 
 end module varSubstepSundials_module

@@ -1,6 +1,6 @@
 
 
-module varExtrFida_module
+module varExtrSundials_module
 
 ! data types
 USE nrtype
@@ -75,7 +75,7 @@ USE soil_utils_module,only:liquidHead     ! compute the liquid water matric pote
 implicit none
 private
 public::varExtract
-public::varExtractFida
+public::varExtractSundials
 public::residDiscontinuity
 public::countDiscontinuity
 
@@ -215,9 +215,9 @@ contains
  end subroutine varExtract
  
  ! **********************************************************************************************************
- ! public subroutine varExtractFida: extract variables from the state vector and compute diagnostic variables
+ ! public subroutine varExtractSundials: extract variables from the state vector and compute diagnostic variables
  ! **********************************************************************************************************
- subroutine varExtractFida(&
+ subroutine varExtractSundials(&
                        ! input
                        stateVecPrime,                                  & ! intent(in):    model state vector (mixed units)
                        diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
@@ -290,7 +290,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! initialize error control
- err=0; message='varExtractFida/'
+ err=0; message='varExtractSundials/'
 
 
  ! check if computing the vegetation flux
@@ -339,7 +339,7 @@ contains
 
  end associate
 
- end subroutine varExtractFida
+ end subroutine varExtractSundials
 
 
  ! **********************************************************************************************************
@@ -511,4 +511,4 @@ contains
 
 
 
-end module varExtrFida_module
+end module varExtrSundials_module

@@ -117,9 +117,9 @@ contains
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE varExtrFida_module, only:varExtract                    ! extract variables from the state vector
- USE varExtrFida_module, only:varExtractFida
- USE updateVarsFida2_module, only:updateVarsFida2           ! update prognostic variables
+ USE varExtrSundials_module, only:varExtract                    ! extract variables from the state vector
+ USE varExtrSundials_module, only:varExtractSundials
+ USE updateVarsSundials2_module, only:updateVarsSundials2           ! update prognostic variables
  USE computJacDAE_module,only:computJacDAE
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -241,7 +241,7 @@ contains
  
  
  ! extract derivative of variables from derivative of the model state vector
- call varExtractFida(&                  
+ call varExtractSundials(&                  
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -267,7 +267,7 @@ contains
  
 
                  
- call updateVarsFida2(&                
+ call updateVarsSundials2(&                
                  ! input
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
@@ -314,7 +314,7 @@ contains
 
  ! compute the analytical Jacobian matrix
  ! NOTE: The derivatives were computed in the previous call to computFlux
- !       This occurred either at the call to eval8DAE at the start of sysSolveFida
+ !       This occurred either at the call to eval8DAE at the start of sysSolveSundials
  !        or in the call to eval8DAE in the previous iteration
  dt1 = 1._qp
  call computJacDAE(&

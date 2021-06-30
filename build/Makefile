@@ -191,7 +191,7 @@ SUMMA_UTILMS= \
 		soil_utils.f90 \
       soil_utils_fida.f90 \
 		updatState.f90 \
-      updatStateFida.f90 \
+      updatStateSundials.f90 \
 		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
@@ -268,11 +268,11 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 SUMMA_MODRUN = \
       indexState.f90 \
       getVectorz.f90 \
-      varExtrFida.f90 \
+      varExtrSundials.f90 \
       t2enthalpy.f90 \
       updateVars.f90 \
-      updateVarsFida.f90 \
-      updateVarsFida2.f90 \
+      updateVarsSundials.f90 \
+      updateVarsSundials2.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \

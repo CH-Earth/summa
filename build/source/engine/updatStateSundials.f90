@@ -1,5 +1,5 @@
 
-module updatStateFida_module
+module updatStateSundials_module
 USE nrtype
 ! physical constants
 USE multiconst,only:&
@@ -11,10 +11,10 @@ USE multiconst,only:&
                     LH_fus         ! latent heat of fusion         (J kg-1)
 implicit none
 private
-public::updateSnowFida
-public::updateSoilFida
-public::updateSoilFida2
-public::updateVegFida
+public::updateSnowSundials
+public::updateSoilSundials
+public::updateSoilSundials2
+public::updateVegSundials
 
 real(rkind),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
 
@@ -22,11 +22,11 @@ contains
  
  
   ! *************************************************************************************************************
- ! public subroutine updateVegFida: compute phase change impacts on volumetric liquid water and ice
+ ! public subroutine updateVegSundials: compute phase change impacts on volumetric liquid water and ice
  ! Input: Theta * canopyDepth * iden_water
  ! Outputs: VolFracLiq * canopyDepth * iden_water    and  VolFracIce * canopyDepth * iden_ice
  ! *************************************************************************************************************
- subroutine updateVegFida(&   
+ subroutine updateVegSundials(&   
                        ! input
                        Temp            ,& ! intent(in): temperature (K)
                        Theta           ,& ! intent(in): volume fraction of total water (-)
@@ -60,7 +60,7 @@ contains
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! initialize error control
- err=0; message="updateVegFida/"
+ err=0; message="updateVegSundials/"
 
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(Temp,snowfrz_scale)
@@ -70,13 +70,13 @@ contains
  VolFracIcePrime = ( ThetaPrime - VolFracLiqPrime )
  
 
- end subroutine updateVegFida
+ end subroutine updateVegSundials
  
  
    ! *************************************************************************************************************
- ! public subroutine updateSnowFida: compute phase change impacts on volumetric liquid water and ice
+ ! public subroutine updateSnowSundials: compute phase change impacts on volumetric liquid water and ice
  ! *************************************************************************************************************
- subroutine updateSnowFida(&   
+ subroutine updateSnowSundials(&   
                        ! input
                        mLayerTemp            ,& ! intent(in): temperature (K)
                        mLayerTheta           ,& ! intent(in): volume fraction of total water (-)
@@ -110,7 +110,7 @@ contains
  integer(i4b),intent(out)      :: err                  ! error code
  character(*),intent(out)      :: message              ! error message
  ! initialize error control
- err=0; message="updateSnowFida/"
+ err=0; message="updateSnowSundials/"
 
  ! compute the volumetric fraction of liquid water and ice (-)
  fLiq = fracliquid(mLayerTemp,snowfrz_scale)
@@ -120,12 +120,12 @@ contains
  mLayerVolFracIcePrime = ( mLayerThetaPrime - mLayerVolFracLiqPrime ) * (iden_water/iden_ice)
  
 
- end subroutine updateSnowFida
+ end subroutine updateSnowSundials
 
  ! *************************************************************************************************************
- ! public subroutine updateSoilFida: compute phase change impacts on matric head and volumetric liquid water and ice
+ ! public subroutine updateSoilSundials: compute phase change impacts on matric head and volumetric liquid water and ice
  ! *************************************************************************************************************
- subroutine updateSoilFida(&
+ subroutine updateSoilSundials(&
                        ! input
                        dt_cur,                &
                        mLayerTemp            ,& ! intent(in): temperature vector (K)
@@ -179,7 +179,7 @@ contains
  real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  ! initialize error control
- err=0; message="updateSoilFida/"
+ err=0; message="updateSoilSundials/"
  
  ! compute fractional **volume** of total water (liquid plus ice)
   mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
@@ -232,12 +232,12 @@ contains
  end if  ! (check if soil is partially frozen)
 
 
- end subroutine updateSoilFida
+ end subroutine updateSoilSundials
 
  ! *************************************************************************************************************
- ! public subroutine updateSoilFida: compute phase change impacts on matric head and volumetric liquid water and ice
+ ! public subroutine updateSoilSundials: compute phase change impacts on matric head and volumetric liquid water and ice
  ! *************************************************************************************************************
- subroutine updateSoilFida2(&
+ subroutine updateSoilSundials2(&
                        ! input
                        mLayerTemp            ,& ! intent(in): temperature vector (K)
                        mLayerMatricHead      ,& ! intent(in): matric head (m)
@@ -285,7 +285,7 @@ contains
  real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  ! initialize error control
- err=0; message="updateSoilFida2/"
+ err=0; message="updateSoilSundials2/"
  
  ! compute fractional **volume** of total water (liquid plus ice)
  mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
@@ -330,5 +330,5 @@ contains
  end if  ! (check if soil is partially frozen)
 
 
- end subroutine updateSoilFida2
-end module updatStateFida_module
+ end subroutine updateSoilSundials2
+end module updatStateSundials_module

@@ -152,11 +152,11 @@ contains
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE varExtrFida_module, only:varExtract           ! extract variables from the state vector
- USE varExtrFida_module, only:varExtractFida
- USE updateVarsFida_module, only:updateVarsFida           ! update variables
+ USE varExtrSundials_module, only:varExtract           ! extract variables from the state vector
+ USE varExtrSundials_module, only:varExtractSundials
+ USE updateVarsSundials_module, only:updateVarsSundials           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
- USE computFlux_module, only:soilCmpresFida            ! compute soil compression
+ USE computFlux_module, only:soilCmpresSundials            ! compute soil compression
  USE computFlux_module, only:computFlux          ! compute fluxes given a state vector
  USE computHeatCap_module,only:computHeatCap      ! compute heat capacity
  USE computHeatCap_module,only:computHeatCapAnalytic      ! compute heat capacity
@@ -427,7 +427,7 @@ contains
  
  
   
- call varExtractFida(&                  
+ call varExtractSundials(&                  
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -451,7 +451,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
                  
- call updateVarsFida(&                
+ call updateVarsSundials(&                
                  ! input
                  dt_cur,                                    &
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy 
@@ -677,7 +677,7 @@ contains
                  deriv_data,                & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: flux vector and baseflow derivatives
                  ixSaturation,              & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                 dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later in computeJacobFida
+                 dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later in computeJacobSundials
                  fluxVec,                   & ! intent(out):   flux vector (mixed units)
                  ! output: error control
                  err,cmessage)                ! intent(out):   error code and error message
@@ -688,7 +688,7 @@ contains
 
  ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
  ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
- call soilCmpresFida(&
+ call soilCmpresSundials(&
                  ! input:
                  ixRichards,                             & ! intent(in): choice of option for Richards' equation
                  ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers

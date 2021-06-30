@@ -97,7 +97,7 @@ implicit none
 private
 public::computFlux
 public::soilCmpres
-public::soilCmpresFida
+public::soilCmpresSundials
 contains
 
  ! *********************************************************************************************************
@@ -909,7 +909,7 @@ contains
   ! **********************************************************************************************************
  ! public subroutine soilCmpres: compute soil compressibility (-) and its derivative w.r.t matric head (m-1)
  ! **********************************************************************************************************
- subroutine soilCmpresFida(&
+ subroutine soilCmpresSundials(&
                             ! input:
                             ixRichards,                         & ! intent(in): choice of option for Richards' equation
                             ixBeg,ixEnd,                        & ! intent(in): start and end indices defining desired layers
@@ -940,7 +940,7 @@ character(*),intent(out)          :: message                   ! error message
 integer(i4b)                      :: iLayer                    ! index of soil layer
 ! --------------------------------------------------------------
 ! initialize error control
-err=0; message='soilCmpresFida/'
+err=0; message='soilCmpresSundials/'
 ! (only compute for the mixed form of Richards' equation)
 if(ixRichards==mixdform)then
     do iLayer=1,size(mLayerMatricHeadPrime)
@@ -955,6 +955,6 @@ else
     compress(:)       = 0._rkind
     dCompress_dPsi(:) = 0._rkind
 end if
-end subroutine soilCmpresFida
+end subroutine soilCmpresSundials
 
 end module computFlux_module

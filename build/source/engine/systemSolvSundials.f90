@@ -136,7 +136,7 @@ contains
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
  USE tol4IDA_module,only:popTol4IDA
  USE solveByIDA_module,only:solveByIDA
-! use varExtrFida_module, only:countDiscontinuity
+! use varExtrSundials_module, only:countDiscontinuity
  use, intrinsic :: iso_c_binding
  implicit none
  ! ---------------------------------------------------------------------------------------
