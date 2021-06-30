@@ -341,7 +341,7 @@ contains
                   stateVecPrime,     & ! intent(out):   updated state vector
                   reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
-                  dt_out,			 & ! intent(out)
+                  dt_out,			       & ! intent(out):   time step (s)
                   err,cmessage)        ! intent(out):   error code and error message
                 
   if(err/=0)then
@@ -550,15 +550,15 @@ contains
  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
  implicit none
  ! model control
- real(rkind)         ,intent(in)    :: dt                             ! time step (s)
+ real(rkind)      ,intent(in)    :: dt                             ! time step (s)
  integer(i4b)     ,intent(in)    :: nSnow                          ! number of snow layers
  integer(i4b)     ,intent(in)    :: nSoil                          ! number of soil layers
  integer(i4b)     ,intent(in)    :: nLayers                        ! total number of layers
  logical(lgt)     ,intent(in)    :: doAdjustTemp                   ! flag to indicate if we adjust the temperature
  logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
- real(rkind)         ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
- real(rkind)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
- real(rkind)         ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
+ real(rkind)      ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
+ real(rkind)      ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
+ real(rkind)      ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
  logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance 
  ! data structures
@@ -621,9 +621,8 @@ contains
  real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
  real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
  real(rkind)                        :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
- real(rkind)                        :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3
- real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial
- integer(i4b) 					 :: iLayer
+ real(rkind)                        :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3)
+ real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial            ! enthalpy of snow + soil (J m-3)
  ! -------------------------------------------------------------------------------------------------------------------
 
  ! -------------------------------------------------------------------------------------------------------------------
@@ -1058,6 +1057,8 @@ endif  ! if checking the mass balance
  ! -----
  ! * update enthalpy as a diagnostic variable...
  ! --------------------------------
+ scalarCanairEnthalpy = scalarCanairEnthalpyTrial
+ scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
  mLayerEnthalpy = mLayerEnthalpyTrial
 
  ! -----
