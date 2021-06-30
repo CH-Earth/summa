@@ -189,7 +189,7 @@ SUMMA_UTILMS= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
-      soil_utils_fida.f90 \
+      soil_utilsSundials.f90 \
 		updatState.f90 \
       updatStateSundials.f90 \
 		matrixOper.f90

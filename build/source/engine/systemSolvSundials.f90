@@ -486,7 +486,7 @@ contains
 
 
    
-  ! check if fida is successful
+  ! check if IDA is successful
  if( .not.idaSucceeds )then
   err = 20
   message=trim(message)//trim(cmessage)

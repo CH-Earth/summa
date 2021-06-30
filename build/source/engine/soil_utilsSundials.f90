@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module soil_utils_fida_module
+module soil_utilsSundials_module
 
 ! data types
 USE nrtype
@@ -231,4 +231,4 @@ contains
  end function d2Theta_dTk2
 
 
-end module soil_utils_fida_module
+end module soil_utilsSundials_module
