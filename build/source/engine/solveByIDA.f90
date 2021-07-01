@@ -225,8 +225,6 @@ contains
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time 
   integer(kind = 8) 				        :: mu, lu               ! in banded matrix mode
-  integer(i4b),parameter     		    :: ixRectangular=1          
-  integer(i4b),parameter     		    :: ixTrapezoidal=2
   integer(i4b)               		    :: iVar  
   logical(lgt)               		    :: startQuadrature
   real(rkind)  				 		          :: mLayerMatricHeadLiqPrev(nSoil)
@@ -239,7 +237,7 @@ contains
   logical(lgt)						          :: tooMuchMelt
   logical(lgt)						          :: divideLayer
   logical(lgt)						          :: mergedLayers
-  logical(lgt),parameter			      :: checkSnow = .true.
+  logical(lgt),parameter			      :: checkSnow = .false.
   logical(lgt),parameter            :: offErrWarnMessage = .true.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
   real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
@@ -525,33 +523,13 @@ contains
                  eqns_data%fluxVec,                  & ! intent(out):   flux vector
                  eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                  			       & ! intent(out):   residual vector
-                 eqns_data%err,eqns_data%message)     ! intent(out):    error control 
+                 eqns_data%err,eqns_data%message)      ! intent(out):    error control 
                  
   
-  select case(ixQuadrature)
-       ! sum of flux
-       case(ixRectangular)
-            do  iVar=1,size(flux_meta) 
-              flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1) 
-            end do
-       case(ixTrapezoidal)
-            if(startQuadrature)then
-                 do  iVar=1,size(flux_meta) 
-                     flux_sum%var(iVar)%dat(:) =  flux_temp%var(iVar)%dat(:) *  dt_last(1) 
-                 end do 
-                 startQuadrature = .false.
-            else
-                 do  iVar=1,size(flux_meta) 
-                     flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:) & 
-                                                                           *  ( dt_past + dt_last(1) )
-                 end do        
-           endif 
-           do  iVar=1,size(flux_meta) 
-              flux_temp%var(iVar)%dat(:) = eqns_data%flux_data%var(iVar)%dat(:) 
-           end do
-       case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
-  end select
-  dt_past = dt_last(1)
+  ! sum of fluxes 
+  do  iVar=1,size(flux_meta) 
+      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1) 
+  end do
   
   do iVar=1,size(flux_meta) 
      flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  tret(1)
