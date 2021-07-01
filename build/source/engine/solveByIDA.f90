@@ -126,8 +126,6 @@ contains
                        ixSaturation,			      & ! intent(out)
                        idaSucceeds,			        & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
-                       dt_last,                 & ! intent(out):   last stepsize 
-                       dt_past,           		  & ! intent(out):   one stepsize before the last one
                        dt_out,					        & ! intent(out):   time step 
                        stateVec,                & ! intent(out):   model state vector
                        stateVecPrime,           & ! intent(out):   derivative of model state vector   
@@ -201,8 +199,6 @@ contains
  real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
  real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
  logical(lgt),intent(out)		     :: idaSucceeds            ! flag to indicate if IDA is successful
- real(qp),intent(out)            :: dt_last(1)             ! last time step
- real(qp),intent(out)            :: dt_past                ! time step before tha last one
  real(qp),intent(out)			       :: dt_out                 ! time step
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
@@ -222,6 +218,7 @@ contains
   integer(i4b)                      :: retval               ! return value 
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time 
+  real(qp)                          :: dt_last(1)             ! last time step
   integer(kind = 8) 				        :: mu, lu               ! in banded matrix mode
   integer(i4b)               		    :: iVar  
   logical(lgt)               		    :: startQuadrature

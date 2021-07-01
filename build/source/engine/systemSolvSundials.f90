@@ -204,8 +204,6 @@ contains
  real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
  real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
- real(rkind)                     :: dt_last(1)					          ! last stepsize taken by ida solver
- real(qp) 						           :: dt_past						            ! one step before the last stepsize taken by ida solver
  real(rkind)                     :: atol(nState)     		 	        ! absolute telerance
  real(rkind)                     :: rtol(nState)     			        ! relative tolerance     
  type(var_dlength)               :: flux_sum					            ! sum of fluxes model fluxes for a local HRU over a data step					
@@ -463,8 +461,6 @@ contains
                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                  idaSucceeds,			        & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
-                 dt_last,                 & ! intent(out):	 last stepsize 
-                 dt_past,                 & ! intent(out):	 one stepsize before the last one
                  dt_out,				          & ! intent(out):   time step
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
