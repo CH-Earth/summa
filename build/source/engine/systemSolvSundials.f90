@@ -186,14 +186,11 @@ contains
  real(rkind),parameter           :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
  real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
  real(rkind),parameter           :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
- integer(i4b),parameter          :: ixRectangular=1
- integer(i4b),parameter          :: ixTrapezoidal=2
  
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
  logical(lgt),parameter          :: forceFullMatrix=.true.        ! flag to force the use of the full Jacobian matrix
- integer(i4b)                    :: ixQuadrature=ixRectangular    ! type of quadrature method to approximate average fluxes
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
  real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
@@ -440,7 +437,6 @@ contains
                  nLayers,                 & ! intent(in):    number of snow+soil layers
                  nState,                  & ! intent(in):    number of state variables in the current subset
                  ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
-                 ixQuadrature,            & ! intent(in):    type of quadrature method to approximate average fluxes
                  firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
@@ -496,21 +492,9 @@ contains
  
 
  ! compute average flux  
-  select case(ixQuadrature)
-      case(ixRectangular)
-        ! divide by dt_out. Now we have average flux
-        do iVar=1,size(flux_meta) 
-          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
-        end do
-      case(ixTrapezoidal)
-        ! add the last part of the integral, then divide by dt_out. Now we have average flux
-        do iVar=1,size(flux_meta) 
-          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) + flux_init%var(iVar)%dat(:) * (dt_last(1) + dt_past) &
-                                                                   + flux_temp%var(iVar)%dat(:) * dt_last(1) ) /  (2.0*dt_out)
-        end do
-      ! check
-      case default; err=20; message=trim(message)//'expect case to be ixRecangular, ixTrapezoidal'; return
-  end select
+  do iVar=1,size(flux_meta) 
+    flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
+  end do
     
   diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
 

@@ -100,7 +100,6 @@ contains
                        nLayers,                 & ! intent(in):    total number of layers
                        nStat,                   & ! intent(in):    total number of state variables
                        ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
-                       ixQuadrature,            & ! intent(in):    type of quadrature method for approximating average flux
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
@@ -174,7 +173,6 @@ contains
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
  integer(i4b),intent(in)      	 :: nStat                  ! total number of state variables
  integer(i4b),intent(in)         :: ixMatrix               ! form of matrix (dense or banded)
- integer(i4b),intent(in)         :: ixQuadrature           ! type of quadrature method for approximating average flux
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
