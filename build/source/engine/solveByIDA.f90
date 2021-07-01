@@ -240,6 +240,7 @@ contains
   logical(lgt)						          :: divideLayer
   logical(lgt)						          :: mergedLayers
   logical(lgt),parameter			      :: checkSnow = .true.
+  logical(lgt),parameter            :: offErrWarnMessage = .true.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
   real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   real(rkind)							          :: mLayerDepth(nLayers)
@@ -417,6 +418,12 @@ contains
   ! Set solver parameters such as maximum order, number of iterations, ...
   call setSolverParams(dt, ida_mem, retval)  
   if (retval /= 0) then; err=20; message='solveByIDA: error in setSolverParams'; return; endif
+
+  ! Disable error messages and warnings
+  if(offErrWarnMessage) then
+    retval = FIDASetErrFile(ida_mem, c_null_ptr)
+    retval = FIDASetNoInactiveRootWarn(ida_mem)
+  endif
   
   ! need the following values for the first substep
  eqns_data%scalarCanopyTempPrev		  = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
@@ -440,8 +447,6 @@ contains
  !****************************** Main Solver ***************************************
  !************************* loop on one_step mode **********************************
  !********************************************************************************** 
- retval = FIDASetErrFile(ida_mem, c_null_ptr);
- retval = FIDASetNoInactiveRootWarn(ida_mem);
  tret(1) = t0                                
  do while(tret(1) < dt) 
   eqns_data%firstFluxCall = .false.
