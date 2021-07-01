@@ -526,9 +526,9 @@ contains
       flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1) 
   end do
   
-  do iVar=1,size(flux_meta) 
-     flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  tret(1)
-  end do
+ ! do iVar=1,size(flux_meta) 
+ !    flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  tret(1)
+ ! end do
   
    ! sum of mLayerCmpress
    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
