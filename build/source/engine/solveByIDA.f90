@@ -440,6 +440,8 @@ contains
  !****************************** Main Solver ***************************************
  !************************* loop on one_step mode **********************************
  !********************************************************************************** 
+ retval = FIDASetErrFile(ida_mem, c_null_ptr);
+ retval = FIDASetNoInactiveRootWarn(ida_mem);
  tret(1) = t0                                
  do while(tret(1) < dt) 
   eqns_data%firstFluxCall = .false.
