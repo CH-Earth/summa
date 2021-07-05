@@ -408,10 +408,6 @@ contains
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
   
- ! just for experiment
- atol = 1e-6
- rtol = 1e-6
-  
  !-------------------
  ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
  ! ------------------

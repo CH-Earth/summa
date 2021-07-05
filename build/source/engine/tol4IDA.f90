@@ -147,18 +147,18 @@ contains
  type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  ! output
- real(rkind),intent(out)            :: absTol(:)            ! model state vector (mixed units)
- real(rkind),intent(out)            :: relTol(:)            ! model state vector (mixed units)
+ real(rkind),intent(out)         :: absTol(:)            ! model state vector (mixed units)
+ real(rkind),intent(out)         :: relTol(:)            ! model state vector (mixed units)
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! state subsets
- integer(i4b)                    :: iState                 ! index of state within the snow+soil domain
- integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
- integer(i4b)                    :: ixStateSubset          ! index within the state subset
- logical(lgt),dimension(nState)  :: tolFlag              ! flag to denote that the state is populated
+ integer(i4b)                       :: iState                 ! index of state within the snow+soil domain
+ integer(i4b)                       :: iLayer                 ! index of layer within the snow+soil domain
+ integer(i4b)                       :: ixStateSubset          ! index within the state subset
+ logical(lgt),dimension(nState)     :: tolFlag              ! flag to denote that the state is populated
  real(rkind)                        :: absTolTempCas = 1e-6
  real(rkind)                        :: relTolTempCas = 1e-6
  real(rkind)                        :: absTolTempVeg = 1e-6
