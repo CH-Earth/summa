@@ -55,21 +55,21 @@ contains
     implicit none
 
     ! calling variables
-    real(rkind), value         :: tres      ! current time                 t
-    type(N_Vector)          :: sunvec_y  ! solution N_Vector    y
-    type(N_Vector)          :: sunvec_yp ! derivative N_Vector  y'
-    type(N_Vector)          :: sunvec_r  ! residual N_Vector    F(t,y,y')
-    type(c_ptr), value      :: user_data ! user-defined data  
+    real(rkind), value          :: tres      ! current time                 t
+    type(N_Vector)              :: sunvec_y  ! solution N_Vector    y
+    type(N_Vector)              :: sunvec_yp ! derivative N_Vector  y'
+    type(N_Vector)              :: sunvec_r  ! residual N_Vector    F(t,y,y')
+    type(c_ptr), value          :: user_data ! user-defined data  
 
 
     ! pointers to data in SUNDIALS vectors
-    type(eqnsData), pointer    :: eqns_data ! equations data
-    real(rkind), pointer          :: stateVec(:)
-    real(rkind), pointer          :: stateVecPrime(:)
-    real(rkind), pointer          :: rVec(:)
-    logical(lgt)               :: feasible   
-    integer(i4b)               :: retval  
-    real(c_double)             :: stepsize_next(1)
+    type(eqnsData), pointer     :: eqns_data ! equations data
+    real(rkind), pointer        :: stateVec(:)
+    real(rkind), pointer        :: stateVecPrime(:)
+    real(rkind), pointer        :: rVec(:)
+    logical(lgt)                :: feasible   
+    integer(i4b)                :: retval  
+    real(c_double)              :: stepsize_next(1)
 
 
 
@@ -88,34 +88,34 @@ contains
     stateVecPrime => FN_VGetArrayPointer(sunvec_yp)
     rVec  => FN_VGetArrayPointer(sunvec_r) 
     
-   retval = FIDAGetCurrentStep(eqns_data%ida_mem, stepsize_next)
-   if (retval /= 0) then
-     print *, 'Error in FIDAGetCurrentStep, retval = ', retval, '; halting'
-     stop 1
-  end if 
+    retval = FIDAGetCurrentStep(eqns_data%ida_mem, stepsize_next)
+    if (retval /= 0) then
+      print *, 'Error in FIDAGetCurrentStep, retval = ', retval, '; halting'
+      stop 1
+    end if 
  
 
     ! compute the flux and the residual vector for a given state vector
     call eval8DAE(&
                  ! input: model control
-                 stepsize_next(1),                  &
-                 eqns_data%dt,                      &
+                 stepsize_next(1),                  & ! intent(in):    current stepsize
+                 eqns_data%dt,                      & ! intent(in):    data step
                  eqns_data%nSnow,                   & ! intent(in):    number of snow layers
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                 eqns_data%firstFluxCall,           & ! intent(inout)
-                 eqns_data%firstSplitOper,			& ! intent(in)
+                 eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
+                 eqns_data%firstSplitOper,			    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector
-                 eqns_data%sMul,                    & ! intent(inout):    state vector multiplier (used in the residual calculations)
+                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  ! input: data structures
                  model_decisions,                   & ! intent(in):    model decisions
-                 eqns_data%lookup_data,             &
+                 eqns_data%lookup_data,             & ! intent(in):    lookup data
                  eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
                  eqns_data%attr_data,               & ! intent(in):    spatial attributes
                  eqns_data%mpar_data,               & ! intent(in):    model parameters
@@ -123,36 +123,36 @@ contains
                  eqns_data%bvar_data,               & ! intent(in):    average model variables for the entire basin
                  eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                  ! input-output: data structures
-                 eqns_data%indx_data,               & ! intent(inou):    index data
+                 eqns_data%indx_data,               & ! intent(inou):  index data
                  eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input-output: baseflow
                  eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
-                 eqns_data%scalarCanopyTempTrial,    & ! intent(in):  trial value of canopy temperature (K)
-                 eqns_data%scalarCanopyTempPrev,     & ! intent(in):  previous value of canopy temperature (K)
-                 eqns_data%scalarCanopyIceTrial,	&
-                 eqns_data%scalarCanopyIcePrev,		&
-                 eqns_data%scalarCanopyLiqTrial,	 &
-                 eqns_data%scalarCanopyLiqPrev,		 &
-                 eqns_data%scalarCanopyEnthalpyTrial,& ! intent(in):  trial enthalpy of the vegetation canopy (J m-3)
-                 eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
-                 eqns_data%mLayerTempTrial,         &
-                 eqns_data%mLayerTempPrev,          &
-                 eqns_data%mLayerMatricHeadLiqTrial,&
-                 eqns_data%mLayerMatricHeadTrial, 	&
-                 eqns_data%mLayerMatricHeadPrev, 	&
-                 eqns_data%mLayerVolFracWatTrial,   &
-                 eqns_data%mLayerVolFracWatPrev,    &
-                 eqns_data%mLayerVolFracIceTrial,   &
-                 eqns_data%mLayerVolFracIcePrev,   	&
-                 eqns_data%mLayerVolFracLiqTrial,   &
-                 eqns_data%mLayerVolFracLiqPrev,   	&
-                 eqns_data%scalarAquiferStorageTrial, &
-                 eqns_data%scalarAquiferStoragePrev, &   
-                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in)
-                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out)   
-                 eqns_data%ixSaturation,			& ! intent(inout)             
+                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):    trial value of canopy temperature (K)
+                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):    previous value of canopy temperature (K)
+                 eqns_data%scalarCanopyIceTrial,	  & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
+                 eqns_data%scalarCanopyIcePrev,		  & ! intent(in):    value for mass of ice on the vegetation canopy (kg m-2)
+                 eqns_data%scalarCanopyLiqTrial,	  & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 eqns_data%scalarCanopyLiqPrev,		  & ! intent(in):    value of canopy liquid water (kg m-2) 
+                 eqns_data%scalarCanopyEnthalpyTrial,& ! intent(out):  trial value for enthalpy of the vegetation canopy (J m-3)
+                 eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):   value for enthalpy of the vegetation canopy (J m-3)
+                 eqns_data%mLayerTempTrial,         & ! intent(out):   trial vector of layer temperature (K)
+                 eqns_data%mLayerTempPrev,          & ! intent(in):    vector of layer temperature (K)
+                 eqns_data%mLayerMatricHeadLiqTrial,& ! intent(out):   trial value for liquid water matric potential (m)
+                 eqns_data%mLayerMatricHeadTrial, 	& ! intent(out):   trial value for total water matric potential (m)
+                 eqns_data%mLayerMatricHeadPrev, 	  & ! intent(in):    value for total water matric potential (m)
+                 eqns_data%mLayerVolFracWatTrial,   & ! intent(out):   trial vector of volumetric total water content (-)
+                 eqns_data%mLayerVolFracWatPrev,    & ! intent(in):    vector of volumetric total water content (-)
+                 eqns_data%mLayerVolFracIceTrial,   & ! intent(out):   trial vector of volumetric ice water content (-)
+                 eqns_data%mLayerVolFracIcePrev,   	& ! intent(in):    vector of volumetric ice water content (-)
+                 eqns_data%mLayerVolFracLiqTrial,   & ! intent(out):   trial vector of volumetric liquid water content (-)
+                 eqns_data%mLayerVolFracLiqPrev,   	& ! intent(in):    vector of volumetric liquid water content (-)
+                 eqns_data%scalarAquiferStorageTrial, & ! intent(out): trial value of storage of water in the aquifer (m)
+                 eqns_data%scalarAquiferStoragePrev, &  ! intent(in):  value of storage of water in the aquifer (m)  
+                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
+                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)   
+                 eqns_data%ixSaturation,			      & ! intent(inout): index of the lowest saturated layer             
                  ! output
                  feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                 & ! intent(out):   flux vector
@@ -160,13 +160,13 @@ contains
                  rVec,                              & ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control
                  
- if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif 
- if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif 
- if(.not.feasible)then; eqns_data%message=trim(eqns_data%message)//'state vector not feasible'; ierr = 1; return; endif 
+    if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif 
+    if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif 
+    if(.not.feasible)then; eqns_data%message=trim(eqns_data%message)//'state vector not feasible'; ierr = 1; return; endif 
  
-   ! return success
-   ierr = 0
-   return
+    ! return success
+    ierr = 0
+    return
 
  end function evalDAE4IDA
 
