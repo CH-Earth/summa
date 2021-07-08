@@ -232,7 +232,7 @@ contains
   logical(lgt)						          :: tooMuchMelt
   logical(lgt)						          :: divideLayer
   logical(lgt)						          :: mergedLayers
-  logical(lgt),parameter			      :: checkSnow = .true.
+  logical(lgt),parameter			      :: checkSnow = .false.
   logical(lgt),parameter            :: offErrWarnMessage = .true.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
   real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])

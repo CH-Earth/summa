@@ -266,7 +266,7 @@ contains
  real(rkind)						            :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
  real(rkind),dimension(nLayers)	    :: mLayerCmTrial             ! trial vector of Cm for snow+soil
  logical(lgt),parameter			        :: updateCp=.true.           ! flag to indicate if we update Cp at each step
- logical(lgt),parameter             :: enthalpyFD=.false.         ! flag to indicate if we compute Cp using dH_T/dT
+ logical(lgt),parameter             :: enthalpyFD=.true.         ! flag to indicate if we compute Cp using dH_T/dT
  logical(lgt),parameter			        :: needCm=.false.            ! flag to indicate if the energy equation contains 
  
 
