@@ -232,8 +232,8 @@ contains
   logical(lgt)						          :: tooMuchMelt
   logical(lgt)						          :: divideLayer
   logical(lgt)						          :: mergedLayers
-  logical(lgt),parameter			      :: checkSnow = .false.
-  logical(lgt),parameter            :: offErrWarnMessage = .true.
+  logical(lgt),parameter			      :: checkSnow = .true.
+  logical(lgt),parameter            :: offErrWarnMessage = .false.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
   real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   real(rkind)							          :: mLayerDepth(nLayers)
@@ -518,7 +518,7 @@ contains
                  eqns_data%fluxVec,                  & ! intent(out):   flux vector
                  eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
                  rVec,                  			       & ! intent(out):   residual vector
-                 eqns_data%err,eqns_data%message)      ! intent(out):    error control 
+                 eqns_data%err,eqns_data%message)      ! intent(out):   error control 
                  
   
   ! sum of fluxes 
