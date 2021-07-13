@@ -546,10 +546,12 @@ contains
                         ! output: error control
                         err,message)                    ! intent(out): error control
     ! to conserve energy compute finite difference approximation of (theta_ice)'
-  !  scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
-  !  do concurrent (iLayer=1:nLayers)
-  !          mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-  !  end do
+    if(dt_cur > 1e-14_rkind) then
+      scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
+      do concurrent (iLayer=1:nLayers)
+            mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+      end do
+    endif ! if dt_cur is not too samll
   else
  	  call computHeatCapAnalytic(&
                        ! input: control variables
