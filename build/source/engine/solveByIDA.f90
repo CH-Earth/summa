@@ -538,6 +538,7 @@ contains
    ! save required quantities for next step
    eqns_data%scalarCanopyTempPrev		  = eqns_data%scalarCanopyTempTrial
    eqns_data%scalarCanopyIcePrev		  = eqns_data%scalarCanopyIceTrial
+   eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
    eqns_data%mLayerTempPrev(:) 			  = eqns_data%mLayerTempTrial(:)
    mLayerMatricHeadLiqPrev(:) 			  = eqns_data%mLayerMatricHeadLiqTrial(:)
    eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
