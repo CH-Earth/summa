@@ -107,11 +107,11 @@ contains
                  eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input: baseflow
-                 eqns_data%dBaseflow_dMatric,       & ! intent(in):   derivative in baseflow w.r.t. matric head (s-1)
+                 eqns_data%dBaseflow_dMatric,       & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                  ! output
-                 eqns_data%dMat,                    & ! intetn(inout):diagonal of the Jacobian matrix
-                 Jac,                               & ! intent(out):  jacobain matrix
-                 eqns_data%err,eqns_data%message)     ! intent(out):  error control
+                 eqns_data%dMat,                    & ! intetn(inout): diagonal of the Jacobian matrix
+                 Jac,                               & ! intent(out):   Jacobain matrix
+                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
 
    if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif 
    if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif

@@ -81,7 +81,7 @@ USE multiconst,only:&
 implicit none
 ! define constants
 real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
-integer(i4b),parameter :: ixBandOffset=kl+ku+1       ! offset in the band Jacobian matrix
+integer(i4b),parameter    :: ixBandOffset=kl+ku+1          ! offset in the band Jacobian matrix
 
 private
 public::computJacDAE
@@ -92,7 +92,7 @@ contains
  ! **********************************************************************************************************
  subroutine computJacDAE(&
                         ! input: model control
-                        cj,                         & ! intent(in)
+                        cj,                         & ! intent(in):    this scalar changes whenever the step size or method order changes
                         dt,                         & ! intent(in):    length of the time step (seconds)
                         nSnow,                      & ! intent(in):    number of snow layers
                         nSoil,                      & ! intent(in):    number of soil layers
@@ -100,9 +100,9 @@ contains
                         computeVegFlux,             & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                         computeBaseflow,            & ! intent(in):    flag to indicate if we need to compute baseflow
                         ixMatrix,                   & ! intent(in):    form of the Jacobian matrix
-                        specificStorage,            & ! intent(in)
-                        theta_sat,                  & ! intent(in)
-                        ixRichards,                 & ! intent(in): choice of option for Richards' equation
+                        specificStorage,            & ! intent(in):    specific storage coefficient (m-1)
+                        theta_sat,                  & ! intent(in):    soil porosity (-)
+                        ixRichards,                 & ! intent(in):    choice of option for Richards' equation
                         ! input: data structures
                         indx_data,                  & ! intent(in):    index data
                         prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
@@ -110,7 +110,7 @@ contains
                         deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
                         dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                         ! input: state variables
-                        mLayerTemp,                 & ! intent(in)
+                        mLayerTemp,                 & ! intent(in):    vector of layer temperature (K)
                         mLayerTempPrime,            & ! intent(in)
                         mLayerMatricHeadPrime,      & ! intent(in)
                         mLayerMatricHeadLiqPrime,   & ! intent(in)
@@ -132,22 +132,22 @@ contains
  implicit none
  ! input: model control
  real(rkind),intent(in)               :: cj
- real(rkind),intent(in)               :: dt              ! length of the time step (seconds)
- integer(i4b),intent(in)           :: nSnow           ! number of snow layers
- integer(i4b),intent(in)           :: nSoil           ! number of soil layers
- integer(i4b),intent(in)           :: nLayers         ! total number of layers in the snow+soil domain
- logical(lgt),intent(in)           :: computeVegFlux  ! flag to indicate if computing fluxes over vegetation
- logical(lgt),intent(in)           :: computeBaseflow ! flag to indicate if computing baseflow
- integer(i4b),intent(in)           :: ixMatrix        ! form of the Jacobian matrix
- real(rkind),intent(in)               :: specificStorage           ! specific storage coefficient (m-1)
- real(rkind),intent(in)               :: theta_sat(:)              ! soil porosity (-)
- integer(i4b),intent(in)           :: ixRichards                ! choice of option for Richards' equation
+ real(rkind),intent(in)               :: dt                         ! length of the time step (seconds)
+ integer(i4b),intent(in)              :: nSnow                      ! number of snow layers
+ integer(i4b),intent(in)              :: nSoil                      ! number of soil layers
+ integer(i4b),intent(in)              :: nLayers                    ! total number of layers in the snow+soil domain
+ logical(lgt),intent(in)              :: computeVegFlux             ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)              :: computeBaseflow            ! flag to indicate if computing baseflow
+ integer(i4b),intent(in)              :: ixMatrix                   ! form of the Jacobian matrix
+ real(rkind),intent(in)               :: specificStorage            ! specific storage coefficient (m-1)
+ real(rkind),intent(in)               :: theta_sat(:)               ! soil porosity (-)
+ integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
  ! input: data structures
- type(var_ilength),intent(in)      :: indx_data       ! indices defining model states and layers
- type(var_dlength),intent(in)      :: prog_data       ! prognostic variables for a local HRU
- type(var_dlength),intent(in)      :: diag_data       ! diagnostic variables for a local HRU
- type(var_dlength),intent(in)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
- real(rkind),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+ type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
+ type(var_dlength),intent(in)         :: prog_data                  ! prognostic variables for a local HRU
+ type(var_dlength),intent(in)         :: diag_data                  ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)         :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables
+ real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
  ! input: state variables
  real(rkind),intent(in)               :: mLayerTemp(:)
  real(rkind),intent(in)               :: mLayerTempPrime(:) 
@@ -166,21 +166,21 @@ contains
  real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
  real(rkind),intent(out)              :: aJac(:,:)       ! Jacobian matrix
  ! output variables
- integer(i4b),intent(out)          :: err             ! error code
- character(*),intent(out)          :: message         ! error message
+ integer(i4b),intent(out)             :: err             ! error code
+ character(*),intent(out)             :: message         ! error message
  ! --------------------------------------------------------------
  ! * local variables
  ! --------------------------------------------------------------
  ! indices of model state variables
- integer(i4b)                      :: jState          ! index of state within the state subset
- integer(i4b)                      :: qState          ! index of cross-derivative state variable for baseflow
- integer(i4b)                      :: nrgState        ! energy state variable
- integer(i4b)                      :: watState        ! hydrology state variable
- integer(i4b)                      :: nState          ! number of state variables
+ integer(i4b)                         :: jState          ! index of state within the state subset
+ integer(i4b)                         :: qState          ! index of cross-derivative state variable for baseflow
+ integer(i4b)                         :: nrgState        ! energy state variable
+ integer(i4b)                         :: watState        ! hydrology state variable
+ integer(i4b)                         :: nState          ! number of state variables
  ! indices of model layers
- integer(i4b)                      :: iLayer          ! index of model layer
- integer(i4b)                      :: jLayer          ! index of model layer within the full state vector (hydrology)
- integer(i4b)                      :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
+ integer(i4b)                         :: iLayer          ! index of model layer
+ integer(i4b)                         :: jLayer          ! index of model layer within the full state vector (hydrology)
+ integer(i4b)                         :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
  ! conversion factors
  real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
  ! --------------------------------------------------------------

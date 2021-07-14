@@ -88,13 +88,13 @@ contains
  ! public subroutine eval8JacDAE: compute the residual vector and the Jacobian matrix
  ! **********************************************************************************************************
  subroutine eval8JacDAE(&
-                       ! input: model control
-                       cj,                      & ! intent(in)
+                       ! input: model control   
+                       cj,                      & ! intent(in):    this scalar changes whenever the step size or method order changes
                        dt,                      & ! intent(in):    time step
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
-                       ixMatrix,                & ! intent(in)
+                       ixMatrix,                & ! intent(in):    form of the Jacobian matrix
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
@@ -110,9 +110,9 @@ contains
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input: baseflow
-                       dBaseflow_dMatric,       & ! intent(in):   derivative in baseflow w.r.t. matric head (s-1)
+                       dBaseflow_dMatric,       & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                        ! output: flux and residual vectors
-                       dMat,                    & ! intent(inou):    diagonal of Jacobian Matrix
+                       dMat,                    & ! intent(inout): diagonal of Jacobian Matrix
                        Jac,                     & ! intent(out):   jacobian matrix
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -125,34 +125,34 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
-  real(rkind),intent(in)            :: cj 
+  real(rkind),intent(in)            :: cj                     ! this scalar changes whenever the step size or method order changes
  real(rkind),intent(in)             :: dt                     ! time step
- integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
- integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
- integer(i4b),intent(in)         :: nLayers                ! total number of layers
- integer(i4b)                    :: ixMatrix               ! form of matrix (band diagonal or full matrix)
- logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
- logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
+ integer(i4b),intent(in)            :: nSnow                  ! number of snow layers
+ integer(i4b),intent(in)            :: nSoil                  ! number of soil layers
+ integer(i4b),intent(in)            :: nLayers                ! total number of layers
+ integer(i4b)                       :: ixMatrix               ! form of matrix (band diagonal or full matrix)
+ logical(lgt),intent(in)            :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)            :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(rkind),intent(in)             :: stateVec(:)       ! model state vector
+ real(rkind),intent(in)             :: stateVec(:)            ! model state vector
  real(rkind),intent(in)             :: stateVecPrime(:)       ! model state vector
- real(qp),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+ real(qp),intent(in)                :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
  ! input: data structures
- type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
- type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
- type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
+ type(model_options),intent(in)     :: model_decisions(:)     ! model decisions
+ type(var_dlength),  intent(in)     :: mpar_data              ! model parameters
+ type(var_dlength),  intent(in)     :: prog_data              ! prognostic variables for a local HRU
  ! output: data structures
- type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
- type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
+ type(var_ilength),intent(inout)    :: indx_data              ! indices defining model states and layers
+ type(var_dlength),intent(inout)    :: diag_data              ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
  real(rkind),intent(in)             :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: Jacobian
  real(rkind), intent(inout)         :: dMat(:)
- real(rkind), intent(out)           :: Jac(:,:)                    ! jacobian matrix
+ real(rkind), intent(out)           :: Jac(:,:)               ! jacobian matrix
  ! output: error control
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
+ integer(i4b),intent(out)           :: err                    ! error code
+ character(*),intent(out)           :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -186,7 +186,7 @@ contains
  real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
  real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
  ! other local variables
- character(LEN=256)              :: cmessage                  ! error message of downwind routine
+ character(LEN=256)              :: cmessage                     ! error message of downwind routine
  real(rkind)                        :: dt1
  real(rkind)                        :: mLayerd2Theta_dTk2(nLayers)
  real(rkind)                        :: d2VolTot_d2Psi0(nLayers)
@@ -319,7 +319,7 @@ contains
  dt1 = 1._qp
  call computJacDAE(&
                   ! input: model control
-                  cj,                             & ! intent(in)
+                  cj,                             & ! intent(in):    this scalar changes whenever the step size or method order changes
                   dt1,                            & ! intent(in):    length of the time step (seconds)
                   nSnow,                          & ! intent(in):    number of snow layers
                   nSoil,                          & ! intent(in):    number of soil layers
