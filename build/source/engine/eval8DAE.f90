@@ -209,7 +209,7 @@ contains
  real(rkind),intent(in)          :: scalarCanopyLiqPrev       ! previous value for mass of ice on the vegetation canopy (kg m-2)
  real(rkind),intent(out)         :: scalarCanopyEnthalpyTrial ! trial value for enthalpy of the vegetation canopy (J m-3)
  real(rkind),intent(in)          :: scalarCanopyEnthalpyPrev  ! previous value of enthalpy of the vegetation canopy (J m-3)
- real(rkind),intent(out)         :: mLayerTempTrial(:)          ! trial vector of layer temperature (K)
+ real(rkind),intent(out)         :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
  real(rkind),intent(in)          :: mLayerTempPrev(:)
  real(rkind),intent(out)         :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
  real(rkind),intent(out)         :: mLayerMatricHeadTrial(:)  ! trial value for total water matric potential (m)
@@ -266,7 +266,7 @@ contains
  real(rkind)						            :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
  real(rkind),dimension(nLayers)	    :: mLayerCmTrial             ! trial vector of Cm for snow+soil
  logical(lgt),parameter			        :: updateCp=.true.           ! flag to indicate if we update Cp at each step
- logical(lgt),parameter             :: enthalpyFD=.true.         ! flag to indicate if we compute Cp using dH_T/dT
+ logical(lgt),parameter             :: enthalpyFD=.false.         ! flag to indicate if we compute Cp using dH_T/dT
  logical(lgt),parameter			        :: needCm=.false.            ! flag to indicate if the energy equation contains 
  
 
