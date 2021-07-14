@@ -27,7 +27,7 @@ module evalJac4IDA_module
 contains
 
   ! **********************************************************************************************************
-  ! public function evalJac4IDA: compute the residual vector F(t,y,y') required for FIDA solver
+  ! public function evalJac4IDA: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
   ! **********************************************************************************************************
   ! Return values:
   !    0 = success,
@@ -46,28 +46,28 @@ contains
     use fsunmatrix_dense_mod
     use nrtype
     use type4IDA
-    use eval8JacDAE_module,only:eval8JacDAE
+    use eval8JacDAE_module,only:eval8JacDAE    ! compute Jacobian matrix
     !======= Declarations =========
     implicit none
 
     ! calling variables
-    real(rkind), value         :: t              ! current time
-    real(rkind), value         :: cj             ! step size scaling factor
-    type(N_Vector)          :: sunvec_y       ! solution N_Vector
-    type(N_Vector)          :: sunvec_yp      ! derivative N_Vector
-    type(N_Vector)          :: sunvec_r       ! residual N_Vector
-    type(SUNMatrix)         :: sunmat_J       ! Jacobian SUNMatrix
-    type(c_ptr), value      :: user_data      ! user-defined data 
-    type(N_Vector)          :: sunvec_temp1   ! temporary N_Vectors
-    type(N_Vector)          :: sunvec_temp2
-    type(N_Vector)          :: sunvec_temp3
+    real(rkind), value            :: t              ! current time
+    real(rkind), value            :: cj             ! step size scaling factor
+    type(N_Vector)                :: sunvec_y       ! solution N_Vector
+    type(N_Vector)                :: sunvec_yp      ! derivative N_Vector
+    type(N_Vector)                :: sunvec_r       ! residual N_Vector
+    type(SUNMatrix)               :: sunmat_J       ! Jacobian SUNMatrix
+    type(c_ptr), value            :: user_data      ! user-defined data 
+    type(N_Vector)                :: sunvec_temp1   ! temporary N_Vector
+    type(N_Vector)                :: sunvec_temp2   ! temporary N_Vector
+    type(N_Vector)                :: sunvec_temp3   ! temporary N_Vector
     
     ! pointers to data in SUNDIALS vectors
-    real(rkind), pointer          :: stateVec(:)
-    real(rkind), pointer          :: stateVecPrime(:)
-    real(rkind), pointer          :: rVec(:)
-    real(rkind), pointer          :: Jac(:,:)
-    type(eqnsData), pointer    :: eqns_data      ! equations data  
+    real(rkind), pointer          :: stateVec(:)    ! state vector
+    real(rkind), pointer          :: stateVecPrime(:)! derivative of the state vector
+    real(rkind), pointer          :: rVec(:)        ! residual vector
+    real(rkind), pointer          :: Jac(:,:)       ! Jacobian matrix
+    type(eqnsData), pointer       :: eqns_data      ! equations data  
 
 
     
@@ -82,20 +82,16 @@ contains
     stateVecPrime => FN_VGetArrayPointer(sunvec_yp)
     rVec  => FN_VGetArrayPointer(sunvec_r)
     Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
-    
-    
-    
-    ! compute the flux and the residual vector for a given state vector
-    ! NOTE 1: The derivatives computed in eval8DAE are used to calculate the Jacobian matrix for the first iteration
-    ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
+
+    ! compute Jacobian matrix
     call eval8JacDAE(&
                  ! input: model control
-                 cj,                                & ! intent(in)
-                 eqns_data%dt,                      & ! intent(in)
+                 cj,                                & ! intent(in):    this scalar changes whenever the step size or method order changes 
+                 eqns_data%dt,                      & ! intent(in):    data step
                  eqns_data%nSnow,                   & ! intent(in):    number of snow layers
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
-                 eqns_data%ixMatrix,                & ! intent(in)
+                 eqns_data%ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vectors
@@ -107,18 +103,19 @@ contains
                  eqns_data%mpar_data,               & ! intent(in):    model parameters
                  eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                  ! input-output: data structures
-                 eqns_data%indx_data,               & ! intent(inou):    index data
+                 eqns_data%indx_data,               & ! intent(inou):  index data
                  eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! input: baseflow
                  eqns_data%dBaseflow_dMatric,       & ! intent(in):   derivative in baseflow w.r.t. matric head (s-1)
                  ! output
-                 eqns_data%dMat,                    & ! intetn(inout)
-                 Jac,                               & ! intent(out):   jacobain matrix
-                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
+                 eqns_data%dMat,                    & ! intetn(inout):diagonal of the Jacobian matrix
+                 Jac,                               & ! intent(out):  jacobain matrix
+                 eqns_data%err,eqns_data%message)     ! intent(out):  error control
 
    if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif 
    if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
+
    ! return success
    ierr = 0
    return    
