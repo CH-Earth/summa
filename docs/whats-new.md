@@ -2,6 +2,10 @@
 
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
+## Develop
+- Canopy ice content check in check_icond.f90 now generates a warning if ice > 0 for T > 0 instead of a 
+  graceful exit
+
 ## Version 3.0.4 (pre-release)
 
 - Initial addition of the "What's new" page
