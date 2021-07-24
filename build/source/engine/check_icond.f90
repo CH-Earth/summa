@@ -148,15 +148,11 @@ contains
    ! compute the constant in the freezing curve function (m K-1)
    kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
 
-   ! modify the liquid water and ice in the canopy
+   ! check canopy ice content and flag unrealistic situations for user's attention
+   ! these situations can be the result of numerical smoothing when a restart file was created (fine, can also happen during normal simulations), or input error (not fine)
    if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
-    message=trim(message)//'canopy ice > 0 when canopy temperature > Tfreeze'
-    err=20; return
+	write(*,'(A,E22.16,2A)') 'Warning: canopy ice content in restart file (',scalarCanopyIce,') > 0 when canopy temperature > Tfreeze. Continuing.',NEW_LINE('a')
    end if
-   fLiq = fracliquid(scalarCanopyTemp,snowfrz_scale)  ! fraction of liquid water (-)
-   tWat = scalarCanopyLiq + scalarCanopyIce           ! total water (kg m-2)
-   scalarCanopyLiq = fLiq*tWat                        ! mass of liquid water on the canopy (kg m-2)
-   scalarCanopyIce = (1._rkind - fLiq)*tWat              ! mass of ice on the canopy (kg m-2)
 
    ! number of layers
    nLayers = gru_struc(iGRU)%hruInfo(iHRU)%nSnow + gru_struc(iGRU)%hruInfo(iHRU)%nSoil
