@@ -152,7 +152,7 @@ contains
    ! check canopy ice content for unrealistic situations
    if(scalarCanopyIce > canIceTol .and. scalarCanopyTemp > Tfreeze)then
     ! ice content > threshold, terminate run
-	write(message,'(A,E22.16,A,E9.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > ',canIceTol,' when canopy temperature > Tfreeze'
+    write(message,'(A,E22.16,A,E9.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > ',canIceTol,' when canopy temperature > Tfreeze'
     err=20; return
    else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
     ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
