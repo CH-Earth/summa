@@ -4,7 +4,7 @@ This page provides simple, high-level documentation about what has changed in ea
 
 ## Develop
 - Canopy ice content check in check_icond.f90 now generates a warning if ice > 0 for T > 0 instead of a 
-  graceful exit
+  graceful exit. Graceful exit still exists if ice > 1E-3.
 
 ## Version 3.0.4 (pre-release)
 

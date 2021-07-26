@@ -80,17 +80,18 @@ contains
  integer(i4b)                           :: iHRU          ! loop index
 
  ! temporary variables for realism checks
- integer(i4b)                      :: iLayer             ! index of model layer
- integer(i4b)                      :: iSoil              ! index of soil layer
- real(rkind)                          :: fLiq               ! fraction of liquid water on the vegetation canopy (-)
- real(rkind)                          :: vGn_m              ! van Genutchen "m" parameter (-)
- real(rkind)                          :: tWat               ! total water on the vegetation canopy (kg m-2)
- real(rkind)                          :: scalarTheta        ! liquid water equivalent of total water [liquid water + ice] (-)
- real(rkind)                          :: h1,h2              ! used to check depth and height are consistent
- integer(i4b)                      :: nLayers            ! total number of layers
- real(rkind)                          :: kappa              ! constant in the freezing curve function (m K-1)
- integer(i4b)                      :: nSnow              ! number of snow layers
- real(rkind),parameter                :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
+ integer(i4b)                   :: iLayer                ! index of model layer
+ integer(i4b)                   :: iSoil                 ! index of soil layer
+ real(rkind)                    :: fLiq                  ! fraction of liquid water on the vegetation canopy (-)
+ real(rkind)                    :: vGn_m                 ! van Genutchen "m" parameter (-)
+ real(rkind)                    :: tWat                  ! total water on the vegetation canopy (kg m-2)
+ real(rkind)                    :: scalarTheta           ! liquid water equivalent of total water [liquid water + ice] (-)
+ real(rkind)                    :: h1,h2                 ! used to check depth and height are consistent
+ integer(i4b)                   :: nLayers               ! total number of layers
+ real(rkind)                    :: kappa                 ! constant in the freezing curve function (m K-1)
+ integer(i4b)                   :: nSnow                 ! number of snow layers
+ real(rkind),parameter          :: xTol=1.e-10_rkind     ! small tolerance to address precision issues
+ real(rkind),parameter          :: canIceTol=1.e-3_rkind ! small tolerance to allow existence of canopy ice for above-freezing temperatures (kg m-2)
  ! --------------------------------------------------------------------------------------------------------
 
  ! Start procedure here
@@ -148,9 +149,13 @@ contains
    ! compute the constant in the freezing curve function (m K-1)
    kappa  = (iden_ice/iden_water)*(LH_fus/(gravity*Tfreeze))  ! NOTE: J = kg m2 s-2
 
-   ! check canopy ice content and flag unrealistic situations for user's attention
-   ! these situations can be the result of numerical smoothing when a restart file was created (fine, can also happen during normal simulations), or input error (not fine)
-   if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
+   ! check canopy ice content for unrealistic situations
+   if(scalarCanopyIce > canIceTol .and. scalarCanopyTemp > Tfreeze)then
+    ! ice content > threshold, terminate run
+	write(message,'(A,E22.16,A,E9.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > ',canIceTol,' when canopy temperature > Tfreeze'
+    err=20; return
+   else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
+    ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
 	write(*,'(A,E22.16,2A)') 'Warning: canopy ice content in restart file (',scalarCanopyIce,') > 0 when canopy temperature > Tfreeze. Continuing.',NEW_LINE('a')
    end if
 
