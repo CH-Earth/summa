@@ -49,7 +49,7 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 ! privacy
 implicit none
-private
+private::printResidDAE
 public::computResidDAE
 contains
 
@@ -240,9 +240,9 @@ contains
   !print*, 'PAUSE:'; read(*,*)
  endif
  
-  ! print *, 'rVec = ', rVec(indx_data%var(iLookINDEX%ixMatOnly)%dat) 
  ! check
  if(any(isNan(rVec)))then
+  call printResidDAE(nSnow,nSoil,nLayers,indx_data,rAdd,rVec)
   message=trim(message)//'we found NaN'
   err=20; return
  endif
@@ -251,5 +251,99 @@ contains
  end associate
 
  end subroutine computResidDAE
+
+
+ ! **********************************************************************************************************
+ ! private subroutine printResidDAE: print the residual vector mainly for debugging
+ ! **********************************************************************************************************
+ subroutine printResidDAE( &
+                          ! input: model control
+                          nSnow,                     & ! intent(in):    number of snow layers
+                          nSoil,                     & ! intent(in):    number of soil layers
+                          nLayers,                   & ! intent(in):    total number of layers
+                          ! input: data structures
+                          indx_data,                 & ! intent(in):    index data
+                          ! output
+                          rAdd,                      & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                          rVec)                        ! intent(out):   residual vector
+
+! --------------------------------------------------------------------------------------------------------------------------------
+implicit none
+! input: model control
+integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
+integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
+integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
+type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
+! output
+real(rkind),intent(in)          :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
+real(qp),intent(in)             :: rVec(:)   ! NOTE: qp      ! residual vector
+! --------------------------------------------------------------------------------------------------------------------------------
+! local variables
+! --------------------------------------------------------------------------------------------------------------------------------
+integer(i4b)                    :: iLayer                    ! index of layer within the snow+soil domain
+! --------------------------------------------------------------------------------------------------------------------------------
+! link to the necessary variables for the residual computations
+associate(&
+! number of state variables of a specific type
+nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
+nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
+! model indices
+ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
+ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
+ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in): [i4b]    index of water storage in the aquifer
+ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
+ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in): [i4b(:)] named variables defining the type of hydrology states in snow+soil domain
+layerType               => indx_data%var(iLookINDEX%layerType)%dat                 & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
+) ! association to necessary variables for the residual computations
+! --------------------------------------------------------------------------------------------------------------------------------
+
+
+if(ixVegNrg/=integerMissing) print *, 'rAdd(ixVegNrg) = ', rAdd(ixVegNrg) 
+
+if(nSnowSoilNrg>0)then
+  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
+    select case( layerType(iLayer) )
+      case(iname_snow)
+        print *, 'rAdd( ixSnowSoilNrg(iLayer) ) = ', rAdd( ixSnowSoilNrg(iLayer) ) 
+      case(iname_soil); print *, 'rAdd( ixSnowSoilNrg(iLayer) ) = ', rAdd( ixSnowSoilNrg(iLayer) )  
+    end select
+  end do  
+endif
+
+if(nSoilOnlyHyd>0)then   
+  do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   
+    print *, 'rAdd( ixSoilOnlyHyd(iLayer) ) = ', rAdd( ixSoilOnlyHyd(iLayer) ) 
+  end do  
+endif
+
+if(ixCasNrg/=integerMissing) print *, 'rVec(ixCasNrg) = ', rVec(ixCasNrg) 
+if(ixVegNrg/=integerMissing) print *, 'rVec(ixVegNrg) = ', rVec(ixVegNrg) 
+if(ixVegHyd/=integerMissing)then     
+  print *, 'rVec(ixVegHyd) = ', rVec(ixVegHyd) 
+endif
+
+if(nSnowSoilNrg>0)then 
+  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)  
+    print *, 'rVec( ixSnowSoilNrg(iLayer) ) = ', rVec( ixSnowSoilNrg(iLayer) ) 
+  end do  
+endif
+
+if(nSnowSoilHyd>0)then
+  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)  
+    print *, 'rVec( ixSnowSoilHyd(iLayer) ) = ', rVec( ixSnowSoilHyd(iLayer) ) 
+  end do  
+endif
+
+if(ixAqWat/=integerMissing)  print *, ' rVec(ixAqWat) = ', rVec(ixAqWat)
+
+end associate
+
+end subroutine printResidDAE
 
 end module computResidDAE_module
