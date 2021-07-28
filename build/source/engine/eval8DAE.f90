@@ -515,7 +515,7 @@ contains
                       mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
                       ! output: error control
                       err,cmessage)                  ! intent(out): error control
-                      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! *** compute volumetric heat capacity C_p = dH_T/dT
     call computHeatCap(&
@@ -544,7 +544,8 @@ contains
                         heatCapVegTrial,           & ! intent(out): volumetric heat capacity of vegetation canopy
                         mLayerHeatCapTrial,        & ! intent(out): heat capacity for snow and soil
                         ! output: error control
-                        err,message)                    ! intent(out): error control
+                        err,cmessage)                    ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     ! to conserve energy compute finite difference approximation of (theta_ice)'
     if(dt_cur > 1e-14_rkind) then
       scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur 
@@ -569,7 +570,7 @@ contains
                        heatCapVegTrial,             & ! intent(out):  volumetric heat capacity of vegetation canopy 
                        mLayerHeatCapTrial,          & ! intent(out):  volumetric heat capacity of soil and snow
                        ! output: error control
-                       err,message)               		! intent(out):  error control
+                       err,cmessage)               		! intent(out):  error control
   endif
    
    ! compute multiplier of state vector
@@ -599,7 +600,7 @@ contains
                        indx_data,                    & ! intent(in):    model layer indices
                        prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
                        diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
-                       err,message)               ! intent(out): error control
+                       err,cmessage)               ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
  end if ! updateCp
@@ -620,7 +621,7 @@ contains
                   ! output
                   scalarCanopyCmTrial,      & ! intent(out):   Cm for vegetation
                   mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
-                  err,message)                ! intent(out): error control
+                  err,cmessage)                ! intent(out): error control
  else
    scalarCanopyCmTrial = 0._qp
    mLayerCmTrial = 0._qp
