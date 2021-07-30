@@ -270,7 +270,7 @@ contains
  ! canopy and layer depth
  canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)               ,& ! intent(in): [dp   ]  canopy depth (m)
  mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                        ,& ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
- layerType               => indx_data%var(iLookINDEX%layerType)%dat                 & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
+ layerType                    => indx_data%var(iLookINDEX%layerType)%dat                          & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
  ) ! making association with data in structures
  ! --------------------------------------------------------------
  ! initialize error control
@@ -316,7 +316,6 @@ contains
 
  ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)
  do iLayer=1,nSoil
-! print *, '2'
   if(ixSoilOnlyHyd(iLayer)/=integerMissing)then
    dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)
    
@@ -706,8 +705,7 @@ contains
       nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
       if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
-       ! (cross-derivative terms for the current layer)
-    !   print *, '3'  
+       ! (cross-derivative terms for the current layer) 
        aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj  &
                                  + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
        aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
@@ -805,8 +803,7 @@ contains
 
       ! melt-freeze: compute derivative in energy with respect to mass
       if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
- !     print *, '4'
-       aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj  - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)  ! reza not sure about this  ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+       aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj  - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)  ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
       else
        aJac(nrgState,watState) = 0._rkind
       endif
@@ -842,8 +839,6 @@ contains
  end select  ! type of matrix
  
    if(any(isNan(aJac)))then
-    print *, 'Nan in computeJacobSundials'
-    stop 1
     message=trim(message)//'we found NaN'
     err=20; return   
    endif
