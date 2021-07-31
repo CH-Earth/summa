@@ -108,8 +108,10 @@ contains
  TPI=-TAN(LP)*TAN(D)
  IF(ABS(TPI).LT.1.0) THEN
   TP=ACOS(TPI)
- ELSE
-  TP=0.0
+ ELSE IF(TPI.LT.-1.0) THEN ! 24h daylight
+  TP=ACOS(-1.0)
+ ELSE IF(TPI.GT.1.0) THEN ! 24h dark
+  TP=ACOS(1.0)
  ENDIF
  ! Calculate time adjustment for ground slope, aspect and latitude (DDT = 0 for level surface)
  DDT=ATAN(SIN(AZI1)*SIN(SLOPE1)/(COS(SLOPE1)*COS(LAT1)-COS(AZI1)*SIN(SLOPE1)*SIN(LAT1)))
@@ -150,8 +152,10 @@ contains
   TPI=-TAN(LP)*TAN(D)
   IF(ABS(TPI).LT.1.0) THEN
    TP=ACOS(TPI)
-  ELSE
-   TP=0.0
+  ELSE IF(TPI.LT.-1.0) THEN ! 24h daylight
+   TP=ACOS(-1.0)
+  ELSE IF(TPI.GT.1.0) THEN ! 24h dark
+   TP=ACOS(1.0)
   ENDIF
   ! Set beginning time to sunrise
   T1=MAX(-TP-DDT,-TD)
