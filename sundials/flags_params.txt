@@ -1,0 +1,19 @@
+All SUMMA-SUNDIALS files are in build/source/engine
+To switch between SUMMA-BE and SUMMA-SUNDIALS, open opSplittin.f90 and set solver=BE or solver=IDA, respectively.
+
+The other important files are as following:
+systemSolvSundials.f90: contains public subroutine systemSolvSundials which runs the coupled energy-mass model for one timestep
+
+solveByIDA.f90: contains public subroutine solveByIDA which solves the differential equation system F(y,y') = 0 by IDA (y is the state vector)
+                and private subroutines setInitialCondition and setSolverParams. 
+                setSolverParams can be used to to set paprmeters (maximum order, number of nonlinear iteration , etc) in IDA solver
+
+evalDAE4IDA.f90: contains public function evalDAE4IDA which is the interface wrapper for computing the residual vector F(t,y,y') required for IDA solver
+
+eval8DAE.f90: contains public subroutine eval8DAE which computes the residual vector mainly by calling varExtractSundials, updateVarsSundials, computFlux,
+              and computResidDAE. We also switch between different forms of the energy equation in this subroutine. 
+
+evalJac4IDA.f90: contains public function evalJac4IDA which is the interface wrapper for computing the Jacobian matrix dF/dy + c dF/dy' for IDA solver
+
+eval8JacDAE.f90: contains public subroutine eval8JacDAE which computes the residual vector and the Jacobian matrix mainly by calling computJacDAE
+

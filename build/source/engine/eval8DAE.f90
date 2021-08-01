@@ -85,7 +85,7 @@ public::eval8DAE
 contains
 
  ! **********************************************************************************************************
- ! public subroutine eval8DAE: compute the residual vector and the Jacobian matrix
+ ! public subroutine eval8DAE: compute the residual vector
  ! **********************************************************************************************************
  subroutine eval8DAE(&
                        ! input: model control

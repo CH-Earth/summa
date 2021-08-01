@@ -32,7 +32,7 @@ module evalDAE4IDA_module
 contains
 
   ! **********************************************************************************************************
-  ! public function evalDAE4IDA: compute the residual vector F(t,y,y') required for FIDA solver
+  ! public function evalDAE4IDA: compute the residual vector F(t,y,y') required for IDA solver
   ! **********************************************************************************************************
   ! Return values:
   !    0 = success,

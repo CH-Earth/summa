@@ -89,7 +89,7 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
 contains
 
  !-------------------
- ! * subroutine solveByIDA: solve F(y,y') = 0 by FIDA (y is the state vector)
+ ! * public subroutine solveByIDA: solve F(y,y') = 0 by IDA (y is the state vector)
  ! ------------------
  subroutine solveByIDA(                         &  
                        dt,                      & ! intent(in):    data time step
@@ -714,7 +714,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 end subroutine setInitialCondition
 
 ! ----------------------------------------------------------------
-! setSolverParams: routine to set paprmeters in ida solver
+! setSolverParams: private routine to set paprmeters in ida solver
 ! ----------------------------------------------------------------
 subroutine setSolverParams(dt,ida_mem,retval)
   !======= Inclusions ===========
