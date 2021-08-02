@@ -1,6 +1,10 @@
 All SUMMA-SUNDIALS files are in build/source/engine
 To switch between SUMMA-BE and SUMMA-SUNDIALS, open opSplittin.f90 and set solver=BE or solver=IDA, respectively.
 
+In energy equation, the heat capacity is computed using either the analytical (closed) formula or the finite differece formula (dH_T/dT). The
+"howHeatCap" varialbe has been added to the var_lookup module to handle such decision. A user should add this variable to the model_decision
+file with one of the values "closedForm" or "enthalpyFD". For now, this value is by default "colsedForm" in mDecisions.f90. 
+
 The other important files are as following:
 systemSolvSundials.f90: contains public subroutine systemSolvSundials which runs the coupled energy-mass model for one timestep
 
