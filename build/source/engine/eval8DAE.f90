@@ -65,7 +65,8 @@ USE var_lookup,only:iLookDERIV                   ! named variables for structure
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:  &
  localColumn,                & ! separate groundwater representation in each local soil column
- singleBasin                   ! single groundwater store over the entire basin
+ singleBasin,                & ! single groundwater store over the entire basin
+ enthalpyFD                    ! heat capacity using enthalpy
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:  &
@@ -266,8 +267,7 @@ contains
  real(rkind)						            :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
  real(rkind),dimension(nLayers)	    :: mLayerCmTrial             ! trial vector of Cm for snow+soil
  logical(lgt),parameter			        :: updateCp=.true.           ! flag to indicate if we update Cp at each step
- logical(lgt),parameter             :: enthalpyFD=.false.         ! flag to indicate if we compute Cp using dH_T/dT
- logical(lgt),parameter			        :: needCm=.false.            ! flag to indicate if the energy equation contains 
+ logical(lgt),parameter			        :: needCm=.false.            ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
  
 
 
@@ -491,7 +491,7 @@ contains
  
  if(updateCp)then
  	! *** compute volumetric heat capacity C_p
-  if(enthalpyFD)then
+  if(model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD)then
   ! compute H_T
     call t2enthalpy_T(&
                       ! input: data structures
@@ -553,7 +553,7 @@ contains
             mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
       end do
     endif ! if dt_cur is not too samll
-  else
+  else ! if using closed formula of heat capacity 
  	  call computHeatCapAnalytic(&
                        ! input: control variables
                        computeVegFlux,          		& ! intent(in):   flag to denote if computing the vegetation flux

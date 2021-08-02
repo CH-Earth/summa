@@ -413,7 +413,7 @@ contains
  case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! closedForm
  case default
   ! TODO: after adding howHeatCap decision in corresponding file we should delete the next line
-    model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD
+    model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm
   ! err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
 end select
 
