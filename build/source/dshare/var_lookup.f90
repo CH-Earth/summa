@@ -72,6 +72,7 @@ MODULE var_lookup
   integer(i4b)    :: subRouting = integerMissing     ! choice of method for sub-grid routing
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
   integer(i4b)    :: howHeatCap = integerMissing     ! how to compute heat capacity in energy equation
+  integer(i4b)    :: diffEqSolv = integerMissing     ! how to solve the system of differential equations
  endtype iLook_decision
 
  ! ***********************************************************************************************************
@@ -777,7 +778,7 @@ MODULE var_lookup
  type(iLook_decision),public,parameter :: iLookDECISIONS=iLook_decision(  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40)
  ! named variables: model time
  type(iLook_time),    public,parameter :: iLookTIME     =iLook_time    (  1,  2,  3,  4,  5,  6,  7)
 

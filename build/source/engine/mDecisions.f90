@@ -150,6 +150,9 @@ integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 20
 ! look-up values for the choice of energy equation
 integer(i4b),parameter,public :: enthalpyFD           =  323    ! enthalpyFD
 integer(i4b),parameter,public :: closedForm           =  324    ! closedForm
+! look-up values for the choice of DAE solver
+integer(i4b),parameter,public :: sundialIDA           =  325    ! IDA solver form Sundials package
+integer(i4b),parameter,public :: backwEuler           =  326    ! backward Euler method implemented by Martyn
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -415,6 +418,16 @@ contains
   ! TODO: after adding howHeatCap decision in corresponding file we should delete the next line
     model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm
   ! err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
+end select
+
+  ! how to solve the system of differential equations
+select case(trim(model_decisions(iLookDECISIONS%diffEqSolv)%cDecision))
+case('sundialIDA'); model_decisions(iLookDECISIONS%diffEqSolv)%iDecision = sundialIDA        ! enthalpyFD
+case('backwEuler'); model_decisions(iLookDECISIONS%diffEqSolv)%iDecision = backwEuler        ! closedForm
+case default
+ ! TODO: after adding diffEqSolv decision in corresponding file we should delete the next line
+   model_decisions(iLookDECISIONS%diffEqSolv)%iDecision = sundialIDA
+ ! err=10; message=trim(message)//"unknown DAE solver [option="//trim(model_decisions(iLookDECISIONS%diffEqSolv)%cDecision)//"]"; return
 end select
 
  ! identify the method used to calculate flux derivatives
