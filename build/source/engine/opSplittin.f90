@@ -112,7 +112,9 @@ USE mDecisions_module,only:       &
 USE mDecisions_module,only:      &
  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
  bigBucket,                      & ! a big bucket (lumped aquifer model)
- noExplicit                        ! no explicit groundwater parameterization
+ noExplicit,                     & ! no explicit groundwater parameterization
+ sundialIDA,                     & ! IDA solver from Sundials package
+ backwEuler                        ! backward Euler method
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -294,9 +296,6 @@ contains
  logical(lgt)                    :: doAdjustTemp                   ! flag to adjust temperature after the mass split
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
  integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- integer(i4b),parameter          :: IDA=1
- integer(i4b),parameter          :: BE=2
- integer(i4b)                    :: solver=IDA   				           ! BE or IDA
  integer(i4b)                    :: nCoupling
  real(qp)						             :: dt_out                         ! 
  ! ---------------------------------------------------------------------------------------
@@ -365,10 +364,10 @@ contains
  err=0; message="opSplittin/"
  
  ! we just solve the fully coupled problem by ida
- select case(solver)
- 	case(BE); nCoupling = 2
-    case(IDA); nCoupling = 1
-    case default; err=20; message=trim(message)//'expect case to be IDA or BE'; return  
+ select case(model_decisions(iLookDECISIONS%diffEqSolv)%iDecision)
+    case(sundialIDA); nCoupling = 1
+ 	  case(backwEuler); nCoupling = 2
+    case default; err=20; message=trim(message)//'expect case to be sundialIDA or backwEuler'; return  
  end select     
 
  ! *****
@@ -774,8 +773,8 @@ contains
        if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
        
        ! solve variable subset for one full time step
-       select case(solver)
-        case(IDA)
+       select case(model_decisions(iLookDECISIONS%diffEqSolv)%iDecision)
+        case(sundialIDA)
              call varSubstepSundials(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
@@ -812,7 +811,7 @@ contains
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        dt_out,					   & ! intent(out)
                        err,cmessage)                 ! intent(out)   : error code and error message
-        case(BE) 
+        case(backwEuler) 
              call varSubstep(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
@@ -849,7 +848,7 @@ contains
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        err,cmessage)                 ! intent(out)   : error code and error message 
                      ! check
-          case default; err=20; message=trim(message)//'expect case to be ida or be'; return  
+          case default; err=20; message=trim(message)//'expect case to backwEuler or sundialIDA'; return  
         end select 
         
         dt = dt_out 
