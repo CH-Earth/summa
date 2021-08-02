@@ -95,6 +95,7 @@ contains
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
   case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
   case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
+  case('howHeatCap'      ); get_ixdecisions=iLookDECISIONS%howHeatCap  ! how to compute heat capacity in energy equation
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
