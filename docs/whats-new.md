@@ -12,4 +12,5 @@ This page provides simple, high-level documentation about what has changed in ea
 - Fixes the output message to report the correct solution type
 - Adds tolerance to balance check in updatState.f90
 - Changes all float data types to `rk`, for "real kind", which is intended to
-  make it easier to switch from double to single precision.
+  make it easier to switch from double to single precision
+- Computes wall clock time for each HRU and time step
