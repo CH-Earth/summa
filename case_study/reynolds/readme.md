@@ -6,4 +6,4 @@ summa.exe -m fileManager_reynoldsConstantDecayRate.txt
 summa.exe -m fileManager_reynoldsVariableDecayRate.txt
 ```
 
-Evaluation data and a sample (Python) script to evaluate these simulations are provided in sub-folder `evaluation`.
+Evaluation data and a sample (Python) script to evaluate these simulations are provided in sub-folder `evaluation` and `output` respectively.
