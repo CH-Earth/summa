@@ -152,11 +152,11 @@ contains
    ! check canopy ice content for unrealistic situations
    if(scalarCanopyIce > canIceTol .and. scalarCanopyTemp > Tfreeze)then
     ! ice content > threshold, terminate run
-    write(message,'(A,E22.16,A,E9.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > ',canIceTol,' when canopy temperature > Tfreeze'
+    write(message,'(A,E22.16,A,E9.3,A,F7.3,A,F7.3,A)') trim(message)//'canopy ice (=',scalarCanopyIce,') > canIceTol (=',canIceTol,') when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,')'
     err=20; return
    else if(scalarCanopyIce > 0._rkind .and. scalarCanopyTemp > Tfreeze)then
     ! if here, ice content < threshold. Could be sublimation on previous timestep or simply wrong input. Print a warning
-	write(*,'(A,E22.16,2A)') 'Warning: canopy ice content in restart file (',scalarCanopyIce,') > 0 when canopy temperature > Tfreeze. Continuing.',NEW_LINE('a')
+	write(*,'(A,E22.16,A,F7.3,A,F7.3,A)') 'Warning: canopy ice content in restart file (=',scalarCanopyIce,') > 0 when canopy temperature (=',scalarCanopyTemp,') > Tfreeze (=',Tfreeze,'). Continuing.',NEW_LINE('a')
    end if
 
    ! number of layers
