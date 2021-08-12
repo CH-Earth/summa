@@ -2,6 +2,9 @@
 
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
+## Develop
+- Added case_study folder and Reynolds Mountain East albedo decay experiment
+
 ## Version 3.0.4 (pre-release)
 
 - Initial addition of the "What's new" page
