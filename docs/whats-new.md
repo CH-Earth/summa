@@ -2,6 +2,9 @@
 
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
+## Develop
+- Fixes an unnecessary rounding error on SAI and LAI values in PHENOLOGY routine
+
 ## Version 3.0.4 (pre-release)
 
 - Initial addition of the "What's new" page
