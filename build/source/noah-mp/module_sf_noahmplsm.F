@@ -601,8 +601,6 @@ contains
 
      ELAI =  LAI*(1.-FB)
      ESAI =  SAI*(1.-FB)
-     IF (ESAI < 0.05) ESAI = 0.0  ! MB: ESAI CHECK
-     IF (ELAI < 0.05 .OR. ESAI == 0.0) ELAI = 0.0  ! MB: LAI CHECK
 
      IF (TV .GT. TMIN(VEGTYP)) THEN
          IGS = 1.
