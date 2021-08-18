@@ -33,6 +33,9 @@ USE globalData,only: integerMissing, realMissing
 ! provide access to global data
 USE globalData,only:gru_struc                             ! gru->hru mapping structure
 
+! netcdf deflate level
+USE globalData,only: deflate_level   
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     ! final data vectors
@@ -62,6 +65,7 @@ USE data_types,only:&
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
 USE var_lookup, only: maxvarStat ! number of statistics
+   
 
 implicit none
 private
@@ -73,8 +77,6 @@ public::writeRestart
 ! define dimension lengths
 integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
 
-! Netcdf deflate_level from 0 to 9. A value of zero indicates no deflation is in use.
-integer(i4b)            :: deflate_level = 4
 
 contains
 

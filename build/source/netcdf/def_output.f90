@@ -26,6 +26,7 @@ USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures 
 USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
 USE globalData, only: outputPrecision         ! data structure for output precision
 USE globalData, only: chunkSize               ! size of chunks to write
+USE globalData, only: deflate_level           ! netcdf deflate level
 implicit none
 private
 public :: def_output
@@ -63,9 +64,6 @@ integer(i4b)                :: ifcToto_DimID                         ! dimension
 ! define named variables to specify dimensions
 integer(i4b),parameter  :: needGRU=0,needHRU=1,noHRU=2    ! define if there is an HRU dimension
 integer(i4b),parameter  :: needTime=1,noTime=2            ! define if there is a time dimension
-
-! Netcdf deflate_level from 0 to 9. A value of zero indicates no deflation is in use.
-integer(i4b)            :: deflate_level = 4
 
 
 contains
