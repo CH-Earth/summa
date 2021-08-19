@@ -2,6 +2,9 @@
 
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
+## Develop
+- Fixes a bug that incorrectly writes scalarTotalET and scalarNetRadiation to output in cases where canopy calculations are skipped
+
 ## Version 3.0.4 (pre-release)
 
 - Initial addition of the "What's new" page

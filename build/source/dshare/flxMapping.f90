@@ -164,9 +164,9 @@ contains
  flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! derived variables
- flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! ** copy across flux metadata
  do iVar=1,nFlux
