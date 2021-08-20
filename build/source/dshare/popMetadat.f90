@@ -708,7 +708,7 @@ contains
  USE globalData, only: flux_meta               ! data structure for local flux variables
  USE globalData, only: deriv_meta              ! data structure for local flux derivatives
  USE globalData, only: outputPrecision         ! data structure for output precision
- USE globalData, only: deflate_level           ! data structure for output netcdf deflate level 
+ USE globalData, only: outputCompressionLevel  ! data structure for output netcdf deflate level 
 
  ! structures of named variables
  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
@@ -817,12 +817,12 @@ contains
   end if
   
   ! set output netcdf file compression level if given. default is level 4.
-  if (trim(varName)=='deflate_level') then
+  if (trim(varName)=='outputCompressionLevel') then
     statName = trim(lineWords(nWords))
-    read(statName, *) deflate_level
-    if ((deflate_level .LT. 0) .or. (deflate_level .GT. 9)) then
+    read(statName, *) outputCompressionLevel
+    if ((outputCompressionLevel .LT. 0) .or. (outputCompressionLevel .GT. 9)) then
       err=20
-      cmessage='deflate_level must be between 0 and 9.'
+      cmessage='outputCompressionLevel must be between 0 and 9.'
       message=trim(message)//trim(cmessage)//trim(varName);
       return
     end if
