@@ -300,10 +300,10 @@ DRIVER__EX = summa.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
-VERSION = $(shell git tag | tail -n 1)
 BULTTIM = $(shell date)
 GITBRCH = $(shell git describe --long --all --always | sed -e's/heads\///')
 GITHASH = $(shell git rev-parse HEAD)
+VERSION = $(shell git show-ref --tags | grep $GITHASH | sed 's/.*tags\///' | grep . || echo "undefined")
 
 #========================================================================
 # PART 3: Checks

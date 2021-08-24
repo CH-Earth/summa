@@ -2,6 +2,9 @@
 
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
+## Develop
+- Fixes a bug where the SUMMA version is incorrectly reported by "summa.exe -v"
+
 ## Version 3.0.4 (pre-release)
 
 - Initial addition of the "What's new" page
