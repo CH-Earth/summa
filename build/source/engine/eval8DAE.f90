@@ -694,8 +694,8 @@ contains
                  err,cmessage)                             ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
                  
- print *, 'dt = ', dt
- print *, 'dt_cur = ', dt_cur                    
+! print *, 'dt = ', dt
+! print *, 'dt_cur = ', dt_cur                    
 
  ! compute the residual vector
  call computResidDAE(&
@@ -733,7 +733,7 @@ contains
                   err,cmessage)                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  
- print *, '====================================================================================='
+! print *, '====================================================================================='
 
 
  ! end association with the information in the data structures

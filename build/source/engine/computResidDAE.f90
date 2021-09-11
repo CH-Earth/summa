@@ -240,7 +240,7 @@ contains
   !print*, 'PAUSE:'; read(*,*)
  endif
  
- call printResidDAE(nSnow,nSoil,nLayers,indx_data,rAdd,rVec)
+! call printResidDAE(nSnow,nSoil,nLayers,indx_data,rAdd,rVec)
  
  ! check
  if(any(isNan(rVec)))then
