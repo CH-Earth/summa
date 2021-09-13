@@ -831,6 +831,15 @@ contains
      write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
     end do
    end if
+   
+   
+    print*, '** analytical Jacobian (full):'
+    print *, 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+    do iLayer=min(iJac1,nState),min(iJac2,nState)
+      print *, iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
+    end do
+    
+    print *, '--------------------------------------------------------------'
 
   ! ***
   ! check
@@ -839,6 +848,8 @@ contains
  end select  ! type of matrix
  
    if(any(isNan(aJac)))then
+    print *, '******************************* WE FIRST FOUND NAN IN JACOBIAN ************************************'
+    stop 1
     message=trim(message)//'we found NaN'
     err=20; return   
    endif

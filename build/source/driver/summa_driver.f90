@@ -90,7 +90,7 @@ do modelTimeStep=1,numtim
  call summa_readForcing(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
 
-! print *, 'step ---> ', iStep
+ print *, 'step ---> ', iStep
  ! run the summa physics for one time step
  call summa_runPhysics(modelTimeStep, summa1_struc(n), err, message)
  call handle_err(err, message)
