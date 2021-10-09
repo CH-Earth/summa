@@ -4,9 +4,13 @@ This page provides simple, high-level documentation about what has changed in ea
 
 ## Develop
 - Fixes a bug that incorrectly writes scalarTotalET and scalarNetRadiation to output in cases where canopy calculations are skipped
+- Canopy ice content check in check_icond.f90 now generates a warning if ice > 0 for T > 0 instead of a 
+  graceful exit. Graceful exit still exists if ice > 1E-3.
+- Added case_study folder and Reynolds Mountain East albedo decay experiment
+- Fixes a bug where solar angle incorrectly gets set to 0 during polar days
+- Add deflate (compression level) option to outputControl file -- default level is 4 if not specified
 
 ## Version 3.0.4 (pre-release)
-
 - Initial addition of the "What's new" page
 - Added pull request template
 - Adds HRU/GRU info to error messages
