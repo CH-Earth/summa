@@ -1,0 +1,168 @@
+! ***********************************************************************************************************************
+! DEFINITION OF THE MODEL DECISIONS
+! ***********************************************************************************************************************
+! This file defines the modeling decisions used.
+! NOTES:
+! (1) lines starting with ! are treated as comment lines -- there is no limit on the number of comment lines
+! (2) the name of the decision is followed by the character string defining the decision
+! (3) the simulation start/end times must be within single quotes
+! ***********************************************************************************************************************
+! ***********************************************************************************************************************
+soilCatTbl                      ROSETTA         ! (03) soil-category dateset
+vegeParTbl                      USGS            ! (04) vegetation category dataset
+soilStress                      NoahType        ! (05) choice of function for the soil moisture control on stomatal resistance
+stomResist                      BallBerry       ! (06) choice of function for stomatal resistance
+! ***********************************************************************************************************************
+num_method                      itertive        ! (07) choice of numerical method
+fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives
+LAI_method                      monTable        ! (09) method used to determine LAI and SAI
+f_Richards                      mixdform        ! (10) form of Richard's equation
+groundwatr                      noXplict        ! (11) choice of groundwater parameterization
+hc_profile                      constant        ! (12) choice of hydraulic conductivity profile
+bcUpprTdyn                      nrg_flux        ! (13) type of upper boundary condition for thermodynamics
+bcLowrTdyn                      zeroFlux        ! (14) type of lower boundary condition for thermodynamics
+bcUpprSoiH                      liq_flux        ! (15) type of upper boundary condition for soil hydrology
+bcLowrSoiH                      drainage        ! (16) type of lower boundary condition for soil hydrology
+veg_traits                      CM_QJRMS1988    ! (17) choice of parameterization for vegetation roughness length and displacement height
+canopyEmis                      difTrans        ! (18) choice of parameterization for canopy emissivity
+snowIncept                      lightSnow       ! (19) choice of parameterization for snow interception
+windPrfile                      logBelowCanopy  ! (20) choice of wind profile through the canopy
+astability                      louisinv        ! (21) choice of stability function
+canopySrad                      CLM_2stream     ! (22) choice of canopy shortwave radiation method
+alb_method                      varDecay        ! (23) choice of albedo representation
+compaction                      anderson        ! (24) choice of compaction routine
+snowLayers                      CLM_2010        ! (25) choice of method to combine and sub-divide snow layers
+thCondSnow                      jrdn1991        ! (26) choice of thermal conductivity representation for snow
+thCondSoil                      mixConstit      ! (27) choice of thermal conductivity representation for soil
+spatial_gw                      localColumn     ! (28) choice of method for the spatial representation of groundwater
+subRouting                      timeDlay        ! (29) choice of method for sub-grid routing
+! ***********************************************************************************************
+! ***** description of the options available -- nothing below this point is read ****************
+! ***********************************************************************************************
+! -----------------------------------------------------------------------------------------------
+! (01) simulation start time
+! (02) simulation end time
+! -----------------------------------------------------------------------------------------------
+! (03) soil-category dateset
+! STAS      ! STATSGO dataset
+! STAS-RUC  ! ??
+! ROSETTA   ! merged Rosetta table with STAS-RUC
+! -----------------------------------------------------------------------------------------------
+! (04) vegetation category dataset
+! USGS      ! USGS 24/27 category dataset
+! MODIFIED_IGBP_MODIS_NOAH  ! MODIS 20-category dataset
+! -----------------------------------------------------------------------------------------------
+! (05) choice of function for the soil moisture control on stomatal resistance
+! NoahType  ! thresholded linear function of volumetric liquid water content
+! CLM_Type  ! thresholded linear function of matric head
+! SiB_Type  ! exponential of the log of matric head
+! -----------------------------------------------------------------------------------------------
+! (06) choice of function for stomatal resistance
+! BallBerry ! Ball-Berry
+! Jarvis    ! Jarvis
+! -----------------------------------------------------------------------------------------------
+! (07) choice of numerical method
+! itertive  ! iterative
+! non_iter  ! non-iterative
+! itersurf  ! iterate only on the surface energy balance
+! -----------------------------------------------------------------------------------------------
+! (08) method used to calculate flux derivatives
+! numericl  ! numerical derivatives
+! analytic  ! analytical derivatives
+! -----------------------------------------------------------------------------------------------
+! (09) method used to determine LAI and SAI
+! monTable  ! LAI/SAI taken directly from a monthly table for different vegetation classes
+! specified ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+! -----------------------------------------------------------------------------------------------
+! (10) form of Richards' equation
+! moisture  ! moisture-based form of Richards' equation
+! mixdform  ! mixed form of Richards' equation
+! -----------------------------------------------------------------------------------------------
+! (11) choice of groundwater parameterization
+! qTopmodl  ! topmodel parameterization
+! bigBuckt  ! a big bucket (lumped aquifer model)
+! noXplict  ! no explicit groundwater parameterization
+! -----------------------------------------------------------------------------------------------
+! (12) choice of hydraulic conductivity profile
+! constant  ! constant hydraulic conductivity with depth
+! pow_prof  ! power-law profile
+! -----------------------------------------------------------------------------------------------
+! (13) choice of upper boundary conditions for thermodynamics
+! presTemp  ! prescribed temperature
+! nrg_flux  ! energy flux
+! -----------------------------------------------------------------------------------------------
+! (14) choice of lower boundary conditions for thermodynamics
+! presTemp  ! prescribed temperature
+! zeroFlux  ! zero flux
+! -----------------------------------------------------------------------------------------------
+! (15) choice of upper boundary conditions for soil hydrology
+! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+! liq_flux  ! liquid water flux
+! -----------------------------------------------------------------------------------------------
+! (16) choice of lower boundary conditions for soil hydrology
+! drainage  ! free draining
+! presHead  ! prescribed head (volumetric liquid water content for mixed form of Richards' eqn)
+! bottmPsi  ! function of matric head in the lower-most layer
+! zeroFlux  ! zero flux
+! -----------------------------------------------------------------------------------------------
+! (17) choice of parameterization for vegetation roughness length and displacement height
+! Raupach_BLM1994  ! Raupach (BLM 1994) "Simplified expressions..."
+! CM_QJRMS1988     ! Choudhury and Monteith (QJRMS 1998) "A four layer model for the heat budget..."
+! vegTypeTable     ! constant parameters dependent on the vegetation type
+! -----------------------------------------------------------------------------------------------
+! (18) choice of parameterization for canopy emissivity
+! simplExp  ! simple exponential function
+! difTrans  ! parameterized as a function of diffuse transmissivity
+! -----------------------------------------------------------------------------------------------
+! (19) choice of parameterization for snow interception
+! stickySnow  ! maximum interception capacity an increasing function of temerature
+! lightSnow   ! maximum interception capacity an inverse function of new snow density
+! -----------------------------------------------------------------------------------------------
+! (20) choice of wind profile
+! exponential ! exponential wind profile extends to the surface
+! logBelowCanopy ! logarithmic profile below the vegetation canopy
+! -----------------------------------------------------------------------------------------------
+! (21) choice of stability function
+! standard    ! standard MO similarity, a la Anderson (1979)
+! louisinv    ! Louis (1979) inverse power function
+! mahrtexp    ! Mahrt (1987) exponential function
+! -----------------------------------------------------------------------------------------------
+! (22) choice of canopy shortwave radiation method
+! noah_mp     ! full Noah-MP implementation (including albedo)
+! CLM_2stream ! CLM 2-stream model (see CLM documentation)
+! UEB_2stream ! UEB 2-stream model (Mahat and Tarboton, WRR 2011)
+! NL_scatter  ! Simplified method Nijssen and Lettenmaier (JGR 1999)
+! BeersLaw    ! Beer's Law (as implemented in VIC)
+! -----------------------------------------------------------------------------------------------
+! (23) choice of albedo representation
+! conDecay  ! constant decay rate (e.g., VIC, CLASS)
+! varDecay  ! variable decay rate (e.g., BATS approach, with destructive metamorphism + soot content)
+! -----------------------------------------------------------------------------------------------
+! (24) choice of compaction routine
+! consettl  ! constant settlement rate
+! anderson  ! semi-empirical method of Anderson (1976)
+! -----------------------------------------------------------------------------------------------
+! (25) choice of method to combine and sub-divide snow layers
+! CLM_2010  ! CLM option: combination/sub-dividion rules depend on layer index
+! jrdn1991  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+! -----------------------------------------------------------------------------------------------
+! (26) choice of thermal conductivity representation for snow
+! tyen1965  ! Yen (1965)
+! melr1977  ! Mellor (1977)
+! jrdn1991  ! Jordan (1991)
+! smnv2000  ! Smirnova et al. (2000)
+! -----------------------------------------------------------------------------------------------
+! (27) choice of thermal conductivity representation for soil
+! funcSoilWet ! function of soil wetness
+! mixConstit  ! mixture of constituents
+! hanssonVZJ  ! test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
+! -----------------------------------------------------------------------------------------------
+! (28) choice of method for the spatial representation of groundwater
+! localColumn  ! separate groundwater representation in each local soil column
+! singleBasin  ! single groundwater store over the entire basin
+! -----------------------------------------------------------------------------------------------
+! (29) choice of method for sub-grid routing
+! timeDlay  ! time-delay histogram
+! qInstant  ! instantaneous routing
+! ***********************************************************************************************
+! history Mon Jul 20 16:08:15 2020: /pool0/home/andrbenn/data/summa_3/utils/convert_summa_config_v2_v3.py ./wrrPaperTestCases/figure06/summa_fileManager_reynoldsVariableDecayRate.txt
