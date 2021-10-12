@@ -518,35 +518,36 @@ contains
 ! inputs
   INTEGER                , INTENT(IN   ) :: VEGTYP !vegetation type
   INTEGER                , INTENT(IN   ) :: ISURBAN!urban category
-  REAL(rkind)                   , INTENT(IN   ) :: SNOWH  !snow height [m]
-  REAL(rkind)                   , INTENT(IN   ) :: TV     !vegetation temperature (k)
-  REAL(rkind)                   , INTENT(IN   ) :: LAT    !latitude (radians)
+  REAL(rkind)            , INTENT(IN   ) :: SNOWH  !snow height [m]
+  REAL(rkind)            , INTENT(IN   ) :: TV     !vegetation temperature (k)
+  REAL(rkind)            , INTENT(IN   ) :: LAT    !latitude (radians)
   INTEGER                , INTENT(IN   ) :: YEARLEN!Number of days in the particular year
-  REAL(rkind)                   , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
-  real(rkind)                   , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
-  REAL(rkind)                   , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
-  REAL(rkind)                   , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
+  REAL(rkind)            , INTENT(IN   ) :: JULIAN !Julian day of year (fractional) ( 0 <= JULIAN < YEARLEN )
+  real(rkind)            , INTENT(IN   ) :: TROOT  !root-zone averaged temperature (k)
+  REAL(rkind)            , INTENT(INOUT) :: LAI    !LAI, unadjusted for burying by snow
+  REAL(rkind)            , INTENT(INOUT) :: SAI    !SAI, unadjusted for burying by snow
 
 ! outputs
-  REAL(rkind)                   , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
-  REAL(rkind)                   , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
-  REAL(rkind)                   , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
-  REAL(rkind)                   , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
+  REAL(rkind)            , INTENT(OUT  ) :: HTOP   !top of canopy layer (m)
+  REAL(rkind)            , INTENT(OUT  ) :: ELAI   !leaf area index, after burying by snow
+  REAL(rkind)            , INTENT(OUT  ) :: ESAI   !stem area index, after burying by snow
+  REAL(rkind)            , INTENT(OUT  ) :: IGS    !growing season index (0=off, 1=on)
 
 ! locals
 
-  REAL(rkind)                                   :: DB     !thickness of canopy buried by snow (m)
-  REAL(rkind)                                   :: FB     !fraction of canopy buried by snow
-  REAL(rkind)                                   :: SNOWHC !critical snow depth at which short vege
+  REAL(rkind)                            :: DB     !thickness of canopy buried by snow (m)
+  REAL(rkind)                            :: FB     !fraction of canopy buried by snow
+  REAL(rkind)                            :: SNOWHC !critical snow depth at which short vege
                                                    !is fully covered by snow
 
   INTEGER                                :: K       !index
   INTEGER                                :: IT1,IT2 !interpolation months
-  REAL(rkind)                                   :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
-  REAL(rkind)                                   :: WT1,WT2 !interpolation weights
-  REAL(rkind)                                   :: T       !current month (1.00, ..., 12.00)
+  REAL(rkind)                            :: DAY     !current day of year ( 0 <= DAY < YEARLEN )
+  REAL(rkind)                            :: WT1,WT2 !interpolation weights
+  REAL(rkind)                            :: T       !current month (1.00, ..., 12.00)
 ! --------------------------------------------------------------------------------------------------
 
+  ! Interpolate monthly SAI and LAI to daily values
   IF ( DVEG == 1 .or. DVEG == 3 .or. DVEG == 4 ) THEN
 
      IF (LAT >= 0.) THEN
@@ -568,10 +569,17 @@ contains
      LAI = WT1*LAIM(VEGTYP,IT1) + WT2*LAIM(VEGTYP,IT2)
      SAI = WT1*SAIM(VEGTYP,IT1) + WT2*SAIM(VEGTYP,IT2)
   ENDIF
-  IF (SAI < 0.05) SAI = 0.0  ! MB: SAI CHECK
-  IF (LAI < 0.05 .OR. SAI == 0.0) LAI = 0.0  ! MB: LAI CHECK
+  
+  ! Realism check: no leaves without stems
+  IF (SAI == 0.0) LAI = 0.0  
 
-  IF ( ( VEGTYP == ISWATER ) .OR. ( VEGTYP == ISBARREN ) .OR. ( VEGTYP == ISSNOW ) .or. ( VEGTYP == ISURBAN) ) THEN
+  ! Realism check: warn about no stems for vegetated land classes
+  IF ( (SAI == 0.0) .and. ( VEGTYP /= ISWATER ) .and. ( VEGTYP /= ISBARREN ) .and. ( VEGTYP /= ISSNOW ) .and. ( VEGTYP /= ISURBAN) ) THEN
+   write(*,'(A,I3,A)') ' WARNING: module_sf_noahmplsm/PHENOLOGY: Stem Area Index (SAI) = 0.0 may be unrealistic for vegetation type ',VEGTYP,'. Continuing.'
+  ENDIF
+  
+  ! Realism check: no vegetation should exist on certain land classes
+  IF ( ( VEGTYP == ISWATER ) .or. ( VEGTYP == ISBARREN ) .or. ( VEGTYP == ISSNOW ) .or. ( VEGTYP == ISURBAN) ) THEN
      LAI  = 0.
      SAI  = 0.
   ENDIF
@@ -593,8 +601,6 @@ contains
 
      ELAI =  LAI*(1.-FB)
      ESAI =  SAI*(1.-FB)
-     IF (ESAI < 0.05) ESAI = 0.0  ! MB: ESAI CHECK
-     IF (ELAI < 0.05 .OR. ESAI == 0.0) ELAI = 0.0  ! MB: LAI CHECK
 
      IF (TV .GT. TMIN(VEGTYP)) THEN
          IGS = 1.
