@@ -3,6 +3,7 @@
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
 ## Develop
+- Fixes a bug that incorrectly writes scalarTotalET and scalarNetRadiation to output in cases where canopy calculations are skipped
 - Canopy ice content check in check_icond.f90 now generates a warning if ice > 0 for T > 0 instead of a 
   graceful exit. Graceful exit still exists if ice > 1E-3.
 - Added case_study folder and Reynolds Mountain East albedo decay experiment
