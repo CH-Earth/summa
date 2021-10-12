@@ -420,8 +420,9 @@ contains
  diag_meta(iLookDIAG%scalarVGn_m)                     = var_info('scalarVGn_m'                    , 'van Genuchten "m" parameter'                                      , '-'               , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  diag_meta(iLookDIAG%scalarKappa)                     = var_info('scalarKappa'                    , 'constant in the freezing curve function'                          , 'm K-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- ! number of function evaluations
+ ! timing information
  diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time'                                                  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * local model fluxes...
@@ -708,6 +709,7 @@ contains
  USE globalData, only: flux_meta               ! data structure for local flux variables
  USE globalData, only: deriv_meta              ! data structure for local flux derivatives
  USE globalData, only: outputPrecision         ! data structure for output precision
+ USE globalData, only: outputCompressionLevel  ! data structure for output netcdf deflate level 
 
  ! structures of named variables
  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
@@ -809,6 +811,19 @@ contains
     else
       err=20
       cmessage='outputPrecision must be single, float, or double'
+      message=trim(message)//trim(cmessage)//trim(varName);
+      return
+    end if
+    cycle
+  end if
+  
+  ! set output netcdf file compression level if given. default is level 4.
+  if (trim(varName)=='outputCompressionLevel') then
+    statName = trim(lineWords(nWords))
+    read(statName, *) outputCompressionLevel
+    if ((outputCompressionLevel .LT. 0) .or. (outputCompressionLevel .GT. 9)) then
+      err=20
+      cmessage='outputCompressionLevel must be between 0 and 9.'
       message=trim(message)//trim(cmessage)//trim(varName);
       return
     end if
