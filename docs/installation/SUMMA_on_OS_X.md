@@ -1,5 +1,8 @@
 # Instructions for installing SUMMA on Mac OS X
 
+Two slightly different options have been tested to work. The first uses [MacPorts] as package manager. The second uses [homebrew] as package manager.
+
+## Instructions with MacPorts
 > The following has been tested on a MacBook Pro and iMac, both using OS X v. 10.12.6 (Sierra) and with [MacPorts](http://www.macports.org) as the OS X package manager. It should also work on older versions of OS X or with other package managers such as [fink](http://www.finkproject.org) or [homebrew](http://brew.sh), but you will undoubtedly need to make some modifications.
 
 This document is mainly for people who want to use SUMMA in their modeling project, rather than contribute or change the SUMMA source code. If you want to contribute to SUMMA, , please see the following documents:
@@ -62,4 +65,63 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
  1. Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/NCAR/summa). You may just want to download the latest tagged release. Unless you are planning to contribute to the source code, there is no need to clone or fork the repository.
 
- 1. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using MacPorts, the `FC_ENV` can be set to `gfortran-6-macports`.
+ 2. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using MacPorts, the `FC_ENV` can be set to `gfortran-6-macports`.
+
+ ## Instructions with homebrew
+
+ These instructions deviate from the standard SUMMA on OS X installation instructions in that Homebrew is used as an alternative
+ to MacPorts as a package installer. This is largely due to Catalina changes to a users /opt/ folder.
+
+ These instructions assume that you've already cloned the SUMMA repository.
+ If you haven't, follow the initial [SUMMA Installation Instructions](https://summa.readthedocs.io/en/latest/installation/SUMMA_installation/)
+
+ ### Step 1: Installation of Homebrew
+
+ If you are already using MacPorts, it is recommended to uninstall it to avoid package issues.
+ Uninstallation instructions are available [here](https://guide.macports.org/chunked/installing.macports.uninstalling.html).
+ If you'd like to save the currently installed packages for MacPorts to file, use the command: `port installed > ports_installed.txt`
+
+ Homebrew can then be installed following the instructions [here](https://brew.sh/)
+
+ ### Step 2: Installation of Required packages
+
+ #### Fortran compiler
+
+ Use the command as follows to install gcc and gfortran compilers.
+ `brew install gcc`
+
+ #### NetCDF
+
+ Use the command as follows to install netCDF.
+ `brew install netcdf`
+
+ Note that as a bonus, NetCDF Fortran is installed with this command and does not require action.
+ It is installed as a [resource](https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/netcdf.rb), by default.
+
+ #### LAPACK and openblas
+
+ Use the following commands to install lapack and openblas using Homebrew
+ `brew install lapack`
+ `brew install openblas`
+
+  ### Step 3: Create the Makefile for use in Compliation
+
+ 1. Navigate to your local copy of the SUMMA directory and go to the build subdirectory;
+ 2. Make a copy of the Makefile, naming it Makefile.local for your own use.
+ 3. Update the Environment Variables in the Makefile.local following the instructions. What worked for me is:
+
+ F_MASTER=$PATH_TO_SUMMA_GIT_CLONE$
+ FC=gfortran
+ FC_EXE=/usr/local/bin/gfortran
+ INCLUDES=-I/usr/local/include -I/usr/local/opt/lapack/include -I/usr/local/opt/openblas/include
+ LIBRARIES=-L/usr/local/lib -lnetcdff -L/usr/local/opt/lapack/lib -lblas -L/usr/local/opt/openblas/lib -lopenblas
+
+ While Homebrew uses the /usr/local/ dir and this should be consistent, it is recommend to check these folders to verify the files exist.
+
+ ### Step 4: Compile SUMMA
+
+ Navigating to the SUMMA base directory (i.e. F_MASTER, the root directory of the build folder), run the command
+
+ `make -f build/Makefile.local`
+
+ If the code compiles successfully, then the last line of output from the make process will tell you where the SUMMA executable is installed (it goes into summa/bin). Run summa.exe in that directory (you may need to provide the full path).
