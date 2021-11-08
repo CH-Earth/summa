@@ -1,0 +1,3 @@
+module load gnu
+module load openblas
+make -f my_makefile
