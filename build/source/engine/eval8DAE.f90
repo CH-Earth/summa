@@ -693,7 +693,9 @@ contains
                  dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
                  err,cmessage)                             ! intent(out): error code and error message
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-                     
+                 
+! print *, 'dt = ', dt
+! print *, 'dt_cur = ', dt_cur                    
 
  ! compute the residual vector
  call computResidDAE(&
@@ -730,6 +732,8 @@ contains
                   resVec,                    & ! intent(out):   residual vector
                   err,cmessage)                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ 
+ !print *, '====================================================================================='
 
 
  ! end association with the information in the data structures
