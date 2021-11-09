@@ -71,7 +71,7 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
  2. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using MacPorts, the `FC_ENV` can be set to `gfortran-6-macports`.
 
- ## Instructions with homebrew
+## Instructions with Homebrew
 
  These instructions deviate from the standard SUMMA on OS X installation instructions in that Homebrew is used as an alternative
  to MacPorts as a package installer. This is largely due to Catalina changes to a users /opt/ folder.
@@ -79,7 +79,7 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
  These instructions assume that you've already cloned the SUMMA repository.
  If you haven't, follow the initial [SUMMA Installation Instructions](https://summa.readthedocs.io/en/latest/installation/SUMMA_installation/)
 
- ### Step 1: Installation of Homebrew
+### Step 1: Installation of Homebrew
 
  1. If you are already using MacPorts, it is recommended to uninstall it to avoid package issues.
  Uninstallation instructions are available [here](https://guide.macports.org/chunked/installing.macports.uninstalling.html).
@@ -87,7 +87,7 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
  2. Homebrew can then be installed following the instructions [here](https://brew.sh/)
 
- ### Step 2: Installation of Required packages
+### Step 2: Installation of Required packages
 
  1. Use the command as follows to install gcc and gfortran compilers.
  `brew install gcc`
@@ -102,11 +102,11 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
  `brew install lapack`
  `brew install openblas`
 
- ### Step 3: Compile SUMMA
+### Step 3: Compile SUMMA
   1. Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/NCAR/summa). You may just want to download the latest tagged release. Unless you are planning to contribute to the source code, there is no need to clone or fork the repository.
 
- 2. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using Homebrew, you can use the settings below:
- 
+ 2. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using Homebrew, you can also follow the following steps:
+
  3. Navigate to your local copy of the SUMMA directory and go to the build subdirectory;
  4. Make a copy of the Makefile, naming it Makefile.local for your own use.
  5. Update the Environment Variables in the Makefile.local following the instructions. What worked for me is:
