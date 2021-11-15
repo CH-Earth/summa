@@ -29,11 +29,11 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
     `sudo port info netcdf-fortran`
 
-    The gcc compiler will be listed under `Build Dependencies`. For example, `gcc6`, which is what I'll assume for now. However, make sure to use the correct version of gcc (i.e. the one used to compile the netcdf-fortran library) when you compile SUMMA.
+    The gcc compiler will be listed under `Build Dependencies`. For example, `gcc11`, which is what I'll assume for now. However, make sure to use the correct version of gcc (i.e. the one used to compile the netcdf-fortran library) when you compile SUMMA.
 
- 1. Install the correct version of gcc (here we'll assume gcc6)
+ 1. Install the correct version of gcc (here we'll assume gcc11)
 
-    `sudo port install gcc6`
+    `sudo port install gcc11`
 
  1. Note that MacPorts typically installs everything in the `/opt/local` directory. Make sure you now have NetCDF and gfortran installed:
 
@@ -43,16 +43,17 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
     `ls /opt/local/bin/*fortran*`
 
-    You should have one or more `gfortran-*` files. If you installed `gcc6`, the gfortran executable will be `/opt/local/bin/gfortran-mp-6`. Since MacPorts will have modified your path so that `/opt/local/bin` is part of that, you should be able to invoke the compiler by typing
+    You should have one or more `gfortran-*` files. If you installed `gcc11`, the gfortran executable will be `/opt/local/bin/gfortran-mp-11`. Since MacPorts will have modified your path so that `/opt/local/bin` is part of that, you should be able to invoke the compiler by typing
 
-    `gfortran-mp-6`
+    `gfortran-mp-11`
 
     and the results should be
 
-    `gfortran-mp-6: fatal error: no input files`
+    `gfortran-mp-11: fatal error: no input files`
     `compilation terminated.`
 
-    Note that you may also have a symbolic link named `/opt/local/bin/gfortran`. Make sure that that link points to the correct executable (e.g. `/opt/local/bin/gfortran-mp-6`). If so, then you should be able to invoke the correct version of the fortran compile by simply typing `gfortran`.
+    Note that you may also have a symbolic link named `/opt/local/bin/gfortran`. Make sure that that link points to the correct executable (e.g. command `readlink /opt/local/bin/gfortran` should result in `/opt/local/bin/gfortran-mp-11`). If so, then you should be able to invoke the correct version of the fortran compile by simply typing `gfortran`. Or, type `sudo ln -sf /opt/local/bin/gfortran-mp-11 /opt/local/bin/gfortran` to change it. 
+
 
  1. While you are at it, there are a number of other packages that would be useful to install, in particular
 
@@ -62,4 +63,4 @@ In the following I will assume that you don't have a Fortran compiler or NetCDF 
 
  1. Now obtain the SUMMA source code from the [SUMMA source code repository](https://github.com/NCAR/summa). You may just want to download the latest tagged release. Unless you are planning to contribute to the source code, there is no need to clone or fork the repository.
 
- 1. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using MacPorts, the `FC_ENV` can be set to `gfortran-6-macports`.
+ 1. Untar or unzip the archive, then go to the `summa/build` directory and follow the instructions in the [SUMMA installation](SUMMA_installation.md) page. If you are using MacPorts, the `FC_ENV` can be set to `gfortran-11-macports`.

@@ -1,5 +1,5 @@
 
-To switch between SUMMA-BE and SUMMA-SUNDIALS, the "diffEqSolv" varialbe has been added to the var_lookup module. 
+To switch between SUMMA-BE and SUMMA-SUNDIALS, the "diffEqSolv" variabe has been added to the var_lookup module. 
 A user should add this variable to the model_decision file with one of the values "backwEuler" or "sundialIDA".
  For now, this value is by default "sundialIDA" in mDecisions.f90. 
 

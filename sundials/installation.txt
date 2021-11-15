@@ -1,15 +1,19 @@
 
 1. Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
 2. Extract the corresponding compressed file
-3. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, edit CMakeLists.txt before running cmake. That is, the following
-setting needs to be enabled:
-   # Fortran 2003 interface is disabled by default
-   set(DOCSTR "Enable Fortran 2003 interfaces")
-   option(F2003_INTERFACE_ENABLE "${DOCSTR}" ON)
+3. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, edit CMakeLists.txt before running cmake. That is, the following setting needs to be enabled:
+HOW DO, OR JUST CHANGE IN CACHE???
+
+# Fortran 2003 interface is disabled by default
+set(DOCSTR "Enable Fortran 2003 interfaces")
+option(F2003_INTERFACE_ENABLE "${DOCSTR}" ON)
+
+set(DOCSTR "Enable Fortran 2003 modules")
+option(BUILD_FORTRAN_MODULE_INTERFACE "${DOCSTR}" ON)
 
 4. Read INSTALL_GUIDE.pdf and follow the installation instructions
 
-5. The default compiler is gfortan. To change it, add the following optoin to camke
+5. The default compiler is gfortan. To change it, add the following option to cmake
    -DCMAKE_Fortran_COMPILER=your_favorite_compiler
    
 
