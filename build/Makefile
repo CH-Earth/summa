@@ -1,5 +1,5 @@
 #========================================================================
-# Makefile to compile SUMMA
+# Makefile to compile SUMMA SUNDIALS
 #========================================================================
 #
 # Recommended use: Copy this file to Makefile.local, edit it to your 
@@ -38,7 +38,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER = /home/stiff/summa
+F_MASTER = /home/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
@@ -48,9 +48,9 @@ F_MASTER = /home/stiff/summa
 FC = gfortran
 
 # Define the path for the compiler executable. This is the actual executable
-# that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin-gfortran-mp-6
+# that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin/gfortran-mp-11
 # FC and FC_EXE have to be consistent
-FC_EXE = /usr/bin/gfortran-7
+FC_EXE =/opt/local/bin/gfortran
 
 # Define the NetCDF and LAPACK libraries and path to include files. 
 # INCLUDES needs to be of the form (no quotes around the string):
@@ -59,11 +59,13 @@ FC_EXE = /usr/bin/gfortran-7
 # LIBRARIES = '-L<netcdf library path> -lnetcdff -L<blas library path> -lblas -L<etc> -l<etc>'
 # If none of this makes sense, please talk to your system
 # administrator.
-INCLUDES = -I/usr/include -I/usr/share/doc/liblapack3 -I/usr/lib/x86_64-linux-gnu -I/usr/local/include \
-            -I/usr/local/lib -I/usr/local/fortran 
-LDFLAGS += -L/usr/local/lib
-LIBRARIES = -llapack -lgfortran -lnetcdff -lnetcdf -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod \
-            -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
+INCLUDES = -I/opt/local/include -I/opt/local/lib
+LDFLAGS  = -L/opt/local/lib
+LIBRARIES = $(LDFLAGS) -llapack -lgfortran -lnetcdff -lnetcdf 
+
+DIR_SUNDIALS=/home/sundials/instdir
+INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
        
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -371,6 +373,9 @@ check:
 	$(info   FLAGS_NOAH : $(FLAGS_NOAH))
 	$(info   FLAGS_COMM : $(FLAGS_COMM))
 	$(info   FLAGS_SUMMA: $(FLAGS_SUMMA))
+	$(info   SUNDIALSDIR: $(DIR_SUNDIALS))
+	$(info   INC_SUNDIALS: $(INC_SUNDIALS))
+	$(info   LIB_SUNDIALS: $(LIB_SUNDIALS))
 	$(info)
 
 # update version information
@@ -392,11 +397,11 @@ compile_comm:
 # compile SUMMA routines
 compile_summa: update_version
 	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCLUDES)
+	$(INCLUDES) $(INC_SUNDIALS)
 
 # link routines
 link:
-	$(FC_EXE) -g *.o $(LIBRARIES) -o $(DRIVER__EX)
+	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(DRIVER__EX)
 
 # Remove object files
 clean:

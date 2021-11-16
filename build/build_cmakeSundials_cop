@@ -1,0 +1,5 @@
+# run cp build_cmakeSundials_cop ../../sundials/builddir/build_cmake on this and run from other directory
+
+cmake ../../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=/globalhome/gwu479/HPC/SummaSundials/sundials/instdir -DEXAMPLES_INSTALL_PATH=/globalhome/gwu479/HPC/SummaSundials/sundials/instdir/examples
+
+

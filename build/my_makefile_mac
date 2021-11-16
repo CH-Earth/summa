@@ -1,5 +1,5 @@
 #========================================================================
-# Makefile to compile SUMMA
+# Makefile to compile SUMMA SUNDIALS
 #========================================================================
 #
 # Recommended use: Copy this file to Makefile.local, edit it to your 
@@ -59,9 +59,13 @@ FC_EXE =/opt/local/bin/gfortran
 # LIBRARIES = '-L<netcdf library path> -lnetcdff -L<blas library path> -lblas -L<etc> -l<etc>'
 # If none of this makes sense, please talk to your system
 # administrator.
-INCLUDES = -I/opt/local/include -I/opt/local/lib -I/usr/local/include -I/usr/local/lib -I/Users/amedin/Research/SummaSundials/builddir/fortran_STATIC
-LDFLAGS  = -L/opt/local/lib -L/usr/local/lib
-LIBRARIES = $(LDFLAGS) -llapack -lgfortran -lnetcdff -lnetcdf -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
+INCLUDES = -I/opt/local/include -I/opt/local/lib
+LDFLAGS  = -L/opt/local/lib
+LIBRARIES = $(LDFLAGS) -llapack -lgfortran -lnetcdff -lnetcdf 
+
+DIR_SUNDIALS=/Users/amedin/Research/SummaSundials/sundials/instdir
+INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
        
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -369,6 +373,9 @@ check:
 	$(info   FLAGS_NOAH : $(FLAGS_NOAH))
 	$(info   FLAGS_COMM : $(FLAGS_COMM))
 	$(info   FLAGS_SUMMA: $(FLAGS_SUMMA))
+	$(info   SUNDIALSDIR: $(DIR_SUNDIALS))
+	$(info   INC_SUNDIALS: $(INC_SUNDIALS))
+	$(info   LIB_SUNDIALS: $(LIB_SUNDIALS))
 	$(info)
 
 # update version information
@@ -390,11 +397,11 @@ compile_comm:
 # compile SUMMA routines
 compile_summa: update_version
 	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCLUDES)
+	$(INCLUDES) $(INC_SUNDIALS)
 
 # link routines
 link:
-	$(FC_EXE) -g *.o $(LIBRARIES) -o $(DRIVER__EX)
+	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(DRIVER__EX)
 
 # Remove object files
 clean:
