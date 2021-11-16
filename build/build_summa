@@ -1,3 +1,10 @@
-module load gnu
+module load nixpkgs/16.09
+module load gcc/7.3.0
 module load openblas
-make -f my_makefile
+module load netcdf-fortran/4.4.4
+
+# Specify the necessary paths for the compiler
+export INCLUDES="-I$EBROOTNETCDFMINFORTRAN/include"
+export LIBRARIES="-L$EBROOTNETCDFMINFORTRAN/lib64 -L$EBROOTOPENBLAS/lib -lnetcdff -lopenblas"
+
+make -f my_makefile_cop
