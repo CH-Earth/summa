@@ -50,7 +50,7 @@ FC = gfortran
 # Define the path for the compiler executable. This is the actual executable
 # that is invoked. For example, FC=gfortran and FC_EXE=/usr/bin/gfortran-mp-11
 # FC and FC_EXE have to be consistent
-FC_EXE = /cvmfs/soft.computecanada.ca/easybuild/software/2020/Core/gcccore/9.3.0/bin/gfortran
+FC_EXE = /cvmfs/soft.computecanada.ca/nix/var/nix/profiles/gcc-7.3.0/bin/gfortran
 
 # Define the NetCDF and LAPACK libraries and path to include files. 
 # INCLUDES needs to be of the form (no quotes around the string):
