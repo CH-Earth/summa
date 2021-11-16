@@ -10,7 +10,7 @@ Make a directory outside the sundials-5.8.0 folder and enter it
 % mkdir builddir
 % cd /builddir
 
-4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled:
+4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir:
 % cmake ../sundials-5.8.0/ -DF2003_INTERFACE_ENABLE=ON -DBUILD_FORTRAN_MODULE_INTERFACE=ON 
 
 
