@@ -19,7 +19,9 @@
 #  * FC               - compiler suite
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
-#  * LIBRARIES        - path to and libraries to include
+#  * ILDFLAGS         - path to libraries to include
+#  * LIBRARIES        - libraries to include
+#  * DIR_SUNDIALS     - installation sundials directory
 # 
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
 # the Makefile. You don't need to make any changes in PART 1 and 
@@ -322,7 +324,7 @@ SUMMA_DRIVER= \
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 
 # Define the executable
-DRIVER__EX = summa.exe
+DRIVER__EX = summa_sundials.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc

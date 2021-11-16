@@ -19,7 +19,9 @@
 #  * FC               - compiler suite
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
-#  * LIBRARIES        - path to and libraries to include
+#  * ILDFLAGS         - path to libraries to include
+#  * LIBRARIES        - libraries to include
+#  * DIR_SUNDIALS     - installation sundials directory
 # 
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
 # the Makefile. You don't need to make any changes in PART 1 and 
@@ -65,7 +67,7 @@ LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas
 
 DIR_SUNDIALS=/globalhome/gwu479/HPC/SummaSundials/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
-LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_nvecmanyvector -lsundials_fnvecmanyvector_mod -lsundials_ida -lsundials_fida_mod -lsundials_nvecserial -lsundials_fnvecserial_mod -lsundials_sunlinsoldense -lsundials_fsunlinsoldense_mod -lsundials_sunmatrixdense -lsundials_fsunmatrixdense_mod 
        
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -322,7 +324,7 @@ SUMMA_DRIVER= \
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 
 # Define the executable
-DRIVER__EX = summa.exe
+DRIVER__EX = summa_sundials.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
