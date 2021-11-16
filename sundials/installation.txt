@@ -14,8 +14,8 @@ Make a directory outside the sundials-5.8.0 folder and enter it
 % cmake ../sundials-5.8.0/ -DF2003_INTERFACE_ENABLE=ON -DBUILD_FORTRAN_MODULE_INTERFACE=ON 
 
 
-5. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake
-   -DCMAKE_Fortran_COMPILER=g/cvmfs/soft.computecanada.ca/nix/var/nix/profiles/gcc-7.3.0/bin/gfortran
+5. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your "my_gfortran"
+   -DCMAKE_Fortran_COMPILER=my_gfortran
 
 6. If the above went well, staying in the builddir directory run
 % make

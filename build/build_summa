@@ -1,7 +1,7 @@
-module load nixpkgs/16.09
-module load gcc/7.3.0
+module load StdEnv/2020
+module load gcc/9.3.0
 module load openblas
-module load netcdf-fortran/4.4.4
+module load netcdf-fortran/4.5.2
 
 # Specify the necessary paths for the compiler I PUT THESE IN THE MAKEFILE
 #export INCLUDES="-I$EBROOTNETCDFMINFORTRAN/include"
