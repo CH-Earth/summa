@@ -6,29 +6,30 @@
 % tar -xzf sundials-5.8.0.tar.gz
 
 3. Read INSTALL_GUIDE.pdf and follow the installation instructions. Roughly, do the following:
-Make a directory outside the sundials-5.8.0 folder and enter it
+Make a directory outside the sundials-5.8.0 folder and enter it, and make the install and build dirs, enter the build dir.
+% mkdir sundials
+% cd sundials
+% mkdir instdir
 % mkdir builddir
 % cd /builddir
 
-4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir:
-% cmake ../sundials-5.8.0/ -DF2003_INTERFACE_ENABLE=ON -DBUILD_FORTRAN_MODULE_INTERFACE=ON 
+4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
+% cmake ../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
 
 
-5. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your "my_gfortran"
-   -DCMAKE_Fortran_COMPILER=my_gfortran
+5. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
+   -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
 
 6. If the above went well, staying in the builddir directory run
 % make
+% make install
 
 7. Enter summa directory and build summa as in /docs/SUMMA_instatllation.md. You will have to edit the SUMMA Makefile as below additionally (as well as install required libraries and link them as directed in the Makefile).
 
 8. In SUMMA Makefile, define the FC_EXE to be the same compiler as you used for sundials and netcdf
    
-9. In SUMMA Makefile, define the SUNDIALS libraries (-lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod
-   -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
-
-10. In SUMMA Makefile, add the INCLUDES for these modules from the path you installed them at, for 	example 
-	INCLUDES = -I/my_SundialsInstation/builddir/fortran_STATIC
+9. In SUMMA Makefile, define the SUNDIALS installation directory 
+	DIR_SUNDIALS=$(YOUR_HOME)/sundials/instdir
 
 11. Inside the /summa/build/ directory run
 % make
