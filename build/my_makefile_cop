@@ -67,7 +67,7 @@ LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas
 
 DIR_SUNDIALS=/globalhome/gwu479/HPC/SummaSundials/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
-LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_nvecmanyvector -lsundials_fnvecmanyvector_mod -lsundials_ida -lsundials_fida_mod -lsundials_nvecserial -lsundials_fnvecserial_mod -lsundials_sunlinsoldense -lsundials_fsunlinsoldense_mod -lsundials_sunmatrixdense -lsundials_fsunmatrixdense_mod 
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
        
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
