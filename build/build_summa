@@ -4,7 +4,7 @@ module load openblas
 module load netcdf-fortran/4.4.4
 
 # Specify the necessary paths for the compiler
-export INCLUDES="-I$EBROOTNETCDFMINFORTRAN/include"
-export LIBRARIES="-L$EBROOTNETCDFMINFORTRAN/lib64 -L$EBROOTOPENBLAS/lib -lnetcdff -lopenblas"
+#export INCLUDES="-I$EBROOTNETCDFMINFORTRAN/include"
+#export LIBRARIES="-L$EBROOTNETCDFMINFORTRAN/lib64 -L$EBROOTOPENBLAS/lib -lnetcdff -lopenblas"
 
 make -f my_makefile_cop
