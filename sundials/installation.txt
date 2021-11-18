@@ -34,3 +34,8 @@ Make a directory outside the sundials-5.8.0 folder and enter it, and make the in
 11. Inside the /summa/build/ directory run
 % make
 
+(12) On some installations you may need to add  
+LD_LIBRARY_PATH='$(YOUR_HOME)/sundials/instdir/lib64'
+export LD_LIBRARY_PATH
+
+
