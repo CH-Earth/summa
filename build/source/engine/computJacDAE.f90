@@ -117,7 +117,7 @@ contains
                         mLayerVolFracWatPrime,      & ! intent(in)
                         scalarCanopyTemp,           & ! intent(in)
                         scalarCanopyTempPrime,      & ! intent(in) derivative value for temperature of the vegetation canopy (K)
-                        scalarCanopyWatPrime,       & ! intetn(in) 
+                        scalarCanopyWatPrime,       & ! intetn(in)
                         mLayerd2Theta_dTk2,         & ! intetn(in)
                         d2VolTot_d2Psi0,            & ! intetn(in)
                         dFracLiqSnow_dTk,           & ! intent(in)
@@ -150,14 +150,14 @@ contains
  real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
  ! input: state variables
  real(rkind),intent(in)               :: mLayerTemp(:)
- real(rkind),intent(in)               :: mLayerTempPrime(:) 
+ real(rkind),intent(in)               :: mLayerTempPrime(:)
  real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)
  real(rkind),intent(in)               :: mLayerMatricHeadLiqPrime(:)
- real(rkind),intent(in)               :: mLayerd2Theta_dTk2(:) 
+ real(rkind),intent(in)               :: mLayerd2Theta_dTk2(:)
  real(rkind),intent(in)               :: mLayerVolFracWatPrime(:)
  real(rkind),intent(in)               :: scalarCanopyTemp
  real(rkind),intent(in)               :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
- real(rkind),intent(in)               :: scalarCanopyWatPrime 
+ real(rkind),intent(in)               :: scalarCanopyWatPrime
  real(rkind),intent(in)               :: d2VolTot_d2Psi0(:)
  real(rkind),intent(in)               :: dFracLiqSnow_dTk(:)
  real(rkind),intent(in)               :: d2Theta_dTkCanopy2
@@ -294,7 +294,7 @@ contains
  if(ixVegNrg/=integerMissing)then
       dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj  &
                                                  + LH_fus*iden_water  *  scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
-                                                 + LH_fus *  dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth    ! volumetric heat capacity of the vegetation (J m-3 K-1)     
+                                                 + LH_fus *  dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth    ! volumetric heat capacity of the vegetation (J m-3 K-1)
  end if
 
  ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)
@@ -305,11 +305,11 @@ contains
     	case(iname_snow)
        		dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_ice*mLayerdTheta_dTk(iLayer) ) * cj &
                                      	+ LH_fus*iden_ice  *  mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
-                                     	+ LH_fus*iden_ice *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)  
+                                     	+ LH_fus*iden_ice *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
     	case(iname_soil)
        		dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_ice*mLayerdTheta_dTk(iLayer) ) * cj &
                                      	+ LH_fus*iden_ice  *  mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
-                                     	+ LH_fus*iden_ice *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer) 
+                                     	+ LH_fus*iden_ice *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
     end select
   end if
  end do
@@ -318,15 +318,15 @@ contains
  do iLayer=1,nSoil
   if(ixSoilOnlyHyd(iLayer)/=integerMissing)then
    dMat(ixSoilOnlyHyd(iLayer)) = ( dVolTot_dPsi0(iLayer) + dCompress_dPsi(iLayer) ) * cj + d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)
-   
+
    if(ixRichards==mixdform)then
     dMat(ixSoilOnlyHyd(iLayer)) = dMat(ixSoilOnlyHyd(iLayer)) + specificStorage * dVolTot_dPsi0(iLayer) * mLayerMatricHeadPrime(iLayer) / theta_sat(iLayer)
    end if
-   
+
   end if
  end do
- 
- 
+
+
 
  ! define the form of the matrix
  select case(ixMatrix)
@@ -339,7 +339,7 @@ contains
   case(ixBandMatrix)  ! ixBandMatrix ixFullMatrix
   print *, 'banded jacobian matrix needs to be implemented'
   stop 1
-  
+
   ! *********************************************************************************************************************************************************
   ! *********************************************************************************************************************************************************
   ! * PART 2: FULL MATRIX
@@ -468,7 +468,7 @@ contains
       nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
       if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
-       ! (cross-derivative terms for the current layer) 
+       ! (cross-derivative terms for the current layer)
        aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj  &
                                  + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
        aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
@@ -518,7 +518,7 @@ contains
      if(computeBaseflow .and. nSoilOnlyHyd==nSoil)then
       do pLayer=1,nSoil
        qState = ixSoilOnlyHyd(pLayer)  ! hydrology state index within the state subset
-       aJac(watState,qState) = aJac(watState,qState) + (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer) 
+       aJac(watState,qState) = aJac(watState,qState) + (dt/mLayerDepth(jLayer))*dBaseflow_dMatric(iLayer,pLayer)
       end do
      endif
 
@@ -528,7 +528,7 @@ contains
    ! -----
    ! * liquid water fluxes for the aquifer...
    ! ----------------------------------------
-   if(ixAqWat/=integerMissing) aJac(ixAqWat,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj 
+   if(ixAqWat/=integerMissing) aJac(ixAqWat,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat) * cj
 
    ! -----
    ! * derivative in liquid water fluxes w.r.t. temperature for the soil domain...
@@ -594,33 +594,33 @@ contains
      write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
     end do
    end if
-   
-   
- !   print*, '** analytical Jacobian (full):'
- !   print *, 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
- !   do iLayer=min(iJac1,nState),min(iJac2,nState)
- !     print *, iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
- !   end do
-    
- !   print *, '--------------------------------------------------------------'
+
+
+    print*, '** analytical Jacobian (full):'
+    write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=1,size(aJac,2))
+    do iLayer=1,size(aJac,2)
+      write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(1:size(aJac,1),iLayer)
+    end do
+
+    print *, '--------------------------------------------------------------'
 
   ! ***
   ! check
   case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'; return
 
  end select  ! type of matrix
- 
+
    if(any(isNan(aJac)))then
     print *, '******************************* WE FOUND NAN IN JACOBIAN ************************************'
     stop 1
     message=trim(message)//'we found NaN'
-    err=20; return   
+    err=20; return
    endif
 
 
  ! end association to variables in the data structures
  end associate
- 
+
 
  end subroutine computJacDAE
 

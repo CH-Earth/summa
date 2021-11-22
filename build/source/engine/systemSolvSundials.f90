@@ -75,7 +75,7 @@ USE mDecisions_module,only:      &
  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
  bigBucket,                      & ! a big bucket (lumped aquifer model)
  noExplicit                        ! no explicit groundwater parameterization
- 
+
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -134,7 +134,7 @@ contains
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
- USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances 
+ USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances
  USE solveByIDA_module,only:solveByIDA                ! solve DAE by IDA
  USE t2enthalpy_module, only:t2enthalpy_T             ! compute enthalpy
  use, intrinsic :: iso_c_binding
@@ -186,7 +186,7 @@ contains
  real(rkind),parameter           :: tempAccelerate=0.00_rkind        ! factor to force initial canopy temperatures to be close to air temperature
  real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind     ! minimum value to initialize canopy water (kg m-2)
  real(rkind),parameter           :: tinyStep=0.000001_rkind          ! stupidly small time step (s)
- 
+
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
@@ -205,11 +205,11 @@ contains
  real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(rkind)                     :: atol(nState)     		 	        ! absolute telerance
- real(rkind)                     :: rtol(nState)     			        ! relative tolerance     
- type(var_dlength)               :: flux_sum					            ! sum of fluxes model fluxes for a local HRU over a data step					
- integer(i4b) 					         :: tol_iter					            ! iteration index 
+ real(rkind)                     :: rtol(nState)     			        ! relative tolerance
+ type(var_dlength)               :: flux_sum					            ! sum of fluxes model fluxes for a local HRU over a data step
+ integer(i4b) 					         :: tol_iter					            ! iteration index
  real(rkind), allocatable        :: mLayerCmpress_sum(:)		      ! sum of compression of the soil matrix
- logical(lgt)					           :: idaSucceeds					          ! flag to indicate if ida successfully solved the problem in current data step		
+ logical(lgt)					           :: idaSucceeds					          ! flag to indicate if ida successfully solved the problem in current data step
 
 
  ! ---------------------------------------------------------------------------------------
@@ -319,8 +319,8 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
  ! initialize the trial state vectors
- stateVecTrial = stateVecInit 
- 
+ stateVecTrial = stateVecInit
+
  ! need to intialize canopy water at a positive value
  if(ixVegHyd/=integerMissing)then
   if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
@@ -355,7 +355,7 @@ contains
                 ! output: error control
                 err,cmessage)                  ! intent(out): error control
 if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
- 
+
  ! compute the flux and the residual vector for a given state vector
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
@@ -402,7 +402,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
                  err,cmessage)              ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
  if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
- 
+
 
  ! copy over the initial flux structure since some model fluxes are not computed in the iterations
  do concurrent ( iVar=1:size(flux_meta) )
@@ -415,7 +415,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
   ! allocate space for mLayerCmpress_sum
   allocate( mLayerCmpress_sum(nSoil) )
-       
+
 
 
  ! check the need to merge snow layers
@@ -430,7 +430,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
    err=-20; return ! negative error code to denote a warning
   endif
  endif
-  
+
   ! get tolerance vectors
   call popTol4IDA(&
                    ! input
@@ -444,25 +444,25 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
                    rtol,                             & ! intent(out):	  relative tolerances vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+
  !-------------------
  ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
  ! ------------------
- 
+
  do tol_iter=1,3
- 
+
    ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
       flux_sum%var(iVar)%dat(:) = 0._rkind
     end do
-    
+
     ! initialize sum of compression of the soil matrix
     mLayerCmpress_sum(:) = 0._rkind
 
    call solveByIDA(&
                  dt,                      & ! intent (in) 	 data time step
                  atol,                    & ! intent (in) 	 absolute telerance
-                 rtol,                    & ! intent (in) 	 relative tolerance 
+                 rtol,                    & ! intent (in) 	 relative tolerance
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of snow+soil layers
@@ -487,7 +487,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
                  ! input-output: data structures
                  diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                 flux_temp,               & ! intent(inout): model fluxes for a local HRU 
+                 flux_temp,               & ! intent(inout): model fluxes for a local HRU
                  flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output
@@ -498,19 +498,20 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
+
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
    if (idaSucceeds)then
       exit
    else
       atol = atol * 0.1
       rtol = rtol * 0.1
    endif
- 
+
  end do  ! iteration over tolerances
- 
 
 
-   
+
+
   ! check if IDA is successful
  if( .not.idaSucceeds )then
   err = 20
@@ -518,25 +519,25 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 ! reduceCoupledStep  = .true.
   return
  endif
- 
 
- ! compute average flux  
-  do iVar=1,size(flux_meta) 
+
+ ! compute average flux
+  do iVar=1,size(flux_meta)
     flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
   end do
-    
+
   diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
 
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
- 
+
  ! save the computed solution
  stateVecTrial = stateVecNew
- 
+
  ! free memory
  deallocate(mLayerCmpress_sum)
- deallocate(dBaseflow_dMatric)  
+ deallocate(dBaseflow_dMatric)
 
  ! end associate statements
  end associate globalVars

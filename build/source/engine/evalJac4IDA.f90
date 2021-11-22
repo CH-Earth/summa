@@ -16,7 +16,7 @@ module evalJac4IDA_module
                     var_dlength,  & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
-  
+
 
   ! privacy
   implicit none
@@ -37,7 +37,7 @@ contains
   integer(c_int) function evalJac4IDA(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                       sunmat_J, user_data, sunvec_temp1, sunvec_temp2, sunvec_temp3) &
                       result(ierr) bind(C,name='evalJac4IDA')
-                      
+
     !======= Inclusions ===========
     use, intrinsic :: iso_c_binding
     use fsundials_nvector_mod
@@ -57,26 +57,26 @@ contains
     type(N_Vector)                :: sunvec_yp      ! derivative N_Vector
     type(N_Vector)                :: sunvec_r       ! residual N_Vector
     type(SUNMatrix)               :: sunmat_J       ! Jacobian SUNMatrix
-    type(c_ptr), value            :: user_data      ! user-defined data 
+    type(c_ptr), value            :: user_data      ! user-defined data
     type(N_Vector)                :: sunvec_temp1   ! temporary N_Vector
     type(N_Vector)                :: sunvec_temp2   ! temporary N_Vector
     type(N_Vector)                :: sunvec_temp3   ! temporary N_Vector
-    
+
     ! pointers to data in SUNDIALS vectors
     real(rkind), pointer          :: stateVec(:)    ! state vector
     real(rkind), pointer          :: stateVecPrime(:)! derivative of the state vector
     real(rkind), pointer          :: rVec(:)        ! residual vector
     real(rkind), pointer          :: Jac(:,:)       ! Jacobian matrix
-    type(eqnsData), pointer       :: eqns_data      ! equations data  
+    type(eqnsData), pointer       :: eqns_data      ! equations data
 
 
-    
+
     !======= Internals ============
-    
+
     ! get equations data from user-defined data
     call c_f_pointer(user_data, eqns_data)
-     
- 
+
+
     ! get data arrays from SUNDIALS vectors
     stateVec  => FN_VGetArrayPointer(sunvec_y)
     stateVecPrime => FN_VGetArrayPointer(sunvec_yp)
@@ -86,7 +86,7 @@ contains
     ! compute Jacobian matrix
     call eval8JacDAE(&
                  ! input: model control
-                 cj,                                & ! intent(in):    this scalar changes whenever the step size or method order changes 
+                 cj,                                & ! intent(in):    this scalar changes whenever the step size or method order changes
                  eqns_data%dt,                      & ! intent(in):    data step
                  eqns_data%nSnow,                   & ! intent(in):    number of snow layers
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
@@ -110,15 +110,15 @@ contains
                  eqns_data%dBaseflow_dMatric,       & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                  ! output
                  eqns_data%dMat,                    & ! intetn(inout): diagonal of the Jacobian matrix
-                 Jac,                               & ! intent(out):   Jacobain matrix
+                 Jac,                               & ! intent(out):   Jacobian matrix
                  eqns_data%err,eqns_data%message)     ! intent(out):   error control
 
-   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif 
+   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
    if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
 
    ! return success
    ierr = 0
-   return    
+   return
 
 
 
