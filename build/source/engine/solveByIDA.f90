@@ -330,7 +330,7 @@ contains
 
   startQuadrature         = .true.
 
-  do i = 1,2
+  !do i = 1,2
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec)
@@ -393,7 +393,7 @@ contains
 
   if(ixMatrix == ixFullMatrix)then
      ! Set the user-supplied Jacobian routine
-    if (i==2) retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
+    !if (i==2) retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetJacFn'; return; endif
   endif
 
@@ -437,21 +437,21 @@ contains
  scalarSnowDepth					          = prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
  scalarSWE							            = prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
- tret(1) = t0
-  eqns_data%firstFluxCall = .false.
-  eqns_data%firstSplitOper = .true.
-  retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
-    if(i==1) then
-       print*, "Use Finite-Dif Jacobian"
-       call FIDAFree(ida_mem)
-       retval = FSUNNonlinSolFree(sunnonlin_NLS)
-       retval = FSUNLinSolFree(sunlinsol_LS)
-       call FSUNMatDestroy(sunmat_A)
-       call FN_VDestroy(sunvec_y)
-       call FN_VDestroy(sunvec_yp)
-    endif
-    if(i==2) print*, "Use Analytical Jacobian"
- enddo
+ !tret(1) = t0
+ ! eqns_data%firstFluxCall = .false.
+ ! eqns_data%firstSplitOper = .true.
+ ! retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
+ !   if(i==1) then
+ !      print*, "Use Finite-Dif Jacobian"
+ !      call FIDAFree(ida_mem)
+ !      retval = FSUNNonlinSolFree(sunnonlin_NLS)
+ !      retval = FSUNLinSolFree(sunlinsol_LS)
+ !      call FSUNMatDestroy(sunmat_A)
+ !      call FN_VDestroy(sunvec_y)
+ !      call FN_VDestroy(sunvec_yp)
+ !   endif
+ !   if(i==2) print*, "Use Analytical Jacobian"
+ !enddo
 
  !**********************************************************************************
  !****************************** Main Solver ***************************************

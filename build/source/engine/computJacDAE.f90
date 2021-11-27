@@ -596,7 +596,7 @@ contains
    end if
 
 
-    print*, '** analytical Jacobian (full):'
+    !print*, '** analytical Jacobian (full):'
     !write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=1,size(aJac,2))
     !do iLayer=1,size(aJac,2)
     !  write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(1:size(aJac,1),iLayer)
