@@ -352,7 +352,7 @@ contains
     message=trim(message)//'unexpected shape of the Jacobian matrix: expect aJac(nState,nState)'
     err=20; return
    end if
-    print*, ixVegHyd,ixCasNrg,ixVegNrg,ixTopNrg, "indices"
+
    ! -----
    ! * energy and liquid fluxes over vegetation...
    ! ---------------------------------------------
@@ -406,7 +406,7 @@ contains
    ! -------------------------------------------
    if(nSnowSoilNrg>0)then
     do iLayer=1,nLayers  ! loop through all layers in the snow+soil domain
-
+    print*, ixSnowSoilNrg(iLayer),jState, "snowsoilindices"
      ! check if the state is in the subset
      if(ixSnowSoilNrg(iLayer)==integerMissing) cycle
 
@@ -434,7 +434,7 @@ contains
    ! --------------------------------------------
    if(nSnowOnlyHyd>0)then
     do iLayer=1,nSnow  ! loop through layers in the snow domain
-
+    print*, ixSnowOnlyHyd(iLayer),watState, "snowsoilindices"
      ! - check that the snow layer is desired
      if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
 
@@ -490,7 +490,7 @@ contains
    if(nSoilOnlyHyd>0)then
 
     do iLayer=1,nSoil
-
+    print*, ixSoilOnlyHyd(iLayer),watState, "watsoilindices"
      ! - check that the soil layer is desired
      if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
 
@@ -534,8 +534,8 @@ contains
    ! * derivative in liquid water fluxes w.r.t. temperature for the soil domain...
    ! -----------------------------------------------------------------------------
    if(nSoilOnlyHyd>0 .and. nSoilOnlyNrg>0)then
+    print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
     do iLayer=1,nSoilOnlyHyd
-
      ! - check that the soil layer is desired
      if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
 
