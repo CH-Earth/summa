@@ -352,7 +352,7 @@ contains
     message=trim(message)//'unexpected shape of the Jacobian matrix: expect aJac(nState,nState)'
     err=20; return
    end if
-
+    print*, ixVegHyd,ixCasNrg,ixVegNrg,ixTopNrg, "indices"
    ! -----
    ! * energy and liquid fluxes over vegetation...
    ! ---------------------------------------------
