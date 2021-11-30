@@ -475,7 +475,10 @@ contains
 
        ! (cross-derivative terms for the layer below)
        if(iLayer < nSnow)then
+        !aJac(ixSnowOnlyNrg(iLayer+1),watState) = (-1._rkind + mLayerFracLiqSnow(iLayer)+1)*LH_fus*iden_ice * cj  &
+        !                                         + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! dF(below)/dLiq(above) -- K-1
         aJac(ixSnowOnlyHyd(iLayer+1),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)    ! dVol(below)/dT(above) -- K-1
+
        endif ! (if there is a water state in the layer below the current layer in the given state subset)
 
       endif ! (if the energy state for the current layer is within the state subset)
