@@ -406,13 +406,13 @@ contains
    ! -------------------------------------------
    if(nSnowSoilNrg>0)then
     do iLayer=1,nLayers  ! loop through all layers in the snow+soil domain
-    print*, ixSnowSoilNrg(iLayer),jState, "snowsoilindices"
+
      ! check if the state is in the subset
      if(ixSnowSoilNrg(iLayer)==integerMissing) cycle
 
      ! - define index within the state subset and the full state vector
      jState = ixSnowSoilNrg(iLayer)        ! index within the state subset
-
+    print*, ixSnowSoilNrg(iLayer),jState, "snowsoilindices"
      ! - diagonal elements
      aJac(jState,jState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(jState)
 
@@ -440,7 +440,7 @@ contains
 
      ! - define state indices for the current layer
      watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
-    print*, ixSnowOnlyHyd(iLayer),watState, "snowsoilindices"
+    print*, ixSnowOnlyHyd(iLayer),watState, "snowwatindices"
      ! compute factor to convert liquid water derivative to total water derivative
      select case( ixHydType(iLayer) )
       case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
@@ -467,7 +467,7 @@ contains
       ! (define the energy state)
       nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
       if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
-
+    print*, nrgState,watState, "snowwatenergyindices"
        ! (cross-derivative terms for the current layer)
        aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj  &
                                  + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
@@ -540,7 +540,7 @@ contains
 
      ! - define index of hydrology state variable within the state subset
      watState = ixSoilOnlyHyd(iLayer)
-    print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
+
      ! - define indices of the soil layers
      jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
 
@@ -549,7 +549,7 @@ contains
 
      ! only compute derivatives if the energy state for the current layer is within the state subset
      if(nrgstate/=integerMissing)then
-
+    print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
       ! - compute the Jacobian for the layer itself
       aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
