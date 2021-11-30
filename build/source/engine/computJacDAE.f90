@@ -462,6 +462,7 @@ contains
 
      ! - compute cross-derivative terms for energy
      ! NOTE: increase in volumetric liquid water content balanced by a decrease in volumetric ice content
+    print*, nSnowOnlyNrg,ixSnowOnlyNrg(iLayer),watState, ixSnowOnlyHyd(iLayer+1),ixSnowOnlyNrg(iLayer+1), "maybeneedthesesnowwatind"
      if(nSnowOnlyNrg>0)then
 
       ! (define the energy state)
@@ -565,7 +566,7 @@ contains
        endif
        aJac(watState,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(watState,ixTopNrg) ! dVol/dT (K-1)
       endif
-
+    print*,mLayerdTheta_dTk(jLayer),"melt-freeze"
       ! melt-freeze: compute derivative in energy with respect to mass
       if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
        aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj  - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)  ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
