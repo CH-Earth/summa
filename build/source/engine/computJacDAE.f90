@@ -434,13 +434,13 @@ contains
    ! --------------------------------------------
    if(nSnowOnlyHyd>0)then
     do iLayer=1,nSnow  ! loop through layers in the snow domain
-    print*, ixSnowOnlyHyd(iLayer),watState, "snowsoilindices"
+
      ! - check that the snow layer is desired
      if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
 
      ! - define state indices for the current layer
      watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
-
+    print*, ixSnowOnlyHyd(iLayer),watState, "snowsoilindices"
      ! compute factor to convert liquid water derivative to total water derivative
      select case( ixHydType(iLayer) )
       case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
@@ -490,13 +490,13 @@ contains
    if(nSoilOnlyHyd>0)then
 
     do iLayer=1,nSoil
-    print*, ixSoilOnlyHyd(iLayer),watState, "watsoilindices"
+
      ! - check that the soil layer is desired
      if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
 
      ! - define state indices
      watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
-
+    print*, ixSoilOnlyHyd(iLayer),watState, "watsoilindices"
      ! - define indices of the soil layers
      jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
 
@@ -534,14 +534,13 @@ contains
    ! * derivative in liquid water fluxes w.r.t. temperature for the soil domain...
    ! -----------------------------------------------------------------------------
    if(nSoilOnlyHyd>0 .and. nSoilOnlyNrg>0)then
-    print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
     do iLayer=1,nSoilOnlyHyd
      ! - check that the soil layer is desired
      if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
 
      ! - define index of hydrology state variable within the state subset
      watState = ixSoilOnlyHyd(iLayer)
-
+    print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
      ! - define indices of the soil layers
      jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
 
