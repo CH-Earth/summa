@@ -143,7 +143,7 @@ if (present(checkHRU)) then                                                     
  ! gru to hru mapping
  iGRU = 1
  gru_struc(iGRU)%hruCount             = 1                                                      ! number of HRUs in each GRU
- gru_struc(iGRU)%gruId                = hru2gru_id(checkHRU)                                   ! set gru id
+ gru_struc(iGRU)%gru_id               = hru2gru_id(checkHRU)                                   ! set gru id
  gru_struc(iGRU)%gru_nc               = sGRU                                                   ! set gru index within the netcdf file
  allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                   ! allocate second level of gru to hru map
  gru_struc(iGRU)%hruInfo(iGRU)%hru_nc = checkHRU                                               ! set hru id in attributes netcdf file
@@ -157,11 +157,11 @@ else ! allocate space for anything except a single HRU run
 
   if (count(hru2gru_Id == gru_id(iGRU+sGRU-1)) < 1) then; err=20; message=trim(message)//'problem finding HRUs belonging to GRU'; return; end if
   gru_struc(iGRU)%hruCount          = count(hru2gru_Id == gru_id(iGRU+sGRU-1))                 ! number of HRUs in each GRU
-  gru_struc(iGRU)%gruId             = gru_id(iGRU+sGRU-1)                                      ! set gru id
+  gru_struc(iGRU)%gru_id            = gru_id(iGRU+sGRU-1)                                      ! set gru id
   gru_struc(iGRU)%gru_nc            = iGRU+sGRU-1                                              ! set gru index in the netcdf file
 
   allocate(gru_struc(iGRU)%hruInfo(gru_struc(iGRU)%hruCount))                                  ! allocate second level of gru to hru map
-  gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gruId)         ! set hru id in attributes netcdf file
+  gru_struc(iGRU)%hruInfo(:)%hru_nc = pack(hru_ix,hru2gru_id == gru_struc(iGRU)%gru_id)        ! set hru id in attributes netcdf file
   gru_struc(iGRU)%hruInfo(:)%hru_ix = arth(iHRU,1,gru_struc(iGRU)%hruCount)                    ! set index of hru in run domain
   gru_struc(iGRU)%hruInfo(:)%hru_id = hru_id(gru_struc(iGRU)%hruInfo(:)%hru_nc)                ! set id of hru
   iHRU = iHRU + gru_struc(iGRU)%hruCount
@@ -239,7 +239,7 @@ end subroutine read_dimension
  integer(i4b),parameter               :: numerical=102      ! named variable to denote numerical data
  integer(i4b),parameter               :: idrelated=103      ! named variable to denote ID related data
  integer(i4b)                         :: categorical_var(1) ! temporary categorical variable from local attributes netcdf file
- real(dp)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
+ real(rkind)                             :: numeric_var(1)     ! temporary numeric variable from local attributes netcdf file
  integer(8)                           :: idrelated_var(1)   ! temporary ID related variable from local attributes netcdf file
 
  ! define mapping variables
@@ -321,7 +321,7 @@ end subroutine read_dimension
     end do
 
    ! ** numerical data
-   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight')
+   case('latitude','longitude','elevation','tan_slope','contourLength','HRUarea','mHeight','aspect')
 
     ! get the index of the variable
     varType = numerical
@@ -349,6 +349,20 @@ end subroutine read_dimension
   end select ! select variable
 
  end do ! (looping through netcdf local attribute file)
+ 
+ ! ** now handle the optional aspect variable if it's missing
+ varIndx = get_ixAttr('aspect')
+ ! check that the variable was not found in the attribute file
+ if(.not. checkAttr(varIndx)) then
+   write(*,*) NEW_LINE('A')//'INFO: aspect not found in the input attribute file, continuing ...'//NEW_LINE('A')
+
+   do iGRU=1,nGRU
+    do iHRU = 1, gru_struc(iGRU)%hruCount
+     attrStruct%gru(iGRU)%hru(iHRU)%var(varIndx) = nr_realMissing      ! populate variable with out-of-range value, used later
+    end do
+   end do
+   checkAttr(varIndx) = .true.
+ endif
 
  ! **********************************************************************************************
  ! (4) check that we have all the desired varaibles

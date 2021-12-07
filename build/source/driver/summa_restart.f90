@@ -101,6 +101,7 @@ contains
   nHRU                 => summa1_struc%nHRU                  & ! number of global hydrologic response units
 
  ) ! assignment to variables in the data structures
+ 
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_readRestart/'
@@ -116,7 +117,7 @@ contains
  if(STATE_PATH == '') then
    restartFile = trim(SETTINGS_PATH)//trim(MODEL_INITCOND)
  else
-    restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
+   restartFile = trim(STATE_PATH)//trim(MODEL_INITCOND)
  endif
 
  ! read initial conditions
@@ -124,6 +125,7 @@ contains
                  nGRU,                          & ! intent(in):    number of response units
                  mparStruct,                    & ! intent(in):    model parameters
                  progStruct,                    & ! intent(inout): model prognostic variables
+                 bvarStruct,                    & ! intent(inout): model basin (GRU) variables
                  indxStruct,                    & ! intent(inout): model indices
                  err,cmessage)                    ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -143,7 +145,7 @@ contains
   ! *** compute ancillary variables
   ! *****************************************************************************
 
-  ! loop through local HRUs
+  ! loop through HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
 
    ! re-calculate height of each layer
@@ -176,9 +178,9 @@ contains
 
    ! initialize canopy drip
    ! NOTE: canopy drip from the previous time step is used to compute throughfall for the current time step
-   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp  ! not used
+   fluxStruct%gru(iGRU)%hru(iHRU)%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind  ! not used
 
-  end do  ! (looping through HRUs)
+  end do  ! end looping through HRUs
 
   ! *****************************************************************************
   ! *** initialize aquifer storage
@@ -199,14 +201,14 @@ contains
 
    ! the basin-average aquifer storage is not used if the groundwater is included in the local column
    case(localColumn)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._dp ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 0._rkind ! set to zero to be clear that there is no basin-average aquifer storage in this configuration
 
    ! the local column aquifer storage is not used if the groundwater is basin-average
    ! (i.e., where multiple HRUs drain to a basin-average aquifer)
    case(singleBasin)
-    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._dp
+    bvarStruct%gru(iGRU)%var(iLookBVAR%basin__AquiferStorage)%dat(1) = 1._rkind
     do iHRU=1,gru_struc(iGRU)%hruCount
-     progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._dp  ! set to zero to be clear that there is no local aquifer storage in this configuration
+     progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarAquiferStorage)%dat(1) = 0._rkind  ! set to zero to be clear that there is no local aquifer storage in this configuration
     end do
 
    ! error check
@@ -225,7 +227,7 @@ contains
    dt_init%gru(iGRU)%hru(iHRU) = progStruct%gru(iGRU)%hru(iHRU)%var(iLookPROG%dt_init)%dat(1) ! seconds
   end do
 
- end do  ! (looping through GRUs)
+ end do  ! end looping through GRUs
 
  ! *****************************************************************************
  ! *** finalize

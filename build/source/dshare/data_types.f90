@@ -48,8 +48,8 @@ MODULE data_types
   integer(i4b),allocatable               :: var_ix(:)                ! index of each forcing data variable in the data structure
   integer(i4b),allocatable               :: data_id(:)               ! netcdf variable id for each forcing data variable
   character(len=256),allocatable         :: varName(:)               ! netcdf variable name for each forcing data variable
-  real(dp)                               :: firstJulDay              ! first julian day in forcing file
-  real(dp)                               :: convTime2Days            ! factor to convert time to days
+  real(rkind)                               :: firstJulDay              ! first julian day in forcing file
+  real(rkind)                               :: convTime2Days            ! factor to convert time to days
  end type file_info
 
  ! ***********************************************************************************************************
@@ -57,9 +57,9 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! define a data type to store model parameter information
  type,public  :: par_info
-  real(dp)                               :: default_val              ! default parameter value
-  real(dp)                               :: lower_limit              ! lower bound
-  real(dp)                               :: upper_limit              ! upper bound
+  real(rkind)                               :: default_val              ! default parameter value
+  real(rkind)                               :: lower_limit              ! lower bound
+  real(rkind)                               :: upper_limit              ! upper bound
  endtype par_info
 
  ! ***********************************************************************************************************
@@ -112,7 +112,7 @@ MODULE data_types
 
  ! define mapping from GRUs to the HRUs
  type, public :: gru2hru_map
-  integer(8)                        :: gruId                    ! id of the gru
+  integer(8)                        :: gru_id                   ! id of the gru
   integer(i4b)                      :: hruCount                 ! total number of hrus in the gru
   type(hru_info), allocatable       :: hruInfo(:)               ! basic information of HRUs within the gru
   integer(i4b)                      :: gru_nc                   ! index of gru in the netcdf file
@@ -131,7 +131,7 @@ MODULE data_types
  ! NOTE: use derived types here to facilitate adding the "variable" dimension
  ! ** double precision type
  type, public :: dlength
-  real(dp),allocatable                :: dat(:)    ! dat(:)
+  real(rkind),allocatable                :: dat(:)    ! dat(:)
  endtype dlength
  ! ** integer type (4 byte)
  type, public :: ilength
@@ -168,7 +168,7 @@ MODULE data_types
 
  ! ** double precision type of fixed length
  type, public :: var_d
-  real(dp),allocatable                :: var(:)    ! var(:)
+  real(rkind),allocatable                :: var(:)    ! var(:)
  endtype var_d
  ! ** integer type of fixed length (4 byte)
  type, public :: var_i
@@ -181,7 +181,7 @@ MODULE data_types
 
  ! ** double precision type of fixed length
  type, public :: hru_d
-  real(dp),allocatable                :: hru(:)    ! hru(:)
+  real(rkind),allocatable                :: hru(:)    ! hru(:)
  endtype hru_d
  ! ** integer type of fixed length (4 byte)
  type, public :: hru_i

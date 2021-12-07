@@ -64,9 +64,8 @@ USE globalData,only:globalPrintFlag        ! the global print flag
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
- iterative,                         &      ! iterative
- nonIterative,                      &      ! non-iterative
- iterSurfEnergyBal                         ! iterate only on the surface energy balance
+ bEuler,                            &      ! home-grown backward Euler solution with long time steps
+ sundials                                  ! SUNDIALS/IDA solution
 
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
@@ -89,10 +88,10 @@ implicit none
 private
 public::coupled_em
 ! algorithmic parameters
-real(dp),parameter     :: valueMissing=-9999._dp  ! missing value, used when diagnostic or state variables are undefined
-real(dp),parameter     :: verySmall=1.e-6_dp   ! used as an additive constant to check if substantial difference among real numbers
-real(dp),parameter     :: mpe=1.e-6_dp         ! prevents overflow error if division by zero
-real(dp),parameter     :: dx=1.e-6_dp          ! finite difference increment
+real(rkind),parameter     :: valueMissing=-9999._rkind  ! missing value, used when diagnostic or state variables are undefined
+real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive constant to check if substantial difference among real numbers
+real(rkind),parameter     :: mpe=1.e-6_rkind         ! prevents overflow error if division by zero
+real(rkind),parameter     :: dx=1.e-6_rkind          ! finite difference increment
 contains
 
 
@@ -132,15 +131,11 @@ contains
  ! the model solver
  USE indexState_module,only:indexState      ! define indices for all model state variables and layers
  USE opSplittin_module,only:opSplittin      ! solve the system of thermodynamic and hydrology equations for a given substep
+ USE time_utils_module,only:elapsedSec      ! calculate the elapsed time
  ! additional subroutines
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
- ! look-up values for the numerical method
- USE mDecisions_module,only:         &
-  iterative,                         &      ! iterative
-  nonIterative,                      &      ! non-iterative
-  iterSurfEnergyBal                         ! iterate only on the surface energy balance
  ! look-up values for the maximum interception capacity
  USE mDecisions_module,only:          &
                        stickySnow,    &      ! maximum interception capacity an increasing function of temerature
@@ -148,7 +143,7 @@ contains
  implicit none
  ! model control
  integer(8),intent(in)                :: hruId                  ! hruId
- real(dp),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
+ real(rkind),intent(inout)               :: dt_init                ! used to initialize the size of the sub-step
  logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  ! data structures (input)
  type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
@@ -172,12 +167,12 @@ contains
  integer(i4b)                         :: nSoil                  ! number of soil layers
  integer(i4b)                         :: nLayers                ! total number of layers
  integer(i4b)                         :: nState                 ! total number of state variables
- real(dp)                             :: dtSave                 ! length of last input model sub-step (seconds)
- real(dp)                             :: dt_sub                 ! length of model sub-step (seconds)
- real(dp)                             :: dt_wght                ! weight applied to model sub-step (dt_sub/data_step)
- real(dp)                             :: dt_solv                ! seconds in the data step that have been completed
- real(dp)                             :: dtMultiplier           ! time step multiplier (-) based on what happenned in "opSplittin"
- real(dp)                             :: minstep,maxstep        ! minimum and maximum time step length (seconds)
+ real(rkind)                             :: dtSave                 ! length of last input model sub-step (seconds)
+ real(rkind)                             :: dt_sub                 ! length of model sub-step (seconds)
+ real(rkind)                             :: dt_wght                ! weight applied to model sub-step (dt_sub/data_step)
+ real(rkind)                             :: dt_solv                ! seconds in the data step that have been completed
+ real(rkind)                             :: dtMultiplier           ! time step multiplier (-) based on what happenned in "opSplittin"
+ real(rkind)                             :: minstep,maxstep        ! minimum and maximum time step length (seconds)
  integer(i4b)                         :: nsub                   ! number of substeps
  logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
  logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
@@ -185,16 +180,16 @@ contains
  logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
  integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
- real(dp)                             :: exposedVAI             ! exposed vegetation area index
- real(dp)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
- real(dp)                             :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
- real(dp),parameter                   :: varNotUsed1=-9999._dp  ! variables used to calculate derivatives (not needed here)
- real(dp),parameter                   :: varNotUsed2=-9999._dp  ! variables used to calculate derivatives (not needed here)
+ real(rkind)                             :: exposedVAI             ! exposed vegetation area index
+ real(rkind)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
+ real(rkind)                             :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
+ real(rkind),parameter                   :: varNotUsed1=-9999._rkind  ! variables used to calculate derivatives (not needed here)
+ real(rkind),parameter                   :: varNotUsed2=-9999._rkind  ! variables used to calculate derivatives (not needed here)
  integer(i4b)                         :: iSnow                  ! index of snow layers
  integer(i4b)                         :: iLayer                 ! index of model layers
- real(dp)                             :: massLiquid             ! mass liquid water (kg m-2)
- real(dp)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
- real(dp)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
+ real(rkind)                             :: massLiquid             ! mass liquid water (kg m-2)
+ real(rkind)                             :: superflousSub          ! superflous sublimation (kg m-2 s-1)
+ real(rkind)                             :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
  logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
@@ -206,39 +201,51 @@ contains
  type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
  type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
  ! check SWE
- real(dp)                             :: oldSWE                 ! SWE at the start of the substep
- real(dp)                             :: newSWE                 ! SWE at the end of the substep
- real(dp)                             :: delSWE                 ! change in SWE over the subtep
- real(dp)                             :: effRainfall            ! effective rainfall (kg m-2 s-1)
- real(dp)                             :: effSnowfall            ! effective snowfall (kg m-2 s-1)
- real(dp)                             :: sfcMeltPond            ! surface melt pond (kg m-2)
- real(dp)                             :: massBalance            ! mass balance error (kg m-2)
+ real(rkind)                             :: oldSWE                 ! SWE at the start of the substep
+ real(rkind)                             :: newSWE                 ! SWE at the end of the substep
+ real(rkind)                             :: delSWE                 ! change in SWE over the subtep
+ real(rkind)                             :: effRainfall            ! effective rainfall (kg m-2 s-1)
+ real(rkind)                             :: effSnowfall            ! effective snowfall (kg m-2 s-1)
+ real(rkind)                             :: sfcMeltPond            ! surface melt pond (kg m-2)
+ real(rkind)                             :: massBalance            ! mass balance error (kg m-2)
  ! balance checks
  integer(i4b)                         :: iVar                   ! loop through model variables
- real(dp)                             :: totalSoilCompress      ! total soil compression (kg m-2)
- real(dp)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
- real(dp)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
- real(dp)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
- real(dp)                             :: scalarInitCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
- real(dp)                             :: balanceCanopyWater0    ! total water stored in the vegetation canopy at the start of the step (kg m-2)
- real(dp)                             :: balanceCanopyWater1    ! total water stored in the vegetation canopy at the end of the step (kg m-2)
- real(dp)                             :: balanceSoilWater0      ! total soil storage at the start of the step (kg m-2)
- real(dp)                             :: balanceSoilWater1      ! total soil storage at the end of the step (kg m-2)
- real(dp)                             :: balanceSoilInflux      ! input to the soil zone
- real(dp)                             :: balanceSoilBaseflow    ! output from the soil zone
- real(dp)                             :: balanceSoilDrainage    ! output from the soil zone
- real(dp)                             :: balanceSoilET          ! output from the soil zone
- real(dp)                             :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
- real(dp)                             :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
+ real(rkind)                             :: totalSoilCompress      ! total soil compression (kg m-2)
+ real(rkind)                             :: scalarCanopyWatBalError ! water balance error for the vegetation canopy (kg m-2)
+ real(rkind)                             :: scalarSoilWatBalError  ! water balance error (kg m-2)
+ real(rkind)                             :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
+ real(rkind)                             :: scalarInitCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
+ real(rkind)                             :: balanceCanopyWater0    ! total water stored in the vegetation canopy at the start of the step (kg m-2)
+ real(rkind)                             :: balanceCanopyWater1    ! total water stored in the vegetation canopy at the end of the step (kg m-2)
+ real(rkind)                             :: balanceSoilWater0      ! total soil storage at the start of the step (kg m-2)
+ real(rkind)                             :: balanceSoilWater1      ! total soil storage at the end of the step (kg m-2)
+ real(rkind)                             :: balanceSoilInflux      ! input to the soil zone
+ real(rkind)                             :: balanceSoilBaseflow    ! output from the soil zone
+ real(rkind)                             :: balanceSoilDrainage    ! output from the soil zone
+ real(rkind)                             :: balanceSoilET          ! output from the soil zone
+ real(rkind)                             :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
+ real(rkind)                             :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
  ! test balance checks
  logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
- real(dp), allocatable                :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
- real(dp), allocatable                :: liqSoilInit(:)         ! soil moisture at the start of the time step
+ real(rkind), allocatable                :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
+ real(rkind), allocatable                :: liqSoilInit(:)         ! soil moisture at the start of the time step
+ ! timing information
+ real(rkind)                             :: startTime              ! start time (used to compute wall clock time)
+ real(rkind)                             :: endTime                ! end time (used to compute wall clock time)
  ! ----------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="coupled_em/"
 
  ! This is the start of a data step for a local HRU
+
+ ! get the start time
+ call cpu_time(startTime)
+
+ ! check the sundials decision
+ if(model_decisions(iLookDECISIONS%num_method)%iDecision==sundials)then
+  message=trim(message)//'still need to implement the sundials solver'
+  err=20; return
+ endif
 
  ! check that the decision is supported
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
@@ -300,12 +307,12 @@ contains
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
  ! initialize compression and surface melt pond
- sfcMeltPond       = 0._dp  ! change in storage associated with the surface melt pond (kg m-2)
- totalSoilCompress = 0._dp  ! change in soil storage associated with compression of the matrix (kg m-2)
+ sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
+ totalSoilCompress = 0._rkind  ! change in soil storage associated with compression of the matrix (kg m-2)
 
  ! initialize mean fluxes
  do iVar=1,size(averageFlux_meta)
-  flux_mean%var(iVar)%dat(:) = 0._dp
+  flux_mean%var(iVar)%dat(:) = 0._rkind
  end do
 
  ! associate local variables with information in the data structures
@@ -354,7 +361,7 @@ contains
 
  ! short-cut to the algorithmic control parameters
  ! NOTE - temporary assignment of minstep to foce something reasonable
- minstep = 10._dp  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
+ minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
  maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
  !print*, 'minstep, maxstep = ', minstep, maxstep
 
@@ -366,7 +373,7 @@ contains
  end if
 
  ! define the foliage nitrogen factor
- diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._dp  ! foliage nitrogen concentration (1.0 = saturated)
+ diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1) = 1._rkind  ! foliage nitrogen concentration (1.0 = saturated)
 
  ! save SWE
  oldSWE = prog_data%var(iLookPROG%scalarSWE)%dat(1)
@@ -377,7 +384,7 @@ contains
  ! ------------------------
 
  ! compute the temperature of the root zone: used in vegetation phenology
- diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(dp))
+ diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1) = sum(prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1:nSnow+nLayersRoots)) / real(nLayersRoots, kind(rkind))
 
  ! remember if we compute the vegetation flux on the previous sub-step
  computeVegFluxOld = computeVegFlux
@@ -421,7 +428,7 @@ contains
  ! NOTE 3: use maximum per unit leaf area storage capacity for snow (kg m-2)
  select case(model_decisions(iLookDECISIONS%snowIncept)%iDecision)
   case(lightSnow);  diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)
-  case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)*4._dp
+  case(stickySnow); diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1) = exposedVAI*mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1)*4._rkind
   case default; message=trim(message)//'unable to identify option for maximum branch interception capacity'; err=20; return
  end select ! identifying option for maximum branch interception capacity
  !print*, 'diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1) = ', diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1)
@@ -454,9 +461,9 @@ contains
 
  ! vegetation is completely buried by snow (or no veg exists at all)
  else
-  diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._dp
-  dCanopyWetFraction_dWat                                 = 0._dp
-  dCanopyWetFraction_dT                                   = 0._dp
+  diag_data%var(iLookDIAG%scalarCanopyWetFraction)%dat(1) = 0._rkind
+  dCanopyWetFraction_dWat                                 = 0._rkind
+  dCanopyWetFraction_dT                                   = 0._rkind
  end if
 
  ! *** compute snow albedo...
@@ -533,10 +540,10 @@ contains
  ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
  if(.not.computeVegFlux)then
   flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
-  flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
+  flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind
  else
-  flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._dp
-  flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._dp
+  flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._rkind
+  flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind
  end if
 
  ! ****************************************************************************************************
@@ -544,7 +551,7 @@ contains
  ! ****************************************************************************************************
 
  ! initialize the length of the sub-step
- dt_solv = 0._dp   ! length of time step that has been completed (s)
+ dt_solv = 0._rkind   ! length of time step that has been completed (s)
  dt_init = min(data_step,maxstep)  ! initial substep length (s)
  dt_sub  = dt_init                 ! length of substep
  dtSave  = dt_init                 ! length of substep
@@ -762,7 +769,7 @@ contains
   if(stepFailure)then
 
    ! halve step
-   dt_sub = dtSave/2._dp
+   dt_sub = dtSave/2._rkind
 
    ! check that the step is not tiny
    if(dt_sub < minstep)then
@@ -804,13 +811,13 @@ contains
    scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*dt_sub
 
    ! if removed all ice, take the remaining sublimation from water
-   if(scalarCanopyIce < 0._dp)then
+   if(scalarCanopyIce < 0._rkind)then
     scalarCanopyLiq = scalarCanopyLiq + scalarCanopyIce
-    scalarCanopyIce = 0._dp
+    scalarCanopyIce = 0._rkind
    endif
 
    ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_sub
-   if(scalarCanopyLiq < 0._dp)then
+   if(scalarCanopyLiq < 0._rkind)then
     ! --> superfluous sublimation flux
     superflousSub = -scalarCanopyLiq/dt_sub  ! kg m-2 s-1
     superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
@@ -818,7 +825,7 @@ contains
     scalarCanopySublimation = scalarCanopySublimation + superflousSub
     scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
     scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
-    scalarCanopyLiq         = 0._dp
+    scalarCanopyLiq         = 0._rkind
    endif
 
   end if  ! (if computing the vegetation flux)
@@ -842,7 +849,7 @@ contains
    if(mLayerDepth(iSnow) < verySmall)then
     stepFailure  = .true.
     doLayerMerge = .true.
-    dt_sub      = max(dtSave/2._dp, minstep)
+    dt_sub      = max(dtSave/2._rkind, minstep)
     cycle substeps
    else
     stepFailure  = .false.
@@ -1060,7 +1067,7 @@ contains
   ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
   scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                              - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
-  if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._dp)then
+  if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind)then
    print*, '** canopy water balance error:'
    write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
    write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
@@ -1167,7 +1174,7 @@ contains
 
  ! check the soil water balance
  scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
- if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._dp)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+ if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
   write(*,*)               'solution method           = ', ixSolution
   write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
   write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
@@ -1213,6 +1220,12 @@ contains
   err=20; return
  end if
 
+ ! get the end time
+ call cpu_time(endTime)
+
+ ! get the elapsed time
+ diag_data%var(iLookDIAG%wallClockTime)%dat(1) = endTime - startTime
+
  end subroutine coupled_em
 
 
@@ -1232,24 +1245,24 @@ contains
                        err,message        ) ! intent(out): error control
  implicit none
  ! input/output: integrated snowpack properties
- real(dp),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
- real(dp),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
- real(dp),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
+ real(rkind),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
+ real(rkind),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
+ real(rkind),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
  ! input/output: properties of the upper-most soil layer
- real(dp),intent(inout)    :: soilTemp           ! surface layer temperature (K)
- real(dp),intent(inout)    :: soilDepth          ! surface layer depth (m)
- real(dp),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
+ real(rkind),intent(inout)    :: soilTemp           ! surface layer temperature (K)
+ real(rkind),intent(inout)    :: soilDepth          ! surface layer depth (m)
+ real(rkind),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
  ! output: error control
  integer(i4b),intent(out)  :: err                ! error code
  character(*),intent(out)  :: message            ! error message
  ! local variables
- real(dp)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
- real(dp)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
- real(dp)                  :: snwDensity         ! snow density (kg m-3)
+ real(rkind)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
+ real(rkind)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
+ real(rkind)                  :: snwDensity         ! snow density (kg m-3)
  ! initialize error control
  err=0; message='implctMelt/'
 
- if(scalarSWE > 0._dp)then
+ if(scalarSWE > 0._rkind)then
   ! only melt if temperature of the top soil layer is greater than Tfreeze
   if(soilTemp > Tfreeze)then
    ! compute the energy required to melt all the snow (J m-2)
@@ -1261,7 +1274,7 @@ contains
    ! compute the amount of melt, and update SWE (kg m-2)
    if(nrgAvailable > nrgRequired)then
     scalarSfcMeltPond  = scalarSWE
-    scalarSWE          = 0._dp
+    scalarSWE          = 0._rkind
    else
     scalarSfcMeltPond  = nrgAvailable/LH_fus
     scalarSWE          = scalarSWE - scalarSfcMeltPond
@@ -1271,10 +1284,10 @@ contains
    ! update temperature of the top soil layer (K)
    soilTemp =  soilTemp - (LH_fus*scalarSfcMeltPond/soilDepth)/soilHeatcap
   else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
-   scalarSfcMeltPond = 0._dp  ! kg m-2
+   scalarSfcMeltPond = 0._rkind  ! kg m-2
   end if ! (if the temperature of the top soil layer is greater than Tfreeze)
  else  ! melt is zero if the "snow without a layer" does not exist
-  scalarSfcMeltPond = 0._dp  ! kg m-2
+  scalarSfcMeltPond = 0._rkind  ! kg m-2
  end if ! (if the "snow without a layer" exists)
 
  end subroutine implctMelt

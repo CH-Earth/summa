@@ -106,6 +106,7 @@ contains
  attr_meta(iLookATTR%contourLength)          = var_info('contourLength' , 'length of contour at downslope edge of HRU'            , 'm'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  attr_meta(iLookATTR%HRUarea)                = var_info('HRUarea'       , 'area of each HRU'                                      , 'm2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  attr_meta(iLookATTR%mHeight)                = var_info('mHeight'       , 'measurement height above bare ground'                  , 'm'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ attr_meta(iLookATTR%aspect)                 = var_info('aspect'        , 'mean azimuth of HRU in degrees East of North (0)'      , 'degrees'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * local parameter data...
@@ -419,8 +420,9 @@ contains
  diag_meta(iLookDIAG%scalarVGn_m)                     = var_info('scalarVGn_m'                    , 'van Genuchten "m" parameter'                                      , '-'               , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  diag_meta(iLookDIAG%scalarKappa)                     = var_info('scalarKappa'                    , 'constant in the freezing curve function'                          , 'm K-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  diag_meta(iLookDIAG%scalarVolLatHt_fus)              = var_info('scalarVolLatHt_fus'             , 'volumetric latent heat of fusion'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
- ! number of function evaluations
+ ! timing information
  diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time'                                                  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * local model fluxes...
@@ -588,6 +590,8 @@ contains
  bvar_meta(iLookBVAR%basin__AquiferRecharge)  = var_info('basin__AquiferRecharge' , 'recharge to the aquifer'                                , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%basin__AquiferBaseflow)  = var_info('basin__AquiferBaseflow' , 'baseflow from the aquifer'                              , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%basin__AquiferTranspire) = var_info('basin__AquiferTranspire', 'transpiration loss from the aquifer'                    , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bvar_meta(iLookBVAR%basin__TotalRunoff)      = var_info('basin__TotalRunoff'     , 'total runoff to channel from all active components'     , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bvar_meta(iLookBVAR%basin__SoilDrainage)     = var_info('basin__SoilDrainage'    , 'soil drainage'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%routingRunoffFuture)     = var_info('routingRunoffFuture'    , 'runoff in future time steps'                            , 'm s-1' , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
  bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                   , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -705,6 +709,7 @@ contains
  USE globalData, only: flux_meta               ! data structure for local flux variables
  USE globalData, only: deriv_meta              ! data structure for local flux derivatives
  USE globalData, only: outputPrecision         ! data structure for output precision
+ USE globalData, only: outputCompressionLevel  ! data structure for output netcdf deflate level 
 
  ! structures of named variables
  USE var_lookup, only: iLookTYPE               ! named variables for categorical data
@@ -806,6 +811,19 @@ contains
     else
       err=20
       cmessage='outputPrecision must be single, float, or double'
+      message=trim(message)//trim(cmessage)//trim(varName);
+      return
+    end if
+    cycle
+  end if
+  
+  ! set output netcdf file compression level if given. default is level 4.
+  if (trim(varName)=='outputCompressionLevel') then
+    statName = trim(lineWords(nWords))
+    read(statName, *) outputCompressionLevel
+    if ((outputCompressionLevel .LT. 0) .or. (outputCompressionLevel .GT. 9)) then
+      err=20
+      cmessage='outputCompressionLevel must be between 0 and 9.'
       message=trim(message)//trim(cmessage)//trim(varName);
       return
     end if

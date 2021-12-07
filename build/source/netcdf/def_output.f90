@@ -26,6 +26,7 @@ USE f2008funcs_module,only:cloneStruc         ! used to "clone" data structures 
 USE nrtype, integerMissing=>nr_integerMissing ! top-level data types
 USE globalData, only: outputPrecision         ! data structure for output precision
 USE globalData, only: chunkSize               ! size of chunks to write
+USE globalData, only: outputCompressionLevel  ! netcdf deflate level
 implicit none
 private
 public :: def_output
@@ -63,6 +64,7 @@ integer(i4b)                :: ifcToto_DimID                         ! dimension
 ! define named variables to specify dimensions
 integer(i4b),parameter  :: needGRU=0,needHRU=1,noHRU=2    ! define if there is an HRU dimension
 integer(i4b),parameter  :: needTime=1,noTime=2            ! define if there is a time dimension
+
 
 contains
 
@@ -327,6 +329,7 @@ contains
     ! (scalar variable -- many different types)
     case(iLookvarType%scalarv)
      if(spatialDesire==needGRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ gruChunk, int(timeChunk/gruChunk)+1 /); endif
+     if(spatialDesire==needGRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     gru_DimID/),                err=err, message=cmessage); writechunk=(/ gruChunk /); endif
      if(spatialDesire==needHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID,Timestep_DimID/), err=err, message=cmessage); writechunk=(/ hruChunk, int(timeChunk/hruChunk)+1 /); endif
      if(spatialDesire==needHRU .and. timeDesire==  noTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/     hru_DimID/)               , err=err, message=cmessage); writechunk=(/ hruChunk /); endif
      if(spatialDesire==  noHRU .and. timeDesire==needTime) then; call cloneStruc(dimensionIDs, lowerBound=1, source=(/Timestep_DimID/) , err=err, message=cmessage);               writechunk=(/ gruChunk /); endif
@@ -369,7 +372,7 @@ contains
   endif
 
   ! define variable
-  err = nf90_def_var(ncid,trim(catName),ivtype,dimensionIDs,iVarId)
+  err = nf90_def_var(ncid,trim(catName),ivtype,dimensionIDs,iVarId,deflate_level=outputCompressionLevel)
   call netcdf_err(err,message); if (err/=0) return
 
   err = nf90_def_var_chunking(ncid,iVarId,NF90_CHUNKED,writechunk)
@@ -443,22 +446,22 @@ contains
  err = nf90_redef(ncid); call netcdf_err(err, message); if (err/=nf90_NoErr) return
 
  ! define HRU var
- err = nf90_def_var(ncid, trim(hru_DimName), nf90_int, hru_DimID, hruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
- err = nf90_put_att(ncid, hruVarID, 'long_name', 'hru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(hru_DimName), nf90_int64, hru_DimID, hruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, hruVarID, 'long_name', 'hruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruVar_unit';     call netcdf_err(err,message); return; end if
 
  ! define GRU var
- err = nf90_def_var(ncid, trim(gru_DimName), nf90_int, gru_DimID, gruVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar'  ;  call netcdf_err(err,message); return; end if
- err = nf90_put_att(ncid, gruVarID, 'long_name', 'gru index in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_longname'; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, trim(gru_DimName), nf90_int64, gru_DimID, gruVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruVar'  ;  call netcdf_err(err,message); return; end if
+ err = nf90_put_att(ncid, gruVarID, 'long_name', 'gruId in the input file'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruVarID, 'units',     '-'                          ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruVar_unit';     call netcdf_err(err,message); return; end if
 
 ! define hruId var
- err = nf90_def_var(ncid, 'hruId', nf90_int64, hru_DimID, hruIdVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, 'hruId', nf90_int64, hru_DimID, hruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_hruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'long_name', 'ID defining the hydrologic response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, hruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_hruIdVar_unit';   call netcdf_err(err,message); return; end if
 
  ! define gruId var
- err = nf90_def_var(ncid, 'gruId', nf90_int64, gru_DimID, gruIdVarID);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
+ err = nf90_def_var(ncid, 'gruId', nf90_int64, gru_DimID, gruIdVarID, deflate_level=outputCompressionLevel);     if (err/=nf90_NoErr) then; message=trim(message)//'nf90_define_gruIdVar' ; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'long_name', 'ID defining the grouped (basin) response unit'); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_longname'; call netcdf_err(err,message); return; end if
  err = nf90_put_att(ncid, gruIdVarID, 'units',     '-'                  ); if (err/=nf90_NoErr) then; message=trim(message)//'write_gruIdVar_unit';   call netcdf_err(err,message); return; end if
 
@@ -469,14 +472,14 @@ contains
  do iGRU = 1, size(gru_struc)
 
   ! GRU info
-  err = nf90_put_var(ncid, gruVarID, gru_struc(iGRU)%gru_nc, start=(/iGRU/))
+  err = nf90_put_var(ncid, gruVarID, gru_struc(iGRU)%gru_id, start=(/iGRU/))
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruVar'; call netcdf_err(err,message); return; end if
-  err = nf90_put_var(ncid, gruIdVarID, gru_struc(iGRU)%gruId, start=(/iGRU/))
+  err = nf90_put_var(ncid, gruIdVarID, gru_struc(iGRU)%gru_id, start=(/iGRU/))
   if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_gruIdVar'; call netcdf_err(err,message); return; end if
 
   ! HRU info
   do iHRU = 1, gru_struc(iGRU)%hruCount
-   err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_nc, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
+   err = nf90_put_var(ncid, hruVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruVar'; call netcdf_err(err,message); return; end if
    err = nf90_put_var(ncid, hruIdVarID, gru_struc(iGRU)%hruInfo(iHRU)%hru_id, start=(/gru_struc(iGRU)%hruInfo(iHRU)%hru_ix/))
    if (err/=nf90_NoErr) then; message=trim(message)//'nf90_write_hruIdVar'; call netcdf_err(err,message); return; end if

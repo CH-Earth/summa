@@ -121,7 +121,7 @@ contains
   diagStat             => summa1_struc%diagStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
   fluxStat             => summa1_struc%fluxStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
   indxStat             => summa1_struc%indxStat            , & ! x%gru(:)%hru(:)%var(:)%dat -- model indices
-  bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat        -- basin-average variabl
+  bvarStat             => summa1_struc%bvarStat            , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
   ! primary data structures (scalars)
   timeStruct           => summa1_struc%timeStruct          , & ! x%var(:)                   -- model time data
@@ -175,9 +175,9 @@ contains
  ncid(:) = integerMissing
 
  ! initialize the elapsed time for cumulative quantities
- elapsedRead=0._dp
- elapsedWrite=0._dp
- elapsedPhysics=0._dp
+ elapsedRead=0._rkind
+ elapsedWrite=0._rkind
+ elapsedPhysics=0._rkind
 
  ! get the command line arguments
  call getCommandArguments(summa1_struc,err,cmessage)
