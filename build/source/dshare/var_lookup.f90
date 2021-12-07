@@ -441,8 +441,9 @@ MODULE var_lookup
   integer(i4b)    :: scalarVGn_m                     = integerMissing ! van Genuchten "m" parameter (-)
   integer(i4b)    :: scalarKappa                     = integerMissing ! constant in the freezing curve function (m K-1)
   integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
-  ! number of function evaluations
+  ! timing information
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
+  integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -769,7 +770,7 @@ MODULE var_lookup
   integer(i4b)    :: enthalpy    = integerMissing ! enthalpy (J m-3)
   integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
  endtype iLook_vLookup
- 
+
  ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
@@ -868,7 +869,7 @@ MODULE var_lookup
 
  ! number of possible output frequencies
  type(iLook_freq),    public,parameter :: iLookFreq     =ilook_freq    (  1,  2,  3,  4)
- 
+
  ! named variables in the lookup table structure
  type(iLook_vLookup), public,parameter :: iLookLOOKUP   =ilook_vLookup (  1,  2,  3)
 
