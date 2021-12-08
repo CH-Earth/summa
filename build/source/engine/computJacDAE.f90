@@ -183,6 +183,7 @@ contains
  integer(i4b)                         :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
  ! conversion factors
  real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
+ integer(i4b)                         :: doprint
  ! --------------------------------------------------------------
  ! associate variables from data structures
  associate(&
@@ -275,7 +276,7 @@ contains
  ! --------------------------------------------------------------
  ! initialize error control
  err=0; message='computJacDAE/'
-
+ doprint=0
  ! *********************************************************************************************************************************************************
  ! *********************************************************************************************************************************************************
  ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
@@ -412,7 +413,7 @@ contains
 
      ! - define index within the state subset and the full state vector
      jState = ixSnowSoilNrg(iLayer)        ! index within the state subset
-    print*, ixSnowSoilNrg(iLayer),jState, "snowsoilindices"
+    if (doprint==1) print*, ixSnowSoilNrg(iLayer),jState, "snowsoilindices"
      ! - diagonal elements
      aJac(jState,jState)   = (dt/mLayerDepth(iLayer))*(-dNrgFlux_dTempBelow(iLayer-1) + dNrgFlux_dTempAbove(iLayer)) + dMat(jState)
 
@@ -440,7 +441,7 @@ contains
 
      ! - define state indices for the current layer
      watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
-    print*, ixSnowOnlyHyd(iLayer),watState, "snowwatindices"
+    if (doprint==1) print*, ixSnowOnlyHyd(iLayer),watState, "snowwatindices"
      ! compute factor to convert liquid water derivative to total water derivative
      select case( ixHydType(iLayer) )
       case(iname_watLayer); convLiq2tot = mLayerFracLiqSnow(iLayer)
@@ -462,13 +463,13 @@ contains
 
      ! - compute cross-derivative terms for energy
      ! NOTE: increase in volumetric liquid water content balanced by a decrease in volumetric ice content
-    print*, nSnowOnlyNrg,ixSnowOnlyNrg(iLayer),watState, ixSnowOnlyHyd(iLayer+1),ixSnowOnlyNrg(iLayer+1), "maybeneedthesesnowwatind"
+    if (doprint==1) print*, nSnowOnlyNrg,ixSnowOnlyNrg(iLayer),watState, ixSnowOnlyHyd(iLayer+1),ixSnowOnlyNrg(iLayer+1), "maybeneedthesesnowwatind"
      if(nSnowOnlyNrg>0)then
 
       ! (define the energy state)
       nrgState = ixSnowOnlyNrg(iLayer)       ! index within the full state vector
       if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
-    print*, nrgState,watState, "snowwatenergyindices"
+    if (doprint==1) print*, nrgState,watState, "snowwatenergyindices"
        ! (cross-derivative terms for the current layer)
        aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj  &
                                  + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
@@ -500,7 +501,7 @@ contains
 
      ! - define state indices
      watState = ixSoilOnlyHyd(iLayer)         ! hydrology state index within the state subset
-    print*, ixSoilOnlyHyd(iLayer),watState, "watsoilindices"
+    if (doprint==1) print*, ixSoilOnlyHyd(iLayer),watState, "watsoilindices"
      ! - define indices of the soil layers
      jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
 
@@ -553,7 +554,7 @@ contains
 
      ! only compute derivatives if the energy state for the current layer is within the state subset
      if(nrgstate/=integerMissing)then
-    print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
+    if (doprint==1) print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
       ! - compute the Jacobian for the layer itself
       aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
@@ -566,7 +567,7 @@ contains
        endif
        aJac(watState,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(watState,ixTopNrg) ! dVol/dT (K-1)
       endif
-    print*,mLayerdTheta_dTk(jLayer),"melt-freeze"
+    if (doprint==1) print*,mLayerdTheta_dTk(jLayer),"melt-freeze"
       ! melt-freeze: compute derivative in energy with respect to mass
       if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
        aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj  - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)  ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
