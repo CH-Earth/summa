@@ -733,7 +733,10 @@ contains
   case('scalarCanopyLiqDrainageDeriv'   ); get_ixderiv = iLookDERIV%scalarCanopyLiqDrainageDeriv   ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
   case('dNrgFlux_dTempAbove'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempAbove            ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
-  case('dNrgFlux_dTempBelow '           ); get_ixderiv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  case('dNrgFlux_dTempBelow'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+  case('dNrgFlux_dWatAbove'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatAbove            ! derivatives in the flux w.r.t. water state temperature in the layer above
+  case('dNrgFlux_dWatBelow'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatBelow            ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
   case('iLayerLiqFluxSnowDeriv'         ); get_ixderiv = iLookDERIV%iLayerLiqFluxSnowDeriv         ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables

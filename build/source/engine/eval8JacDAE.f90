@@ -193,7 +193,12 @@ contains
  real(rkind)                        :: dFracLiqSnow_dTk(nLayers)
  real(rkind)                        :: d2Theta_dTkCanopy2
  real(rkind)                        :: dFracLiqVeg_dTkCanopy
- 
+ real(rkind)                        :: dVolHtCapBulk_dPsi0(nLayers)    ! derivative in bulk heat capacity w.r.t. matric potential
+ real(rkind)                        :: dVolHtCapBulk_dTheta(nLayers)   ! derivative in bulk heat capacity w.r.t. volumetric water content
+ real(rkind)                        :: dVolHtCapBulk_dThetaCan         ! derivative in bulk heat capacity w.r.t. volumetric water content
+ real(rkind)                        :: dVolHtCapBulk_dTk(nLayers)      ! derivative in bulk heat capacity w.r.t. temperature
+ real(rkind)                        :: dVolHtCapBulk_dTkCanopy         ! derivative in bulk heat capacity w.r.t. temperature
+
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -302,6 +307,11 @@ contains
                  dFracLiqSnow_dTk,                          & ! intent(out)
                  d2Theta_dTkCanopy2,                        & ! intent(out)
                  dFracLiqVeg_dTkCanopy,                     & ! intent(out)
+                 dVolHtCapBulk_dPsi0,                       & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
+                 dVolHtCapBulk_dTheta,                      & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                 dVolHtCapBulk_dThetaCan,                   & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                 dVolHtCapBulk_dTk,                         & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+                 dVolHtCapBulk_dTkCanopy,                   & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -350,6 +360,11 @@ contains
                   dFracLiqSnow_dTk,               & ! intent(in)
                   d2Theta_dTkCanopy2,             & ! intent(in)
                   dFracLiqVeg_dTkCanopy,          & ! intent(in)
+                  dVolHtCapBulk_dPsi0,            & ! intent(in): derivative in bulk heat capacity w.r.t. matric potential
+                  dVolHtCapBulk_dTheta,           & ! intent(in): derivative in bulk heat capacity w.r.t. volumetric water content
+                  dVolHtCapBulk_dThetaCan,        & ! intent(in): derivative in bulk heat capacity w.r.t. volumetric water content
+                  dVolHtCapBulk_dTk,              & ! intent(in): derivative in bulk heat capacity w.r.t. temperature
+                  dVolHtCapBulk_dTkCanopy,        & ! intent(in): derivative in bulk heat capacity w.r.t. temperature
                   ! input-output: Jacobian and its diagonal
                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
                   Jac,                            & ! intent(out):   Jacobian matrix

@@ -430,7 +430,7 @@ contains
 
  ! input: model decisions
  ix_bcUpprTdyn                   => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,           & ! intent(in): [i4b] choice of upper boundary condition for thermodynamics
- ix_fDerivMeth                   => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,           & ! intent(in): [i4b] choice of method to compute derivatives
+ ixDerivMethod                   => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,           & ! intent(in): [i4b] choice of method to compute derivatives
  ix_veg_traits                   => model_decisions(iLookDECISIONS%veg_traits)%iDecision,           & ! intent(in): [i4b] choice of parameterization for vegetation roughness length and displacement height
  ix_canopyEmis                   => model_decisions(iLookDECISIONS%canopyEmis)%iDecision,           & ! intent(in): [i4b] choice of parameterization for canopy emissivity
  ix_windPrfile                   => model_decisions(iLookDECISIONS%windPrfile)%iDecision,           & ! intent(in): [i4b] choice of canopy wind profile
@@ -772,7 +772,7 @@ contains
     call wettedFrac(&
                     ! input
                     .true.,                                         & ! flag to denote if derivative is desired
-                    (ix_fDerivMeth == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+                    (ixDerivMethod == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
                     (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
                     dCanLiq_dTcanopy,                               & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
                     fracLiquidCanopy,                               & ! fraction of liquid water on the canopy (-)
@@ -817,7 +817,7 @@ contains
    call aeroResist(&
                    ! input: model control
                    computeVegFlux,                     & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                   (ix_fDerivMeth == analytical),      & ! intent(in): logical flag if would like to compute analytical derivaties
+                   (ixDerivMethod == analytical),      & ! intent(in): logical flag if would like to compute analytical derivaties
                    ix_veg_traits,                      & ! intent(in): choice of parameterization for vegetation roughness length and displacement height
                    ix_windPrfile,                      & ! intent(in): choice of canopy wind profile
                    ix_astability,                      & ! intent(in): choice of stability function
@@ -950,7 +950,7 @@ contains
    ! compute canopy longwave radiation balance
    call longwaveBal(&
                     ! input: model control
-                    ix_fDerivMeth,                     & ! intent(in): method used to calculate flux derivatives
+                    ixDerivMethod,                     & ! intent(in): method used to calculate flux derivatives
                     computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
                     ! input: canopy and ground temperature
                     canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
@@ -994,7 +994,7 @@ contains
    ! *******************************************************************************************************************************************************************
 
    ! check the need to compute numerical derivatives
-   if(ix_fDerivMeth == numerical)then
+   if(ixDerivMethod == numerical)then
     nFlux=5  ! compute the derivatives using one-sided finite differences
    else
     nFlux=1  ! compute analytical derivatives
@@ -1050,7 +1050,7 @@ contains
        call wettedFrac(&
                        ! input
                        .false.,                                        & ! flag to denote if derivative is desired
-                       (ix_fDerivMeth == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
+                       (ixDerivMethod == numerical),                   & ! flag to denote that numerical derivatives are required (otherwise, analytical derivatives are calculated)
                        (scalarLatHeatSubVapCanopy > LH_vap+verySmall), & ! flag to denote if the canopy is frozen
                        dCanLiq_dTcanopy,                               & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
                        fracLiquidCanopy,                               & ! fraction of liquid water on the canopy (-)
@@ -1184,7 +1184,7 @@ contains
     call turbFluxes(&
                     ! input: model control
                     computeVegFlux,                       & ! intent(in): logical flag to compute vegetation fluxes (.false. if veg buried by snow)
-                    ix_fDerivMeth,                        & ! intent(in): method used to calculate flux derivatives
+                    ixDerivMethod,                        & ! intent(in): method used to calculate flux derivatives
                     ! input: above-canopy forcing data
                     airtemp,                              & ! intent(in): air temperature at some height above the surface (K)
                     airpres,                              & ! intent(in): air pressure of the air above the vegetation canopy (Pa)
@@ -1292,7 +1292,7 @@ contains
     !trialCanopyResistance                    ! above canopy aerodynamic resistance (s m-1)
 
     ! save perturbed fluxes
-    if(ix_fDerivMeth == numerical)then
+    if(ixDerivMethod == numerical)then
      select case(itry) ! (select type of perturbation)
       case(unperturbed)
        try0 = turbFluxGround
@@ -1325,13 +1325,13 @@ contains
    end do  ! (looping through different flux perturbations)
 
    ! test derivative
-   !if(ix_fDerivMeth == numerical)  print*, 'try0, try1 = ', try0, try1
-   !if(ix_fDerivMeth == numerical)  print*, 'derivative = ', (ix_fDerivMeth == numerical), (try1 - try0)/dx
-   !if(ix_fDerivMeth == analytical) print*, 'derivative = ', (ix_fDerivMeth == numerical), dTurbFluxGround_dTGround
+   !if(ixDerivMethod == numerical)  print*, 'try0, try1 = ', try0, try1
+   !if(ixDerivMethod == numerical)  print*, 'derivative = ', (ixDerivMethod == numerical), (try1 - try0)/dx
+   !if(ixDerivMethod == analytical) print*, 'derivative = ', (ixDerivMethod == numerical), dTurbFluxGround_dTGround
    !pause
 
    ! compute numerical derivatives
-   if(ix_fDerivMeth == numerical)then
+   if(ixDerivMethod == numerical)then
     ! derivatives w.r.t. canopy air temperature
     dTurbFluxCanair_dTCanair    = (turbFluxCanair_dStateCanair - turbFluxCanair) / dx          ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
     dTurbFluxCanopy_dTCanair    = (turbFluxCanopy_dStateCanair - turbFluxCanopy) / dx          ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
@@ -1356,7 +1356,7 @@ contains
    !if(heightCanopyBottom < scalarSnowDepth+z0Ground) pause 'bottom of the canopy is covered'
 
    ! test
-   !print*, (ix_fDerivMeth == numerical)
+   !print*, (ixDerivMethod == numerical)
    !print*, 'dTurbFluxCanair_dTCanair = ', dTurbFluxCanair_dTCanair
    !print*, 'dTurbFluxCanair_dTCanopy = ', dTurbFluxCanair_dTCanopy
    !print*, 'dTurbFluxCanair_dTGround = ', dTurbFluxCanair_dTGround
@@ -1488,7 +1488,7 @@ contains
    dCanopyNetFlux_dCanLiq = dTurbFluxCanopy_dCanLiq  ! derivative in net canopy fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
    dGroundNetFlux_dCanLiq = dTurbFluxGround_dCanLiq  ! derivative in net ground fluxes w.r.t. canopy liquid water content (J kg-1 s-1)
 
-   !print*, (ix_fDerivMeth == numerical)
+   !print*, (ixDerivMethod == numerical)
    !print*, 'dGroundNetFlux_dCanairTemp = ', dGroundNetFlux_dCanairTemp
    !print*, 'dCanopyNetFlux_dCanopyTemp = ', dCanopyNetFlux_dCanopyTemp
    !print*, 'dGroundNetFlux_dCanopyTemp = ', dGroundNetFlux_dCanopyTemp

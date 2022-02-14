@@ -587,6 +587,9 @@ MODULE var_lookup
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
   integer(i4b)    :: dNrgFlux_dTempAbove             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   integer(i4b)    :: dNrgFlux_dTempBelow             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+  integer(i4b)    :: dNrgFlux_dWatAbove             = integerMissing ! derivatives in the flux w.r.t. water state in the layer above
+  integer(i4b)    :: dNrgFlux_dWatBelow             = integerMissing ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
   integer(i4b)    :: iLayerLiqFluxSnowDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
@@ -843,7 +846,8 @@ MODULE var_lookup
  type(iLook_deriv),   public,parameter :: iLookDERIV    =iLook_deriv   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
-                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39)
+                                                                         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
+                                                                         41)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

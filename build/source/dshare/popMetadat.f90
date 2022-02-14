@@ -568,6 +568,9 @@ contains
  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
  deriv_meta(iLookDERIV%dNrgFlux_dTempAbove)           = var_info('dNrgFlux_dTempAbove'          , 'derivatives in the flux w.r.t. temperature in the layer above'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dNrgFlux_dTempBelow)           = var_info('dNrgFlux_dTempBelow'          , 'derivatives in the flux w.r.t. temperature in the layer below'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+ ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
+ deriv_meta(iLookDERIV%dNrgFlux_dWatAbove)           = var_info('dNrgFlux_dWatAbove'          , 'derivatives in the flux w.r.t. water state in the layer above'          , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dNrgFlux_dWatBelow)           = var_info('dNrgFlux_dWatBelow'          , 'derivatives in the flux w.r.t. water state in the layer below'          , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
  ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
  deriv_meta(iLookDERIV%iLayerLiqFluxSnowDeriv)        = var_info('iLayerLiqFluxSnowDeriv'       , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , get_ixVarType('ifcSnow'), iMissVec, iMissVec, .false.)
  ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables

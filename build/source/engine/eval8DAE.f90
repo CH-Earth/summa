@@ -631,7 +631,7 @@ contains
  ! save the number of flux calls per time step
  indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
  ! compute the fluxes for a given state vector
- call computFlux(&
+ call computFluxSundials(&
                  ! input-output: model control
                  nSnow,                     & ! intent(in):    number of snow layers
                  nSoil,                     & ! intent(in):    number of soil layers
@@ -647,6 +647,7 @@ contains
                  scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                  mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
                  mLayerMatricHeadLiqTrial,  & ! intent(in):    trial value for the liquid water matric potential in each soil layer (m)
+                 mLayerMatricHeadTrial,     & ! intent(in):    trial vector of total water matric potential (m)
                  scalarAquiferStorageTrial, & ! intent(in):    trial value of storage of water in the aquifer (m)
                  ! input: diagnostic variables defining the liquid water and ice content
                  scalarCanopyLiqTrial,      & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
