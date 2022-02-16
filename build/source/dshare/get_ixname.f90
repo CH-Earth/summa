@@ -726,7 +726,9 @@ contains
   case('dGroundEvaporation_dCanLiq'     ); get_ixderiv = iLookDERIV%dGroundEvaporation_dCanLiq     ! derivative in ground evaporation w.r.t. canopy liquid water content (s-1)
   ! derivatives in canopy water w.r.t canopy temperature
   case('dTheta_dTkCanopy'               ); get_ixderiv = iLookDERIV%dTheta_dTkCanopy               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  case('d2Theta_dTkCanopy2'             ); get_ixderiv = iLookDERIV%d2Theta_dTkCanopy2             ! second derivative of volumetric liquid water content w.r.t. temperature
   case('dCanLiq_dTcanopy'               ); get_ixderiv = iLookDERIV%dCanLiq_dTcanopy               ! derivative of canopy liquid storage w.r.t. temperature (kg m-2 K-1)
+  case('dFracLiqVeg_dTkCanopy'          ); get_ixderiv = iLookDERIV%dFracLiqVeg_dTkCanopy          ! derivative in fraction of (throughfall + drainage)  w.r.t. temperature
   ! derivatives in canopy liquid fluxes w.r.t. canopy water
   case('scalarCanopyLiqDeriv'           ); get_ixderiv = iLookDERIV%scalarCanopyLiqDeriv           ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
   case('scalarThroughfallRainDeriv'     ); get_ixderiv = iLookDERIV%scalarThroughfallRainDeriv     ! derivative in throughfall w.r.t. canopy liquid water (s-1)
@@ -735,12 +737,13 @@ contains
   case('dNrgFlux_dTempAbove'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempAbove            ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   case('dNrgFlux_dTempBelow'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
-  case('dNrgFlux_dWatAbove'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatAbove            ! derivatives in the flux w.r.t. water state temperature in the layer above
-  case('dNrgFlux_dWatBelow'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatBelow            ! derivatives in the flux w.r.t. water state in the layer below
+  case('dNrgFlux_dWatAbove'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatAbove             ! derivatives in the flux w.r.t. water state temperature in the layer above
+  case('dNrgFlux_dWatBelow'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatBelow             ! derivatives in the flux w.r.t. water state in the layer below
   ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
   case('iLayerLiqFluxSnowDeriv'         ); get_ixderiv = iLookDERIV%iLayerLiqFluxSnowDeriv         ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   case('dVolTot_dPsi0'                  ); get_ixderiv = iLookDERIV%dVolTot_dPsi0                  ! derivative in total water content w.r.t. total water matric potential (m-1)
+  case('d2VolTot_d2Psi0'                ); get_ixderiv = iLookDERIV%d2VolTot_d2Psi0                ! second derivative in total water content w.r.t. total water matric potential
   case('dq_dHydStateAbove'              ); get_ixderiv = iLookDERIV%dq_dHydStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dHydStateBelow'              ); get_ixderiv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('mLayerdTheta_dPsi'              ); get_ixderiv = iLookDERIV%mLayerdTheta_dPsi              ! derivative in the soil water characteristic w.r.t. psi (m-1)
@@ -751,9 +754,18 @@ contains
   ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
   case('dq_dNrgStateAbove'              ); get_ixderiv = iLookDERIV%dq_dNrgStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dNrgStateBelow'              ); get_ixderiv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
-  case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('dPsiLiq_dTemp'                  ); get_ixderiv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case('dPsiLiq_dPsi0'                  ); get_ixderiv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total  matric potential (-)
+ ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
+  case('dFracLiqSnow_dTk'               ); get_ixderiv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
+  case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  case('mLayerd2Theta_dTk2'             ); get_ixderiv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
+ ! derivate in bulk heat capacity w.r.t. relevant state variables
+  case('dVolHtCapBulk_dPsi0'            ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dPsi0            ! derivative in bulk heat capacity w.r.t. matric potential
+  case('dVolHtCapBulk_dTheta'           ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTheta           ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dThetaCan'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dThetaCan        ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dTk'              ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTk              ! derivative in bulk heat capacity w.r.t. temperature
+  case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
 
   case default
    get_ixderiv = integerMissing

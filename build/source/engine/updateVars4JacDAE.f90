@@ -137,16 +137,6 @@ contains
                        mLayerVolFracIcePrime,                     & ! reza
                        mLayerMatricHeadPrime,                     & ! reza
                        mLayerMatricHeadLiqPrime,                  & ! reza
-                       mLayerd2Theta_dTk2,                        & ! reza
-                       d2VolTot_d2Psi0,                           & 
-                       dFracLiqSnow_dTk,                          &
-                       d2Theta_dTkCanopy2,                        &
-                       dFracLiqVeg_dTkCanopy,                     &
-                       dVolHtCapBulk_dPsi0,                       & ! derivative in bulk heat capacity w.r.t. matric potential
-                       dVolHtCapBulk_dTheta,                      & ! derivative in bulk heat capacity w.r.t. volumetric water content
-                       dVolHtCapBulk_dThetaCan,                   & ! derivative in bulk heat capacity w.r.t. volumetric water content
-                       dVolHtCapBulk_dTk,                         & ! derivative in bulk heat capacity w.r.t. temperature
-                       dVolHtCapBulk_dTkCanopy,                   & ! derivative in bulk heat capacity w.r.t. temperature
                        ! output: error control
                        err,message)                                 ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -182,16 +172,6 @@ contains
  real(rkind),intent(inout)          :: mLayerVolFracIcePrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerMatricHeadPrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerMatricHeadLiqPrime(:)     ! reza
- real(rkind),intent(out)            :: mLayerd2Theta_dTk2(:)           ! reza 
- real(rkind),intent(out)            :: d2VolTot_d2Psi0(:)              ! reza
- real(rkind),intent(out)            :: dFracLiqSnow_dTk(:)             ! reza
- real(rkind),intent(out)            :: d2Theta_dTkCanopy2
- real(rkind),intent(out)            :: dFracLiqVeg_dTkCanopy
- real(rkind),intent(out)            :: dVolHtCapBulk_dPsi0(:)          ! derivative in bulk heat capacity w.r.t. matric potential
- real(rkind),intent(out)            :: dVolHtCapBulk_dTheta(:)         ! derivative in bulk heat capacity w.r.t. volumetric water content
- real(rkind),intent(out)            :: dVolHtCapBulk_dThetaCan         ! derivative in bulk heat capacity w.r.t. volumetric water content
- real(rkind),intent(out)            :: dVolHtCapBulk_dTk(:)            ! derivative in bulk heat capacity w.r.t. temperature
- real(rkind),intent(out)            :: dVolHtCapBulk_dTkCanopy         ! derivative in bulk heat capacity w.r.t. temperature
  ! output: error control
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message
@@ -290,8 +270,18 @@ contains
  dPsiLiq_dPsi0           => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat        ,& ! intent(out): [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
  dPsiLiq_dTemp           => deriv_data%var(iLookDERIV%dPsiLiq_dTemp   )%dat        ,& ! intent(out): [dp(:)] derivative in the liquid water matric potential w.r.t. temperature
  mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(out): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
- dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)      & ! intent(out): [dp]    derivative of volumetric liquid water content w.r.t. temperature
- ) ! association with variables in the data structures
+ dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(out): [dp]    derivative of volumetric liquid water content w.r.t. temperature
+ d2VolTot_d2Psi0         => deriv_data%var(iLookDERIV%d2VolTot_d2Psi0       )%dat     ,& ! intent(out): [dp(:)] second derivative in total water content w.r.t. total water matric potential
+ mLayerd2Theta_dTk2      => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2    )%dat     ,& ! intent(out): [dp(:)] second derivative of volumetric liquid water content w.r.t. temperature
+ d2Theta_dTkCanopy2      => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2    )%dat(1)  ,& ! intent(out): [dp   ] second derivative of volumetric liquid water content w.r.t. temperature
+ dFracLiqSnow_dTk        => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk      )%dat     ,& ! intent(out): [dp(:)] derivative in fraction of liquid snow w.r.t. temperature
+ dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy )%dat(1)  ,& ! intent(out): [dp   ] derivative in fraction of (throughfall + drainage) w.r.t. temperature
+ dVolHtCapBulk_dPsi0     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0   )%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. matric potential
+ dVolHtCapBulk_dTheta    => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta  )%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dThetaCan => deriv_data%var(iLookDERIV%dVolHtCapBulk_dThetaCan)%dat(1) ,& ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dTk       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk )%dat         ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. temperature
+ dVolHtCapBulk_dTkCanopy => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1)  & ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. temperature
+) ! association with variables in the data structures
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -508,8 +498,8 @@ contains
    ! --> unfrozen: no dependence of liquid water on temperature
    else
     select case(ixDomainType)
-     case(iname_veg);             dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2 = 0._rkind; dFracLiqVeg_dTkCanopy = 0._rkind; dVolHtCapBulk_dTkCanopy = 0._rkind
-     case(iname_snow, iname_soil);   mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqSnow_dTk(iLayer) = 0._rkind; dVolHtCapBulk_dTk(iLayer) = 0._rkind
+     case(iname_veg);              dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2 = 0._rkind; dFracLiqVeg_dTkCanopy = 0._rkind; dVolHtCapBulk_dTkCanopy = 0._rkind
+     case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqSnow_dTk(iLayer) = 0._rkind; dVolHtCapBulk_dTk(iLayer) = 0._rkind
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
     end select  ! domain type
    endif

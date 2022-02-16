@@ -560,7 +560,9 @@ contains
  deriv_meta(iLookDERIV%dGroundEvaporation_dCanLiq)    = var_info('dGroundEvaporation_dCanLiq'   , 'derivative in ground evaporation w.r.t. canopy liquid water content'  , 's-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! derivatives in canopy water w.r.t canopy temperature
  deriv_meta(iLookDERIV%dTheta_dTkCanopy)              = var_info('dTheta_dTkCanopy'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%d2Theta_dTkCanopy2)            = var_info('d2Theta_dTkCanopy2'           , 'second derivative of volumetric liquid water content w.r.t. temperature', 'K-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dCanLiq_dTcanopy)              = var_info('dCanLiq_dTcanopy'             , 'derivative of canopy liquid storage w.r.t. temperature'               , 'kg m-2 K-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dFracLiqVeg_dTkCanopy)        = var_info('dFracLiqVeg_dTkCanopy'        , 'derivative in fraction of (throughfall + drainage)  w.r.t. temperature', 'K-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  ! derivatives in canopy liquid fluxes w.r.t. canopy water
  deriv_meta(iLookDERIV%scalarCanopyLiqDeriv)          = var_info('scalarCanopyLiqDeriv'         , 'derivative in (throughfall + drainage) w.r.t. canopy liquid water'    , 's-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%scalarThroughfallRainDeriv)    = var_info('scalarThroughfallRainDeriv'   , 'derivative in throughfall w.r.t. canopy liquid water'                 , 's-1'            , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -569,12 +571,13 @@ contains
  deriv_meta(iLookDERIV%dNrgFlux_dTempAbove)           = var_info('dNrgFlux_dTempAbove'          , 'derivatives in the flux w.r.t. temperature in the layer above'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dNrgFlux_dTempBelow)           = var_info('dNrgFlux_dTempBelow'          , 'derivatives in the flux w.r.t. temperature in the layer below'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
- deriv_meta(iLookDERIV%dNrgFlux_dWatAbove)           = var_info('dNrgFlux_dWatAbove'          , 'derivatives in the flux w.r.t. water state in the layer above'          , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
- deriv_meta(iLookDERIV%dNrgFlux_dWatBelow)           = var_info('dNrgFlux_dWatBelow'          , 'derivatives in the flux w.r.t. water state in the layer below'          , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dNrgFlux_dWatAbove)            = var_info('dNrgFlux_dWatAbove'           , 'derivatives in the flux w.r.t. water state in the layer above'        , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dNrgFlux_dWatBelow)            = var_info('dNrgFlux_dWatBelow'           , 'derivatives in the flux w.r.t. water state in the layer below'        , 'unknown'        , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
  ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
  deriv_meta(iLookDERIV%iLayerLiqFluxSnowDeriv)        = var_info('iLayerLiqFluxSnowDeriv'       , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , get_ixVarType('ifcSnow'), iMissVec, iMissVec, .false.)
  ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
  deriv_meta(iLookDERIV%dVolTot_dPsi0)                 = var_info('dVolTot_dPsi0'                , 'derivative in total water content w.r.t. total water matric potential', 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%d2VolTot_d2Psi0)               = var_info('d2VolTot_d2Psi0'              , 'second derivative in total water content w.r.t. total water matric potential', 'm-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dCompress_dPsi)                = var_info('dCompress_dPsi'               , 'derivative in compressibility w.r.t matric head'                      , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%mLayerdTheta_dPsi)             = var_info('mLayerdTheta_dPsi'            , 'derivative in the soil water characteristic w.r.t. psi'               , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
@@ -585,9 +588,18 @@ contains
  ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
  deriv_meta(iLookDERIV%dq_dNrgStateAbove)             = var_info('dq_dNrgStateAbove'            , 'change in flux at layer interfaces w.r.t. states in the layer above'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dq_dNrgStateBelow)             = var_info('dq_dNrgStateBelow'            , 'change in flux at layer interfaces w.r.t. states in the layer below'  , 'unknown'        , get_ixVarType('ifcSoil'), iMissVec, iMissVec, .false.)
- deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dPsiLiq_dTemp)                 = var_info('dPsiLiq_dTemp'                , 'derivative in the liquid water matric potential w.r.t. temperature'   , 'm K-1'          , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dPsiLiq_dPsi0)                 = var_info('dPsiLiq_dPsi0'                , 'derivative in liquid matric potential w.r.t. total  matric potential' , '-'              , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+ ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
+ deriv_meta(iLookDERIV%dFracLiqSnow_dTk)              = var_info('dFracLiqSnow_dTk'             , 'derivative in fraction of liquid snow w.r.t. temperature'             , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%mLayerd2Theta_dTk2)            = var_info('mLayerd2Theta_dTk2'           , 'second derivative of volumetric liquid water content w.r.t. temperature', 'K-2'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ ! derivate in bulk heat capacity w.r.t. relevant state variables
+ deriv_meta(iLookDERIV%dVolHtCapBulk_dPsi0)           = var_info('dVolHtCapBulk_dPsi0'          , 'derivative in bulk heat capacity w.r.t. matric potential'              , 'J m-4 K-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dVolHtCapBulk_dTheta)          = var_info('dVolHtCapBulk_dTheta'         , 'derivative in bulk heat capacity w.r.t. volumetric water content'      , 'J m-3 K-1'     , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dVolHtCapBulk_dThetaCan)       = var_info('dVolHtCapBulk_dThetaCan'      , 'derivative in bulk heat capacity w.r.t. volumetric water content'      , 'J m-3 K-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dVolHtCapBulk_dTk)             = var_info('dVolHtCapBulk_dTk'            , 'derivative in bulk heat capacity w.r.t. temperature'                   , 'J m-3 K-2'     , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%dVolHtCapBulk_dTkCanopy)       = var_info('dVolHtCapBulk_dTkCanopy'      , 'derivative in bulk heat capacity w.r.t. temperature'                   , 'J m-3 K-2'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * basin-wide runoff and aquifer fluxes...

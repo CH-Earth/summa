@@ -638,7 +638,7 @@ contains
      vectorthCond_soil(i) = realMissing
      vectorfrac_sand(i) = realMissing
      vectorfrac_silt(i) = realMissing
-     vectorfrac_clay(iSoil) = realMissing
+     vectorfrac_clay(i) = realMissing
     end if
    end do
 
@@ -897,7 +897,6 @@ contains
  integer(i4b),parameter        :: ixLower=2                   ! index of lower node in the 2-element vectors
  character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
- integer(i4b)                      :: iSoil                  ! index of soil layer
  real(rkind)                          :: matricHead             ! matric head for frozen soil
  real(rkind)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
  real(rkind)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
@@ -941,9 +940,6 @@ contains
  ! initialize error control
  err=0; message="iLayerThermalConduct/"
 
- ! initialize the soil layer
- iSoil=integerMissing
-
  ! loop through layers
  do iLayer=ixUpper,ixLower
 
@@ -964,7 +960,7 @@ contains
     ! do we also need to consider ixRichards form? FIX
     if( nodeTempTrial(iLayer) < Tcrit) then !if do not perturb temperature, this should not change, but nodeMatricHeadTrial will have changed
      matricHead = (LH_fus/gravity)*(nodeTempTrial(iLayer) - Tfreeze)/Tfreeze
-     nodeVolFracLiqTrial(iLayer) = volFracLiq(matricHead,theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iSoil),vGn_n(iLayer),vGn_m(iLayer))
+     nodeVolFracLiqTrial(iLayer) = volFracLiq(matricHead,theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
     else
      nodeVolFracLiqTrial(iLayer) = volFracLiq(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
     endif
@@ -990,7 +986,7 @@ contains
    ! ***** soil
    case(iname_soil)
     mLayerdVolFracLiq_dPsi0 = dTheta_dPsi(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-    mLayerdVolFracLiq_dTk = dTheta_dTk(nodeTempTrial(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iSoil),vGn_n(iLayer),vGn_m(iLayer))
+    mLayerdVolFracLiq_dTk = dTheta_dTk(nodeTempTrial(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
 
     ! select option for thermal conductivity of soil
     select case(ixThCondSoil)
@@ -1002,22 +998,21 @@ contains
       lambda_wet  = lambda_wetsoil**( 1._rkind - theta_sat(iLayer) ) * lambda_water**theta_sat(iLayer) * lambda_ice**(theta_sat(iLayer) - nodeVolFracLiqTrial(iLayer))
       if( nodeTempTrial(iLayer) < Tcrit) then
        dlambda_wet_dPsi0 = 0._rkind
-       dlambda_wet_dTk = lambda_wet * LOG(lambda_ice) * (-mLayerdVolFracLiq_dTk)
+       dlambda_wet_dTk = lambda_wet * log(lambda_ice) * (-mLayerdVolFracLiq_dTk)
       else
-       dlambda_wet_dPsi0 = lambda_wet * LOG(lambda_ice) * (-mLayerdVolFracLiq_dPsi0)
+       dlambda_wet_dPsi0 = lambda_wet * log(lambda_ice) * (-mLayerdVolFracLiq_dPsi0)
        dlambda_wet_dTk = 0._rkind
       endif
       relativeSat = (nodeVolFracIceTrial(iLayer) + nodeVolFracLiqTrial(iLayer))/theta_sat(iLayer)  ! relative saturation
+      ! drelativeSat_dPsi0 = mLayerdVolFracLiq_dPsi0, and drelativeSat_dTk = 0 (so dkerstenNum_dTk = 0)
       ! compute the Kersten number (-)
       if(relativeSat > 0.1_rkind)then ! log10(0.1) = -1
        kerstenNum = log10(relativeSat) + 1._rkind
        ! these derivatives are the same frozen or unfrozen
-       dkerstenNum_dPsi0 = mLayerdVolFracLiq_dPsi0
-       !dkerstenNum_dTk = 0._rkind because drelativeSat_dTk = 0
+       dkerstenNum_dPsi0 = mLayerdVolFracLiq_dPsi0 / ( theta_sat(iLayer) * relativeSat * log(10._rkind) )
       else
        kerstenNum = 0._rkind  ! dry thermal conductivity
        dkerstenNum_dPsi0 = 0._rkind
-       !dkerstenNum_dTk = 0._rkind
       endif
       ! ...and, compute the thermal conductivity
       mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._rkind - kerstenNum)*lambda_drysoil
@@ -1028,7 +1023,7 @@ contains
 
      ! ** mixture of constituents
      case(mixConstit)
-      mLayerThermalC(iLayer) = thCond_soil(iSoil) * ( 1._rkind - theta_sat(iLayer) ) + & ! soil component
+      mLayerThermalC(iLayer) = thCond_soil(iLayer) * ( 1._rkind - theta_sat(iLayer) ) + & ! soil component
                                lambda_ice         * nodeVolFracIceTrial(iLayer)     + & ! ice component
                                lambda_water       * nodeVolFracLiqTrial(iLayer)     + & ! liquid water component
                                lambda_air         * nodeVolFracAirTrial(iLayer)         ! air component
@@ -1047,18 +1042,18 @@ contains
       fArg  = 1._rkind + f1*nodeVolFracIceTrial(iLayer)**f2
       xArg  = nodeVolFracLiqTrial(iLayer) + fArg*nodeVolFracIceTrial(iLayer)
       if( nodeTempTrial(iLayer) < Tcrit) then
-       dxArg_dPsi0 = mLayerdVolFracLiq_dPsi0 * f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2
-       dxArg_dTk = mLayerdVolFracLiq_dTk * (-f1)*(f2+1)*nodeVolFracIceTrial(iLayer)**f2
+       dxArg_dPsi0 =  mLayerdVolFracLiq_dPsi0 * (1._rkind + f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2)
+       dxArg_dTk = mLayerdVolFracLiq_dTk * (1._rkind - f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2)
       else
-       dxArg_dPsi0 = mLayerdVolFracLiq_dPsi0 * (2._rkind + f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2)
+       dxArg_dPsi0 = mLayerdVolFracLiq_dPsi0
        dxArg_dTk = 0._rkind
       endif
       ! ...and, compute the thermal conductivity
       mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
 
       ! compute derivatives
-      mLayerdThermalC_dWat(iLayer) = ( c2 + -(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dPsi0
-      mLayerdThermalC_dNrg(iLayer) = ( c2 + -(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dTk
+      mLayerdThermalC_dWat(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dPsi0
+      mLayerdThermalC_dNrg(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dTk
 
      ! ** check
      case default; err=20; message=trim(message)//'unable to identify option for thermal conductivity of soil'; return
@@ -1107,7 +1102,7 @@ contains
  ! *****
  ! * compute the thermal conductivity of snow at the interface of each layer...
  ! ****************************************************************************
- if (ixLayerDesired==0 ) then
+ if (ixLayerDesired==0) then
   ! special case of hansson
   if(ixThCondSoil==hanssonVZJ)then
    iLayerThermalC = 28._rkind*(0.5_rkind*(node_iHeight(ixLower) - node_iHeight(ixUpper))) ! these are indices 1,0 since was passed with 0:1
@@ -1137,10 +1132,10 @@ contains
   ! compute thermal conductivity
   if(TCn+TCp > epsilon(TCn))then
    iLayerThermalC = (TCn*TCp*(zdn + zdp)) / den
-   dThermalC_dHydStateBelow = ( TCn*(zdn + zdp) + iLayerThermalC*zdn ) / den * mLayerdThermalC_dWat(ixLower)
-   dThermalC_dHydStateAbove = ( TCp*(zdn + zdp) + iLayerThermalC*zdp ) / den * mLayerdThermalC_dWat(ixUpper)
-   dThermalC_dNrgStateBelow = ( TCn*(zdn + zdp) + iLayerThermalC*zdn ) / den * mLayerdThermalC_dNrg(ixLower)
-   dThermalC_dNrgStateAbove = ( TCp*(zdn + zdp) + iLayerThermalC*zdp ) / den * mLayerdThermalC_dNrg(ixUpper)
+   dThermalC_dHydStateBelow = ( TCn*(zdn + zdp) - iLayerThermalC*zdn ) / den * mLayerdThermalC_dWat(ixLower)
+   dThermalC_dHydStateAbove = ( TCp*(zdn + zdp) - iLayerThermalC*zdp ) / den * mLayerdThermalC_dWat(ixUpper)
+   dThermalC_dNrgStateBelow = ( TCn*(zdn + zdp) - iLayerThermalC*zdn ) / den * mLayerdThermalC_dNrg(ixLower)
+   dThermalC_dNrgStateAbove = ( TCp*(zdn + zdp) - iLayerThermalC*zdp ) / den * mLayerdThermalC_dNrg(ixUpper)
   else
    iLayerThermalC = (TCn*zdn +  TCp*zdp) / (zdn + zdp)
    dThermalC_dHydStateBelow = zdp / (zdn + zdp) * mLayerdThermalC_dWat(ixLower)

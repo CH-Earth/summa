@@ -170,7 +170,6 @@ contains
  real(rkind)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
  real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
  real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
- 
   ! derivative of state variables
  real(rkind)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
  real(rkind)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
@@ -188,16 +187,6 @@ contains
  ! other local variables
  character(LEN=256)              :: cmessage                     ! error message of downwind routine
  real(rkind)                        :: dt1
- real(rkind)                        :: mLayerd2Theta_dTk2(nLayers)
- real(rkind)                        :: d2VolTot_d2Psi0(nLayers)
- real(rkind)                        :: dFracLiqSnow_dTk(nLayers)
- real(rkind)                        :: d2Theta_dTkCanopy2
- real(rkind)                        :: dFracLiqVeg_dTkCanopy
- real(rkind)                        :: dVolHtCapBulk_dPsi0(nLayers)    ! derivative in bulk heat capacity w.r.t. matric potential
- real(rkind)                        :: dVolHtCapBulk_dTheta(nLayers)   ! derivative in bulk heat capacity w.r.t. volumetric water content
- real(rkind)                        :: dVolHtCapBulk_dThetaCan         ! derivative in bulk heat capacity w.r.t. volumetric water content
- real(rkind)                        :: dVolHtCapBulk_dTk(nLayers)      ! derivative in bulk heat capacity w.r.t. temperature
- real(rkind)                        :: dVolHtCapBulk_dTkCanopy         ! derivative in bulk heat capacity w.r.t. temperature
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! association to variables in the data structures
@@ -302,16 +291,6 @@ contains
                  mLayerVolFracIcePrime,                     & ! 
                  mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
                  mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
-                 mLayerd2Theta_dTk2,                        & ! intetn(out)
-                 d2VolTot_d2Psi0,                           & ! intetn(out)
-                 dFracLiqSnow_dTk,                          & ! intent(out)
-                 d2Theta_dTkCanopy2,                        & ! intent(out)
-                 dFracLiqVeg_dTkCanopy,                     & ! intent(out)
-                 dVolHtCapBulk_dPsi0,                       & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
-                 dVolHtCapBulk_dTheta,                      & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
-                 dVolHtCapBulk_dThetaCan,                   & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
-                 dVolHtCapBulk_dTk,                         & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
-                 dVolHtCapBulk_dTkCanopy,                   & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -323,7 +302,7 @@ contains
  ! --------------------------------
 
  ! compute the analytical Jacobian matrix
- ! NOTE: The derivatives were computed in the previous call to computFlux
+ ! NOTE: The derivatives were computed in the previous call to computFluxSundials
  !       This occurred either at the call to eval8DAE at the start of sysSolveSundials
  !        or in the call to eval8DAE in the previous iteration
  dt1 = 1._qp
@@ -354,17 +333,7 @@ contains
                   mLayerVolFracWatPrime,          & ! intent(in)
                   scalarCanopyTempTrial,          & ! intent(in)
                   scalarCanopyTempPrime,          & ! intent(in) derivative value for temperature of the vegetation canopy (K)
-                  scalarCanopyWatPrime,           & ! intetn(in) 
-                  mLayerd2Theta_dTk2,             & ! intent(in)
-                  d2VolTot_d2Psi0,                & ! intent(in)
-                  dFracLiqSnow_dTk,               & ! intent(in)
-                  d2Theta_dTkCanopy2,             & ! intent(in)
-                  dFracLiqVeg_dTkCanopy,          & ! intent(in)
-                  dVolHtCapBulk_dPsi0,            & ! intent(in): derivative in bulk heat capacity w.r.t. matric potential
-                  dVolHtCapBulk_dTheta,           & ! intent(in): derivative in bulk heat capacity w.r.t. volumetric water content
-                  dVolHtCapBulk_dThetaCan,        & ! intent(in): derivative in bulk heat capacity w.r.t. volumetric water content
-                  dVolHtCapBulk_dTk,              & ! intent(in): derivative in bulk heat capacity w.r.t. temperature
-                  dVolHtCapBulk_dTkCanopy,        & ! intent(in): derivative in bulk heat capacity w.r.t. temperature
+                  scalarCanopyWatPrime,           & ! intetn(in)
                   ! input-output: Jacobian and its diagonal
                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
                   Jac,                            & ! intent(out):   Jacobian matrix

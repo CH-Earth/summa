@@ -157,7 +157,7 @@ contains
  USE updateVarsSundials_module, only:updateVarsSundials           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
  USE computFlux_module, only:soilCmpresSundials            ! compute soil compression
- USE computFlux_module, only:computFlux          ! compute fluxes given a state vector
+ USE computFlux_module, only:computFluxSundials          ! compute fluxes given a state vector
  USE computHeatCap_module,only:computHeatCap      ! compute heat capacity
  USE computHeatCap_module,only:computHeatCapAnalytic      ! compute heat capacity
  USE computHeatCap_module,only:computCm
