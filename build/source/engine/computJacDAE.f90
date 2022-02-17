@@ -489,9 +489,10 @@ contains
      if(nrgstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
     if (doprint==1) print*, nrgState,watState, "snowwatenergyindices"
       ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-      aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj  &
-                                 + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) &
-                                 + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
+      aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj &
+                                + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) &
+                                + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer)) &
+                                + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
 
       ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
       aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
@@ -606,21 +607,21 @@ contains
       endif
 
       ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-      if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
-       aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj  + dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(iLayer) &
-                                - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)  ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
-      else
-       aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(iLayer)
+      aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
+                                + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
+      if(mLayerdTheta_dTk(jLayer) > verySmall) then  ! ice is present
+       aJac(nrgState,watState) = aJac(nrgState,watState) - dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj &
+                                 - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer)  ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
       endif
 
       ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
       if(iLayer>1)then
-       if(ixSoilOnlyNrg(iLayer-1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer-1),watState) = (dt/mLayerDepth(iLayer-1))*( dNrgFlux_dWatBelow(iLayer-1) )
+       if(ixSoilOnlyNrg(iLayer-1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer-1),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
       endif
 
       ! (cross-derivative terms for the layer below)
       if(iLayer<nSoil)then
-       if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dWatAbove(iLayer  ) )
+       if(ixSoilOnlyHyd(iLayer+1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(jLayer+1))*(-dNrgFlux_dWatAbove(jLayer  ) )
       endif
 
      endif   ! (if the energy state for the current layer is within the state subset)
