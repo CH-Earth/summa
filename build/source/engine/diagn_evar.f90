@@ -217,7 +217,7 @@ contains
    ! * soil
    case(iname_soil)
     mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
-                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
    ! * snow

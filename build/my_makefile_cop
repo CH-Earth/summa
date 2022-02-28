@@ -210,9 +210,9 @@ SUMMA_SOLVER= \
 		stomResist.f90 \
 		groundwatr.f90 \
 		vegSWavRad.f90 \
+		vegLiqFlux.f90 \
 		vegNrgFlux.f90 \
 		ssdNrgFlux.f90 \
-		vegLiqFlux.f90 \
 		snowLiqFlx.f90 \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \

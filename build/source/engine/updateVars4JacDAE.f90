@@ -165,7 +165,7 @@ contains
  real(rkind),intent(inout)          :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
  real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
  real(rkind),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
- 
+
  real(rkind),intent(inout)          :: mLayerTempPrime(:)
  real(rkind),intent(inout)          :: mLayerVolFracWatPrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerVolFracLiqPrime(:)        ! reza
@@ -278,14 +278,14 @@ contains
  dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy )%dat(1)  ,& ! intent(out): [dp   ] derivative in fraction of (throughfall + drainage) w.r.t. temperature
  dVolHtCapBulk_dPsi0     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0   )%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. matric potential
  dVolHtCapBulk_dTheta    => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta  )%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
- dVolHtCapBulk_dThetaCan => deriv_data%var(iLookDERIV%dVolHtCapBulk_dThetaCan)%dat(1) ,& ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dCanWat   => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)   ,& ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. volumetric water content
  dVolHtCapBulk_dTk       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk )%dat         ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. temperature
  dVolHtCapBulk_dTkCanopy => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1)  & ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. temperature
 ) ! association with variables in the data structures
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
- 
+
  ! initialize error control
  err=0; message='updateVars4JacDAE/'
 
@@ -347,7 +347,7 @@ contains
    print*, 'isCoupled      = ', isCoupled
    print*, 'isNrgState     = ', isNrgState
   endif
-  
+
 
 
   ! =======================================================================================================================================
@@ -381,7 +381,7 @@ contains
     select case( ixStateType(ixFullVector) )
      ! --> update the total water from the liquid water matric potential
      case(iname_lmpLayer)
-    
+
       effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
       avPore = theta_sat(ixControlIndex) - mLayerVolFracIceTrial(iLayer) - theta_res(ixControlIndex)  ! available pore space
       mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
@@ -392,12 +392,12 @@ contains
       !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'mLayerVolFracLiqTrial(iLayer) 1 = ', iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer), mLayerVolFracWatTrial(iLayer)
      ! --> update the total water from the total water matric potential
      case(iname_matLayer)
-     
+
       mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
       mLayerVolFracWatPrime(iLayer) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) *mLayerMatricHeadPrime(ixControlIndex)
      ! --> update the total water matric potential (assume already have mLayerVolFracWatTrial given block above)
      case(iname_liqLayer, iname_watLayer)
-     
+
       mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
      mLayerMatricHeadPrime(ixControlIndex) =  dPsi_dTheta(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) * mLayerVolFracWatPrime(iLayer)
      case default; err=20; message=trim(message)//'expect iname_lmpLayer, iname_matLayer, iname_liqLayer, or iname_watLayer'; return
@@ -410,7 +410,7 @@ contains
   ! compute the critical soil temperature below which ice exists
   select case(ixDomainType)
    case(iname_veg, iname_snow);  Tcrit = Tfreeze
-   case(iname_soil);           Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )  
+   case(iname_soil);           Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
 
@@ -428,7 +428,7 @@ contains
 
   ! get iterations (set to maximum iterations if adjusting the temperature)
   niter = merge(maxiter, 1, do_adjustTemp)
-  
+
   ! iterate
   iterations: do iter=1,niter
 
@@ -450,11 +450,11 @@ contains
    ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi
    select case(ixDomainType)
     case(iname_veg)
-     fliq = 1._rkind / ( 1._rkind + (snowfrz_scale*( Tfreeze - xTemp ))**2._rkind )
-     dVolHtCapBulk_dThetaCan = scalarCanopyLiq/canopyDepth * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )
+     fLiq = fracLiquid(xTemp,snowfrz_scale)
+     dVolHtCapBulk_dCanWat = scalarCanopyLiq/canopyDepth * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )
     case(iname_snow)
-     fliq = 1._rkind / ( 1._rkind + (snowfrz_scale*( Tfreeze - xTemp ))**2._rkind )
-     dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fliq ) * Cp_air
+     fLiq = fracLiquid(xTemp,snowfrz_scale)
+     dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
     case(iname_soil)
     select case( ixStateType(ixFullVector) )
      case(iname_lmpLayer)
@@ -478,14 +478,16 @@ contains
    if(xTemp<Tcrit)then
     select case(ixDomainType)
      case(iname_veg)
+      fLiq = fracLiquid(xTemp,snowfrz_scale)
       dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
       dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
-      d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fracliquid(xTemp,snowfrz_scale) * dFracLiq_dTk(xTemp,snowfrz_scale) - fracliquid(xTemp,snowfrz_scale)**2._rkind ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
+      d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2._rkind ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
       dVolHtCapBulk_dTkCanopy = scalarCanopyLiq/canopyDepth * (-Cp_ice + Cp_water) * dTheta_dTkCanopy !same as snow but there is no derivative in air
      case(iname_snow)
+      fLiq = fracLiquid(xTemp,snowfrz_scale)
       dFracLiqSnow_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
       mLayerdTheta_dTk(iLayer) = dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
-      mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fracliquid(xTemp,snowfrz_scale) * dFracLiq_dTk(xTemp,snowfrz_scale) - fracliquid(xTemp,snowfrz_scale)**2._rkind ) * mLayerVolFracWatTrial(iLayer)
+      mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqSnow_dTk(iLayer) - fLiq**2._rkind ) * mLayerVolFracWatTrial(iLayer)
       dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
      case(iname_soil)
       dFracLiqSnow_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
@@ -503,9 +505,9 @@ contains
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
     end select  ! domain type
    endif
-   
-   
-   
+
+
+
 
    ! -----
    ! - update volumetric fraction of liquid water and ice...
@@ -517,7 +519,7 @@ contains
 
     ! compute the fraction of snow
     select case(ixDomainType)
-     case(iname_veg);  scalarFracLiqVeg          = fracliquid(xTemp,snowfrz_scale)
+     case(iname_veg);   scalarFracLiqVeg          = fracliquid(xTemp,snowfrz_scale)
      case(iname_snow);  mLayerFracLiqSnow(iLayer) = fracliquid(xTemp,snowfrz_scale)
      case(iname_soil)  ! do nothing
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
@@ -535,7 +537,7 @@ contains
     select case(ixDomainType)
 
      ! *** vegetation canopy
-     case(iname_veg)   
+     case(iname_veg)
       ! compute volumetric fraction of liquid water and ice
       call updateVegSundials(&
                       xTemp,                                        & ! intent(in)   : temperature (K)
@@ -553,13 +555,13 @@ contains
 
      ! *** snow layers
      case(iname_snow)
-      
+
       call updateSnowSundials(&
                       xTemp,                                        & ! intent(in)   : temperature (K)
                       mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
                       snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
                       mLayerTempPrime(iLayer),                      & !
-                      mLayerVolFracWatPrime(iLayer),                & ! intent(in) 
+                      mLayerVolFracWatPrime(iLayer),                & ! intent(in)
                       mLayerVolFracLiqTrial(iLayer),                & ! intent(out)  : trial volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial(iLayer),                & ! intent(out)  : trial volumetric fraction if ice (-)
                       mLayerVolFracLiqPrime(iLayer),                & ! intent(out)
@@ -582,7 +584,7 @@ contains
                       vGn_n(ixControlIndex),                             &
                       theta_sat(ixControlIndex),                         &
                       theta_res(ixControlIndex),                         &
-                      vGn_m(ixControlIndex),                             & 
+                      vGn_m(ixControlIndex),                             &
                       mLayerVolFracWatTrial(iLayer),                     & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
                       mLayerVolFracLiqTrial(iLayer),                     & ! intent(out)  : trial volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial(iLayer),                     & ! intent(out)  : trial volumetric fraction if ice (-)

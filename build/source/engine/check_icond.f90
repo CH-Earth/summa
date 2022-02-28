@@ -122,7 +122,6 @@ contains
  ! ensure the initial conditions are consistent with the constitutive functions
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
-   !progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat = 282.0
 
    ! associate local variables with variables in the data structures
    associate(&

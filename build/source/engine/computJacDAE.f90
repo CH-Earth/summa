@@ -224,19 +224,19 @@ contains
  dCanopyNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy flux w.r.t. canopy air temperature
  dCanopyNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy flux w.r.t. canopy temperature
  dCanopyNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dCanopyNetFlux_dGroundTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy flux w.r.t. ground temperature
- dCanopyNetFlux_dCanLiq       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanLiq      )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy fluxes w.r.t. canopy liquid water content
+ dCanopyNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dCanopyNetFlux_dCanLiq      )%dat(1)  ,& ! intent(in): [dp]     derivative in net canopy fluxes w.r.t. canopy total water content
  dGroundNetFlux_dCanairTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanairTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground flux w.r.t. canopy air temperature
  dGroundNetFlux_dCanopyTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanopyTemp  )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground flux w.r.t. canopy temperature
- dGroundNetFlux_dCanLiq       => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanLiq      )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground fluxes w.r.t. canopy liquid water content
+ dGroundNetFlux_dCanWat       => deriv_data%var(iLookDERIV%dGroundNetFlux_dCanLiq      )%dat(1)  ,& ! intent(in): [dp]     derivative in net ground fluxes w.r.t. canopy total water content
  ! derivatives in evaporative fluxes w.r.t. relevant state variables
  dCanopyEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTCanair )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy air temperature
  dCanopyEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTCanopy )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy temperature
  dCanopyEvaporation_dTGround  => deriv_data%var(iLookDERIV%dCanopyEvaporation_dTGround )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. ground temperature
- dCanopyEvaporation_dCanLiq   => deriv_data%var(iLookDERIV%dCanopyEvaporation_dCanLiq  )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy liquid water content
+ dCanopyEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dCanopyEvaporation_dCanLiq  )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy evaporation w.r.t. canopy total water content
  dGroundEvaporation_dTCanair  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanair )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy air temperature
  dGroundEvaporation_dTCanopy  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTCanopy )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy temperature
  dGroundEvaporation_dTGround  => deriv_data%var(iLookDERIV%dGroundEvaporation_dTGround )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. ground temperature
- dGroundEvaporation_dCanLiq   => deriv_data%var(iLookDERIV%dGroundEvaporation_dCanLiq  )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy liquid water content
+ dGroundEvaporation_dCanWat   => deriv_data%var(iLookDERIV%dGroundEvaporation_dCanLiq  )%dat(1)  ,& ! intent(in): [dp]     derivative in ground evaporation w.r.t. canopy total water content
  ! derivatives in canopy water w.r.t canopy temperature
  dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative in canopy liquid storage w.r.t. temperature
  dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy            )%dat(1)  ,& ! intent(in): [dp]     derivative in volumetric liquid water content w.r.t. temperature
@@ -270,7 +270,7 @@ contains
  ! derivate in bulk heat capacity w.r.t. relevant state variables
  dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0         )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
  dVolHtCapBulk_dTheta         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta        )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
- dVolHtCapBulk_dThetaCan      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dThetaCan     )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat       )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
  dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
  dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. temperature
  ! diagnostic variables
@@ -304,8 +304,7 @@ contains
  ! compute terms in the Jacobian for vegetation (excluding fluxes)
  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
  if(ixVegNrg/=integerMissing)then
-      dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj  &
-                                                 + dVolHtCapBulk_dTkCanopy &
+      dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj + dVolHtCapBulk_dTkCanopy &
                                                  + LH_fus*iden_water  *  scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
                                                  + LH_fus *  dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth    ! volumetric heat capacity of the vegetation (J m-3 K-1)
  end if
@@ -314,11 +313,9 @@ contains
  ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
  do iLayer=1,nLayers
   if(ixSnowSoilNrg(iLayer)/=integerMissing) then
-      dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
-                                        + dVolHtCapBulk_dTk(iLayer) &
+      dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj + dVolHtCapBulk_dTk(iLayer) &
                                      	+ LH_fus*iden_water  *  mLayerTempPrime(iLayer) * mLayerd2Theta_dTk2(iLayer) &
                                      	+ LH_fus*iden_water *  dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
-
   end if
  end do
 
@@ -363,9 +360,10 @@ contains
    ! * energy and liquid fluxes over vegetation...
    ! ---------------------------------------------
    if(computeVegFlux)then  ! (derivatives only defined when vegetation protrudes over the surface)
+    if (doprint==1) print*, ixCasNrg,ixVegNrg,ixVegHyd, ixTopNrg,ixTopHyd, "watvegindices"
 
     ! * liquid water fluxes for vegetation canopy (-)
-    if(ixVegHyd/=integerMissing) aJac(ixVegHyd,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanLiq - scalarCanopyLiqDeriv)*dt + 1._rkind * cj
+    if(ixVegHyd/=integerMissing) aJac(ixVegHyd,ixVegHyd) = -scalarFracLiqVeg*(dCanopyEvaporation_dCanWat - scalarCanopyLiqDeriv)*dt + 1._rkind * cj
     ! * cross-derivative terms for canopy water
     if(ixVegHyd/=integerMissing)then
      ! cross-derivative terms w.r.t. system temperatures (kg m-2 K-1)
@@ -376,11 +374,10 @@ contains
      if(ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(1))*(-scalarSoilControl*scalarFracLiqVeg*scalarCanopyLiqDeriv)/iden_water
      ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
-     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (dt/canopyDepth)*(-dCanopyNetFlux_dCanLiq) + cj * (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth &
-                                                           + dVolHtCapBulk_dThetaCan * scalarCanopyTempPrime &
+     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth * cj &
+                                                           + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
                                                            + LH_fus * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy / canopyDepth ! dF/dLiq
-     !if(ixCasNrg/=integerMissing) aJac(ixCasNrg,ixVegHyd) = (dt/canopyDepth)*(-dCanAirNetFlux_dCanLiq) !doesn't exist
-     if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanLiq)
+     if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanWat)
     endif
 
     ! cross-derivative terms w.r.t. canopy temperature (K-1)
@@ -581,7 +578,6 @@ contains
 
      ! only compute derivatives if the energy state for the current layer is within the state subset
      if(nrgstate/=integerMissing)then
-    if (doprint==1) print*, ixVegHyd,ixCasNrg,ixVegNrg, ixTopNrg,watState,nrgState, "watvegindices"
 
       ! - include derivates in liquid water fluxes w.r.t. temperature for current layer
       aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
@@ -599,7 +595,7 @@ contains
       ! - include derivatives of energy w.r.t. ground evaporation
       if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
        if(computeVegFlux)then
-        aJac(watState,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanLiq/iden_water)  ! dVol/dLiq (kg m-2)-1
+        aJac(watState,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  ! dVol/dLiq (kg m-2)-1
         aJac(watState,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
         aJac(watState,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
        endif

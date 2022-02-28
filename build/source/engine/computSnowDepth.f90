@@ -40,7 +40,7 @@ real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive const
 contains
 
  ! ************************************************************************************************
- ! public subroutine coupled_em: run the coupled energy-mass model for one timestep
+ ! public subroutine computSnowDepth: compute snow depth for one sub timestep
  ! ************************************************************************************************
  subroutine computSnowDepth(&
  							dt_sub,					&
@@ -55,7 +55,7 @@ contains
  					   		mLayerDepth,			& ! intent(inout)
                        		! error control
                        		err,message)         ! intent(out):   error control
-                       		
+
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
 
  implicit none
@@ -70,7 +70,7 @@ contains
   real(rkind),intent(inout)			   :: mLayerDepth(:)
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
- 
+
  ! local variables
  character(len=256)                   :: cmessage               ! error message
  integer(i4b)                         :: iSnow                  ! index of snow layers
@@ -91,7 +91,7 @@ contains
    ! NOTE: assume constant density
    mLayerDepth(iSnow) = mLayerDepth(iSnow) + dt_sub*scalarSnowSublimation/(mLayerVolFracIce(iSnow)*iden_ice)
 
-   ! update the volumetric fraction of liquid water   
+   ! update the volumetric fraction of liquid water
    mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)
 
   ! no snow
@@ -104,7 +104,7 @@ contains
    end if
 
   end if  ! (if snow layers exist)
-  
+
 
   ! *** account for compaction and cavitation in the snowpack...
   ! ------------------------------------------------------------
@@ -130,10 +130,10 @@ contains
                    err,cmessage)                     ! intent(out): error control
    if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
   end if  ! if snow layers exist
-  
-  
+
+
  end subroutine computSnowDepth
-  
-  
+
+
 end module computSnowDepth_module
 

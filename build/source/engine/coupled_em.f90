@@ -193,6 +193,9 @@ contains
  real(rkind)                             :: exposedVAI             ! exposed vegetation area index
  real(rkind)                             :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
  real(rkind)                             :: dCanopyWetFraction_dT   ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
+ real(rkind)                             :: throughfallDeriv           ! derivative in snow throughfall flux w.r.t. canopy storage (s-1)
+ real(rkind)                             :: unloadingDeriv             ! derivative in snow unloading flux w.r.t. canopy storage (s-1)
+ real(rkind)                             :: unload_TkDeriv             ! derivative in unloading of snow w.r.t. canopy air temperature (K-1)
  real(rkind),parameter                   :: varNotUsed1=-9999._rkind  ! variables used to calculate derivatives (not needed here)
  real(rkind),parameter                   :: varNotUsed2=-9999._rkind  ! variables used to calculate derivatives (not needed here)
  integer(i4b)                         :: iSnow                  ! index of snow layers
@@ -514,14 +517,22 @@ contains
                  data_step,                   & ! intent(in): time step (seconds)
                  exposedVAI,                  & ! intent(in): exposed vegetation area index (m2 m-2)
                  computeVegFlux,              & ! intent(in): flag to denote if computing energy flux over vegetation
+                 prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),                  & ! intent(inout): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                 prog_data%var(iLookPROG%scalarCanairTemp)%dat(1),                 & ! intent(in): temperature of the canopy air space (k)
+                 flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),                   & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
+                 flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),          & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
+                 flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),           & ! intent(in): [dp] windspeed at the top of the canopy (m s-1)
                  ! input/output: data structures
                  model_decisions,             & ! intent(in):    model decisions
                  forc_data,                   & ! intent(in):    model forcing data
                  mpar_data,                   & ! intent(in):    model parameters
                  diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
-                 prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                 flux_data,                   & ! intent(inout): model flux variables
-                 ! output: error control
+                 ! output
+                 flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),            & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                 flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1),        & ! intent(out): unloading of snow from the vegetion canopy (kg m-2 s-1)
+                 throughfallDeriv,            & ! intent(out): derivative in throughfall w.r.t. canopy ice (s-1)
+                 unloadingDeriv,              & ! intent(out): derivative in unloading of snow w.r.t. canopy ice (s-1)
+                 unload_TkDeriv,              & ! intent(out): derivative in unloading of snow w.r.t. canopy air temperature (K-1)
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 

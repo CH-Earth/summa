@@ -34,8 +34,8 @@ USE data_types,only:&
 USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
 
 ! named variables defining elements in the data structures
-USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG,iLookPROG,iLookFLUX ! named variables for structure elements
-USE var_lookup,only:iLookDECISIONS                                      ! named variables for elements of the decision structure
+USE var_lookup,only:iLookFORCE,iLookPARAM,iLookDIAG  ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS                   ! named variables for elements of the decision structure
 
 ! model decisions
 USE mDecisions_module,only:           &
@@ -57,33 +57,49 @@ contains
  ! ************************************************************************************************
  subroutine canopySnow(&
                        ! input: model control
-                       dt,                          & ! intent(in): time step (seconds)
-                       exposedVAI,                  & ! intent(in): exposed vegetation area index (m2 m-2)
-                       computeVegFlux,              & ! intent(in): flag to denote if computing energy flux over vegetation
+                       dt,                             & ! intent(in): time step (seconds)
+                       exposedVAI,                     & ! intent(in): exposed vegetation area index (m2 m-2)
+                       computeVegFlux,                 & ! intent(in): flag to denote if computing energy flux over vegetation
+                       scalarCanopyIceTrial,           & ! intent(inout): trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+                       scalarCanairTempTrial,          & ! intent(in): temperature of the canopy air space (k)
+                       scalarSnowfall,                 & ! intent(in): computed snowfall rate (kg m-2 s-1)
+                       scalarCanopyLiqDrainage,        & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
+                       scalarWindspdCanopyTop,         & ! intent(in): windspeed at the top of the canopy (m s-1)
                        ! input/output: data structures
-                       model_decisions,             & ! intent(in):    model decisions
-                       forc_data,                   & ! intent(in):    model forcing data
-                       mpar_data,                   & ! intent(in):    model parameters
-                       diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
-                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                       flux_data,                   & ! intent(inout): model flux variables
-                       ! output: error control
-                       err,message)                   ! intent(out): error control
+                       model_decisions,                & ! intent(in):    model decisions
+                       forc_data,                      & ! intent(in):    model forcing data
+                       mpar_data,                      & ! intent(in):    model parameters
+                       diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
+                       ! output
+                       scalarThroughfallSnow,          & ! intent(out): snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+                       scalarCanopySnowUnloading,      & ! intent(out): unloading of snow from the vegetion canopy (kg m-2 s-1)
+                       scalarThroughfallSnowDeriv,     & ! intent(out): derivative in throughfall w.r.t. canopy ice (s-1)
+                       scalarCanopySnowUnloadingDeriv, & ! intent(out): derivative in unloading of snow w.r.t. canopy ice (s-1)
+                       scalarCanopySnowUnload_TkDeriv, & ! intent(out): derivative in unloading of snow w.r.t. canopy air temperature (K-1)
+                       err,message)                      ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: model control
  real(rkind),intent(in)             :: dt                  ! time step (seconds)
  real(rkind),intent(in)             :: exposedVAI          ! exposed vegetation area index -- leaf + stem -- after burial by snow (m2 m-2)
- logical(lgt),intent(in)         :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ logical(lgt),intent(in)            :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ real(rkind),intent(inout)          :: scalarCanopyIceTrial    ! trial mass of ice on the vegetation canopy at the current iteration (kg m-2)
+ real(rkind),intent(in)             :: scalarCanairTempTrial   ! trial temperature of the canopy air space (k)
+ real(rkind),intent(in)             :: scalarSnowfall          ! computed snowfall rate (kg m-2 s-1)
+ real(rkind),intent(in)             :: scalarCanopyLiqDrainage ! liquid drainage from the vegetation canopy (kg m-2 s-1)
+ real(rkind),intent(in)             :: scalarWindspdCanopyTop  ! windspeed at the top of the canopy (m s-1)
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
  type(var_d),intent(in)          :: forc_data           ! model forcing data
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_dlength),intent(in)    :: diag_data           ! model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data           ! model flux variables
- ! output: error control
+ ! output
+ real(rkind),intent(out)            :: scalarThroughfallSnow        ! snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+ real(rkind),intent(out)            :: scalarCanopySnowUnloading      ! unloading of snow from the vegetion canopy (kg m-2 s-1)
+ real(rkind),intent(out)            :: scalarThroughfallSnowDeriv           ! derivative in throughfall flux w.r.t. canopy storage (s-1)
+ real(rkind),intent(out)            :: scalarCanopySnowUnloadingDeriv       ! derivative in unloading flux w.r.t. canopy storage (s-1)
+ real(rkind),intent(out)            :: scalarCanopySnowUnload_TkDeriv       ! derivative in unloading flux w.r.t. canopy air temperature (K-1)
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! local variables
@@ -95,8 +111,6 @@ contains
  real(rkind)                      :: leafScaleFactor            ! scaling factor for interception based on temperature (-)
  real(rkind)                      :: leafInterceptCapSnow       ! storage capacity for snow per unit leaf area (kg m-2)
  real(rkind)                      :: canopyIceScaleFactor       ! capacity scaling factor for throughfall (kg m-2)
- real(rkind)                      :: throughfallDeriv           ! derivative in throughfall flux w.r.t. canopy storage (s-1)
- real(rkind)                      :: unloadingDeriv             ! derivative in unloading flux w.r.t. canopy storage (s-1)
  real(rkind)                      :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
  real(rkind)                      :: flux                       ! net flux (kg m-2 s-1)
  real(rkind)                      :: delS                       ! change in storage (kg m-2)
@@ -128,19 +142,7 @@ contains
  rateWindUnloading         => mpar_data%var(iLookPARAM%rateWindUnloading)%dat(1),          & ! constant describing how quickly snow will unload due to wind in windySnow parameterization (K s)
 
  ! model diagnostic variables
- scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in): [dp] density of new snow (kg m-3)
-
- ! model prognostic variables (input/output)
- scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
-
- ! model fluxes (input)
- scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1),            & ! intent(in): [dp] temperature of the canopy air space (k)
- scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in): [dp] computed snowfall rate (kg m-2 s-1)
- scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in): [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
- scalarWindspdCanopyTop    => flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),      & ! intent(in): [dp] windspeed at the top of the canopy (m s-1)
- ! model variables (output)
- scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),       & ! intent(out): [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
- scalarCanopySnowUnloading => flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)    & ! intent(out): [dp] unloading of snow from the vegetion canopy (kg m-2 s-1)
+ scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1)         & ! intent(in): [dp] density of new snow (kg m-3)
 
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -149,31 +151,32 @@ contains
  ! *************************************
 
  if(computeVegFlux)then
-  unloading_melt = min(ratioDrip2Unloading*scalarCanopyLiqDrainage, scalarCanopyIce/dt)  ! kg m-2 s-1
+  unloading_melt = min(ratioDrip2Unloading*scalarCanopyLiqDrainage, scalarCanopyIceTrial/dt)  ! kg m-2 s-1
  else
   unloading_melt = 0._rkind
  end if
- scalarCanopyIce = scalarCanopyIce - unloading_melt*dt
+ scalarCanopyIceTrial = scalarCanopyIceTrial - unloading_melt*dt
 
  ! *****
  ! compute the ice balance due to snowfall and unloading...
  ! ********************************************************
  ! check for early returns
- if(.not.computeVegFlux .or. (scalarSnowfall<tiny(dt) .and. scalarCanopyIce<tiny(dt)))then
+ if(.not.computeVegFlux .or. (scalarSnowfall<tiny(dt) .and. scalarCanopyIceTrial<tiny(dt)))then
   scalarThroughfallSnow     = scalarSnowfall    ! throughfall of snow through the canopy (kg m-2 s-1)
   scalarCanopySnowUnloading = unloading_melt    ! unloading of snow from the canopy (kg m-2 s-1)
   return
  end if
 
  ! get a trial value for canopy storage
- scalarCanopyIceIter = scalarCanopyIce
+ scalarCanopyIceIter = scalarCanopyIceTrial
  do iter=1,maxiter
      ! ** compute unloading
      if (ixSnowUnload==meltDripUnload) then
          scalarCanopySnowUnloading = snowUnloadingCoeff*scalarCanopyIceIter
-         unloadingDeriv            = snowUnloadingCoeff
+         scalarCanopySnowUnloadingDeriv     = snowUnloadingCoeff
+         scalarCanopySnowUnload_TkDeriv = 0._rkind
      else if (ixSnowUnload==windUnload) then
-         tempUnloadingFun = max(scalarCanairTemp - minTempUnloading, 0._rkind) / rateTempUnloading   ! (s-1)
+         tempUnloadingFun = max(scalarCanairTempTrial - minTempUnloading, 0._rkind) / rateTempUnloading   ! (s-1)
          if (scalarWindspdCanopyTop >= minWindUnloading) then
             windUnloadingFun = abs(scalarWindspdCanopyTop) / rateWindUnloading     ! (s-1)
          else
@@ -181,13 +184,18 @@ contains
          end if
          ! implement the "windySnow"  Roesch et al. 2001 parameterization, Eq. 13 in Roesch et al. 2001
          scalarCanopySnowUnloading = scalarCanopyIceIter * (tempUnloadingFun + windUnloadingFun)
-         unloadingDeriv            = tempUnloadingFun + windUnloadingFun
+         scalarCanopySnowUnloadingDeriv = tempUnloadingFun + windUnloadingFun
+         if (tempUnloadingFun > 0._rkind)then
+          scalarCanopySnowUnload_TkDeriv = scalarCanopyIceIter/ rateTempUnloading
+         else
+          scalarCanopySnowUnload_TkDeriv = 0._rkind
+         end if
      end if
      ! no snowfall
      if(scalarSnowfall<tiny(dt))then ! no snow
          scalarThroughfallSnow = scalarSnowfall  ! throughfall (kg m-2 s-1)
          canopyIceScaleFactor  = valueMissing    ! not used
-         throughfallDeriv      = 0._rkind
+         scalarThroughfallSnowDeriv      = 0._rkind
      else
          ! ** process different options for maximum branch snow interception
          select case(ixSnowInterception)
@@ -215,13 +223,13 @@ contains
          canopyIceScaleFactor = leafInterceptCapSnow*exposedVAI
          ! (compute throughfall)
          scalarThroughfallSnow = scalarSnowfall*(scalarCanopyIceIter/canopyIceScaleFactor)
-         throughfallDeriv      = scalarSnowfall/canopyIceScaleFactor
+         scalarThroughfallSnowDeriv = scalarSnowfall/canopyIceScaleFactor
      end if  ! (if snow is falling)
      ! ** compute iteration increment
      flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
-     delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._rkind + (throughfallDeriv + unloadingDeriv)*dt)
+     delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIceTrial))/(1._rkind + (scalarThroughfallSnowDeriv + scalarCanopySnowUnloadingDeriv)*dt)
      ! ** check for convergence
-     resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)
+     resMass = scalarCanopyIceIter - (scalarCanopyIceTrial + flux*dt)
      if(abs(resMass) < convTolerMass)exit
      ! ** check for non-convengence
      if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; end if
@@ -234,7 +242,7 @@ contains
 
  ! *****
  ! update mass of ice on the canopy (kg m-2)
- scalarCanopyIce = scalarCanopyIceIter
+ scalarCanopyIceTrial = scalarCanopyIceIter
  ! end association to variables in the data structure
  end associate
 

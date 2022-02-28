@@ -34,7 +34,7 @@ USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure element
 USE globalData,only:model_decisions      ! model decision structure
 USE var_lookup,only:iLookDECISIONS       ! named variables for elements of the decision structure
 
-! decisions on canopy interception parameterization 
+! decisions on canopy interception parameterization
 USE mDecisions_module,only:         &
                       unDefined,    & ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
                       sparseCanopy, & ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
