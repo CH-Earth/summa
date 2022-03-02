@@ -13,3 +13,4 @@ This page provides simple, high-level documentation about what has changed in ea
 - Adds tolerance to balance check in updatState.f90
 - Changes all float data types to `rk`, for "real kind", which is intended to
   make it easier to switch from double to single precision.
+- Changed part "(a,1x,i0)" to "(a,1x,i0,a,f5.3,a,f5.3)" in check_icond.f90 line 277 to print out error correctly.
