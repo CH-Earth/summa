@@ -207,7 +207,7 @@ contains
  
 
  ! ******************************************************************************************************************************
- ! public function dTheta_dTk: differentiate the freezing curve w.r.t. temperature
+ ! public function d2Theta_dTk2: differentiate the freezing curve w.r.t. temperature
  ! ******************************************************************************************************************************
  function d2Theta_dTk2(Tk,theta_res,theta_sat,alpha,n,m)
  implicit none

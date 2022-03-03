@@ -460,16 +460,16 @@ contains
      case(iname_lmpLayer)
       dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
       d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-      ! dVolHtCapBulk_dPsi0 uses the derivative in water retention curve above critical temp w.r.t. matric head
-      dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_ice * Cp_ice - iden_air * Cp_air) *&
-                                            dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
      case default
       dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
       d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
                                         vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-      ! dVolHtCapBulk_dPsi0 uses the derivative in water retention curve above critical temp w.r.t. matric head, here it is dVolTot_dPsi0
-      dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_water * Cp_water - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
     end select
+
+    ! dVolHtCapBulk_dPsi0 uses the derivative in water retention curve above critical temp w.r.t.state variable dVolTot_dPsi0
+    if(xTemp< Tcrit) dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_ice * Cp_ice     - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
+    if(xTemp>=Tcrit) dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_water * Cp_water - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
+
    end select
 
    ! compute the derivative in liquid water content w.r.t. temperature

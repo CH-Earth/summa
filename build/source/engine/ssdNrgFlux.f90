@@ -445,6 +445,7 @@ contains
   ixDerivMethod           => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision,      & ! intent(in): method used to calculate flux derivatives
   ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,      & ! intent(in): method used to calculate the upper boundary condition for thermodynamics
   ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision,      & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
+  ixRichards                 => model_decisions(iLookDECISIONS%f_Richards)%iDecision,   & ! intent(in): index of the form of Richards' equation
   ixThCondSnow            => model_decisions(iLookDECISIONS%thCondSnow)%iDecision,      & ! intent(in): choice of method for thermal conductivity of snow
   ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in): choice of method for thermal conductivity of soil
   ! input: model coordinates
@@ -664,6 +665,7 @@ contains
    call iLayerThermalConduct(&
                        ! input: model control
                        valueMissing,                         & ! intent(in):    missing value
+                       ixRichards,                         & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                        ixThCondSnow,                        & ! intent(in): choice of method for thermal conductivity of snow
                        ixThCondSoil,                        & ! intent(in): choice of method for thermal conductivity of soil
                        ! input: coordinate variables
@@ -824,6 +826,7 @@ contains
  subroutine iLayerThermalConduct(&
                        ! input: model control
                        valueMissing,              & ! intent(in):    missing value
+                       ixRichards,                & ! intent(in):    choice of option for Richards' equation
                        ixThCondSnow,              & ! intent(in): choice of method for thermal conductivity of snow
                        ixThCondSoil,              & ! intent(in): choice of method for thermal conductivity of soil
                        ! input: coordinate variables
@@ -832,7 +835,7 @@ contains
                        nSnow,                     & ! intent(in): number of snow layers
                        layerType,                 & ! intent(in): layer type (iname_soil or iname_snow)
                        ! input: state variables (adjacent layers)
-                       nodeMatricHeadTrial,       & ! intent(in): matric head at the nodes (m)
+                       nodeMatricHeadTrial0,       & ! intent(in): matric head at the nodes (m)
                        nodeVolFracLiqTrial0,      & ! intent(inout): volumetric liquid water content at the nodes (m)
                        nodeTempTrial,             & ! intent(in): temperature at the nodes (m)
                        ! input: model coordinate variables (adjacent layers)
@@ -841,7 +844,7 @@ contains
                        ! input: soil parameters at nodes
                        vGn_alpha,                 & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                     & ! intent(in): van Genutchen "n" parameter (-)
-                       VGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
+                       vGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
                        theta_sat,                 & ! intent(in): soil porosity (-)
                        theta_res,                 & ! intent(in): soil residual volumetric water content (-)
                        iden_soil,                 & !intrinsic density of soil (kg m-3)
@@ -869,15 +872,18 @@ contains
  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
  USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water characteristic (soil)
  USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
+ USE soil_utils_module,only:matricHead                ! compute the matric head based on volumetric water content
  ! constants
  USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
                       Tfreeze, &                          ! freezing point of water (K)
                       iden_water,iden_ice,&      ! intrinsic density of water and ice (kg m-3)
                       LH_fus                              ! latent heat of fusion (J kg-1)
+
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  real(rkind),intent(in)           :: valueMissing              ! intent(in): missing value
+ integer(i4b),intent(in)          :: ixRichards                 ! choice of option for Richards' equation
  integer(i4b),intent(in)          :: ixThCondSnow              ! intent(in): choice of method for thermal conductivity of snow
  integer(i4b),intent(in)          :: ixThCondSoil              ! intent(in): choice of method for thermal conductivity of soil
  ! input: coordinate variables
@@ -886,7 +892,7 @@ contains
  integer(i4b),intent(in)          :: nSnow                     ! intent(in): number of snow layers
  integer(i4b),intent(in)          :: layerType(:)              ! intent(in): layer type (iname_soil or iname_snow)
  ! input: state variables
- real(rkind),intent(in)           :: nodeMatricHeadTrial(:)    ! trial vector of total water matric potential (m)
+ real(rkind),intent(in)           :: nodeMatricHeadTrial0(:)   ! trial vector of total water matric potential (m)
  real(rkind),intent(in)           :: nodeVolFracLiqTrial0(:)   ! trial vector of volumetric liquid water content, recomputed with perturbed water state(-)
  real(rkind),intent(in)           :: nodeTempTrial(:)          ! trial vector of temperature (K)
  ! input: model coordinate variables
@@ -922,7 +928,7 @@ contains
  integer(i4b),parameter        :: ixLower=2                   ! index of lower node in the 2-element vectors
  character(LEN=256)                :: cmessage               ! error message of downwind routine
  integer(i4b)                      :: iLayer                 ! index of model layer
- real(rkind)                          :: matricHead             ! matric head for frozen soil
+ real(rkind)                          :: matricFHead             ! matric head for frozen soil
  real(rkind)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
  real(rkind)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
  real(rkind)                          :: zdn                    ! height difference between interface and lower value (m)
@@ -938,17 +944,18 @@ contains
  real(rkind)                          :: mLayerdThermalC_dNrg(2)   ! derivative in thermal conductivity w.r.t. temperature
  real(rkind)                          :: Tcrit                  ! temperature where all water is unfrozen (K)
  real(rkind)                          :: fLiq                   ! fraction of liquid water (-)
- real(rkind)                          :: dlambda_wet_dPsi0      ! derivative in thermal conductivity of wet material w.r.t. matric head
+ real(rkind)                          :: dlambda_wet_dWat      ! derivative in thermal conductivity of wet material w.r.t.soil water state variable
  real(rkind)                          :: dlambda_wet_dTk        ! derivative in thermal conductivity of wet material w.r.t. temperature
- real(rkind)                          :: dkerstenNum_dPsi0      ! derivative in Kersten number w.r.t. matric head
+ real(rkind)                          :: dkerstenNum_dWat      ! derivative in Kersten number w.r.t. soil water state variable
+ real(rkind)                          :: nodeMatricHeadTrial(2)    ! trial vector of matric head, recomputed from input if perturbed water state (-)
  real(rkind)                          :: nodeVolTotWatTrial(2)     ! trial vector of volumetric total water content (-)
  real(rkind)                          :: nodeVolFracLiqTrial(2)    ! trial vector of volumetric liquid water content, recomputed from input if perturbed water state (-)
  real(rkind)                          :: nodeVolFracIceTrial(2)    ! trial vector of volumetric ice water content (-)
  real(rkind)                          :: nodeVolFracAirTrial(2)    ! trial vector of volumetric air water content (-)
  real(rkind)                          :: mLayerThermalC(2)         ! thermal conductivity of each layer (W m-1 K-1)
- real(rkind)                          :: mLayerdVolFracLiq_dPsi0   ! derivative in water retention curve above critical temp w.r.t. matric head
- real(rkind)                          :: mLayerdVolFracLiq_dTk     ! derivative in water retention curve below critical temp w.r.t. temperature
- real(rkind)                          :: mLayerdVolFracIce_dTheta  ! derivative in vol fraction of ice w.r.t. volumetric liquid water
+ real(rkind)                          :: mLayerdVolFracLiq_dWat    ! derivative in vol fraction of liquid w.r.t. water state variable
+ real(rkind)                          :: mLayerdVolFracIce_dWat    ! derivative in vol fraction of ice w.r.t. water state variable
+ real(rkind)                          :: mLayerdVolFracLiq_dTk     ! derivative in vol fraction of liquid w.r.t. temperature
  real(rkind)                          :: mLayerdVolFracIce_dTk     ! derivative in vol fraction of ice w.r.t. temperature
 ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
  real(rkind),parameter                :: c1=0.55_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
@@ -959,7 +966,7 @@ contains
  real(rkind),parameter                :: f1=13.05_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(rkind),parameter                :: f2=1.06_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
  real(rkind)                          :: fArg,xArg                 ! temporary variables (see Hansson et al. VZJ 2005 for details)
- real(rkind)                          :: dxArg_dPsi0,dxArg_dTk     ! derivates of the temporary variables with respect to matric head and temperature
+ real(rkind)                          :: dxArg_dWat,dxArg_dTk     ! derivates of the temporary variables with respect to soil water state variable and temperature
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -982,13 +989,28 @@ contains
   select case(layerType(iLayer))
    case(iname_soil)
     Tcrit = crit_soilT(nodeMatricHeadTrial(iLayer) )
-    ! do we also need to consider ixRichards form? FIX
-    if( nodeTempTrial(iLayer) < Tcrit) then !if do not perturb temperature, this should not change, but nodeMatricHeadTrial will have changed
-     matricHead = (LH_fus/gravity)*(nodeTempTrial(iLayer) - Tfreeze)/Tfreeze
-     nodeVolFracLiqTrial(iLayer) = volFracLiq(matricHead,theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-    else
-     nodeVolFracLiqTrial(iLayer) = volFracLiq(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-    endif
+    ! is ixRichards form right? FIX
+    select case(ixRichards)  ! (form of Richards' equation)
+     case(moisture)
+      nodeVolFracLiqTrial(iLayer) = nodeVolFracLiqTrial0(iLayer)
+      if( nodeTempTrial(iLayer) < Tcrit) then !if do not perturb temperature, this should not change, but nodeMatricHeadTrial will have changed
+       matricFHead = (LH_fus/gravity)*(nodeTempTrial(iLayer) - Tfreeze)/Tfreeze
+       ! if you change the temp below the critical temp, then liquid changes, shouldn't happen?
+       nodeVolFracLiqTrial(iLayer) = volFracLiq(matricFHead,theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+       ! if you change the liquid amounts and are below the critical temp, then temp changes, howww, shouldn't happen
+       nodeMatricHeadTrial(iLayer) = matricHead(nodeVolFracLiqTrial(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      else
+       nodeMatricHeadTrial(iLayer) = matricHead(nodeVolFracLiqTrial0(iLayer),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+      endif
+     case(mixdform)
+      nodeMatricHeadTrial(iLayer) = nodeMatricHeadTrial0(iLayer)
+      if( nodeTempTrial(iLayer) < Tcrit) then !if do not perturb temperature, this should not change, but nodeMatricHeadTrial will have changed
+       matricFHead = (LH_fus/gravity)*(nodeTempTrial(iLayer) - Tfreeze)/Tfreeze
+       nodeVolFracLiqTrial(iLayer) = volFracLiq(matricFHead,theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+      else
+       nodeVolFracLiqTrial(iLayer) = volFracLiq(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+      endif
+    end select
     nodeVolFracAirTrial(iLayer) = theta_sat(iLayer) - volFracLiq(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
     nodeVolFracIceTrial(iLayer) = theta_sat(iLayer) - (nodeVolFracAirTrial(iLayer) + nodeVolFracLiqTrial(iLayer))
    case(iname_snow)
@@ -1010,8 +1032,22 @@ contains
 
    ! ***** soil
    case(iname_soil)
-    mLayerdVolFracLiq_dPsi0 = dTheta_dPsi(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-    mLayerdVolFracLiq_dTk = dTheta_dTk(nodeTempTrial(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+    select case(ixRichards)  ! (form of Richards' equation)
+     case(moisture)
+      mLayerdVolFracLiq_dWat = 1.rkind
+      mLayerdVolFracIce_dWat = dPsi_dTheta(nodeVolFracLiqTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer)) - 1.rkind
+     case(mixdform)
+      if(nodeTempTrial(iLayer) < Tcrit) then
+       mLayerdVolFracLiq_dWat = 0.0
+       mLayerdVolFracIce_dWat = dTheta_dPsi(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+      else
+       mLayerdVolFracLiq_dWat = dTheta_dPsi(nodeMatricHeadTrial(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+       mLayerdVolFracIce_dWat = 0.rkind
+      endif
+    end select
+    if(nodeTempTrial(iLayer) < Tcrit) mLayerdVolFracLiq_dTk = dTheta_dTk(nodeTempTrial(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+    if(nodeTempTrial(iLayer) >=Tcrit) mLayerdVolFracLiq_dTk = 0._rkind
+    mLayerdVolFracIce_dTk = -mLayerdVolFracLiq_dTk !often can and will simplify one of these terms out
 
     ! select option for thermal conductivity of soil
     select case(ixThCondSoil)
@@ -1021,29 +1057,24 @@ contains
 
       ! compute the thermal conductivity of the wet material (W m-1)
       lambda_wet  = lambda_wetsoil**( 1._rkind - theta_sat(iLayer) ) * lambda_water**theta_sat(iLayer) * lambda_ice**(theta_sat(iLayer) - nodeVolFracLiqTrial(iLayer))
-      if( nodeTempTrial(iLayer) < Tcrit) then
-       dlambda_wet_dPsi0 = 0._rkind
-       dlambda_wet_dTk = lambda_wet * log(lambda_ice) * (-mLayerdVolFracLiq_dTk)
-      else
-       dlambda_wet_dPsi0 = lambda_wet * log(lambda_ice) * (-mLayerdVolFracLiq_dPsi0)
-       dlambda_wet_dTk = 0._rkind
-      endif
+      dlambda_wet_dWat = -lambda_wet * log(lambda_ice) * mLayerdVolFracLiq_dWat
+      dlambda_wet_dTk  = -lambda_wet * log(lambda_ice) * mLayerdVolFracLiq_dTk
+
       relativeSat = (nodeVolFracIceTrial(iLayer) + nodeVolFracLiqTrial(iLayer))/theta_sat(iLayer)  ! relative saturation
-      ! drelativeSat_dPsi0 = mLayerdVolFracLiq_dPsi0, and drelativeSat_dTk = 0 (so dkerstenNum_dTk = 0)
+      ! drelativeSat_dWat = dPsi0_dWat, and drelativeSat_dTk = 0 (so dkerstenNum_dTk = 0)
       ! compute the Kersten number (-)
       if(relativeSat > 0.1_rkind)then ! log10(0.1) = -1
        kerstenNum = log10(relativeSat) + 1._rkind
-       ! these derivatives are the same frozen or unfrozen
-       dkerstenNum_dPsi0 = mLayerdVolFracLiq_dPsi0 / ( theta_sat(iLayer) * relativeSat * log(10._rkind) )
+       dkerstenNum_dWat = (mLayerdVolFracIce_dWat + mLayerdVolFracLiq_dWat) / ( theta_sat(iLayer) * relativeSat * log(10._rkind) )
       else
        kerstenNum = 0._rkind  ! dry thermal conductivity
-       dkerstenNum_dPsi0 = 0._rkind
+       dkerstenNum_dWat = 0._rkind
       endif
       ! ...and, compute the thermal conductivity
       mLayerThermalC(iLayer) = kerstenNum*lambda_wet + (1._rkind - kerstenNum)*lambda_drysoil
 
       ! compute derivatives
-      mLayerdThermalC_dWat(iLayer) = dkerstenNum_dPsi0 * ( lambda_wet - lambda_drysoil ) + kerstenNum*dlambda_wet_dPsi0
+      mLayerdThermalC_dWat(iLayer) = dkerstenNum_dWat * ( lambda_wet - lambda_drysoil ) + kerstenNum*dlambda_wet_dWat
       mLayerdThermalC_dNrg(iLayer) = kerstenNum*dlambda_wet_dTk
 
      ! ** mixture of constituents
@@ -1054,30 +1085,20 @@ contains
                                lambda_air         * nodeVolFracAirTrial(iLayer)         ! air component
 
       ! compute derivatives
-      if( nodeTempTrial(iLayer) < Tcrit) then
-       mLayerdThermalC_dWat(iLayer) = (lambda_ice - lambda_air) * mLayerdVolFracLiq_dPsi0
-       mLayerdThermalC_dNrg(iLayer) = (-lambda_ice + lambda_water) * mLayerdVolFracLiq_dTk
-      else
-       mLayerdThermalC_dWat(iLayer) = (lambda_water - lambda_air) * mLayerdVolFracLiq_dPsi0
-       mLayerdThermalC_dNrg(iLayer) = 0._rkind
-      endif
+      mLayerdThermalC_dWat(iLayer) = lambda_ice*mLayerdVolFracLiq_dIce + lambda_water*mLayerdVolFracLiq_dWat + lambda_air*(mLayerdVolFracIce_dWat + mLayerdVolFracLiq_dWat)
+      mLayerdThermalC_dNrg(iLayer) = (lambda_ice - lambda_water) * mLayerdVolFracIce_dTk
 
      ! ** test case for the mizoguchi lab experiment, Hansson et al. VZJ 2004
      case(hanssonVZJ)
       fArg  = 1._rkind + f1*nodeVolFracIceTrial(iLayer)**f2
       xArg  = nodeVolFracLiqTrial(iLayer) + fArg*nodeVolFracIceTrial(iLayer)
-      if( nodeTempTrial(iLayer) < Tcrit) then
-       dxArg_dPsi0 =  mLayerdVolFracLiq_dPsi0 * (1._rkind + f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2)
-       dxArg_dTk = mLayerdVolFracLiq_dTk * (1._rkind - f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2)
-      else
-       dxArg_dPsi0 = mLayerdVolFracLiq_dPsi0
-       dxArg_dTk = 0._rkind
-      endif
+      dxArg_dWat = mLayerdVolFracLiq_dWat + mLayerdVolFracIce_dWat * (1._rkind + f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2)
+      dxArg_dTk  = mLayerdVolFracIce_dTk * f1*(f2+1)*nodeVolFracIceTrial(iLayer)**f2
       ! ...and, compute the thermal conductivity
       mLayerThermalC(iLayer) = c1 + c2*xArg + (c1 - c4)*exp(-(c3*xArg)**c5)
 
       ! compute derivatives
-      mLayerdThermalC_dWat(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dPsi0
+      mLayerdThermalC_dWat(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dWat
       mLayerdThermalC_dNrg(iLayer) = ( c2 - c5*c3*(c3*xArg)**(c5-1)*(c1 - c4)*exp(-(c3*xArg)**c5) ) * dxArg_dTk
 
      ! ** check
@@ -1087,7 +1108,7 @@ contains
 
    ! ***** snow
    case(iname_snow)
-    mLayerdVolFracIce_dTheta = ( 1._rkind - fLiq )*(iden_water/iden_ice)
+    mLayerdVolFracIce_dWat = ( 1._rkind - fLiq )*(iden_water/iden_ice)
     mLayerdVolFracIce_dTk = -dFracLiq_dTk(nodeTempTrial(iLayer),snowfrz_scale) * nodeVolTotWatTrial(iLayer)*(iden_water/iden_ice)
 
     ! temporally constant thermal conductivity
@@ -1104,13 +1125,13 @@ contains
 
      select case(ixThCondSnow)
       case(Yen1965)
-       mLayerdThermalC_dWat(iLayer) = 2._rkind * 3.217d-6 * nodeVolFracIceTrial(iLayer) * iden_ice * mLayerdVolFracIce_dTheta
+       mLayerdThermalC_dWat(iLayer) = 2._rkind * 3.217d-6 * nodeVolFracIceTrial(iLayer) * iden_ice * mLayerdVolFracIce_dTWat
        mLayerdThermalC_dNrg(iLayer) = 2._rkind * 3.217d-6 * nodeVolFracIceTrial(iLayer) * iden_ice * mLayerdVolFracIce_dTk
       case(Mellor1977)
-       mLayerdThermalC_dWat(iLayer) = 2._rkind * 2.576d-6 * nodeVolFracIceTrial(iLayer) * iden_ice * mLayerdVolFracIce_dTheta
+       mLayerdThermalC_dWat(iLayer) = 2._rkind * 2.576d-6 * nodeVolFracIceTrial(iLayer) * iden_ice * mLayerdVolFracIce_dWat
        mLayerdThermalC_dNrg(iLayer) = 2._rkind * 2.576d-6 * nodeVolFracIceTrial(iLayer) * iden_ice * mLayerdVolFracIce_dTk
       case(Jordan1991)
-       mLayerdThermalC_dWat(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * nodeVolFracIceTrial(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * mLayerdVolFracIce_dTheta
+       mLayerdThermalC_dWat(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * nodeVolFracIceTrial(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * mLayerdVolFracIce_dWat
        mLayerdThermalC_dNrg(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * nodeVolFracIceTrial(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * mLayerdVolFracIce_dTk
      end select  ! option for the thermal conductivity of snow
     end if

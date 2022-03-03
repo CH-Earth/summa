@@ -400,7 +400,7 @@ contains
                   ! input: soil parameters
                   vGn_alpha(iSoil),                & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n(iSoil),                    & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m(iSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
+                  vGn_m(iSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
                   mpExp,                           & ! intent(in): empirical exponent in macropore flow equation (-)
                   theta_sat(iSoil),                & ! intent(in): soil porosity (-)
                   theta_res(iSoil),                & ! intent(in): soil residual volumetric water content (-)
@@ -505,7 +505,7 @@ contains
                   ! input: soil parameters
                   vGn_alpha(1),                       & ! intent(in): van Genutchen "alpha" parameter (m-1)
                   vGn_n(1),                           & ! intent(in): van Genutchen "n" parameter (-)
-                  VGn_m(1),                           & ! intent(in): van Genutchen "m" parameter (-)
+                  vGn_m(1),                           & ! intent(in): van Genutchen "m" parameter (-)
                   theta_sat(1),                       & ! intent(in): soil porosity (-)
                   theta_res(1),                       & ! intent(in): soil residual volumetric water content (-)
                   qSurfScale,                         & ! intent(in): scaling factor in the surface runoff parameterization (-)
@@ -784,7 +784,7 @@ contains
                    ! input: soil parameters
                    vGn_alpha(nSoil),                & ! intent(in): van Genutchen "alpha" parameter (m-1)
                    vGn_n(nSoil),                    & ! intent(in): van Genutchen "n" parameter (-)
-                   VGn_m(nSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
+                   vGn_m(nSoil),                    & ! intent(in): van Genutchen "m" parameter (-)
                    theta_sat(nSoil),                & ! intent(in): soil porosity (-)
                    theta_res(nSoil),                & ! intent(in): soil residual volumetric water content (-)
                    kAnisotropic,                    & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
@@ -856,7 +856,7 @@ contains
                        ! input: soil parameters
                        vGn_alpha,             & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                 & ! intent(in): van Genutchen "n" parameter (-)
-                       VGn_m,                 & ! intent(in): van Genutchen "m" parameter (-)
+                       vGn_m,                 & ! intent(in): van Genutchen "m" parameter (-)
                        mpExp,                 & ! intent(in): empirical exponent in macropore flow equation (-)
                        theta_sat,             & ! intent(in): soil porosity (-)
                        theta_res,             & ! intent(in): soil residual volumetric water content (-)
@@ -1111,7 +1111,7 @@ contains
                        ! input: soil parameters
                        vGn_alpha,                 & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                     & ! intent(in): van Genutchen "n" parameter (-)
-                       VGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
+                       vGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
                        theta_sat,                 & ! intent(in): soil porosity (-)
                        theta_res,                 & ! intent(in): soil residual volumetric water content (-)
                        qSurfScale,                & ! intent(in): scaling factor in the surface runoff parameterization (-)
@@ -1560,7 +1560,7 @@ contains
                        ! input: soil parameters
                        vGn_alpha,                 & ! intent(in): van Genutchen "alpha" parameter (m-1)
                        vGn_n,                     & ! intent(in): van Genutchen "n" parameter (-)
-                       VGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
+                       vGn_m,                     & ! intent(in): van Genutchen "m" parameter (-)
                        theta_sat,                 & ! intent(in): soil porosity (-)
                        theta_res,                 & ! intent(in): soil residual volumetric water content (-)
                        kAnisotropic,              & ! intent(in): anisotropy factor for lateral hydraulic conductivity (-)
