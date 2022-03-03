@@ -586,9 +586,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopyLiqDeriv            = integerMissing ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
   integer(i4b)    :: scalarThroughfallRainDeriv      = integerMissing ! derivative in throughfall w.r.t. canopy liquid water (s-1)
   integer(i4b)    :: scalarCanopyLiqDrainageDeriv    = integerMissing ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-  integer(i4b)    :: scalarThroughfallSnowDeriv      = integerMissing ! derivative in snow throughfall w.r.t. canopy ice (s-1)
-  integer(i4b)    :: scalarCanopySnowUnloadingDeriv  = integerMissing ! derivative in unloading of snow w.r.t. canopy ice (s-1)
-  integer(i4b)    :: scalarCanopySnowUnload_TkDeriv  = integerMissing ! derivative in unloading of snow w.r.t. canopy air temperature (K-1)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
   integer(i4b)    :: dNrgFlux_dTempAbove             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   integer(i4b)    :: dNrgFlux_dTempBelow             = integerMissing ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
@@ -864,7 +861,7 @@ MODULE var_lookup
                                                                          21, 22, 23, 24, 25, 26, 27, 28, 29, 30,&
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
-                                                                         51, 52, 53, 54)
+                                                                         51)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

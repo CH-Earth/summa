@@ -899,7 +899,7 @@ contains
                        ! output: error control
                        err,message)               ! intent(out):   error code and error message
  ! provide access to flux subroutines
- USE vegNrgFlux_module,only:vegNrgFluxSundials    ! compute energy fluxes over vegetation
+ USE vegNrgFlux_module,only:vegNrgFlux            ! compute energy fluxes over vegetation
  USE ssdNrgFlux_module,only:ssdNrgFluxSundials    ! compute energy fluxes throughout the snow and soil subdomains
  USE vegLiqFlux_module,only:vegLiqFlux            ! compute liquid water fluxes through vegetation
  USE snowLiqFlx_module,only:snowLiqflx            ! compute liquid water fluxes through snow
@@ -1161,7 +1161,7 @@ contains
   dCanLiq_dTcanopy = dTheta_dTkCanopy*iden_water*canopyDepth  ! kg m-2 K-1
 
   ! calculate the energy fluxes over vegetation
-  call vegNrgFluxSundials(&
+  call vegNrgFlux(&
                   ! input: model control
                   firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                   firstFluxCall,                          & ! intent(in): flag to indicate if we are processing the first flux call
@@ -1183,7 +1183,6 @@ contains
                   prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
                   diag_data,                              & ! intent(inout): model diagnostic variables for a local HRU
                   flux_data,                              & ! intent(inout): model fluxes for a local HRU
-                  deriv_data,                             & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                   bvar_data,                              & ! intent(in):    model variables for the local basin
                   model_decisions,                        & ! intent(in):    model decisions
                   ! output: liquid water fluxes associated with evaporation/transpiration

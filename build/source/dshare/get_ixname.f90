@@ -733,9 +733,6 @@ contains
   case('scalarCanopyLiqDeriv'           ); get_ixderiv = iLookDERIV%scalarCanopyLiqDeriv           ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
   case('scalarThroughfallRainDeriv'     ); get_ixderiv = iLookDERIV%scalarThroughfallRainDeriv     ! derivative in throughfall w.r.t. canopy liquid water (s-1)
   case('scalarCanopyLiqDrainageDeriv'   ); get_ixderiv = iLookDERIV%scalarCanopyLiqDrainageDeriv   ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-  case('scalarThroughfallSnowDeriv'     ); get_ixderiv = iLookDERIV%scalarThroughfallSnowDeriv     ! derivative in snow throughfall w.r.t. canopy ice (s-1)
-  case('scalarCanopySnowUnloadingDeriv' ); get_ixderiv = iLookDERIV%scalarCanopySnowUnloadingDeriv ! derivative in unloading of snow w.r.t. canopy ice (s-1)
-  case('scalarCanopySnowUnload_TkDeriv' ); get_ixderiv = iLookDERIV%scalarCanopySnowUnload_TkDeriv ! derivative in unloading of snow w.r.t. canopy air temperature
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
   case('dNrgFlux_dTempAbove'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempAbove            ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   case('dNrgFlux_dTempBelow'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
