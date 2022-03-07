@@ -129,7 +129,7 @@ contains
  ! structure allocations
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
- USE eval8summa_module,only:eval8summaSundials        ! simulation of fluxes and residuals given a trial state vector
+ USE eval8summa_module,only:eval8summa               ! simulation of fluxes and residuals given a trial state vector
  USE eval8DAE_module,only:eval8DAE
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
@@ -360,7 +360,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
 
- call eval8summaSundials(&
+ call eval8summa(&
                  ! input: model control
                  dt,                      & ! intent(in):    length of the time step (seconds)
                  nSnow,                   & ! intent(in):    number of snow layers

@@ -88,7 +88,7 @@ contains
  ! public subroutine eval8JacDAE: compute the Jacobian matrix
  ! **********************************************************************************************************
  subroutine eval8JacDAE(&
-                       ! input: model control   
+                       ! input: model control
                        cj,                      & ! intent(in):    this scalar changes whenever the step size or method order changes
                        dt,                      & ! intent(in):    time step
                        nSnow,                   & ! intent(in):    number of snow layers
@@ -99,7 +99,7 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVec,                & ! intent(in):    model state vector
-                       stateVecPrime,           & ! intent(in):    derivative of model state vector                   
+                       stateVecPrime,           & ! intent(in):    derivative of model state vector
                        sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
@@ -206,7 +206,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="eval8JacDAE/"
- 
+
 
  ! extract variables from the model state vector
  call varExtract(&
@@ -231,11 +231,11 @@ contains
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
- 
- 
+
+
+
  ! extract derivative of variables from derivative of the model state vector
- call varExtractSundials(&                  
+ call varExtractSundials(&
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -257,11 +257,11 @@ contains
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
- 
 
-                 
- call updateVars4JacDAE(&                
+
+
+
+ call updateVars4JacDAE(&
                  ! input
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
@@ -285,24 +285,24 @@ contains
                  mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
-                 mLayerTempPrime,                           & ! 
+                 mLayerTempPrime,                           & !
                  mLayerVolFracWatPrime,                     & ! intent(inout): Prime vector of volumetric total water content (-)
                  mLayerVolFracLiqPrime,                     & ! intent(inout): Prime vector of volumetric liquid water content (-)
-                 mLayerVolFracIcePrime,                     & ! 
+                 mLayerVolFracIcePrime,                     & !
                  mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
                  mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
- 
+
+
 
  ! -----
  ! * compute the Jacobian matrix...
  ! --------------------------------
 
  ! compute the analytical Jacobian matrix
- ! NOTE: The derivatives were computed in the previous call to computFluxSundials
+ ! NOTE: The derivatives were computed in the previous call to computFlux
  !       This occurred either at the call to eval8DAE at the start of sysSolveSundials
  !        or in the call to eval8DAE in the previous iteration
  dt1 = 1._qp
@@ -341,11 +341,11 @@ contains
                   err,cmessage)                     ! intent(out):   error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- 
+
 
  ! end association with the information in the data structures
  end associate
- 
+
 
  end subroutine eval8JacDAE
 end module eval8JacDAE_module
