@@ -102,6 +102,10 @@ contains
                        ! input: pre-computed derivatives
                        mLayerdTheta_dTk,             & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
                        dPsiLiq_dTemp,                & ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+                       dCanopyTrans_dCanWat,         & ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                       dCanopyTrans_dTCanair,        & ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                       dCanopyTrans_dTCanopy,        & ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                       dCanopyTrans_dTGround,        & ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                        ! input: fluxes
                        scalarCanopyTranspiration,    & ! intent(in): canopy transpiration (kg m-2 s-1)
                        scalarGroundEvaporation,      & ! intent(in): ground evaporation (kg m-2 s-1)
@@ -132,6 +136,11 @@ contains
                        ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
                        dq_dNrgStateAbove,            & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
                        dq_dNrgStateBelow,            & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
+                       ! output: derivatives in transpiration w.r.t. canopy state variables
+                       mLayerdTrans_dTCanair,        & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+                       mLayerdTrans_dTCanopy,        & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy temperature
+                       mLayerdTrans_dTGround,        & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. ground temperature
+                       mLayerdTrans_dCanWat,         & ! intent(out): derivatives in the soil layer transpiration flux w.r.t. canopy total water
                        ! output: error control
                        err,message)                    ! intent(out): error control
  ! utility modules
@@ -157,6 +166,10 @@ contains
  ! input: pre-computed derivatves
  real(rkind),intent(in)              :: mLayerdTheta_dTk(:)           ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
  real(rkind),intent(in)              :: dPsiLiq_dTemp(:)              ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dCanWat          ! derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dTCanair         ! derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dTCanopy         ! derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dTGround         ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! input: model fluxes
  real(rkind),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
  real(rkind),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
@@ -187,7 +200,12 @@ contains
  ! output: derivatives in fluxes w.r.t. energy state variables -- now just temperature -- in the layer above and layer below (m s-1 K-1)
  real(rkind),intent(inout)           :: dq_dNrgStateAbove(0:)         ! derivatives in the flux w.r.t. temperature in the layer above (m s-1 K-1)
  real(rkind),intent(inout)           :: dq_dNrgStateBelow(0:)         ! derivatives in the flux w.r.t. temperature in the layer below (m s-1 K-1)
- ! output: error control
+ ! output: derivatives in transpiration w.r.t. canopy state variables
+ real(rkind),intent(inout)           :: mLayerdTrans_dTCanair(:)      ! derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+ real(rkind),intent(inout)           :: mLayerdTrans_dTCanopy(:)      ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature
+ real(rkind),intent(inout)           :: mLayerdTrans_dTGround(:)      ! derivatives in the soil layer transpiration flux w.r.t. ground temperature
+ real(rkind),intent(inout)           :: mLayerdTrans_dCanWat(:)       ! derivatives in the soil layer transpiration flux w.r.t. canopy total water
+! output: error control
  integer(i4b),intent(out)         :: err                           ! error code
  character(*),intent(out)         :: message                       ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -370,10 +388,22 @@ contains
   endif
 
   ! compute transpiration loss from each soil layer (kg m-2 s-1 --> m s-1)
-  mLayerTranspire = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
+  mLayerTranspire(:) = mLayerTranspireFrac(:)*scalarCanopyTranspiration/iden_water
+  ! derivatives in transpiration w.r.t. canopy state variables
+  mLayerdTrans_dCanWat(:)  = mLayerTranspireFrac(:)*dCanopyTrans_dCanWat /iden_water
+  mLayerdTrans_dTCanair(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanair/iden_water
+  mLayerdTrans_dTCanopy(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTCanopy/iden_water
+  mLayerdTrans_dTGround(:) = mLayerTranspireFrac(:)*dCanopyTrans_dTGround/iden_water
 
   ! special case of prescribed head -- no transpiration
-  if(ixBcUpperSoilHydrology==prescribedHead) mLayerTranspire(:) = 0._rkind
+  if(ixBcUpperSoilHydrology==prescribedHead) then
+   mLayerTranspire(:)      = 0._rkind
+   ! derivatives in transpiration w.r.t. canopy state variables
+   mLayerdTrans_dCanWat(:) = 0._rkind
+   mLayerdTrans_dTCanair(:)= 0._rkind
+   mLayerdTrans_dTCanopy(:)= 0._rkind
+   mLayerdTrans_dTGround(:)= 0._rkind
+  endif
 
  endif  ! if need to compute transpiration
 

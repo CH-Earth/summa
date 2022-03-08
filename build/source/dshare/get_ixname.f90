@@ -724,6 +724,11 @@ contains
   case('dGroundEvaporation_dTCanopy'    ); get_ixderiv = iLookDERIV%dGroundEvaporation_dTCanopy    ! derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
   case('dGroundEvaporation_dTGround'    ); get_ixderiv = iLookDERIV%dGroundEvaporation_dTGround    ! derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
   case('dGroundEvaporation_dCanWat'     ); get_ixderiv = iLookDERIV%dGroundEvaporation_dCanWat     ! derivative in ground evaporation w.r.t. canopy total water content (s-1)
+  ! derivatives in transpiration
+  case('dCanopyTrans_dTCanair'          ); get_ixderiv = iLookDERIV%dCanopyTrans_dTCanair          ! derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+  case('dCanopyTrans_dTCanopy'          ); get_ixderiv = iLookDERIV%dCanopyTrans_dTCanopy          ! derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+  case('dCanopyTrans_dTGround'          ); get_ixderiv = iLookDERIV%dCanopyTrans_dTGround          ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+  case('dCanopyTrans_dCanWat'           ); get_ixderiv = iLookDERIV%dCanopyTrans_dCanWat           ! derivative in canopy transpiration w.r.t. canopy total water content (s-1)
   ! derivatives in canopy water w.r.t canopy temperature
   case('dTheta_dTkCanopy'               ); get_ixderiv = iLookDERIV%dTheta_dTkCanopy               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('d2Theta_dTkCanopy2'             ); get_ixderiv = iLookDERIV%d2Theta_dTkCanopy2             ! second derivative of volumetric liquid water content w.r.t. temperature
@@ -756,6 +761,16 @@ contains
   case('dq_dNrgStateBelow'              ); get_ixderiv = iLookDERIV%dq_dNrgStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dPsiLiq_dTemp'                  ); get_ixderiv = iLookDERIV%dPsiLiq_dTemp                  ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
   case('dPsiLiq_dPsi0'                  ); get_ixderiv = iLookDERIV%dPsiLiq_dPsi0                  ! derivative in liquid matric potential w.r.t. total  matric potential (-)
+ ! derivatives in soil transpiration w.r.t. canopy state variables
+  case('mLayerdTrans_dTCanair'          ); get_ixderiv = iLookDERIV%mLayerdTrans_dTCanair          ! derivatives in the soil layer transpiration flux w.r.t. canopy air temperature
+  case('mLayerdTrans_dTCanopy'          ); get_ixderiv = iLookDERIV%mLayerdTrans_dTCanopy          ! derivatives in the soil layer transpiration flux w.r.t. canopy temperature
+  case('mLayerdTrans_dTGround'          ); get_ixderiv = iLookDERIV%mLayerdTrans_dTGround          ! derivatives in the soil layer transpiration flux w.r.t. ground temperature
+  case('mLayerdTrans_dCanWat'           ); get_ixderiv = iLookDERIV%mLayerdTrans_dCanWat           ! derivatives in the soil layer transpiration flux w.r.t. canopy total water
+ ! derivatives in aquifer transpiration w.r.t. canopy state variables
+  case('dAquiferTrans_dTCanair'         ); get_ixderiv = iLookDERIV%dAquiferTrans_dTCanair         ! derivative in the aquifer transpiration flux w.r.t. canopy air temperature
+  case('dAquiferTrans_dTCanopy'         ); get_ixderiv = iLookDERIV%dAquiferTrans_dTCanopy         ! derivative in the aquifer transpiration flux w.r.t. canopy temperature
+  case('dAquiferTrans_dTGround'         ); get_ixderiv = iLookDERIV%dAquiferTrans_dTGround         ! derivative in the aquifer transpiration flux w.r.t. ground temperature
+  case('dAquiferTrans_dCanWat'          ); get_ixderiv = iLookDERIV%dAquiferTrans_dCanWat          ! derivative in the aquifer transpiration flux w.r.t. canopy total water
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
   case('dFracLiqSnow_dTk'               ); get_ixderiv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
   case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)

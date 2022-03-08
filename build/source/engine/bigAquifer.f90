@@ -48,6 +48,11 @@ contains
                        scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
                        scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
                        scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
+                       ! input: pre-computed derivatives
+                       dCanopyTrans_dCanWat,         & ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                       dCanopyTrans_dTCanair,        & ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                       dCanopyTrans_dTCanopy,        & ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                       dCanopyTrans_dTGround,        & ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                        ! input: diagnostic variables and parameters
                        mpar_data,                    & ! intent(in):  model parameter structure
                        diag_data,                    & ! intent(in):  diagnostic variable structure
@@ -56,6 +61,11 @@ contains
                        scalarAquiferRecharge,        & ! intent(out): recharge to the aquifer (m s-1)
                        scalarAquiferBaseflow,        & ! intent(out): total baseflow from the aquifer (m s-1)
                        dBaseflow_dAquifer,           & ! intent(out): change in baseflow flux w.r.t. aquifer storage (s-1)
+                       ! output: derivatives in transpiration w.r.t. canopy state variables
+                       dAquiferTrans_dTCanair,        & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+                       dAquiferTrans_dTCanopy,        & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+                       dAquiferTrans_dTGround,        & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+                       dAquiferTrans_dCanWat,         & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy total water
                        ! output: error control
                        err,message)                    ! intent(out): error control
  ! named variables
@@ -69,6 +79,11 @@ contains
  real(rkind),intent(in)              :: scalarAquiferStorageTrial    ! trial value of aquifer storage (m)
  real(rkind),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
  real(rkind),intent(in)              :: scalarSoilDrainage           ! soil drainage (m s-1)
+ ! input: pre-computed derivatves
+ real(rkind),intent(in)              :: dCanopyTrans_dCanWat          ! derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dTCanair         ! derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dTCanopy         ! derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+ real(rkind),intent(in)              :: dCanopyTrans_dTGround         ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
  ! input: diagnostic variables and parameters
  type(var_dlength),intent(in)     :: mpar_data                    ! model parameters
  type(var_dlength),intent(in)     :: diag_data                    ! diagnostic variables for a local HRU
@@ -77,6 +92,11 @@ contains
  real(rkind),intent(out)             :: scalarAquiferRecharge        ! recharge to the aquifer (m s-1)
  real(rkind),intent(out)             :: scalarAquiferBaseflow        ! total baseflow from the aquifer (m s-1)
  real(rkind),intent(out)             :: dBaseflow_dAquifer           ! change in baseflow flux w.r.t. aquifer storage (s-1)
+ ! output: derivatives in transpiration w.r.t. canopy state variables
+ real(rkind),intent(inout)           :: dAquiferTrans_dTCanair      ! derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+ real(rkind),intent(inout)           :: dAquiferTrans_dTCanopy      ! derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+ real(rkind),intent(inout)           :: dAquiferTrans_dTGround      ! derivatives in the aquifer transpiration flux w.r.t. ground temperature
+ real(rkind),intent(inout)           :: dAquiferTrans_dCanWat       ! derivatives in the aquifer transpiration flux w.r.t. canopy total water
  ! output: error control
  integer(i4b),intent(out)         :: err                          ! error code
  character(*),intent(out)         :: message                      ! error message
@@ -103,6 +123,11 @@ contains
  ! compute aquifer transpiration (m s-1)
  aquiferTranspireFrac   = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim   ! fraction of total transpiration that comes from the aquifer (-)
  scalarAquiferTranspire = aquiferTranspireFrac*scalarCanopyTranspiration/iden_water         ! aquifer transpiration (kg m-2 s-1 --> m s-1)
+ ! derivatives in transpiration w.r.t. canopy state variables
+ dAquiferTrans_dCanWat  = aquiferTranspireFrac*dCanopyTrans_dCanWat /iden_water
+ dAquiferTrans_dTCanair = aquiferTranspireFrac*dCanopyTrans_dTCanair/iden_water
+ dAquiferTrans_dTCanopy = aquiferTranspireFrac*dCanopyTrans_dTCanopy/iden_water
+ dAquiferTrans_dTGround = aquiferTranspireFrac*dCanopyTrans_dTGround/iden_water
 
  ! compute aquifer recharge (transfer variables -- included for generality for basin-wide aquifer)
  scalarAquiferRecharge = scalarSoilDrainage ! m s-1
