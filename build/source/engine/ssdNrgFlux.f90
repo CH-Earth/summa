@@ -180,7 +180,6 @@ contains
  ! local variables
  character(LEN=256)               :: cmessage                     ! error message of downwind routine
  integer(i4b)                     :: i,iLayer                     ! index of model layers
- integer(i4b)                     :: ibeg,iend                    ! start and end indices of the soil layers in concatanated snow-soil vector
  integer(i4b)                     :: iSoil                        ! index of soil layer
  integer(i4b)                     :: ixLayerDesired(1)            ! layer desired (scalar solution)
  integer(i4b)                     :: ixTop                        ! top layer in subroutine call
@@ -198,9 +197,6 @@ contains
  integer(i4b),parameter           :: perturbStateWatBelow=5       ! named variable to identify the case where we perturb the state layer below
  integer(i4b)                     :: ixPerturb                    ! index of element in 2-element vector to perturb
  integer(i4b)                     :: ixOriginal                   ! index of perturbed element in the original vector
- real(rkind)                      :: scalarMatricHeadTrial        ! trial value of matric head (m)
- real(rkind)                      :: scalarVolFracLiqTrial        ! trial value of volumetric total water content (-)
- real(rkind)                      :: scalarTempTrial              ! trial value of temperature (K)
  real(rkind)                      :: scalarThermCFlux               ! thermal conductivity (W m-1 K-1)
  real(rkind)                      :: scalarThermCFlux_dTempAbove    ! thermal conductivity with perturbation to the temperature state above (W m-1 K-1)
  real(rkind)                      :: scalarThermCFlux_dTempBelow    ! thermal conductivity with perturbation to the temperature state below (W m-1 K-1)
@@ -221,7 +217,6 @@ contains
  real(rkind),dimension(2)         :: vectoriden_soil              ! layer above and below density of soil (kg m-3)
  real(rkind),dimension(2)         :: vectorthCond_soil            ! layer above and below thermal conductivity of soil (W m-1 K-1)
  real(rkind),dimension(2)         :: vectorfrac_sand              ! layer above and below fraction of sand (-)
- real(rkind),dimension(2)         :: vectorfrac_silt              ! layer above and below fraction of silt (-)
  real(rkind),dimension(2)         :: vectorfrac_clay              ! layer above and below fraction of clay (-)
  ! recompute the perturbed version of iLayerThermalC, this could be the only version and remove the omputThermConduct_module
  real(rkind)                      :: scalariLayerThermalC         ! thermal conductivity at the interface of each layer (W m-1 K-1)
@@ -257,7 +252,6 @@ contains
   thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in): thermal conductivity of soil (W m-1 K-1)
   theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in): soil porosity (-)
   frac_sand               => mpar_data%var(iLookPARAM%frac_sand)%dat,                   & ! intent(in): fraction of sand (-)
-  frac_silt               => mpar_data%var(iLookPARAM%frac_silt)%dat,                   & ! intent(in): fraction of silt (-)
   frac_clay               => mpar_data%var(iLookPARAM%frac_clay)%dat,                   & ! intent(in): fraction of clay (-)
   vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat,                  & ! intent(in):  [dp(:)] van Genutchen "m" parameter (-)
   vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                       & ! intent(in):  [dp(:)] van Genutchen "n" parameter (-)
@@ -418,7 +412,6 @@ contains
      vectoriden_soil(i) = iden_soil(mLayer_ind(i)-nSnow)
      vectorthCond_soil(i) = thCond_soil(mLayer_ind(i)-nSnow)
      vectorfrac_sand(i) = frac_sand(mLayer_ind(i)-nSnow)
-     vectorfrac_silt(i) = frac_silt(mLayer_ind(i)-nSnow)
      vectorfrac_clay(i) = frac_clay(mLayer_ind(i)-nSnow)
     else
      vectorvGn_alpha(i) = valueMissing
@@ -429,7 +422,6 @@ contains
      vectoriden_soil(i) = valueMissing
      vectorthCond_soil(i) = valueMissing
      vectorfrac_sand(i) = valueMissing
-     vectorfrac_silt(i) = valueMissing
      vectorfrac_clay(i) = valueMissing
     end if
    end do
@@ -461,7 +453,6 @@ contains
                        ! input: coordinate variables
                        nLayers,                             & ! intent(in): number of layers
                        iLayer,                              & ! intent(in): layer index for output
-                       nSnow,                               & ! intent(in): number of snow layers
                        layerType(mLayer_ind),               & ! intent(in): layer type (iname_soil or iname_snow)
                        ! input: state variables (adjacent layers)
                        vectorMatricHeadTrial,               & ! intent(in): matric head at the nodes (m)
@@ -479,7 +470,6 @@ contains
                        vectoriden_soil,                     & ! intent(in): intrinsic density of soil (kg m-3)
                        vectorthCond_soil,                   & ! intent(in): thermal conductivity of soil (W m-1 K-1)
                        vectorfrac_sand,                     & ! intent(in): fraction of sand (-)
-                       vectorfrac_silt,                     & ! intent(in): fraction of silt (-)
                        vectorfrac_clay,                     & ! intent(in): fraction of clay (-)
                        ! input: snow parameters
                        snowfrz_scale,                       & ! intent(in): scaling parameter for the snow freezing curve (K-1)
@@ -622,7 +612,6 @@ contains
                        ! input: coordinate variables
                        nLayers,                   & ! intent(in): number of layers
                        ixLayerDesired,            & ! intent(in): layer index for output
-                       nSnow,                     & ! intent(in): number of snow layers
                        layerType,                 & ! intent(in): layer type (iname_soil or iname_snow)
                        ! input: state variables (adjacent layers)
                        nodeMatricHeadTrial0,       & ! intent(in): matric head at the nodes (m)
@@ -640,7 +629,6 @@ contains
                        iden_soil,                 & !intrinsic density of soil (kg m-3)
                        thCond_soil,               & ! thermal conductivity of soil (W m-1 K-1)
                        frac_sand,                 & ! intent(in): fraction of sand (-)
-                       frac_silt,                 & ! fraction of silt (-)
                        frac_clay,                 & ! fraction of clay (-)
                        ! input: snow parameters
                        snowfrz_scale,             & ! scaling parameter for the snow freezing curve (K-1)
@@ -680,7 +668,6 @@ contains
  ! input: coordinate variables
  integer(i4b),intent(in)          :: nLayers                   ! intent(in): number of layers
  integer(i4b),intent(in)          :: ixLayerDesired            ! intent(in): layer index for output
- integer(i4b),intent(in)          :: nSnow                     ! intent(in): number of snow layers
  integer(i4b),intent(in)          :: layerType(:)              ! intent(in): layer type (iname_soil or iname_snow)
  ! input: state variables
  real(rkind),intent(in)           :: nodeMatricHeadTrial0(:)   ! trial vector of total water matric potential (m)
@@ -698,7 +685,6 @@ contains
  real(rkind),intent(in)           :: iden_soil(:)                 ! intrinsic density of soil (kg m-3)
  real(rkind),intent(in)           :: thCond_soil(:)               ! thermal conductivity of soil (W m-1 K-1)
  real(rkind),intent(in)           :: frac_sand(:)                ! intent(in): fraction of sand (-)
- real(rkind),intent(in)           :: frac_silt(:)                 ! fraction of silt (-)
  real(rkind),intent(in)           :: frac_clay(:)                 ! fraction of clay (-)
  ! input: snow parameters
  real(rkind),intent(in)           :: snowfrz_scale                ! scaling parameter for the snow freezing curve (K-1)
@@ -944,16 +930,16 @@ contains
    dThermalC_dNrgStateBelow = 0._rkind
   else
    iLayerThermalC = mLayerThermalC(1)
-   dThermalC_dHydStateBelow = mLayerdThermalC_dWat(ixLower) !these are index 1 since was passed with 1:2
-   dThermalC_dNrgStateBelow = mLayerdThermalC_dNrg(ixLower) !these are index 1 since was passed with 1:2
+   dThermalC_dHydStateBelow = mLayerdThermalC_dWat(ixLower) !these are index 1 since was passed with 1:1
+   dThermalC_dNrgStateBelow = mLayerdThermalC_dNrg(ixLower) !these are index 1 since was passed with 1:1
   end if
   dThermalC_dHydStateAbove = valueMissing
   dThermalC_dNrgStateAbove = valueMissing
  else if (ixLayerDesired==nLayers ) then
   ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
-  iLayerThermalC = mLayerThermalC(nLayers)
-  dThermalC_dHydStateAbove = mLayerdThermalC_dWat(ixLower) !these are index 2 since was passed with iLayers-1:iLayers
-  dThermalC_dNrgStateAbove = mLayerdThermalC_dNrg(ixLower) !these are index 2 since was passed with iLayers-1:iLayers
+  iLayerThermalC = mLayerThermalC(1)
+  dThermalC_dHydStateAbove = mLayerdThermalC_dWat(ixLower) !these are index 2 since was passed with iLayers:iLayers
+  dThermalC_dNrgStateAbove = mLayerdThermalC_dNrg(ixLower) !these are index 2 since was passed with iLayers:iLayers
   dThermalC_dHydStateBelow = valueMissing
   dThermalC_dNrgStateBelow = valueMissing
  else

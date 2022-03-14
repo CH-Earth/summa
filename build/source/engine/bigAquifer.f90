@@ -41,7 +41,7 @@ contains
 
 
  ! ***************************************************************************************************************
- ! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
+ ! public subroutine bigAquifer: compute aquifer water fluxes and their derivatives
  ! ***************************************************************************************************************
  subroutine bigAquifer(&
                        ! input: state variables and fluxes
