@@ -2,6 +2,13 @@
 
 This page provides simple, high-level documentation about what has changed in each new release of SUMMA.
 
+Documented here are large changes that will likely affect the majority of users:
+- New features
+- Changes to the functionality of the code
+- Changes to default settings
+- Changes in code conventions (e.g. variable renaming)
+- Etc.
+
 ## Version 3.0.4 (pre-release)
 
 - Initial addition of the "What's new" page
