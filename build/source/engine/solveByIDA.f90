@@ -330,8 +330,6 @@ contains
 
   startQuadrature         = .true.
 
-  !do i = 1,2
-
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec)
   if (.not. associated(sunvec_y)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
@@ -341,7 +339,6 @@ contains
 
   ! Initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
-
 
   ! Call FIDACreate and FIDAInit to initialize IDA memory
   ida_mem = FIDACreate()
@@ -393,7 +390,6 @@ contains
 
   if(ixMatrix == ixFullMatrix)then
      ! Set the user-supplied Jacobian routine
-     !if (i==2) retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
      retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA)) !commment this line out to use FD Jacobian
    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetJacFn'; return; endif
   endif
@@ -437,22 +433,6 @@ contains
  mLayerDepth						            = prog_data%var(iLookPROG%mLayerDepth)%dat
  scalarSnowDepth					          = prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
  scalarSWE							            = prog_data%var(iLookPROG%scalarSWE)%dat(1)
-
- !tret(1) = t0
- ! eqns_data%firstFluxCall = .false.
- ! eqns_data%firstSplitOper = .true.
- ! retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
- !   if(i==1) then
- !      print*, "Use Finite-Dif Jacobian"
- !      call FIDAFree(ida_mem)
- !      retval = FSUNNonlinSolFree(sunnonlin_NLS)
- !      retval = FSUNLinSolFree(sunlinsol_LS)
- !      call FSUNMatDestroy(sunmat_A)
- !      call FN_VDestroy(sunvec_y)
- !      call FN_VDestroy(sunvec_yp)
- !   endif
- !   if(i==2) print*, "Use Analytical Jacobian"
- !enddo
 
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -723,7 +703,6 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   ! get data arrays from SUNDIALS vectors
   uu(1:neq) => FN_VGetArrayPointer(sunvec_u)
   up(1:neq) => FN_VGetArrayPointer(sunvec_up)
-
 
   uu = y
   up = 0._rkind

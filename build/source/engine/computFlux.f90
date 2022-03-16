@@ -538,6 +538,11 @@ contains
                   mLayerTempTrial,                           & ! intent(in): trial temperature at the current iteration (K)
                   mLayerMatricHeadTrial,                     & ! intent(in): trial value for the total water matric potential in each soil layer (m)
                   mLayerVolFracLiqTrial,                     & ! intent(in): trial volumetric fraction of liquid water at the current iteration(-)
+                  ! input: pre-computed derivatives
+                  mLayerdTheta_dTk,                          & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                  mLayerFracLiqSnow,                         & ! intent(in):    fraction of liquid water (-)
+                  mLayerdTheta_dPsi,                         & ! intent(in):    derivative in the soil water characteristic w.r.t. psi (m-1)
+                  mLayerdPsi_dTheta,                         & ! intent(in):    derivative in the soil water characteristic w.r.t. theta (m)
                   ! input-output: data structures
                   mpar_data,                                 & ! intent(in):    model parameters
                   indx_data,                                 & ! intent(in):    model indices
@@ -641,7 +646,7 @@ contains
   ! define forcing for the soil domain
   scalarRainPlusMelt = iLayerLiqFluxSnow(nSnow)    ! drainage from the base of the snowpack
 
-  ! calculate net liquid water fluxes for each soil layer (s-1)
+  ! calculate net liquid water fluxes for each snow layer (s-1)
   do iLayer=1,nSnow
    mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
    !write(*,'(a,1x,i4,1x,2(f16.10,1x))')  'iLayer, mLayerLiqFluxSnow(iLayer), iLayerLiqFluxSnow(iLayer-1) = ', &

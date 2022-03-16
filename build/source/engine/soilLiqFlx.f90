@@ -485,7 +485,7 @@ contains
   ! get input state variables...
   ! ============================
   ! identify the type of perturbation
-  ! NOTE, WE ALSO NEED TO PERTURB EACH LAYER BELOW IN TURN AND TEMPERATURE
+  ! Currently we are ignoring the perturbations in the non-surface layers and with temperature
   select case(itry)
 
    ! skip undesired perturbations
@@ -1384,16 +1384,11 @@ contains
     dVolFracIce_dWat(:) = 0._rkind
     dVolFracLiq_dTk(:)  = 0._rkind
     dVolFracIce_dTk(:)  = 0._rkind
-    if(nRoots > 0)then
+    if(deriv_desired .and. nRoots > 0)then
      select case(ixRichards)  ! (form of Richards' equation)
       case(moisture)
        dVolFracLiq_dWat(:) = 1._rkind
        dVolFracIce_dWat(:) = mLayerdPsi_dTheta(:) - 1._rkind
-       do iLayer=1,nRoots
-        Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
-        if(mLayerTemp(iLayer) < Tcrit) dVolFracLiq_dTk(iLayer) = dTheta_dTk(iLayer) !dTheta_dTk(mLayerTempTrial(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_alpha(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-        if(mLayerTemp(iLayer) >=Tcrit) dVolFracLiq_dTk(iLayer) = 0._rkind
-       enddo
       case(mixdform)
        do iLayer=1,nRoots
         Tcrit = crit_soilT( mLayerMatricHead(iLayer) )
@@ -1404,12 +1399,11 @@ contains
          dVolFracLiq_dWat(iLayer) = dTheta_dPsi(iLayer)
          dVolFracIce_dWat(iLayer) = 0._rkind
         endif
-        if(mLayerTemp(iLayer) < Tcrit) dVolFracLiq_dTk(iLayer) = dTheta_dTk(iLayer)
-        if(mLayerTemp(iLayer) >=Tcrit) dVolFracLiq_dTk(iLayer) = 0._rkind
        enddo
-     end select
+     end select ! (form of Richards' equation)
+     dVolFracLiq_dTk(:) = dTheta_dTk(:) !already zeroed out if not below critical temperature
      dVolFracIce_dTk(:) = -dVolFracLiq_dTk(:) !often can and will simplify one of these terms out
-    endif
+     endif
 
     ! define the storage in the root zone (m) and derivatives
     rootZoneLiq = 0._rkind
