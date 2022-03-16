@@ -178,7 +178,7 @@ contains
  real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
  !
  real(rkind)                          :: dVolFracWat_dPsi0_iLayer
- integer(i4b)                         :: doprint
+
  ! --------------------------------------------------------------
  ! associate variables from data structures
  associate(&
@@ -298,7 +298,7 @@ contains
  ! --------------------------------------------------------------
  ! initialize error control
  err=0; message='computJacDAE/'
- doprint=0
+
  ! *********************************************************************************************************************************************************
  ! *********************************************************************************************************************************************************
  ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
@@ -500,7 +500,7 @@ contains
      watState = ixSnowOnlyHyd(iLayer)   ! hydrology state index within the state subset
 
      if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
-    if (doprint==1) print*, nrgState,watState, "snow nrg wat indices"
+
       ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
       aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj &
                                 + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) &
@@ -614,7 +614,7 @@ contains
 
      ! - define index of hydrology state variable within the state subset
      watState = ixSoilOnlyHyd(iLayer)
-    if (doprint==1) print*, nrgState,watState, "soil nrg wat indices"
+
      ! only compute derivatives if the energy state for the current layer is within the state subset
      if(watstate/=integerMissing)then
 
