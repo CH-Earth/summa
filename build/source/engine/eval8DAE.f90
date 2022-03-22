@@ -369,7 +369,8 @@ contains
  if(.not.feasible)then
   fluxVec(:) = realMissing
   resVec(:)  = quadMissing
-  return
+  message=trim(message)//'solution is non-feasible'
+  err=20; return
  end if
 
  ! get the start and end indices for the soil compression calculations
