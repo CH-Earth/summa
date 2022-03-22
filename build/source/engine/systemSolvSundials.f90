@@ -506,7 +506,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
       atol = atol * 0.1
       rtol = rtol * 0.1
    endif
-   if( .not.idaSucceeds ) message=trim(message)//'IDA did not succeed after reducing tolerance magnitudes tol_iter times'
+   if( .not.idaSucceeds .and. tol_iter==3) message=trim(message)//'IDA did not succeed after reducing tolerance magnitudes 3 times'
 
  end do  ! iteration over tolerances
 
