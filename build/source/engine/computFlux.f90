@@ -613,8 +613,9 @@ contains
   ! define forcing for the soil domain for the case of no snow layers
   ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
   if(nSnow==0)then
+   scalarSnowDrainage=drainageMeltPond/iden_water ! melt of the snow without a layer (m s-1)
    scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
-                         + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
+                         + scalarSnowDrainage
   endif  ! if no snow layers
 
  endif
