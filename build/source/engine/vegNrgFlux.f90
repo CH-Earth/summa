@@ -1040,6 +1040,9 @@ contains
     ! note: no perturbations performed using analytical derivatives (nFlux=1)
     ! -------------------------------------------------------------------------------------
 
+    ! initialize for unperturbed state
+    canopyWetFraction = scalarCanopyWetFraction
+
     ! identify the type of perturbation
     select case(itry)
 
@@ -1083,14 +1086,14 @@ contains
 
     end select ! (type of perturbation)
 
-    ! recalculate liquid and ice from total water
-    canopyWetFraction = scalarCanopyWetFraction
-    fracLiquidCanopy = fracliquid(canopyTemp,snowfrz_scale)
-    canopyLiq = fracLiquidCanopy*canopyWat
-    canopyIce = (1._rkind - fracLiquidCanopy)*canopyWat
-
     ! perturbations in canopy total water content affect canopy wetted fraction
     if(itry == perturbStateCanopy .OR. itry == perturbStateCanWat)then
+
+     ! recalculate liquid and ice from total water
+     fracLiquidCanopy = fracliquid(canopyTemp,snowfrz_scale)
+     canopyLiq = fracLiquidCanopy*canopyWat
+     canopyIce = (1._rkind - fracLiquidCanopy)*canopyWat
+
      if(computeVegFlux)then
       call wettedFrac(&
                       ! input

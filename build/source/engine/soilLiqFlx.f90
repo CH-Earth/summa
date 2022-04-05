@@ -660,7 +660,7 @@ contains
    vectorHydCondTrial(1:2) = mLayerHydCond(iLayer:iLayer+1)
    vectorDiffuseTrial(1:2) = mLayerDiffuse(iLayer:iLayer+1)
    ! make appropriate perturbations
-   if(ixPerturb > 0)then
+   if(ixPerturb > 0)then ! only recompute these if perturbed
     select case(ixRichards)
      case(moisture)
       scalardPsi_dTheta             = dPsi_dTheta(vectorVolFracLiqTrial(ixPerturb),vGn_alpha(ixPerturb),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb))
@@ -673,7 +673,7 @@ contains
       vectorHydCondTrial(ixPerturb) = scalarHydCondMicro + scalarHydCondMacro
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation)
-   end if
+   endif ! (recompute if perturbed)
 
    ! =====
    ! compute vertical flux at layer interface and its derivative w.r.t. the state above and the state below...

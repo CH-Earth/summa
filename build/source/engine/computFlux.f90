@@ -538,6 +538,7 @@ contains
                   mLayerTempTrial,                           & ! intent(in): trial temperature at the current iteration (K)
                   mLayerMatricHeadTrial,                     & ! intent(in): trial value for the total water matric potential in each soil layer (m)
                   mLayerVolFracLiqTrial,                     & ! intent(in): trial volumetric fraction of liquid water at the current iteration(-)
+                  mLayerVolFracIceTrial,                     & ! intent(in): trial volumetric fraction of ice water at the current iteration(-)
                   ! input: pre-computed derivatives
                   mLayerdTheta_dTk,                          & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                   mLayerFracLiqSnow,                         & ! intent(in):    fraction of liquid water (-)

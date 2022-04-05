@@ -122,6 +122,7 @@ contains
                        mLayerTempTrial,                    & ! intent(in):    trial temperature at the current iteration (K)
                        mLayerMatricHeadTrial,              & ! intent(in):    trial matric head at the current iteration(m)
                        mLayerVolFracLiqTrial,              & ! intent(in):    trial volumetric fraction of liquid water at the current iteration(-)
+                       mLayerVolFracIceTrial,              & ! intent(in):    trial volumetric fraction of ice water at the current iteration(-)
                        ! input: pre-computed derivatives
                        mLayerdTheta_dTk,                   & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                        mLayerFracLiqSnow,                  & ! intent(in):    fraction of liquid water (-)
@@ -131,7 +132,7 @@ contains
                        mpar_data,                          & ! intent(in):    model parameters
                        indx_data,                          & ! intent(in):    model indices
                        prog_data,                          & ! intent(in):    model prognostic variables for a local HRU
-                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
+                       diag_data,                          & ! intent(inout):    model diagnostic variables for a local HRU
                        flux_data,                          & ! intent(inout): model fluxes for a local HRU
                        ! output: fluxes and derivatives at all layer interfaces
                        iLayerNrgFlux,                      & ! intent(out):   energy flux at the layer interfaces (W m-2)
@@ -167,6 +168,7 @@ contains
  real(rkind),intent(in)              :: mLayerTempTrial(:)         ! temperature in each layer at the current iteration (m)
  real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)   ! matric head in each layer at the current iteration (m)
  real(rkind),intent(in)              :: mLayerVolFracLiqTrial(:)   ! volumetric fraction of liquid at the current iteration (-)
+ real(rkind),intent(in)              :: mLayerVolFracIceTrial(:)   ! volumetric fraction of ice at the current iteration (-)
 ! input: pre-computed derivatives
  real(rkind),intent(in)              :: mLayerdTheta_dTk(:)        ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
  real(rkind),intent(in)              :: mLayerFracLiqSnow(:)       ! fraction of liquid water (-)
@@ -176,7 +178,7 @@ contains
  type(var_dlength),intent(in)        :: mpar_data                  ! model parameters
  type(var_ilength),intent(in)        :: indx_data                  ! state vector geometry
  type(var_dlength),intent(in)        :: prog_data                  ! prognostic variables for a local HRU
- type(var_dlength),intent(in)        :: diag_data                  ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)        :: diag_data                  ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout)     :: flux_data                  ! model fluxes for a local HRU
  ! output: fluxes and derivatives at all layer interfaces
  real(rkind),intent(out)             :: iLayerNrgFlux(0:)          ! energy flux at the layer interfaces (W m-2)
@@ -191,7 +193,6 @@ contains
  ! local variables
  character(LEN=256)               :: cmessage                     ! error message of downwind routine
  integer(i4b)                     :: i,j,iLayer                   ! index of model layers
- integer(i4b)                     :: iSoil                        ! index of soil layer
  integer(i4b)                     :: ixLayerDesired(1)            ! layer desired (scalar solution)
  integer(i4b)                     :: ixTop                        ! top layer in subroutine call
  integer(i4b)                     :: ixBot                        ! bottom layer in subroutine call
@@ -233,7 +234,6 @@ contains
  real(rkind),dimension(2)         :: vectorfrac_sand              ! layer above and below fraction of sand (-)
  real(rkind),dimension(2)         :: vectorfrac_clay              ! layer above and below fraction of clay (-)
  ! recompute the perturbed version of iLayerThermalC, this could be the only version and remove the omputThermConduct_module
- real(rkind)                      :: scalariLayerThermalC         ! thermal conductivity at the interface of each layer (W m-1 K-1)
  real(rkind)                      :: dThermalC_dHydStateAbove     ! derivative in the thermal conductivity w.r.t. water state in the layer above
  real(rkind)                      :: dThermalC_dHydStateBelow     ! derivative in the thermal conductivity w.r.t. water state in the layer above
  real(rkind)                      :: dThermalC_dNrgStateAbove     ! derivative in the thermal conductivity w.r.t. energy state in the layer above
@@ -260,7 +260,7 @@ contains
   lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in): temperature of the lower boundary (K)
   iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,            & ! intent(in): height at the interface of each layer (m)
   fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
-  iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
+  iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(inout): thermal conductivity at the interface of each layer (W m-1 K-1)
   ! input: depth varying soil parameters
   iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
   thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in): thermal conductivity of soil (W m-1 K-1)
@@ -281,9 +281,6 @@ contains
  ! initialize error control
  err=0; message='ssdNrgFlux/'
 
- ! initialize the soil layer
- iSoil=integerMissing
-
  ! set conductive and advective fluxes to missing in the upper boundary
  ! NOTE: advective flux at the upper boundary is included in the ground heat flux
  iLayerConductiveFlux(0) = realMissing
@@ -302,68 +299,13 @@ contains
   ixTop = ixLayerDesired(1)
   ixBot = ixLayerDesired(1)
  else
-  ixTop = 1
+  ixTop = 0 !include layer 0 in layer interface derivatives
   ixBot = nLayers
  endif
 
- ! -------------------------------------------------------------------------------------------------------------------------
- ! ***** compute the conductive fluxes at layer interfaces *****
- ! -------------------------------------------------------------------------------------------------------------------------
- do iLayer=ixTop,ixBot ! (loop through model layers)
-
-  if(iLayer>nSnow) iSoil = iLayer-nSnow
-
-  ! compute fluxes at the lower boundary -- positive downwards
-  if(iLayer==nLayers)then
-   ! flux depends on the type of lower boundary condition
-   select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
-    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
-    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._rkind
-    case default;         err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
-   end select  ! (identifying the lower boundary condition for thermodynamics)
-
-  ! compute fluxes within the domain -- positive downwards
-  else
-    iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
-                                    (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-
-    !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
-  end if ! (the type of layer)
- end do
-
- ! -------------------------------------------------------------------------------------------------------------------------
- ! ***** compute the advective fluxes at layer interfaces *****
- ! -------------------------------------------------------------------------------------------------------------------------
- do iLayer=ixTop,ixBot
-  ! get the liquid flux at layer interfaces
-  select case(layerType(iLayer))
-   case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
-   case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
-   case default; err=20; message=trim(message)//'unable to identify layer type'; return
-  end select
-  ! compute fluxes at the lower boundary -- positive downwards
-  if(iLayer==nLayers)then
-   iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
-  ! compute fluxes within the domain -- positive downwards
-  else
-   iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
-  end if
- end do  ! looping through layers
-
- ! -------------------------------------------------------------------------------------------------------------------------
- ! ***** compute the total fluxes at layer interfaces *****
- ! -------------------------------------------------------------------------------------------------------------------------
- ! NOTE: ignore advective fluxes for now
- iLayerNrgFlux(0)           = groundNetFlux
- iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
- !print*, 'iLayerNrgFlux(0:4) = ', iLayerNrgFlux(0:4)
-
- ! -------------------------------------------------------------------------------------------------------------------------
- ! ***** compute the derivative in fluxes at layer interfaces w.r.t temperature in the layer above and the layer below *****
- ! -------------------------------------------------------------------------------------------------------------------------
-
- ! get the indices for the snow+soil layers, include layer 0 now
- if(.not.scalarSolution) ixTop = 0
+ ! -------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the derivative in fluxes at layer interfaces w.r.t state in the layer above and the layer below *****
+ ! -------------------------------------------------------------------------------------------------------------------
 
  ! initialize un-used elements
  ! ***** the upper boundary
@@ -423,6 +365,7 @@ contains
    vectorVolFracLiqTrial(1:2) = mLayerVolFracLiqTrial(mLayer_ind)
    vectorMatricHeadTrial(1:2) = mLayerMatricHeadTrial(mLayer_ind)
    vectorTempTrial(1:2) = mLayerTempTrial(mLayer_ind)
+   vectorVolFracIceTrial(1:2) = mLayerVolFracIceTrial(mLayer_ind)
    ! make appropriate perturbations,
    if(ixPerturb > 2)then
     vectorMatricHeadTrial(ixPerturb-2) = vectorMatricHeadTrial(ixPerturb-2) + dx
@@ -440,25 +383,27 @@ contains
 
      case(iname_soil)
       j = mLayer_ind(i)-nSnow !soil layer
-      select case(ixRichards)  ! (form of Richards' equation)
-       case(moisture) !
-        vectorMatricHeadTrial(i) = matricHead(vectorVolFracLiqTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
-        Tcrit = crit_soilT(vectorMatricHeadTrial(i))
-        !if change temp and below critical, it changes the state variable, seems like a problem FIX
-        if(vectorTempTrial(i) < Tcrit) then !if do not perturb temperature, this should not change
-         matricFHead = (LH_fus/gravity)*(vectorTempTrial(i) - Tfreeze)/Tfreeze
-         vectorVolFracLiqTrial(i) = volFracLiq(matricFHead,vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
-        endif
-       case(mixdform)
-        Tcrit = crit_soilT(vectorMatricHeadTrial(i))
-        if(vectorTempTrial(i) < Tcrit) then !if do not perturb temperature, this should not change, but matricHeadTrial will have changed
-         matricFHead = (LH_fus/gravity)*(vectorTempTrial(i) - Tfreeze)/Tfreeze
-         vectorVolFracLiqTrial(i) = volFracLiq(matricFHead,vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
-        else
-         vectorVolFracLiqTrial(i) = volFracLiq(vectorMatricHeadTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
-        endif
-      end select ! (form of Richards' equation)
-      vectorVolFracIceTrial(i) = volFracLiq(vectorMatricHeadTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j)) - vectorVolFracLiqTrial(i)
+      if(ixPerturb > 0)then ! only recompute these if perturbed
+       select case(ixRichards)  ! (form of Richards' equation)
+        case(moisture) !
+         vectorMatricHeadTrial(i) = matricHead(vectorVolFracLiqTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
+         Tcrit = crit_soilT(vectorMatricHeadTrial(i))
+         !if change temp and below critical, it changes the state variable, seems like a problem FIX
+         if(vectorTempTrial(i) < Tcrit) then !if do not perturb temperature, this should not change
+          matricFHead = (LH_fus/gravity)*(vectorTempTrial(i) - Tfreeze)/Tfreeze
+          vectorVolFracLiqTrial(i) = volFracLiq(matricFHead,vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
+         endif
+        case(mixdform)
+         Tcrit = crit_soilT(vectorMatricHeadTrial(i))
+         if(vectorTempTrial(i) < Tcrit) then !if do not perturb temperature, this should not change, but matricHeadTrial will have changed
+          matricFHead = (LH_fus/gravity)*(vectorTempTrial(i) - Tfreeze)/Tfreeze
+          vectorVolFracLiqTrial(i) = volFracLiq(matricFHead,vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
+         else
+          vectorVolFracLiqTrial(i) = volFracLiq(vectorMatricHeadTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
+         endif
+       end select ! (form of Richards' equation)
+       vectorVolFracIceTrial(i) = volFracLiq(vectorMatricHeadTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j)) - vectorVolFracLiqTrial(i)
+      endif ! (recompute if perturbed)
       ! derivatives
       vectordPsi_dTheta(i) = mLayerdPsi_dTheta(j)
       vectordTheta_dPsi(i) = mLayerdTheta_dPsi(j)
@@ -472,7 +417,7 @@ contains
 
      case(iname_snow)
       fLiq = fracliquid(vectorTempTrial(i),snowfrz_scale) ! fraction of liquid water
-      vectorVolFracIceTrial(i) = ( vectorVolFracLiqTrial(i) / fLiq - vectorVolFracLiqTrial(i) )*(iden_water/iden_ice) ! use potentially perturbed nodeVolTotWatTrial
+      if(ixPerturb > 0) vectorVolFracIceTrial(i) = ( vectorVolFracLiqTrial(i) / fLiq - vectorVolFracLiqTrial(i) )*(iden_water/iden_ice) ! use perturbed nodeVolTotWatTrial
       ! derivatives
       vectordPsi_dTheta(i) = realMissing
       vectordTheta_dPsi(i) = realMissing
@@ -524,7 +469,7 @@ contains
                        ! input: snow parameters
                        fixedThermalCond_snow,               & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
                        ! output: conductivity at the layer interface (scalars)
-                       scalariLayerThermalC,       & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
+                       iLayerThermalC(iLayer),       & ! intent(inout): thermal conductivity at the interface of each layer (W m-1 K-1)
                        ! output: derivatives in thermal conductivity w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below
                        dThermalC_dHydStateAbove,    & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
                        dThermalC_dHydStateBelow,    & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -539,16 +484,17 @@ contains
    ! compute total vertical flux, to compute derivatives
    if(deriv_desired .and. ixDerivMethod==numerical)then
     select case(itry)
-     case(unperturbed);           scalarThermCFlux            = scalariLayerThermalC
-     case(perturbStateTempAbove); scalarThermCFlux_dTempAbove = scalariLayerThermalC
-     case(perturbStateTempBelow); scalarThermCFlux_dTempBelow = scalariLayerThermalC
-     case(perturbStateWatAbove);  scalarThermCFlux_dWatAbove  = scalariLayerThermalC
-     case(perturbStateWatBelow);  scalarThermCFlux_dWatBelow  = scalariLayerThermalC
+     case(unperturbed);           scalarThermCFlux            = iLayerThermalC(iLayer)
+     case(perturbStateTempAbove); scalarThermCFlux_dTempAbove = iLayerThermalC(iLayer)
+     case(perturbStateTempBelow); scalarThermCFlux_dTempBelow = iLayerThermalC(iLayer)
+     case(perturbStateWatAbove);  scalarThermCFlux_dWatAbove  = iLayerThermalC(iLayer)
+     case(perturbStateWatBelow);  scalarThermCFlux_dWatBelow  = iLayerThermalC(iLayer)
      case default; err=10; message=trim(message)//"unknown perturbation"; return
     end select
    end if
 
   end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
+
 
   ! ***** the upper boundary
   if(iLayer==0)then  ! (upper boundary)
@@ -561,7 +507,7 @@ contains
      dz = (mLayerHeight(1) - mLayerHeight(iLayer))
      if(ixDerivMethod==analytical)then    ! ** analytical derivatives
       dFlux_dWatBelow(iLayer)  = -dThermalC_dHydStateBelow * ( mLayerTempTrial(1) - upperBoundTemp )/dz
-      dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(1) - upperBoundTemp )/dz - scalariLayerThermalC/dz
+      dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(1) - upperBoundTemp )/dz - iLayerThermalC(iLayer)/dz
      else                              ! ** numerical derivatives
       flux0 = -scalarThermCFlux          *( mLayerTempTrial(1) - upperBoundTemp ) / dz
       flux2 = -scalarThermCFlux_dWatBelow*( mLayerTempTrial(1) - upperBoundTemp ) / dz
@@ -598,7 +544,7 @@ contains
      dz = mLayerDepth(iLayer)*0.5_rkind
      if(ixDerivMethod==analytical)then    ! ** analytical derivatives
       dFlux_dWatAbove(iLayer)  = -dThermalC_dHydStateAbove * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
-      dFlux_dTempAbove(iLayer) = -dThermalC_dNrgStateAbove * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + scalariLayerThermalC/dz
+      dFlux_dTempAbove(iLayer) = -dThermalC_dNrgStateAbove * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
      else                              ! ** numerical derivatives
       flux0 = -scalarThermCFlux           * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
       flux1 = -scalarThermCFlux_dWatAbove * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
@@ -624,8 +570,8 @@ contains
    if(ixDerivMethod==analytical)then    ! ** analytical derivatives
     dFlux_dWatAbove(iLayer)  = -dThermalC_dHydStateAbove * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
     dFlux_dWatBelow(iLayer)  = -dThermalC_dHydStateBelow * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
-    dFlux_dTempAbove(iLayer) = -dThermalC_dNrgStateAbove * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz + scalariLayerThermalC/dz
-    dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - scalariLayerThermalC/dz
+    dFlux_dTempAbove(iLayer) = -dThermalC_dNrgStateAbove * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
+    dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
    else                              ! ** numerical derivatives
     flux0 = -scalarThermCFlux          *( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) ) / dz
     flux1 = -scalarThermCFlux_dWatAbove*( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) ) / dz
@@ -642,6 +588,63 @@ contains
   end if  ! type of layer (upper, internal, or lower)
 
  end do  ! (looping through layers)
+
+ ! -------------------------------------------------------------------------------------------------------------------------
+ ! Compute flux after the derivatives, because need iLayerThermal as calculated above
+ ! -------------------------------------------------------------------------------------------------------------------------
+
+ ! get the indices for the snow+soil layers, remove layer 0 now
+ if(.not.scalarSolution) ixTop = 1
+
+ ! -------------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the conductive fluxes at layer interfaces *****
+ ! -------------------------------------------------------------------------------------------------------------------------
+ do iLayer=ixTop,ixBot ! (loop through model layers)
+
+  ! compute fluxes at the lower boundary -- positive downwards
+  if(iLayer==nLayers)then
+   ! flux depends on the type of lower boundary condition
+   select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
+    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
+    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._rkind
+    case default;         err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
+   end select  ! (identifying the lower boundary condition for thermodynamics)
+
+  ! compute fluxes within the domain -- positive downwards
+  else
+    iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
+                                    (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+
+    !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
+  end if ! (the type of layer)
+ end do
+
+ ! -------------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the advective fluxes at layer interfaces *****
+ ! -------------------------------------------------------------------------------------------------------------------------
+ do iLayer=ixTop,ixBot
+  ! get the liquid flux at layer interfaces
+  select case(layerType(iLayer))
+   case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
+   case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
+   case default; err=20; message=trim(message)//'unable to identify layer type'; return
+  end select
+  ! compute fluxes at the lower boundary -- positive downwards
+  if(iLayer==nLayers)then
+   iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
+  ! compute fluxes within the domain -- positive downwards
+  else
+   iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
+  end if
+ end do  ! looping through layers
+
+ ! -------------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the total fluxes at layer interfaces *****
+ ! -------------------------------------------------------------------------------------------------------------------------
+ ! NOTE: ignore advective fluxes for now
+ iLayerNrgFlux(0)           = groundNetFlux
+ iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
+ !print*, 'iLayerNrgFlux(0:4) = ', iLayerNrgFlux(0:4)
 
  ! end association of local variables with information in the data structures
  end associate
@@ -684,7 +687,7 @@ contains
                        ! input: snow parameters
                        fixedThermalCond_snow,     & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
                        ! output: conductivity at the layer interface (scalars)
-                       iLayerThermalC,            & ! thermal conductivity at the interface of each layer (W m-1 K-1)
+                       iLayerThermalC,            & ! intent(inout) thermal conductivity at the interface of each layer (W m-1 K-1)
                         ! output: derivatives in thermal conductivity w.r.t. state variables -- matric head or volumetric lquid water -- in the layer above and layer below
                        dThermalC_dHydStateAbove,  & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
                        dThermalC_dHydStateBelow,  & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -735,7 +738,7 @@ contains
  ! input: snow parameters
  real(rkind),intent(in)           :: fixedThermalCond_snow     ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
  ! output: thermal conductivity at layer interfaces
- real(rkind),intent(out)          :: iLayerThermalC            ! thermal conductivity at the interface of each layer (W m-1 K-1)
+ real(rkind),intent(inout)        :: iLayerThermalC            ! thermal conductivity at the interface of each layer (W m-1 K-1)
  ! output: thermal conductivity derivatives at all layer interfaces
  real(rkind),intent(out)          :: dThermalC_dHydStateAbove  ! derivatives in the thermal conductivity w.r.t. matric head or volumetric liquid water in the layer above
  real(rkind),intent(out)          :: dThermalC_dHydStateBelow  ! derivatives in the thermal conductivity w.r.t. matric head or volumetric liquid water in the layer below
@@ -845,7 +848,7 @@ contains
       dlambda_wet_dTk  = -lambda_wet * log(lambda_ice) * dVolFracLiq_dTk
 
       relativeSat = (nodeVolFracIce(iLayer) + nodeVolFracLiq(iLayer))/theta_sat(iLayer)  ! relative saturation
-      ! drelativeSat_dWat = dPsi0_dWat, and drelativeSat_dTk = 0 (so dkerstenNum_dTk = 0)
+      ! drelativeSat_dWat = dPsi0_dWat/theta_sat(iLayer), and drelativeSat_dTk = 0 (so dkerstenNum_dTk = 0)
       ! compute the Kersten number (-)
       if(relativeSat > 0.1_rkind)then ! log10(0.1) = -1
        kerstenNum = log10(relativeSat) + 1._rkind

@@ -620,7 +620,7 @@ contains
      ! only compute derivatives if the energy state for the current layer is within the state subset
      if(watstate/=integerMissing)then
 
-      ! - include derivates in liquid water fluxes w.r.t. temperature for current layer
+      ! - include derivatives in liquid water fluxes w.r.t. temperature for current layer
       aJac(watState,nrgState) = (dt/mLayerDepth(jLayer))*(-dq_dNrgStateBelow(iLayer-1) + dq_dNrgStateAbove(iLayer))   ! dVol/dT (K-1) -- flux depends on ice impedance
 
       ! - compute lower diagonal elements
