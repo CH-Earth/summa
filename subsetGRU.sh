@@ -17,7 +17,7 @@ nscript_slurm=20
 GRU_file=$((154 + nbasin_slurm + 207*nscript_slurm))
 GRU_id=$((GRU_file - 1))
 HRU_id=$GRU_id
-echo "file name id is 
+echo "file name id is ${GRU_file}, actual GRU id is ${GRU_id}" 
 
 # top paths, could change
 homePath=/globalhome/gwu479/HPC/TestScripts/

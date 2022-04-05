@@ -390,7 +390,7 @@ contains
 
   if(ixMatrix == ixFullMatrix)then
      ! Set the user-supplied Jacobian routine
-     retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA)) !commment this line out to use FD Jacobian
+     retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA)) !comment this line out to use FD Jacobian
    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetJacFn'; return; endif
   endif
 

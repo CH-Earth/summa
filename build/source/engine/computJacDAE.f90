@@ -523,6 +523,8 @@ contains
       ! (cross-derivative terms for the layer below)
       if(iLayer<nSnow)then
        if(ixSnowOnlyNrg(iLayer+1)/=integerMissing) aJac(ixSnowOnlyNrg(iLayer+1),watState) = (dt/mLayerDepth(iLayer+1))*(-dNrgFlux_dWatAbove(iLayer  ) )
+      elseif(iLayer==nSnow .and. nSoilOnlyNrg>0)then !bottom snow layer and there is soil below
+       if(ixSoilOnlyNrg(1)/=integerMissing) aJac(ixSoilOnlyNrg(1),watState) = (dt/mLayerDepth(nSnow+1))*(-dNrgFlux_dWatAbove(nSnow) )
       endif
 
      endif   ! (if the energy state for the current layer is within the state subset)
@@ -660,6 +662,8 @@ contains
       ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
       if(iLayer>1)then
        if(ixSoilOnlyNrg(iLayer-1)/=integerMissing) aJac(ixSoilOnlyNrg(iLayer-1),watState) = (dt/mLayerDepth(jLayer-1))*( dNrgFlux_dWatBelow(jLayer-1) )
+      elseif(iLayer==1 .and. nSnowOnlyNrg>0)then !top soil layer and there is snow above
+       if(ixSnowOnlyNrg(nSnow)/=integerMissing) aJac(ixSnowOnlyNrg(nSnow),watState) = (dt/mLayerDepth(nSnow))*( dNrgFlux_dWatBelow(nSnow) )
       endif
 
       ! (cross-derivative terms for the layer below)
