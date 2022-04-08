@@ -126,8 +126,6 @@ contains
                        ! input: pre-computed derivatives
                        mLayerdTheta_dTk,                   & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                        mLayerFracLiqSnow,                  & ! intent(in):    fraction of liquid water (-)
-                       mLayerdTheta_dPsi,                  & ! intent(in):    derivative in the soil water characteristic w.r.t. psi (m-1)
-                       mLayerdPsi_dTheta,                  & ! intent(in):    derivative in the soil water characteristic w.r.t. theta (m)
                        ! input-output: data structures
                        mpar_data,                          & ! intent(in):    model parameters
                        indx_data,                          & ! intent(in):    model indices
@@ -147,6 +145,8 @@ contains
  USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
  USE snow_utils_module,only:fracliquid     ! compute fraction of liquid water at a given temperature
+ USE soil_utils_module,only:dTheta_dPsi    ! compute derivative of the soil moisture characteristic w.r.t. psi (m-1)
+ USE soil_utils_module,only:dPsi_dTheta    ! compute derivative of the soil moisture characteristic w.r.t. theta (m)
 
  ! constants
  USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
@@ -172,8 +172,6 @@ contains
 ! input: pre-computed derivatives
  real(rkind),intent(in)              :: mLayerdTheta_dTk(:)        ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
  real(rkind),intent(in)              :: mLayerFracLiqSnow(:)       ! fraction of liquid water (-)
- real(rkind),intent(in)              :: mLayerdTheta_dPsi(:)       ! derivative in the soil water characteristic w.r.t. psi (m-1)
- real(rkind),intent(in)              :: mLayerdPsi_dTheta(:)       ! derivative in the soil water characteristic w.r.t. theta (m)
  ! input-output: data structures
  type(var_dlength),intent(in)        :: mpar_data                  ! model parameters
  type(var_ilength),intent(in)        :: indx_data                  ! state vector geometry
@@ -404,9 +402,9 @@ contains
        end select ! (form of Richards' equation)
        vectorVolFracIceTrial(i) = volFracLiq(vectorMatricHeadTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j)) - vectorVolFracLiqTrial(i)
       endif ! (recompute if perturbed)
-      ! derivatives
-      vectordPsi_dTheta(i) = mLayerdPsi_dTheta(j)
-      vectordTheta_dPsi(i) = mLayerdTheta_dPsi(j)
+      ! derivatives, these need to be computed because they are computed only in soilLiqFlx which is called after this
+      vectordPsi_dTheta(i) = dPsi_dTheta(vectorVolFracLiqTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
+      vectordTheta_dPsi(i) = dTheta_dPsi(vectorMatricHeadTrial(i),vGn_alpha(j),theta_res(j),theta_sat(j),vGn_n(j),vGn_m(j))
       vectorFracLiqSnow(i) = realMissing
       ! soil parameters
       vectortheta_sat(i) = theta_sat(j)

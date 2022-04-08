@@ -534,7 +534,7 @@ contains
                   ! input: liquid water fluxes throughout the snow and soil domains
                   iLayerLiqFluxSnow,                         & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
                   iLayerLiqFluxSoil,                         & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
-                  ! input: trial value of model state variabes
+                  ! input: trial value of model state variables
                   mLayerTempTrial,                           & ! intent(in): trial temperature at the current iteration (K)
                   mLayerMatricHeadTrial,                     & ! intent(in): trial value for the total water matric potential in each soil layer (m)
                   mLayerVolFracLiqTrial,                     & ! intent(in): trial volumetric fraction of liquid water at the current iteration(-)
@@ -542,8 +542,6 @@ contains
                   ! input: pre-computed derivatives
                   mLayerdTheta_dTk,                          & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                   mLayerFracLiqSnow,                         & ! intent(in):    fraction of liquid water (-)
-                  mLayerdTheta_dPsi,                         & ! intent(in):    derivative in the soil water characteristic w.r.t. psi (m-1)
-                  mLayerdPsi_dTheta,                         & ! intent(in):    derivative in the soil water characteristic w.r.t. theta (m)
                   ! input-output: data structures
                   mpar_data,                                 & ! intent(in):    model parameters
                   indx_data,                                 & ! intent(in):    model indices
@@ -672,7 +670,7 @@ contains
 
    if(ixVegHyd/=integerMissing)then
     ! save canopy derivatives
-    above_soilLiqFluxDeriv = scalarcanopyLiqDeriv/iden_water ! derivative in (throughfall + drainage) w.r.t. canopy liquid water
+    above_soilLiqFluxDeriv = scalarCanopyLiqDeriv/iden_water ! derivative in (throughfall + drainage) w.r.t. canopy liquid water
     above_soildLiq_dTk     = dCanLiq_dTcanopy     ! derivative of canopy liquid storage w.r.t. temperature
     above_soilFracLiq      = scalarFracLiqVeg     ! fraction of liquid water in canopy (-)
    else
