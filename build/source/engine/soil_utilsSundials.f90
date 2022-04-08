@@ -83,7 +83,7 @@ contains
  real(rkind),intent(in)            :: volFracIcePrime
  ! output
  real(rkind),intent(out)           :: matricHeadLiq                             ! liquid water matric potential (m)
-  real(rkind),intent(out)          :: matricHeadLiqPrime 
+  real(rkind),intent(out)          :: matricHeadLiqPrime
  real(rkind),intent(out) ,optional :: dPsiLiq_dPsi0                             ! derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
  real(rkind),intent(out) ,optional :: dPsiLiq_dTemp                             ! derivative in the liquid water matric potential w.r.t. temperature (m K-1)
  ! output: error control
@@ -102,7 +102,7 @@ contains
 
  ! ** partially frozen soil
  if(volFracIce > verySmall .and. matricHeadTotal < 0._rkind)then  ! check that ice exists and that the soil is unsaturated
- 
+
 
   ! -----
   ! - compute liquid water matric potential...
@@ -123,7 +123,7 @@ contains
   else
    matricHeadLiqPrime = 0._rkind
   endif
-  
+
 
   ! compute derivative in liquid water matric potential w.r.t. effective saturation (m)
   if(present(dPsiLiq_dPsi0).or.present(dPsiLiq_dTemp))then
@@ -165,7 +165,7 @@ contains
    dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
   ! matricHeadLiqPrime = dPsiLiq_dTemp * tempPrime
 
-   
+
 
   endif  ! if dPsiLiq_dTemp is desired
 
@@ -178,10 +178,10 @@ contains
  end if  ! (if ice exists)
 
  end subroutine liquidHeadSundials
- 
- 
+
+
   ! ******************************************************************************************************************************
- ! public function dTheta_dPsi: compute the derivative of the soil water characteristic (m-1)
+ ! public function d2Theta_dPsi2: compute the second derivative of the soil water characteristic (m-1)
  ! ******************************************************************************************************************************
  function d2Theta_dPsi2(psi,alpha,theta_res,theta_sat,n,m)
  implicit none
@@ -204,7 +204,7 @@ contains
   d2Theta_dPsi2 = 0._rkind
  end if
  end function d2Theta_dPsi2
- 
+
 
  ! ******************************************************************************************************************************
  ! public function d2Theta_dTk2: differentiate the freezing curve w.r.t. temperature

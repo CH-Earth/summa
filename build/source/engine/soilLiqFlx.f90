@@ -1453,11 +1453,11 @@ contains
     fPart1    = hydCondWettingFront
     fPart2    = ( (wettingFrontSuction + depthWettingFront)/depthWettingFront )
     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/sum(mLayerDepth)
-    dPart2(:) = -wettingFrontSuction / (dDepthWettingFront_dWat(:)**2._rkind)
-    dXMaxInfilRate_dWat(:)  = fPart1*dpart2(:) + fPart2*dPart1(:)
+    dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2._rkind)
+    dXMaxInfilRate_dWat(:) = fPart1*dpart2(:) + fPart2*dPart1(:)
     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/sum(mLayerDepth)
-    dPart2(:) = -wettingFrontSuction / (dDepthWettingFront_dTk(:)**2._rkind)
-    dXMaxInfilRate_dTk(:) = fPart1*dpart2(:) + fPart2*dPart1(:)
+    dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2._rkind)
+    dXMaxInfilRate_dTk(:)  = fPart1*dpart2(:) + fPart2*dPart1(:)
 
     ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
     if(qSurfScale < qSurfScaleMax)then
@@ -1466,10 +1466,10 @@ contains
      scalarInfilArea = min(0.5_rkind*(fInfRaw + sqrt(fInfRaw**2._rkind + scaleFactor)), 1._rkind)   ! infiltrating area -- constrained
      if (0.5_rkind*(fInfRaw + sqrt(fInfRaw**2._rkind + scaleFactor))< 1._rkind) then
       dfracCap(:) = ( dRootZoneLiq_dWat(:)/maxFracCap + dRootZoneIce_dWat(:)*fracCap )/availCapacity
-      dfInfRaw(:) = qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
+      dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
       dInfilArea_dWat(1:nSoil) = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2._rkind + scaleFactor))
       dfracCap(:) = ( dRootZoneLiq_dTk(:)/maxFracCap + dRootZoneIce_dTk(:)*fracCap )/availCapacity
-      dfInfRaw(:) = qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
+      dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
       dInfilArea_dTk(1:nSoil)  = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2._rkind + scaleFactor))
      else ! scalarInfilArea = 1._rkind
       dInfilArea_dWat(:) = 0._rkind
