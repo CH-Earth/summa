@@ -22,4 +22,3 @@ This page provides simple, high-level documentation about what has changed in ea
 - Fixes a bug that incorrectly writes scalarRainPlusMelt to output in cases where snow layers do not exist
 - Changed part "(a,1x,i0)" to "(a,1x,i0,a,f5.3,a,f5.3)" in check_icond.f90 line 277 to print out error correctly.
 - Adds scalarSnowDrainage calculation when melt of the snow without a layer
-- update localParamInfo.txt in base_settings/base_settings

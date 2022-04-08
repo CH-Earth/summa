@@ -1,3 +1,8 @@
+! File provenance
+! ---------------
+! 2021-08-10: taken from the SUMMA test cases v3 distribution (WRR figures) and included as case study default file
+!
+!
 ! =======================================================================================================================
 ! =======================================================================================================================
 ! ===== DEFINITION OF MODEL PARAMETERS ==================================================================================
@@ -45,7 +50,7 @@ fixedThermalCond_snow     |       0.3500 |       0.1000 |       1.0000
 ! snow albedo
 ! ====================================================================
 albedoMax                 |       0.8400 |       0.7000 |       0.9500
-albedoMinWinter           |       0.5500 |       0.5500 |       1.0000
+albedoMinWinter           |       0.5500 |       0.6000 |       1.0000
 albedoMinSpring           |       0.5500 |       0.3000 |       1.0000
 albedoMaxVisible          |       0.9500 |       0.7000 |       0.9500
 albedoMinVisible          |       0.7500 |       0.5000 |       0.7500
@@ -128,11 +133,11 @@ minStomatalConductance    |    2000.0000 |    2000.0000 |    2000.0000
 ! ====================================================================
 ! vegetation properties
 ! ====================================================================
-winterSAI                 |       0.5000 |       0.0100 |       3.0000
+winterSAI                 |       1.0000 |       0.0100 |       3.0000
 summerLAI                 |       3.0000 |       0.0100 |      10.0000
 rootScaleFactor1          |       2.0000 |       1.0000 |      10.0000
 rootScaleFactor2          |       5.0000 |       1.0000 |      10.0000
-rootingDepth              |       1.0000 |       0.0100 |      10.0000
+rootingDepth              |       2.0000 |       0.0100 |      10.0000
 rootDistExp               |       1.0000 |       0.0100 |       1.0000
 plantWiltPsi              |    -150.0000 |    -500.0000 |       0.0000
 soilStressParam           |       5.8000 |       4.3600 |       6.3700
@@ -142,7 +147,7 @@ critAquiferTranspire      |       0.2000 |       0.1000 |      10.0000
 minStomatalResistance     |      50.0000 |      10.0000 |     200.0000
 leafDimension             |       0.0400 |       0.0100 |       0.1000
 heightCanopyTop           |      20.0000 |       0.0500 |     100.0000
-heightCanopyBottom        |       2.0000 |       0.0000 |      15.0000
+heightCanopyBottom        |       2.0000 |       0.0000 |       5.0000
 specificHeatVeg           |     874.0000 |     500.0000 |    1500.0000
 maxMassVegetation         |      25.0000 |       1.0000 |      50.0000
 throughfallScaleSnow      |       0.5000 |       0.1000 |       0.9000
@@ -154,10 +159,6 @@ canopyDrainageCoeff       |       0.0050 |       0.0010 |       0.0100
 ratioDrip2Unloading       |       0.4000 |       0.0000 |       1.0000
 canopyWettingFactor       |       0.7000 |       0.0000 |       1.0000
 canopyWettingExp          |       1.0000 |       0.0000 |       1.0000
-minTempUnloading          |       270.16 |       260.16 |       273.16
-minWindUnloading          |       0.0000 |       0.0000 |       10.000
-rateTempUnloading         |      1.87d+5 |       1.0d+5 |       3.0d+5
-rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5
 ! ====================================================================
 ! soil properties
 ! ====================================================================
@@ -174,14 +175,14 @@ theta_res                 |       0.1390 |       0.0010 |       0.1000
 vGn_alpha                 |      -0.8400 |      -1.0000 |      -0.0100
 vGn_n                     |       1.3000 |       1.0000 |       3.0000
 mpExp                     |       5.0000 |       1.0000 |      10.0000
-k_soil                    |      7.5d-06 |       1.d-07 |       1.d-04
-k_macropore               |      1.0d-03 |       1.d-07 |       1.d-01
+k_soil                    |      7.5d-06 |       1.d-07 |     100.d-07
+k_macropore               |      1.0d-03 |       1.d-07 |     100.d-07
 kAnisotropic              |       1.0000 |       0.0001 |      10.0000
 zScale_TOPMODEL           |       2.5000 |       0.1000 |     100.0000
 compactedDepth            |       1.0000 |       0.0000 |       1.0000
-aquiferBaseflowRate       |       1.d-03 |       1.0d-9 |       0.1000
-aquiferScaleFactor        |       1.5000 |       0.1000 |      20.0000
+aquiferScaleFactor        |       0.3500 |       0.1000 |     100.0000
 aquiferBaseflowExp        |       2.0000 |       1.0000 |      10.0000
+aquiferBaseflowRate       |       2.0000 |       1.0000 |      10.0000
 qSurfScale                |      50.0000 |       1.0000 |     100.0000
 specificYield             |       0.2000 |       0.1000 |       0.3000
 specificStorage           |       1.d-09 |       1.d-05 |       1.d-07
@@ -193,17 +194,17 @@ soilIceCV                 |       0.4500 |       0.1000 |       5.0000
 ! ====================================================================
 minwind                   |       0.1000 |       0.0010 |       1.0000
 minstep                   |       1.0000 |       1.0000 |    1800.0000
-maxstep                   |    3600.0000 |      60.0000 |    3600.0000
+maxstep                   |    3600.0000 |      60.0000 |    1800.0000
 wimplicit                 |       0.0000 |       0.0000 |       1.0000
-maxiter                   |     300.0000 |       1.0000 |    1000.0000
+maxiter                   |     100.0000 |       1.0000 |     100.0000
 relConvTol_liquid         |       1.0d-3 |       1.0d-5 |       1.0d-1
-absConvTol_liquid         |       1.0d-4 |       1.0d-8 |       1.0d-3
-relConvTol_matric         |       1.0d-6 |       1.0d-7 |       1.0d-1
+absConvTol_liquid         |       1.0d-6 |       1.0d-8 |       1.0d-3
+relConvTol_matric         |       1.0d-6 |       1.0d-5 |       1.0d-1
 absConvTol_matric         |       1.0d-6 |       1.0d-8 |       1.0d-3
-relConvTol_aquifr         |       1.0d-1 |       1.0d-2 |       1.0d+1
-absConvTol_aquifr         |       1.0d-5 |       1.0d-5 |       1.0d-1
 relConvTol_energy         |       1.0d-2 |       1.0d-5 |       1.0d-1
-absConvTol_energy         |       1.0d-1 |       1.0d-2 |       1.0d+1
+absConvTol_energy         |       1.0d-0 |       1.0d-2 |       1.0d+1
+relConvTol_aquifr         |       1.0d-0 |       1.0d-2 |       1.0d+1
+absConvTol_aquifr         |       1.0d-5 |       1.0d-5 |       1.0d-1
 zmin                      |       0.0100 |       0.0050 |       0.1000
 zmax                      |       0.0500 |       0.0100 |       0.5000
 ! ---
@@ -223,3 +224,7 @@ zmaxLayer2_upper          |       0.1500 |       0.1500 |       0.1500
 zmaxLayer3_upper          |       0.3000 |       0.3000 |       0.3000
 zmaxLayer4_upper          |       0.7500 |       0.7500 |       0.7500
 ! ====================================================================
+minTempUnloading          |       270.16 |       260.16 |       273.16
+minWindUnloading          |       0.0000 |       0.0000 |       10.000
+rateTempUnloading         |      1.87d+5 |       1.0d+5 |       3.0d+5
+rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5
