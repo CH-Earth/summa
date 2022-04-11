@@ -197,7 +197,7 @@ MODULE globalData
  ! * part 2: globally constant variables/structures that require initialization
  ! ----------------------------------------------------------------------------------------------------------------
 
- ! define Not-a-Number (NaN) for later use
+ ! define Not-a-Number (NaN)
  real(rkind),save,public                     :: dNaN
 
  ! define default parameter values and parameter bounds
