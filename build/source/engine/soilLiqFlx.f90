@@ -581,9 +581,6 @@ contains
                   err,cmessage)                         ! intent(out): error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
-  dq_dHydStateBelow(0) = 0._rkind
-  dq_dNrgStateBelow(0) = 0._rkind
-
   ! include base soil evaporation as the upper boundary flux
   iLayerLiqFluxSoil(0) = scalarGroundEvaporation/iden_water + scalarSurfaceInfiltration
 
@@ -600,9 +597,13 @@ contains
 
  end do  ! (looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives)
 
+ dq_dHydStateBelow(0) = 0._rkind ! contribution will be in dq_dHydStateLayerSurfVec(1)
+ dq_dNrgStateBelow(0) = 0._rkind ! contribution will be in dq_dNrgStateLayerSurfVec(1)
+
  ! compute numerical derivatives
  if(deriv_desired .and. ixDerivMethod==numerical)then
-  dq_dHydStateBelow(0) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
+  dq_dHydStateLayerSurfVec(1) = (scalarFlux_dStateBelow - scalarFlux)/dx ! change in surface flux w.r.t. change in the soil moisture in the top soil layer (m s-1)
+  dq_dHydStateLayerSurfVec(1) = 0._rkind ! Did not yet compute this perturbation
  end if
  !print*, 'scalarSurfaceInfiltration, iLayerLiqFluxSoil(0) = ', scalarSurfaceInfiltration, iLayerLiqFluxSoil(0)
  !print*, '(ixDerivMethod==numerical), dq_dHydStateBelow(0) = ', (ixDerivMethod==numerical), dq_dHydStateBelow(0)
@@ -1451,7 +1452,7 @@ contains
     xMaxInfilRate = hydCondWettingFront*( (wettingFrontSuction + depthWettingFront)/depthWettingFront )  ! maximum infiltration rate (m s-1)
     !write(*,'(a,1x,f9.3,1x,10(e20.10,1x))') 'depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate = ', depthWettingFront, surfaceSatHydCond, hydCondWettingFront, xMaxInfilRate
     fPart1    = hydCondWettingFront
-    fPart2    = ( (wettingFrontSuction + depthWettingFront)/depthWettingFront )
+    fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
     dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/sum(mLayerDepth)
     dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2._rkind)
     dXMaxInfilRate_dWat(:) = fPart1*dpart2(:) + fPart2*dPart1(:)
@@ -1728,7 +1729,7 @@ contains
                        lowerBoundHead,            & ! intent(in): lower boundary condition (m)
                        lowerBoundTheta,           & ! intent(in): lower boundary condition (-)
                        ! input: derivative in soil water characteristix
-                       node__dPsi_dTheta,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. theta (m)
+                       node_dPsi_dTheta,         & ! intent(in): derivative of the soil moisture characteristic w.r.t. theta (m)
                        ! input: transmittance
                        surfaceSatHydCond,         & ! intent(in): saturated hydraulic conductivity at the surface (m s-1)
                        bottomSatHydCond,          & ! intent(in): saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
@@ -1778,7 +1779,7 @@ contains
  real(rkind),intent(in)           :: lowerBoundHead            ! lower boundary condition for matric head (m)
  real(rkind),intent(in)           :: lowerBoundTheta           ! lower boundary condition for volumetric liquid water content (-)
  ! input: derivative in soil water characteristix
- real(rkind),intent(in)           :: node__dPsi_dTheta         ! derivative of the soil moisture characteristic w.r.t. theta (m)
+ real(rkind),intent(in)           :: node_dPsi_dTheta         ! derivative of the soil moisture characteristic w.r.t. theta (m)
  ! input: transmittance
  real(rkind),intent(in)           :: surfaceSatHydCond         ! saturated hydraulic conductivity at the surface (m s-1)
  real(rkind),intent(in)           :: bottomSatHydCond          ! saturated hydraulic conductivity at the bottom of the unsaturated zone (m s-1)
@@ -1875,7 +1876,7 @@ contains
    if(deriv_desired)then
     ! hydrology derivatives
     select case(ixRichards)  ! (form of Richards' equation)
-     case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node__dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
+     case(moisture); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * node_dPsi_dTheta*exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
      case(mixdform); dq_dHydStateUnsat = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)/zScale_TOPMODEL
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select
