@@ -1533,10 +1533,6 @@ contains
    dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  ) +&
                         (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
 
-   scalarSurfaceInfiltration = rootZoneIce
-   dq_dHydStateVec(1:nSoil) = dRootZoneIce_dWat
-   dq_dNrgStateVec(1:nSoil) = dRootZoneIce_dTk
-
    ! compute surface runoff (m s-1)
    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
    !print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate

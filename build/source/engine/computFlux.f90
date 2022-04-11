@@ -784,7 +784,7 @@ contains
   if(globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
-  dq_dHydStateLayerSurfVec(0:nSoil) = dq_dHydStateLayerSurfVec(0:nSoil)*dPsiLiq_dPsi0(0:nSoil)
+  dq_dHydStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*dPsiLiq_dPsi0(1:nSoil)
 
  endif  ! if calculating the liquid flux through soil
 
