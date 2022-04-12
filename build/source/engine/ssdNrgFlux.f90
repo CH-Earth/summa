@@ -361,7 +361,7 @@ contains
    ! ============================
    ! start with the un-perturbed case
    vectorVolFracLiqTrial(1:2) = mLayerVolFracLiqTrial(mLayer_ind)
-   vectorMatricHeadTrial(1:2) = mLayerMatricHeadTrial(mLayer_ind)
+   vectorMatricHeadTrial(1:2) = mLayerMatricHeadTrial(mLayer_ind-nSnow)
    vectorTempTrial(1:2) = mLayerTempTrial(mLayer_ind)
    vectorVolFracIceTrial(1:2) = mLayerVolFracIceTrial(mLayer_ind)
    ! make appropriate perturbations,
