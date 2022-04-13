@@ -16,8 +16,8 @@ NOTE if you need to recompile after a system upgrade, delete the contents of the
 
 4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
 % cmake ../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
-You can do this by running
-cp ../../sundials/builddir/build_cmakeSundials build_cmake
+You can do this by running from inside buildir:
+cp ../../summa/build/build_cmakeSundials build_cmake
 ./build_cmake
 
 

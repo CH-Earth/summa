@@ -1,5 +1,5 @@
 # from ../../sundials/builddir, run 
-# cp ../../sundials/builddir/build_cmakeSundials_mac build_cmake
+# cp ../../summa/build/build_cmakeSundials build_cmake
 # run script from the builddir directory with ./build_cmake
 
 cmake ../../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=/Users/amedin/Research/SummaSundials/sundials/instdir -DEXAMPLES_INSTALL_PATH=/Users/amedin/Research/SummaSundials/sundials/instdir/examples
