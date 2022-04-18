@@ -19,3 +19,5 @@ This page provides simple, high-level documentation about what has changed in ea
 - Add deflate (compression level) option to outputControl file -- default level is 4 if not specified
 - Fixes an unnecessary rounding error on SAI and LAI values in PHENOLOGY routine
 - Fixes a bug where the SUMMA version is incorrectly reported by "summa.exe -v"
+- Fixes a bug that incorrectly writes scalarRainPlusMelt to output in cases where snow layers do not exist
+- Changed part "(a,1x,i0)" to "(a,1x,i0,a,f5.3,a,f5.3)" in check_icond.f90 line 277 to print out error correctly.
