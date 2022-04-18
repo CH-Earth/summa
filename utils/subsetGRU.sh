@@ -55,7 +55,7 @@ echo "trialParams.nc HRU ${HRU_id} subsetted"
 
 # forcing subset has multiple files
 cd $forcingPath
-for fn in *.nc; do
+for fn in NorthAmerica_remapped_*00-00-00.nc; do
     output_fn=${desForcingPath}${fn}
     ncks -d hru,$HRU_id,$HRU_id $fn $output_fn
     echo "${fn} HRU ${HRU_id} subsetted"

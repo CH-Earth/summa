@@ -74,7 +74,6 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water,   & ! intrinsic density of liquid water    (kg m-3)
                     ! specific heat
                     Cp_ice,      & ! specific heat of ice          (J kg-1 K-1)
@@ -504,10 +503,10 @@ contains
      if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
       ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-      aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_ice * cj &
+      aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_water * cj &
                                 + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) &
                                 + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer)) &
-                                + LH_fus*iden_ice * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
+                                + LH_fus*iden_water * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
 
       ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
       aJac(watState,nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
