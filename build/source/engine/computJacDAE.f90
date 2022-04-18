@@ -74,6 +74,7 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
+                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water,   & ! intrinsic density of liquid water    (kg m-3)
                     ! specific heat
                     Cp_ice,      & ! specific heat of ice          (J kg-1 K-1)
@@ -327,7 +328,7 @@ contains
       dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
                                     + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
                                     + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
-                                 	+ LH_fus*iden_water * dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
+                                    + LH_fus*iden_water * dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
   end if
  end do
 

@@ -379,7 +379,7 @@ contains
    ! * soil
    case(iname_soil)
     mLayerHeatCap(iLayer) =      iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
-                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
    case(iname_snow)

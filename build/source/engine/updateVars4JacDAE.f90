@@ -451,7 +451,7 @@ contains
    select case(ixDomainType)
     case(iname_veg)
      fLiq = fracLiquid(xTemp,snowfrz_scale)
-     dVolHtCapBulk_dCanWat = scalarCanopyLiq/canopyDepth * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )
+     dVolHtCapBulk_dCanWat = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )
     case(iname_snow)
      fLiq = fracLiquid(xTemp,snowfrz_scale)
      dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
@@ -481,7 +481,7 @@ contains
       dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
       dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
       d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2._rkind ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
-      dVolHtCapBulk_dTkCanopy = scalarCanopyLiq/canopyDepth * (-Cp_ice + Cp_water) * dTheta_dTkCanopy !same as snow but there is no derivative in air
+      dVolHtCapBulk_dTkCanopy = iden_water * (-Cp_ice + Cp_water) * dTheta_dTkCanopy !same as snow but there is no derivative in air
      case(iname_snow)
       fLiq = fracLiquid(xTemp,snowfrz_scale)
       dFracLiqSnow_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
