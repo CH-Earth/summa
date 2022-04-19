@@ -688,6 +688,7 @@ MODULE var_lookup
   integer(i4b)    :: basin__aquiferScaleFactor  = integerMissing ! scaling factor for aquifer storage in the big bucket (m)
   integer(i4b)    :: basin__aquiferBaseflowExp  = integerMissing ! baseflow exponent for the big bucket (-)
   ! within-grid routing
+  integer(i4b)    :: routingVelocity            = integerMissing ! constant velocity parameter used for sub-grid routing (-)
   integer(i4b)    :: routingGammaShape          = integerMissing ! shape parameter in Gamma distribution used for sub-grid routing (-)
   integer(i4b)    :: routingGammaScale          = integerMissing ! scale parameter in Gamma distribution used for sub-grid routing (s)
  endtype iLook_bpar
@@ -839,7 +840,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60)
 
  ! named variables: basin-average parameters
- type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5)
+ type(iLook_bpar),    public,parameter :: iLookBPAR     =ilook_bpar    (  1,  2,  3,  4,  5,  6)
 
  ! named variables: basin-average variables
  type(iLook_bvar),    public,parameter :: iLookBVAR     =ilook_bvar    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

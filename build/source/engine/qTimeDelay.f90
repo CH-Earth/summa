@@ -25,8 +25,9 @@ USE nrtype
 
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only:      &
- timeDelay,&  ! time-delay histogram
- qInstant     ! instantaneous routing
+ constVelocity,&  ! time-delay histogram computed based on constant velocity
+ timeDelay,&      ! time-delay histogram computed using a gamma distribution with shape and scale parameter
+ qInstant         ! instantaneous routing
 
 implicit none
 private
@@ -74,7 +75,7 @@ contains
    averageRoutedRunoff = averageInstantRunoff
 
   ! ** time delay histogram
-  case(timeDelay)
+  case(timeDelay,constVelocity)
    ! identify number of points in the time-delay histogram
    nTDH = size(qFuture)
    ! place a fraction of runoff in future steps

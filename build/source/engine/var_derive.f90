@@ -59,8 +59,9 @@ USE mDecisions_module,only: &
 
 ! look-up values for the sub-grid routing method
 USE mDecisions_module,only:      &
- timeDelay,&  ! time-delay histogram
- qInstant     ! instantaneous routing
+ constVelocity,&  ! time-delay histogram computed based on constant velocity
+ timeDelay,&      ! time-delay histogram computed using a gamma distribution with shape and scale parameter
+ qInstant         ! instantaneous routing
 
 ! privacy
 implicit none
@@ -384,15 +385,16 @@ contains
 
  implicit none
  ! input variables
- real(rkind),intent(in)             :: bpar_data(:)           ! vector of basin-average model parameters
+ real(rkind),intent(inout)          :: bpar_data(:)           ! vector of basin-average model parameters
  ! output variables
- type(var_dlength),intent(inout) :: bvar_data              ! data structure of basin-average model variables
- integer(i4b),intent(out)        :: err                    ! error code
- character(*),intent(out)        :: message                ! error message
+ type(var_dlength),intent(inout)    :: bvar_data              ! data structure of basin-average model variables
+ integer(i4b),intent(out)           :: err                    ! error code
+ character(*),intent(out)           :: message                ! error message
  ! internal
  real(rkind)                        :: dt                     ! data time step (s)
- integer(i4b)                    :: nTDH                   ! number of points in the time-delay histogram
- integer(i4b)                    :: iFuture                ! index in time delay histogram
+ real(rkind)                        :: chanLength             ! GRU channel length (m)
+ integer(i4b)                       :: nTDH                   ! number of points in the time-delay histogram
+ integer(i4b)                       :: iFuture                ! index in time delay histogram
  real(rkind)                        :: tFuture                ! future time (end of step)
  real(rkind)                        :: pSave                  ! cumulative probability at the start of the step
  real(rkind)                        :: cumProb                ! cumulative probability at the end of the step
@@ -404,8 +406,10 @@ contains
  ! associate variables in data structure
  associate(&
  ixRouting         => model_decisions(iLookDECISIONS%subRouting)%iDecision, & ! index for routing method
+ routingVelocity   => bpar_data(iLookBPAR%routingVelocity),                 & ! velocity parameter in Gamma distribution used for sub-grid routing (-)
  routingGammaShape => bpar_data(iLookBPAR%routingGammaShape),               & ! shape parameter in Gamma distribution used for sub-grid routing (-)
  routingGammaScale => bpar_data(iLookBPAR%routingGammaScale),               & ! scale parameter in Gamma distribution used for sub-grid routing (s)
+ totalArea         => bvar_data%var(iLookBVAR%basin__TotalArea)%dat(1),     & ! total basin area (m2)
  runoffFuture      => bvar_data%var(iLookBVAR%routingRunoffFuture)%dat,     & ! runoff in future time steps (m s-1)
  fractionFuture    => bvar_data%var(iLookBVAR%routingFractionFuture)%dat    & ! fraction of runoff in future time steps (-)
  ) ! end associate
@@ -413,6 +417,12 @@ contains
 
  ! define time step
  dt =  data_step ! length of the data step (s)
+
+ ! check if we need to compute the scale parameter for the Gamma distribution
+ if(ixRouting == constVelocity)then
+  chanLength        = sqrt(totalArea/PI_D)        ! channel length (m)
+  routingGammaScale = chanLength/routingVelocity  ! scale parameter (s)
+ endif  ! if need to compute the shape and scale parameters
 
  ! identify number of points in the time-delay runoff variable (should be allocated match nTimeDelay)
  nTDH = size(runoffFuture)
@@ -429,7 +439,7 @@ contains
    fractionFuture(2:nTDH) = 0._rkind
 
   ! ** time delay histogram
-  case(timeDelay)
+  case(timeDelay,constVelocity)
    ! initialize
    pSave   = 0._rkind ! cumulative probability at the start of the step
    if(routingGammaShape <= 0._rkind .or. routingGammaScale <= 0._rkind)then

@@ -859,6 +859,7 @@ contains
   case('basin__aquiferScaleFactor'); get_ixbpar = iLookBPAR%basin__aquiferScaleFactor ! scaling factor for aquifer storage in the big bucket (m)
   case('basin__aquiferBaseflowExp'); get_ixbpar = iLookBPAR%basin__aquiferBaseflowExp ! baseflow exponent for the big bucket (-)
   ! sub-grid routing
+  case('routingVelocity'          ); get_ixbpar = iLookBPAR%routingVelocity           ! velocity parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaShape'        ); get_ixbpar = iLookBPAR%routingGammaShape         ! shape parameter in Gamma distribution used for sub-grid routing (-)
   case('routingGammaScale'        ); get_ixbpar = iLookBPAR%routingGammaScale         ! scale parameter in Gamma distribution used for sub-grid routing (s)
   ! get to here if cannot find the variable

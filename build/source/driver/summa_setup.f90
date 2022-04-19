@@ -255,12 +255,6 @@ contains
  ! loop through GRUs
  do iGRU=1,nGRU
 
-  ! calculate the fraction of runoff in future time steps
-  call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
-                  bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
-                  err,cmessage)                   ! error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
   ! loop through local HRUs
   do iHRU=1,gru_struc(iGRU)%hruCount
 
@@ -314,6 +308,12 @@ contains
    totalArea = totalArea + attrStruct%gru(iGRU)%hru(iHRU)%var(iLookATTR%HRUarea)
   end do
   end associate
+
+  ! calculate the fraction of runoff in future time steps
+  call fracFuture(bparStruct%gru(iGRU)%var,    &  ! vector of basin-average model parameters
+                  bvarStruct%gru(iGRU),        &  ! data structure of basin-average variables
+                  err,cmessage)                   ! error control
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do ! GRU
 

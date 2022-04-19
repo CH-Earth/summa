@@ -21,10 +21,10 @@
 module read_pinit_module
 USE nrtype
 ! check for when model decisions are undefined
-USE mDecisions_module,only: unDefined
+USE mDecisions_module,only: unDefined, constVelocity
 USE globalData,only:model_decisions
 USE globalData,only:realMissing
-USE var_lookup,only:iLookDECISIONS,iLookPARAM
+USE var_lookup,only:iLookDECISIONS,iLookPARAM,iLookBPAR
 implicit none
 private
 public::read_pinit
@@ -34,7 +34,7 @@ contains
  ! ************************************************************************************************
  ! public subroutine read_pinit: read default model parameter values and constraints
  ! ************************************************************************************************
- subroutine read_pinit(filenm,isLocal,mpar_meta,parFallback,err,message)
+ subroutine read_pinit(filenm,isHRU,mpar_meta,parFallback,err,message)
  ! used to read metadata on the forcing data file
  USE summaFileManager,only:SETTINGS_PATH   ! path for input parameter and other configuration files
  USE ascii_util_module,only:file_open      ! open ascii file
@@ -46,7 +46,7 @@ contains
  implicit none
  ! define input
  character(*),intent(in)                :: filenm         ! name of file containing default values and constraints of model parameters
- logical(lgt),intent(in)                :: isLocal        ! .true. if the file describes local column parameters
+ logical(lgt),intent(in)                :: isHRU          ! .true. if the file describes HRU parameters
  type(var_info),intent(in)              :: mpar_meta(:)   ! metadata for model parameters
  ! define output
  type(par_info),intent(out)             :: parFallback(:) ! default values and constraints of model parameters
@@ -111,7 +111,7 @@ contains
   read(temp,trim(ffmt),iostat=err) varname, dLim, parTemp%default_val, dLim, parTemp%lower_limit, dLim, parTemp%upper_limit
   if (err/=0) then; err=30; message=trim(message)//"errorReadLine"; return; end if
   ! (identify the index of the variable in the data structure)
-  if(isLocal)then
+  if(isHRU)then
    ivar = get_ixParam(trim(varname))
   else
    ivar = get_ixBpar(trim(varname))
@@ -129,24 +129,32 @@ contains
    err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
   end if
  end do  ! (looping through lines in the file)
+ ! populate HRU parameters that were not included in the original control files
+ if(isHRU)then
+  if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
+   parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._rkind             ! maximum wetted fraction of the canopy (-)
+   parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_rkind    ! exponent in canopy wetting function (-)
+  end if
+ ! populate GRU parameters that were not included in the original control files
+ else
+  if(parFallback(iLookBPAR%routingVelocity)%default_val < 0.99_rkind*realMissing)then
+   parFallback(iLookBPAR%routingVelocity)%default_val = 1._dp
+   if(model_decisions(iLookDECISIONS%subRouting)%iDecision == constVelocity)then
+    print*, trim(message)//'WARNING: '// &
+                           'We noticed that you have implemented the constant velocity parameterization for sub-grid routing '// &
+                           'but you do not have the "routingVelocity" parameter in your basinPARAM file. We set the constant '// &
+                           'velocity parameter to 1.0. We consider this to be an immense act of philanthropy. You are welcome.'
+   endif  ! if using the constant velocity routing
+  endif  ! if the parameter is not populated
+ endif  ! if dealing with GRU parameters
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
- if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
-  if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
-   do ivar=1,size(parFallback)
-    if(parFallback(ivar)%default_val < 0.99_rkind*realMissing)then
-     err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
-    end if
-   end do
-  end if
- ! populate parameters that were not included in the original control files
- else ! (need backwards compatibility)
-  if(isLocal)then
-   if(model_decisions(iLookDECISIONS%cIntercept)%iDecision == unDefined)then
-    parFallback(iLookPARAM%canopyWettingFactor)%default_val = 1._rkind             ! maximum wetted fraction of the canopy (-)
-    parFallback(iLookPARAM%canopyWettingExp)%default_val    = 0.666666667_rkind    ! exponent in canopy wetting function (-)
+ if(any(parFallback(:)%default_val < 0.99_rkind*realMissing))then
+  do ivar=1,size(parFallback)
+   if(parFallback(ivar)%default_val < 0.99_rkind*realMissing)then
+    err=40; message=trim(message)//"variableNonexistent[var="//trim(mpar_meta(ivar)%varname)//"]"; return
    end if
-  end if
+  end do
  end if
  ! close file unit
  close(unt)

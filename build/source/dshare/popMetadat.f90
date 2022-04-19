@@ -291,6 +291,7 @@ contains
  bpar_meta(iLookBPAR%basin__aquiferHydCond)           = var_info('basin__aquiferHydCond'    , 'hydraulic conductivity of the aquifer'                          , 'm s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bpar_meta(iLookBPAR%basin__aquiferScaleFactor)       = var_info('basin__aquiferScaleFactor', 'scaling factor for aquifer storage in the big bucket'           , 'm'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bpar_meta(iLookBPAR%basin__aquiferBaseflowExp)       = var_info('basin__aquiferBaseflowExp', 'baseflow exponent for the big bucket'                           , '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ bpar_meta(iLookBPAR%routingVelocity)                 = var_info('routingVelocity'          , 'constant velocity parameter used for sub-grid routing'          , 'm s-1', get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bpar_meta(iLookBPAR%routingGammaShape)               = var_info('routingGammaShape'        , 'shape parameter in Gamma distribution used for sub-grid routing', '-'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  bpar_meta(iLookBPAR%routingGammaScale)               = var_info('routingGammaScale'        , 'scale parameter in Gamma distribution used for sub-grid routing', 's'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
