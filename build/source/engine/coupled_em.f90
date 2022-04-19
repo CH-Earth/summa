@@ -242,15 +242,6 @@ contains
  ! get the start time
  call cpu_time(startTime)
 
-<<<<<<< HEAD
-=======
- ! check the sundials decision
- if(model_decisions(iLookDECISIONS%num_method)%iDecision==sundials)then
-  message=trim(message)//'still need to implement the sundials solver'
-  err=20; return
- endif
-
->>>>>>> d5038836bf993ea010c858721b63b2923999d3a7
  ! check that the decision is supported
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
     model_decisions(iLookDECISIONS%spatial_gw)%iDecision/=localColumn)then
