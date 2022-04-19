@@ -33,6 +33,9 @@ USE globalData,only: integerMissing, realMissing
 ! provide access to global data
 USE globalData,only:gru_struc                             ! gru->hru mapping structure
 
+! netcdf deflate level
+USE globalData,only: outputCompressionLevel   
+
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     ! final data vectors
@@ -62,6 +65,7 @@ USE data_types,only:&
 ! vector lengths
 USE var_lookup, only: maxvarFreq ! number of output frequencies
 USE var_lookup, only: maxvarStat ! number of statistics
+   
 
 implicit none
 private
@@ -72,6 +76,8 @@ public::writeTime
 public::writeRestart
 ! define dimension lengths
 integer(i4b),parameter      :: maxSpectral=2              ! maximum number of spectral bands
+
+
 contains
 
  ! **********************************************************************************************************
@@ -541,7 +547,7 @@ contains
 
  ! maximum number of snow layers
  maxSnow = maxSnowLayers
- 
+
  ! create file
  err = nf90_create(trim(filename),nf90_classic_model,ncid)
  message='iCreate[create]'; call netcdf_err(err,message); if(err/=0)return

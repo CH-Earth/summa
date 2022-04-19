@@ -308,6 +308,7 @@ MODULE globalData
  logical(lgt),save,public                    :: globalPrintFlag=.false.     ! flag to compute the Jacobian
  integer(i4b),save,public                    :: chunksize=1024              ! chunk size for the netcdf read/write
  integer(i4b),save,public                    :: outputPrecision=nf90_double ! variable type
+ integer(i4b),save,public                    :: outputCompressionLevel=4             ! output netcdf file deflate level: 0-9. 0 is no compression.
 
  ! define result from the time calls
  integer(i4b),dimension(8),save,public       :: startInit,endInit       ! date/time for the start and end of the initialization
@@ -342,6 +343,6 @@ MODULE globalData
 
  ! define fixed dimensions
  integer(i4b),parameter,public               :: nBand=2          ! number of spectral bands
- integer(i4b),parameter,public               :: nTimeDelay=2000  ! number of hours in the time delay histogram (default: ~1 season = 24*365/4)
+ integer(i4b),parameter,public               :: nTimeDelay=2000  ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
 
 END MODULE globalData

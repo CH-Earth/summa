@@ -65,9 +65,8 @@ USE globalData,only:globalPrintFlag        ! the global print flag
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
- iterative,                         &      ! iterative
- nonIterative,                      &      ! non-iterative
- iterSurfEnergyBal                         ! iterate only on the surface energy balance
+ bEuler,                            &      ! home-grown backward Euler solution with long time steps
+ sundials                                  ! SUNDIALS/IDA solution
 
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
@@ -139,12 +138,15 @@ contains
  USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
  USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
+<<<<<<< HEAD
  USE computSnowDepth_module,only:computSnowDepth
  ! look-up values for the numerical method
  USE mDecisions_module,only:         &
   iterative,                         &      ! iterative
   nonIterative,                      &      ! non-iterative
   iterSurfEnergyBal                         ! iterate only on the surface energy balance
+=======
+>>>>>>> d5038836bf993ea010c858721b63b2923999d3a7
  ! look-up values for the maximum interception capacity
  USE mDecisions_module,only:          &
                        stickySnow,    &      ! maximum interception capacity an increasing function of temerature
@@ -251,6 +253,15 @@ contains
  ! get the start time
  call cpu_time(startTime)
 
+<<<<<<< HEAD
+=======
+ ! check the sundials decision
+ if(model_decisions(iLookDECISIONS%num_method)%iDecision==sundials)then
+  message=trim(message)//'still need to implement the sundials solver'
+  err=20; return
+ endif
+
+>>>>>>> d5038836bf993ea010c858721b63b2923999d3a7
  ! check that the decision is supported
  if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
     model_decisions(iLookDECISIONS%spatial_gw)%iDecision/=localColumn)then

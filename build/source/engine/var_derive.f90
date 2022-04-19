@@ -326,13 +326,13 @@ contains
    case(powerLaw_profile)
     ! - conductivity at layer interfaces
     !   --> NOTE: Do we need a weighted average based on layer depth for interior layers?
-    
+
     if(compactedDepth/iLayerHeight(nLayers) /= 1._rkind) then    ! avoid divide by zero
      ifcDepthScaleFactor = ( (1._rkind - iLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) ) / &
                            ( (1._rkind -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) )
     else
      ifcDepthScaleFactor = 1.0_rkind
-    endif                           
+    endif
     if(iLayer==nSnow)then
      iLayerSatHydCond(iLayer-nSnow) = k_soil(1) * ifcDepthScaleFactor
     else   ! if the mid-point of a layer
@@ -347,11 +347,11 @@ contains
                             ( (1._rkind -       compactedDepth/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) )
      else
       midDepthScaleFactor = 1.0_rkind
-     endif                            
+     endif
      mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)      * midDepthScaleFactor
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow) * midDepthScaleFactor
-    end if  
- 
+    end if
+
     !print*, 'compactedDepth = ', compactedDepth
     !print*, 'k_macropore    = ', k_macropore
     !print*, 'mLayerHeight(iLayer) = ', mLayerHeight(iLayer)
@@ -393,7 +393,6 @@ contains
  real(rkind)                        :: dt                     ! data time step (s)
  integer(i4b)                    :: nTDH                   ! number of points in the time-delay histogram
  integer(i4b)                    :: iFuture                ! index in time delay histogram
- real(rkind)                        :: aLambda                ! scale parameter in the Gamma distribution
  real(rkind)                        :: tFuture                ! future time (end of step)
  real(rkind)                        :: pSave                  ! cumulative probability at the start of the step
  real(rkind)                        :: cumProb                ! cumulative probability at the end of the step
@@ -433,8 +432,7 @@ contains
   case(timeDelay)
    ! initialize
    pSave   = 0._rkind ! cumulative probability at the start of the step
-   aLambda = routingGammaShape / routingGammaScale
-   if(routingGammaShape <= 0._rkind .or. aLambda < 0._rkind)then
+   if(routingGammaShape <= 0._rkind .or. routingGammaScale <= 0._rkind)then
     message=trim(message)//'bad arguments for the Gamma distribution'
     err=20; return
    end if
@@ -442,7 +440,7 @@ contains
    do iFuture = 1,nTDH
     ! get weight for a given bin
     tFuture = real(iFuture, kind(dt))*dt                  ! future time (end of step)
-    cumProb = gammp(routingGammaShape,aLambda*tFuture)    ! cumulative probability at the end of the step
+    cumProb = gammp(routingGammaShape,tFuture/routingGammaScale)    ! cumulative probability at the end of the step
     fractionFuture(iFuture) = max(0._rkind, cumProb - pSave) ! fraction of runoff in the current step
     pSave   = cumProb                                     ! save the cumulative probability for use in the next step
     !write(*,'(a,1x,i4,1x,3(f20.10,1x))') trim(message), iFuture, tFuture, cumProb, fractionFuture(iFuture)
@@ -456,10 +454,13 @@ contains
    ! check that we have enough bins
    sumFrac  = sum(fractionFuture)
    if(abs(1._rkind - sumFrac) > tolerFrac)then
-    write(*,*) 'fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
-    write(*,*) 'this is less than allowed by tolerFrac = ', tolerFrac
-    message=trim(message)//'not enough bins for the time delay histogram -- fix hard-coded parameter in globalData.f90'
-    err=20; return
+    write(*,*) 'WARNING: The fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
+    write(*,*) 'This is less than allowed by tolerFrac = ', tolerFrac
+    write(*,*) 'This means that we do not have enough bins for the time delay histogram'
+    write(*,*) 'Solutions:'
+    write(*,*) ' (1) Check that the values of routingGammaShape and routingGammaScale are appropriate (and fix if necessary); or'
+    write(*,*) ' (2) Increase the hard coded parameter nTimeDelay in globalData.f90 (currently nTimeDelay is set to ', nTDH, ')'
+    write(*,*) '       -- note that nTimeDelay defines the number of time steps in the time delay histogram'
    end if
    ! ensure the fraction sums to one
    fractionFuture = fractionFuture/sumFrac
