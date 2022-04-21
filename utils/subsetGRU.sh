@@ -16,15 +16,14 @@ module load nco/5.0.6
 offset=942
 gruCount=518
 
-# If know basin number in batch, add here, or comment out and use next if know GRU_id from the failure message
+# If know basin number in batch, add here, or comment out and use next if know GRU_file from the failure message id
 #nbasin_slurm=25
 #GRU_file=$((nbasin_slurm + gruCount*offset))
-#GRU_id=$((GRU_file - 1))
 
-GRU_id=487980
-GRU_file=$((GRU_id+1))
-nbasin_slurm=$((GRU_file+1-gruCount*offset))
+GRU_file=487980
+nbasin_slurm=$((GRU_file-gruCount*offset))
 
+GRU_id=$((GRU_file - 1))
 HRU_id=$GRU_id
 echo "file name id is ${GRU_file}, actual GRU id is ${GRU_id}" 
 

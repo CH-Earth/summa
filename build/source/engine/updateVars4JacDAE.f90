@@ -451,7 +451,7 @@ contains
    select case(ixDomainType)
     case(iname_veg)
      fLiq = fracLiquid(xTemp,snowfrz_scale)
-     dVolHtCapBulk_dCanWat = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )
+     dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
     case(iname_snow)
      fLiq = fracLiquid(xTemp,snowfrz_scale)
      dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
