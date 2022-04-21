@@ -74,7 +74,6 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 ! constants
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water,   & ! intrinsic density of liquid water    (kg m-3)
                     ! specific heat
                     Cp_ice,      & ! specific heat of ice          (J kg-1 K-1)
@@ -318,7 +317,7 @@ contains
       dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj &
                        + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
                        + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
-                       + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth    ! volumetric heat capacity of the vegetation (J m-3 K-1)
+                       + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth
  end if
 
  ! compute additional terms for the Jacobian for the snow-soil domain (excluding fluxes)

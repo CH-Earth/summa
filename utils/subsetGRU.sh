@@ -9,13 +9,22 @@ module load gcc/9.3.0
 module load nco/5.0.6
 
 # GRU want to subset, change to do another GRU
-# first basin in the slurm batch run, 20th script
-# could also just set this as GRU_file from G* on output nc files (here the equation output is 4295)
+# 155th basin in the slurm batch run, offset-th script (offset is SLURM_ARRAY_TASK_ID
+# could also just set this as GRU_file from G* on output nc files (here the equation output is 487981).
 # GRU_file is not the actual GRUid, it is one off from the nc files, so subtract one before ncks
-nbasin_slurm=1
-nscript_slurm=20
-GRU_file=$((154 + nbasin_slurm + 207*nscript_slurm))
-GRU_id=$((GRU_file - 1))
+
+offset=942
+gruCount=518
+
+# If know basin number in batch, add here, or comment out and use next if know GRU_id from the failure message
+#nbasin_slurm=25
+#GRU_file=$((nbasin_slurm + gruCount*offset))
+#GRU_id=$((GRU_file - 1))
+
+GRU_id=487980
+GRU_file=$((GRU_id+1))
+nbasin_slurm=$((GRU_file+1-gruCount*offset))
+
 HRU_id=$GRU_id
 echo "file name id is ${GRU_file}, actual GRU id is ${GRU_id}" 
 
