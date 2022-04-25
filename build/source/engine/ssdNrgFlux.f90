@@ -587,7 +587,6 @@ contains
  ! ***** compute the conductive fluxes at layer interfaces *****
  ! Compute flux after the derivatives, because need iLayerThermal as calculated above
  ! -------------------------------------------------------------------------------------------------------------------------
-
  do iLayer=ixTop,ixBot ! (loop through model layers)
 
   if(iLayer==0)then  ! (upper boundary fluxes -- positive downwards)
@@ -612,25 +611,29 @@ contains
 
     !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
   end if ! (the type of layer)
- end do
+ end do  ! looping through layers
 
  ! -------------------------------------------------------------------------------------------------------------------------
  ! ***** compute the advective fluxes at layer interfaces *****
  ! -------------------------------------------------------------------------------------------------------------------------
- do iLayer=ixTop,ixBot
-  ! get the liquid flux at layer interfaces
-  select case(layerType(iLayer))
-   case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
-   case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
-   case default; err=20; message=trim(message)//'unable to identify layer type'; return
-  end select
-  ! compute fluxes at the lower boundary -- positive downwards
-  if(iLayer==nLayers)then
-   iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
-  ! compute fluxes within the domain -- positive downwards
-  else
-   iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
-  end if
+ do iLayer=ixTop,ixBot  !(loop through model layers)
+
+  if (iLayer==0) then
+   iLayerAdvectiveFlux(iLayer) = realMissing !advective flux at the upper boundary is included in the ground heat flux
+  else ! get the liquid flux at layer interfaces
+   select case(layerType(iLayer))
+    case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
+    case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
+    case default; err=20; message=trim(message)//'unable to identify layer type'; return
+   end select
+   ! compute fluxes at the lower boundary -- positive downwards
+   if(iLayer==nLayers)then
+    iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
+   ! compute fluxes within the domain -- positive downwards
+   else
+    iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
+   end if
+  end if ! (all layers except surface)
  end do  ! looping through layers
 
  ! -------------------------------------------------------------------------------------------------------------------------
