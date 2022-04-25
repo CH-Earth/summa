@@ -314,7 +314,7 @@ contains
  ! compute terms in the Jacobian for vegetation (excluding fluxes)
  ! NOTE: energy for vegetation is computed *within* the iteration loop as it includes phase change
  if(ixVegNrg/=integerMissing)then
-      dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime + LH_fus*iden_water*dTheta_dTkCanopy ) * cj &
+      dMat(ixVegNrg) = ( scalarBulkVolHeatCapVeg + LH_fus*iden_water*dTheta_dTkCanopy ) * cj &
                        + dVolHtCapBulk_dTkCanopy * scalarCanopyTempPrime &
                        + LH_fus*iden_water * scalarCanopyTempPrime * d2Theta_dTkCanopy2 &
                        + LH_fus            * dFracLiqVeg_dTkCanopy * scalarCanopyWatPrime / canopyDepth
@@ -324,7 +324,7 @@ contains
  ! NOTE: energy for snow+soil is computed *within* the iteration loop as it includes phase change
  do iLayer=1,nLayers
   if(ixSnowSoilNrg(iLayer)/=integerMissing) then
-      dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
+      dMat(ixSnowSoilNrg(iLayer)) = ( mLayerVolHtCapBulk(iLayer) + LH_fus*iden_water*mLayerdTheta_dTk(iLayer) ) * cj &
                                     + dVolHtCapBulk_dTk(iLayer) * mLayerTempPrime(iLayer) &
                                     + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
                                     + LH_fus*iden_water * dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
@@ -390,7 +390,7 @@ contains
 
      ! cross-derivative terms w.r.t. canopy liquid water (J m-1 kg-1)
      ! NOTE: dIce/dLiq = (1 - scalarFracLiqVeg); dIce*LH_fus/canopyDepth = J m-3; dLiq = kg m-2
-     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = ( dVolHtCapBulk_dCanWat * scalarCanopyTempPrime + (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth ) * cj &
+     if(ixVegNrg/=integerMissing) aJac(ixVegNrg,ixVegHyd) = (-1._rkind + scalarFracLiqVeg)*LH_fus/canopyDepth * cj &
                                                            + dVolHtCapBulk_dCanWat * scalarCanopyTempPrime - (dt/canopyDepth) * dCanopyNetFlux_dCanWat &
                                                            + LH_fus * scalarCanopyTempPrime * dFracLiqVeg_dTkCanopy / canopyDepth ! dF/dLiq
      if(ixTopNrg/=integerMissing) aJac(ixTopNrg,ixVegHyd) = (dt/mLayerDepth(1))*(-dGroundNetFlux_dCanWat)
@@ -403,7 +403,7 @@ contains
 
     ! energy fluxes with the canopy air space (J m-3 K-1)
     if(ixCasNrg/=integerMissing)then
-                                  aJac(ixCasNrg,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg) * cj ! dMat(ixCasNrg) initialized as heatCap, Cp_air*iden_air (cj not included)
+                                  aJac(ixCasNrg,ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg) * cj
      if(ixVegNrg/=integerMissing) aJac(ixCasNrg,ixVegNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanopyTemp)
      if(ixTopNrg/=integerMissing) aJac(ixCasNrg,ixTopNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dGroundTemp)
     endif
@@ -503,7 +503,7 @@ contains
      if(watstate/=integerMissing)then       ! (energy state for the current layer is within the state subset)
 
       ! - include derivatives of energy fluxes w.r.t water fluxes for current layer
-      aJac(nrgState,watState) = ( dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) + (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_water ) * cj &
+      aJac(nrgState,watState) = (-1._rkind + mLayerFracLiqSnow(iLayer))*LH_fus*iden_water * cj &
                                 + dVolHtCapBulk_dTheta(iLayer) * mLayerTempPrime(iLayer) &
                                 + (dt/mLayerDepth(iLayer))*(-dNrgFlux_dWatBelow(iLayer-1) + dNrgFlux_dWatAbove(iLayer)) &
                                 + LH_fus*iden_water * mLayerTempPrime(iLayer) * dFracLiqSnow_dTk(iLayer)    ! (dF/dLiq)
@@ -654,11 +654,10 @@ contains
       endif
 
       ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
-      aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer)*mLayerTempPrime(jLayer)*cj &
-                               + dVolHtCapBulk_dPsi0(iLayer)*mLayerTempPrime(jLayer)*cj
+      aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
                                + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
       if(mLayerdTheta_dTk(jLayer) > verySmall) then  ! ice is present
-       aJac(nrgState,watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer)*cj &
+       aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj &
                                  - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer) + aJac(nrgState,watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
       endif
 
