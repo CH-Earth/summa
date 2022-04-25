@@ -498,16 +498,16 @@ contains
 
     ! * prescribed temperature at the upper boundary
     case(prescribedTemp)
-     dz = (mLayerHeight(1) - mLayerHeight(iLayer))
+     dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
      if(ixDerivMethod==analytical)then    ! ** analytical derivatives
-      dFlux_dWatBelow(iLayer)  = -dThermalC_dHydStateBelow * ( mLayerTempTrial(1) - upperBoundTemp )/dz
-      dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(1) - upperBoundTemp )/dz - iLayerThermalC(iLayer)/dz
+      dFlux_dWatBelow(iLayer)  = -dThermalC_dHydStateBelow * ( mLayerTempTrial(iLayer+1) - upperBoundTemp )/dz
+      dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(iLayer+1) - upperBoundTemp )/dz - iLayerThermalC(iLayer)/dz
      else                              ! ** numerical derivatives
-      flux0 = -scalarThermCFlux          *( mLayerTempTrial(1) - upperBoundTemp ) / dz
-      flux2 = -scalarThermCFlux_dWatBelow*( mLayerTempTrial(1) - upperBoundTemp ) / dz
+      flux0 = -scalarThermCFlux          *( mLayerTempTrial(iLayer+1) - upperBoundTemp ) / dz
+      flux2 = -scalarThermCFlux_dWatBelow*( mLayerTempTrial(iLayer+1) - upperBoundTemp ) / dz
       dFlux_dWatBelow(iLayer) = (flux2 - flux0)/dx
-      flux0 = -scalarThermCFlux           *( mLayerTempTrial(1)     - upperBoundTemp ) / dz
-      flux2 = -scalarThermCFlux_dTempBelow*((mLayerTempTrial(1)+dx) - upperBoundTemp ) / dz
+      flux0 = -scalarThermCFlux           *( mLayerTempTrial(iLayer+1)     - upperBoundTemp ) / dz
+      flux2 = -scalarThermCFlux_dTempBelow*((mLayerTempTrial(iLayer+1)+dx) - upperBoundTemp ) / dz
       dFlux_dTempBelow(iLayer) = (flux2 - flux0)/dx
      end if
 
@@ -584,28 +584,29 @@ contains
  end do  ! (looping through layers)
 
  ! -------------------------------------------------------------------------------------------------------------------------
+ ! ***** compute the conductive fluxes at layer interfaces *****
  ! Compute flux after the derivatives, because need iLayerThermal as calculated above
  ! -------------------------------------------------------------------------------------------------------------------------
 
- ! get the indices for the snow+soil layers, remove layer 0 now
- if(.not.scalarSolution) ixTop = 1
-
- ! -------------------------------------------------------------------------------------------------------------------------
- ! ***** compute the conductive fluxes at layer interfaces *****
- ! -------------------------------------------------------------------------------------------------------------------------
  do iLayer=ixTop,ixBot ! (loop through model layers)
 
-  ! compute fluxes at the lower boundary -- positive downwards
-  if(iLayer==nLayers)then
-   ! flux depends on the type of lower boundary condition
-   select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
-    case(prescribedTemp); iLayerConductiveFlux(nLayers) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
-    case(zeroFlux);       iLayerConductiveFlux(nLayers) = 0._rkind
-    case default;         err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
+  if(iLayer==0)then  ! (upper boundary fluxes -- positive downwards)
+  ! flux depends on the type of upper boundary condition
+   select case(ix_bcUpprTdyn) ! (identify the upper boundary condition for thermodynamics
+    case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1) - upperBoundTemp )/ &
+                                    (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+    case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
+    case(energyFlux);     iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
    end select  ! (identifying the lower boundary condition for thermodynamics)
 
-  ! compute fluxes within the domain -- positive downwards
-  else
+  else if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)
+   ! flux depends on the type of lower boundary condition
+   select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
+    case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
+    case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
+   end select  ! (identifying the lower boundary condition for thermodynamics)
+
+  else ! (domain boundary fluxes -- positive downwards)
     iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                     (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
 
@@ -636,7 +637,6 @@ contains
  ! ***** compute the total fluxes at layer interfaces *****
  ! -------------------------------------------------------------------------------------------------------------------------
  ! NOTE: ignore advective fluxes for now
- iLayerNrgFlux(0)           = groundNetFlux
  iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
  !print*, 'iLayerNrgFlux(0:4) = ', iLayerNrgFlux(0:4)
 

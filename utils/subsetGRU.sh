@@ -25,7 +25,7 @@ nbasin_slurm=$((GRU_file-gruCount*offset))
 
 GRU_id=$((GRU_file - 1))
 HRU_id=$GRU_id
-echo "file name id is ${GRU_file}, actual GRU id is ${GRU_id}" 
+echo "file name id is ${GRU_file}, actual GRU id is ${GRU_id}, number in batch is ${nbasin_slurm}" 
 
 # top paths, change these to yours
 homeDir=/globalhome/gwu479/HPC/
