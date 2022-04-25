@@ -100,7 +100,7 @@ contains
  real(rkind),intent(in)             :: fVec(:)                   ! flux vector
  ! input: state variables (already disaggregated into scalars and vectors)
   real(rkind),intent(in)            :: scalarCanopyTempTrial
-  real(rkind),intent(in)            :: mLayerTempTrial(:) 
+  real(rkind),intent(in)            :: mLayerTempTrial(:)
  real(rkind),intent(in)             :: scalarCanairTempPrime     ! trial value for temperature of the canopy air space (K)
  real(rkind),intent(in)             :: scalarCanopyTempPrime     ! trial value for temperature of the vegetation canopy (K)
  real(rkind),intent(in)             :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
@@ -108,7 +108,7 @@ contains
  real(rkind),intent(in)             :: scalarAquiferStoragePrime ! trial value of aquifer storage (m)
  ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
  real(rkind),intent(in)             :: scalarCanopyIcePrime      ! trial value for mass of ice on the vegetation canopy (kg m-2)
- real(rkind),intent(in)             :: scalarCanopyLiqPrime 
+ real(rkind),intent(in)             :: scalarCanopyLiqPrime
  real(rkind),intent(in)             :: mLayerVolFracIcePrime(:)  ! trial value for volumetric fraction of ice (-)
  real(rkind),intent(in)             :: mLayerVolFracLiqPrime(:)
  real(rkind),intent(in)             ::  mLayerVolFracWatPrime(:)
@@ -162,7 +162,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="computResidDAE/"
- 
+
 
  ! ---
  ! * compute sink terms...
@@ -178,20 +178,19 @@ contains
  if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    select case( layerType(iLayer) )
-    case(iname_snow)
-     rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
-    case(iname_soil); rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)  
+    case(iname_snow); rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
+    case(iname_soil); rAdd( ixSnowSoilNrg(iLayer) ) = rAdd( ixSnowSoilNrg(iLayer) ) + LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)
    end select
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
- 
- 
+
+
  ! sink terms soil hydrology (-)
  ! NOTE 1: state variable is volumetric water content, so melt-freeze is not included
  ! NOTE 2: ground evaporation was already included in the flux at the upper boundary
  ! NOTE 3: rAdd(ixSnowOnlyWat)=0, and is defined in the initialization above
  ! NOTE 4: same sink terms for matric head and liquid matric potential
- if(nSoilOnlyHyd>0)then   
+ if(nSoilOnlyHyd>0)then
   do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
    rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + (mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow) - mLayerCompress(iLayer)
   end do  ! looping through non-missing energy state variables in the snow+soil domain
@@ -207,13 +206,13 @@ contains
  if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg) + rAdd(ixCasNrg) )
  if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth  - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
  ! --> mass balance
- if(ixVegHyd/=integerMissing)then    
-  scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )  
+ if(ixVegHyd/=integerMissing)then
+  scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
    rVec(ixVegHyd)  = sMul(ixVegHyd)*scalarCanopyHydPrime  - ( fVec(ixVegHyd) + rAdd(ixVegHyd) )
  endif
 
  ! compute the residual vector for the snow and soil sub-domains for energy
- if(nSnowSoilNrg>0)then 
+ if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) ) + rAdd( ixSnowSoilNrg(iLayer) ) )
   end do  ! looping through non-missing energy state variables in the snow+soil domain
@@ -223,13 +222,13 @@ contains
  ! NOTE: residual depends on choice of state variable
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-   ! (get the correct state variable) 
+   ! (get the correct state variable)
    mLayerVolFracHydPrime(iLayer)      = merge(mLayerVolFracWatPrime(iLayer), mLayerVolFracLiqPrime(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
    ! (compute the residual)
  rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydPrime(iLayer) - ( fVec( ixSnowSoilHyd(iLayer) ) + rAdd( ixSnowSoilHyd(iLayer) ) )
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
- 
+
  ! compute the residual vector for the aquifer
   if(ixAqWat/=integerMissing)  rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStoragePrime - ( fVec(ixAqWat) + rAdd(ixAqWat) )
 
@@ -239,9 +238,9 @@ contains
   write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
   !print*, 'PAUSE:'; read(*,*)
  endif
- 
+
  !call printResidDAE(nSnow,nSoil,nLayers,indx_data,rAdd,rVec)
- 
+
  ! check
  if(any(isNan(rVec)))then
   call printResidDAE(nSnow,nSoil,nLayers,indx_data,rAdd,rVec)
@@ -306,40 +305,40 @@ layerType               => indx_data%var(iLookINDEX%layerType)%dat              
 ! --------------------------------------------------------------------------------------------------------------------------------
 
 
-if(ixVegNrg/=integerMissing) print *, 'rAdd(ixVegNrg) = ', rAdd(ixVegNrg) 
+if(ixVegNrg/=integerMissing) print *, 'rAdd(ixVegNrg) = ', rAdd(ixVegNrg)
 
 if(nSnowSoilNrg>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
+  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)
     select case( layerType(iLayer) )
       case(iname_snow)
-        print *, 'rAdd( ixSnowSoilNrg(iLayer) ) = ', rAdd( ixSnowSoilNrg(iLayer) ) 
-      case(iname_soil); print *, 'rAdd( ixSnowSoilNrg(iLayer) ) = ', rAdd( ixSnowSoilNrg(iLayer) )  
+        print *, 'rAdd( ixSnowSoilNrg(iLayer) ) = ', rAdd( ixSnowSoilNrg(iLayer) )
+      case(iname_soil); print *, 'rAdd( ixSnowSoilNrg(iLayer) ) = ', rAdd( ixSnowSoilNrg(iLayer) )
     end select
-  end do  
+  end do
 endif
 
-if(nSoilOnlyHyd>0)then   
-  do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   
-    print *, 'rAdd( ixSoilOnlyHyd(iLayer) ) = ', rAdd( ixSoilOnlyHyd(iLayer) ) 
-  end do  
+if(nSoilOnlyHyd>0)then
+  do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)
+    print *, 'rAdd( ixSoilOnlyHyd(iLayer) ) = ', rAdd( ixSoilOnlyHyd(iLayer) )
+  end do
 endif
 
-if(ixCasNrg/=integerMissing) print *, 'rVec(ixCasNrg) = ', rVec(ixCasNrg) 
-if(ixVegNrg/=integerMissing) print *, 'rVec(ixVegNrg) = ', rVec(ixVegNrg) 
-if(ixVegHyd/=integerMissing)then     
-  print *, 'rVec(ixVegHyd) = ', rVec(ixVegHyd) 
+if(ixCasNrg/=integerMissing) print *, 'rVec(ixCasNrg) = ', rVec(ixCasNrg)
+if(ixVegNrg/=integerMissing) print *, 'rVec(ixVegNrg) = ', rVec(ixVegNrg)
+if(ixVegHyd/=integerMissing)then
+  print *, 'rVec(ixVegHyd) = ', rVec(ixVegHyd)
 endif
 
-if(nSnowSoilNrg>0)then 
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)  
-    print *, 'rVec( ixSnowSoilNrg(iLayer) ) = ', rVec( ixSnowSoilNrg(iLayer) ) 
-  end do  
+if(nSnowSoilNrg>0)then
+  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)
+    print *, 'rVec( ixSnowSoilNrg(iLayer) ) = ', rVec( ixSnowSoilNrg(iLayer) )
+  end do
 endif
 
 if(nSnowSoilHyd>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)  
-    print *, 'rVec( ixSnowSoilHyd(iLayer) ) = ', rVec( ixSnowSoilHyd(iLayer) ) 
-  end do  
+  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
+    print *, 'rVec( ixSnowSoilHyd(iLayer) ) = ', rVec( ixSnowSoilHyd(iLayer) )
+  end do
 endif
 
 if(ixAqWat/=integerMissing)  print *, ' rVec(ixAqWat) = ', rVec(ixAqWat)
