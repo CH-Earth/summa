@@ -125,7 +125,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
-  real(rkind),intent(in)            :: cj                     ! this scalar changes whenever the step size or method order changes
+ real(rkind),intent(in)             :: cj                     ! this scalar changes whenever the step size or method order changes
  real(rkind),intent(in)             :: dt                     ! time step
  integer(i4b),intent(in)            :: nSnow                  ! number of snow layers
  integer(i4b),intent(in)            :: nSoil                  ! number of soil layers
@@ -263,6 +263,7 @@ contains
 
  call updateVars4JacDAE(&
                  ! input
+                 dt,                                        & ! intent(in):    time step
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers

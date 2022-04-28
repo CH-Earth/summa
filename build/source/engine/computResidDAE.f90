@@ -163,7 +163,6 @@ contains
  ! initialize error control
  err=0; message="computResidDAE/"
 
-
  ! ---
  ! * compute sink terms...
  ! -----------------------
@@ -183,7 +182,6 @@ contains
    end select
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
-
 
  ! sink terms soil hydrology (-)
  ! NOTE 1: state variable is volumetric water content, so melt-freeze is not included
@@ -253,7 +251,6 @@ contains
 
  end subroutine computResidDAE
 
-
  ! **********************************************************************************************************
  ! private subroutine printResidDAE: print the residual vector mainly for debugging
  ! **********************************************************************************************************
@@ -303,7 +300,6 @@ ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat              
 layerType               => indx_data%var(iLookINDEX%layerType)%dat                 & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
 ) ! association to necessary variables for the residual computations
 ! --------------------------------------------------------------------------------------------------------------------------------
-
 
 if(ixVegNrg/=integerMissing) print *, 'rAdd(ixVegNrg) = ', rAdd(ixVegNrg)
 

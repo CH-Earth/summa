@@ -109,6 +109,7 @@ contains
  ! **********************************************************************************************************
  subroutine updateVars4JacDAE(&
                        ! input
+                       dt,                                        & ! intent(in):    time step
                        do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -143,6 +144,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
+ real(rkind)      ,intent(in)    :: dt                              ! time step
  logical(lgt)     ,intent(in)    :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
@@ -540,14 +542,14 @@ contains
       ! compute volumetric fraction of liquid water and ice
       call updateVegSundials(&
                       xTemp,                                        & ! intent(in)   : temperature (K)
-                      scalarCanopyWatTrial,                         & ! intent(in)   : volumetric fraction of total water (-)
+                      scalarCanopyWatTrial,                         & ! intent(in)   : canopy total water (kg m-2)
                       snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
-                      scalarCanopyTempPrime,                        & ! intent(in)
-                      scalarCanopyWatPrime,                         & ! intent(in)   : volumetric fraction of total water (-)
-                      scalarVolFracLiq,                             & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                      scalarVolFracIce,                             & ! intent(out)  : trial volumetric fraction if ice (-)
-                      scalarVolFracLiqPrime,                        & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                      scalarVolFracIcePrime,                        & ! intent(out)  : trial volumetric fraction if ice (-)
+                      scalarCanopyTempPrime,                        & ! intent(in)   : canopy temperature time derivative (K/s)
+                      scalarCanopyWatPrime,                         & ! intent(in)   : canopy total water time derivative (kg m-2 /s)
+                      scalarVolFracLiq,                             & ! intent(out)  : trial canopy liquid water (-)
+                      scalarVolFracIce,                             & ! intent(out)  : trial volumetric canopy ice (-)
+                      scalarVolFracLiqPrime,                        & ! intent(out)  : trial volumetric canopy liquid water (-)
+                      scalarVolFracIcePrime,                        & ! intent(out)  : trial volumetric canopy ice (-)
                       scalarFracLiqVeg,                             & ! intent(out)  : fraction of liquid water (-)
                       err,cmessage)                                   ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -559,12 +561,12 @@ contains
                       xTemp,                                        & ! intent(in)   : temperature (K)
                       mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
                       snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
-                      mLayerTempPrime(iLayer),                      & !
-                      mLayerVolFracWatPrime(iLayer),                & ! intent(in)
+                      mLayerTempPrime(iLayer),                      & ! intent(in)   : temperature time derivative (K/s)
+                      mLayerVolFracWatPrime(iLayer),                & ! intent(in)   : volumetric fraction of total water time derivative (-)
                       mLayerVolFracLiqTrial(iLayer),                & ! intent(out)  : trial volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial(iLayer),                & ! intent(out)  : trial volumetric fraction if ice (-)
-                      mLayerVolFracLiqPrime(iLayer),                & ! intent(out)
-                      mLayerVolFracIcePrime(iLayer),                & ! intent(out)
+                      mLayerVolFracLiqPrime(iLayer),                & ! intent(out)  : volumetric fraction of liquid water time derivative (-)
+                      mLayerVolFracIcePrime(iLayer),                & ! intent(out)  : volumetric fraction of ice time derivative (-)
                       mLayerFracLiqSnow(iLayer),                    & ! intent(out)  : fraction of liquid water (-)
                       err,cmessage)                                   ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -574,22 +576,23 @@ contains
 
       ! compute volumetric fraction of liquid water and ice
       call updateSoilSundials2(&
-                      xTemp,                                             & ! intent(in)   : temperature (K)
-                      mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in)   : total water matric potential (m)
-                      mLayerTempPrime(iLayer),                           &
-                      mLayerMatricHeadPrime(ixControlIndex),             &
+                      dt,                                                & ! intent(in) : time step
+                      xTemp,                                             & ! intent(in) : temperature (K)
+                      mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in) : total water matric potential (m)
+                      mLayerTempPrime(iLayer),                           & ! intent(in) : temperature time derivative (K/s)
+                      mLayerMatricHeadPrime(ixControlIndex),             & ! intent(in) : total water matric potential time derivative (m/s)
                      ! intent(in)   : soil parameters
-                      vGn_alpha(ixControlIndex),                         &
-                      vGn_n(ixControlIndex),                             &
-                      theta_sat(ixControlIndex),                         &
-                      theta_res(ixControlIndex),                         &
-                      vGn_m(ixControlIndex),                             &
-                      mLayerVolFracWatTrial(iLayer),                     & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
-                      mLayerVolFracLiqTrial(iLayer),                     & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                      mLayerVolFracIceTrial(iLayer),                     & ! intent(out)  : trial volumetric fraction if ice (-)
-                      mLayerVolFracWatPrime(iLayer),                     &
-                      mLayerVolFracLiqPrime(iLayer),                     &
-                      mLayerVolFracIcePrime(iLayer),                     &
+                      vGn_alpha(ixControlIndex),                         & ! intent(in) : van Genutchen "alpha" parameter
+                      vGn_n(ixControlIndex),                             & ! intent(in) : van Genutchen "n" parameter
+                      theta_sat(ixControlIndex),                         & ! intent(in) : soil porosity (-)
+                      theta_res(ixControlIndex),                         & ! intent(in) : soil residual volumetric water content (-)
+                      vGn_m(ixControlIndex),                             & ! intent(in) : van Genutchen "m" parameter (-)
+                      mLayerVolFracWatTrial(iLayer),                     & ! intent(in) : mass state variable = trial volumetric fraction of water (-)
+                      mLayerVolFracLiqTrial(iLayer),                     & ! intent(out) : trial volumetric fraction of liquid water (-)
+                      mLayerVolFracIceTrial(iLayer),                     & ! intent(out) : trial volumetric fraction if ice (-)
+                      mLayerVolFracWatPrime(iLayer),                     & ! intent(out) : volumetric fraction of total water time derivative (-)
+                      mLayerVolFracLiqPrime(iLayer),                     & ! intent(out) : volumetric fraction of liquid water time derivative (-)
+                      mLayerVolFracIcePrime(iLayer),                     & ! intent(out) : volumetric fraction of ice time derivative (-)
                       err,cmessage)                                                                                                                   ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 

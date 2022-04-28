@@ -156,7 +156,7 @@ contains
  real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
  real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
  real(rkind),intent(inout)          :: scalarCanopyIceTrial            ! trial value of canopy ice content (kg m-2)
- 
+
  real(rkind),intent(inout)          :: scalarCanopyTempPrime           ! trial value of canopy temperature (K)
  real(rkind),intent(inout)          :: scalarCanopyWatPrime            ! trial value of canopy total water (kg m-2)
  real(rkind),intent(inout)          :: scalarCanopyLiqPrime            ! trial value of canopy liquid water (kg m-2)
@@ -168,14 +168,14 @@ contains
  real(rkind),intent(inout)          :: mLayerVolFracIceTrial(:)        ! trial vector of volumetric ice water content (-)
  real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
  real(rkind),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
- 
+
  real(rkind),intent(inout)          :: mLayerTempPrime(:)
  real(rkind),intent(inout)          :: mLayerVolFracWatPrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerVolFracLiqPrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerVolFracIcePrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerMatricHeadPrime(:)        ! reza
  real(rkind),intent(inout)          :: mLayerMatricHeadLiqPrime(:)     ! reza
- 
+
  ! output: error control
  integer(i4b),intent(out)        :: err                             ! error code
  character(*),intent(out)        :: message                         ! error message
@@ -278,7 +278,7 @@ contains
 
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
- 
+
  ! initialize error control
  err=0; message='updateVarsSundials/'
 
@@ -340,7 +340,7 @@ contains
    print*, 'isCoupled      = ', isCoupled
    print*, 'isNrgState     = ', isNrgState
   endif
-  
+
 
 
   ! =======================================================================================================================================
@@ -352,7 +352,7 @@ contains
 
   ! update hydrology state variables for the uncoupled solution
   if(.not.isNrgState .and. .not.isCoupled)then
-  
+
   stop 1
 
    ! update the total water from volumetric liquid water
@@ -376,7 +376,7 @@ contains
     select case( ixStateType(ixFullVector) )
      ! --> update the total water from the liquid water matric potential
      case(iname_lmpLayer)
-    
+
       effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
       avPore = theta_sat(ixControlIndex) - mLayerVolFracIceTrial(iLayer) - theta_res(ixControlIndex)  ! available pore space
       mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
@@ -387,14 +387,14 @@ contains
       !write(*,'(a,1x,i4,1x,3(f20.10,1x))') 'mLayerVolFracLiqTrial(iLayer) 1 = ', iLayer, mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer), mLayerVolFracWatTrial(iLayer)
      ! --> update the total water from the total water matric potential
      case(iname_matLayer)
-     
+
       mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
       mLayerVolFracWatPrime(iLayer) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) *mLayerMatricHeadPrime(ixControlIndex)
      ! --> update the total water matric potential (assume already have mLayerVolFracWatTrial given block above)
      case(iname_liqLayer, iname_watLayer)
-     
+
       mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-     mLayerMatricHeadPrime(ixControlIndex) =  dPsi_dTheta(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) * mLayerVolFracWatPrime(iLayer)
+      mLayerMatricHeadPrime(ixControlIndex) = dPsi_dTheta(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) * mLayerVolFracWatPrime(iLayer)
      case default; err=20; message=trim(message)//'expect iname_lmpLayer, iname_matLayer, iname_liqLayer, or iname_watLayer'; return
     end select
    endif  ! if in the soil domain
@@ -405,7 +405,7 @@ contains
   ! compute the critical soil temperature below which ice exists
   select case(ixDomainType)
    case(iname_veg, iname_snow);  Tcrit = Tfreeze
-   case(iname_soil);           Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )   
+   case(iname_soil);           Tcrit = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
    case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
   end select
 
@@ -463,13 +463,13 @@ contains
    else
     select case(ixDomainType)
      case(iname_veg);             dTheta_dTkCanopy         = 0._rkind
-     case(iname_snow, iname_soil);   mLayerdTheta_dTk(iLayer) = 0._rkind 
+     case(iname_snow, iname_soil);   mLayerdTheta_dTk(iLayer) = 0._rkind
      case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
     end select  ! domain type
    endif
-   
-   
-   
+
+
+
 
    ! -----
    ! - update volumetric fraction of liquid water and ice...
@@ -498,7 +498,7 @@ contains
     select case(ixDomainType)
 
      ! *** vegetation canopy
-     case(iname_veg)   
+     case(iname_veg)
       ! compute mass of liquid water and ice
       call updateVegSundials(&
                       xTemp,                                        & ! intent(in)   : temperature (K)
@@ -516,13 +516,13 @@ contains
 
      ! *** snow layers
      case(iname_snow)
-      
+
       call updateSnowSundials(&
                       xTemp,                                        & ! intent(in)   : temperature (K)
                       mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
                       snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
                       mLayerTempPrime(iLayer),                      & !
-                      mLayerVolFracWatPrime(iLayer),                & ! intent(in) 
+                      mLayerVolFracWatPrime(iLayer),                & ! intent(in)
                       mLayerVolFracLiqTrial(iLayer),                & ! intent(out)  : trial volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial(iLayer),                & ! intent(out)  : trial volumetric fraction if ice (-)
                       mLayerVolFracLiqPrime(iLayer),                & ! intent(out)
@@ -548,7 +548,7 @@ contains
                       vGn_n(ixControlIndex),                             &
                       theta_sat(ixControlIndex),                         &
                       theta_res(ixControlIndex),                         &
-                      vGn_m(ixControlIndex),                             & 
+                      vGn_m(ixControlIndex),                             &
                       mLayerVolFracWatTrial(iLayer),                     & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
                       mLayerVolFracLiqTrial(iLayer),                     & ! intent(out)  : trial volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial(iLayer),                     & ! intent(out)  : trial volumetric fraction if ice (-)
