@@ -776,6 +776,7 @@ contains
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
   case('dFracLiqSnow_dTk'               ); get_ixderiv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
   case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  case('mLayerdTheta_dTkPrev'           ); get_ixderiv = iLookDERIV%mLayerdTheta_dTkPrev           ! previous timestep derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixderiv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
  ! derivate in bulk heat capacity w.r.t. relevant state variables
   case('dVolHtCapBulk_dPsi0'            ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dPsi0            ! derivative in bulk heat capacity w.r.t. matric potential

@@ -276,6 +276,7 @@ contains
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
  dFracLiqSnow_dTk             => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in fraction of liquid snow w.r.t. temperature
  mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
+ mLayerdTheta_dTkPrev         => deriv_data%var(iLookDERIV%mLayerdTheta_dTkPrev        )%dat     ,& ! intent(in): [dp(:)]  previous timestep derivative in volumetric liquid water content w.r.t. temperature
  mLayerd2Theta_dTk2           => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2          )%dat     ,& ! intent(in): [dp(:)]  second derivative of volumetric liquid water content w.r.t. temperature
  ! derivate in bulk heat capacity w.r.t. relevant state variables
  dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0         )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
@@ -451,6 +452,36 @@ contains
     end do  ! (looping through energy states in the snow+soil domain)
    endif   ! (if the subset includes energy state variables in the snow+soil domain)
 
+
+   ! -----
+   ! * energy fluxes in the soil domain if changed frozen status...
+   ! ----------------------------------------
+   if(nSoilOnlyNrg>0)then
+    do iLayer=1,nSoilOnlyNrg
+
+     ! - check that the soil layer is desired
+     if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
+
+     ! - define indices of the soil layers
+     jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
+
+     ! - define the energy state variable
+     nrgState = ixNrgLayer(jLayer)       ! index within the full state vector
+
+     ! - consider if switched frozen status from previous state
+     if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
+      if(mLayerdTheta_dTkPrev(jLayer) <= verySmall)then  ! no ice on previous time step
+       aJac(jState,jState) = LH_fus*iden_water * ( -mLayerdTheta_dTk(jLayer)*cj - mLayerTempPrime(jLayer)*mLayerd2Theta_dTk2(jLayer) + mLayerdTheta_dTk(jLayer)/dt ) + aJac(jState,jState)
+      endif
+     else ! no ice currently
+      if(mLayerdTheta_dTkPrev(jLayer) > verySmall)then  ! ice was present on previous time step
+       aJac(jState,jState) = LH_fus*iden_water * ( mLayerdTheta_dTkPrev(jLayer)*cj  - mLayerTempPrime(jLayer)*mLayerdTheta_dTkPrev(jLayer)/dt ) + aJac(jState,jState)
+      endif
+     endif
+
+    end do  ! (looping through energy states in the soil domain)
+   endif   ! (if the subset includes energy state variables in the soil domain)
+
    ! -----
    ! * liquid water fluxes for the snow domain...
    ! --------------------------------------------
@@ -538,7 +569,6 @@ contains
    ! * liquid water fluxes for the soil domain...
    ! --------------------------------------------
    if(nSoilOnlyHyd>0)then
-
     do iLayer=1,nSoil
 
      ! - check that the soil layer is desired
@@ -607,6 +637,7 @@ contains
    ! ----------------------------------------
    if(nSoilOnlyHyd>0 .and. nSoilOnlyNrg>0)then
     do iLayer=1,nSoilOnlyNrg
+
      ! - check that the soil layer is desired
      if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
 
@@ -653,12 +684,19 @@ contains
        aJac(watState,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-mLayerdTrans_dTGround(iLayer)) + aJac(watState,ixTopNrg) ! dVol/dT (K-1)
       endif
 
-      ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer
+      ! - include derivatives in energy fluxes w.r.t. with respect to water for current layer, need to consider if switched frozen status from previous state
       aJac(nrgState,watState) = dVolHtCapBulk_dPsi0(iLayer) * mLayerTempPrime(jLayer) &
                                + (dt/mLayerDepth(jLayer))*(-dNrgFlux_dWatBelow(jLayer-1) + dNrgFlux_dWatAbove(jLayer))
-      if(mLayerdTheta_dTk(jLayer) > verySmall) then  ! ice is present
-       aJac(nrgState,watState) = -dVolTot_dPsi0(iLayer)*LH_fus*iden_water*cj &
-                                 - LH_fus*iden_water * d2VolTot_d2Psi0(iLayer) * mLayerMatricHeadPrime(iLayer) + aJac(nrgState,watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+      if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
+       aJac(nrgState,watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) * cj &
+                                 - LH_fus*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_d2Psi0(iLayer) + aJac(nrgState,watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
+       if(mLayerdTheta_dTkPrev(jLayer) <= verySmall)then  ! no ice on previous time step
+         aJac(nrgState,watState) = LH_fus*iden_water * ( dVolTot_dPsi0(iLayer)*cj + mLayerMatricHeadPrime(iLayer)*d2VolTot_d2Psi0(iLayer) - dVolTot_dPsi0(iLayer)/dt ) + aJac(nrgState,watState)
+       endif
+      else ! no ice currently
+       if(mLayerdTheta_dTkPrev(jLayer) > verySmall)then  ! ice was present on previous time step
+        aJac(nrgState,watState) = LH_fus*iden_water * ( -dVolTot_dPsi0(iLayer)*cj - mLayerMatricHeadPrime(iLayer)*d2VolTot_d2Psi0(iLayer) + dVolTot_dPsi0(iLayer)/dt ) + aJac(nrgState,watState)
+       endif
       endif
 
       ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
@@ -689,8 +727,6 @@ contains
 
    endif   ! (if there are state variables for both water and energy in the soil domain)
 
-
-
    ! print the Jacobian
    if(globalPrintFlag)then
     print*, '** analytical Jacobian (full):'
@@ -720,10 +756,8 @@ contains
     err=20; return
    endif
 
-
  ! end association to variables in the data structures
  end associate
-
 
  end subroutine computJacDAE
 
