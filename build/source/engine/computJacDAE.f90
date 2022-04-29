@@ -466,7 +466,7 @@ contains
      jLayer   = iLayer+nSnow                  ! index of layer in the snow+soil vector
 
      ! - define the energy state variable
-     nrgState = ixNrgLayer(jLayer)       ! index within the full state vector
+     jState = ixSoilOnlyNrg(iLayer)       ! index within the full state vector
 
      ! - consider if switched frozen status from previous state
      if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
