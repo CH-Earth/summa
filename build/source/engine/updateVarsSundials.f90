@@ -78,7 +78,7 @@ USE var_lookup,only:iLookINDEX            ! named variables for structure elemen
 ! provide access to routines to update states
 USE updatStateSundials_module,only:updateVegSundials     ! update snow states
 USE updatStateSundials_module,only:updateSnowSundials     ! update snow states
-USE updatStateSundials_module,only:updateSoilSundials     ! update soil states
+USE updatStateSundials_module,only:updateSoilSundials2     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
@@ -535,12 +535,12 @@ contains
      case(iname_soil)
 
       ! compute volumetric fraction of liquid water and ice
-      call updateSoilSundials(&
+      call updateSoilSundials2(&
                       dt_cur,                                            &
                       xTemp,                                             & ! intent(in)   : temperature (K)
                       mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in)   : total water matric potential (m)
-                      mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in)
-                      mLayerVolFracWatPrev(iLayer),                      & ! intent(in)
+                      !mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in)
+                      !mLayerVolFracWatPrev(iLayer),                      & ! intent(in)
                       mLayerTempPrime(iLayer),                           &
                       mLayerMatricHeadPrime(ixControlIndex),             &
                      ! intent(in)   : soil parameters
