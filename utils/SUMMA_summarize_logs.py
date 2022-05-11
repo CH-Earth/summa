@@ -1,6 +1,6 @@
 '''Summarize all SUMMA logs in a folder. Assumes all .txt files in folder are SUMMA logs.
 Summary file is placed inside the log folder. Specifying a summary file name is optional.
-Usage: python summarize_logs.py [log_folder] [name_of_summary_file.txt] [log file extension]'''
+Usage: python SUMMA_summarize_logs.py [log_folder] [name_of_summary_file.txt] [log file extension]'''
 
 # Modules
 import os
@@ -146,6 +146,9 @@ with open(folder + '/' + summaryFile, 'w') as sf:
 
     # Loop over the log files
     for file in files:
+
+        size = os.path.getsize(folder + '/' + file)
+        if (size==0): continue
 
         # Find the result contained in each log file
         success, summa, other, msg, time = determine_output(folder,file)  # default of using last 2 lines should suffice to catch all success/error cases
