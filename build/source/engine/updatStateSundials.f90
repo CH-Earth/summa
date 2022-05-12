@@ -124,12 +124,13 @@ contains
 
  ! *************************************************************************************************************
  ! public subroutine updateSoilSundials: compute phase change impacts on matric head and volumetric liquid water and ice
- ! uses mLayerMatricHeadPrev and mLayerVolFracWatPrev
+ ! uses mLayerMatricHeadPrev and mLayerVolFracWatPrev to get dt_cur, or use dt_cur as it can change here
  ! *************************************************************************************************************
  subroutine updateSoilSundials(&
                        ! input
                        dt_cur,                &
                        mLayerTemp            ,& ! intent(in): temperature (K)
+                       mLayerTempPrev        ,& ! intent(in): temperature previous time step (K)
                        mLayerMatricHead      ,& ! intent(in): total water matric potential (m)
                        mLayerMatricHeadPrev  ,& ! intent(in): total water matric potential previous time step (m)
                        mLayerVolFracWatPrev  ,& ! intent(in): volumetric fraction of total water previous time step (-)
@@ -156,6 +157,7 @@ contains
  ! input variables
  real(rkind),intent(in)           :: dt_cur
  real(rkind),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
+ real(rkind),intent(in)           :: mLayerTempPrev       ! temperature previous time step (K)
  real(rkind),intent(in)           :: mLayerMatricHead     ! matric head (m)
  real(rkind),intent(in)           :: mLayerMatricHeadPrev ! matric head previous time step (m)
  real(rkind),intent(in)           :: mLayerVolFracWatPrev ! volumetric fraction of total waterprevious time step (m)
@@ -181,8 +183,9 @@ contains
  real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  real(rkind)                      :: dt_inv               ! inverse of timestep
- real(rkind)                      :: mLayerTempPrev       ! estimate of previous timestep temperature (K)
+ !real(rkind)                      :: mLayerTempPrev       ! estimate of previous timestep temperature (K)
  real(rkind)                      :: mLayerVolFracLiqPrev ! previous timestep volumetric fraction of liquid water (-)
+ real(rkind)                      :: dt
  ! initialize error control
  err=0; message="updateSoilSundials/"
 
@@ -191,8 +194,10 @@ contains
  ! mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
  if( abs(mLayerMatricHead - mLayerMatricHeadPrev) < verySmall )then
   dt_inv = 1._rkind/ dt_cur !WHY NOT JUST USE THIS
+  dt = dt_cur
  else
   dt_inv = mLayerMatricHeadPrime / (mLayerMatricHead - mLayerMatricHeadPrev)
+  dt = 1._rkind/ dt_inv
  endif
  mLayerVolFracWatPrime =  (mLayerVolFracWat - mLayerVolFracWatPrev)*dt_inv
 
@@ -201,17 +206,18 @@ contains
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
  TcSoil = Tfreeze + min(mLayerMatricHead,0._rkind)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
- TcSoilPrev = Tfreeze + min(mLayerMatricHead - mLayerMatricHeadPrime*dt_cur,0._rkind)*gravity*Tfreeze/LH_fus
+ !TcSoilPrev = Tfreeze + min(mLayerMatricHead - mLayerMatricHeadPrime*dt,0._rkind)*gravity*Tfreeze/LH_fus
+ TcSoilPrev = Tfreeze + min(mLayerMatricHeadPrev,0._rkind)*gravity*Tfreeze/LH_fus
 
- ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
+ ! *** compute volumetric fraction of liquid water for partially frozen soil
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
-  ! - volumetric liquid water content (-)
   ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
   mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  if( mLayerTemp - mLayerTempPrime*dt_cur < TcSoilPrev )then
+  !if( mLayerTemp - mLayerTempPrime*dt < TcSoilPrev )then
+  if( mLayerTempPrev < TcSoilPrev )then
    if(mLayerPsiLiq<0._rkind)then
     mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
    else
@@ -222,37 +228,37 @@ contains
    ! using mLayerVolFracLiqPrev = mLayerVolFracWatPrev
    mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracWatPrev)*dt_inv ! = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
   endif
+  if ( mLayerTemp - mLayerTempPrime*dt >= TcSoilPrev )print*,"froze"
+  if ( mLayerTempPrev >= TcSoilPrev )print*,"FROZE2"
 
-  ! - volumetric ice content (-)
-  mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
-  mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime
-
- ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
- else !( mLayerTemp >= TcSoil)
-
-  ! all water is unfrozen
+ ! *** compute volumetric fraction of liquid water for unfrozen soil
+ else !( mLayerTemp >= TcSoil, all water is unfrozen )
   mLayerVolFracLiq = mLayerVolFracWat
-  mLayerVolFracIce = 0._rkind
-
-  if ( mLayerTemp - mLayerTempPrime*dt_cur >= TcSoilPrev )then
+  !if ( mLayerTemp - mLayerTempPrime*dt >= TcSoilPrev )then
+  if ( mLayerTempPrev >= TcSoilPrev )then
    mLayerVolFracLiqPrime = mLayerVolFracWatPrime
    mLayerVolFracIcePrime = 0._rkind
   else ! was partially frozen on previous time step
-   mLayerTempPrev = mLayerTemp - mLayerTempPrime*dt_cur
+   !mLayerTempPrev = mLayerTemp - mLayerTempPrime*dt
    xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
    mLayerPsiLiq     = xConst*(mLayerTempPrev - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
    mLayerVolFracLiqPrev = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
-   mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime ! = mLayerVolFracIcePrev*dt_inv
   endif
+  if ( mLayerTemp - mLayerTempPrime*dt < TcSoilPrev )print*,"thawed"
+  if ( mLayerTempPrev < TcSoilPrev )print*,"THAWED2"
 
  end if  ! (check if soil is partially frozen)
+
+ ! - volumetric ice content (-)
+ mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
+ mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime
 
  end subroutine updateSoilSundials
 
  ! *************************************************************************************************************
  ! public subroutine updateSoilSundials: compute phase change impacts on matric head and volumetric liquid water and ice
- ! uses mLayerMatricHeadPrime
+ ! uses mLayerMatricHeadPrime, and wants instantaneous dt, dt_cur will always be a full step size as input here
  ! *************************************************************************************************************
  subroutine updateSoilSundials2(&
                        ! input
@@ -322,47 +328,44 @@ contains
  TcSoil = Tfreeze + min(mLayerMatricHead,0._rkind)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
  TcSoilPrev = Tfreeze + min(mLayerMatricHead - mLayerMatricHeadPrime*dt_cur,0._rkind)*gravity*Tfreeze/LH_fus
 
- ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
+ ! *** compute volumetric fraction of liquid water for partially frozen soil
  if( mLayerTemp < TcSoil )then ! (check if soil temperature is less than the critical temperature)
-  ! - volumetric liquid water content (-)
   ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
   mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  if( mLayerTemp - mLayerTempPrime*dt_cur < TcSoilPrev )then ! was partially frozen on previous time step
+  !if( mLayerTemp - mLayerTempPrime*dt_cur < TcSoilPrev )then ! was partially frozen on previous time step
    if(mLayerPsiLiq<0._rkind)then
     mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
    else
     mLayerVolFracLiqPrime = 0._rkind
    endif
-  else ! was unfrozen on previous time step
+  !else ! was unfrozen on previous time step
    ! using mLayerVolFracLiqPrev = mLayerVolFracWat - mLayerVolFracWatPrime*dt_cur
-   mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracWat)*dt_inv + mLayerVolFracWatPrime ! = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
-  endif
+   !mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracWat)*dt_inv + mLayerVolFracWatPrime ! = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
+   !print*,"froze", mLayerVolFracLiqPrime,mLayerTemp,mLayerTempPrime,dt_cur,mLayerTemp - mLayerTempPrime*dt_cur-TcSoilPrev
+  !endif
 
-  ! - volumetric ice content (-)
-  mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
-  mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime
-
- ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
- else !( mLayerTemp >= TcSoil, all water is unfrozen)
+ ! *** compute volumetric fraction of liquid water for unfrozen soil
+ else !( mLayerTemp >= TcSoil, all water is unfrozen )
   mLayerVolFracLiq = mLayerVolFracWat
-  mLayerVolFracIce = 0._rkind
-
-  if( mLayerTemp - mLayerTempPrime*dt_cur >= TcSoilPrev )then ! was unfrozen on previous time step
+  !if( mLayerTemp - mLayerTempPrime*dt_cur >= TcSoilPrev )then ! was unfrozen on previous time step
    mLayerVolFracLiqPrime = mLayerVolFracWatPrime
-   mLayerVolFracIcePrime = 0._rkind
-  else ! was partially frozen on previous time step
-   mLayerTempPrev = mLayerTemp - mLayerTempPrime*dt_cur
-   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-   mLayerPsiLiq     = xConst*(mLayerTempPrev - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
-   mLayerVolFracLiqPrev = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
-   mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime ! = mLayerVolFracIcePrev*dt_inv
-  endif
+  !else ! was partially frozen on previous time step
+   !mLayerTempPrev = mLayerTemp - mLayerTempPrime*dt_cur
+   !xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+   !mLayerPsiLiq     = xConst*(mLayerTempPrev - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
+   !mLayerVolFracLiqPrev = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   !mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
+   !print*,"thawed", mLayerVolFracLiqPrime,mLayerTemp,mLayerTempPrime,dt_cur,mLayerTemp - mLayerTempPrime*dt_cur-TcSoilPrev
+  !endif
 
  end if  ! (check if soil is partially frozen)
+
+ ! - volumetric ice content (-)
+ mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
+ mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime
 
  end subroutine updateSoilSundials2
 end module updatStateSundials_module

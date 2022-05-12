@@ -120,31 +120,31 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output:
-                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                       dBaseflow_dMatric,       & ! intent(out):    derivative in baseflow w.r.t. matric head (s-1)
                        scalarCanopyTempTrial,   & ! intent(out):    trial value of canopy temperature (K)
                        scalarCanopyTempPrev,    & ! intent(in):     value of canopy temperature (K)
-                       scalarCanopyIceTrial,	  & ! intent(out):    trial value for mass of ice on the vegetation canopy (kg m-2)
-                       scalarCanopyIcePrev,		  & ! intent(in):     value for mass of ice on the vegetation canopy (kg m-2)
-                       scalarCanopyLiqTrial,	  & ! intent(out):    trial value of canopy liquid water (kg m-2)
-                       scalarCanopyLiqPrev,		  & ! intent(in):     value of canopy liquid water (kg m-2)
+                       scalarCanopyIceTrial,    & ! intent(out):    trial value for mass of ice on the vegetation canopy (kg m-2)
+                       scalarCanopyIcePrev,	    & ! intent(in):     value for mass of ice on the vegetation canopy (kg m-2)
+                       scalarCanopyLiqTrial,    & ! intent(out):    trial value of canopy liquid water (kg m-2)
+                       scalarCanopyLiqPrev,	    & ! intent(in):     value of canopy liquid water (kg m-2)
                        scalarCanopyEnthalpyTrial,& ! intent(out):   trial value for enthalpy of the vegetation canopy (J m-3)
                        scalarCanopyEnthalpyPrev,& ! intent(in):     value for enthalpy of the vegetation canopy (J m-3)
                        mLayerTempTrial,         & ! intent(out):    trial vector of layer temperature (K)
                        mLayerTempPrev,          & ! intent(in):     vector of layer temperature (K)
                        mLayerMatricHeadLiqTrial,& ! intent(out):    trial value for liquid water matric potential (m)
                        mLayerMatricHeadTrial, 	& ! intent(out):    trial value for total water matric potential (m)
-                       mLayerMatricHeadPrev, 	  & ! intent(in):     value for total water matric potential (m)
+                       mLayerMatricHeadPrev,    & ! intent(in):     value for total water matric potential (m)
                        mLayerVolFracWatTrial,   & ! intent(out):    trial vector of volumetric total water content (-)
                        mLayerVolFracWatPrev,    & ! intent(in):     vector of volumetric total water content (-)
                        mLayerVolFracIceTrial,   & ! intent(out):    trial vector of volumetric ice water content (-)
                        mLayerVolFracIcePrev,    & ! intent(in):     vector of volumetric ice water content (-)
                        mLayerVolFracLiqTrial,   & ! intent(out):    trial vector of volumetric liquid water content (-)
                        mLayerVolFracLiqPrev,    & ! intent(in):     vector of volumetric liquid water content (-)
-                       scalarAquiferStorageTrial, & ! intent(out):  trial value of storage of water in the aquifer (m)
-                 	     scalarAquiferStoragePrev,  & ! intent(in):   value of storage of water in the aquifer (m)
+                       scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
+                 	   scalarAquiferStoragePrev,& ! intent(in):     value of storage of water in the aquifer (m)
                        mLayerEnthalpyPrev,      & ! intent(in):     vector of enthalpy for snow+soil layers (J m-3)
                        mLayerEnthalpyTrial,     & ! intent(out):    trial vector of enthalpy for snow+soil layers (J m-3)
-                       ixSaturation,			      & ! intent(inout):  index of the lowest saturated layer
+                       ixSaturation,            & ! intent(inout):  index of the lowest saturated layer
                        feasible,                & ! intent(out):    flag to denote the feasibility of the solution
                        fluxVec,                 & ! intent(out):    flux vector
                        resSink,                 & ! intent(out):    additional (sink) terms on the RHS of the state equation
@@ -321,23 +321,28 @@ contains
  ! check that the canopy air space temperature is reasonable
  if(ixCasNrg/=integerMissing)then
   if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
+  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( stateVec(ixCasNrg) )', feasible, canopyTempMax, stateVec(ixCasNrg)
  endif
 
  ! check that the canopy air space temperature is reasonable
  if(ixVegNrg/=integerMissing)then
   if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
+  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( stateVec(ixVegNrg) )', feasible, canopyTempMax, stateVec(ixVegNrg)
  endif
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
   if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
+  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( stateVec(ixVegHyd) )', feasible, 0._rkind, stateVec(ixVegHyd)
  end if
 
  ! check snow temperature is below freezing
  if(count(ixSnowOnlyNrg/=integerMissing)>0)then
   if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+  do iLayer=1,nSnow
+   if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
+  enddo
  endif
-
 
  ! loop through non-missing hydrology state variables in the snow+soil domain
  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
@@ -360,7 +365,7 @@ contains
 
    ! --> check
    if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
- !  if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+   if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
   endif  ! if water states
 
@@ -452,6 +457,7 @@ contains
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                 mLayerTempPrev,                            & ! intent(in)
                  mLayerVolFracWatPrev,                      & ! intent(in)
                  mLayerMatricHeadPrev,                      & ! intent(in)
                  diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU

@@ -78,7 +78,7 @@ USE var_lookup,only:iLookINDEX            ! named variables for structure elemen
 ! provide access to routines to update states
 USE updatStateSundials_module,only:updateVegSundials     ! update snow states
 USE updatStateSundials_module,only:updateSnowSundials     ! update snow states
-USE updatStateSundials_module,only:updateSoilSundials2     ! update soil states
+USE updatStateSundials_module,only:updateSoilSundials     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
@@ -110,6 +110,7 @@ contains
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                       mLayerTempPrev,                            & ! intent(in)
                        mLayerVolFracWatPrev,                      & ! intent(in)
                        mLayerMatricHeadPrev,                      & ! intent(in)
                        diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
@@ -147,8 +148,9 @@ contains
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)
+ real(rkind),intent(in)             :: mLayerTempPrev(:)
  real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)
+ real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)
  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
  ! output: variables for the vegetation canopy
@@ -213,8 +215,8 @@ contains
  real(rkind)                        :: critDiff                        ! temperature difference from critical (K)
  real(rkind)                        :: tempMin                         ! minimum bracket for temperature (K)
  real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
- logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
- real(rkind),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
+ logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
+ real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical temperature (K)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! make association with variables in the data structures
  associate(&
@@ -534,13 +536,14 @@ contains
      ! *** soil layers
      case(iname_soil)
 
-      ! compute volumetric fraction of liquid water and ice
-      call updateSoilSundials2(&
+      ! compute volumetric fraction of liquid water and ice, step size dt_cur changes here
+      call updateSoilSundials(&
                       dt_cur,                                            &
                       xTemp,                                             & ! intent(in)   : temperature (K)
+                      mLayerTempPrev(iLayer),                            & ! intent(in)   : temperature previous time step (K)
                       mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in)   : total water matric potential (m)
-                      !mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in)
-                      !mLayerVolFracWatPrev(iLayer),                      & ! intent(in)
+                      mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in)
+                      mLayerVolFracWatPrev(iLayer),                      & ! intent(in)
                       mLayerTempPrime(iLayer),                           &
                       mLayerMatricHeadPrime(ixControlIndex),             &
                      ! intent(in)   : soil parameters
@@ -555,7 +558,7 @@ contains
                       mLayerVolFracWatPrime(iLayer),                     &
                       mLayerVolFracLiqPrime(iLayer),                     &
                       mLayerVolFracIcePrime(iLayer),                     &
-                      err,cmessage)                                                                                                                   ! intent(out)  : error control
+                      err,cmessage)                                        ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! check
@@ -625,9 +628,9 @@ contains
                     vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in) : soil parameters
                     dVolTot_dPsi0(ixControlIndex)                                                                                             ,& ! intent(in) : derivative in the soil water characteristic (m-1)
                     mLayerdTheta_dTk(iLayer)                                                                                                  ,& ! intent(in) : derivative in volumetric total water w.r.t. temperature (K-1)
-                    mLayerTempPrime(ixControlIndex) ,&
+                    mLayerTempPrime(ixControlIndex)                                                                                           ,&
                     mLayerVolFracLiqPrime(iLayer)                                                                                             ,&
-                    mLayerVolFracIcePrime(iLayer)                                                                                              ,&
+                    mLayerVolFracIcePrime(iLayer)                                                                                             ,&
                     ! output
                     mLayerMatricHeadLiqTrial(ixControlIndex)                                                                                  ,& ! intent(out): liquid water matric potential (m)
                     mLayerMatricHeadLiqPrime(ixControlIndex)                                                                                  ,& !

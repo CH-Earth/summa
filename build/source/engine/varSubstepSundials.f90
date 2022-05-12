@@ -307,7 +307,7 @@ contains
                    stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
                    err,cmessage)                       ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-  
+
   ! -----
   ! * iterative solution...
   ! -----------------------
@@ -343,12 +343,12 @@ contains
                   tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                   dt_out,			       & ! intent(out):   time step (s)
                   err,cmessage)        ! intent(out):   error code and error message
-                
+
   if(err/=0)then
    message=trim(message)//trim(cmessage)
    if(err>0) return
   endif
-  
+
   ! set untapped melt energy to zero
   untappedMelt(:) = 0._rkind
 
@@ -396,7 +396,7 @@ contains
   endif
 
   ! identify the need to check the mass balance
-  checkMassBalance = .true. ! (.not.scalarSolution) 
+  checkMassBalance = .true. ! (.not.scalarSolution)
   checkNrgBalance = .true.
 
   ! update prognostic variables
@@ -532,7 +532,7 @@ contains
   err=-20 ! negative = recoverable error
   message=trim(message)//'failed minimum step'
  endif
- 
+
 
  end subroutine varSubstepSundials
 
@@ -560,7 +560,7 @@ contains
  real(rkind)      ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  real(rkind)      ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
- logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance 
+ logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance
  ! data structures
  type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
@@ -643,7 +643,7 @@ contains
  scalarCanopyTranspiration => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)  ,& ! intent(in)    : [dp]     canopy transpiration (kg m-2 s-1)
  scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)    ,& ! intent(in)    : [dp]     drainage liquid water from vegetation canopy (kg m-2 s-1)
  iLayerLiqFluxSoil         => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat             ,& ! intent(in)    : [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
- iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)    : 
+ iLayerNrgFlux             => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat                 ,& ! intent(in)    :
  mLayerNrgFlux             => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                      ,&  ! intent(out): [dp] net energy flux for each layer within the snow+soil domain (J m-3 s-1)
  mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)    : [dp(:)]  transpiration loss from each soil layer (m s-1)
  mLayerBaseflow            => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                ,& ! intent(in)    : [dp(:)]  baseflow from each soil layer (m s-1)
@@ -717,8 +717,8 @@ contains
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
-  call varExtractSundials(&                  
+
+  call varExtractSundials(&
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -740,18 +740,19 @@ contains
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
+
 
   ! update diagnostic variables
- call updateVarsSundials(&                
+ call updateVarsSundials(&
                  ! input
                  dt,                                        &
                  doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to accou melt+freeze
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                 mLayerVolFracWatTrial,                     & 
-                 mLayerMatricHeadTrial,                      &
+                 mLayerTempTrial,                           &
+                 mLayerVolFracWatTrial,                     &
+                 mLayerMatricHeadTrial,                     &
                  diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                  deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output: variables for the vegetation canopy
@@ -770,21 +771,21 @@ contains
                  mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
-                 mLayerTempPrime,                           & ! 
+                 mLayerTempPrime,                           & !
                  mLayerVolFracWatPrime,                     & ! intent(inout): Prime vector of volumetric total water content (-)
                  mLayerVolFracLiqPrime,                     & ! intent(inout): Prime vector of volumetric liquid water content (-)
-                 mLayerVolFracIcePrime,                     & ! 
+                 mLayerVolFracIcePrime,                     & !
                  mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
                  mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- 
+
  ! ----
  ! * check energy balance
  !------------------------
  ! NOTE: for now, we just compute enthalpy
- if(checkNrgBalance)then 
+ if(checkNrgBalance)then
       ! compute enthalpy at t_{n+1}
        call t2enthalpy(&
                   ! input: data structures
@@ -809,7 +810,7 @@ contains
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    
+
  endif
 
  ! -----
@@ -888,7 +889,7 @@ contains
    baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
- !  write(1,*) liqError 
+ !  write(1,*) liqError
    if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
     write(*,'(a,1x,f20.10)') 'dt = ', dt
     write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
@@ -1011,7 +1012,7 @@ endif  ! if checking the mass balance
     if(scalarCanopyLiqTrial > -verySmall)then
      scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
      scalarCanopyLiqTrial = 0._rkind
-     
+
 
     ! encountered an inconsistency: spit the dummy
     else
@@ -1053,7 +1054,7 @@ endif  ! if checking the mass balance
   endif  ! (if we removed too much water)
 
  endif  ! (if energy state variables exist)
- 
+
  ! -----
  ! * update enthalpy as a diagnostic variable...
  ! --------------------------------
@@ -1081,7 +1082,7 @@ endif  ! if checking the mass balance
 
  ! update state variables for the aquifer
  scalarAquiferStorage = scalarAquiferStorageTrial
- 
+
  ! end associations to info in the data structures
  end associate
 

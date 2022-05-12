@@ -615,7 +615,7 @@ contains
                       mLayerVolFracWatPrime(iLayer),                     & ! intent(out) : volumetric fraction of total water time derivative (-)
                       mLayerVolFracLiqPrime(iLayer),                     & ! intent(out) : volumetric fraction of liquid water time derivative (-)
                       mLayerVolFracIcePrime(iLayer),                     & ! intent(out) : volumetric fraction of ice time derivative (-)
-                      err,cmessage)                                                                                                                   ! intent(out)  : error control
+                      err,cmessage)                                        ! intent(out)  : error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
      ! check
