@@ -321,28 +321,28 @@ contains
  ! check that the canopy air space temperature is reasonable
  if(ixCasNrg/=integerMissing)then
   if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
-  if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temperature too high '
+  if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( stateVec(ixCasNrg) )', feasible, canopyTempMax, stateVec(ixCasNrg)
  endif
 
  ! check that the canopy temperature is reasonable
  if(ixVegNrg/=integerMissing)then
   if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
-  if(stateVec(ixVegNrg) > canopyTempMax) message=trim(message)//'canopy temperature too high '
+  if(stateVec(ixVegNrg) > canopyTempMax) message=trim(message)//'canopy temp high,'
   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( stateVec(ixVegNrg) )', feasible, canopyTempMax, stateVec(ixVegNrg)
  endif
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
   if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
-  if(stateVec(ixVegHyd) < 0._rkind) message=trim(message)//'canopy water is negative '
+  if(stateVec(ixVegHyd) < 0._rkind) message=trim(message)//'canopy water negative,'
   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( stateVec(ixVegHyd) )', feasible, 0._rkind, stateVec(ixVegHyd)
  end if
 
  ! check snow temperature is below freezing
  if(count(ixSnowOnlyNrg/=integerMissing)>0)then
   if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
-  if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) message=trim(message)//'snow temperature is above freezing '
+  if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) message=trim(message)//'snow temp above freezing,'
   do iLayer=1,nSnow
    if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
   enddo
@@ -369,7 +369,7 @@ contains
 
    ! --> check
    if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-   if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)  message=trim(message)//'layer water is outside of bounds '
+   if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)  message=trim(message)//'layer water outside bounds,'
    if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
   endif  ! if water states
@@ -380,7 +380,7 @@ contains
  if(.not.feasible)then
   fluxVec(:) = realMissing
   resVec(:)  = quadMissing
-  message=trim(message)//'solution is non-feasible'
+  message=trim(message)//'non-feasible'
   err=20; return
  end if
 

@@ -227,8 +227,8 @@ contains
    ! using mLayerVolFracLiqPrev = mLayerVolFracWatPrev
    mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracWatPrev)*dt_inv ! = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
   endif
-  if ( mLayerTemp - mLayerTempPrime*dt >= TcSoilPrev )print*,"froze"
-  if ( mLayerTempPrev >= TcSoilPrev )print*,"FROZE2"
+  !if ( mLayerTemp - mLayerTempPrime*dt >= TcSoilPrev )print*,"froze"
+  !if ( mLayerTempPrev >= TcSoilPrev )print*,"FROZE2"
 
  ! *** compute volumetric fraction of liquid water for unfrozen soil
  else !( mLayerTemp >= TcSoil, all water is unfrozen )
@@ -244,8 +244,8 @@ contains
    mLayerVolFracLiqPrev = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
   endif
-  if ( mLayerTemp - mLayerTempPrime*dt < TcSoilPrev )print*,"thawed"
-  if ( mLayerTempPrev < TcSoilPrev )print*,"THAWED2"
+  !if ( mLayerTemp - mLayerTempPrime*dt < TcSoilPrev )print*,"thawed"
+  !if ( mLayerTempPrev < TcSoilPrev )print*,"THAWED2"
 
  end if  ! (check if soil is partially frozen)
 

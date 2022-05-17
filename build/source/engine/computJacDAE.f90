@@ -469,15 +469,15 @@ contains
      jState = ixSoilOnlyNrg(iLayer)       ! index within the full state vector
 
      ! - consider if switched frozen status from previous state
-     if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
-      if(mLayerdTheta_dTkPrev(jLayer) <= verySmall)then  ! no ice on previous time step
-       aJac(jState,jState) = LH_fus*iden_water * ( -mLayerdTheta_dTk(jLayer)*cj - mLayerTempPrime(jLayer)*mLayerd2Theta_dTk2(jLayer) + mLayerdTheta_dTk(jLayer)/dt ) + aJac(jState,jState)
-      endif
-     else ! no ice currently
-      if(mLayerdTheta_dTkPrev(jLayer) > verySmall)then  ! ice was present on previous time step
-       aJac(jState,jState) = LH_fus*iden_water * ( mLayerdTheta_dTkPrev(jLayer)*cj  - mLayerTempPrime(jLayer)*mLayerdTheta_dTkPrev(jLayer)/dt ) + aJac(jState,jState)
-      endif
-     endif
+!     if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
+!      if(mLayerdTheta_dTkPrev(jLayer) <= verySmall)then  ! no ice on previous time step
+!       aJac(jState,jState) = LH_fus*iden_water * ( -mLayerdTheta_dTk(jLayer)*cj - mLayerTempPrime(jLayer)*mLayerd2Theta_dTk2(jLayer) + mLayerdTheta_dTk(jLayer)/dt ) + aJac(jState,jState)
+!      endif
+!     else ! no ice currently
+!      if(mLayerdTheta_dTkPrev(jLayer) > verySmall)then  ! ice was present on previous time step
+!       aJac(jState,jState) = LH_fus*iden_water * ( mLayerdTheta_dTkPrev(jLayer)*cj  - mLayerTempPrime(jLayer)*mLayerdTheta_dTkPrev(jLayer)/dt ) + aJac(jState,jState)
+!      endif
+!     endif
 
     end do  ! (looping through energy states in the soil domain)
    endif   ! (if the subset includes energy state variables in the soil domain)
@@ -690,13 +690,13 @@ contains
       if(mLayerdTheta_dTk(jLayer) > verySmall)then  ! ice is present
        aJac(nrgState,watState) = -LH_fus*iden_water * dVolTot_dPsi0(iLayer) * cj &
                                  - LH_fus*iden_water * mLayerMatricHeadPrime(iLayer) * d2VolTot_d2Psi0(iLayer) + aJac(nrgState,watState) ! dNrg/dMat (J m-3 m-1) -- dMat changes volumetric water, and hence ice content
-       if(mLayerdTheta_dTkPrev(jLayer) <= verySmall)then  ! no ice on previous time step
-         aJac(nrgState,watState) = LH_fus*iden_water * ( dVolTot_dPsi0(iLayer)*cj + mLayerMatricHeadPrime(iLayer)*d2VolTot_d2Psi0(iLayer) - dVolTot_dPsi0(iLayer)/dt ) + aJac(nrgState,watState)
-       endif
-      else ! no ice currently
-       if(mLayerdTheta_dTkPrev(jLayer) > verySmall)then  ! ice was present on previous time step
-        aJac(nrgState,watState) = LH_fus*iden_water * ( -dVolTot_dPsi0(iLayer)*cj - mLayerMatricHeadPrime(iLayer)*d2VolTot_d2Psi0(iLayer) + dVolTot_dPsi0(iLayer)/dt ) + aJac(nrgState,watState)
-       endif
+!       if(mLayerdTheta_dTkPrev(jLayer) <= verySmall)then  ! no ice on previous time step
+!         aJac(nrgState,watState) = LH_fus*iden_water * ( dVolTot_dPsi0(iLayer)*cj + mLayerMatricHeadPrime(iLayer)*d2VolTot_d2Psi0(iLayer) - dVolTot_dPsi0(iLayer)/dt ) + aJac(nrgState,watState)
+!       endif
+!      else ! no ice currently
+!       if(mLayerdTheta_dTkPrev(jLayer) > verySmall)then  ! ice was present on previous time step
+!        aJac(nrgState,watState) = LH_fus*iden_water * ( -dVolTot_dPsi0(iLayer)*cj - mLayerMatricHeadPrime(iLayer)*d2VolTot_d2Psi0(iLayer) + dVolTot_dPsi0(iLayer)/dt ) + aJac(nrgState,watState)
+!       endif
       endif
 
       ! - include derivatives of heat capacity w.r.t water fluxes for surrounding layers starting with layer above
