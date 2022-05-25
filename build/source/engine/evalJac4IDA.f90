@@ -78,9 +78,9 @@ contains
 
 
     ! get data arrays from SUNDIALS vectors
-    stateVec  => FN_VGetArrayPointer(sunvec_y)
-    stateVecPrime => FN_VGetArrayPointer(sunvec_yp)
-    rVec  => FN_VGetArrayPointer(sunvec_r)
+    stateVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_y)
+    stateVecPrime(1:eqns_data%nState) => FN_VGetArrayPointer(sunvec_yp)
+    rVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_r)
     Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
 
     ! compute Jacobian matrix

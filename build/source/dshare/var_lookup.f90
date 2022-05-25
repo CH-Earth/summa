@@ -629,7 +629,6 @@ MODULE var_lookup
  ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
   integer(i4b)    :: dFracLiqSnow_dTk                = integerMissing ! derivative in fraction of liquid snow w.r.t. temperature
   integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
-  integer(i4b)    :: mLayerdTheta_dTkPrev            = integerMissing ! previous timestep derivative of volumetric liquid water content w.r.t. temperature (K-1)
   integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
  ! derivate in bulk heat capacity w.r.t. relevant state variables
   integer(i4b)    :: dVolHtCapBulk_dPsi0             = integerMissing ! derivative in bulk heat capacity w.r.t. matric potential
@@ -880,7 +879,7 @@ MODULE var_lookup
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
-                                                                         61, 62, 63, 64, 65, 66)
+                                                                         61, 62, 63, 64, 65)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

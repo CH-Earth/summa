@@ -202,14 +202,15 @@ contains
  real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
+ real(rkind)                     :: stateVecConstraints(nState)   ! model state vector constraints
  real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
- real(rkind)                     :: atol(nState)     		 	        ! absolute telerance
- real(rkind)                     :: rtol(nState)     			        ! relative tolerance
- type(var_dlength)               :: flux_sum					            ! sum of fluxes model fluxes for a local HRU over a data step
- integer(i4b) 					         :: tol_iter					            ! iteration index
- real(rkind), allocatable        :: mLayerCmpress_sum(:)		      ! sum of compression of the soil matrix
- logical(lgt)					           :: idaSucceeds					          ! flag to indicate if ida successfully solved the problem in current data step
+ real(rkind)                     :: atol(nState)     		 	  ! absolute telerance
+ real(rkind)                     :: rtol(nState)     		      ! relative tolerance
+ type(var_dlength)               :: flux_sum	   	              ! sum of fluxes model fluxes for a local HRU over a data step
+ integer(i4b) 					 :: tol_iter			          ! iteration index
+ real(rkind), allocatable        :: mLayerCmpress_sum(:)		  ! sum of compression of the soil matrix
+ logical(lgt)					 :: idaSucceeds		   		      ! flag to indicate if ida successfully solved the problem in current data step
 
 
  ! ---------------------------------------------------------------------------------------
@@ -354,7 +355,7 @@ contains
                 mLayerEnthalpy,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
                 ! output: error control
                 err,cmessage)                  ! intent(out): error control
-if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! compute the flux and the residual vector for a given state vector
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
@@ -413,10 +414,8 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
  call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-  ! allocate space for mLayerCmpress_sum
-  allocate( mLayerCmpress_sum(nSoil) )
-
-
+ ! allocate space for mLayerCmpress_sum
+ allocate( mLayerCmpress_sum(nSoil) )
 
  ! check the need to merge snow layers
  if(nSnow>0)then
@@ -431,19 +430,41 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
   endif
  endif
 
-  ! get tolerance vectors
-  call popTol4IDA(&
-                   ! input
-                   nState,                           & ! intent(in):    number of desired state variables
-                   prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
-                   indx_data,                        & ! intent(in):    indices defining model states and layers
-                   mpar_data,                        & ! intent(in):	  model parameters
-                   ! output
-                   atol,                             & ! intent(out):   absolute tolerances vector (mixed units)
-                   rtol,                             & ! intent(out):	  relative tolerances vector (mixed units)
-                   err,cmessage)                       ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ ! get tolerance vectors
+ call popTol4IDA(&
+                  ! input
+                  nState,                           & ! intent(in):    number of desired state variables
+                  prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
+                  diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                  indx_data,                        & ! intent(in):    indices defining model states and layers
+                  mpar_data,                        & ! intent(in):	  model parameters
+                  ! output
+                  atol,                             & ! intent(out):   absolute tolerances vector (mixed units)
+                  rtol,                             & ! intent(out):	  relative tolerances vector (mixed units)
+                  err,cmessage)                       ! intent(out):   error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+ ! Set constraints for state vector
+ ! 0 then no constraint is imposed on y.
+ ! 1 then yi will be constrained to be yi>=0
+ !-1 then yi will be constrained to be yi<=0
+ stateVecConstraints = 0.d0
+ !stateVec(ixCasNrg) - canopyTempMax = -1.d0 !canopy air space temperature cannot be too high
+ !stateVec(ixVegNrg) - canopyTempMax = -1.d0 !canopy temperature cannot be too high
+ stateVecConstraints(ixVegHyd) = 1.d0 !canopy liquid water cannot be negative
+ ! loop through non-missing energy state variables in the snow domain
+ !do concurrent (iLayer=1:nLayers,ixSnowOnlyNrg(iLayer)/=integerMissing)
+ ! stateVec(ixSnowOnlyNrg(iLayer)) - Tfreeze = 1.d0 !snow temp cannot be less than Tfreeze
+ !end do
+ ! loop through non-missing hydrology state variables in the snow+soil domain
+ !do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
+ ! check the minimum and maximum water constraints
+ ! stateVec(ixSnowSoilHyd(iLayer)) - xMin =  1.d0 !water cannot be less than xMin
+ ! stateVec(ixSnowSoilHyd(iLayer)) - xMax = -1.d0 !water cannot be more than xMax
+ !enddo
+
+
+
 
  !-------------------
  ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
@@ -473,6 +494,7 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vector
                  stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
+                 stateVecConstraints,     & ! intent(inout): model state vector constraints
                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                  ! input: data structures
@@ -510,9 +532,6 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  end do  ! iteration over tolerances
 
-
-
-
   ! check if IDA is successful
  if( .not.idaSucceeds )then
   err = 20
@@ -520,7 +539,6 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 ! reduceCoupledStep  = .true.
   return
  endif
-
 
  ! compute average flux
   do iVar=1,size(flux_meta)
@@ -531,7 +549,6 @@ if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
  ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
-
 
  ! save the computed solution
  stateVecTrial = stateVecNew

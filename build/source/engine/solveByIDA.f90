@@ -105,6 +105,7 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector
+                       stateVecConstraints,     & ! intent(inout):    model state vector constraints
                        sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                        ! input: data structures
@@ -123,10 +124,10 @@ contains
                        flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! output
-                       ixSaturation,			      & ! intent(out)
-                       idaSucceeds,			        & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                       ixSaturation,			& ! intent(out)
+                       idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
-                       dt_out,					        & ! intent(out):   time step
+                       dt_out,			        & ! intent(out):   time step
                        stateVec,                & ! intent(out):   model state vector
                        stateVecPrime,           & ! intent(out):   derivative of model state vector
                        err,message              & ! intent(out):   error control
@@ -176,7 +177,8 @@ contains
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
- real(qp),intent(in)             :: sMul(:)   			       ! state vector multiplier (used in the residual calculations)
+ real(rkind),intent(inout)       :: stateVecConstraints(:) ! model state vector constraints
+ real(qp),intent(in)             :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
  real(rkind), intent(inout)      :: dMat(:)
  ! input: data structures
  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
@@ -195,11 +197,11 @@ contains
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
  ! output: state vectors
- integer(i4b),intent(out)		     :: ixSaturation           ! index of the lowest saturated layer
+ integer(i4b),intent(out)		 :: ixSaturation           ! index of the lowest saturated layer
  real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
  real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
- logical(lgt),intent(out)		     :: idaSucceeds            ! flag to indicate if IDA is successful
- real(qp),intent(out)			       :: dt_out                 ! time step
+ logical(lgt),intent(out)		 :: idaSucceeds            ! flag to indicate if IDA is successful
+ real(qp),intent(out)	         :: dt_out                 ! time step
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
  character(*),intent(out)        :: message                ! error message
@@ -209,6 +211,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
   type(N_Vector),           pointer :: sunvec_y             ! sundials solution vector
   type(N_Vector),           pointer :: sunvec_yp            ! sundials derivative vector
+  type(N_Vector),           pointer :: sunvec_c             ! sundials constraints vector
   type(N_Vector),           pointer :: sunvec_av            ! sundials tolerance vector
   type(SUNMatrix),          pointer :: sunmat_A             ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
@@ -219,28 +222,28 @@ contains
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time
   real(qp)                          :: dt_last(1)             ! last time step
-  integer(kind = 8) 				        :: mu, lu               ! in banded matrix mode
-  integer(i4b)               		    :: iVar
-  logical(lgt)               		    :: startQuadrature
-  real(rkind)  				 		          :: mLayerMatricHeadLiqPrev(nSoil)
+  integer(kind = 8) 				:: mu, lu               ! in banded matrix mode
+  integer(i4b)               	    :: iVar
+  logical(lgt)               	    :: startQuadrature
+  real(rkind)  	     	            :: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
   real(qp)                          :: tret(1)
   real(rkind)                       :: bulkDensity          ! bulk density of a given layer (kg m-3)
   real(rkind)                       :: volEnthalpy          ! volumetric enthalpy of a given layer (J m-3)
-  logical(lgt)						          :: tooMuchMelt
-  logical(lgt)						          :: divideLayer
-  logical(lgt)						          :: mergedLayers
-  logical(lgt),parameter			      :: checkSnow = .true.
+  logical(lgt)						:: tooMuchMelt
+  logical(lgt)						:: divideLayer
+  logical(lgt)				        :: mergedLayers
+  logical(lgt),parameter			:: checkSnow = .false. !.true.
   logical(lgt),parameter            :: offErrWarnMessage = .false.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
   real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  real(rkind)							          :: mLayerDepth(nLayers)
-  real(rkind)							          :: scalarSnowDepth
-  real(rkind)							          :: scalarSWE
-  real(rkind)							          :: mLayerMeltFreeze(nLayers)
-  integer(i4b)               		    :: i
+  real(rkind)						:: mLayerDepth(nLayers)
+  real(rkind)		  	            :: scalarSnowDepth
+  real(rkind)						:: scalarSWE
+  real(rkind)						:: mLayerMeltFreeze(nLayers)
+  integer(i4b)               		:: i
   ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
@@ -337,19 +340,26 @@ contains
   sunvec_yp => FN_VMake_Serial(nState, stateVecPrime)
   if (.not. associated(sunvec_yp)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
 
+  sunvec_c => FN_VMake_Serial(nState, stateVecConstraints)
+  if (.not. associated(sunvec_c)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
+
   ! Initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
-  ! Call FIDACreate and FIDAInit to initialize IDA memory
+  ! Create memory
   ida_mem = FIDACreate()
   if (.not. c_associated(ida_mem)) then; err=20; message='solveByIDA: ida_mem = NULL'; return; endif
 
+  ! Set constraints
+  retval = FIDASetConstraints(ida_mem, sunvec_c)
+  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetConstraints'; return; endif
+
+  ! Attach user data to memory
   eqns_data%ida_mem = ida_mem
-
-
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetUserData'; return; endif
 
+  ! Initialize memory
   t0 = 0._rkind
   retval = FIDAInit(ida_mem, c_funloc(evalDAE4IDA), t0, sunvec_y, sunvec_yp)
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAInit'; return; endif
@@ -358,19 +368,19 @@ contains
   retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4IDA))
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAWFtolerances'; return; endif
 
- ! define the form of the matrix
- select case(ixMatrix)
-  case(ixBandMatrix)
-  mu = ku; lu = kl;
-  ! Create banded SUNMatrix for use in linear solves
-     sunmat_A => FSUNBandMatrix(nState, mu, lu)
-     if (.not. associated(sunmat_A)) then; err=20; message='solveByIDA: sunmat = NULL'; return; endif
+  ! define the form of the matrix
+  select case(ixMatrix)
+   case(ixBandMatrix)
+    mu = ku; lu = kl;
+    ! Create banded SUNMatrix for use in linear solves
+    sunmat_A => FSUNBandMatrix(nState, mu, lu)
+    if (.not. associated(sunmat_A)) then; err=20; message='solveByIDA: sunmat = NULL'; return; endif
 
      ! Create banded SUNLinearSolver object
      sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A)
      if (.not. associated(sunlinsol_LS)) then; err=20; message='solveByIDA: sunlinsol = NULL'; return; endif
 
-  case(ixFullMatrix)
+   case(ixFullMatrix)
     ! Create dense SUNMatrix for use in linear solves
      sunmat_A => FSUNDenseMatrix(nState, nState)
      if (.not. associated(sunmat_A)) then; err=20; message='solveByIDA: sunmat = NULL'; return; endif
@@ -380,9 +390,9 @@ contains
      if (.not. associated(sunlinsol_LS)) then; err=20; message='solveByIDA: sunlinsol = NULL'; return; endif
 
   ! check
-  case default;  err=20; message='solveByIDA: error in type of matrix'; return
+   case default;  err=20; message='solveByIDA: error in type of matrix'; return
 
- end select  ! form of matrix
+  end select  ! form of matrix
 
   ! Attach the matrix and linear solver
   retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
@@ -417,7 +427,7 @@ contains
   endif
 
   ! need the following values for the first substep
- eqns_data%scalarCanopyTempPrev		  = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+ eqns_data%scalarCanopyTempPrev		= prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
@@ -449,7 +459,6 @@ contains
    exit
   endif
 
-
   ! get the last stepsize
   retval = FIDAGetLastStep(ida_mem, dt_last)
 
@@ -462,6 +471,7 @@ contains
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
+                 .true.,                            & ! intent(in):    check for feasibility once outside Sundials loop
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                  eqns_data%firstSplitOper,			    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
@@ -528,102 +538,93 @@ contains
  !    flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  tret(1)
  ! end do
 
-   ! sum of mLayerCmpress
-   mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
+  ! sum of mLayerCmpress
+  mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
 
+  ! save required quantities for next step
+  eqns_data%scalarCanopyTempPrev		= eqns_data%scalarCanopyTempTrial
+  eqns_data%scalarCanopyIcePrev		    = eqns_data%scalarCanopyIceTrial
+  eqns_data%scalarCanopyLiqPrev         = eqns_data%scalarCanopyLiqTrial
+  eqns_data%mLayerTempPrev(:) 		    = eqns_data%mLayerTempTrial(:)
+  mLayerMatricHeadLiqPrev(:) 		    = eqns_data%mLayerMatricHeadLiqTrial(:)
+  eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
+  eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
+  eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
+  eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
+  eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
+  eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
+  eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
 
-   ! save required quantities for next step
-   eqns_data%scalarCanopyTempPrev		  = eqns_data%scalarCanopyTempTrial
-   eqns_data%scalarCanopyIcePrev		  = eqns_data%scalarCanopyIceTrial
-   eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
-   eqns_data%mLayerTempPrev(:) 			  = eqns_data%mLayerTempTrial(:)
-   mLayerMatricHeadLiqPrev(:) 			  = eqns_data%mLayerMatricHeadLiqTrial(:)
-   eqns_data%mLayerMatricHeadPrev(:) 	= eqns_data%mLayerMatricHeadTrial(:)
-   eqns_data%mLayerVolFracWatPrev(:) 	= eqns_data%mLayerVolFracWatTrial(:)
-   eqns_data%mLayerVolFracIcePrev(:) 	= eqns_data%mLayerVolFracIceTrial(:)
-   eqns_data%mLayerVolFracLiqPrev(:) 	= eqns_data%mLayerVolFracLiqTrial(:)
-   eqns_data%scalarAquiferStoragePrev	= eqns_data%scalarAquiferStorageTrial
-   eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
-   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
+  if(checkSnow)then
+   mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)
+   ! compute the melt in each snow and soil layer
+   if(nSnow>0)then
+    mLayerMeltFreeze(1:nSnow) = -( eqns_data%mLayerVolFracIceTrial(1:nSnow) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow) ) * iden_ice
+    mLayerMeltFreeze(nSnow+1:nLayers) = -(eqns_data%mLayerVolFracIceTrial(nSnow+1:nLayers) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers))*iden_water
+   endif
 
-
- if(checkSnow)then
-  mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)
-  ! compute the melt in each snow and soil layer
-  if(nSnow>0)then
-  mLayerMeltFreeze(1:nSnow) = -( eqns_data%mLayerVolFracIceTrial(1:nSnow) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow) ) * iden_ice
-  mLayerMeltFreeze(nSnow+1:nLayers) = -(eqns_data%mLayerVolFracIceTrial(nSnow+1:nLayers) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers))*iden_water
-  endif
-
-  call computSnowDepth(&
- 						tret(1),                      			    									& ! intent(in)
- 						eqns_data%nSnow,										                    	& ! intent(in)
+   call computSnowDepth(&
+ 	 					tret(1),                      			    				& ! intent(in)
+ 						eqns_data%nSnow,										    & ! intent(in)
  						flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),		& ! intent(in)
- 						eqns_data%mLayerVolFracLiqTrial,   						          	& ! intent(inout)
- 						eqns_data%mLayerVolFracIceTrial,							            & ! intent(inout)
- 						eqns_data%mLayerTempTrial,								              	& ! intent(in)
- 						mLayerMeltFreeze,										                      & ! intent(in)
- 						eqns_data%mpar_data,									                  	& ! intent(in)
- 					  ! output
- 					  mLayerDepth,												                      & ! intent(inout)
-            ! error control
-            err,message)         				  					  	                ! intent(out):   error control
+ 						eqns_data%mLayerVolFracLiqTrial,   						    & ! intent(inout)
+ 						eqns_data%mLayerVolFracIceTrial,				            & ! intent(inout)
+ 						eqns_data%mLayerTempTrial,								    & ! intent(in)
+ 						mLayerMeltFreeze,										    & ! intent(in)
+ 						eqns_data%mpar_data,									    & ! intent(in)
+ 					    ! output
+ 					    mLayerDepth,												& ! intent(inout)
+                        ! error control
+                        err,message)         				  					      ! intent(out):   error control
    if(err/=0)then; err=55; return; end if
 
+   ! recompute snow depth and SWE
+   if(eqns_data%nSnow > 0)then
+    scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
+    scalarSWE       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
+   end if
 
-  ! recompute snow depth and SWE
-  if(eqns_data%nSnow > 0)then
-   scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
-   scalarSWE       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
-  end if
-
-  ! check the need to merge snow layers
-  tooMuchMelt = .false.
-  if(eqns_data%nSnow>0)then
+   ! check the need to merge snow layers
+   tooMuchMelt = .false.
+   if(eqns_data%nSnow>0)then
     ! check that we did not remove the entire layer
     if(mLayerDepth(1) < 1.e-6_rkind) exit
     ! compute the energy required to melt the top snow layer (J m-2)
     bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
     volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
     if(-volEnthalpy < flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*tret(1)) tooMuchMelt = .true.
-  endif
+   endif
 
+   if(tooMuchMelt) exit
 
-  if(tooMuchMelt) exit
-
-  divideLayer = .false.
-  call needDivideLayer(&
+   divideLayer = .false.
+   call needDivideLayer(&
                         ! input/output: model data structures
-                        model_decisions,             							& ! intent(in):    model decisions
+                        model_decisions,             				& ! intent(in):    model decisions
                         eqns_data%mpar_data,                   		& ! intent(in):    model parameters
                         eqns_data%nSnow,                       		& ! intent(in):    number of snow layers
-                        mLayerDepth,     										      & ! intent(in):
-                        scalarSnowDepth, 										      & ! intent(in)
+                        mLayerDepth,     							& ! intent(in):
+                        scalarSnowDepth, 		  			        & ! intent(in)
                         ! output
-                        divideLayer,                 							& ! intent(out): flag to denote that a layer was divided
-                        err,message)                   							  ! intent(out): error control
-   if(divideLayer .and. tret(1)>50) then
-	    exit
-  endif
-
+                        divideLayer,                 				& ! intent(out): flag to denote that a layer was divided
+                        err,message)                   				  ! intent(out): error control
+   if(divideLayer .and. tret(1)>50) exit
 
    mergedLayers = .false.
    call needMergeLayers(&
                        ! input/output: model data structures
-                       tooMuchMelt,                 							& ! intent(in):    flag to force merge of snow layers
-                       model_decisions,             							& ! intent(in):    model decisions
+                       tooMuchMelt,                 				& ! intent(in):    flag to force merge of snow layers
+                       model_decisions,             				& ! intent(in):    model decisions
                        eqns_data%mpar_data,                   		& ! intent(in):    model parameters
                        eqns_data%nSnow,                       		& ! intent(in):
-                       mLayerDepth,      										      & ! intent(inout): model prognostic variables for a local HRU
+                       mLayerDepth,      							& ! intent(inout): model prognostic variables for a local HRU
                        ! output
-                       mergedLayers,                							& ! intent(out): flag to denote that layers were merged
-                       err,message)                   							  ! intent(out): error control
-
+                       mergedLayers,                				& ! intent(out): flag to denote that layers were merged
+                       err,message)                     		    ! intent(out): error control
    if(mergedLayers .and. tret(1)>50) exit
 
  endif ! checkSnow
-
 
  end do ! while loop on one_step mode
 
@@ -645,12 +646,12 @@ contains
 
 
   ! free memory
-  deallocate(eqns_data%sMul)
-  deallocate(eqns_data%dMat)
-  deallocate(eqns_data%dBaseflow_dMatric)
-  deallocate(eqns_data%mLayerMatricHeadLiqTrial)
-  deallocate(eqns_data%mLayerMatricHeadTrial)
-  deallocate(eqns_data%mLayerMatricHeadPrev)
+  deallocate( eqns_data%sMul )
+  deallocate( eqns_data%dMat )
+  deallocate( eqns_data%dBaseflow_dMatric )
+  deallocate( eqns_data%mLayerMatricHeadLiqTrial )
+  deallocate( eqns_data%mLayerMatricHeadTrial )
+  deallocate( eqns_data%mLayerMatricHeadPrev )
   deallocate( eqns_data%fluxVec )
   deallocate( eqns_data%resSink )
   deallocate( eqns_data%mLayerVolFracWatTrial )
@@ -669,10 +670,9 @@ contains
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_yp)
-
+  call FN_VDestroy(sunvec_c)
 
  end subroutine solveByIDA
-
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u and up vectors.
@@ -706,7 +706,6 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 
   uu = y
   up = 0._rkind
-
 
 end subroutine setInitialCondition
 

@@ -96,6 +96,7 @@ contains
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
                        nState,                  & ! intent(in):    total number of state variables
+                       checkFeas,               & ! intent(in):    flag to indicate if we are checking for feasibility
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                        firstFluxCall,			      & ! intent(inout)  flag to indicate if we are processing the first flux call
                        firstSplitOper,			    & ! intent(inout)  flag to indicate if we are processing the first flux call in a splitting operation
@@ -176,6 +177,7 @@ contains
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
  integer,intent(in)              :: nState                 ! total number of state variables
+ logical(lgt),intent(in) 		 :: checkFeas              ! flag to indicate if we are checking for feasibility
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall
  logical(lgt),intent(inout)      :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -314,75 +316,77 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="eval8DAE/"
-
- ! check the feasibility of the solution
  feasible=.true.
 
- ! check that the canopy air space temperature is reasonable
- if(ixCasNrg/=integerMissing)then
-  if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
-  if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
-  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( stateVec(ixCasNrg) )', feasible, canopyTempMax, stateVec(ixCasNrg)
- endif
+ ! check the feasibility of the solution
+ if (checkFeas) then
+  ! check that the canopy air space temperature is reasonable
+  if(ixCasNrg/=integerMissing)then
+   if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
+   if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
+   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
+  endif
 
- ! check that the canopy temperature is reasonable
- if(ixVegNrg/=integerMissing)then
-  if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
-  if(stateVec(ixVegNrg) > canopyTempMax) message=trim(message)//'canopy temp high,'
-  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( stateVec(ixVegNrg) )', feasible, canopyTempMax, stateVec(ixVegNrg)
- endif
+  ! check that the canopy temperature is reasonable
+  if(ixVegNrg/=integerMissing)then
+   if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
+   if(stateVec(ixVegNrg) > canopyTempMax) message=trim(message)//'canopy temp high,'
+   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
+  endif
 
- ! check canopy liquid water is not negative
- if(ixVegHyd/=integerMissing)then
-  if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
-  if(stateVec(ixVegHyd) < 0._rkind) message=trim(message)//'canopy water negative,'
-  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( stateVec(ixVegHyd) )', feasible, 0._rkind, stateVec(ixVegHyd)
- end if
+  ! check canopy liquid water is not negative
+  if(ixVegHyd/=integerMissing)then
+   if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
+   if(stateVec(ixVegHyd) < 0._rkind) message=trim(message)//'canopy water negative,'
+   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
+  end if
 
- ! check snow temperature is below freezing
- if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-  if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
-  if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) message=trim(message)//'snow temp above freezing,'
-  do iLayer=1,nSnow
-   if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
-  enddo
- endif
+  ! check snow temperature is below freezing
+  if(count(ixSnowOnlyNrg/=integerMissing)>0)then
+   if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+   if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) message=trim(message)//'snow temp above freezing,'
+   do iLayer=1,nSnow
+    if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
+   enddo
+  endif
 
  ! loop through non-missing hydrology state variables in the snow+soil domain
- do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
+  do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
 
-  ! check the minimum and maximum water constraints
-  if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
+   ! check the minimum and maximum water constraints
+   if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
 
-   ! --> minimum
-   if (layerType(iLayer) == iname_soil) then
-    xMin = theta_res(iLayer-nSnow)
-   else
-    xMin = 0._rkind
-   endif
+    ! --> minimum
+    if (layerType(iLayer) == iname_soil) then
+     xMin = theta_res(iLayer-nSnow)
+    else
+     xMin = 0._rkind
+    endif
 
-   ! --> maximum
-   select case( layerType(iLayer) )
-    case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-    case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-   end select
+    ! --> maximum
+    select case( layerType(iLayer) )
+     case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+     case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+    end select
 
-   ! --> check
-   if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-   if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)  message=trim(message)//'layer water outside bounds,'
-   if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+    ! --> check
+    if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
+    if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)  message=trim(message)//'layer water outside bounds,'
+    if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
-  endif  ! if water states
+   endif  ! if water states
 
- end do  ! loop through non-missing hydrology state variables in the snow+soil domain
+  end do  ! loop through non-missing hydrology state variables in the snow+soil domain
 
- ! early return for non-feasible solutions
- if(.not.feasible)then
-  fluxVec(:) = realMissing
-  resVec(:)  = quadMissing
-  message=trim(message)//'non-feasible'
-  err=20; return
- end if
+  ! early return for non-feasible solutions
+  if(.not.feasible)then
+   fluxVec(:) = realMissing
+   resVec(:)  = quadMissing
+   message=trim(message)//'non-feasible'
+   err=20; return
+  end if
+
+ end if ! ( feasibility check )
 
  ! get the start and end indices for the soil compression calculations
  if(scalarSolution)then
