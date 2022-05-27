@@ -88,6 +88,7 @@ logical(lgt),parameter          :: testDeriv=.false. ! flag to test the derivati
 
 SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
 dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2._rkind)
+if(X2 + TC < 0) print*, "error, canopy temperature is very low, satVapPress=Inf" !will fail as SVP=inf
 if(testDeriv) print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
 END SUBROUTINE satVapPress
 
