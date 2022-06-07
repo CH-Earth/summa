@@ -468,8 +468,8 @@ contains
 
  ! loop through non-missing energy state variables in the snow domain
  do concurrent (iLayer=1:nSnow,ixSnowOnlyNrg(iLayer)/=integerMissing)
-  stateVecConstraints(ixSnowOnlyNrg(iLayer)) = 1._rkind !snow temp cannot be below Tfreeze
-  stateVecConstValues(ixSnowOnlyNrg(iLayer)) = Tfreeze !snow temp cannot be below Tfreeze
+  stateVecConstraints(ixSnowOnlyNrg(iLayer)) = -1._rkind !snow temp cannot be above Tfreeze
+  stateVecConstValues(ixSnowOnlyNrg(iLayer)) = Tfreeze !snow temp cannot be above Tfreeze
  end do
 
  ! loop through non-missing hydrology state variables in the snow+soil domain

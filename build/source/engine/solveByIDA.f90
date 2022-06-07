@@ -357,7 +357,7 @@ contains
   if (.not. c_associated(ida_mem)) then; err=20; message='solveByIDA: ida_mem = NULL'; return; endif
 
   ! Set constraints
-  !retval = FIDASetConstraints(ida_mem, sunvec_c, sunvec_cv)
+  !retval = FIDASetConstraints(ida_mem, sunvec_c, sunvec_cv) !uncomment this line to use feasibility constraints
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetConstraints'; return; endif
 
   ! Attach user data to memory
