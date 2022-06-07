@@ -203,10 +203,14 @@ contains
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
  real(rkind)                     :: stateVecConstraints(nState)   ! model state vector constraints
+ real(rkind)                     :: stateVecConstValues(nState)   ! model state vector constraint values
  real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(rkind)                     :: atol(nState)     		 	  ! absolute telerance
  real(rkind)                     :: rtol(nState)     		      ! relative tolerance
+ integer(i4b)                    :: iLayer                        ! index of model layer in the snow+soil domain
+ real(rkind)                     :: xMin,xMax                     ! minimum and maximum values for water content
+ real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
  type(var_dlength)               :: flux_sum	   	              ! sum of fluxes model fluxes for a local HRU over a data step
  integer(i4b) 					 :: tol_iter			          ! iteration index
  real(rkind), allocatable        :: mLayerCmpress_sum(:)		  ! sum of compression of the soil matrix
@@ -224,6 +228,9 @@ contains
  scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
  scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
  mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out): [dp(:)] enthalpy of the snow+soil layers (J m-3)
+ ! soil parameters
+ theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in):  [dp(:)] soil porosity (-)
+ theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,&  ! intent(in):  [dp(:)] residual volumetric water content (-)
  ! model state variables
  scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the canopy air space (K)
  scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the vegetation canopy (K)
@@ -240,6 +247,10 @@ contains
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
+ ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,& ! intent(in):    [i4b(:)] indices for energy states in the snow subdomain
+ ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] indices for hydrology states in the snow+soil subdomain
+ ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in):    [i4b(:)] index of the type of hydrology states in snow+soil domain
+ layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,& ! intent(in):    [i4b(:)] layer type (iname_soil or iname_snow)
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -331,7 +342,6 @@ contains
  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
 
-
  ! compute H_T at the beginning of the data step
  call t2enthalpy_T(&
                 ! input: data structures
@@ -404,7 +414,6 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
  if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
 
-
  ! copy over the initial flux structure since some model fluxes are not computed in the iterations
  do concurrent ( iVar=1:size(flux_meta) )
   flux_temp%var(iVar)%dat(:) = flux_init%var(iVar)%dat(:)
@@ -448,23 +457,52 @@ contains
  ! 0 then no constraint is imposed on y.
  ! 1 then yi will be constrained to be yi>=0
  !-1 then yi will be constrained to be yi<=0
- stateVecConstraints = 0.d0
- !stateVec(ixCasNrg) - canopyTempMax = -1.d0 !canopy air space temperature cannot be too high
- !stateVec(ixVegNrg) - canopyTempMax = -1.d0 !canopy temperature cannot be too high
- stateVecConstraints(ixVegHyd) = 1.d0 !canopy liquid water cannot be negative
+ stateVecConstraints = 0._rkind
+ stateVecConstValues = 0._rkind
+ stateVecConstraints(ixCasNrg) = -1._rkind !canopy air space temperature cannot be above canopyTempMax
+ stateVecConstraints(ixVegNrg) = -1._rkind !canopy temperature cannot be above canopyTempMax
+ stateVecConstraints(ixVegHyd) =  1._rkind !canopy liquid water cannot be below bound of 0
+ stateVecConstValues(ixCasNrg) = canopyTempMax !canopy air space temperature cannot be above canopyTempMax
+ stateVecConstValues(ixVegNrg) = canopyTempMax !canopy temperature cannot be above canopyTempMax
+ stateVecConstValues(ixVegHyd) = 0._rkind !canopy liquid water cannot be below 0
+
  ! loop through non-missing energy state variables in the snow domain
- !do concurrent (iLayer=1:nLayers,ixSnowOnlyNrg(iLayer)/=integerMissing)
- ! stateVec(ixSnowOnlyNrg(iLayer)) - Tfreeze = 1.d0 !snow temp cannot be less than Tfreeze
- !end do
+ do concurrent (iLayer=1:nSnow,ixSnowOnlyNrg(iLayer)/=integerMissing)
+  stateVecConstraints(ixSnowOnlyNrg(iLayer)) = 1._rkind !snow temp cannot be below Tfreeze
+  stateVecConstValues(ixSnowOnlyNrg(iLayer)) = Tfreeze !snow temp cannot be below Tfreeze
+ end do
+
  ! loop through non-missing hydrology state variables in the snow+soil domain
- !do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
- ! check the minimum and maximum water constraints
- ! stateVec(ixSnowSoilHyd(iLayer)) - xMin =  1.d0 !water cannot be less than xMin
- ! stateVec(ixSnowSoilHyd(iLayer)) - xMax = -1.d0 !water cannot be more than xMax
+ do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
+  ! check the minimum and maximum water constraints
+  if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
+
+   ! --> minimum water constraints
+   if (layerType(iLayer) == iname_soil) then
+    xMin = theta_res(iLayer-nSnow)
+   else
+    xMin = 0._rkind
+   endif
+   stateVecConstraints(ixSnowSoilHyd(iLayer)) =  1._rkind !water cannot be below xMin
+   stateVecConstValues(ixSnowSoilHyd(iLayer)) = xMin !water cannot be below xMin
+   ! --> maximum water constraints, SUNDIALS CAN ONLY DO ONE INEQUALITY PER STATE VARIABLE
+   ! mLayerVolFracIce          =>  eqns_data%mLayerVolFracIceTrial    ,& ! intent(in): [dp(:)] trial vector of volumetric ice water content (-)
+   ! select case( layerType(iLayer) )
+   !  case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+   !  case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+   ! end select
+   ! stateVecConstraints(ixSnowSoilHyd(iLayer)) = -1._rkind !water cannot be above xMax
+   ! stateVecConstValues(ixSnowSoilHyd(iLayer)) = xMax !water cannot be above xMax
+
+  endif  ! if water states
+ end do  ! loop through non-missing hydrology state variables in the snow+soil domain
+
+ ! loop through non-missing hydrology state variables in the snow+soil domain
+ !do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)
+ ! minimum temperature constraints
+ ! xMin = 100._rkind !degrees C
+ ! stateVecConstraints(ixSnowSoilNrg(iLayer)) - xMin =  1._rkind !water cannot be less than xMin
  !enddo
-
-
-
 
  !-------------------
  ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
@@ -495,6 +533,7 @@ contains
                  ! input: state vector
                  stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
                  stateVecConstraints,     & ! intent(inout): model state vector constraints
+                 stateVecConstValues,     & ! intent(inout): model state vector constraint values
                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                  ! input: data structures

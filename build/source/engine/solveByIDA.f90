@@ -105,7 +105,8 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector
-                       stateVecConstraints,     & ! intent(inout):    model state vector constraints
+                       stateVecConstraints,     & ! intent(inout): model state vector constraints
+                       stateVecConstValues,     & ! intent(inout): model state vector constraint values
                        sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                        ! input: data structures
@@ -178,6 +179,7 @@ contains
  ! input: state vectors
  real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
  real(rkind),intent(inout)       :: stateVecConstraints(:) ! model state vector constraints
+ real(rkind),intent(inout)       :: stateVecConstValues(:)  ! model state vector constraint values
  real(qp),intent(in)             :: sMul(:)   			   ! state vector multiplier (used in the residual calculations)
  real(rkind), intent(inout)      :: dMat(:)
  ! input: data structures
@@ -212,6 +214,7 @@ contains
   type(N_Vector),           pointer :: sunvec_y             ! sundials solution vector
   type(N_Vector),           pointer :: sunvec_yp            ! sundials derivative vector
   type(N_Vector),           pointer :: sunvec_c             ! sundials constraints vector
+  type(N_Vector),           pointer :: sunvec_cv            ! sundials constraints vector of values
   type(N_Vector),           pointer :: sunvec_av            ! sundials tolerance vector
   type(SUNMatrix),          pointer :: sunmat_A             ! sundials matrix
   type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
@@ -248,6 +251,7 @@ contains
 
   ! initialize error control
   err=0; message="solveByIDA/"
+
   nState = nStat
   idaSucceeds = .true.
   ! fill eqns_data which will be required later to call eval8DAE
@@ -331,7 +335,6 @@ contains
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
 
-  startQuadrature         = .true.
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec)
@@ -343,6 +346,9 @@ contains
   sunvec_c => FN_VMake_Serial(nState, stateVecConstraints)
   if (.not. associated(sunvec_c)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
 
+  sunvec_cv => FN_VMake_Serial(nState, stateVecConstValues)
+  if (.not. associated(sunvec_cv)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
+
   ! Initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
@@ -351,7 +357,7 @@ contains
   if (.not. c_associated(ida_mem)) then; err=20; message='solveByIDA: ida_mem = NULL'; return; endif
 
   ! Set constraints
-  retval = FIDASetConstraints(ida_mem, sunvec_c)
+  !retval = FIDASetConstraints(ida_mem, sunvec_c, sunvec_cv)
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetConstraints'; return; endif
 
   ! Attach user data to memory
@@ -431,18 +437,18 @@ contains
  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
  eqns_data%mLayerVolFracWatPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
- eqns_data%mLayerTempPrev(:) 		    = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+ eqns_data%mLayerTempPrev(:) 		= prog_data%var(iLookPROG%mLayerTemp)%dat(:)
  eqns_data%mLayerVolFracIcePrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
  eqns_data%mLayerVolFracLiqPrev(:) 	= prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
  eqns_data%mLayerMatricHeadPrev(:) 	= prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
  eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
  eqns_data%mLayerEnthalpyPrev(:)  	= diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
- mLayerMatricHeadLiqPrev(:) 		    = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
+ mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  eqns_data%ixSaturation             = ixSaturation
- mLayerDepth						            = prog_data%var(iLookPROG%mLayerDepth)%dat
- scalarSnowDepth					          = prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
- scalarSWE							            = prog_data%var(iLookPROG%scalarSWE)%dat(1)
+ mLayerDepth						= prog_data%var(iLookPROG%mLayerDepth)%dat
+ scalarSnowDepth					= prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
+ scalarSWE						    = prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -671,6 +677,7 @@ contains
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_yp)
   call FN_VDestroy(sunvec_c)
+  call FN_VDestroy(sunvec_cv)
 
  end subroutine solveByIDA
 
