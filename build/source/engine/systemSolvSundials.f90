@@ -54,7 +54,7 @@ USE var_lookup,only:iLookFORCE      ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
- USE var_lookup,only:iLookDERIV     ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&

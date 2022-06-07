@@ -62,114 +62,8 @@ USE var_derive_module,only:calcHeight ! module to calculate height at layer inte
 implicit none
 private
 public::layerMerge
-public::needMergeLayers
 
 contains
-
-
- ! *****************************************************************************************************************
- ! public subroutine needMergeLayers: Should we merge layers? (if the thickness is less than zmin)
- ! *****************************************************************************************************************
- subroutine needMergeLayers(&
-                       ! input/output: model data structures
-                       tooMuchMelt,                 & ! intent(in):    flag to force merge of snow layers
-                       model_decisions,             & ! intent(in):    model decisions
-                       mpar_data,                   & ! intent(in):    model parameters
-                       nSnow,                       & ! intent(in):
-                       mLayerDepth,                 & ! intent(inout): model prognostic variables for a local HRU
-                       ! output
-                       mergedLayers,                & ! intent(out): flag to denote that layers were merged
-                       err,message)                   ! intent(out): error control
- ! --------------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------------
- implicit none
- ! --------------------------------------------------------------------------------------------------------
- ! input/output: model data structures
- logical(lgt),intent(in)         :: tooMuchMelt         ! flag to denote that ice is insufficient to support melt
- type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
- type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- integer(i4b),intent(in)		 :: nSnow          
- real(rkind),intent(in)			 :: mLayerDepth(:)      ! model prognostic variables for a local HRU
- ! output
- logical(lgt),intent(out)        :: mergedLayers        ! flag to denote that layers were merged
- integer(i4b),intent(out)        :: err                 ! error code
- character(*),intent(out)        :: message             ! error message
- ! --------------------------------------------------------------------------------------------------------
- ! define local variables
- real(rkind),dimension(5)           :: zminLayer           ! minimum layer depth in each layer (m)
- logical(lgt)                    :: removeLayer         ! flag to indicate need to remove a layer
- integer(i4b)                    :: nCheck              ! number of layers to check for combination
- integer(i4b)                    :: iSnow               ! index of snow layers (looping)
- integer(i4b)                    :: jSnow               ! index of snow layer identified for combination with iSnow
- integer(i4b)                    :: kSnow               ! index of the upper layer of the two layers identified for combination
- ! initialize error control
- err=0; message="needMergeLayers/"
- ! --------------------------------------------------------------------------------------------------------
- ! associate variables to the data structures
- associate(&
- ! model decisions
- ix_snowLayers    => model_decisions(iLookDECISIONS%snowLayers)%iDecision, & ! decision for snow combination
- ! model parameters (control the depth of snow layers)
- zmin             => mpar_data%var(iLookPARAM%zmin)%dat(1),                & ! minimum layer depth (m)
- zminLayer1       => mpar_data%var(iLookPARAM%zminLayer1)%dat(1),          & ! minimum layer depth for the 1st (top) layer (m)
- zminLayer2       => mpar_data%var(iLookPARAM%zminLayer2)%dat(1),          & ! minimum layer depth for the 2nd layer (m)
- zminLayer3       => mpar_data%var(iLookPARAM%zminLayer3)%dat(1),          & ! minimum layer depth for the 3rd layer (m)
- zminLayer4       => mpar_data%var(iLookPARAM%zminLayer4)%dat(1),          & ! minimum layer depth for the 4th layer (m)
- zminLayer5       => mpar_data%var(iLookPARAM%zminLayer5)%dat(1)           & ! minimum layer depth for the 5th (bottom) layer (m)
- ) ! end associate statement
- ! --------------------------------------------------------------------------------------------------------
-
- ! identify algorithmic control parameters to syb-divide and combine snow layers
- zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
-
- ! intialize the modified layers flag
- mergedLayers=.false.
-
- kSnow=0 ! initialize first layer to test (top layer)
- do ! attempt to remove multiple layers in a single time step (continuous do loop with exit clause)
-
-  ! special case of >5 layers: add an offset to use maximum threshold from layer above
-  if(ix_snowLayers == rulesDependLayerIndex .and. nSnow > 5)then
-   nCheck=5
-  else
-   nCheck=nSnow
-  end if
-
-  ! loop through snow layers
-  do iSnow=kSnow+1,nCheck
-   ! check if the layer depth is less than the depth threshold
-   select case(ix_snowLayers)
-    case(sameRulesAllLayers);    removeLayer = (mLayerDepth(iSnow) < zmin)
-    case(rulesDependLayerIndex); removeLayer = (mLayerDepth(iSnow) < zminLayer(iSnow))
-    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
-   end select ! (option to combine/sub-divide snow layers)
-
-   ! check if we have too much melt
-   ! NOTE: assume that this is the top snow layer; need more trickery to relax this assumption
-   if(tooMuchMelt .and. iSnow==1) removeLayer=.true.
-
-   ! check if need to remove a layer
-   if(removeLayer)then
-    	! flag that we modified a layer
-    	mergedLayers=.true.
-    	return
-   end if  ! (if layer is below the mass threshold)
-
-   kSnow=iSnow ! ksnow is used for completion test, so include here
-
-  end do ! (looping through snow layers)
-
-  !print*, 'ksnow = ', ksnow
-
-  ! exit if finished
-  if(kSnow==nCheck)exit
-
- end do ! continuous do
-
- ! end association to variables in the data structure
- end associate
-
- end subroutine needMergeLayers
 
 
  ! *****************************************************************************************************************
@@ -239,7 +133,7 @@ contains
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------
 
- ! identify algorithmic control parameters to syb-divide and combine snow layers
+ ! identify algorithmic control parameters to sub-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
  ! intialize the modified layers flag

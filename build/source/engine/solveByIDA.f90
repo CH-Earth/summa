@@ -64,6 +64,7 @@ USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decisi
 USE var_lookup,only:iLookDERIV     ! named variables for structure elements
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
+USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -135,28 +136,24 @@ contains
                       )
 
   !======= Inclusions ===========
-  USE fida_mod                      			        ! Fortran interface to IDA
-  USE fnvector_serial_mod           			        ! Fortran interface to serial N_Vector
-  USE fsunmatrix_dense_mod          			        ! Fortran interface to dense SUNMatrix
-  USE fsunlinsol_dense_mod          			        ! Fortran interface to dense SUNLinearSolver
-  USE fsunmatrix_band_mod           			        ! Fortran interface to banded SUNMatrix
-  USE fsunlinsol_band_mod           			        ! Fortran interface to banded SUNLinearSolver
-  USE fsunnonlinsol_newton_mod      			        ! Fortran interface to Newton SUNNonlinearSolver
-  USE fsundials_matrix_mod          			        ! Fortran interface to generic SUNMatrix
-  USE fsundials_nvector_mod         			        ! Fortran interface to generic N_Vector
-  USE fsundials_linearsolver_mod    			        ! Fortran interface to generic SUNLinearSolver
-  USE fsundials_nonlinearsolver_mod 			        ! Fortran interface to generic SUNNonlinearSolver
+  USE fida_mod                      			  ! Fortran interface to IDA
+  USE fnvector_serial_mod           		      ! Fortran interface to serial N_Vector
+  USE fsunmatrix_dense_mod            	          ! Fortran interface to dense SUNMatrix
+  USE fsunlinsol_dense_mod          			  ! Fortran interface to dense SUNLinearSolver
+  USE fsunmatrix_band_mod           			  ! Fortran interface to banded SUNMatrix
+  USE fsunlinsol_band_mod           		 	  ! Fortran interface to banded SUNLinearSolver
+  USE fsunnonlinsol_newton_mod      			  ! Fortran interface to Newton SUNNonlinearSolver
+  USE fsundials_matrix_mod          			  ! Fortran interface to generic SUNMatrix
+  USE fsundials_nvector_mod         	   	      ! Fortran interface to generic N_Vector
+  USE fsundials_linearsolver_mod    			  ! Fortran interface to generic SUNLinearSolver
+  USE fsundials_nonlinearsolver_mod 	          ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE evalDAE4IDA_module,only:evalDAE4IDA         ! DAE/ODE functions
   USE evalJac4IDA_module,only:evalJac4IDA         ! system Jacobian
   USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
   USE eval8DAE_module,only:eval8DAE               ! residual of DAE
-  USE computEnthalpy_module,only:computEnthalpy   ! enthalpy
-  USE convE2Temp_module,only:temp2ethpy           ! convert temperature to enthalpy
-  USE computSnowDepth_module,only:computSnowDepth ! snow depth
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
-  USE layerDivide_module,only:needDivideLayer     ! do we need to divide snow layers
-  Use layerMerge_module,only:needMergeLayers      ! do we need to merge snow layers
+  USE layerMerge_module,only:layerMerge           ! merge snow layers if go above freezing (too thin)
 
   !======= Declarations =========
   implicit none
@@ -233,19 +230,11 @@ contains
   integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
   real(qp)                          :: tret(1)
-  real(rkind)                       :: bulkDensity          ! bulk density of a given layer (kg m-3)
-  real(rkind)                       :: volEnthalpy          ! volumetric enthalpy of a given layer (J m-3)
   logical(lgt)						:: tooMuchMelt
-  logical(lgt)						:: divideLayer
   logical(lgt)				        :: mergedLayers
-  logical(lgt),parameter			:: checkSnow = .false. !.true.
   logical(lgt),parameter            :: offErrWarnMessage = .false.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
   real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  real(rkind)						:: mLayerDepth(nLayers)
-  real(rkind)		  	            :: scalarSnowDepth
-  real(rkind)						:: scalarSWE
-  real(rkind)						:: mLayerMeltFreeze(nLayers)
   integer(i4b)               		:: i
   ! -----------------------------------------------------------------------------------------------------
 
@@ -446,9 +435,6 @@ contains
  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
  mLayerMatricHeadLiqPrev(:) 		= diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
  eqns_data%ixSaturation             = ixSaturation
- mLayerDepth						= prog_data%var(iLookPROG%mLayerDepth)%dat
- scalarSnowDepth					= prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
- scalarSWE						    = prog_data%var(iLookPROG%scalarSWE)%dat(1)
 
  !**********************************************************************************
  !****************************** Main Solver ***************************************
@@ -464,6 +450,14 @@ contains
    idaSucceeds = .false.
    exit
   endif
+
+ tooMuchMelt = .false.
+ ! loop through non-missing energy state variables in the snow domain to see if need to merge
+ ! CURRENTLY WILL ONLY MERGE TOP LAYER
+  do concurrent (i=1:nSnow,indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)
+   if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+  end do
+  if(tooMuchMelt)exit
 
   ! get the last stepsize
   retval = FIDAGetLastStep(ida_mem, dt_last)
@@ -497,7 +491,7 @@ contains
                  eqns_data%bvar_data,               & ! intent(in):    average model variables for the entire basin
                  eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                  ! input-output: data structures
-                 eqns_data%indx_data,               & ! intent(inou):  index data
+                 eqns_data%indx_data,               & ! intent(inout): index data
                  eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                  eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                  eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -562,80 +556,9 @@ contains
   eqns_data%mLayerEnthalpyPrev(:) 		= eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
 
-  if(checkSnow)then
-   mLayerDepth(:) = prog_data%var(iLookPROG%mLayerDepth)%dat(:)
-   ! compute the melt in each snow and soil layer
-   if(nSnow>0)then
-    mLayerMeltFreeze(1:nSnow) = -( eqns_data%mLayerVolFracIceTrial(1:nSnow) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow) ) * iden_ice
-    mLayerMeltFreeze(nSnow+1:nLayers) = -(eqns_data%mLayerVolFracIceTrial(nSnow+1:nLayers) - prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers))*iden_water
-   endif
-
-   call computSnowDepth(&
- 	 					tret(1),                      			    				& ! intent(in)
- 						eqns_data%nSnow,										    & ! intent(in)
- 						flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),		& ! intent(in)
- 						eqns_data%mLayerVolFracLiqTrial,   						    & ! intent(inout)
- 						eqns_data%mLayerVolFracIceTrial,				            & ! intent(inout)
- 						eqns_data%mLayerTempTrial,								    & ! intent(in)
- 						mLayerMeltFreeze,										    & ! intent(in)
- 						eqns_data%mpar_data,									    & ! intent(in)
- 					    ! output
- 					    mLayerDepth,												& ! intent(inout)
-                        ! error control
-                        err,message)         				  					      ! intent(out):   error control
-   if(err/=0)then; err=55; return; end if
-
-   ! recompute snow depth and SWE
-   if(eqns_data%nSnow > 0)then
-    scalarSnowDepth = sum( mLayerDepth(1:nSnow) )
-    scalarSWE       = sum( (eqns_data%mLayerVolFracLiqTrial(1:nSnow)*iden_water + eqns_data%mLayerVolFracIceTrial(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
-   end if
-
-   ! check the need to merge snow layers
-   tooMuchMelt = .false.
-   if(eqns_data%nSnow>0)then
-    ! check that we did not remove the entire layer
-    if(mLayerDepth(1) < 1.e-6_rkind) exit
-    ! compute the energy required to melt the top snow layer (J m-2)
-    bulkDensity = eqns_data%mLayerVolFracIceTrial(1)*iden_ice + eqns_data%mLayerVolFracLiqTrial(1)*iden_water
-    volEnthalpy = temp2ethpy(eqns_data%mLayerTempTrial(1),bulkDensity,eqns_data%mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1))
-    if(-volEnthalpy < flux_data%var(iLookFLUX%mLayerNrgFlux)%dat(1)*tret(1)) tooMuchMelt = .true.
-   endif
-
-   if(tooMuchMelt) exit
-
-   divideLayer = .false.
-   call needDivideLayer(&
-                        ! input/output: model data structures
-                        model_decisions,             				& ! intent(in):    model decisions
-                        eqns_data%mpar_data,                   		& ! intent(in):    model parameters
-                        eqns_data%nSnow,                       		& ! intent(in):    number of snow layers
-                        mLayerDepth,     							& ! intent(in):
-                        scalarSnowDepth, 		  			        & ! intent(in)
-                        ! output
-                        divideLayer,                 				& ! intent(out): flag to denote that a layer was divided
-                        err,message)                   				  ! intent(out): error control
-   if(divideLayer .and. tret(1)>50) exit
-
-   mergedLayers = .false.
-   call needMergeLayers(&
-                       ! input/output: model data structures
-                       tooMuchMelt,                 				& ! intent(in):    flag to force merge of snow layers
-                       model_decisions,             				& ! intent(in):    model decisions
-                       eqns_data%mpar_data,                   		& ! intent(in):    model parameters
-                       eqns_data%nSnow,                       		& ! intent(in):
-                       mLayerDepth,      							& ! intent(inout): model prognostic variables for a local HRU
-                       ! output
-                       mergedLayers,                				& ! intent(out): flag to denote that layers were merged
-                       err,message)                     		    ! intent(out): error control
-   if(mergedLayers .and. tret(1)>50) exit
-
- endif ! checkSnow
-
  end do ! while loop on one_step mode
 
  !****************************** End of Main Solver ***************************************
-
 
   err 				= eqns_data%err
   message 			= eqns_data%message
@@ -649,7 +572,6 @@ contains
   	ixSaturation  = eqns_data%ixSaturation
   	dt_out 			  = tret(1)
   endif
-
 
   ! free memory
   deallocate( eqns_data%sMul )
@@ -704,9 +626,6 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   real(c_double), pointer :: uu(:)
   real(c_double), pointer :: up(:)
 
-
-  !======= Internals ============
-
   ! get data arrays from SUNDIALS vectors
   uu(1:neq) => FN_VGetArrayPointer(sunvec_u)
   up(1:neq) => FN_VGetArrayPointer(sunvec_up)
@@ -722,21 +641,25 @@ end subroutine setInitialCondition
 subroutine setSolverParams(dt,ida_mem,retval)
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
-  USE fida_mod                      								          ! Fortran interface to IDA
-implicit none
+  USE fida_mod   ! Fortran interface to IDA
 
-	real(rkind),intent(in)	  					  :: dt			   		      ! time step
-	type(c_ptr),intent(inout)   			    :: ida_mem       		  ! IDA memory
-	integer(i4b),intent(out)            	:: retval				      ! return value
+  !======= Declarations =========
+  implicit none
 
-	real(qp),parameter     					      :: coef_nonlin = 0.33	! Coeff. in the nonlinear convergence test, default = 0.33
-	integer,parameter 	   					      :: max_order = 1		  ! maximum BDF order,  default = 5
-	integer,parameter 	   					      :: nonlin_iter = 100	! maximun number of nonliear iterations, default = 4
-	integer,parameter 	   					      :: acurtest_fail = 50	! maximum number of error test failures, default = 10
-	integer,parameter 	   					      :: convtest_fail = 50	! maximum number of convergence test failures, default = 10
-	integer(kind = 8),parameter 	   		  :: max_step = 999999	! maximum number of steps,  dafault = 500
-	real(qp),parameter		                :: h_init = 0			    ! initial stepsize
-	real(qp)   				                    :: h_max				      ! maximum stepsize,  dafault = infinity
+  ! calling variables
+  real(rkind),intent(in)      :: dt                 ! time step
+  type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
+  integer(i4b),intent(out)    :: retval             ! return value
+
+  !======= Internals ============
+  real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
+  integer,parameter           :: max_order = 1      ! maximum BDF order,  default = 5
+  integer,parameter           :: nonlin_iter = 100  ! maximun number of nonliear iterations, default = 4
+  integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
+  integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
+  integer(kind = 8),parameter :: max_step = 999999  ! maximum number of steps,  dafault = 500
+  real(qp),parameter          :: h_init = 0         ! initial stepsize
+  real(qp)                    :: h_max              ! maximum stepsize,  dafault = infinity
 
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order)
@@ -841,10 +764,3 @@ end subroutine setSolverParams
  end subroutine implctMelt
 
 end module solveByIDA_module
-
-
-
-
-
-
-
