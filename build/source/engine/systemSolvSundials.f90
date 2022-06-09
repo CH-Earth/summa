@@ -170,7 +170,7 @@ contains
  real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
  logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
  logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
- real(qp),intent(out)  			     :: dt_out                        ! time step
+ real(qp),intent(out)  			 :: dt_out                        ! time step
  integer(i4b),intent(out)        :: err                           ! error code
  character(*),intent(out)        :: message                       ! error message
  ! *********************************************************************************************************************************************************
@@ -553,7 +553,8 @@ contains
                  deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output
                  ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                 idaSucceeds,			        & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                 idaSucceeds,			  & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                 tooMuchMelt,		      & ! intent(inout):   flag to denote that there was too much melt
                  mLayerCmpress_sum,       & ! intent(out):	 sum of compression of the soil matrix
                  dt_out,				          & ! intent(out):   time step
                  stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
@@ -577,6 +578,8 @@ contains
   message=trim(message)//trim(cmessage)
 ! reduceCoupledStep  = .true.
   return
+ else
+  if (tooMuchMelt) return !exit to start same step over after merge
  endif
 
  ! compute average flux

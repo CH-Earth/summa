@@ -126,8 +126,9 @@ contains
                        flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! output
-                       ixSaturation,			& ! intent(out)
+                       ixSaturation,			& ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        idaSucceeds,			    & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                       tooMuchMelt,		        & ! intent(inout):   flag to denote that there was too much melt
                        mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
                        dt_out,			        & ! intent(out):   time step
                        stateVec,                & ! intent(out):   model state vector
@@ -196,10 +197,11 @@ contains
  type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
  real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
  ! output: state vectors
- integer(i4b),intent(out)		 :: ixSaturation           ! index of the lowest saturated layer
+ integer(i4b),intent(inout)		 :: ixSaturation           ! index of the lowest saturated layer
  real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
  real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
  logical(lgt),intent(out)		 :: idaSucceeds            ! flag to indicate if IDA is successful
+ logical(lgt),intent(inout)      :: tooMuchMelt                   ! flag to denote that there was too much melt
  real(qp),intent(out)	         :: dt_out                 ! time step
  ! output: error control
  integer(i4b),intent(out)        :: err                    ! error code
@@ -230,7 +232,6 @@ contains
   integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
   real(qp)                          :: tret(1)
-  logical(lgt)						:: tooMuchMelt
   logical(lgt)				        :: mergedLayers
   logical(lgt),parameter            :: offErrWarnMessage = .false.
   real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
@@ -451,11 +452,13 @@ contains
    exit
   endif
 
- tooMuchMelt = .false.
- ! loop through non-missing energy state variables in the snow domain to see if need to merge
- ! CURRENTLY WILL ONLY MERGE TOP LAYER
+  tooMuchMelt = .false.
+  feasible = .true.
+  ! loop through non-missing energy state variables in the snow domain to see if need to merge
+  ! CURRENTLY WILL ONLY MERGE TOP LAYER
   do concurrent (i=1:nSnow,indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)
    if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
+   if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) print*,i,tret(1),nSnow,idaSucceeds,"merge"
   end do
   if(tooMuchMelt)exit
 
@@ -520,12 +523,12 @@ contains
                  eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)
                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in):   vector of enthalpy for snow+soil layers (J m-3)
                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out):  trial vector of enthalpy for snow+soil layers (J m-3)
-                 eqns_data%ixSaturation,			       & ! intent(inout): index of the lowest saturated layer
+                 eqns_data%ixSaturation,			 & ! intent(inout): index of the lowest saturated layer
                  ! output
                  feasible,                           & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                  & ! intent(out):   flux vector
                  eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                 rVec,                  			       & ! intent(out):   residual vector
+                 rVec,                  			 & ! intent(out):   residual vector
                  eqns_data%err,eqns_data%message)      ! intent(out):   error control
 
 
