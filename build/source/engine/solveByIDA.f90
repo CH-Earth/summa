@@ -154,7 +154,6 @@ contains
   USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
   USE eval8DAE_module,only:eval8DAE               ! residual of DAE
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
-  USE layerMerge_module,only:layerMerge           ! merge snow layers if go above freezing (too thin)
 
   !======= Declarations =========
   implicit none
@@ -325,6 +324,7 @@ contains
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
 
+  startQuadrature = .true.
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec)
@@ -333,11 +333,11 @@ contains
   sunvec_yp => FN_VMake_Serial(nState, stateVecPrime)
   if (.not. associated(sunvec_yp)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
 
-  sunvec_c => FN_VMake_Serial(nState, stateVecConstraints)
-  if (.not. associated(sunvec_c)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
+  !sunvec_c => FN_VMake_Serial(nState, stateVecConstraints)
+  !if (.not. associated(sunvec_c)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
 
-  sunvec_cv => FN_VMake_Serial(nState, stateVecConstValues)
-  if (.not. associated(sunvec_cv)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
+  !sunvec_cv => FN_VMake_Serial(nState, stateVecConstValues)
+  !if (.not. associated(sunvec_cv)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
 
   ! Initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
@@ -601,8 +601,8 @@ contains
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_yp)
-  call FN_VDestroy(sunvec_c)
-  call FN_VDestroy(sunvec_cv)
+  !call FN_VDestroy(sunvec_c)
+  !call FN_VDestroy(sunvec_cv)
 
  end subroutine solveByIDA
 

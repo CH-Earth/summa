@@ -635,7 +635,6 @@ contains
   nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
   nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
-
   ! compute the indices for the model state variables
   if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
    call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux

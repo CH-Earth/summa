@@ -297,7 +297,7 @@ contains
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
  integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  integer(i4b)                    :: nCoupling
- real(qp)						             :: dt_out                         ! 
+ real(qp)						             :: dt_out                         !
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -362,13 +362,13 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="opSplittin/"
- 
+
  ! we just solve the fully coupled problem by ida
  select case(model_decisions(iLookDECISIONS%diffEqSolv)%iDecision)
     case(sundialIDA); nCoupling = 1
  	  case(backwEuler); nCoupling = 2
-    case default; err=20; message=trim(message)//'expect case to be sundialIDA or backwEuler'; return  
- end select     
+    case default; err=20; message=trim(message)//'expect case to be sundialIDA or backwEuler'; return
+ end select
 
  ! *****
  ! (0) PRELIMINARIES...
@@ -771,7 +771,7 @@ contains
 
        ! keep track of the number of scalar solutions
        if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
-       
+
        ! solve variable subset for one full time step
        select case(model_decisions(iLookDECISIONS%diffEqSolv)%iDecision)
         case(sundialIDA)
@@ -811,7 +811,7 @@ contains
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        dt_out,					   & ! intent(out)
                        err,cmessage)                 ! intent(out)   : error code and error message
-        case(backwEuler) 
+        case(backwEuler)
              call varSubstep(&
                        ! input: model control
                        dt,                         & ! intent(inout) : time step (s)
@@ -846,15 +846,13 @@ contains
                        failedMinimumStep,          & ! intent(out)   : flag for failed substeps
                        reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                       err,cmessage)                 ! intent(out)   : error code and error message 
+                       err,cmessage)                 ! intent(out)   : error code and error message
                      ! check
-          case default; err=20; message=trim(message)//'expect case to backwEuler or sundialIDA'; return  
-        end select 
-        
-        dt = dt_out 
-        
-         
-             
+          case default; err=20; message=trim(message)//'expect case to backwEuler or sundialIDA'; return
+        end select
+
+        dt = dt_out
+
        if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
@@ -1035,7 +1033,7 @@ contains
   diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
   diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
   endif
-             
+
  ! end associate statements
  end associate globalVars
 
