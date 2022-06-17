@@ -8,7 +8,7 @@ module tol4IDA_module
   use, intrinsic :: iso_c_binding
   use nrtype
   use type4IDA
-  
+
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
@@ -60,7 +60,7 @@ USE var_lookup,only:iLookPROG             ! named variables for structure elemen
 USE var_lookup,only:iLookDERIV            ! named variables for structure elements
 USE var_lookup,only:iLookPARAM            ! named variables for structure elements
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
-  
+
 
   ! privacy
   implicit none
@@ -72,7 +72,7 @@ USE var_lookup,only:iLookINDEX            ! named variables for structure elemen
 contains
 
   ! **********************************************************************************************************
-  ! public function computWeight4IDA: compute w_i = 1 / ( rtol_i * y_i + atol_i ) 
+  ! public function computWeight4IDA: compute w_i = 1 / ( rtol_i * y_i + atol_i )
   ! **********************************************************************************************************
   ! Return values:
   !    0 = success,
@@ -91,40 +91,40 @@ contains
     !======= Declarations =========
     implicit none
 
-    ! calling variables               
+    ! calling variables
     type(N_Vector)          :: sunvec_y  ! solution N_Vector    y
     type(N_Vector)          :: sunvec_ewt ! derivative N_Vector W
-    type(c_ptr), value      :: user_data ! user-defined data  
+    type(c_ptr), value      :: user_data ! user-defined data
 
 
     ! pointers to data in SUNDIALS vectors
     type(eqnsData), pointer    :: tol_data ! equations data
     real(rkind), pointer          :: stateVec(:)
-    real(rkind), pointer          :: weightVec(:) 
+    real(rkind), pointer          :: weightVec(:)
     integer(c_int)             :: iState
 
     !======= Internals ============
-    
+
     ! get equations data from user-defined data
     call c_f_pointer(user_data, tol_data)
-     
- 
+
+
     ! get data arrays from SUNDIALS vectors
-    stateVec  => FN_VGetArrayPointer(sunvec_y)
-    weightVec  => FN_VGetArrayPointer(sunvec_ewt)
-    
-    
+    stateVec(1:tol_data%nState)  => FN_VGetArrayPointer(sunvec_y)
+    weightVec(1:tol_data%nState)  => FN_VGetArrayPointer(sunvec_ewt)
+
+
    do iState = 1,tol_data%nState
       weightVec(iState) = tol_data%rtol(iState) * abs( stateVec(iState) ) + tol_data%atol(iState)
-      weightVec(iState) = 1._rkind / weightVec(iState)    
-   end do 
- 
+      weightVec(iState) = 1._rkind / weightVec(iState)
+   end do
+
    ierr = 0
    return
 
  end function computWeight4IDA
- 
-  
+
+
  ! **********************************************************************************************************
  ! public subroutine popTol4IDA: populate tolerances for state vectors
  ! **********************************************************************************************************
@@ -238,7 +238,7 @@ contains
  do concurrent (iState=1:size(ixVegHyd),ixVegHyd(iState)/=integerMissing)
   tolFlag( ixVegHyd(iState) ) = .true.                 ! flag to denote that tolerances are populated
   select case(ixStateType_subset( ixVegHyd(iState) ))
-   case(iname_watCanopy); absTol( ixVegHyd(iState) )  = absTolWatVeg ; relTol( ixVegHyd(iState) )  = relTolWatVeg 
+   case(iname_watCanopy); absTol( ixVegHyd(iState) )  = absTolWatVeg ; relTol( ixVegHyd(iState) )  = relTolWatVeg
    case(iname_liqCanopy); absTol( ixVegHyd(iState) )  = absTolWatVeg ; relTol( ixVegHyd(iState) )  = relTolWatVeg       ! transfer liquid canopy water to the state vector
    case default; tolFlag( ixVegHyd(iState) ) = .false. ! flag to denote that tolerances are populated
   end select
@@ -260,9 +260,9 @@ contains
    ixStateSubset            = ixSnowSoilHyd(iLayer)   ! index within the state vector
    tolFlag(ixStateSubset) = .true.                  ! flag to denote that tolerances are populated
    select case( ixHydType(iLayer) )
-    case(iname_watLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow  
-    case(iname_liqLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow    
-    case(iname_matLayer); absTol(ixStateSubset) = absTolMatric ;  relTol(ixStateSubset) = relTolMatric  
+    case(iname_watLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow
+    case(iname_liqLayer); absTol(ixStateSubset) = absTolWatSnow ;  relTol(ixStateSubset) = relTolWatSnow
+    case(iname_matLayer); absTol(ixStateSubset) = absTolMatric ;  relTol(ixStateSubset) = relTolMatric
     case(iname_lmpLayer); absTol(ixStateSubset) = absTolMatric ;  relTol(ixStateSubset) = relTolMatric
     case default; tolFlag(ixStateSubset) = .false.  ! flag to denote that tolerances are populated
    end select

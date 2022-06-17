@@ -459,12 +459,18 @@ contains
  !-1 then yi will be constrained to be yi<=0
  stateVecConstraints = 0._rkind
  stateVecConstValues = 0._rkind
- stateVecConstraints(ixCasNrg) = -1._rkind !canopy air space temperature cannot be above canopyTempMax
- stateVecConstraints(ixVegNrg) = -1._rkind !canopy temperature cannot be above canopyTempMax
- stateVecConstraints(ixVegHyd) =  1._rkind !canopy liquid water cannot be below bound of 0
- stateVecConstValues(ixCasNrg) = canopyTempMax !canopy air space temperature cannot be above canopyTempMax
- stateVecConstValues(ixVegNrg) = canopyTempMax !canopy temperature cannot be above canopyTempMax
- stateVecConstValues(ixVegHyd) = 0._rkind !canopy liquid water cannot be below 0
+ if(ixCasNrg/=integerMissing)then !canopy air space temperature cannot be above canopyTempMax
+  stateVecConstraints(ixCasNrg) = -1._rkind
+  stateVecConstValues(ixCasNrg) = canopyTempMax
+ endif
+ if(ixVegNrg/=integerMissing)then !canopy temperature cannot be above canopyTempMax
+  stateVecConstraints(ixVegNrg) = -1._rkind
+  stateVecConstValues(ixVegNrg) = canopyTempMax
+ endif
+ if(ixVegHyd/=integerMissing)then !canopy liquid water cannot be below 0
+  stateVecConstraints(ixVegHyd) = 1._rkind
+  stateVecConstValues(ixVegHyd) = 0._rkind
+ endif
 
  ! loop through non-missing energy state variables in the snow domain
  do concurrent (iLayer=1:nSnow,ixSnowOnlyNrg(iLayer)/=integerMissing)
