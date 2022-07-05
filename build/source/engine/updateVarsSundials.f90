@@ -110,7 +110,6 @@ contains
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                       mLayerTempPrev,                            & ! intent(in)
                        mLayerVolFracWatPrev,                      & ! intent(in)
                        mLayerMatricHeadPrev,                      & ! intent(in)
                        diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
@@ -148,7 +147,6 @@ contains
  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters for a local HRU
  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- real(rkind),intent(in)             :: mLayerTempPrev(:)
  real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)
  real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)
  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
@@ -540,7 +538,6 @@ contains
       call updateSoilSundials(&
                       dt_cur,                                            &
                       xTemp,                                             & ! intent(in)   : temperature (K)
-                      mLayerTempPrev(iLayer),                            & ! intent(in)   : temperature previous time step (K)
                       mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in)   : total water matric potential (m)
                       mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in)
                       mLayerVolFracWatPrev(iLayer),                      & ! intent(in)

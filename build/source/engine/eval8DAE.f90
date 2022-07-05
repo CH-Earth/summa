@@ -466,7 +466,6 @@ contains
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                 mLayerTempPrev,                            & ! intent(in)
                  mLayerVolFracWatPrev,                      & ! intent(in)
                  mLayerMatricHeadPrev,                      & ! intent(in)
                  diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU

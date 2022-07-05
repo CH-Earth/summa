@@ -249,6 +249,7 @@ contains
  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,& ! intent(in):    [i4b(:)] indices for energy states in the snow subdomain
  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] indices for hydrology states in the snow+soil subdomain
+ ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] indices for energy states in the snow+soil subdomain
  ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in):    [i4b(:)] index of the type of hydrology states in snow+soil domain
  layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,& ! intent(in):    [i4b(:)] layer type (iname_soil or iname_snow)
  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
@@ -507,7 +508,8 @@ contains
  !do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)
  ! minimum temperature constraints
  ! xMin = 100._rkind !degrees C
- ! stateVecConstraints(ixSnowSoilNrg(iLayer)) - xMin =  1._rkind !water cannot be less than xMin
+ ! stateVecConstraints(ixSnowSoilNrg(iLayer)) =  1._rkind !temp cannot be less than xMin
+ ! stateVecConstraints(ixSnowSoilNrg(iLayer)) =  xMin !temp cannot be less than xMin
  !enddo
 
  !-------------------

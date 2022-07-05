@@ -130,7 +130,6 @@ contains
                        ! input
                        dt_cur,                &
                        mLayerTemp            ,& ! intent(in): temperature (K)
-                       mLayerTempPrev        ,& ! intent(in): temperature previous time step (K)
                        mLayerMatricHead      ,& ! intent(in): total water matric potential (m)
                        mLayerMatricHeadPrev  ,& ! intent(in): total water matric potential previous time step (m)
                        mLayerVolFracWatPrev  ,& ! intent(in): volumetric fraction of total water previous time step (-)
@@ -157,7 +156,6 @@ contains
  ! input variables
  real(rkind),intent(in)           :: dt_cur
  real(rkind),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
- real(rkind),intent(in)           :: mLayerTempPrev       ! temperature previous time step (K)
  real(rkind),intent(in)           :: mLayerMatricHead     ! matric head (m)
  real(rkind),intent(in)           :: mLayerMatricHeadPrev ! matric head previous time step (m)
  real(rkind),intent(in)           :: mLayerVolFracWatPrev ! volumetric fraction of total waterprevious time step (m)
@@ -179,13 +177,9 @@ contains
  character(*),intent(out)      :: message              ! error message
  ! define local variables
  real(rkind)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
- real(rkind)                      :: TcSoilPrev           ! previous timestep critical soil temperature when all water is unfrozen (K)
  real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
  real(rkind)                      :: dt_inv               ! inverse of timestep
- !real(rkind)                      :: mLayerTempPrev       ! estimate of previous timestep temperature (K)
- real(rkind)                      :: mLayerVolFracLiqPrev ! previous timestep volumetric fraction of liquid water (-)
- real(rkind)                      :: dt
  ! initialize error control
  err=0; message="updateSoilSundials/"
 
@@ -194,10 +188,8 @@ contains
  ! mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
  if( abs(mLayerMatricHead - mLayerMatricHeadPrev) < verySmall )then
   dt_inv = 1._rkind/ dt_cur !WHY NOT JUST USE THIS
-  dt = dt_cur
  else
   dt_inv = mLayerMatricHeadPrime / (mLayerMatricHead - mLayerMatricHeadPrev)
-  dt = 1._rkind/ dt_inv
  endif
  mLayerVolFracWatPrime =  (mLayerVolFracWat - mLayerVolFracWatPrev)*dt_inv
 
@@ -206,7 +198,6 @@ contains
  ! compute the critical soil temperature where all water is unfrozen (K)
  ! (eq 17 in Dall'Amico 2011)
  TcSoil = Tfreeze + min(mLayerMatricHead,0._rkind)*gravity*Tfreeze/LH_fus  ! (NOTE: J = kg m2 s-2, so LH_fus is in units of m2 s-2)
- TcSoilPrev = Tfreeze + min(mLayerMatricHeadPrev,0._rkind)*gravity*Tfreeze/LH_fus
 
  ! *** compute volumetric fraction of liquid water for partially frozen soil
  if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
@@ -215,33 +206,17 @@ contains
   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
   mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
   mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  !if( mLayerTemp - mLayerTempPrime*dt < TcSoilPrev )then
-  if( mLayerTempPrev < TcSoilPrev )then
-   if(mLayerPsiLiq<0._rkind)then
-    mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
-   else
-    mLayerVolFracLiqPrime = 0._rkind
-   endif
-  else ! was unfrozen on previous time step
-   mLayerVolFracLiqPrev = mLayerVolFracWatPrev
-   ! using mLayerVolFracLiqPrev = mLayerVolFracWatPrev
-   mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracWatPrev)*dt_inv ! = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
+  if(mLayerPsiLiq<0._rkind)then
+   mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
+  else
+   mLayerVolFracLiqPrime = 0._rkind
   endif
 
  ! *** compute volumetric fraction of liquid water for unfrozen soil
  else !( mLayerTemp >= TcSoil, all water is unfrozen )
   mLayerVolFracLiq = mLayerVolFracWat
-  !if ( mLayerTemp - mLayerTempPrime*dt >= TcSoilPrev )then
-  if ( mLayerTempPrev >= TcSoilPrev )then
-   mLayerVolFracLiqPrime = mLayerVolFracWatPrime
-   mLayerVolFracIcePrime = 0._rkind
-  else ! was partially frozen on previous time step
-   !mLayerTempPrev = mLayerTemp - mLayerTempPrime*dt
-   xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-   mLayerPsiLiq     = xConst*(mLayerTempPrev - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
-   mLayerVolFracLiqPrev = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-   mLayerVolFracLiqPrime = (mLayerVolFracLiq - mLayerVolFracLiqPrev)*dt_inv
-  endif
+  mLayerVolFracLiqPrime = mLayerVolFracWatPrime
+  mLayerVolFracIcePrime = 0._rkind
 
  end if  ! (check if soil is partially frozen)
 
@@ -304,14 +279,11 @@ contains
  real(rkind)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
  real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
  real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
- real(rkind)                      :: dt_inv               ! inverse of timestep
- real(rkind)                      :: mLayerTempPrev       ! estimate of previous timestep temperature (K)
  ! initialize error control
  err=0; message="updateSoilSundials2/"
 
  ! compute fractional **volume** of total water (liquid plus ice)
  mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
- dt_inv = 1._rkind/ dt_cur
  mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
 
  if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if

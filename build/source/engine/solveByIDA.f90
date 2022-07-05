@@ -346,10 +346,6 @@ contains
   ida_mem = FIDACreate()
   if (.not. c_associated(ida_mem)) then; err=20; message='solveByIDA: ida_mem = NULL'; return; endif
 
-  ! Set constraints
-  !retval = FIDASetConstraints(ida_mem, sunvec_c, sunvec_cv) !uncomment this line to use feasibility constraints
-  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetConstraints'; return; endif
-
   ! Attach user data to memory
   eqns_data%ida_mem = ida_mem
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
@@ -394,9 +390,14 @@ contains
   retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetLinearSolver'; return; endif
 
+  ! Set constraints
+  !retval = FIDASetConstraints(ida_mem, sunvec_c, sunvec_cv) !uncomment this line to use feasibility constraints
+  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetConstraints'; return; endif
+
   if(ixMatrix == ixFullMatrix)then
-     ! Set the user-supplied Jacobian routine
-     retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA)) !comment this line out to use FD Jacobian
+   ! Set the user-supplied Jacobian routine
+   !comment this line out to use FD Jacobian, currently cannot do with constraint version of IDA, memory size error
+   retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetJacFn'; return; endif
   endif
 

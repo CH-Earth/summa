@@ -297,7 +297,7 @@ contains
  logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
  integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  integer(i4b)                    :: nCoupling
- real(qp)						             :: dt_out                         !
+ real(qp)						 :: dt_out                         !
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
@@ -642,6 +642,7 @@ contains
 
          ! domain splitting
          else
+       print*,"split domain"
 
           ! initialize to .false.
           fluxMask%var(iVar)%dat = .false.
