@@ -483,8 +483,8 @@ contains
  theta_res                       => mpar_data%var(iLookPARAM%theta_res)%dat(1),                     & ! intent(in): [dp] residual volumetric liquid water content (-)
  plantWiltPsi                    => mpar_data%var(iLookPARAM%plantWiltPsi)%dat(1),                  & ! intent(in): [dp] matric head at wilting point (m)
  soilStressParam                 => mpar_data%var(iLookPARAM%soilStressParam)%dat(1),               & ! intent(in): [dp] parameter in the exponential soil stress function (-)
- critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),               & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
- critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1),             & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
+ critSoilWilting                 => mpar_data%var(iLookPARAM%critSoilWilting)%dat,                  & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
+ critSoilTranspire               => mpar_data%var(iLookPARAM%critSoilTranspire)%dat,                & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
  critAquiferTranspire            => mpar_data%var(iLookPARAM%critAquiferTranspire)%dat(1),          & ! intent(in): [dp] critical aquifer storage value when transpiration is limited (m)
  minStomatalResistance           => mpar_data%var(iLookPARAM%minStomatalResistance)%dat(1),         & ! intent(in): [dp] mimimum stomatal resistance (s m-1)
 
@@ -2465,8 +2465,8 @@ contains
  ! input (parameters)
  real(rkind),intent(in)           :: plantWiltPsi             ! matric head at wilting point (m)
  real(rkind),intent(in)           :: soilStressParam          ! parameter in the exponential soil stress function (-)
- real(rkind),intent(in)           :: critSoilWilting          ! critical vol. liq. water content when plants are wilting (-)
- real(rkind),intent(in)           :: critSoilTranspire        ! critical vol. liq. water content when transpiration is limited (-)
+ real(rkind),intent(in)           :: critSoilWilting(:)       ! critical vol. liq. water content when plants are wilting (-)
+ real(rkind),intent(in)           :: critSoilTranspire(:)     ! critical vol. liq. water content when transpiration is limited (-)
  real(rkind),intent(in)           :: critAquiferTranspire     ! critical aquifer storage value when transpiration is limited (m)
  ! output
  real(rkind),intent(out)          :: wAvgTranspireLimitFac    ! intent(out): weighted average of the transpiration limiting factor (-)
@@ -2487,7 +2487,7 @@ contains
   ! compute the soil stress function
   select case(ixSoilResist)
    case(NoahType)  ! thresholded linear function of volumetric liquid water content
-    gx = (mLayerVolFracLiq(iLayer) - critSoilWilting) / (critSoilTranspire - critSoilWilting)
+    gx = (mLayerVolFracLiq(iLayer) - critSoilWilting(iLayer)) / (critSoilTranspire(iLayer) - critSoilWilting(iLayer))
    case(CLM_Type)  ! thresholded linear function of matric head
     if(mLayerMatricHead(iLayer) > plantWiltPsi)then
      gx = 1._rkind - mLayerMatricHead(iLayer)/plantWiltPsi
