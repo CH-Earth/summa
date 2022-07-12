@@ -444,7 +444,7 @@ contains
   eqns_data%firstFluxCall = .false.
   eqns_data%firstSplitOper = .true.
   ! call IDASolve, advance solver just one internal step
-  retval = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
+  retvalr = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
   if( retval < 0 )then
    idaSucceeds = .false.
    exit
@@ -557,12 +557,12 @@ contains
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
 
   if(nSoil>0)then
-   if (retval .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
+   if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! To find which layer of 1:nSoil has a root, call and print the following, where
     !   rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
     ! MAYBE ONLY CARE ABOUT TOP LAYER
-    retvalr = FIDAGetRootInfo(ida_mem, rootsfound)
-    if (retvalr < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
+    retval = FIDAGetRootInfo(ida_mem, rootsfound)
+    if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
     print '(a,100(i2,2x))', "    rootsfound[] = ", rootsfound
 
     ! Reininitialize solver for running after discontinuity and restart at root
