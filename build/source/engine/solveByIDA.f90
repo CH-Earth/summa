@@ -233,6 +233,8 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
+ real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical (K)
+
 
  ! -----------------------------------------------------------------------------------------------------
 
@@ -563,8 +565,12 @@ contains
     ! MAYBE ONLY CARE ABOUT TOP LAYER
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-    print '(a,100(i2,2x))', "    rootsfound[] = ", rootsfound
-
+    print '(a,f7.3,2x,100(i2,2x))', "time,    rootsfound[] = ", rootsfound
+    do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
+     if (rootsfound(i)==-1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - epsT !freezing, so move a bit colder than freeze point
+     if (rootsfound(i)== 1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) + epsT !thawing, so move a bit warmer than freeze point
+    enddo
+    sunvec_y => FN_VMake_Serial(nState, stateVec)
     ! Reininitialize solver for running after discontinuity and restart at root
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
