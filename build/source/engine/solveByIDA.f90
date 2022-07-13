@@ -233,7 +233,7 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
- real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical (K)
+ real(rkind),parameter             :: epsT=1.e-6_rkind     ! small interval above/below critical (K)
 
 
  ! -----------------------------------------------------------------------------------------------------
@@ -565,7 +565,7 @@ contains
     ! MAYBE ONLY CARE ABOUT TOP LAYER
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-    print '(a,f7.3,2x,100(i2,2x))', "time,    rootsfound[] = ", rootsfound
+    print '(a,f15.3,2x,100(i2,2x))', "time,    rootsfound[] = ", tret(1), rootsfound
     do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
      if (rootsfound(i)==-1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - epsT !freezing, so move a bit colder than freeze point
      if (rootsfound(i)== 1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) + epsT !thawing, so move a bit warmer than freeze point
