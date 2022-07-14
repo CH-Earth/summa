@@ -233,7 +233,7 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
- real(rkind),parameter             :: epsT=1.e-6_rkind     ! small interval above/below critical (K)
+ real(rkind),parameter             :: epsT=1.e-4_rkind     ! small interval above/below critical (K)
 
 
  ! -----------------------------------------------------------------------------------------------------
