@@ -216,7 +216,8 @@ contains
  type(c_ptr)                       :: ida_mem              ! IDA memory
  type(eqnsData),           target  :: eqns_data            ! IDA type
  integer(i4b)                      :: retval, retvalr      ! return value
- integer(i4b)                      :: rootsfound(nSoil)    ! point where mLayerTemp = freezing in each soil layer
+ !integer(i4b)                      :: rootsfound(nSoil)    ! point where mLayerTemp = freezing in each soil layer
+ integer(i4b)                      :: rootsfound(1)        ! point where mLayerTemp = freezing in top soil layer
  logical(lgt)                      :: feasible             ! feasibility flag
  real(qp)                          :: t0                   ! staring time
  real(qp)                          :: dt_last(1)           ! last time step
@@ -233,8 +234,7 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
- real(rkind),parameter             :: epsT=1.e-4_rkind     ! small interval above/below critical (K)
-
+ real(rkind),parameter             :: epsT=1.e-5_rkind     ! small interval above/below critical (K)
 
  ! -----------------------------------------------------------------------------------------------------
 
@@ -354,7 +354,8 @@ contains
 
  ! initialize rootfinding problem with nSoil components
  if(nSoil>0)then
-  retval = FIDARootInit(ida_mem, nSoil, c_funloc(freezePoint4IDA))
+  !retval = FIDARootInit(ida_mem, nSoil, c_funloc(freezePoint4IDA)) ! all layers
+  retval = FIDARootInit(ida_mem, 1, c_funloc(freezePoint4IDA)) ! try only top layer
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
  endif
 
@@ -566,10 +567,12 @@ contains
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
     print '(a,f15.3,2x,100(i2,2x))', "time,    rootsfound[] = ", tret(1), rootsfound
-    do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
+    !do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
+    do concurrent (i=1:1,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
      if (rootsfound(i)==-1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - epsT !freezing, so move a bit colder than freeze point
      if (rootsfound(i)== 1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) + epsT !thawing, so move a bit warmer than freeze point
     enddo
+
     sunvec_y => FN_VMake_Serial(nState, stateVec)
     ! Reininitialize solver for running after discontinuity and restart at root
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
@@ -749,7 +752,7 @@ contains
  real(c_double), value :: t         ! current time
  type(N_Vector)        :: sunvec_u  ! solution N_Vector
  type(N_Vector)        :: sunvec_up ! derivative N_Vector
- real(c_double)        :: gout(8)   ! root function values
+ real(c_double)        :: gout(100) ! root function values HAVE TO DECLARE THIS A SIZE
  type(c_ptr),    value :: user_data ! user-defined data
 
  ! local variables
@@ -770,13 +773,17 @@ contains
  nState = eqns_data%nState
  nSnow = eqns_data%nSnow
  nSoil = eqns_data%nSoil
- gout(1:nSoil) = 0._rkind
+ !if (nSoil> 100) then
+ ! print*, 'error, gout size in freezePoint4IDA function must be increased over 100'
+ !endif
+ !gout(1:nSoil) = 0._rkind
+ gout(1:1) = 0._rkind
 
  ! get data array from SUNDIALS vector
  uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
 
  ! fill root vector, will not call this function unless nSoil>0
- do i=1,nSoil
+ do i=1,1 !nSoil
   if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)==integerMissing) cycle
   ! get the matric potential of total water
   if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
