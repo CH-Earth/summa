@@ -52,6 +52,7 @@ contains
  							mLayerMeltFreeze,		& ! intent(in)
  							mpar_data,				& ! intent(in)
  					   		! output
+                            tooMuchSublim,          & ! intent(out): flag to denote that there was too much sublimation in a given time step
  					   		mLayerDepth,			& ! intent(inout)
                        		! error control
                        		err,message)         ! intent(out):   error control
@@ -59,25 +60,29 @@ contains
  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
 
  implicit none
-  real(qp),intent(in)				   :: dt_sub
-  integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
-  real(rkind),intent(in)				   :: scalarSnowSublimation
-  real(rkind),intent(inout)			   :: mLayerVolFracLiq(:)
-  real(rkind),intent(inout)			   :: mLayerVolFracIce(:)
-  real(rkind),intent(in)				   :: mLayerTemp(:)
-  real(rkind),intent(in)				   :: mLayerMeltFreeze(:)
-  type(var_dlength),intent(in)         :: mpar_data              ! model parameters
-  real(rkind),intent(inout)			   :: mLayerDepth(:)
-  integer(i4b),intent(out)             :: err                    ! error code
-  character(*),intent(out)             :: message                ! error message
+ real(qp),intent(in)			      :: dt_sub
+ integer(i4b),intent(in)              :: nSnow                  ! number of snow layers
+ real(rkind),intent(in)			      :: scalarSnowSublimation
+ real(rkind),intent(inout)		      :: mLayerVolFracLiq(:)
+ real(rkind),intent(inout)		      :: mLayerVolFracIce(:)
+ real(rkind),intent(in)			      :: mLayerTemp(:)
+ real(rkind),intent(in)			      :: mLayerMeltFreeze(:)
+ type(var_dlength),intent(in)         :: mpar_data              ! model parameters
+ logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
+ real(rkind),intent(inout)			  :: mLayerDepth(:)
+
+ integer(i4b),intent(out)             :: err                    ! error code
+ character(*),intent(out)             :: message                ! error message
 
  ! local variables
  character(len=256)                   :: cmessage               ! error message
  integer(i4b)                         :: iSnow                  ! index of snow layers
- real(rkind)                             :: massLiquid             ! mass liquid water (kg m-2)
+ real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
 
   ! * compute change in ice content of the top snow layer due to sublimation...
   ! ---------------------------------------------------------------------------
+  ! initialize the flags
+  tooMuchSublim=.false.  ! too much sublimination (merge snow layers)
   ! NOTE: this is done BEFORE densification
   if(nSnow > 0)then ! snow layers exist
 
@@ -90,6 +95,12 @@ contains
    ! add/remove the depth of snow gained/lost by frost/sublimation (m)
    ! NOTE: assume constant density
    mLayerDepth(iSnow) = mLayerDepth(iSnow) + dt_sub*scalarSnowSublimation/(mLayerVolFracIce(iSnow)*iden_ice)
+
+   ! check that we did not remove the entire layer
+   if(mLayerDepth(iSnow) < verySmall)then
+    tooMuchSublim=.true.
+    return
+   endif
 
    ! update the volumetric fraction of liquid water
    mLayerVolFracLiq(iSnow) = massLiquid / (mLayerDepth(iSnow)*iden_water)

@@ -195,6 +195,7 @@ contains
  logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
  logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
  logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
+ logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
  logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
  logical(lgt)                         :: pauseFlag              ! flag to pause execution
  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches.
@@ -764,10 +765,8 @@ contains
   ! handle special case of the step failure
   ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
   if(stepFailure)then
-
    ! halve step
    dt_sub = dtSave/2._rkind
-
    ! check that the step is not tiny
    if(dt_sub < minstep)then
     print*,ixSolution
@@ -775,10 +774,8 @@ contains
     message=trim(message)//'length of the coupled step is below the minimum step length'
     err=20; return
    endif
-
    ! try again
    cycle substeps
-
   endif
 
   ! update first step
@@ -837,10 +834,35 @@ contains
  						diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,			& ! intent(in)
  						mpar_data,												& ! intent(in)
  					   	! output
+                        tooMuchSublim,                                          & ! intent(out): flag to denote that there was too much sublimation in a given time step
  					   	mLayerDepth,											& ! intent(inout)
                        	! error control
-                       	err,message)         				  					  	  ! intent(out):   error control
- 	if(err/=0)then; err=55; return; end if
+                       	err,message)         				  					 ! intent(out):   error control
+  if(err/=0)then; err=55; return; end if
+
+  ! process the flag for too much sublimation
+  if(tooMuchSublim)then
+   stepFailure  = .true.
+   doLayerMerge = .true.
+  else
+   doLayerMerge = .false.
+  endif
+
+  ! handle special case of the step failure
+  ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
+  if(stepFailure)then
+   ! halve step
+   dt_sub = dtSave/2._rkind
+   ! check that the step is not tiny
+   if(dt_sub < minstep)then
+    print*,ixSolution
+    print*, 'dtSave, dt_sub', dtSave, dt_sub
+    message=trim(message)//'length of the coupled step is below the minimum step length'
+    err=20; return
+   endif
+   ! try again
+   cycle substeps
+  endif
 
   end associate sublime
 
