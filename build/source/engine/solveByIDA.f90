@@ -234,7 +234,7 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
- real(rkind),parameter             :: epsT=1.e-5_rkind     ! small interval above/below critical (K)
+ real(rkind),parameter             :: epsT=1.e-3_rkind     ! small interval above/below critical (K)
 
  ! -----------------------------------------------------------------------------------------------------
 
@@ -456,7 +456,6 @@ contains
   tooMuchMelt = .false.
   feasible = .true.
   ! loop through non-missing energy state variables in the snow domain to see if need to merge
-  ! CURRENTLY WILL ONLY MERGE TOP LAYER, FIX?
   do concurrent (i=1:nSnow,indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)
    if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
    if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) print*,i,tret(1),nSnow,idaSucceeds,"merge"
@@ -559,6 +558,7 @@ contains
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
 
+  ! Look for where soil layer crosses the freezing point and makes a discontinuity (the root is the freezing point)
   if(nSoil>0)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! To find which layer of 1:nSoil has a root, call and print the following, where
@@ -567,6 +567,7 @@ contains
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
     print '(a,f15.3,2x,100(i2,2x))', "time,    rootsfound[] = ", tret(1), rootsfound
+    ! Need to move off of the freezing point, okay to adjust since in the middle of a step
     !do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
     do concurrent (i=1:1,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
      if (rootsfound(i)==-1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - epsT !freezing, so move a bit colder than freeze point
@@ -574,7 +575,7 @@ contains
     enddo
 
     sunvec_y => FN_VMake_Serial(nState, stateVec)
-    ! Reininitialize solver for running after discontinuity and restart at root
+    ! Reininitialize solver for running after discontinuity and restart
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
    endif
