@@ -217,13 +217,11 @@ contains
  type(eqnsData),           target  :: eqns_data            ! IDA type
  integer(i4b)                      :: retval, retvalr      ! return value
  integer(i4b)                      :: rootsfound(1)        ! crossing direction where mLayerTemp = freezing in top soil layer
- integer(i4b)                      :: prev1_rootsfound(1)  ! previous crossing direction where mLayerTemp = freezing in top soil layer
- integer(i4b)                      :: prev2_rootsfound(1)  ! previous previous crossing direction where mLayerTemp = freezing in top soil layer
+ integer(i4b)                      :: prev_rootsfound(1)  ! previous crossing direction where mLayerTemp = freezing in top soil layer
  logical(lgt)                      :: feasible             ! feasibility flag
  real(qp)                          :: t0                   ! staring time
  real(qp)                          :: dt_last(1)           ! last time step
- real(qp)                          :: prev1_root_dt        ! previous time step when found root
- real(qp)                          :: prev2_root_dt        ! previous previous time step when found root
+ real(qp)                          :: prev_root_tret       ! previous time when found root
  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
  integer(i4b)                      :: iVar
  logical(lgt)                      :: startQuadrature
@@ -446,10 +444,8 @@ contains
  !************************* loop on one_step mode **********************************
  !**********************************************************************************
 
- prev1_rootsfound = 100  !set everything at beginning of step to values that won't trigger root statements
- prev2_rootsfound = 100
- prev1_root_dt = -10000._rkind
- prev2_root_dt = -10000._rkind
+ prev_rootsfound = 10  !set everything at beginning of step to values that won't trigger root statements
+ prev_root_tret = -10000._rkind
  tret(1) = t0           ! intial time
  epsT = epsT0           !set to original small adjustment for temp
 
@@ -567,7 +563,6 @@ contains
   eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
-  print*,tret(1)
   ! Look for where top soil layer crosses the freezing point and makes a discontinuity (the root is the freezing point)
   if(nSoil>0)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
@@ -575,8 +570,8 @@ contains
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
     ! Need to move off of the freezing point, okay to adjust since in the middle of a step
-    if ( rootsfound(1)== prev2_rootsfound(1) .AND. dt_last(1)==prev2_root_dt )then
-     epsT = 10.*epsT !then oscillating root , same as 2 states ago
+    if ( rootsfound(1)== -prev_rootsfound(1) .AND. tret(1)-prev_root_tret<1.e-2 )then
+     epsT = 10.*epsT !then oscillating root, found other direction root very recently
      if (epsT>1.0) epsT=1.0 ! shouldn't need larger than this THROW ERROR?
     else
      epsT = epsT0 !not oscillating, set or reset to original small adjustment
@@ -584,19 +579,14 @@ contains
     if (indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)/=integerMissing) then
      stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) + real(rootsfound(1))*epsT
     endif
-    !print '(a,3(f15.5,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), rootsfound
-    print '(a,5(f15.5,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), prev1_root_dt, prev2_root_dt, rootsfound,prev1_rootsfound(1) ,prev2_rootsfound(1)
+    print '(a,4(f15.7,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), prev_root_tret, rootsfound,prev_rootsfound(1)
 
-    prev2_rootsfound = prev1_rootsfound
-    prev2_root_dt = prev1_root_dt
-    prev1_rootsfound = rootsfound
-    prev1_root_dt = dt_last(1)
+    prev_rootsfound = rootsfound
+    prev_root_tret = tret(1)
     sunvec_y => FN_VMake_Serial(nState, stateVec)
     ! Reininitialize solver for running after discontinuity and restart
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
-   else
-     epsT = epsT0 !not oscillating, set or reset to original small adjustment
    endif
   endif
 
