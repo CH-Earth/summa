@@ -446,8 +446,9 @@ contains
  !************************* loop on one_step mode **********************************
  !**********************************************************************************
 
+ prev_rootsfound = 100  !set everything at beginning of step to values that won't trigger root statements
+ prev_root_time = -10000._rkind
  tret(1) = t0           ! intial time
- prev_rootsfound = 0    ! reset everything at beginning of step
  do while(tret(1) < dt)
   eqns_data%firstFluxCall = .false.
   eqns_data%firstSplitOper = .true.
@@ -563,29 +564,25 @@ contains
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
 
-  ! Look for where soil layer crosses the freezing point and makes a discontinuity (the root is the freezing point)
+  ! Look for where top soil layer crosses the freezing point and makes a discontinuity (the root is the freezing point)
   if(nSoil>0)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
-    ! To find which layer of 1:nSoil has a root, call and print the following, where
-    !   rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
-    ! Here, ONLY CARE ABOUT TOP LAYER, if decide wrong, change to 1:nSoil indices BUT THEN CAN BOUNCE TIME BACK AND FORTH BETWEEN LAYERS
+    ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
     ! Need to move off of the freezing point, okay to adjust since in the middle of a step
-    !do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
-    do concurrent (i=1:1,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
-     if ( rootsfound(i)== -prev_rootsfound(i) .AND. prev_root_time+dt_last(1)==tret(1) .AND. dt_last(1)<10.*epsT)then
-      epsT = 10.*epsT !then oscillating root, from previous time step, and that time step is small or negative (can happen if looking at more than top layer)
-      if (epsT>1.0) epsT=1.0 ! shouldn't need larger than this THROW ERROR?
-     else
-      epsT = epsT0 !not oscillating on small time step, set or reset to original small adjustment
-     endif
-     stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) + real(rootsfound(i))*epsT
-    enddo
-    print '(a,3(f15.3,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), rootsfound
+    if ( rootsfound(1)== -prev_rootsfound(1) .AND. prev_root_time+dt_last(1)==tret(1) .AND. dt_last(1)<10.*epsT)then
+     epsT = 10.*epsT !then oscillating root , from previous time step, and that time step is small
+     if (epsT>1.0) epsT=1.0 ! shouldn't need larger than this THROW ERROR?
+    else
+     epsT = epsT0 !not oscillating on small time step, set or reset to original small adjustment
+    endif
+    if (indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)/=integerMissing) then
+     stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) + real(rootsfound(1))*epsT
+    endif
     prev_rootsfound = rootsfound
     prev_root_time = tret(1)
-
+    print '(a,3(f15.3,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), rootsfound
     sunvec_y => FN_VMake_Serial(nState, stateVec)
     ! Reininitialize solver for running after discontinuity and restart
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
