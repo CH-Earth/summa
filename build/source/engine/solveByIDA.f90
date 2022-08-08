@@ -216,11 +216,14 @@ contains
  type(c_ptr)                       :: ida_mem              ! IDA memory
  type(eqnsData),           target  :: eqns_data            ! IDA type
  integer(i4b)                      :: retval, retvalr      ! return value
- !integer(i4b)                      :: rootsfound(nSoil)    ! point where mLayerTemp = freezing in each soil layer
- integer(i4b)                      :: rootsfound(1)        ! point where mLayerTemp = freezing in top soil layer
+ !integer(i4b)                      :: rootsfound(nSoil)    ! crossing direction where mLayerTemp = freezing in each soil layer
+ !integer(i4b)                      :: prev_rootsfound(nSoil) ! previous crossing direction where mLayerTemp = freezing in each soil layer
+ integer(i4b)                      :: rootsfound(1)        ! crossing direction where mLayerTemp = freezing in top soil layer
+ integer(i4b)                      :: prev_rootsfound(1)   ! previous crossing direction where mLayerTemp = freezing in top soil layer
  logical(lgt)                      :: feasible             ! feasibility flag
  real(qp)                          :: t0                   ! staring time
  real(qp)                          :: dt_last(1)           ! last time step
+ real(qp)                          :: prev_root_time       ! last time found root
  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
  integer(i4b)                      :: iVar
  logical(lgt)                      :: startQuadrature
@@ -234,7 +237,8 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
- real(rkind),parameter             :: epsT=1.e-3_rkind     ! small interval above/below critical (K)
+ real(rkind),parameter             :: epsT0=1.e-5_rkind    ! small interval above/below critical (K)
+ real(rkind)                       :: epsT                 ! interval above/below critical (K), change from epsT0 so does not oscillate around root
 
  ! -----------------------------------------------------------------------------------------------------
 
@@ -442,7 +446,8 @@ contains
  !************************* loop on one_step mode **********************************
  !**********************************************************************************
 
- tret(1) = t0
+ tret(1) = t0           ! intial time
+ prev_rootsfound = 0    ! reset everything at beginning of step
  do while(tret(1) < dt)
   eqns_data%firstFluxCall = .false.
   eqns_data%firstSplitOper = .true.
@@ -563,16 +568,23 @@ contains
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! To find which layer of 1:nSoil has a root, call and print the following, where
     !   rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
-    ! MAYBE ONLY CARE ABOUT TOP LAYER
+    ! Here, ONLY CARE ABOUT TOP LAYER, if decide wrong, change to 1:nSoil indices BUT THEN CAN BOUNCE TIME BACK AND FORTH BETWEEN LAYERS
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-    print '(a,f15.3,2x,100(i2,2x))', "time,    rootsfound[] = ", tret(1), rootsfound
     ! Need to move off of the freezing point, okay to adjust since in the middle of a step
     !do concurrent (i=1:nSoil,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
     do concurrent (i=1:1,indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)
-     if (rootsfound(i)==-1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - epsT !freezing, so move a bit colder than freeze point
-     if (rootsfound(i)== 1) stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) + epsT !thawing, so move a bit warmer than freeze point
+     if ( rootsfound(i)== -prev_rootsfound(i) .AND. prev_root_time+dt_last(1)==tret(1) .AND. dt_last(1)<10.*epsT)then
+      epsT = 10.*epsT !then oscillating root, from previous time step, and that time step is small or negative (can happen if looking at more than top layer)
+      if (epsT>1.0) epsT=1.0 ! shouldn't need larger than this THROW ERROR?
+     else
+      epsT = epsT0 !not oscillating on small time step, set or reset to original small adjustment
+     endif
+     stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) + real(rootsfound(i))*epsT
     enddo
+    print '(a,3(f15.3,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), rootsfound
+    prev_rootsfound = rootsfound
+    prev_root_time = tret(1)
 
     sunvec_y => FN_VMake_Serial(nState, stateVec)
     ! Reininitialize solver for running after discontinuity and restart
