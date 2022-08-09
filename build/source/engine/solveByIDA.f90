@@ -353,7 +353,7 @@ contains
  ! initialize rootfinding problem with nSoil components
  if(nSoil>0)then
   !retval = FIDARootInit(ida_mem, nSoil, c_funloc(matZeroPoint4IDA)) ! all layers
-  retval = FIDARootInit(ida_mem, 1, c_funloc(matZeroPoint4IDA)) ! try only top layer
+  !retval = FIDARootInit(ida_mem, 1, c_funloc(matZeroPoint4IDA)) ! try only top layer, uncomment this line to stop at soil discontinuity
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
  endif
 
@@ -446,7 +446,7 @@ contains
   eqns_data%firstSplitOper = .true.
   ! call IDASolve, advance solver just one internal step
   retvalr = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
-  if( retval < 0 )then
+  if( retvalr < 0 )then
    idaSucceeds = .false.
    exit
   endif
