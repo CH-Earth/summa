@@ -216,12 +216,10 @@ contains
  type(c_ptr)                       :: ida_mem              ! IDA memory
  type(eqnsData),           target  :: eqns_data            ! IDA type
  integer(i4b)                      :: retval, retvalr      ! return value
- integer(i4b)                      :: rootsfound(1)        ! crossing direction where mLayerTemp = freezing in top soil layer
- integer(i4b)                      :: prev_rootsfound(1)  ! previous crossing direction where mLayerTemp = freezing in top soil layer
+ integer(i4b)                      :: rootsfound(1)        ! crossing direction where mLayerMatricHead = 0 in top soil layer
  logical(lgt)                      :: feasible             ! feasibility flag
  real(qp)                          :: t0                   ! staring time
  real(qp)                          :: dt_last(1)           ! last time step
- real(qp)                          :: prev_root_tret       ! previous time when found root
  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
  integer(i4b)                      :: iVar
  logical(lgt)                      :: startQuadrature
@@ -235,8 +233,6 @@ contains
  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
  integer(i4b)                      :: i
- real(rkind),parameter             :: epsT0=1.e-5_rkind    ! small interval above/below critical (K)
- real(rkind)                       :: epsT                 ! interval above/below critical (K), change from epsT0 so does not oscillate around root
 
  ! -----------------------------------------------------------------------------------------------------
 
@@ -356,8 +352,8 @@ contains
 
  ! initialize rootfinding problem with nSoil components
  if(nSoil>0)then
-  !retval = FIDARootInit(ida_mem, nSoil, c_funloc(freezePoint4IDA)) ! all layers
-  retval = FIDARootInit(ida_mem, 1, c_funloc(freezePoint4IDA)) ! try only top layer
+  !retval = FIDARootInit(ida_mem, nSoil, c_funloc(matZeroPoint4IDA)) ! all layers
+  retval = FIDARootInit(ida_mem, 1, c_funloc(matZeroPoint4IDA)) ! try only top layer
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
  endif
 
@@ -444,11 +440,7 @@ contains
  !************************* loop on one_step mode **********************************
  !**********************************************************************************
 
- prev_rootsfound = 10  !set everything at beginning of step to values that won't trigger root statements
- prev_root_tret = -10000._rkind
  tret(1) = t0           ! intial time
- epsT = epsT0           !set to original small adjustment for temp
-
  do while(tret(1) < dt)
   eqns_data%firstFluxCall = .false.
   eqns_data%firstSplitOper = .true.
@@ -563,27 +555,13 @@ contains
   eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
-  ! Look for where top soil layer crosses the freezing point and makes a discontinuity (the root is the freezing point)
+  ! Look for where top soil layer crosses the matric head 0 point and changes equation of freezing temperature
   if(nSoil>0)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-    ! Need to move off of the freezing point, okay to adjust since in the middle of a step
-    if ( rootsfound(1)== -prev_rootsfound(1) .AND. tret(1)-prev_root_tret<1.e-2 )then
-     epsT = 10.*epsT !then oscillating root, found other direction root very recently
-     if (epsT>1.0) epsT=1.0 ! shouldn't need larger than this THROW ERROR?
-    else
-     epsT = epsT0 !not oscillating, set or reset to original small adjustment
-    endif
-    if (indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)/=integerMissing) then
-     stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) = stateVec(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) + real(rootsfound(1))*epsT
-    endif
-    print '(a,4(f15.7,2x),100(i2,2x))', "time,  epsT, dt_last(1), rootsfound[] = ", tret(1), epsT, dt_last(1), prev_root_tret, rootsfound,prev_rootsfound(1)
-
-    prev_rootsfound = rootsfound
-    prev_root_tret = tret(1)
-    sunvec_y => FN_VMake_Serial(nState, stateVec)
+    print '(a,f15.7,2x,100(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
     ! Reininitialize solver for running after discontinuity and restart
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
@@ -737,21 +715,20 @@ contains
  end subroutine setSolverParams
 
 ! ----------------------------------------------------------------
-! freezePoint4IDA: The root function routine to find soil freeze
+! matZeroPoint4IDA: The root function routine to find soil freeze
 ! ----------------------------------------------------------------
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------
- integer(c_int) function freezePoint4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
-      result(ierr) bind(C,name='freezePoint4IDA')
+ integer(c_int) function matZeroPoint4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
+      result(ierr) bind(C,name='matZeroPoint4IDA')
 
  !======= Inclusions ===========
  use, intrinsic :: iso_c_binding
  use fsundials_nvector_mod
  use fnvector_serial_mod
- use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
  use globalData,only:integerMissing     ! missing integer
  use var_lookup,only:iLookINDEX         ! named variables for structure elements
 
@@ -768,10 +745,7 @@ contains
  ! local variables
  integer(i4b)          :: i         ! index of model layer
  integer(i4b)          :: nState    ! number of states
- integer(i4b)          :: nSnow     ! number of snow layers
  integer(i4b)          :: nSoil     ! number of soil layers
- real(rkind)           :: xPsi      ! matric head at layer (m)
- real(rkind)           :: TcSoil    ! critical point when soil begins to freeze (K)
 
  ! pointers to data in SUNDIALS vectors
  real(c_double), pointer :: uu(:)
@@ -781,10 +755,9 @@ contains
  ! get equations data from user-defined data
  call c_f_pointer(user_data, eqns_data)
  nState = eqns_data%nState
- nSnow = eqns_data%nSnow
  nSoil = eqns_data%nSoil
  !if (nSoil> 100) then
- ! print*, 'error, gout size in freezePoint4IDA function must be increased over 100'
+ ! print*, 'error, gout size in matZeroPoint4IDA function must be increased over 100'
  !endif
  !gout(1:nSoil) = 0._rkind
  gout(1:1) = 0._rkind
@@ -794,24 +767,16 @@ contains
 
  ! fill root vector, will not call this function unless nSoil>0
  do i=1,1 !nSoil
-  if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)==integerMissing) cycle
-  ! get the matric potential of total water
-  if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
-   xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
-  else
-   xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
-  endif
-
-  ! identify the critical point when soil begins to freeze (TcSoil)
-  TcSoil = crit_soilT(xPsi)
-  gout(i) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+  if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)==integerMissing) cycle
+  ! identify the critical point when soil has no matrix potential and Tfreeze depends only on temp (0)
+  gout(i) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
  enddo
 
  ! return success
  ierr = 0
  return
 
- end function freezePoint4IDA
+ end function matZeroPoint4IDA
 
  ! *********************************************************************************************************
  ! private subroutine implctMelt: compute melt of the "snow without a layer"
