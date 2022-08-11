@@ -351,7 +351,7 @@ contains
  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAWFtolerances'; return; endif
 
  ! initialize rootfinding problem if we have a snow-free ground interfacing with vegetation
- if(nSoil>0 .and. nSnow==0 .and. eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)==integerMissing)then
+ if(nSoil>0 .and. nSnow==0 .and. eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)/=integerMissing)then
   retval = FIDARootInit(ida_mem, 1, c_funloc(matZeroPoint4IDA)) !comment this line to not restart at soil surface discontinuity
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
  endif
@@ -555,12 +555,12 @@ contains
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
   ! Look for where top soil layer crosses the matric head 0 point and changes equation of freezing temperature
- if(nSoil>0 .and. nSnow==0 .and. eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)==integerMissing)then
+ if(nSoil>0 .and. nSnow==0 .and. eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)/=integerMissing)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-    print '(a,f15.7,2x,1(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
+    !print '(a,f15.7,2x,1(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
     ! Reininitialize solver for running after discontinuity and restart
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
