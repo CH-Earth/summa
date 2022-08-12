@@ -216,7 +216,7 @@ contains
  type(c_ptr)                       :: ida_mem              ! IDA memory
  type(eqnsData),           target  :: eqns_data            ! IDA type
  integer(i4b)                      :: retval, retvalr      ! return value
- integer(i4b)                      :: rootsfound(1)        ! crossing direction where mLayerMatricHead = 0 in top soil layer
+ integer(i4b)                      :: rootsfound(2)        ! crossing direction of soil discontinuities
  logical(lgt)                      :: feasible             ! feasibility flag
  real(qp)                          :: t0                   ! staring time
  real(qp)                          :: dt_last(1)           ! last time step
@@ -351,8 +351,8 @@ contains
  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAWFtolerances'; return; endif
 
  ! initialize rootfinding problem if we have a snow-free ground interfacing with vegetation
- if(nSoil>0 .and. nSnow==0 .and. eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)/=integerMissing)then
-  retval = FIDARootInit(ida_mem, 1, c_funloc(matZeroPoint4IDA)) !comment this line to not restart at soil surface discontinuity
+ if(nSoil>0 .and. nSnow==0)then
+  retval = FIDARootInit(ida_mem, 2, c_funloc(soilDiscont4IDA)) !comment this line to not restart at soil surface discontinuity
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
  endif
 
@@ -555,12 +555,12 @@ contains
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
   ! Look for where top soil layer crosses the matric head 0 point and changes equation of freezing temperature
- if(nSoil>0 .and. nSnow==0 .and. eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)/=integerMissing)then
+  if(nSoil>0 .and. nSnow==0)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
     if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-    !print '(a,f15.7,2x,1(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
+    !print '(a,f15.7,2x,2(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
     ! Reininitialize solver for running after discontinuity and restart
     retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
@@ -714,21 +714,23 @@ contains
  end subroutine setSolverParams
 
 ! ----------------------------------------------------------------------------------------
-! matZeroPoint4IDA: The root function routine to find soil surface matrix potential = 0
-!  sundials will not call matZeroPoint4IDA unless this soil index exists and there is no snow
+! soilDiscont4IDA: The root function routine to find soil surface matrix potential = 0 and
+!  T = Tfreeze
+!  sundials will not call soilDiscont4IDA unless this soil index exists and there is no snow
 ! ----------------------------------------------------------------------------------------
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------------------------------
- integer(c_int) function matZeroPoint4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
-      result(ierr) bind(C,name='matZeroPoint4IDA')
+ integer(c_int) function soilDiscont4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
+      result(ierr) bind(C,name='soilDiscont4IDA')
 
  !======= Inclusions ===========
  use, intrinsic :: iso_c_binding
  use fsundials_nvector_mod
  use fnvector_serial_mod
+ use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
  use globalData,only:integerMissing     ! missing integer
  use var_lookup,only:iLookINDEX         ! named variables for structure elements
 
@@ -739,12 +741,14 @@ contains
  real(c_double), value :: t         ! current time
  type(N_Vector)        :: sunvec_u  ! solution N_Vector
  type(N_Vector)        :: sunvec_up ! derivative N_Vector
- real(c_double)        :: gout(1)   ! root function values
+ real(c_double)        :: gout(2)   ! root function values
  type(c_ptr),    value :: user_data ! user-defined data
 
  ! local variables
- integer(i4b)          :: i         ! index of model layer
  integer(i4b)          :: nState    ! number of states
+ real(rkind)           :: xPsi      ! matric head at layer (m)
+ real(rkind)           :: TcSoil    ! critical point when soil begins to freeze (K)
+
 
  ! pointers to data in SUNDIALS vectors
  real(c_double), pointer :: uu(:)
@@ -759,13 +763,27 @@ contains
  uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
 
  ! identify the critical point when soil surface matrix potential goes below 0 and Tfreeze depends only on temp
- gout(1) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1))
+ if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)/=integerMissing)then
+  xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1))
+  gout(1) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1))
+ else
+  xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(1)
+  gout(1) = 0._rkind
+ endif
+
+ ! identify the critical point when soil begins to freeze (TcSoil)
+ if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)/=integerMissing) then
+  TcSoil = crit_soilT(xPsi)
+  gout(2) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) - TcSoil
+ else
+  gout(2) = 0._rkind
+ endif
 
  ! return success
  ierr = 0
  return
 
- end function matZeroPoint4IDA
+ end function soilDiscont4IDA
 
  ! *********************************************************************************************************
  ! private subroutine implctMelt: compute melt of the "snow without a layer"
