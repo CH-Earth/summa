@@ -131,6 +131,7 @@ contains
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                        firstFluxCall,                           & ! intent(in): flag to indicate if we are processing the first flux call
                        computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+                       requireLWBal,                            & ! intent(in): flag to indicate if we need longwave to be balanced
 
                        ! input: model state variables
                        upperBoundTemp,                          & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
@@ -220,7 +221,7 @@ contains
  logical(lgt),intent(in)         :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(in)         :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
  logical(lgt),intent(in)         :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
-
+ logical(lgt),intent(in)         :: requireLWBal                    ! flag to indicate if we need longwave to be balanced
  ! input: model state variables
  real(rkind),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
  real(rkind),intent(in)             :: canairTempTrial                 ! trial value of canopy air space temperature (K)
@@ -984,6 +985,7 @@ contains
                     ! input: model control
                     ixDerivMethod,                     & ! intent(in): method used to calculate flux derivatives
                     computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
+                    requireLWBal,                      & ! intent(in): flag to indicate if we need longwave to be balanced
                     ! input: canopy and ground temperature
                     canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
                     groundTempTrial,                   & ! intent(in): temperature of the ground surface (K)
@@ -1778,7 +1780,8 @@ contains
  subroutine longwaveBal(&
                         ! input: model control
                         ixDerivMethod,                  & ! intent(in): choice of method used to compute derivative (analytical or numerical)
-                        computeVegFlux,                 & ! intent(in): flag to compute fluxes over vegetation
+                        computeVegFlux,                 & ! intent(in): flag to compute fluxes over vegetati
+                        requireLWBal,                   & ! intent(in): flag to indicate if we need longwave to be balanced
                         ! input: canopy and ground temperature
                         canopyTemp,                     & ! intent(in): canopy temperature (K)
                         groundTemp,                     & ! intent(in): ground temperature (K)
@@ -1815,6 +1818,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)       :: ixDerivMethod            ! choice of method used to compute derivative (analytical or numerical)
  logical(lgt),intent(in)       :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)       :: requireLWBal             ! flag to indicate if we need longwave to be balanced
  ! input: canopy and ground temperature
  real(rkind),intent(in)           :: canopyTemp               ! canopy temperature (K)
  real(rkind),intent(in)           :: groundTemp               ! ground temperature (K)
@@ -1948,27 +1952,29 @@ contains
   !print*, 'LWNetUbound = ', LWNetUbound
 
   ! check the flux balance
-  fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)
-  if(abs(fluxBalance) > fluxTolerance)then
-   print*, 'fluxBalance = ', fluxBalance
-   print*, 'emg, emc = ', emg, emc
-   print*, 'TCan, TGnd = ', TCan, TGnd
-   print*, 'LWRadUbound = ', LWRadUbound
-   print*, 'LWRadCanopy = ', LWRadCanopy
-   print*, 'LWRadGround = ', LWRadGround
-   print*, 'LWRadUbound2Canopy = ', LWRadUbound2Canopy
-   print*, 'LWRadUbound2Ground = ', LWRadUbound2Ground
-   print*, 'LWRadUbound2Ubound = ', LWRadUbound2Ubound
-   print*, 'LWRadCanopy2Ubound = ', LWRadCanopy2Ubound
-   print*, 'LWRadCanopy2Ground = ', LWRadCanopy2Ground
-   print*, 'LWRadCanopy2Canopy = ', LWRadCanopy2Canopy
-   print*, 'LWRadGround2Ubound = ', LWRadGround2Ubound
-   print*, 'LWRadGround2Canopy = ', LWRadGround2Canopy
-   print*, 'LWNetCanopy = ', LWNetCanopy
-   print*, 'LWNetGround = ', LWNetGround
-   print*, 'LWNetUbound = ', LWNetUbound
-   message=trim(message)//'flux imbalance'
-   err=20; return
+  if(requireLWBal)then
+   fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)
+   if(abs(fluxBalance) > fluxTolerance)then
+    print*, 'fluxBalance = ', fluxBalance
+    print*, 'emg, emc = ', emg, emc
+    print*, 'TCan, TGnd = ', TCan, TGnd
+    print*, 'LWRadUbound = ', LWRadUbound
+    print*, 'LWRadCanopy = ', LWRadCanopy
+    print*, 'LWRadGround = ', LWRadGround
+    print*, 'LWRadUbound2Canopy = ', LWRadUbound2Canopy
+    print*, 'LWRadUbound2Ground = ', LWRadUbound2Ground
+    print*, 'LWRadUbound2Ubound = ', LWRadUbound2Ubound
+    print*, 'LWRadCanopy2Ubound = ', LWRadCanopy2Ubound
+    print*, 'LWRadCanopy2Ground = ', LWRadCanopy2Ground
+    print*, 'LWRadCanopy2Canopy = ', LWRadCanopy2Canopy
+    print*, 'LWRadGround2Ubound = ', LWRadGround2Ubound
+    print*, 'LWRadGround2Canopy = ', LWRadGround2Canopy
+    print*, 'LWNetCanopy = ', LWNetCanopy
+    print*, 'LWNetGround = ', LWNetGround
+    print*, 'LWNetUbound = ', LWNetUbound
+    message=trim(message)//'flux imbalance'
+    err=20; return
+   end if
   end if
 
   ! --------------------------------------------------------------------------------------

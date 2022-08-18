@@ -117,7 +117,7 @@ contains
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE varExtrSundials_module, only:varExtract                    ! extract variables from the state vector
+ USE varExtrSundials_module, only:varExtract2                    ! extract variables from the state vector
  USE varExtrSundials_module, only:varExtractSundials
  USE updateVars4JacDAE_module, only:updateVars4JacDAE           ! update prognostic variables
  USE computJacDAE_module,only:computJacDAE
@@ -209,7 +209,7 @@ contains
 
 
  ! extract variables from the model state vector
- call varExtract(&
+ call varExtract2(&
                  ! input
                  stateVec,            & ! intent(in):    model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU

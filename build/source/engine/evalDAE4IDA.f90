@@ -98,9 +98,10 @@ contains
                  .false.,                           & ! intent(in):    do not check for feasibility inside Sundials loop
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                 eqns_data%firstSplitOper,			    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
+                 eqns_data%firstSplitOper,		    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                 .false.,                           & ! intent(in):    do not require that longwave is balanced inside Sundials loop
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector

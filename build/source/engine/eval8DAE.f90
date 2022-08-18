@@ -98,10 +98,11 @@ contains
                        nState,                  & ! intent(in):    total number of state variables
                        checkFeas,               & ! intent(in):    flag to indicate if we are checking for feasibility
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                       firstFluxCall,			      & ! intent(inout)  flag to indicate if we are processing the first flux call
-                       firstSplitOper,			    & ! intent(inout)  flag to indicate if we are processing the first flux call in a splitting operation
+                       firstFluxCall,			& ! intent(inout)  flag to indicate if we are processing the first flux call
+                       firstSplitOper,		    & ! intent(inout)  flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                       requireLWBal,            & ! intent(in):    flag to indicate if we need longwave to be balanced
                        ! input: state vectors
                        stateVec,                & ! intent(in):    model state vector
                        stateVecPrime,           & ! intent(in):    derivative of model state vector
@@ -153,7 +154,7 @@ contains
                        err,message)               ! intent(out):    error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE varExtrSundials_module, only:varExtract           ! extract variables from the state vector
+ USE varExtrSundials_module, only:varExtract2           ! extract variables from the state vector
  USE varExtrSundials_module, only:varExtractSundials
  USE updateVarsSundials_module, only:updateVarsSundials           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
@@ -183,6 +184,7 @@ contains
  logical(lgt),intent(inout)      :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
+ logical(lgt),intent(in)         :: requireLWBal           ! flag to indicate if we need longwave to be balanced
  ! input: state vectors
  real(rkind),intent(in)          :: stateVec(:)            ! model state vector
  real(rkind),intent(in)          :: stateVecPrime(:)       ! model state vector
@@ -410,7 +412,7 @@ contains
  scalarAquiferStorageTrial = scalarAquiferStoragePrev
 
  ! extract variables from the model state vector
- call varExtract(&
+ call varExtract2(&
                  ! input
                  stateVec,                 & ! intent(in):    model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -657,6 +659,7 @@ contains
                  firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
+                 requireLWBal,              & ! intent(in):    flag to indicate if we need longwave to be balanced
                  scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)

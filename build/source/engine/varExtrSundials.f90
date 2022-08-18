@@ -74,7 +74,7 @@ USE soil_utils_module,only:liquidHead     ! compute the liquid water matric pote
 
 implicit none
 private
-public::varExtract
+public::varExtract2
 public::varExtractSundials
 public::residDiscontinuity
 public::countDiscontinuity
@@ -84,9 +84,10 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine varExtract: extract variables from the state vector and compute diagnostic variables
+ ! public subroutine varExtract2: extract variables from the state vector and compute diagnostic variables
+ !  This routine does not initialize any of the variables and is to be used inside the Sundials iteration, vs varExtract
  ! **********************************************************************************************************
- subroutine varExtract(&
+ subroutine varExtract2(&
                        ! input
                        stateVec,                                  & ! intent(in):    model state vector (mixed units)
                        diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
@@ -159,7 +160,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
 
  ! initialize error control
- err=0; message='varExtract/'
+ err=0; message='varExtract2/'
 
  ! *** extract state variables for the vegetation canopy
 
@@ -212,10 +213,10 @@ contains
 
  end associate
 
- end subroutine varExtract
- 
+ end subroutine varExtract2
+
  ! **********************************************************************************************************
- ! public subroutine varExtractSundials: extract variables from the state vector and compute diagnostic variables
+ ! public subroutine varExtractSundials: extract prime variables from the state vector and compute diagnostic variables
  ! **********************************************************************************************************
  subroutine varExtractSundials(&
                        ! input
@@ -343,7 +344,7 @@ contains
 
 
  ! **********************************************************************************************************
- ! public subroutine residDiscontinuity: 
+ ! public subroutine residDiscontinuity:
  ! **********************************************************************************************************
  subroutine residDiscontinuity(&
                        ! input
@@ -352,7 +353,7 @@ contains
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output
-                       resid,                                     & ! intent(out) 
+                       resid,                                     & ! intent(out)
                        err,message)                                 ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -426,12 +427,12 @@ contains
  endif
 
  end associate
- 
+
 
  end subroutine residDiscontinuity
- 
+
   ! **********************************************************************************************************
- ! public subroutine countDiscontinuity: 
+ ! public subroutine countDiscontinuity:
  ! **********************************************************************************************************
  subroutine countDiscontinuity(&
                        ! input
@@ -440,7 +441,7 @@ contains
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output
-                       countD,                                     & ! intent(out) 
+                       countD,                                     & ! intent(out)
                        err,message)                                 ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------

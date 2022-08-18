@@ -216,7 +216,7 @@ contains
  type(c_ptr)                       :: ida_mem              ! IDA memory
  type(eqnsData),           target  :: eqns_data            ! IDA type
  integer(i4b)                      :: retval, retvalr      ! return value
- integer(i4b)                      :: rootsfound(2)        ! crossing direction of soil discontinuities
+ integer(i4b)                      :: rootsfound(3)        ! crossing direction of discontinuities
  logical(lgt)                      :: feasible             ! feasibility flag
  real(qp)                          :: t0                   ! staring time
  real(qp)                          :: dt_last(1)           ! last time step
@@ -351,8 +351,8 @@ contains
  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAWFtolerances'; return; endif
 
  ! initialize rootfinding problem if we have a snow-free ground interfacing with vegetation
- if(nSoil>0 .and. nSnow==0)then
-  retval = FIDARootInit(ida_mem, 2, c_funloc(soilDiscont4IDA)) !comment this line to not restart at soil surface discontinuity
+ if(nSoil>0 .and. nSnow==0 .and. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+  !retval = FIDARootInit(ida_mem, 3, c_funloc(vegsoilDisC4IDA)) !uncomment this line to restart at discontinuities
   if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
  endif
 
@@ -477,6 +477,7 @@ contains
                  eqns_data%firstSplitOper,           & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,           & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
+                 .true.,                             & ! intent(in):    require that longwave is balanced once outside Sundials loop
                  ! input: state vectors
                  stateVec,                           & ! intent(in):    model state vector
                  stateVecPrime,                      & ! intent(in):    model state vector
@@ -555,7 +556,7 @@ contains
   eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
   eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
   ! Look for where top soil layer crosses the matric head 0 point and changes equation of freezing temperature
-  if(nSoil>0 .and. nSnow==0)then
+ if(nSoil>0 .and. nSnow==0 .and. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
    if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
     ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
     retval = FIDAGetRootInfo(ida_mem, rootsfound)
@@ -714,17 +715,17 @@ contains
  end subroutine setSolverParams
 
 ! ----------------------------------------------------------------------------------------
-! soilDiscont4IDA: The root function routine to find soil surface matrix potential = 0 and
-!  T = Tfreeze
-!  sundials will not call soilDiscont4IDA unless this soil index exists and there is no snow
+! vegsoilDisC4IDA: The root function routine to find soil surface matrix potential = 0,
+!  soil surface temp = critical frozen point, and veg temp = Tfreeze
+!  sundials will not call vegsoilDisC4IDA unless this soil index exists and there is no snow
 ! ----------------------------------------------------------------------------------------
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------------------------------
- integer(c_int) function soilDiscont4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
-      result(ierr) bind(C,name='soilDiscont4IDA')
+ integer(c_int) function vegsoilDisC4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
+      result(ierr) bind(C,name='vegsoilDisC4IDA')
 
  !======= Inclusions ===========
  use, intrinsic :: iso_c_binding
@@ -733,6 +734,7 @@ contains
  use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
  use globalData,only:integerMissing     ! missing integer
  use var_lookup,only:iLookINDEX         ! named variables for structure elements
+ use multiconst,only:Tfreeze         ! freezing point of pure water (K)
 
  !======= Declarations =========
  implicit none
@@ -741,7 +743,7 @@ contains
  real(c_double), value :: t         ! current time
  type(N_Vector)        :: sunvec_u  ! solution N_Vector
  type(N_Vector)        :: sunvec_up ! derivative N_Vector
- real(c_double)        :: gout(2)   ! root function values
+ real(c_double)        :: gout(3)   ! root function values
  type(c_ptr),    value :: user_data ! user-defined data
 
  ! local variables
@@ -761,6 +763,7 @@ contains
 
  ! get data array from SUNDIALS vector
  uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
+ gout = 0._rkind
 
  ! identify the critical point when soil surface matrix potential goes below 0 and Tfreeze depends only on temp
  if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1)/=integerMissing)then
@@ -768,22 +771,24 @@ contains
   gout(1) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(1))
  else
   xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(1)
-  gout(1) = 0._rkind
  endif
 
- ! identify the critical point when soil begins to freeze (TcSoil)
- if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)/=integerMissing) then
+ ! identify the critical point when soil surface begins to freeze (TcSoil)
+ if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)/=integerMissing)then
   TcSoil = crit_soilT(xPsi)
   gout(2) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(1)) - TcSoil
- else
-  gout(2) = 0._rkind
+ endif
+
+ ! identify the critical point when vegetation begins to freeze
+ if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+  gout(3) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
  endif
 
  ! return success
  ierr = 0
  return
 
- end function soilDiscont4IDA
+ end function vegsoilDisC4IDA
 
  ! *********************************************************************************************************
  ! private subroutine implctMelt: compute melt of the "snow without a layer"
