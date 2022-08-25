@@ -102,8 +102,6 @@ contains
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                        ! input: state vectors
                        stateVecInit,            & ! intent(in):    initial state vector
-                       stateVecConstraints,     & ! intent(inout): model state vector constraints
-                       stateVecConstValues,     & ! intent(inout): model state vector constraint values
                        sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                        ! input: data structures
@@ -171,8 +169,6 @@ contains
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
  ! input: state vectors
  real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
- real(rkind),intent(inout)       :: stateVecConstraints(:) ! model state vector constraints
- real(rkind),intent(inout)       :: stateVecConstValues(:)  ! model state vector constraint values
  real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
  real(rkind), intent(inout)      :: dMat(:)
  ! input: data structures
@@ -207,8 +203,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  type(N_Vector),           pointer :: sunvec_y             ! sundials solution vector
  type(N_Vector),           pointer :: sunvec_yp            ! sundials derivative vector
- type(N_Vector),           pointer :: sunvec_c             ! sundials constraints vector
- type(N_Vector),           pointer :: sunvec_cv            ! sundials constraints vector of values
  type(N_Vector),           pointer :: sunvec_av            ! sundials tolerance vector
  type(SUNMatrix),          pointer :: sunmat_A             ! sundials matrix
  type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
@@ -323,12 +317,6 @@ contains
  sunvec_yp => FN_VMake_Serial(nState, stateVecPrime)
  if (.not. associated(sunvec_yp)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
 
- !sunvec_c => FN_VMake_Serial(nState, stateVecConstraints)
- !if (.not. associated(sunvec_c)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
-
- !sunvec_cv => FN_VMake_Serial(nState, stateVecConstValues)
- !if (.not. associated(sunvec_cv)) then; err=20; message='solveByIDA: sunvec = NULL'; return; endif
-
  ! Initialize solution vectors
  call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
@@ -385,10 +373,6 @@ contains
  ! Attach the matrix and linear solver
  retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
  if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetLinearSolver'; return; endif
-
- ! Set constraints
- !retval = FIDASetConstraints(ida_mem, sunvec_c, sunvec_cv) !uncomment this line to use feasibility constraints
- if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetConstraints'; return; endif
 
  if(ixMatrix == ixFullMatrix)then
   ! Set the user-supplied Jacobian routine
@@ -455,7 +439,6 @@ contains
   ! loop through non-missing energy state variables in the snow domain to see if need to merge
   do concurrent (i=1:nSnow,indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)
    if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
-   if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) print*,i,tret(1),nSnow,idaSucceeds,"merge"
   enddo
   if(tooMuchMelt)exit
 
@@ -610,9 +593,6 @@ contains
  call FSUNMatDestroy(sunmat_A)
  call FN_VDestroy(sunvec_y)
  call FN_VDestroy(sunvec_yp)
- !call FN_VDestroy(sunvec_c)
- !call FN_VDestroy(sunvec_cv)
-
 
  end subroutine solveByIDA
 

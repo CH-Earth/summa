@@ -202,8 +202,6 @@ contains
  real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
  real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
- real(rkind)                     :: stateVecConstraints(nState)   ! model state vector constraints
- real(rkind)                     :: stateVecConstValues(nState)   ! model state vector constraint values
  real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
  logical(lgt)                    :: feasible                      ! feasibility flag
  real(rkind)                     :: atol(nState)     		 	  ! absolute telerance
@@ -454,64 +452,6 @@ contains
                   err,cmessage)                       ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
- ! Set constraints for state vector
- ! 0 then no constraint is imposed on y.
- ! 1 then yi will be constrained to be yi>=0
- !-1 then yi will be constrained to be yi<=0
- stateVecConstraints = 0._rkind
- stateVecConstValues = 0._rkind
- if(ixCasNrg/=integerMissing)then !canopy air space temperature cannot be above canopyTempMax
-  stateVecConstraints(ixCasNrg) = -1._rkind
-  stateVecConstValues(ixCasNrg) = canopyTempMax
- endif
- if(ixVegNrg/=integerMissing)then !canopy temperature cannot be above canopyTempMax
-  stateVecConstraints(ixVegNrg) = -1._rkind
-  stateVecConstValues(ixVegNrg) = canopyTempMax
- endif
- if(ixVegHyd/=integerMissing)then !canopy liquid water cannot be below 0
-  stateVecConstraints(ixVegHyd) = 1._rkind
-  stateVecConstValues(ixVegHyd) = 0._rkind
- endif
-
- ! loop through non-missing energy state variables in the snow domain
- do concurrent (iLayer=1:nSnow,ixSnowOnlyNrg(iLayer)/=integerMissing)
-  stateVecConstraints(ixSnowOnlyNrg(iLayer)) = -1._rkind !snow temp cannot be above Tfreeze
-  stateVecConstValues(ixSnowOnlyNrg(iLayer)) = Tfreeze !snow temp cannot be above Tfreeze
- end do
-
- ! loop through non-missing hydrology state variables in the snow+soil domain
- do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
-  ! check the minimum and maximum water constraints
-  if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
-
-   ! --> minimum water constraints
-   if (layerType(iLayer) == iname_soil) then
-    xMin = theta_res(iLayer-nSnow)
-   else
-    xMin = 0._rkind
-   endif
-   stateVecConstraints(ixSnowSoilHyd(iLayer)) =  1._rkind !water cannot be below xMin
-   stateVecConstValues(ixSnowSoilHyd(iLayer)) = xMin !water cannot be below xMin
-   ! --> maximum water constraints, SUNDIALS CAN ONLY DO ONE INEQUALITY PER STATE VARIABLE
-   ! mLayerVolFracIce          =>  eqns_data%mLayerVolFracIceTrial    ,& ! intent(in): [dp(:)] trial vector of volumetric ice water content (-)
-   ! select case( layerType(iLayer) )
-   !  case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-   !  case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-   ! end select
-   ! stateVecConstraints(ixSnowSoilHyd(iLayer)) = -1._rkind !water cannot be above xMax
-   ! stateVecConstValues(ixSnowSoilHyd(iLayer)) = xMax !water cannot be above xMax
-
-  endif  ! if water states
- end do  ! loop through non-missing hydrology state variables in the snow+soil domain
-
- ! loop through non-missing hydrology state variables in the snow+soil domain
- !do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)
- ! minimum temperature constraints
- ! xMin = 100._rkind !degrees C
- ! stateVecConstraints(ixSnowSoilNrg(iLayer)) =  1._rkind !temp cannot be less than xMin
- ! stateVecConstraints(ixSnowSoilNrg(iLayer)) =  xMin !temp cannot be less than xMin
- !enddo
-
  !-------------------
  ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
  ! ------------------
@@ -540,8 +480,6 @@ contains
                  scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                  ! input: state vector
                  stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
-                 stateVecConstraints,     & ! intent(inout): model state vector constraints
-                 stateVecConstValues,     & ! intent(inout): model state vector constraint values
                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                  ! input: data structures
