@@ -96,7 +96,7 @@ contains
                        deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                        ! input: trial state variables
                        mLayerTempTrial,              & ! intent(in): temperature (K)
-                       mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
+                       mLayerMatricHeadLiqTrial,     & ! intent(in): liquid matric head (m)
                        mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water (-)
                        mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice (-)
                        ! input: pre-computed derivatives
@@ -165,7 +165,7 @@ contains
  logical(lgt),intent(in)          :: deriv_desired                 ! flag indicating if derivatives are desired
  ! input: trial model state variables
  real(rkind),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
- real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
+ real(rkind),intent(in)              :: mLayerMatricHeadLiqTrial(:)   ! liquid matric head in each layer at the current iteration (m)
  real(rkind),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
  real(rkind),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
  ! input: pre-computed derivatves
@@ -237,7 +237,7 @@ contains
  integer(i4b)                     :: ixPerturb                    ! index of element in 2-element vector to perturb
  integer(i4b)                     :: ixOriginal                   ! index of perturbed element in the original vector
  real(rkind)                         :: scalarVolFracLiqTrial        ! trial value of volumetric liquid water content (-)
- real(rkind)                         :: scalarMatricHeadTrial        ! trial value of matric head (m)
+ real(rkind)                         :: scalarMatricHeadLiqTrial     ! trial value of liquid matric head (m)
  real(rkind)                         :: scalarHydCondTrial           ! trial value of hydraulic conductivity (m s-1)
  real(rkind)                         :: scalarHydCondMicro           ! trial value of hydraulic conductivity of micropores (m s-1)
  real(rkind)                         :: scalarHydCondMacro           ! trial value of hydraulic conductivity of macropores (m s-1)
@@ -260,7 +260,7 @@ contains
  real(rkind),dimension(0:nSoil)      :: iLayerHeight                 ! height of the layer interfaces (m)
  ! compute fluxes and derivatives at layer interfaces
  real(rkind),dimension(2)            :: vectorVolFracLiqTrial        ! trial value of volumetric liquid water content (-)
- real(rkind),dimension(2)            :: vectorMatricHeadTrial        ! trial value of matric head (m)
+ real(rkind),dimension(2)            :: vectorMatricHeadLiqTrial     ! trial value of liquid matric head (m)
  real(rkind),dimension(2)            :: vectorHydCondTrial           ! trial value of hydraulic conductivity (m s-1)
  real(rkind),dimension(2)            :: vectorDiffuseTrial           ! trial value of hydraulic diffusivity (m2 s-1)
  real(rkind)                         :: scalardPsi_dTheta            ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
@@ -431,7 +431,7 @@ contains
                   ixRichards,                      & ! intent(in): index defining the option for Richards' equation (moisture or mixdform)
                   ! input: state variables
                   mLayerTempTrial(iSoil),          & ! intent(in): temperature (K)
-                  mLayerMatricHeadTrial(iSoil),    & ! intent(in): matric head in each layer (m)
+                  mLayerMatricHeadLiqTrial(iSoil), & ! intent(in): liquid  matric head in each layer (m)
                   mLayerVolFracLiqTrial(iSoil),    & ! intent(in): volumetric liquid water content in each soil layer (-)
                   mLayerVolFracIceTrial(iSoil),    & ! intent(in): volumetric ice content in each soil layer (-)
                   ! input: pre-computed deriavatives
@@ -495,7 +495,7 @@ contains
    ! un-perturbed case
    case(unperturbed)
     scalarVolFracLiqTrial = mLayerVolFracLiqTrial(1)
-    scalarMatricHeadTrial = mLayerMatricHeadTrial(1)
+    scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(1)
 
    ! perturb soil state (one-sided finite differences)
    case(perturbStateBelow)
@@ -503,10 +503,10 @@ contains
     select case(ixRichards)
      case(moisture)
       scalarVolFracLiqTrial = mLayerVolFracLiqTrial(1) + dx
-      scalarMatricHeadTrial = mLayerMatricHeadTrial(1)
+      scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(1)
      case(mixdform)
       scalarVolFracLiqTrial = mLayerVolFracLiqTrial(1)
-      scalarMatricHeadTrial = mLayerMatricHeadTrial(1) + dx
+      scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(1) + dx
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation
    ! check for an unknown perturbation
@@ -529,8 +529,8 @@ contains
                   nSoil,                              & ! intent(in): number of soil layers
                   ! input: state variables
                   mLayerTempTrial,                    & ! intent(in): temperature (K)
-                  scalarMatricHeadTrial,              & ! intent(in): matric head in the upper-most soil layer (m)
-                  mLayerMatricHeadTrial,              & ! intent(in): matric head in each soil layer (m)
+                  scalarMatricHeadLiqTrial,           & ! intent(in): liquid matric head in the upper-most soil layer (m)
+                  mLayerMatricHeadLiqTrial,           & ! intent(in): liquid matric head in each soil layer (m)
                   scalarVolFracLiqTrial,              & ! intent(in): volumetric liquid water content the upper-most soil layer (-)
                   mLayerVolFracLiqTrial,              & ! intent(in): volumetric liquid water content in each soil layer (-)
                   mLayerVolFracIceTrial,              & ! intent(in): volumetric ice content in each soil layer (-)
@@ -644,12 +644,12 @@ contains
    ! ============================
    ! start with the un-perturbed case
    vectorVolFracLiqTrial(1:2) = mLayerVolFracLiqTrial(iLayer:iLayer+1)
-   vectorMatricHeadTrial(1:2) = mLayerMatricHeadTrial(iLayer:iLayer+1)
+   vectorMatricHeadLiqTrial(1:2) = mLayerMatricHeadLiqTrial(iLayer:iLayer+1)
    ! make appropriate perturbations
    if(ixPerturb > 0)then
     select case(ixRichards)
      case(moisture); vectorVolFracLiqTrial(ixPerturb) = vectorVolFracLiqTrial(ixPerturb) + dx
-     case(mixdform); vectorMatricHeadTrial(ixPerturb) = vectorMatricHeadTrial(ixPerturb) + dx
+     case(mixdform); vectorMatricHeadLiqTrial(ixPerturb) = vectorMatricHeadLiqTrial(ixPerturb) + dx
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
     end select ! (form of Richards' equation)
    end if
@@ -668,8 +668,8 @@ contains
       vectorHydCondTrial(ixPerturb) = hydCond_liq(vectorVolFracLiqTrial(ixPerturb),mLayerSatHydCond(ixOriginal),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_m(ixPerturb)) * iceImpedeFac(ixOriginal)
       vectorDiffuseTrial(ixPerturb) = scalardPsi_dTheta * vectorHydCondTrial(ixPerturb)
      case(mixdform)
-      scalarVolFracLiqTrial = volFracLiq(vectorMatricHeadTrial(ixPerturb),vGn_alpha(ixPerturb),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb))
-      scalarHydCondMicro    = hydCond_psi(vectorMatricHeadTrial(ixPerturb),mLayerSatHydCond(ixOriginal),vGn_alpha(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb)) * iceImpedeFac(ixOriginal)
+      scalarVolFracLiqTrial = volFracLiq(vectorMatricHeadLiqTrial(ixPerturb),vGn_alpha(ixPerturb),theta_res(ixPerturb),theta_sat(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb))
+      scalarHydCondMicro    = hydCond_psi(vectorMatricHeadLiqTrial(ixPerturb),mLayerSatHydCond(ixOriginal),vGn_alpha(ixPerturb),vGn_n(ixPerturb),vGn_m(ixPerturb)) * iceImpedeFac(ixOriginal)
       scalarHydCondMacro    = hydCondMP_liq(scalarVolFracLiqTrial,theta_sat(ixPerturb),theta_mp,mpExp,mLayerSatHydCondMP(ixOriginal),mLayerSatHydCond(ixOriginal))
       vectorHydCondTrial(ixPerturb) = scalarHydCondMicro + scalarHydCondMacro
      case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
@@ -687,7 +687,7 @@ contains
                    desireAnal,                         & ! intent(in): flag indicating if derivatives are desired
                    ixRichards,                         & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                    ! input: state variables (adjacent layers)
-                   vectorMatricHeadTrial,              & ! intent(in): matric head at the soil nodes (m)
+                   vectorMatricHeadLiqTrial,           & ! intent(in): liquid matric head at the soil nodes (m)
                    vectorVolFracLiqTrial,              & ! intent(in): volumetric liquid water content at the soil nodes (-)
                    ! input: model coordinate variables (adjacent layers)
                    mLayerHeight(iLayer:iLayer+1),      & ! intent(in): height of the soil nodes (m)
@@ -735,8 +735,8 @@ contains
   end if
 
   ! check
-  !if(iLayer==6) write(*,'(a,i4,1x,10(e25.15,1x))') 'iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer) = ',&
-  !                                                  iLayer, vectorMatricHeadTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer)
+  !if(iLayer==6) write(*,'(a,i4,1x,10(e25.15,1x))') 'iLayer, vectorMatricHeadLiqTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer) = ',&
+  !                                                  iLayer, vectorMatricHeadLiqTrial, iLayerHydCond(iLayer), iLayerLiqFluxSoil(iLayer)
   !if(iLayer==1) write(*,'(a,i4,1x,L1,1x,2(e15.5,1x))') 'iLayer, (ixDerivMethod==numerical), dq_dHydStateBelow(iLayer-1), dq_dHydStateAbove(iLayer) = ', &
   !                                                      iLayer, (ixDerivMethod==numerical), dq_dHydStateBelow(iLayer-1), dq_dHydStateAbove(iLayer)
   !pause
@@ -773,17 +773,17 @@ contains
     ! un-perturbed case
     case(unperturbed)
      scalarVolFracLiqTrial   = mLayerVolFracLiqTrial(nSoil)
-     scalarMatricHeadTrial   = mLayerMatricHeadTrial(nSoil)
+     scalarMatricHeadLiqTrial   = mLayerMatricHeadLiqTrial(nSoil)
 
     ! perturb soil state (one-sided finite differences)
     case(perturbStateAbove)
      select case(ixRichards)  ! (perturbation depends on the form of Richards' equation)
       case(moisture)
        scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nSoil) + dx
-       scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil)
+       scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(nSoil)
       case(mixdform)
        scalarVolFracLiqTrial = mLayerVolFracLiqTrial(nSoil)
-       scalarMatricHeadTrial = mLayerMatricHeadTrial(nSoil) + dx
+       scalarMatricHeadLiqTrial = mLayerMatricHeadLiqTrial(nSoil) + dx
       case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
      end select ! (form of Richards' equation)
 
@@ -798,7 +798,7 @@ contains
     case(perturbStateAbove)
      select case(ixRichards)
       case(moisture); scalarHydCondTrial = hydCond_liq(scalarVolFracLiqTrial,mLayerSatHydCond(nSoil),theta_res(nSoil),theta_sat(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
-      case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadTrial,mLayerSatHydCond(nSoil),vGn_alpha(nSoil),vGn_n(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
+      case(mixdform); scalarHydCondTrial = hydCond_psi(scalarMatricHeadLiqTrial,mLayerSatHydCond(nSoil),vGn_alpha(nSoil),vGn_n(nSoil),vGn_m(nSoil)) * iceImpedeFac(nSoil)
      end select
 
     ! (use un-perturbed value)
@@ -817,7 +817,7 @@ contains
                    ixRichards,                      & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                    ixBcLowerSoilHydrology,          & ! intent(in): index defining the type of boundary conditions
                    ! input: state variables
-                   scalarMatricHeadTrial,           & ! intent(in): matric head in the lowest unsaturated node (m)
+                   scalarMatricHeadLiqTrial,        & ! intent(in): liquid matric head in the lowest unsaturated node (m)
                    scalarVolFracLiqTrial,           & ! intent(in): volumetric liquid water content the lowest unsaturated node (-)
                    ! input: model coordinate variables
                    mLayerDepth(nSoil),              & ! intent(in): depth of the lowest unsaturated soil layer (m)
@@ -902,7 +902,7 @@ contains
                        ixRichards,            & ! intent(in): index defining the option for Richards' equation (moisture or mixdform)
                        ! input: state variables
                        scalarTempTrial,       & ! intent(in): temperature (K)
-                       scalarMatricHeadTrial, & ! intent(in): matric head in a given layer (m)
+                       scalarMatricHeadLiqTrial, & ! intent(in): liquid matric head in a given layer (m)
                        scalarVolFracLiqTrial, & ! intent(in): volumetric liquid water content in a given soil layer (-)
                        scalarVolFracIceTrial, & ! intent(in): volumetric ice content in a given soil layer (-)
                        ! input: pre-computed deriavatives
@@ -953,7 +953,7 @@ contains
  integer(i4b),intent(in)       :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
  ! input: state and diagnostic variables
  real(rkind),intent(in)           :: scalarTempTrial           ! temperature in each layer (K)
- real(rkind),intent(in)           :: scalarMatricHeadTrial     ! matric head in each layer (m)
+ real(rkind),intent(in)           :: scalarMatricHeadLiqTrial  ! liquid matric head in each layer (m)
  real(rkind),intent(in)           :: scalarVolFracLiqTrial     ! volumetric fraction of liquid water in a given layer (-)
  real(rkind),intent(in)           :: scalarVolFracIceTrial     ! volumetric fraction of ice in a given layer (-)
  ! input: pre-computed deriavatives
@@ -1022,11 +1022,11 @@ contains
    scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    scalardTheta_dPsi = realMissing  ! (deliberately cause problems if this is ever used)
   case(mixdform)
-   scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   scalardTheta_dPsi = dTheta_dPsi(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    scalardPsi_dTheta = dPsi_dTheta(scalarVolFracLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    if(testDeriv)then
-    volFracLiq1 = volFracLiq(scalarMatricHeadTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    volFracLiq2 = volFracLiq(scalarMatricHeadTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    volFracLiq1 = volFracLiq(scalarMatricHeadLiqTrial,   vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+    volFracLiq2 = volFracLiq(scalarMatricHeadLiqTrial+dx,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    end if  ! (testing the derivative)
   case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
  end select
@@ -1063,10 +1063,10 @@ contains
   ! ***** mixed form of Richards' equation -- just compute hydraulic condictivity
   case(mixdform)
    ! compute the hydraulic conductivity (m s-1) and diffusivity (m2 s-1) for a given layer
-   hydCond_noIce = hydCond_psi(scalarMatricHeadTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
+   hydCond_noIce = hydCond_psi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
    scalarDiffuse = realMissing ! not used, so cause problems
    ! compute the hydraulic conductivity of macropores (m s-1)
-   localVolFracLiq = volFracLiq(scalarMatricHeadTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+   localVolFracLiq = volFracLiq(scalarMatricHeadLiqTrial,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
    scalarHydCondMP = hydCondMP_liq(localVolFracLiq,theta_sat,theta_mp,mpExp,scalarSatHydCondMP,scalarSatHydCond)
    scalarHydCond   = hydCond_noIce*iceImpedeFac + scalarHydCondMP
 
@@ -1083,12 +1083,12 @@ contains
     end if
     ! (compute derivatives for micropores)
     if(scalarVolFracIceTrial > verySmall)then
-     dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
+     dK_dPsi__noIce        = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)  ! analytical
      dHydCondMicro_dTemp   = dPsiLiq_dTemp*dK_dPsi__noIce  ! m s-1 K-1
      dHydCondMicro_dMatric = hydCond_noIce*dIceImpede_dLiq*scalardTheta_dPsi + dK_dPsi__noIce*iceImpedeFac
     else
      dHydCondMicro_dTemp   = 0._rkind
-     dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
+     dHydCondMicro_dMatric = dHydCond_dPsi(scalarMatricHeadLiqTrial,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m,.true.)
     end if
     ! (combine derivatives)
     dHydCond_dMatric = dHydCondMicro_dMatric + dHydCondMacro_dMatric
@@ -1111,7 +1111,7 @@ contains
      hydCon = hydCond_psi(psiLiq,scalarSatHydCond,vGn_alpha,vGn_n,vGn_m)
      call iceImpede(volIce,f_impede,iceImpedeFac,dIceImpede_dLiq)
      hydIce = hydCon*iceImpedeFac
-     print*, 'test derivative: ', (psiLiq - scalarMatricHeadTrial)/dx, dPsiLiq_dTemp
+     print*, 'test derivative: ', (psiLiq - scalarMatricHeadLiqTrial)/dx, dPsiLiq_dTemp
      print*, 'test derivative: ', (hydCon - hydCond_noIce)/dx, dHydCondMicro_dTemp
      print*, 'test derivative: ', (hydIce - scalarHydCond)/dx, dHydCond_dTemp
      print*, 'press any key to continue'; read(*,*) ! (alternative to the deprecated 'pause' statement)
@@ -1559,7 +1559,7 @@ contains
                        deriv_desired,             & ! intent(in): flag indicating if derivatives are desired
                        ixRichards,                & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                        ! input: state variables (adjacent layers)
-                       nodeMatricHeadTrial,       & ! intent(in): matric head at the soil nodes (m)
+                       nodeMatricHeadLiqTrial,    & ! intent(in): liquid matric head at the soil nodes (m)
                        nodeVolFracLiqTrial,       & ! intent(in): volumetric liquid water content at the soil nodes (-)
                        ! input: model coordinate variables (adjacent layers)
                        nodeHeight,                & ! intent(in): height of the soil nodes (m)
@@ -1591,7 +1591,7 @@ contains
  logical(lgt),intent(in)       :: deriv_desired               ! flag indicating if derivatives are desired
  integer(i4b),intent(in)       :: ixRichards                  ! index defining the option for Richards' equation (moisture or mixdform)
  ! input: state variables
- real(rkind),intent(in)           :: nodeMatricHeadTrial(:)      ! matric head at the soil nodes (m)
+ real(rkind),intent(in)           :: nodeMatricHeadLiqTrial(:)   ! liquid matric head at the soil nodes (m)
  real(rkind),intent(in)           :: nodeVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the soil nodes (-)
  ! input: model coordinate variables
  real(rkind),intent(in)           :: nodeHeight(:)               ! height at the mid-point of the lower layer (m)
@@ -1659,7 +1659,7 @@ contains
    cflux         = -iLayerDiffuse * dLiq/dz
   case(mixdform)
    iLayerDiffuse = realMissing
-   dPsi          = nodeMatricHeadTrial(ixLower) - nodeMatricHeadTrial(ixUpper)
+   dPsi          = nodeMatricHeadLiqTrial(ixLower) - nodeMatricHeadLiqTrial(ixUpper)
    cflux         = -iLayerHydCond * dPsi/dz
   case default; err=10; message=trim(message)//"unable to identify option for Richards' equation"; return
  end select

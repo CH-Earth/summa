@@ -703,7 +703,7 @@ contains
                  ! input:
                  ixRichards,                             & ! intent(in): choice of option for Richards' equation
                  ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
-                 mLayerMatricHeadLiqPrime(1:nSoil),      & ! intent(in): matric head at the start of the time step (m)
+                 mLayerMatricHeadPrime(1:nSoil),      & ! intent(in): matric head at the start of the time step (m)
                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                  specificStorage,                        & ! intent(in): specific storage coefficient (m-1)

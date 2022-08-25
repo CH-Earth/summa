@@ -245,7 +245,7 @@ contains
  scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
  mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of ice (-)
- mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,&  ! intent(in):  [dp(:)] liquid water matric potential (m)
+ mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(in):  [dp(:)] matric potential (m)
  ! model diagnostic variables
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
@@ -502,8 +502,8 @@ contains
                  ! input:
                  ixRichards,                             & ! intent(in): choice of option for Richards' equation
                  ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
-                 mLayerMatricHeadLiq(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
-                 mLayerMatricHeadLiqTrial(1:nSoil),      & ! intent(in): trial value of matric head (m)
+                 mLayerMatricHead(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
+                 mLayerMatricHeadTrial(1:nSoil),      & ! intent(in): trial value of matric head (m)
                  mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                  mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                  specificStorage,                        & ! intent(in): specific storage coefficient (m-1)
