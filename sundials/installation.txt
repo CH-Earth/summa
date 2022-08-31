@@ -10,8 +10,8 @@ Make a directory outside the sundials-5.8.0 folder and enter it, and make the in
 % mkdir sundials
 % cd sundials
 % mkdir instdir
-% mkdir builddir
-% cd /builddir
+% mkdir buildir
+% cd /buildir
 NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
 
 4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
