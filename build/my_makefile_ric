@@ -40,7 +40,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =/staff/gwu479/SummaSundials/summa
+F_MASTER =/u1/gwu479/SummaSundials/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
@@ -61,11 +61,11 @@ FC_EXE = gfortran
 # LIBRARIES = '-L<netcdf library path> -lnetcdff -L<blas library path> -lblas -L<etc> -l<etc>'
 # If none of this makes sense, please talk to your system
 # administrator.
-INCLUDES = -I$(EBROOTNETCDFMINFORTRAN)/include 
-LDFLAGS  = -L$(EBROOTNETCDFMINFORTRAN)/lib64 -L$(EBROOTOPENBLAS)/lib
-LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas 
+INCLUDES = -I/usr/include -I/usr/local/include
+LDFLAGS  = -L/usr/local/lib
+LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas -lnetcdf
 
-DIR_SUNDIALS=/staff/gwu479/SummaSundials/sundials/instdir
+DIR_SUNDIALS=/u1/gwu479/SummaSundials/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
 LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
        
