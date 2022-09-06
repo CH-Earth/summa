@@ -117,7 +117,7 @@ contains
                        err,message)               ! intent(out):   error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE varExtrSundials_module, only:varExtract2                    ! extract variables from the state vector
+ USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
  USE varExtrSundials_module, only:varExtractSundials
  USE updateVars4JacDAE_module, only:updateVars4JacDAE           ! update prognostic variables
  USE computJacDAE_module,only:computJacDAE
@@ -207,11 +207,10 @@ contains
  ! initialize error control
  err=0; message="eval8JacDAE/"
 
-
  ! extract variables from the model state vector
- call varExtract2(&
+ call varExtract(&
                  ! input
-                 stateVec,            & ! intent(in):    model state vector (mixed units)
+                 stateVec,                 & ! intent(in):    model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
@@ -231,8 +230,6 @@ contains
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-
 
  ! extract derivative of variables from derivative of the model state vector
  call varExtractSundials(&
@@ -296,8 +293,6 @@ contains
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
-
  ! -----
  ! * compute the Jacobian matrix...
  ! --------------------------------
@@ -342,11 +337,8 @@ contains
                   err,cmessage)                     ! intent(out):   error code and error message
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
-
  ! end association with the information in the data structures
  end associate
-
 
  end subroutine eval8JacDAE
 end module eval8JacDAE_module

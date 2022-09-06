@@ -131,7 +131,6 @@ contains
  ! simulation of fluxes and residuals given a trial state vector
  USE eval8summa_module,only:eval8summa               ! simulation of fluxes and residuals given a trial state vector
  USE eval8DAE_module,only:eval8DAE
- USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
  USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances
@@ -456,7 +455,7 @@ contains
  ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
  ! ------------------
 
- do tol_iter=1,3
+ !do tol_iter=1,3
 
    ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
@@ -507,16 +506,16 @@ contains
                  stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                  err,cmessage)              ! intent(out):   error control
 
- if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-   if (idaSucceeds)then
-      exit
-   else
-      atol = atol * 0.1
-      rtol = rtol * 0.1
-   endif
-   if( .not.idaSucceeds .and. tol_iter==3) message=trim(message)//'IDA did not succeed after reducing tolerance by 2 magnitudes'
+ !if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+ !  if (idaSucceeds)then
+ !     exit
+ !  else
+ !     atol = atol * 0.1
+ !     rtol = rtol * 0.1
+ !  endif
+ !  if( .not.idaSucceeds .and. tol_iter==3) message=trim(message)//'IDA did not succeed after reducing tolerance by 2 magnitudes'
 
- end do  ! iteration over tolerances
+ !end do  ! iteration over tolerances
 
   ! check if IDA is successful
  if( .not.idaSucceeds )then

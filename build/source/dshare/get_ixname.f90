@@ -783,6 +783,9 @@ contains
   case('dVolHtCapBulk_dCanWat'          ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWat          ! derivative in bulk heat capacity w.r.t. volumetric water content
   case('dVolHtCapBulk_dTk'              ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTk              ! derivative in bulk heat capacity w.r.t. temperature
   case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
+ ! derivatives in time
+  case( 'mLayerdTemp_dt'               ); get_ixderiv = iLookDERIV%mLayerdTemp_dt                  ! timestep change in layer temperature
+  case( 'scalarCanopydTemp_dt'         ); get_ixderiv = iLookDERIV%scalarCanopydTemp_dt            ! timestep change in canopy temperature
 
   case default
    get_ixderiv = integerMissing

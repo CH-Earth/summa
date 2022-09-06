@@ -124,17 +124,17 @@ contains
                  eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
                  eqns_data%scalarCanopyTempTrial,   & ! intent(in):    trial value of canopy temperature (K)
                  eqns_data%scalarCanopyTempPrev,    & ! intent(in):    previous value of canopy temperature (K)
-                 eqns_data%scalarCanopyIceTrial,	  & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
-                 eqns_data%scalarCanopyIcePrev,		  & ! intent(in):    value for mass of ice on the vegetation canopy (kg m-2)
-                 eqns_data%scalarCanopyLiqTrial,	  & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 eqns_data%scalarCanopyLiqPrev,		  & ! intent(in):    value of canopy liquid water (kg m-2)
+                 eqns_data%scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
+                 eqns_data%scalarCanopyIcePrev,	    & ! intent(in):    value for mass of ice on the vegetation canopy (kg m-2)
+                 eqns_data%scalarCanopyLiqTrial,    & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                 eqns_data%scalarCanopyLiqPrev,	    & ! intent(in):    value of canopy liquid water (kg m-2)
                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(out):  trial value for enthalpy of the vegetation canopy (J m-3)
                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):   value for enthalpy of the vegetation canopy (J m-3)
                  eqns_data%mLayerTempTrial,         & ! intent(out):   trial vector of layer temperature (K)
                  eqns_data%mLayerTempPrev,          & ! intent(in):    vector of layer temperature (K)
                  eqns_data%mLayerMatricHeadLiqTrial,& ! intent(out):   trial value for liquid water matric potential (m)
                  eqns_data%mLayerMatricHeadTrial, 	& ! intent(out):   trial value for total water matric potential (m)
-                 eqns_data%mLayerMatricHeadPrev, 	  & ! intent(in):    value for total water matric potential (m)
+                 eqns_data%mLayerMatricHeadPrev, 	& ! intent(in):    value for total water matric potential (m)
                  eqns_data%mLayerVolFracWatTrial,   & ! intent(out):   trial vector of volumetric total water content (-)
                  eqns_data%mLayerVolFracWatPrev,    & ! intent(in):    vector of volumetric total water content (-)
                  eqns_data%mLayerVolFracIceTrial,   & ! intent(out):   trial vector of volumetric ice water content (-)
@@ -142,10 +142,10 @@ contains
                  eqns_data%mLayerVolFracLiqTrial,   & ! intent(out):   trial vector of volumetric liquid water content (-)
                  eqns_data%mLayerVolFracLiqPrev,   	& ! intent(in):    vector of volumetric liquid water content (-)
                  eqns_data%scalarAquiferStorageTrial, & ! intent(out): trial value of storage of water in the aquifer (m)
-                 eqns_data%scalarAquiferStoragePrev, &  ! intent(in):  value of storage of water in the aquifer (m)
+                 eqns_data%scalarAquiferStoragePrev,  &  ! intent(in):  value of storage of water in the aquifer (m)
                  eqns_data%mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                  eqns_data%mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                 eqns_data%ixSaturation,			      & ! intent(inout): index of the lowest saturated layer
+                 eqns_data%ixSaturation,			& ! intent(inout): index of the lowest saturated layer
                  ! output
                  feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
                  eqns_data%fluxVec,                 & ! intent(out):   flux vector

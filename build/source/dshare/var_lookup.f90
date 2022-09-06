@@ -636,6 +636,9 @@ MODULE var_lookup
   integer(i4b)    :: dVolHtCapBulk_dCanWat           = integerMissing ! derivative in bulk heat capacity w.r.t. volumetric water content
   integer(i4b)    :: dVolHtCapBulk_dTk               = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
   integer(i4b)    :: dVolHtCapBulk_dTkCanopy         = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
+ ! derivatives in time
+  integer(i4b)    ::  mLayerdTemp_dt                 = integerMissing ! timestep change in layer temperature
+  integer(i4b)    ::  scalarCanopydTemp_dt           = integerMissing ! timestep change in canopy temperature
 
  endtype iLook_deriv
 
@@ -879,7 +882,7 @@ MODULE var_lookup
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
-                                                                         61, 62, 63, 64, 65)
+                                                                         61, 62, 63, 64, 65, 66, 67)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

@@ -617,6 +617,9 @@ contains
  deriv_meta(iLookDERIV%dVolHtCapBulk_dCanWat)         = var_info('dVolHtCapBulk_dCanWat'        , 'derivative in bulk heat capacity w.r.t. volumetric water content'      , 'J m-3 K-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dVolHtCapBulk_dTk)             = var_info('dVolHtCapBulk_dTk'            , 'derivative in bulk heat capacity w.r.t. temperature'                   , 'J m-3 K-2'     , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
  deriv_meta(iLookDERIV%dVolHtCapBulk_dTkCanopy)       = var_info('dVolHtCapBulk_dTkCanopy'      , 'derivative in bulk heat capacity w.r.t. temperature'                   , 'J m-3 K-2'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+ ! derivatives in time
+ deriv_meta(iLookDERIV%mLayerdTemp_dt)                = var_info('mLayerdTemp_dt'               , 'timestep change in layer temperature'                                  , 'K'              ,get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+ deriv_meta(iLookDERIV%scalarCanopydTemp_dt)          = var_info('scalarCanopydTemp_dt'         , 'timestep change in canopy temperature'                                 , 'K'              ,get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
 
  ! -----
  ! * basin-wide runoff and aquifer fluxes...

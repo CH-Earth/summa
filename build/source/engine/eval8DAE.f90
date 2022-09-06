@@ -154,7 +154,7 @@ contains
                        err,message)               ! intent(out):    error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
- USE varExtrSundials_module, only:varExtract2           ! extract variables from the state vector
+ USE getVectorz_module, only:varExtract           ! extract variables from the state vector
  USE varExtrSundials_module, only:varExtractSundials
  USE updateVarsSundials_module, only:updateVarsSundials           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
@@ -400,7 +400,7 @@ contains
   ixEnd  = nSoil
  endif
 
-  ! initialize to state variable from the last update
+ ! initialize to state variable from the last update
  scalarCanopyTempTrial     = scalarCanopyTempPrev
  scalarCanopyLiqTrial      = scalarCanopyLiqPrev
  scalarCanopyIceTrial      = scalarCanopyIcePrev
@@ -412,7 +412,7 @@ contains
  scalarAquiferStorageTrial = scalarAquiferStoragePrev
 
  ! extract variables from the model state vector
- call varExtract2(&
+ call varExtract(&
                  ! input
                  stateVec,                 & ! intent(in):    model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
@@ -498,14 +498,12 @@ contains
                  err,cmessage)                                ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
  ! print the water content
  if(globalPrintFlag)then
   if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracWatTrial = ', mLayerVolFracWatTrial(iJac1:min(iJac2,nSnow))
   if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial(iJac1:min(iJac2,nSnow))
   if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial(iJac1:min(iJac2,nSnow))
  endif
-
 
  if(updateCp)then
  	! *** compute volumetric heat capacity C_p

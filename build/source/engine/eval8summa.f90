@@ -242,11 +242,20 @@ contains
  canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in):  [dp   ] canopy depth (m)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in):  [dp(:)] depth of each layer in the snow-soil sub-domain (m)
  ! model state variables
+ scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the canopy air space (K)
+ scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the vegetation canopy (K)
+ scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in):  [dp]     mass of total water on the vegetation canopy (kg m-2)
+ mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):  [dp(:)]  temperature of each snow/soil layer (K)
+ mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of total water (-)
+ mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in):  [dp(:)]  total water matric potential (m)
+ mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)]  liquid water matric potential (m)
+ scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in):  [dp]     storage of water in the aquifer (m)
+ ! model diagnostic variables from a previous solution
  scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
- mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
- mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of ice (-)
- mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,&  ! intent(in):  [dp(:)] matric potential (m)
- ! model diagnostic variables
+ scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of liquid water on the vegetation canopy (kg m-2)
+ scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of ice on the vegetation canopy (kg m-2)
+ mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of liquid water (-)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
  scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
  mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
 ! enthalpy
@@ -283,21 +292,32 @@ contains
  ! check that the canopy air space temperature is reasonable
  if(ixCasNrg/=integerMissing)then
   if(stateVecTrial(ixCasNrg) > canopyTempMax) feasible=.false.
+  if(stateVecTrial(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
+  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVecTrial( ixCasNrg )', feasible, canopyTempMax, stateVecTrial(ixCasNrg)
  endif
 
  ! check that the canopy air space temperature is reasonable
  if(ixVegNrg/=integerMissing)then
   if(stateVecTrial(ixVegNrg) > canopyTempMax) feasible=.false.
+  if(stateVecTrial(ixVegNrg) > canopyTempMax) message=trim(message)//'canopy temp high,'
+  if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVecTrial( ixVegNrg )', feasible, canopyTempMax, stateVecTrial(ixVegNrg)
  endif
 
  ! check canopy liquid water is not negative
  if(ixVegHyd/=integerMissing)then
   if(stateVecTrial(ixVegHyd) < 0._rkind) feasible=.false.
+   if(stateVecTrial(ixVegHyd) < 0._rkind) message=trim(message)//'canopy water negative,'
+   if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVecTrial( ixVegHyd )', feasible, 0._rkind, stateVecTrial(ixVegHyd)
+
  end if
 
  ! check snow temperature is below freezing
  if(count(ixSnowOnlyNrg/=integerMissing)>0)then
   if(any(stateVecTrial( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+  if(any(stateVecTrial( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) message=trim(message)//'snow temp above freezing,'
+  do iLayer=1,nSnow
+   if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVecTrial( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVecTrial( ixSnowOnlyNrg(iLayer) )
+  enddo
  endif
 
  ! loop through non-missing hydrology state variables in the snow+soil domain
@@ -321,7 +341,8 @@ contains
 
    ! --> check
    if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-   !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax
+   if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax)  message=trim(message)//'layer water outside bounds,'
+   if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
   endif  ! if water states
 
@@ -332,8 +353,9 @@ contains
   fluxVec(:) = realMissing
   resVec(:)  = quadMissing
   fEval      = realMissing
-  return
- end if
+  message=trim(message)//'non-feasible'
+  err=20; return
+ endif
 
  ! get the start and end indices for the soil compression calculations
  if(scalarSolution)then
@@ -344,6 +366,20 @@ contains
   ixBeg  = 1
   ixEnd  = nSoil
  endif
+
+ ! initialize to state variable from the last update
+ scalarCanairTempTrial = scalarCanairTemp
+ scalarCanopyTempTrial = scalarCanopyTemp
+ scalarCanopyWatTrial  = scalarCanopyWat
+ scalarCanopyLiqTrial  = scalarCanopyLiq
+ scalarCanopyIceTrial  = scalarCanopyIce
+ mLayerTempTrial           = mLayerTemp
+ mLayerVolFracWatTrial     = mLayerVolFracWat
+ mLayerVolFracLiqTrial     = mLayerVolFracLiq
+ mLayerVolFracIceTrial     = mLayerVolFracIce
+ mLayerMatricHeadTrial     = mLayerMatricHead      ! total water matric potential
+ mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq   ! liquid water matric potential
+ scalarAquiferStorageTrial = scalarAquiferStorage
 
  ! extract variables from the model state vector
  call varExtract(&
@@ -357,12 +393,10 @@ contains
                  scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
                  scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
                  scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
                  ! output: variables for the snow-soil domain
                  mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
                  mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
                  mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
                  ! output: variables for the aquifer
@@ -371,7 +405,7 @@ contains
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- ! update diagnostic variables
+ ! update diagnostic variables and derivatives
  call updateVars(&
                  ! input
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze

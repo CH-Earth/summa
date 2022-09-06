@@ -99,8 +99,8 @@ contains
  real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
  real(rkind),intent(in)             :: fVec(:)                   ! flux vector
  ! input: state variables (already disaggregated into scalars and vectors)
-  real(rkind),intent(in)            :: scalarCanopyTempTrial
-  real(rkind),intent(in)            :: mLayerTempTrial(:)
+ real(rkind),intent(in)            :: scalarCanopyTempTrial
+ real(rkind),intent(in)            :: mLayerTempTrial(:)
  real(rkind),intent(in)             :: scalarCanairTempPrime     ! trial value for temperature of the canopy air space (K)
  real(rkind),intent(in)             :: scalarCanopyTempPrime     ! trial value for temperature of the vegetation canopy (K)
  real(rkind),intent(in)             :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
@@ -120,7 +120,7 @@ contains
  type(var_dlength),intent(in)    :: flux_data                 ! model fluxes for a local HRU
  type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
  ! output
- real(rkind),intent(out)            :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
+ real(rkind),intent(out)         :: rAdd(:)                   ! additional (sink) terms on the RHS of the state equation
  real(qp),intent(out)            :: rVec(:)   ! NOTE: qp      ! residual vector
  integer(i4b),intent(out)        :: err                       ! error code
  character(*),intent(out)        :: message                   ! error message

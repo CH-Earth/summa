@@ -692,6 +692,21 @@ contains
  ! -----
  ! * update states...
  ! ------------------
+
+ ! initialize to state variable from the last update
+ scalarCanairTempTrial = scalarCanairTemp
+ scalarCanopyTempTrial = scalarCanopyTemp
+ scalarCanopyWatTrial  = scalarCanopyWat
+ scalarCanopyLiqTrial  = scalarCanopyLiq
+ scalarCanopyIceTrial  = scalarCanopyIce
+ mLayerTempTrial           = mLayerTemp
+ mLayerVolFracWatTrial     = mLayerVolFracWat
+ mLayerVolFracLiqTrial     = mLayerVolFracLiq
+ mLayerVolFracIceTrial     = mLayerVolFracIce
+ mLayerMatricHeadTrial     = mLayerMatricHead      ! total water matric potential
+ mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq   ! liquid water matric potential
+ scalarAquiferStorageTrial = scalarAquiferStorage
+
  ! extract states from the state vector
  call varExtract(&
                  ! input
@@ -704,12 +719,10 @@ contains
                  scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
                  scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
                  scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
                  ! output: variables for the snow-soil domain
                  mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
                  mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
                  mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
                  mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
                  mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
                  ! output: variables for the aquifer
