@@ -464,12 +464,13 @@ contains
  call updateVarsSundials(&
                  ! input
                  dt_cur,                                    &
+                 .false.,                                   & ! intent(in):    logical flag if inside Sundials solver
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                 mLayerVolFracWatPrev,                      & ! intent(in)
-                 mLayerMatricHeadPrev,                      & ! intent(in)
+                 mLayerVolFracWatPrev,                      & ! intent(in):    previous vector of total water matric potential (m)
+                 mLayerMatricHeadPrev,                      & ! intent(in):    previous vector of volumetric total water content (-)
                  diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                  deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output: variables for the vegetation canopy

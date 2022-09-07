@@ -36,7 +36,7 @@ contains
 
 
  ! *************************************************************************************************************
- ! public subroutine updateSnow: compute phase change impacts on volumetric liquid water and ice
+ ! public subroutine updateSnow: compute phase change impacts on volumetric liquid water and ice (veg or soil)
  ! *************************************************************************************************************
  subroutine updateSnow(&
                        ! input
@@ -163,6 +163,5 @@ contains
  end if  ! (check if soil is partially frozen)
 
  end subroutine updateSoil
-
 
 end module updatState_module

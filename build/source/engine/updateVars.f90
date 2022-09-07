@@ -500,8 +500,8 @@ contains
 
       ! compute mass of water on the canopy
       ! NOTE: possibilities for speed-up here
-      scalarCanopyLiqTrial =          scalarFracLiqVeg *scalarCanopyWatTrial
-      scalarCanopyIceTrial = (1._rkind - scalarFracLiqVeg)*scalarCanopyWatTrial
+      scalarCanopyLiqTrial =             scalarFracLiqVeg *scalarCanopyWatTrial !(kg m-2), scalarVolFracLiq*iden_water*canopyDepth
+      scalarCanopyIceTrial = (1._rkind - scalarFracLiqVeg)*scalarCanopyWatTrial !(kg m-2), scalarVolFracIce* iden_ice *canopyDepth
 
      ! *** snow layers
      case(iname_snow)

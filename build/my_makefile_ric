@@ -67,7 +67,7 @@ LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas -lnetcdf
 
 DIR_SUNDIALS=/u1/gwu479/SummaSundials/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
-LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
        
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -276,7 +276,6 @@ SUMMA_MODRUN = \
       t2enthalpy.f90 \
       updateVars.f90 \
       updateVarsSundials.f90 \
-      updateVars4JacDAE.f90 \
 		var_derive.f90 \
 		read_force.f90 \
 		derivforce.f90 \

@@ -119,7 +119,7 @@ contains
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
  USE varExtrSundials_module, only:varExtractSundials
- USE updateVars4JacDAE_module, only:updateVars4JacDAE           ! update prognostic variables
+ USE updateVarsSundials_module, only:updateVarsSundials           ! update prognostic variables
  USE computJacDAE_module,only:computJacDAE
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -255,16 +255,16 @@ contains
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
-
-
- call updateVars4JacDAE(&
+ call updateVarsSundials(&
                  ! input
                  dt,                                        & ! intent(in):    time step
+                 .true.,                                    & ! intent(in):    logical flag if inside Sundials solver
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                 mLayerVolFracWatTrial,                     & ! intent(in):    use current vector for prev vector of volumetric total water content (-)
+                 mLayerMatricHeadTrial,                     & ! intent(in):    use current vector for prev vector of total water matric potential (m)
                  diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                  deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                  ! output: variables for the vegetation canopy
