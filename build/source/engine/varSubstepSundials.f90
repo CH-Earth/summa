@@ -131,7 +131,7 @@ contains
  USE getVectorz_module,only:popStateVec                ! populate the state vector
  USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
  USE updateVarsSundials_module,only:updateVarsSundials ! update prognostic variables
- USE varExtrSundials_module,only:varExtractSundials
+ USE getVectorzAddSundials_module,only:varExtractSundials
  ! identify name of variable type (for error message)
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  USE systemSolvSundials_module,only:systemSolvSundials
@@ -545,7 +545,7 @@ contains
                        waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVarsSundials_module,only:updateVarsSundials             ! update prognostic variables
- USE varExtrSundials_module, only:varExtractSundials
+ USE getVectorzAddSundials_module, only:varExtractSundials
  USE computEnthalpy_module,only:computEnthalpy
  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
  implicit none

@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computJacDAE_module
+module computJacobSundials_module
 
 ! data types
 USE nrtype
@@ -82,13 +82,13 @@ real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 integer(i4b),parameter    :: ixBandOffset=kl+ku+1          ! offset in the band Jacobian matrix
 
 private
-public::computJacDAE
+public::computJacobSundials
 contains
 
  ! **********************************************************************************************************
- ! public subroutine computJacDAE: compute the Jacobian matrix
+ ! public subroutine computJacobSundials: compute the Jacobian matrix
  ! **********************************************************************************************************
- subroutine computJacDAE(&
+ subroutine computJacobSundials(&
                         ! input: model control
                         cj,                         & ! intent(in):    this scalar changes whenever the step size or method order changes
                         dt,                         & ! intent(in):    length of the time step (seconds)
@@ -289,7 +289,7 @@ contains
  ) ! making association with data in structures
  ! --------------------------------------------------------------
  ! initialize error control
- err=0; message='computJacDAE/'
+ err=0; message='computJacobSundials/'
 
  ! *********************************************************************************************************************************************************
  ! *********************************************************************************************************************************************************
@@ -712,7 +712,7 @@ contains
  ! end association to variables in the data structures
  end associate
 
- end subroutine computJacDAE
+ end subroutine computJacobSundials
 
 
  ! **********************************************************************************************************
@@ -726,4 +726,4 @@ contains
  ixOffDiag = ixBandOffset + jState - iState
  end function ixOffDiag
 
-end module computJacDAE_module
+end module computJacobSundials_module

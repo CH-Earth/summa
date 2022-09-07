@@ -130,11 +130,11 @@ contains
  USE allocspace_module,only:allocLocal                ! allocate local data structures
  ! simulation of fluxes and residuals given a trial state vector
  USE eval8summa_module,only:eval8summa               ! simulation of fluxes and residuals given a trial state vector
- USE eval8DAE_module,only:eval8DAE
+ USE eval8summaSundials_module,only:eval8summaSundials
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
  USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances
- USE solveByIDA_module,only:solveByIDA                ! solve DAE by IDA
+ USE summaSolveSundialsIDA_module,only:summaSolveSundialsIDA                ! solve DAE by IDA
  USE t2enthalpy_module, only:t2enthalpy_T             ! compute enthalpy
  use, intrinsic :: iso_c_binding
  implicit none
@@ -465,7 +465,7 @@ contains
     ! initialize sum of compression of the soil matrix
     mLayerCmpress_sum(:) = 0._rkind
 
-   call solveByIDA(&
+   call summaSolveSundialsIDA(&
                  dt,                      & ! intent (in) 	 data time step
                  atol,                    & ! intent (in) 	 absolute telerance
                  rtol,                    & ! intent (in) 	 relative tolerance

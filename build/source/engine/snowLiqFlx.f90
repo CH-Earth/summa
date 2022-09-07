@@ -160,7 +160,7 @@ contains
 
  ! define the liquid flux at the upper boundary (m s-1)
  iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
- iLayerLiqFluxSnowDeriv(0) = 0._rkind !computed inside computJacDAE_module
+ iLayerLiqFluxSnowDeriv(0) = 0._rkind !computed inside computJacobSundials_module
 
  ! compute properties fixed over the time step
  if(firstFluxCall)then

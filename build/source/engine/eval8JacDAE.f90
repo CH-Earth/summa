@@ -118,9 +118,9 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
- USE varExtrSundials_module, only:varExtractSundials
+ USE getVectorzAddSundials_module, only:varExtractSundials
  USE updateVarsSundials_module, only:updateVarsSundials           ! update prognostic variables
- USE computJacDAE_module,only:computJacDAE
+ USE computJacobSundials_module,only:computJacobSundials
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -299,10 +299,10 @@ contains
 
  ! compute the analytical Jacobian matrix
  ! NOTE: The derivatives were computed in the previous call to computFlux
- !       This occurred either at the call to eval8DAE at the start of sysSolveSundials
- !        or in the call to eval8DAE in the previous iteration
+ !       This occurred either at the call to eval8summaSundials at the start of sysSolveSundials
+ !        or in the call to eval8summaSundials in the previous iteration
  dt1 = 1._qp
- call computJacDAE(&
+ call computJacobSundials(&
                   ! input: model control
                   cj,                             & ! intent(in):    this scalar changes whenever the step size or method order changes
                   dt1,                            & ! intent(in):    length of the time step (seconds)

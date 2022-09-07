@@ -90,9 +90,9 @@ USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water charact
 USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-USE soil_utilsSundials_module,only:liquidHeadSundials     ! compute the liquid water matric potential
-USE soil_utilsSundials_module,only:d2Theta_dPsi2
-USE soil_utilsSundials_module,only:d2Theta_dTk2
+USE soil_utilsAddSundials_module,only:liquidHeadSundials     ! compute the liquid water matric potential
+USE soil_utilsAddSundials_module,only:d2Theta_dPsi2
+USE soil_utilsAddSundials_module,only:d2Theta_dTk2
 
 ! IEEE checks
 USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)

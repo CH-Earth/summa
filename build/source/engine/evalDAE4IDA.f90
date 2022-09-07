@@ -49,7 +49,7 @@ contains
     use fnvector_serial_mod
     use nrtype
     use type4IDA
-    use eval8DAE_module,only:eval8DAE
+    use eval8summaSundials_module,only:eval8summaSundials
 
     !======= Declarations =========
     implicit none
@@ -87,7 +87,7 @@ contains
     end if
 
     ! compute the flux and the residual vector for a given state vector
-    call eval8DAE(&
+    call eval8summaSundials(&
                  ! input: model control
                  stepsize_next(1),                  & ! intent(in):    current stepsize
                  eqns_data%dt,                      & ! intent(in):    data step

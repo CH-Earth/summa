@@ -1,6 +1,6 @@
 
 
-module computResidDAE_module
+module computResidSundials_module
 
 ! data types
 USE nrtype
@@ -50,13 +50,13 @@ USE multiconst,only:&
 ! privacy
 implicit none
 private::printResidDAE
-public::computResidDAE
+public::computResidSundials
 contains
 
  ! **********************************************************************************************************
- ! public subroutine computResidDAE: compute the residual vector
+ ! public subroutine computResidSundials: compute the residual vector
  ! **********************************************************************************************************
- subroutine computResidDAE(&
+ subroutine computResidSundials(&
                         ! input: model control
                         nSnow,                     & ! intent(in):    number of snow layers
                         nSoil,                     & ! intent(in):    number of soil layers
@@ -161,7 +161,7 @@ contains
  ) ! association to necessary variables for the residual computations
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="computResidDAE/"
+ err=0; message="computResidSundials/"
 
  ! ---
  ! * compute sink terms...
@@ -249,7 +249,7 @@ contains
  ! end association with the necessary variabiles for the residual calculations
  end associate
 
- end subroutine computResidDAE
+ end subroutine computResidSundials
 
  ! **********************************************************************************************************
  ! private subroutine printResidDAE: print the residual vector mainly for debugging
@@ -343,4 +343,4 @@ end associate
 
 end subroutine printResidDAE
 
-end module computResidDAE_module
+end module computResidSundials_module

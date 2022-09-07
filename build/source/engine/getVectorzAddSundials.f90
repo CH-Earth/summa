@@ -1,6 +1,6 @@
 
 
-module varExtrSundials_module
+module getVectorzAddSundials_module
 
 ! data types
 USE nrtype
@@ -379,4 +379,4 @@ contains
 
 
 
-end module varExtrSundials_module
+end module getVectorzAddSundials_module

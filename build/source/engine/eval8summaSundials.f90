@@ -1,5 +1,5 @@
 
-module eval8DAE_module
+module eval8summaSundials_module
 
 ! data types
 USE nrtype
@@ -81,14 +81,14 @@ USE mDecisions_module,only:  &
 
 implicit none
 private
-public::eval8DAE
+public::eval8summaSundials
 
 contains
 
  ! **********************************************************************************************************
- ! public subroutine eval8DAE: compute the residual vector
+ ! public subroutine eval8summaSundials: compute the residual vector
  ! **********************************************************************************************************
- subroutine eval8DAE(&
+ subroutine eval8summaSundials(&
                        ! input: model control
                        dt_cur,                  & ! intent(in):    current stepsize
                        dt,                      & ! intent(in):    entire time step
@@ -155,7 +155,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
- USE varExtrSundials_module, only:varExtractSundials
+ USE getVectorzAddSundials_module, only:varExtractSundials
  USE updateVarsSundials_module, only:updateVarsSundials           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
  USE computFlux_module, only:soilCmpresSundials            ! compute soil compression
@@ -164,7 +164,7 @@ contains
  USE computHeatCap_module,only:computHeatCapAnalytic      ! compute heat capacity
  USE computHeatCap_module,only:computCm
  USE computHeatCap_module, only:computStatMult
- USE computResidDAE_module,only:computResidDAE          ! compute residuals given a state vector
+ USE computResidSundials_module,only:computResidSundials          ! compute residuals given a state vector
  USE computThermConduct_module,only:computThermConduct
  USE computEnthalpy_module,only:computEnthalpy
  USE computEnthalpy_module,only:computEnthalpyPrime
@@ -317,7 +317,7 @@ contains
  ) ! association to variables in the data structures
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message="eval8DAE/"
+ err=0; message="eval8summaSundials/"
  feasible=.true.
 
  ! check the feasibility of the solution
@@ -717,7 +717,7 @@ contains
 ! print *, 'dt_cur = ', dt_cur
 
  ! compute the residual vector
- call computResidDAE(&
+ call computResidSundials(&
                   ! input: model control
                   nSnow,                     & ! intent(in):    number of snow layers
                   nSoil,                     & ! intent(in):    number of soil layers
@@ -759,5 +759,5 @@ contains
  end associate
 
 
- end subroutine eval8DAE
-end module eval8DAE_module
+ end subroutine eval8summaSundials
+end module eval8summaSundials_module

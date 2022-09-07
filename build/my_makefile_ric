@@ -2,13 +2,13 @@
 # Makefile to compile SUMMA SUNDIALS
 #========================================================================
 #
-# Recommended use: Copy this file to Makefile.local, edit it to your 
+# Recommended use: Copy this file to Makefile.local, edit it to your
 # heart's content, and then run `make -f build/Makefile.local` from
 # your top level SUMMA directory. Don't include the Makefile.local in
 # any pull requests you make.
 #
 # Note that Makefile configurations that we commonly use can be found on
-# the SUMMA wiki at: 
+# the SUMMA wiki at:
 # https://github.com/NCAR/summa/wiki/SUMMA-Makefile-Part-0-configuration
 # feel free to add yours to that page.
 #
@@ -22,10 +22,10 @@
 #  * ILDFLAGS         - path to libraries to include
 #  * LIBRARIES        - libraries to include
 #  * DIR_SUNDIALS     - installation sundials directory
-# 
+#
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
-# the Makefile. You don't need to make any changes in PART 1 and 
-# following unless you are doing SUMMA development and changed what 
+# the Makefile. You don't need to make any changes in PART 1 and
+# following unless you are doing SUMMA development and changed what
 # needs to be compiled
 
 #========================================================================
@@ -33,7 +33,7 @@
 #========================================================================
 
 # The variables can be specified in one of two ways:
-# * delete the '##' in front of the variable, fill out the entry, 
+# * delete the '##' in front of the variable, fill out the entry,
 #   save the file and run make
 # * make no changes to this file, but specify the variables in your
 #   environment before you run make
@@ -54,7 +54,7 @@ FC = gfortran
 # FC and FC_EXE have to be consistent
 FC_EXE = gfortran
 
-# Define the NetCDF and LAPACK libraries and path to include files. 
+# Define the NetCDF and LAPACK libraries and path to include files.
 # INCLUDES needs to be of the form (no quotes around the string):
 # INCLUDES = -I<include path 1> -I<include path 2> -I<...> -I<include path n>
 # LIBRARIES needs to be of the form ( no quotes around the string):
@@ -67,8 +67,8 @@ LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas -lnetcdf
 
 DIR_SUNDIALS=/u1/gwu479/SummaSundials/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
-LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
-       
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
+
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
 # and with different compilers. If you are successful compiling SUMMA,
@@ -193,7 +193,7 @@ SUMMA_UTILMS= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
-      soil_utilsSundials.f90 \
+      soil_utilsAddSundials.f90 \
 		updatState.f90 \
       updatStateSundials.f90 \
 		matrixOper.f90
@@ -227,14 +227,14 @@ SUMMA_SOLVER= \
       computEnthalpy.f90 \
       computHeatCap.f90 \
       computThermConduct.f90 \
-      computResidDAE.f90 \
-      eval8DAE.f90 \
+      computResidSundials.f90 \
+      eval8summaSundials.f90 \
       evalDAE4IDA.f90 \
-      computJacDAE.f90 \
+      computJacobSundials.f90 \
       eval8JacDAE.f90 \
       evalJac4IDA.f90 \
 		computSnowDepth.f90 \
-      solveByIDA.f90 \
+      summaSolveSundialsIDA.f90 \
       systemSolvSundials.f90 \
       varSubstep.f90 \
       varSubstepSundials.f90 \
@@ -272,7 +272,7 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 SUMMA_MODRUN = \
       indexState.f90 \
       getVectorz.f90 \
-      varExtrSundials.f90 \
+      getVectorzAddSundials.f90 \
       t2enthalpy.f90 \
       updateVars.f90 \
       updateVarsSundials.f90 \
@@ -393,7 +393,7 @@ compile_noah:
 # compile common routines
 
 compile_comm:
-	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES) 
+	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 
 # compile SUMMA routines
 compile_summa: update_version
