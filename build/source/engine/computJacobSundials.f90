@@ -568,10 +568,10 @@ contains
     end do  ! (looping through hydrology states in the soil domain)
 
     ! - include terms for surface infiltration above surface
-    if(nSnowOnlyHyd>0 .and. ixSnowOnlyHyd(nSnow)/=integerMissing)then
-     if(ixSoilOnlyHyd(1)/=integerMissing) aJac(ixSoilOnlyHyd(1),ixSnowOnlyHyd(nSnow)) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(0)
-    elseif(computeVegFlux .and. ixVegHyd/=integerMissing)then !ixTopHyd = ixSoilOnlyHyd(1)
-     if(ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(0) + aJac(ixTopHyd,ixVegHyd)
+    if(nSnowOnlyHyd>0)then !have snow above first soil layer
+     if(ixSnowOnlyHyd(nSnow)/=integerMissing .and. ixSoilOnlyHyd(1)/=integerMissing) aJac(ixSoilOnlyHyd(1),ixSnowOnlyHyd(nSnow)) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(0)
+    elseif(computeVegFlux)then !have vegetation above first soil layer, ixTopHyd = ixSoilOnlyHyd(1)
+     if(ixVegHyd/=integerMissing .and. ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = -(dt/mLayerDepth(1+nSnow))*dq_dHydStateLayerSurfVec(0) + aJac(ixTopHyd,ixVegHyd)
     endif
 
    endif   ! (if the subset includes hydrology state variables in the soil domain)
@@ -672,10 +672,10 @@ contains
     end do  ! (looping through soil layers)
 
     ! - include terms for surface infiltration above surface
-    if(nSnowOnlyHyd>0 .and. ixSnowOnlyNrg(nSnow)/=integerMissing)then
-     if(ixSoilOnlyHyd(1)/=integerMissing) aJac(ixSoilOnlyHyd(1),ixSnowOnlyNrg(nSnow)) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(0)
-    elseif(computeVegFlux .and. ixVegNrg/=integerMissing)then !ixTopHyd = ixSoilOnlyHyd(1)
-     if(ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegNrg) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(0) + aJac(ixTopHyd,ixVegNrg)
+    if(nSnowOnlyHyd>0)then !have snow above first soil layer
+     if(ixSnowOnlyNrg(nSnow)/=integerMissing .and. ixSoilOnlyHyd(1)/=integerMissing) aJac(ixSoilOnlyHyd(1),ixSnowOnlyNrg(nSnow)) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(0)
+    elseif(computeVegFlux)then !have vegetation above first soil layer, ixTopHyd = ixSoilOnlyHyd(1)
+     if(ixVegNrg/=integerMissing .and. ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegNrg) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(0) + aJac(ixTopHyd,ixVegNrg)
     endif
 
    endif   ! (if there are state variables for both water and energy in the soil domain)
