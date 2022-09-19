@@ -1319,7 +1319,6 @@ contains
 
  ! initialize error control
  err=0; message="surfaceFlx/"
-
  ! initialize derivatives
  dq_dHydStateVec(:) = 0._rkind
  dq_dNrgStateVec(:) = 0._rkind
@@ -1516,7 +1515,11 @@ contains
    scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
 
    ! compute infiltration derivative for layers not at surface
+   ! TODO: VERIFY the first part of the if statement
+   ! I added the 0._rkind to the (0) index in the if condition to get rid of an uninitalized value error
    if (xMaxInfilRate < scalarRainPlusMelt) then ! = dXMaxInfilRate_d
+    dInfilRate_dWat(:) = 0._rkind ! set to 0 to get rid of any unitialized values that may exit after going from 1:nsoil
+    dInfilRate_dTk(:)  = 0._rkind ! set to 0 to get rid of any unitialized values that may exit after going from 1:nsoil
     dInfilRate_dWat(1:nSoil) = dXMaxInfilRate_dWat(:)
     dInfilRate_dTk(1:nSoil)  = dXMaxInfilRate_dTk(:)
    else ! = dRainPlusMelt_d only dependent on canopy
