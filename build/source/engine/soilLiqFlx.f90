@@ -1523,11 +1523,11 @@ contains
     dInfilRate_dWat(1:nSoil) = dXMaxInfilRate_dWat(:)
     dInfilRate_dTk(1:nSoil)  = dXMaxInfilRate_dTk(:)
    else ! = dRainPlusMelt_d only dependent on canopy
-    dInfilRate_dWat(:) = 0._rkind !only calculate for layers that are not the surface
-    dInfilRate_dTk(:)  = 0._rkind !only calculate for layers that are not the surface
-    ! dependent on above layer (canopy or snow) water and temp
     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
     dInfilRate_dTk(0) = above_soilLiqFluxDeriv*above_soildLiq_dTk
+    dInfilRate_dWat(1:nSoil) = 0._rkind !only calculate for layers that are not the surface
+    dInfilRate_dTk(1:nSoil)  = 0._rkind !only calculate for layers that are not the surface
+    ! dependent on above layer (canopy or snow) water and temp
    endif
 
    ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computeJacDAE_module
