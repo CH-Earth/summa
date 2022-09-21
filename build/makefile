@@ -97,9 +97,9 @@ ifeq "$(FC)" "gfortran"
 	endif
 
 # Production runs
-FLAGS_NOAH = -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-FLAGS_COMM = -g -O0 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-FLAGS_SUMMA = -g -O0 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_NOAH = -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_COMM = -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_SUMMA = -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
 # Debug runs
 # FLAGS_NOAH = -p -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument -Wall
@@ -359,7 +359,20 @@ endif
 #======================================================================
 
 # Compile
+
+production: FLAGS_NOAH += -g -O3
+production: FLAGS_COMM += -g -O3
+production: FLAGS_SUMMA += -g -O3
+
+
+
+debug: FLAGS_NOAH += -g -O0
+debug: FLAGS_COMM += -g -O0
+debug: FLAGS_SUMMA += -g -O0
+debug: all 
+
 all: compile_noah compile_comm compile_summa link clean install
+
 part: compile_noah compile_comm compile_summa
 
 check:

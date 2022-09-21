@@ -35,4 +35,4 @@ Makefile-*
 *.backup
 # site directory from mkdocs
 site/
-Laugh-Tests
+Laugh-Tests/
