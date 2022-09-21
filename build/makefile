@@ -363,6 +363,7 @@ endif
 production: FLAGS_NOAH += -g -O3
 production: FLAGS_COMM += -g -O3
 production: FLAGS_SUMMA += -g -O3
+production: all
 
 
 

@@ -131,7 +131,6 @@ contains
  USE getVectorz_module,only:popStateVec                ! populate the state vector
  USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
  USE updateVarsSundials_module,only:updateVarsSundials ! update prognostic variables
- USE getVectorzAddSundials_module,only:varExtractSundials
  ! identify name of variable type (for error message)
  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
  USE systemSolvSundials_module,only:systemSolvSundials
@@ -548,7 +547,6 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
                        waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
   USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
   USE updateVarsSundials_module,only:updateVarsSundials             ! update prognostic variables
-  USE getVectorzAddSundials_module, only:varExtractSundials
   USE computEnthalpy_module,only:computEnthalpy
   USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
   implicit none
@@ -734,7 +732,7 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
                   err,cmessage)               ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-  call varExtractSundials(&
+  call varExtract(&
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU

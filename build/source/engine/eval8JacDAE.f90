@@ -118,7 +118,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
- USE getVectorzAddSundials_module, only:varExtractSundials
  USE updateVarsSundials_module, only:updateVarsSundials           ! update prognostic variables
  USE computJacobSundials_module,only:computJacobSundials
  implicit none
@@ -232,7 +231,7 @@ contains
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! extract derivative of variables from derivative of the model state vector
- call varExtractSundials(&
+ call varExtract(&
                  ! input
                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU

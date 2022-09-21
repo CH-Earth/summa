@@ -155,7 +155,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! provide access to subroutines
  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
- USE getVectorzAddSundials_module, only:varExtractSundials
  USE updateVarsSundials_module, only:updateVarsSundials           ! update variables
  USE t2enthalpy_module, only:t2enthalpy_T           ! compute enthalpy
  USE computFlux_module, only:soilCmpresSundials            ! compute soil compression
