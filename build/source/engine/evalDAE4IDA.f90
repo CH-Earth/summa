@@ -95,13 +95,12 @@ contains
                  eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                  eqns_data%nLayers,                 & ! intent(in):    number of layers
                  eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
-                 .false.,                           & ! intent(in):    do not check for feasibility inside Sundials loop
+                 .true.,                            & ! intent(in):    inside Sundials solver
                  eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                  eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                 eqns_data%firstSplitOper,		    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
+                 eqns_data%firstSplitOper,		      & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                  eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                 .false.,                           & ! intent(in):    do not require that longwave is balanced inside Sundials loop
                  ! input: state vectors
                  stateVec,                          & ! intent(in):    model state vector
                  stateVecPrime,                     & ! intent(in):    model state vector

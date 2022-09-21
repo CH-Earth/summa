@@ -760,7 +760,7 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
   call updateVarsSundials(&
                   ! input
                   dt,                                        &
-                  .false.,                                   & ! intent(in):    logical flag if inside Sundials solver
+                  .false.,                                   & ! intent(in):    logical flag if computing Jacobian for Sundials solver
                   doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                   mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                   indx_data,                                 & ! intent(in):    indices defining model states and layers

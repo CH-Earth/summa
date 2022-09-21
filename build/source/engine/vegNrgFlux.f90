@@ -131,7 +131,7 @@ contains
                        firstSubStep,                            & ! intent(in): flag to indicate if we are processing the first sub-step
                        firstFluxCall,                           & ! intent(in): flag to indicate if we are processing the first flux call
                        computeVegFlux,                          & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                       requireLWBal,                            & ! intent(in): flag to indicate if we need longwave to be balanced
+                       insideIDA,                               & ! intent(in): flag to indicate inside Sundials Solver (do not require longwave to be balanced)
 
                        ! input: model state variables
                        upperBoundTemp,                          & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
@@ -218,10 +218,10 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- logical(lgt),intent(in)         :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(in)         :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
- logical(lgt),intent(in)         :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
- logical(lgt),intent(in)         :: requireLWBal                    ! flag to indicate if we need longwave to be balanced
+ logical(lgt),intent(in)            :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
+ logical(lgt),intent(in)            :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
+ logical(lgt),intent(in)            :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
+ logical(lgt),intent(in)            :: insideIDA                       ! flag if inside Sundials solver
  ! input: model state variables
  real(rkind),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
  real(rkind),intent(in)             :: canairTempTrial                 ! trial value of canopy air space temperature (K)
@@ -985,7 +985,7 @@ contains
                     ! input: model control
                     ixDerivMethod,                     & ! intent(in): method used to calculate flux derivatives
                     computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
-                    requireLWBal,                      & ! intent(in): flag to indicate if we need longwave to be balanced
+                    insideIDA,                         & ! intent(in): flag to indicate inside Sundials Solver (do not require longwave to be balanced)
                     ! input: canopy and ground temperature
                     canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
                     groundTempTrial,                   & ! intent(in): temperature of the ground surface (K)
@@ -1781,7 +1781,7 @@ contains
                         ! input: model control
                         ixDerivMethod,                  & ! intent(in): choice of method used to compute derivative (analytical or numerical)
                         computeVegFlux,                 & ! intent(in): flag to compute fluxes over vegetati
-                        requireLWBal,                   & ! intent(in): flag to indicate if we need longwave to be balanced
+                        insideIDA,                      & ! intent(in): flag to indicate inside Sundials Solver (do not require longwave to be balanced)
                         ! input: canopy and ground temperature
                         canopyTemp,                     & ! intent(in): canopy temperature (K)
                         groundTemp,                     & ! intent(in): ground temperature (K)
@@ -1818,7 +1818,7 @@ contains
  ! input: model control
  integer(i4b),intent(in)       :: ixDerivMethod            ! choice of method used to compute derivative (analytical or numerical)
  logical(lgt),intent(in)       :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
- logical(lgt),intent(in)       :: requireLWBal             ! flag to indicate if we need longwave to be balanced
+ logical(lgt),intent(in)       :: insideIDA ! flag if inside Sundials solver
  ! input: canopy and ground temperature
  real(rkind),intent(in)           :: canopyTemp               ! canopy temperature (K)
  real(rkind),intent(in)           :: groundTemp               ! ground temperature (K)
@@ -1952,7 +1952,7 @@ contains
   !print*, 'LWNetUbound = ', LWNetUbound
 
   ! check the flux balance
-  if(requireLWBal)then
+  if(.not.insideIDA)then
    fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)
    if(abs(fluxBalance) > fluxTolerance)then
     print*, 'fluxBalance = ', fluxBalance

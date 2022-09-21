@@ -109,7 +109,7 @@ contains
  subroutine updateVarsSundials(&
                        ! input
                        dt,                                        & ! intent(in):    time step
-                       insideIDA,                                 & ! intent(in):    logical flag if inside Sundials solver
+                       computJac,                                 & ! intent(in): logical flag if computing Jacobian for Sundials solve
                        do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                        mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -146,16 +146,16 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input
- real(rkind)      ,intent(in)    :: dt                              ! time step
- logical(lgt)     ,intent(in)    :: insideIDA                       ! flag if inside Sundials solver
- logical(lgt)     ,intent(in)    :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
- type(var_dlength),intent(in)    :: mpar_data                       ! model parameters for a local HRU
- type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
- type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- real(rkind),intent(in)          :: mLayerVolFracWatPrev(:)         ! previous vector of total water matric potential (m)
- real(rkind),intent(in)          :: mLayerMatricHeadPrev(:)         ! previous vector of volumetric total water content (-)
- type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
+ real(rkind)      ,intent(in)       :: dt                              ! time step
+ logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing Jacobian for Sundials solver
+ logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
+ type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
+ type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
+ type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
+ real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)         ! previous vector of total water matric potential (m)
+ real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)         ! previous vector of volumetric total water content (-)
+ type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout)    :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
  ! output: variables for the vegetation canopy
  real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
  real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
@@ -365,7 +365,7 @@ contains
   ! update hydrology state variables for the uncoupled solution
   if(.not.isNrgState .and. .not.isCoupled)then
 
-  if(.not.insideIDA) stop 1 ! this does not work yet? FIX
+  if(.not.computJac) stop 1 ! this does not work yet? FIX
 
    ! update the total water from volumetric liquid water
    if(ixStateType(ixFullVector)==iname_liqCanopy .or. ixStateType(ixFullVector)==iname_liqLayer)then
@@ -456,12 +456,12 @@ contains
    ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi, dVolHtCapBulk_dPsi0 may be wrong
    select case(ixDomainType)
     case(iname_veg)
-     if(insideIDA)then
+     if(computJac)then
       fLiq = fracLiquid(xTemp,snowfrz_scale)
       dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
      endif
     case(iname_snow)
-     if(insideIDA)then
+     if(computJac)then
       fLiq = fracLiquid(xTemp,snowfrz_scale)
       dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
      endif
@@ -469,14 +469,14 @@ contains
      select case( ixStateType(ixFullVector) )
       case(iname_lmpLayer)
        dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-       if(insideIDA) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+       if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
       case default
        dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-       if(insideIDA) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
+       if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
                                          vGn_n(ixControlIndex),vGn_m(ixControlIndex))
      end select
      ! dVolHtCapBulk_dPsi0 uses the derivative in water retention curve above critical temp w.r.t.state variable dVolTot_dPsi0
-     if(insideIDA)then
+     if(computJac)then
       dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
       if(xTemp< Tcrit) dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_ice * Cp_ice     - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
       if(xTemp>=Tcrit) dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_water * Cp_water - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
@@ -491,7 +491,7 @@ contains
      case(iname_veg)
       dFracLiqVeg_dTkCanopy = dFracLiq_dTk(xTemp,snowfrz_scale)
       dTheta_dTkCanopy = dFracLiqVeg_dTkCanopy * scalarCanopyWatTrial/(iden_water*canopyDepth)
-      if(insideIDA)then
+      if(computJac)then
        fLiq = fracLiquid(xTemp,snowfrz_scale)
        d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2._rkind ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
        dVolHtCapBulk_dTkCanopy = iden_water * (-Cp_ice + Cp_water) * dTheta_dTkCanopy !same as snow but there is no derivative in air
@@ -499,7 +499,7 @@ contains
      case(iname_snow)
       dFracLiqSnow_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
       mLayerdTheta_dTk(iLayer) = dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatTrial(iLayer)
-      if(insideIDA)then
+      if(computJac)then
        fLiq = fracLiquid(xTemp,snowfrz_scale)
        mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqSnow_dTk(iLayer) - fLiq**2._rkind ) * mLayerVolFracWatTrial(iLayer)
        dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
@@ -507,7 +507,7 @@ contains
      case(iname_soil)
       dFracLiqSnow_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
       mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-      if(insideIDA)then
+      if(computJac)then
        mLayerd2Theta_dTk2(iLayer) = d2Theta_dTk2(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
        dVolHtCapBulk_dTk(iLayer) = (-iden_ice * Cp_ice + iden_water * Cp_water) * mLayerdTheta_dTk(iLayer)
       endif
@@ -598,11 +598,11 @@ contains
       ! compute volumetric fraction of liquid water and ice
       call updateSoilSundials(&
                       dt,                                                & ! intent(in) : time step
-                      insideIDA,                                         & ! intent(in) : logical flag if inside Sundials solver
+                      computJac,                                         & ! intent(in) : logical flag if inside Sundials solver
                       xTemp,                                             & ! intent(in) : temperature (K)
                       mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in) : total water matric potential (m)
-                      mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in) : previous values, will be same as current if insideIDA
-                      mLayerVolFracWatPrev(iLayer),                      & ! intent(in) : previous values, will be same as current if insideIDA
+                      mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in) : previous values, will be same as current if computJac
+                      mLayerVolFracWatPrev(iLayer),                      & ! intent(in) : previous values, will be same as current if computJac
                       mLayerTempPrime(iLayer),                           & ! intent(in) : temperature time derivative (K/s)
                       mLayerMatricHeadPrime(ixControlIndex),             & ! intent(in) : total water matric potential time derivative (m/s)
                       vGn_alpha(ixControlIndex),                         & ! intent(in) : van Genutchen "alpha" parameter
@@ -643,7 +643,7 @@ contains
 
    ! check the need to adjust temperature (will always be false if inside solver)
    !  can be true if inside varSubstepSundials, outside solver, but currently will not work so turn off
-   if(do_adjustTemp .and. insideIDA)then
+   if(do_adjustTemp .and. computJac)then
 
     ! get the melt energy
     meltNrg = merge(LH_fus*iden_ice, LH_fus*iden_water, ixDomainType==iname_snow)

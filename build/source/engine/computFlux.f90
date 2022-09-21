@@ -114,7 +114,7 @@ contains
                        firstSplitOper,           & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,           & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
-                       requireLWBal,             & ! intent(in):    flag to indicate if we need longwave to be balanced
+                       insideIDA,                & ! intent(in):    flag to indicate inside Sundials Solver (do not require longwave to be balanced)
                        drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                        ! input: state variables
                        scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -168,7 +168,7 @@ contains
  logical(lgt),intent(in)            :: firstSplitOper              ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)            :: computeVegFlux              ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)            :: scalarSolution              ! flag to denote if implementing the scalar solution
- logical(lgt),intent(in)            :: requireLWBal                    ! flag to indicate if we need longwave to be balanced
+ logical(lgt),intent(in)            :: insideIDA ! flag if inside Sundials solver
  real(rkind),intent(in)             :: drainageMeltPond            ! drainage from the surface melt pond (kg m-2 s-1)
  ! input: state variables
  real(rkind),intent(in)             :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
@@ -443,7 +443,7 @@ contains
                   firstSubStep,                           & ! intent(in): flag to indicate if we are processing the first sub-step
                   firstFluxCall,                          & ! intent(in): flag to indicate if we are processing the first flux call
                   computeVegFlux,                         & ! intent(in): flag to indicate if we need to compute fluxes over vegetation
-                  requireLWBal,                           & ! intent(in): flag to indicate if we need longwave to be balanced
+                  insideIDA,                              & ! intent(in): flag to indicate inside Sundials Solver (do not require longwave to be balanced)
                   ! input: model state variables
                   upperBoundTemp,                         & ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
                   scalarCanairTempTrial,                  & ! intent(in): trial value of the canopy air space temperature (K)

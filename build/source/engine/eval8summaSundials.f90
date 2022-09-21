@@ -96,13 +96,12 @@ contains
                        nSoil,                   & ! intent(in):    number of soil layers
                        nLayers,                 & ! intent(in):    total number of layers
                        nState,                  & ! intent(in):    total number of state variables
-                       checkFeas,               & ! intent(in):    flag to indicate if we are checking for feasibility
+                       insideIDA,               & ! intent(in):    flag to indicate if we are inside Sundials solver
                        firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                       firstFluxCall,			& ! intent(inout)  flag to indicate if we are processing the first flux call
-                       firstSplitOper,		    & ! intent(inout)  flag to indicate if we are processing the first flux call in a splitting operation
+                       firstFluxCall,			      & ! intent(inout)  flag to indicate if we are processing the first flux call
+                       firstSplitOper,		      & ! intent(inout)  flag to indicate if we are processing the first flux call in a splitting operation
                        computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                        scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                       requireLWBal,            & ! intent(in):    flag to indicate if we need longwave to be balanced
                        ! input: state vectors
                        stateVec,                & ! intent(in):    model state vector
                        stateVecPrime,           & ! intent(in):    derivative of model state vector
@@ -177,13 +176,12 @@ contains
  integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                ! total number of layers
  integer,intent(in)              :: nState                 ! total number of state variables
- logical(lgt),intent(in) 		 :: checkFeas              ! flag to indicate if we are checking for feasibility
+ logical(lgt),intent(in)         :: insideIDA ! flag to indicate if we are inside Sundials solver
  logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall
  logical(lgt),intent(inout)      :: firstSplitOper         ! flag to indicate if we are processing the first flux call in a splitting operation
  logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
- logical(lgt),intent(in)         :: requireLWBal           ! flag to indicate if we need longwave to be balanced
  ! input: state vectors
  real(rkind),intent(in)          :: stateVec(:)            ! model state vector
  real(rkind),intent(in)          :: stateVecPrime(:)       ! model state vector
@@ -320,7 +318,7 @@ contains
  feasible=.true.
 
  ! check the feasibility of the solution
- if (checkFeas) then
+ if (.not.insideIDA) then
   ! check that the canopy air space temperature is reasonable
   if(ixCasNrg/=integerMissing)then
    if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
@@ -462,7 +460,7 @@ contains
  call updateVarsSundials(&
                  ! input
                  dt_cur,                                    &
-                 .false.,                                   & ! intent(in):    logical flag if inside Sundials solver
+                 .false.,                                   & ! intent(in):    logical flag if computing Jacobian for Sundials solver
                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy
                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                  indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -656,7 +654,7 @@ contains
                  firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                  computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                  scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
-                 requireLWBal,              & ! intent(in):    flag to indicate if we need longwave to be balanced
+                 insideIDA,                 & ! intent(in): logical flag if inside Sundials solver
                  scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                  ! input: state variables
                  scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
