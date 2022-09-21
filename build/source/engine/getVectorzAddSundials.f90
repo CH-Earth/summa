@@ -111,9 +111,9 @@ contains
  implicit none
  ! input
  real(rkind),intent(in)             :: stateVecPrime(:)                     ! model state vector (mixed units)
- type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
- type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
+ type(var_dlength),intent(in)       :: diag_data                       ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
+ type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
  ! output: variables for the vegetation canopy
  real(rkind),intent(out)            :: scalarCanairTempPrime           ! trial value of canopy air temperature (K)
  real(rkind),intent(out)            :: scalarCanopyTempPrime           ! trial value of canopy temperature (K)

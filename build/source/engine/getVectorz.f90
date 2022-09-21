@@ -397,14 +397,14 @@ contains
  ! ------------------------------------------------------------------------------------------
 
  end associate fixedLength      ! end association to variables in the data structure where vector length does not change
- end subroutine getScaling
+end subroutine getScaling
 
 
- ! **********************************************************************************************************
- ! public subroutine varExtract: extract variables from the state vector and compute diagnostic variables
- !  This routine does not initialize any of the variables
- ! **********************************************************************************************************
- subroutine varExtract(&
+! **********************************************************************************************************
+! public subroutine varExtract: extract variables from the state vector and compute diagnostic variables
+!  This routine does not initialize any of the variables
+! **********************************************************************************************************
+subroutine varExtract(&
                        ! input
                        stateVec,                                  & ! intent(in):    model state vector (mixed units)
                        diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
@@ -430,9 +430,9 @@ contains
  implicit none
  ! input
  real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
- type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
- type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
+ type(var_dlength),intent(in)       :: diag_data                       ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
+ type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
  ! output: variables for the vegetation canopy
  real(rkind),intent(out)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
  real(rkind),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
@@ -447,8 +447,8 @@ contains
  ! output: variables for the aquifer
  real(rkind),intent(out)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
  ! output: error control
- integer(i4b),intent(out)        :: err                             ! error code
- character(*),intent(out)        :: message                         ! error message
+ integer(i4b),intent(out)           :: err                             ! error code
+ character(*),intent(out)           :: message                         ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
