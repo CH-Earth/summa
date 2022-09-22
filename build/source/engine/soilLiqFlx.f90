@@ -1319,6 +1319,7 @@ contains
 
  ! initialize error control
  err=0; message="surfaceFlx/"
+ 
  ! initialize derivatives
  dq_dHydStateVec(:) = 0._rkind
  dq_dNrgStateVec(:) = 0._rkind
@@ -1472,13 +1473,13 @@ contains
       dfInfRaw(:) = -qSurfScale*dfracCap(:) * exp(-qSurfScale*(1._rkind - fracCap))
       dInfilArea_dTk(1:nSoil)  = 0.5_rkind*dfInfRaw(:) * (1._rkind + fInfRaw/sqrt(fInfRaw**2._rkind + scaleFactor))
      else ! scalarInfilArea = 1._rkind
-      dInfilArea_dWat(:) = 0._rkind
-      dInfilArea_dTk(:)  = 0._rkind
+      dInfilArea_dWat(1:nSoil) = 0._rkind
+      dInfilArea_dTk(1:nSoil)  = 0._rkind
      endif
     else
      scalarInfilArea = 1._rkind
-     dInfilArea_dWat(:) = 0._rkind
-     dInfilArea_dTk(:)  = 0._rkind
+     dInfilArea_dWat(1:nSoil) = 0._rkind
+     dInfilArea_dTk(1:nSoil)  = 0._rkind
     endif
     dInfilArea_dWat(0) = 0._rkind
     dInfilArea_dTk(0)  = 0._rkind
@@ -1498,56 +1499,56 @@ contains
      !scalarFrozenArea = 1._rkind - gammp(alpha,xLimg)      ! fraction of frozen area
      !if we use this, we will have a derivative of scalarFrozenArea w.r.t. water and temperature in each layer (through mLayerVolFracIce)
      scalarFrozenArea = 0._rkind
-     dFrozenArea_dWat(:) = 0._rkind
-     dFrozenArea_dTk(:)  = 0._rkind
+     dFrozenArea_dWat(1:nSoil) = 0._rkind
+     dFrozenArea_dTk(1:nSoil)  = 0._rkind
     else
      scalarFrozenArea = 0._rkind
-     dFrozenArea_dWat(:) = 0._rkind
-     dFrozenArea_dTk(:)  = 0._rkind
+     dFrozenArea_dWat(1:nSoil) = 0._rkind
+     dFrozenArea_dTk(1:nSoil)  = 0._rkind
     end if
     dFrozenArea_dWat(0) = 0._rkind
     dFrozenArea_dTk(0)  = 0._rkind
     !print*, 'scalarFrozenArea, rootZoneIce = ', scalarFrozenArea, rootZoneIce
 
-   end if ! (if desire to compute infiltration)
-
-   ! compute infiltration (m s-1)
-   scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-
    ! compute infiltration derivative for layers not at surface
-   ! TODO: VERIFY the first part of the if statement
-   ! I added the 0._rkind to the (0) index in the if condition to get rid of an uninitalized value error
-   if (xMaxInfilRate < scalarRainPlusMelt) then ! = dXMaxInfilRate_d
-    dInfilRate_dWat(:) = 0._rkind ! set to 0 to get rid of any unitialized values that may exit after going from 1:nsoil
-    dInfilRate_dTk(:)  = 0._rkind ! set to 0 to get rid of any unitialized values that may exit after going from 1:nsoil
-    dInfilRate_dWat(1:nSoil) = dXMaxInfilRate_dWat(:)
-    dInfilRate_dTk(1:nSoil)  = dXMaxInfilRate_dTk(:)
-   else ! = dRainPlusMelt_d only dependent on canopy
-    dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
-    dInfilRate_dTk(0) = above_soilLiqFluxDeriv*above_soildLiq_dTk
-    dInfilRate_dWat(1:nSoil) = 0._rkind !only calculate for layers that are not the surface
-    dInfilRate_dTk(1:nSoil)  = 0._rkind !only calculate for layers that are not the surface
-    ! dependent on above layer (canopy or snow) water and temp
-   endif
+    if (xMaxInfilRate < scalarRainPlusMelt) then ! = dXMaxInfilRate_d
+      dInfilRate_dWat(1:nSoil) = dXMaxInfilRate_dWat(:)
+      dInfilRate_dTk(1:nSoil)  = dXMaxInfilRate_dTk(:)
+     else ! = dRainPlusMelt_d only dependent on canopy
+      dInfilRate_dWat(1:nSoil) = 0._rkind !only calculate for layers that are not the surface
+      dInfilRate_dTk(1:nSoil)  = 0._rkind !only calculate for layers that are not the surface
+     endif
+     ! dependent on above layer (canopy or snow) water and temp
+     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
+     dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
+ 
+     ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computeJacob module
+     dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) ) +&
+                          (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+     dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  ) +&
+                          (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+ 
+    else ! do not compute infiltration after first flux call in a splitting operation
+     dq_dHydStateVec(:) = 0._rkind
+     dq_dNrgStateVec(:) = 0._rkind
+ 
+    end if ! (if desire to compute infiltration)
 
-   ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computeJacDAE_module
-   dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) ) +&
-                        (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-   dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  ) +&
-                        (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
+  ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
+    scalarSurfaceInfiltration = (1._rkind - scalarFrozenArea)*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
 
-   ! compute surface runoff (m s-1)
-   scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
-   !print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate
-   !print*, 'scalarSurfaceInfiltration, scalarSurfaceRunoff = ', scalarSurfaceInfiltration, scalarSurfaceRunoff
-   !print*, '(1._rkind - scalarFrozenArea), (1._rkind - scalarFrozenArea)*scalarInfilArea = ', (1._rkind - scalarFrozenArea), (1._rkind - scalarFrozenArea)*scalarInfilArea
-
-   ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
-   surfaceHydCond = realMissing
-   surfaceDiffuse = realMissing
-
-  ! ***** error check
-  case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
+    ! compute surface runoff (m s-1)
+    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
+    !print*, 'scalarRainPlusMelt, xMaxInfilRate = ', scalarRainPlusMelt, xMaxInfilRate
+    !print*, 'scalarSurfaceInfiltration, scalarSurfaceRunoff = ', scalarSurfaceInfiltration, scalarSurfaceRunoff
+    !print*, '(1._rkind - scalarFrozenArea), (1._rkind - scalarFrozenArea)*scalarInfilArea = ', (1._rkind - scalarFrozenArea), (1._rkind - scalarFrozenArea)*scalarInfilArea
+ 
+    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
+    surfaceHydCond = realMissing
+    surfaceDiffuse = realMissing
+ 
+   ! ***** error check
+   case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
 
  end select  ! (type of upper boundary condition)
 

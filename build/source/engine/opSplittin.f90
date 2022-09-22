@@ -113,8 +113,8 @@ USE mDecisions_module,only:      &
  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
  bigBucket,                      & ! a big bucket (lumped aquifer model)
  noExplicit,                     & ! no explicit groundwater parameterization
- sundialIDA,                     & ! IDA solver from Sundials package
- backwEuler                        ! backward Euler method
+ sundials,                       & ! SUNDIALS/IDA solution
+ bEuler                            ! home-grown backward Euler solution with long time step
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -305,6 +305,7 @@ contains
  ! model decisions
  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
+ ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical method, backward Euler or SUNDIALS/IDA
  ! domain boundary conditions
  airtemp                 => forc_data%var(iLookFORCE%airtemp)                      ,& ! intent(in):    [dp]     temperature of the upper boundary of the snow and soil domains (K)
  ! vector of energy and hydrology indices for the snow and soil domains
@@ -363,11 +364,11 @@ contains
  ! initialize error control
  err=0; message="opSplittin/"
 
- ! we just solve the fully coupled problem by ida
- select case(model_decisions(iLookDECISIONS%diffEqSolv)%iDecision)
-    case(sundialIDA); nCoupling = 1
- 	  case(backwEuler); nCoupling = 2
-    case default; err=20; message=trim(message)//'expect case to be sundialIDA or backwEuler'; return
+ ! we just solve the fully coupled problem by with Sundials for now
+ select case(ixNumericalMethod)
+  case(sundials); nCoupling = 1
+  case(bEuler); nCoupling = 2
+  case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
  end select
 
  ! *****
@@ -774,11 +775,11 @@ contains
        if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
        ! solve variable subset for one full time step
-       select case(model_decisions(iLookDECISIONS%diffEqSolv)%iDecision)
-        case(sundialIDA)
+       select case(ixNumericalMethod)
+        case(sundials)
              call varSubstepSundials(&
                        ! input: model control
-                       dt,                         & ! intent(inout) : time step (s)
+                       dt,                         & ! intent(in)    : time step (s)
                        dtInit,                     & ! intent(in)    : initial time step (seconds)
                        dt_min,                     & ! intent(in)    : minimum time step (seconds)
                        nSubset,                    & ! intent(in)    : total number of variables in the state subset
@@ -812,10 +813,13 @@ contains
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        dt_out,					   & ! intent(out)
                        err,cmessage)                 ! intent(out)   : error code and error message
-        case(backwEuler)
+
+                       dt = dt_out
+
+        case(bEuler)
              call varSubstep(&
                        ! input: model control
-                       dt,                         & ! intent(inout) : time step (s)
+                       dt,                         & ! intent(in)    : time step (s)
                        dtInit,                     & ! intent(in)    : initial time step (seconds)
                        dt_min,                     & ! intent(in)    : minimum time step (seconds)
                        nSubset,                    & ! intent(in)    : total number of variables in the state subset
@@ -849,11 +853,9 @@ contains
                        tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                        err,cmessage)                 ! intent(out)   : error code and error message
                      ! check
-          case default; err=20; message=trim(message)//'expect case to backwEuler or sundialIDA'; return
+            case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
         end select
-
-        dt = dt_out
-
+       
        if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
