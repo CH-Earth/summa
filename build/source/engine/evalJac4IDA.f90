@@ -43,10 +43,14 @@ contains
     use fsundials_nvector_mod
     use fsundials_matrix_mod
     use fnvector_serial_mod
+    use fsunmatrix_band_mod
     use fsunmatrix_dense_mod
     use nrtype
     use type4IDA
     use eval8JacDAE_module,only:eval8JacDAE    ! compute Jacobian matrix
+    USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
+    USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
+    USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
     !======= Declarations =========
     implicit none
 
@@ -81,7 +85,8 @@ contains
     stateVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_y)
     stateVecPrime(1:eqns_data%nState) => FN_VGetArrayPointer(sunvec_yp)
     rVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_r)
-    Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
+    if (eqns_data%ixMatrix==ixBandMatrix) Jac(1:nBands, 1:eqns_data%nState) => FSUNBandMatrix_Data(sunmat_J)
+    if (eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
 
     ! compute Jacobian matrix
     call eval8JacDAE(&

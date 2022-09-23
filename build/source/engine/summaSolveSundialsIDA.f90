@@ -368,12 +368,10 @@ contains
  retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
  if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetLinearSolver'; return; endif
 
- if(ixMatrix == ixFullMatrix)then
   ! Set the user-supplied Jacobian routine
   !comment this line out to use FD Jacobian
   retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
- endif
 
  ! Create Newton SUNNonlinearSolver object
  sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y)
