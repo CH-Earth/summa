@@ -1510,17 +1510,17 @@ contains
     dFrozenArea_dTk(0)  = 0._rkind
     !print*, 'scalarFrozenArea, rootZoneIce = ', scalarFrozenArea, rootZoneIce
 
-   ! compute infiltration derivative for layers not at surface
-    if (xMaxInfilRate < scalarRainPlusMelt) then ! = dXMaxInfilRate_d
+    if (xMaxInfilRate < scalarRainPlusMelt) then ! = dXMaxInfilRate_d, dependent on layers not at surface
+      dInfilRate_dWat(0) = 0._rkind
+      dInfilRate_dTk(0)  = 0._rkind
       dInfilRate_dWat(1:nSoil) = dXMaxInfilRate_dWat(:)
       dInfilRate_dTk(1:nSoil)  = dXMaxInfilRate_dTk(:)
-     else ! = dRainPlusMelt_d only dependent on canopy
-      dInfilRate_dWat(1:nSoil) = 0._rkind !only calculate for layers that are not the surface
-      dInfilRate_dTk(1:nSoil)  = 0._rkind !only calculate for layers that are not the surface
+     else ! = dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
+      dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
+      dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
+      dInfilRate_dWat(1:nSoil) = 0._rkind
+      dInfilRate_dTk(1:nSoil)  = 0._rkind
      endif
-     ! dependent on above layer (canopy or snow) water and temp
-     dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
-     dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk
  
      ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computeJacob module
      dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) ) +&
