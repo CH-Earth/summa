@@ -1,5 +1,3 @@
-
-
 module getVectorzAddSundials_module
 
 ! data types
@@ -80,173 +78,168 @@ contains
 
 
 
- ! **********************************************************************************************************
- ! public subroutine residDiscontinuity:
- ! **********************************************************************************************************
- subroutine residDiscontinuity(&
-                       ! input
-                       stateVec,                                  & ! intent(in):    model state vector (mixed units)
-                       diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                       indx_data,                                 & ! intent(in):    indices defining model states and layers
-                       ! output
-                       resid,                                     & ! intent(out)
-                       err,message)                                 ! intent(out):   error control
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------------------------------------
- implicit none
- ! input
- real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
- type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
- type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
- real(qp),intent(out)            :: resid(:)
- ! output: error control
- integer(i4b),intent(out)        :: err                             ! error code
- character(*),intent(out)        :: message                         ! error message
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! local variables
- integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
- integer(i4b)                    :: iCount
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! make association with variables in the data structures
- associate(&
- ! number of model layers, and layer type
- nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
- nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
- nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
- ! indices defining model states and layers
- ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
- ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
- ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
- ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in):  [i4b]    index of the squifer storage state variable
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for energy states in the snow+soil subdomain
- ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
- nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):  [i4b]    number of energy state variables in the snow+soil domain
- nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):  [i4b]    number of hydrology variables in the snow+soil domain
- ! indices defining type of model state variables
- ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
- ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                & ! intent(in):  [i4b(:)] index of the type of hydrology states in snow+soil domain
-)! association with variables in the data structures
+! **********************************************************************************************************
+! public subroutine residDiscontinuity:
+! **********************************************************************************************************
+subroutine residDiscontinuity(&
+                      ! input
+                      stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                      diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
+                      prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                      indx_data,                                 & ! intent(in):    indices defining model states and layers
+                      ! output
+                      resid,                                     & ! intent(out)
+                      err,message)                                 ! intent(out):   error control
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  implicit none
+  ! input
+  real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
+  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
+  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
+  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
+  real(qp),intent(out)            :: resid(:)
+  ! output: error control
+  integer(i4b),intent(out)        :: err                             ! error code
+  character(*),intent(out)        :: message                         ! error message
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! local variables
+  integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
+  integer(i4b)                    :: iCount
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! make association with variables in the data structures
+  associate(&
+    ! number of model layers, and layer type
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
+    ! indices defining model states and layers
+    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
+    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
+    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
+    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in):  [i4b]    index of the squifer storage state variable
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for energy states in the snow+soil subdomain
+    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
+    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):  [i4b]    number of energy state variables in the snow+soil domain
+    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):  [i4b]    number of hydrology variables in the snow+soil domain
+    ! indices defining type of model state variables
+    ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
+    ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                & ! intent(in):  [i4b(:)] index of the type of hydrology states in snow+soil domain
+    )! association with variables in the data structures
 
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------------------------------------
+    ! --------------------------------------------------------------------------------------------------------------------------------
+    ! --------------------------------------------------------------------------------------------------------------------------------
 
- ! initialize error control
- err=0; message='residDiscontinuity/'
+    ! initialize error control
+    err=0; message='residDiscontinuity/'
 
- iCount = 1
-
-
- ! check if computing the vegetation flux
- if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing)then
-
-  ! temperature of the canopy air space
-  if(ixCasNrg/=integerMissing)then
-    resid(iCount) = stateVec(ixCasNrg) - Tfreeze    !  scalarCanairTempTrial - Tfreeze
-    iCount = iCount + 1
-  endif
-
-  ! canopy temperature
-  if(ixVegNrg/=integerMissing)then
-    resid(iCount) = stateVec(ixVegNrg) - Tfreeze    !  scalarCanopyTempTrial - Tfreeze
-    iCount = iCount + 1
-  endif
+    iCount = 1
 
 
- endif  ! not computing the vegetation flux
+    ! check if computing the vegetation flux
+    if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing)then
 
- if(nSnowSoilNrg>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-   resid( iCount ) = stateVec( ixSnowSoilNrg(iLayer) ) - Tfreeze          ! mLayerTempTrial(iLayer) - Tfreeze
-   iCount = iCount + 1
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
- endif
+      ! temperature of the canopy air space
+      if(ixCasNrg/=integerMissing)then
+        resid(iCount) = stateVec(ixCasNrg) - Tfreeze    !  scalarCanairTempTrial - Tfreeze
+        iCount = iCount + 1
+      endif
 
- end associate
+      ! canopy temperature
+      if(ixVegNrg/=integerMissing)then
+        resid(iCount) = stateVec(ixVegNrg) - Tfreeze    !  scalarCanopyTempTrial - Tfreeze
+        iCount = iCount + 1
+      endif
+
+    endif  ! not computing the vegetation flux
+
+    if(nSnowSoilNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+        resid( iCount ) = stateVec( ixSnowSoilNrg(iLayer) ) - Tfreeze          ! mLayerTempTrial(iLayer) - Tfreeze
+        iCount = iCount + 1
+      end do  ! looping through non-missing energy state variables in the snow+soil domain
+    endif
+
+  end associate
+end subroutine residDiscontinuity
+
+! **********************************************************************************************************
+! public subroutine countDiscontinuity:
+! **********************************************************************************************************
+subroutine countDiscontinuity(&
+                      ! input
+                      stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                      diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
+                      prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                      indx_data,                                 & ! intent(in):    indices defining model states and layers
+                      ! output
+                      countD,                                     & ! intent(out)
+                      err,message)                                 ! intent(out):   error control
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  implicit none
+  ! input
+  real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
+  type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
+  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
+  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
+  integer(i4b),intent(out)        :: countD
+  ! output: error control
+  integer(i4b),intent(out)        :: err                             ! error code
+  character(*),intent(out)        :: message                         ! error message
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! local variables
+  integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! make association with variables in the data structures
+  associate(&
+    ! number of model layers, and layer type
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
+    ! indices defining model states and layers
+    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
+    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
+    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
+    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in):  [i4b]    index of the squifer storage state variable
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for energy states in the snow+soil subdomain
+    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
+    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):  [i4b]    number of energy state variables in the snow+soil domain
+    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):  [i4b]    number of hydrology variables in the snow+soil domain
+    ! indices defining type of model state variables
+    ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
+    ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                & ! intent(in):  [i4b(:)] index of the type of hydrology states in snow+soil domain
+    )! association with variables in the data structures
+
+    ! --------------------------------------------------------------------------------------------------------------------------------
+    ! --------------------------------------------------------------------------------------------------------------------------------
+
+    ! initialize error control
+    err=0; message='countDiscontinuity/'
+
+    ! *** extract state variables for the vegetation canopy
+
+    countD = 0
+    ! check if computing the vegetation flux
+    if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing)then
+
+      ! temperature of the canopy air space
+      if(ixCasNrg/=integerMissing)  countD = countD + 1
+
+      ! canopy temperature
+      if(ixVegNrg/=integerMissing)  countD = countD + 1
 
 
- end subroutine residDiscontinuity
+    endif  ! not computing the vegetation flux
 
-  ! **********************************************************************************************************
- ! public subroutine countDiscontinuity:
- ! **********************************************************************************************************
- subroutine countDiscontinuity(&
-                       ! input
-                       stateVec,                                  & ! intent(in):    model state vector (mixed units)
-                       diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                       indx_data,                                 & ! intent(in):    indices defining model states and layers
-                       ! output
-                       countD,                                     & ! intent(out)
-                       err,message)                                 ! intent(out):   error control
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------------------------------------
- implicit none
- ! input
- real(rkind),intent(in)             :: stateVec(:)                     ! model state vector (mixed units)
- type(var_dlength),intent(in)    :: diag_data                       ! diagnostic variables for a local HRU
- type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
- type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
- integer(i4b),intent(out)        :: countD
- ! output: error control
- integer(i4b),intent(out)        :: err                             ! error code
- character(*),intent(out)        :: message                         ! error message
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! local variables
- integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! make association with variables in the data structures
- associate(&
- ! number of model layers, and layer type
- nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
- nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
- nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
- ! indices defining model states and layers
- ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
- ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
- ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
- ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in):  [i4b]    index of the squifer storage state variable
- ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for energy states in the snow+soil subdomain
- ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):  [i4b(:)] indices IN THE STATE SUBSET for hydrology states in the snow+soil subdomain
- nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):  [i4b]    number of energy state variables in the snow+soil domain
- nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):  [i4b]    number of hydrology variables in the snow+soil domain
- ! indices defining type of model state variables
- ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
- ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                & ! intent(in):  [i4b(:)] index of the type of hydrology states in snow+soil domain
-)! association with variables in the data structures
+    if(nSnowSoilNrg>0)then
+      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+        countD = countD + 1
+      end do  ! looping through non-missing energy state variables in the snow+soil domain
+    endif
 
- ! --------------------------------------------------------------------------------------------------------------------------------
- ! --------------------------------------------------------------------------------------------------------------------------------
+  end associate
 
- ! initialize error control
- err=0; message='countDiscontinuity/'
-
- ! *** extract state variables for the vegetation canopy
-
- countD = 0
- ! check if computing the vegetation flux
- if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing)then
-
-  ! temperature of the canopy air space
-  if(ixCasNrg/=integerMissing)  countD = countD + 1
-
-  ! canopy temperature
-  if(ixVegNrg/=integerMissing)  countD = countD + 1
-
-
- endif  ! not computing the vegetation flux
-
- if(nSnowSoilNrg>0)then
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-   countD = countD + 1
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
- endif
-
- end associate
-
- end subroutine countDiscontinuity
-
-
+end subroutine countDiscontinuity
 
 end module getVectorzAddSundials_module
