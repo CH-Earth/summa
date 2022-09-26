@@ -149,10 +149,10 @@ integer(i4b),parameter  :: nStateTypes=2              ! number of state types (e
 integer(i4b),parameter  :: nDomains=4                 ! number of domains (vegetation, snow, soil, and aquifer)
 
 ! control parameters
-real(rkind),parameter      :: valueMissing=-9999._rkind     ! missing value
-real(rkind),parameter      :: verySmall=1.e-12_rkind        ! a very small number (used to check consistency)
-real(rkind),parameter      :: veryBig=1.e+20_rkind          ! a very big number
-real(rkind),parameter      :: dx = 1.e-8_rkind              ! finite difference increment
+real(rkind),parameter   :: valueMissing=-9999._rkind     ! missing value
+real(rkind),parameter   :: verySmall=1.e-12_rkind        ! a very small number (used to check consistency)
+real(rkind),parameter   :: veryBig=1.e+20_rkind          ! a very big number
+real(rkind),parameter   :: dx = 1.e-8_rkind              ! finite difference increment
 
 contains
 
