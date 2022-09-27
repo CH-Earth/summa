@@ -1,4 +1,3 @@
-
 module computEnthalpy_module
 
 ! data types
@@ -45,112 +44,112 @@ public::computEnthalpy
 public::computEnthalpyPrime
 contains
  
-  ! **********************************************************************************************************
- ! public subroutine computEnthalpy
- ! **********************************************************************************************************
- subroutine computEnthalpy(&
-                        ! input
-                        indx_data,                    &
-                        nLayers,                      &
-                        mLayerTemp,                   &
-                        mLayerVolFracIce,             &
-                        mLayerHeatCap,                  & 
-                        ! output
-                        mLayerEnthalpy                &
-                        )                
- ! --------------------------------------------------------------------------------------------------------------------------------
- implicit none
- ! input: model control
- type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
- integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
- real(rkind),intent(in)             :: mLayerTemp(:)             ! temperature of each snow/soil layer (K)
- real(rkind),intent(in)             :: mLayerVolFracIce(:)       ! volumetric fraction of ice (-)
- real(rkind),intent(in)             :: mLayerHeatCap(:)
- real(rkind),intent(out)            :: mLayerEnthalpy(:)
- 
- ! local variables
- integer(i4b)                    :: iLayer
-
- ! --------------------------------------------------------------------------------------------------------------------------------
- 
- associate(&
-   layerType               => indx_data%var(iLookINDEX%layerType)%dat               ,& ! intent(in): [i4b(:)] named variables defining the type of layer
-   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            & ! intent(in): [i4b(:)] indices for energy states
- )
-  ! (loop through non-missing energy state variables in the snow+soil domain)
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
-   select case( layerType(iLayer) )
-    case(iname_snow)
-         mLayerEnthalpy(iLayer) = mLayerHeatCap(iLayer)*mLayerTemp(iLayer) - LH_fus*iden_ice * mLayerVolFracIce(iLayer)
-    case(iname_soil)
-         mLayerEnthalpy(iLayer) = mLayerHeatCap(iLayer)*mLayerTemp(iLayer) - LH_fus*iden_water * mLayerVolFracIce(iLayer)  
-   end select
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
+! **********************************************************************************************************
+! public subroutine computEnthalpy
+! **********************************************************************************************************
+subroutine computEnthalpy(&
+                      ! input
+                      indx_data,                    &
+                      nLayers,                      &
+                      mLayerTemp,                   &
+                      mLayerVolFracIce,             &
+                      mLayerHeatCap,                & 
+                      ! output
+                      mLayerEnthalpy                &
+                      )                
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  implicit none
+  ! input: model control
+  type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
+  integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
+  real(rkind),intent(in)          :: mLayerTemp(:)             ! temperature of each snow/soil layer (K)
+  real(rkind),intent(in)          :: mLayerVolFracIce(:)       ! volumetric fraction of ice (-)
+  real(rkind),intent(in)          :: mLayerHeatCap(:)
+  real(rkind),intent(out)         :: mLayerEnthalpy(:)
   
- end associate
+  ! local variables
+  integer(i4b)                    :: iLayer
 
- end subroutine computEnthalpy
- 
-   ! **********************************************************************************************************
- ! public subroutine computEnthalpyPrime
- ! **********************************************************************************************************
- subroutine computEnthalpyPrime(&
-                        ! input
-                        computeVegFlux,				  &
-                        indx_data,                    &
-                        nLayers,                      &
-                        canopyDepth,               	  & ! intent(in): canopy depth (m)
-                        scalarCanopyTempPrime,        & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
-                        scalarCanopyIcePrime,         & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
-                        mLayerTempPrime,              &
-                        mLayerVolFracIcePrime,        &
-                        heatCapVeg,					  &
-                        mLayerHeatCap,                & 
-                        ! output
-                        scalarCanopyEnthalpyPrime,	  &
-                        mLayerEnthalpyPrime           &
-                        )                
- ! --------------------------------------------------------------------------------------------------------------------------------
- implicit none
- ! input: model control
- logical(lgt),intent(in)         :: computeVegFlux         		! logical flag to denote if computing the vegetation flux
- type(var_ilength),intent(in)    :: indx_data                 	! indices defining model states and layers
- integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
- real(rkind),intent(in)			 :: canopyDepth					! canopy depth (m)
- real(rkind),intent(in)			 :: scalarCanopyTempPrime       ! Prime value for the temperature of the vegetation canopy (K)
- real(rkind),intent(in)			 :: scalarCanopyIcePrime		! Prime value for the ice on the vegetation canopy (kg m-2)
- real(rkind),intent(in)			 :: heatCapVeg
- real(rkind),intent(in)             :: mLayerTempPrime(:)          ! temperature of each snow/soil layer (K)
- real(rkind),intent(in)             :: mLayerVolFracIcePrime(:)    ! volumetric fraction of ice (-)
- real(rkind),intent(in)             :: mLayerHeatCap(:)
- real(rkind),intent(out)			 :: scalarCanopyEnthalpyPrime
- real(rkind),intent(out)            :: mLayerEnthalpyPrime(:)
- 
- ! local variables
- integer(i4b)                    :: iLayer
-
- ! --------------------------------------------------------------------------------------------------------------------------------
- 
- associate(&
-   layerType               => indx_data%var(iLookINDEX%layerType)%dat               ,& ! intent(in): [i4b(:)] named variables defining the type of layer
-   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            & ! intent(in): [i4b(:)] indices for energy states
- )
- 
- if(computeVegFlux)then
-	scalarCanopyEnthalpyPrime = heatCapVeg * scalarCanopyTempPrime - LH_fus*scalarCanopyIcePrime/canopyDepth
- end if
-  ! (loop through non-missing energy state variables in the snow+soil domain)
-  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
-   select case( layerType(iLayer) )
-    case(iname_snow)
-         mLayerEnthalpyPrime(iLayer) = mLayerHeatCap(iLayer)*mLayerTempPrime(iLayer) - LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
-    case(iname_soil)
-         mLayerEnthalpyPrime(iLayer) = mLayerHeatCap(iLayer)*mLayerTempPrime(iLayer) - LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)  
-   end select
-  end do  ! looping through non-missing energy state variables in the snow+soil domain
+  ! --------------------------------------------------------------------------------------------------------------------------------
   
- end associate
+  associate(&
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat               ,& ! intent(in): [i4b(:)] named variables defining the type of layer
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            & ! intent(in): [i4b(:)] indices for energy states
+    )
+    ! (loop through non-missing energy state variables in the snow+soil domain)
+    do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
+      select case( layerType(iLayer) )
+        case(iname_snow)
+            mLayerEnthalpy(iLayer) = mLayerHeatCap(iLayer)*mLayerTemp(iLayer) - LH_fus*iden_ice * mLayerVolFracIce(iLayer)
+        case(iname_soil)
+            mLayerEnthalpy(iLayer) = mLayerHeatCap(iLayer)*mLayerTemp(iLayer) - LH_fus*iden_water * mLayerVolFracIce(iLayer)  
+      end select
+    end do  ! looping through non-missing energy state variables in the snow+soil domain
+    
+  end associate
 
- end subroutine computEnthalpyPrime
+end subroutine computEnthalpy
+ 
+! **********************************************************************************************************
+! public subroutine computEnthalpyPrime
+! **********************************************************************************************************
+subroutine computEnthalpyPrime(&
+                      ! input
+                      computeVegFlux,               &
+                      indx_data,                    &
+                      nLayers,                      &
+                      canopyDepth,               	  & ! intent(in): canopy depth (m)
+                      scalarCanopyTempPrime,        & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
+                      scalarCanopyIcePrime,         & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
+                      mLayerTempPrime,              &
+                      mLayerVolFracIcePrime,        &
+                      heatCapVeg,					          &
+                      mLayerHeatCap,                & 
+                      ! output
+                      scalarCanopyEnthalpyPrime,	  &
+                      mLayerEnthalpyPrime           &
+                      )                
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  implicit none
+  ! input: model control
+  logical(lgt),intent(in)         :: computeVegFlux         		! logical flag to denote if computing the vegetation flux
+  type(var_ilength),intent(in)    :: indx_data                 	! indices defining model states and layers
+  integer(i4b),intent(in)         :: nLayers                     ! number of snow layers
+  real(rkind),intent(in)			     :: canopyDepth					! canopy depth (m)
+  real(rkind),intent(in)			    :: scalarCanopyTempPrime       ! Prime value for the temperature of the vegetation canopy (K)
+  real(rkind),intent(in)			    :: scalarCanopyIcePrime		! Prime value for the ice on the vegetation canopy (kg m-2)
+  real(rkind),intent(in)			    :: heatCapVeg
+  real(rkind),intent(in)          :: mLayerTempPrime(:)          ! temperature of each snow/soil layer (K)
+  real(rkind),intent(in)          :: mLayerVolFracIcePrime(:)    ! volumetric fraction of ice (-)
+  real(rkind),intent(in)          :: mLayerHeatCap(:)
+  real(rkind),intent(out)			    :: scalarCanopyEnthalpyPrime
+  real(rkind),intent(out)         :: mLayerEnthalpyPrime(:)
+  
+  ! local variables
+  integer(i4b)                    :: iLayer
+
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  
+  associate(&
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat               ,& ! intent(in): [i4b(:)] named variables defining the type of layer
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            & ! intent(in): [i4b(:)] indices for energy states
+    )
+  
+    if(computeVegFlux)then
+      scalarCanopyEnthalpyPrime = heatCapVeg * scalarCanopyTempPrime - LH_fus*scalarCanopyIcePrime/canopyDepth
+    end if
+    ! (loop through non-missing energy state variables in the snow+soil domain)
+    do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   
+      select case( layerType(iLayer) )
+        case(iname_snow)
+            mLayerEnthalpyPrime(iLayer) = mLayerHeatCap(iLayer)*mLayerTempPrime(iLayer) - LH_fus*iden_ice * mLayerVolFracIcePrime(iLayer)
+        case(iname_soil)
+            mLayerEnthalpyPrime(iLayer) = mLayerHeatCap(iLayer)*mLayerTempPrime(iLayer) - LH_fus*iden_water * mLayerVolFracIcePrime(iLayer)  
+      end select
+    end do  ! looping through non-missing energy state variables in the snow+soil domain
+    
+  end associate
+
+end subroutine computEnthalpyPrime
 
 end module computEnthalpy_module
