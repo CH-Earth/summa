@@ -766,7 +766,7 @@ subroutine soilLiqFlx(&
 
           ! (use un-perturbed value)
           case default
-          s calarHydCondTrial = mLayerHydCond(nSoil)        ! hydraulic conductivity at the mid-point of the lowest unsaturated soil layer (m s-1)
+            scalarHydCondTrial = mLayerHydCond(nSoil)        ! hydraulic conductivity at the mid-point of the lowest unsaturated soil layer (m s-1)
 
         end select ! (re-computing hydraulic conductivity)
 

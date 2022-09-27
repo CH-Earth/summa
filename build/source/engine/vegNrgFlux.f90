@@ -795,7 +795,7 @@ subroutine vegNrgFlux(&
           ! compute the fraction of liquid water in the canopy (-)
           totalCanopyWater = canopyLiqTrial + canopyIceTrial
           if(totalCanopyWater > tiny(1.0_rkind))then
-            racLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
+            fracLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
           else
             fracLiquidCanopy = 0._rkind
           end if
