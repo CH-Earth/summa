@@ -358,9 +358,13 @@ subroutine ssdNrgFlux(&
         ! start with the un-perturbed case
         vectorVolFracLiqTrial(1:2) = mLayerVolFracLiqTrial(mLayer_ind)
         ! need to protect against negative indexes
-        if ( mLayer_ind(1) .ge. nSnow .and. mLayer_ind(2) .ge. nSnow)then
-          if (iLayer==nSnow ) mLayer_ind(1) = nsnow+1
-          vectorMatricHeadTrial(1:2) = mLayerMatricHeadTrial(mLayer_ind-nSnow)
+        if ( mLayer_ind(1) > nSnow .and. mLayer_ind(2) > nSnow)then
+         vectorMatricHeadTrial(1:2) = mLayerMatricHeadTrial(mLayer_ind-nSnow)
+        else if (mLayer_ind(2) > nSnow)then !mLayer_ind(1) == nSnow
+         vectorMatricHeadTrial(1) = realMissing
+         vectorMatricHeadTrial(2) = mLayerMatricHeadTrial(mLayer_ind(2)-nSnow)
+        else !snow layer
+         vectorMatricHeadTrial(1:2) = realMissing
         end if
         vectorTempTrial(1:2) = mLayerTempTrial(mLayer_ind)
         vectorVolFracIceTrial(1:2) = mLayerVolFracIceTrial(mLayer_ind)
