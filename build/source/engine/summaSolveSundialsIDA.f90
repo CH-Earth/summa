@@ -369,7 +369,7 @@ subroutine summaSolveSundialsIDA(                         &
 
   ! Set the user-supplied Jacobian routine
   !comment this line out to use FD Jacobian
-  !retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
+  retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
 
   ! Create Newton SUNNonlinearSolver object
