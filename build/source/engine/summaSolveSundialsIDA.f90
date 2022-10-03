@@ -210,7 +210,6 @@ subroutine summaSolveSundialsIDA(                         &
   type(c_ptr)                       :: ida_mem              ! IDA memory
   type(eqnsData),           target  :: eqns_data            ! IDA type
   integer(i4b)                      :: retval, retvalr      ! return value
-  integer(i4b)                      :: rootsfound(3)        ! crossing direction of discontinuities
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time
   real(qp)                          :: dt_last(1)           ! last time step

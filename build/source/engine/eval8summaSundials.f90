@@ -172,8 +172,8 @@ subroutine eval8summaSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)          :: dt_cur
-  real(rkind),intent(in)          :: dt                     ! time step
+  real(rkind),intent(in)          :: dt_cur                 ! current stepsize
+  real(rkind),intent(in)          :: dt                     ! entire time step
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -239,6 +239,7 @@ subroutine eval8summaSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
+  real(rkind)                        :: dt1                       ! residual step size
   ! state variables
   real(rkind)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
   real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
@@ -709,9 +710,12 @@ subroutine eval8summaSundials(&
                     err,cmessage)                             ! intent(out): error code and error message
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
+
+    dt1 = 1._qp ! always 1 for inside sundials
     ! compute the residual vector
     call computResidSundials(&
                       ! input: model control
+                      dt1,                       & ! intent(in):    length of the residual time step (seconds)
                       nSnow,                     & ! intent(in):    number of snow layers
                       nSoil,                     & ! intent(in):    number of soil layers
                       nLayers,                   & ! intent(in):    total number of layers

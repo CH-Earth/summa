@@ -58,6 +58,7 @@ contains
 ! **********************************************************************************************************
 subroutine computResidSundials(&
                       ! input: model control
+                      dt,                        & ! intent(in):    length of the time step (seconds)
                       nSnow,                     & ! intent(in):    number of snow layers
                       nSoil,                     & ! intent(in):    number of soil layers
                       nLayers,                   & ! intent(in):    total number of layers
@@ -92,6 +93,7 @@ subroutine computResidSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
+  real(rkind),intent(in)          :: dt                        ! length of the time step (seconds)
   integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
@@ -190,7 +192,7 @@ subroutine computResidSundials(&
     ! NOTE 4: same sink terms for matric head and liquid matric potential
     if(nSoilOnlyHyd>0)then
       do concurrent (iLayer=1:nSoil,ixSoilOnlyHyd(iLayer)/=integerMissing)   ! (loop through non-missing hydrology state variables in the snow+soil domain)
-        rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + (mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow) - mLayerCompress(iLayer)
+       rAdd( ixSoilOnlyHyd(iLayer) ) = rAdd( ixSoilOnlyHyd(iLayer) ) + dt*(mLayerTranspire(iLayer) - mLayerBaseflow(iLayer) )/mLayerDepth(iLayer+nSnow) - mLayerCompress(iLayer)
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 
@@ -201,18 +203,18 @@ subroutine computResidSundials(&
     ! compute the residual vector for the vegetation canopy
     ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
     ! --> energy balance
-    if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg) + rAdd(ixCasNrg) )
-    if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth  - ( fVec(ixVegNrg) + rAdd(ixVegNrg) )
+    if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*scalarCanairTempPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
+    if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth  - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     ! --> mass balance
     if(ixVegHyd/=integerMissing)then
       scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
-      rVec(ixVegHyd)  = sMul(ixVegHyd)*scalarCanopyHydPrime  - ( fVec(ixVegHyd) + rAdd(ixVegHyd) )
+      rVec(ixVegHyd)  = sMul(ixVegHyd)*scalarCanopyHydPrime  - ( fVec(ixVegHyd)*dt + rAdd(ixVegHyd) )
     endif
 
     ! compute the residual vector for the snow and soil sub-domains for energy
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) ) + rAdd( ixSnowSoilNrg(iLayer) ) )
+       rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 
@@ -223,12 +225,12 @@ subroutine computResidSundials(&
         ! (get the correct state variable)
         mLayerVolFracHydPrime(iLayer)      = merge(mLayerVolFracWatPrime(iLayer), mLayerVolFracLiqPrime(iLayer), (ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_matLayer) )
         ! (compute the residual)
-        rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydPrime(iLayer) - ( fVec( ixSnowSoilHyd(iLayer) ) + rAdd( ixSnowSoilHyd(iLayer) ) )
+        rVec( ixSnowSoilHyd(iLayer) ) = mLayerVolFracHydPrime(iLayer) - ( fVec( ixSnowSoilHyd(iLayer) )*dt + rAdd( ixSnowSoilHyd(iLayer) ) )
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 
     ! compute the residual vector for the aquifer
-    if(ixAqWat/=integerMissing)  rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStoragePrime - ( fVec(ixAqWat) + rAdd(ixAqWat) )
+    if(ixAqWat/=integerMissing)  rVec(ixAqWat) = sMul(ixAqWat)*scalarAquiferStoragePrime - ( fVec(ixAqWat)*dt + rAdd(ixAqWat) )
 
     ! print result
     if(globalPrintFlag)then
@@ -335,7 +337,7 @@ subroutine printResidDAE( &
 
     if(ixAqWat/=integerMissing)  print *, ' rVec(ixAqWat) = ', rVec(ixAqWat)
 
-  end associate 
+  end associate
 
 end subroutine printResidDAE
 
