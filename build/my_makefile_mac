@@ -229,10 +229,7 @@ SUMMA_SOLVER= \
       computThermConduct.f90 \
       computResidSundials.f90 \
       eval8summaSundials.f90 \
-      evalDAE4IDA.f90 \
       computJacobSundials.f90 \
-      eval8JacDAE.f90 \
-      evalJac4IDA.f90 \
 		computSnowDepth.f90 \
       summaSolveSundialsIDA.f90 \
       systemSolvSundials.f90 \

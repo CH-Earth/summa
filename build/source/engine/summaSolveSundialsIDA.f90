@@ -143,10 +143,10 @@ subroutine summaSolveSundialsIDA(                         &
   USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
   USE fsundials_nonlinearsolver_mod               ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
-  USE evalDAE4IDA_module,only:evalDAE4IDA         ! DAE/ODE functions
-  USE evalJac4IDA_module,only:evalJac4IDA         ! system Jacobian
+  USE eval8summaSundials_module,only:eval8summa4IDA         ! DAE/ODE functions
+  USE eval8summaSundials_module,only:eval8summaSundials     ! residual of DAE
+  USE computJacobSundials_module,only:computJacob4IDA     ! system Jacobian
   USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
-  USE eval8summaSundials_module,only:eval8summaSundials               ! residual of DAE
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
 
   !======= Declarations =========
@@ -331,7 +331,7 @@ subroutine summaSolveSundialsIDA(                         &
 
   ! Initialize memory
   t0 = 0._rkind
-  retval = FIDAInit(ida_mem, c_funloc(evalDAE4IDA), t0, sunvec_y, sunvec_yp)
+  retval = FIDAInit(ida_mem, c_funloc(eval8summa4IDA), t0, sunvec_y, sunvec_yp)
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDAInit'; return; endif
 
   ! set tolerances
@@ -370,7 +370,7 @@ subroutine summaSolveSundialsIDA(                         &
 
   ! Set the user-supplied Jacobian routine
   !comment this line out to use FD Jacobian
-  retval = FIDASetJacFn(ida_mem, c_funloc(evalJac4IDA))
+  !retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
 
   ! Create Newton SUNNonlinearSolver object

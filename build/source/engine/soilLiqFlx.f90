@@ -1467,7 +1467,7 @@ subroutine surfaceFlx(&
           dInfilRate_dTk(1:nSoil)  = 0._rkind
         endif
  
-        ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computeJacob module
+        ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
         dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) ) +&
                               (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
         dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  ) +&
