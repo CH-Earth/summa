@@ -367,17 +367,17 @@ subroutine eval8summa(&
     endif
 
     ! initialize to state variable from the last update
-    scalarCanairTempTrial = scalarCanairTemp
-    scalarCanopyTempTrial = scalarCanopyTemp
-    scalarCanopyWatTrial  = scalarCanopyWat
-    scalarCanopyLiqTrial  = scalarCanopyLiq
-    scalarCanopyIceTrial  = scalarCanopyIce
+    scalarCanairTempTrial     = scalarCanairTemp
+    scalarCanopyTempTrial     = scalarCanopyTemp
+    scalarCanopyWatTrial      = scalarCanopyWat
+    scalarCanopyLiqTrial      = scalarCanopyLiq
+    scalarCanopyIceTrial      = scalarCanopyIce
     mLayerTempTrial           = mLayerTemp
     mLayerVolFracWatTrial     = mLayerVolFracWat
     mLayerVolFracLiqTrial     = mLayerVolFracLiq
     mLayerVolFracIceTrial     = mLayerVolFracIce
-    mLayerMatricHeadTrial     = mLayerMatricHead      ! total water matric potential
-    mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq   ! liquid water matric potential
+    mLayerMatricHeadTrial     = mLayerMatricHead
+    mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq
     scalarAquiferStorageTrial = scalarAquiferStorage
 
     ! extract variables from the model state vector
@@ -388,18 +388,18 @@ subroutine eval8summa(&
                     prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
-                    scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
-                    scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
-                    scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
-                    scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                    scalarCanairTempTrial,    & ! intent(inout):   trial value of canopy air temperature (K)
+                    scalarCanopyTempTrial,    & ! intent(inout):   trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,     & ! intent(inout):   trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,     & ! intent(inout):   trial value of canopy liquid water (kg m-2)
                     ! output: variables for the snow-soil domain
-                    mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
-                    mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                    mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                    mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
-                    mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                    mLayerTempTrial,          & ! intent(inout):   trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,    & ! intent(inout):   trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,    & ! intent(inout):   trial vector of volumetric liquid water content (-)
+                    mLayerMatricHeadTrial,    & ! intent(inout):   trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial, & ! intent(inout):   trial vector of liquid water matric potential (m)
                     ! output: variables for the aquifer
-                    scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
+                    scalarAquiferStorageTrial,& ! intent(inout):   trial value of storage of water in the aquifer (m)
                     ! output: error control
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

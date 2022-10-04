@@ -408,16 +408,16 @@ subroutine varExtract(&
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
-                       scalarCanairTempTrial,                     & ! intent(out):   trial value of canopy air temperature (K)
-                       scalarCanopyTempTrial,                     & ! intent(out):   trial value of canopy temperature (K)
-                       scalarCanopyWatTrial,                      & ! intent(out):   trial value of canopy total water (kg m-2)
-                       scalarCanopyLiqTrial,                      & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                       scalarCanairTempTrial,                     & ! intent(inout):   trial value of canopy air temperature (K)
+                       scalarCanopyTempTrial,                     & ! intent(inout):   trial value of canopy temperature (K)
+                       scalarCanopyWatTrial,                      & ! intent(inout):   trial value of canopy total water (kg m-2)
+                       scalarCanopyLiqTrial,                      & ! intent(inout):   trial value of canopy liquid water (kg m-2)
                        ! output: variables for the snow-soil domain
-                       mLayerTempTrial,                           & ! intent(out):   trial vector of layer temperature (K)
-                       mLayerVolFracWatTrial,                     & ! intent(out):   trial vector of volumetric total water content (-)
-                       mLayerVolFracLiqTrial,                     & ! intent(out):   trial vector of volumetric liquid water content (-)
-                       mLayerMatricHeadTrial,                     & ! intent(out):   trial vector of total water matric potential (m)
-                       mLayerMatricHeadLiqTrial,                  & ! intent(out):   trial vector of liquid water matric potential (m)
+                       mLayerTempTrial,                           & ! intent(inout):   trial vector of layer temperature (K)
+                       mLayerVolFracWatTrial,                     & ! intent(inout):   trial vector of volumetric total water content (-)
+                       mLayerVolFracLiqTrial,                     & ! intent(inout):   trial vector of volumetric liquid water content (-)
+                       mLayerMatricHeadTrial,                     & ! intent(inout):   trial vector of total water matric potential (m)
+                       mLayerMatricHeadLiqTrial,                  & ! intent(inout):   trial vector of liquid water matric potential (m)
                        ! output: variables for the aquifer
                        scalarAquiferStorageTrial,                 & ! intent(out):   trial value of storage of water in the aquifer (m)
                        ! output: error control
@@ -431,18 +431,18 @@ subroutine varExtract(&
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   ! output: variables for the vegetation canopy
-  real(rkind),intent(out)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
-  real(rkind),intent(out)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
-  real(rkind),intent(out)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
-  real(rkind),intent(out)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
+  real(rkind),intent(inout)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
+  real(rkind),intent(inout)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+  real(rkind),intent(inout)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
+  real(rkind),intent(inout)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
   ! output: variables for the snow-soil domain
-  real(rkind),intent(out)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
-  real(rkind),intent(out)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
-  real(rkind),intent(out)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
-  real(rkind),intent(out)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
-  real(rkind),intent(out)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+  real(rkind),intent(inout)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+  real(rkind),intent(inout)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
+  real(rkind),intent(inout)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
+  real(rkind),intent(inout)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
+  real(rkind),intent(inout)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
   ! output: variables for the aquifer
-  real(rkind),intent(out)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
+  real(rkind),intent(inout)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
   ! output: error control
   integer(i4b),intent(out)           :: err                             ! error code
   character(*),intent(out)           :: message                         ! error message

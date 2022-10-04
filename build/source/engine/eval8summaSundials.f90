@@ -409,7 +409,7 @@ subroutine eval8summaSundials(&
     mLayerMatricHeadTrial     = mLayerMatricHeadPrev
     scalarAquiferStorageTrial = scalarAquiferStoragePrev
 
-    ! extract variables from the model state vector
+    ! extract states from the state vector
     call varExtract(&
                     ! input
                     stateVec,                 & ! intent(in):    model state vector (mixed units)
@@ -417,23 +417,37 @@ subroutine eval8summaSundials(&
                     prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
-                    scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
-                    scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
-                    scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
-                    scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
+                    scalarCanairTempTrial,    & ! intent(inout):   trial value of canopy air temperature (K)
+                    scalarCanopyTempTrial,    & ! intent(inout):   trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,     & ! intent(inout):   trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,     & ! intent(inout):   trial value of canopy liquid water (kg m-2)
                     ! output: variables for the snow-soil domain
-                    mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
-                    mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                    mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                    mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
-                    mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                    mLayerTempTrial,          & ! intent(inout):   trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,    & ! intent(inout):   trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,    & ! intent(inout):   trial vector of volumetric liquid water content (-)
+                    mLayerMatricHeadTrial,    & ! intent(inout):   trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial, & ! intent(inout):   trial vector of liquid water matric potential (m)
                     ! output: variables for the aquifer
-                    scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
+                    scalarAquiferStorageTrial,& ! intent(inout):   trial value of storage of water in the aquifer (m)
                     ! output: error control
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    ! Extract the variables for stateVecPrime
+    ! initialize to state variable from the last update
+    ! should all be set to previous values if splits, but for now operator splitting is not hooked up
+    scalarCanairTempPrime     = realMissing
+    scalarCanopyTempPrime     = realMissing
+    scalarCanopyWatPrime      = realMissing
+    scalarCanopyLiqPrime      = realMissing
+    scalarCanopyIcePrime      = realMissing
+    mLayerTempPrime           = realMissing
+    mLayerVolFracWatPrime     = realMissing
+    mLayerVolFracLiqPrime     = realMissing
+    mLayerVolFracIcePrime     = realMissing
+    mLayerMatricHeadPrime     = realMissing
+    mLayerMatricHeadLiqPrime  = realMissing
+    scalarAquiferStoragePrime = realMissing
+
     call varExtract(&
                     ! input
                     stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
@@ -441,22 +455,21 @@ subroutine eval8summaSundials(&
                     prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
-                    scalarCanairTempPrime,    & ! intent(out):   derivative of canopy air temperature (K)
-                    scalarCanopyTempPrime,    & ! intent(out):   derivative of canopy temperature (K)
-                    scalarCanopyWatPrime,     & ! intent(out):   derivative of canopy total water (kg m-2)
-                    scalarCanopyLiqPrime,     & ! intent(out):   derivative of canopy liquid water (kg m-2)
+                  scalarCanairTempPrime,    & ! intent(inout):   derivative of canopy air temperature (K)
+                  scalarCanopyTempPrime,    & ! intent(inout):   derivative of canopy temperature (K)
+                  scalarCanopyWatPrime,     & ! intent(niout):   derivative of canopy total water (kg m-2)
+                  scalarCanopyLiqPrime,     & ! intent(inout):   derivative of canopy liquid water (kg m-2)
                     ! output: variables for the snow-soil domain
-                    mLayerTempPrime,          & ! intent(out):   derivative of layer temperature (K)
-                    mLayerVolFracWatPrime,    & ! intent(out):   derivative of volumetric total water content (-)
-                    mLayerVolFracLiqPrime,    & ! intent(out):   derivative of volumetric liquid water content (-)
-                    mLayerMatricHeadPrime,    & ! intent(out):   derivative of total water matric potential (m)
-                    mLayerMatricHeadLiqPrime, & ! intent(out):   derivative of liquid water matric potential (m)
+                  mLayerTempPrime,          & ! intent(inout):   derivative of layer temperature (K)
+                  mLayerVolFracWatPrime,    & ! intent(inout):   derivative of volumetric total water content (-)
+                  mLayerVolFracLiqPrime,    & ! intent(inout):   derivative of volumetric liquid water content (-)
+                  mLayerMatricHeadPrime,    & ! intent(inout):   derivative of total water matric potential (m)
+                  mLayerMatricHeadLiqPrime, & ! intent(inout):   derivative of liquid water matric potential (m)
                     ! output: variables for the aquifer
-                    scalarAquiferStoragePrime,& ! intent(out):   derivative of storage of water in the aquifer (m)
+                  scalarAquiferStoragePrime,& ! intent(inout):   derivative of storage of water in the aquifer (m)
                     ! output: error control
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
 
     call updateVarsSundials(&
                     ! input
@@ -475,10 +488,10 @@ subroutine eval8summaSundials(&
                     scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
                     scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
-                    scalarCanopyTempPrime,                     & ! intent(inout): trial value of canopy temperature (K)
-                    scalarCanopyWatPrime,                      & ! intent(inout): trial value of canopy total water (kg m-2)
-                    scalarCanopyLiqPrime,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                    scalarCanopyIcePrime,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
+                    scalarCanopyTempPrime,                     & ! intent(inout): trial value of time derivative canopy temperature (K)
+                    scalarCanopyWatPrime,                      & ! intent(inout): trial value of time derivative canopy total water (kg m-2)
+                    scalarCanopyLiqPrime,                      & ! intent(inout): trial value of time derivative canopy liquid water (kg m-2)
+                    scalarCanopyIcePrime,                      & ! intent(inout): trial value of time derivative canopy ice content (kg m-2)
                     ! output: variables for the snow-soil domain
                     mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
                     mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
@@ -487,11 +500,11 @@ subroutine eval8summaSundials(&
                     mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
                     mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
                     mLayerTempPrime,                           & !
-                    mLayerVolFracWatPrime,                     & ! intent(inout): Prime vector of volumetric total water content (-)
-                    mLayerVolFracLiqPrime,                     & ! intent(inout): Prime vector of volumetric liquid water content (-)
-                    mLayerVolFracIcePrime,                     & !
-                    mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
-                    mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
+                    mLayerVolFracWatPrime,                     & ! intent(inout): trial vector of time derivative volumetric total water content (-)
+                    mLayerVolFracLiqPrime,                     & ! intent(inout): trial vector of time derivative volumetric liquid water content (-)
+                    mLayerVolFracIcePrime,                     & ! intent(inout): trial vector of time derivative volumetric ice water content (-)
+                    mLayerMatricHeadPrime,                     & ! intent(inout): trial vector of time derivative total water matric potential (m)
+                    mLayerMatricHeadLiqPrime,                  & ! intent(inout): trial vector of time derivative liquid water matric potential (m)
                     ! output: error control
                     err,cmessage)                                ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
