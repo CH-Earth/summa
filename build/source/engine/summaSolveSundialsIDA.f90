@@ -369,7 +369,7 @@ subroutine summaSolveSundialsIDA(                         &
 
   ! Set the user-supplied Jacobian routine
   !comment this line out to use FD Jacobian
-  retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
+  !retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
 
   ! Create Newton SUNNonlinearSolver object
@@ -397,16 +397,16 @@ subroutine summaSolveSundialsIDA(                         &
   ! need the following values for the first substep
   eqns_data%scalarCanopyTempPrev     = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
   eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
-  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
-  eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
-  eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
-  eqns_data%mLayerVolFracLiqPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
-  eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
-  eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
-  eqns_data%mLayerEnthalpyPrev(:)    = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) !!?
   eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
+  eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
   mLayerMatricHeadLiqPrev(:)         = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
+  eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
+  eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
+  eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
+  eqns_data%mLayerVolFracLiqPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:) !!?
+  eqns_data%mLayerEnthalpyPrev(:)    = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+  eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)!!?
   eqns_data%ixSaturation             = ixSaturation
 
   !**********************************************************************************
@@ -469,33 +469,34 @@ subroutine summaSolveSundialsIDA(                         &
                   eqns_data%diag_data,                & ! intent(inout): model diagnostic variables for a local HRU
                   eqns_data%flux_data,                & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                   eqns_data%deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ! input-output
-                  eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later for Jacobian
+                 ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
                   eqns_data%scalarCanopyTempTrial,    & ! intent(in):    trial value of canopy temperature (K)
                   eqns_data%scalarCanopyTempPrev,     & ! intent(in):    previous value of canopy temperature (K)
                   eqns_data%scalarCanopyIceTrial,     & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
                   eqns_data%scalarCanopyIcePrev,      & ! intent(in):    value for mass of ice on the vegetation canopy (kg m-2)
                   eqns_data%scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
                   eqns_data%scalarCanopyLiqPrev,      & ! intent(in):    value of canopy liquid water (kg m-2)
-                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(out):  trial value for enthalpy of the vegetation canopy (J m-3)
-                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):   value for enthalpy of the vegetation canopy (J m-3)
-                  eqns_data%mLayerTempTrial,          & ! intent(out):  trial vector of layer temperature (K)
-                  eqns_data%mLayerTempPrev,           & ! intent(in):   vector of layer temperature (K)
-                  eqns_data%mLayerMatricHeadLiqTrial, & ! intent(out):  trial value for liquid water matric potential (m)
-                  eqns_data%mLayerMatricHeadTrial,    & ! intent(out):  trial value for total water matric potential (m)
-                  eqns_data%mLayerMatricHeadPrev,     & ! intent(in):   value for total water matric potential (m)
-                  eqns_data%mLayerVolFracWatTrial,    & ! intent(out):  trial vector of volumetric total water content (-)
-                  eqns_data%mLayerVolFracWatPrev,     & ! intent(in):   vector of volumetric total water content (-)
-                  eqns_data%mLayerVolFracIceTrial,    & ! intent(out):  trial vector of volumetric ice water content (-)
-                  eqns_data%mLayerVolFracIcePrev,     & ! intent(in):   vector of volumetric ice water content (-)
-                  eqns_data%mLayerVolFracLiqTrial,    & ! intent(out):  trial vector of volumetric liquid water content (-)
-                  eqns_data%mLayerVolFracLiqPrev,     & ! intent(in):   vector of volumetric liquid water content (-)
-                  eqns_data%scalarAquiferStorageTrial,& ! intent(out): trial value of storage of water in the aquifer (m)
-                  eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)
-                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in):   vector of enthalpy for snow+soil layers (J m-3)
-                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out):  trial vector of enthalpy for snow+soil layers (J m-3)
+                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(out):   trial value for enthalpy of the vegetation canopy (J m-3)
+                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):    value for enthalpy of the vegetation canopy (J m-3)
+                  eqns_data%mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
+                  eqns_data%mLayerTempPrev,           & ! intent(in):    vector of layer temperature (K)
+                  eqns_data%mLayerMatricHeadLiqTrial, & ! intent(out):   trial value for liquid water matric potential (m)
+                  eqns_data%mLayerMatricHeadTrial,    & ! intent(out):   trial value for total water matric potential (m)
+                  eqns_data%mLayerMatricHeadPrev,     & ! intent(in):    value for total water matric potential (m)
+                  eqns_data%mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
+                  eqns_data%mLayerVolFracWatPrev,     & ! intent(in):    vector of volumetric total water content (-)
+                  eqns_data%mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
+                  eqns_data%mLayerVolFracIcePrev,     & ! intent(in):    vector of volumetric ice water content (-)
+                  eqns_data%mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
+                  eqns_data%mLayerVolFracLiqPrev,     & ! intent(in):    vector of volumetric liquid water content (-)
+                  eqns_data%scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
+                  eqns_data%scalarAquiferStoragePrev, & ! intent(in):    value of storage of water in the aquifer (m)
+                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
+                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
+                  ! input-output: baseflow
                   eqns_data%ixSaturation,             & ! intent(inout): index of the lowest saturated layer
-                  ! output
+                  eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+                  ! output: flux and residual vectors
                   feasible,                           & ! intent(out):   flag to denote the feasibility of the solution
                   eqns_data%fluxVec,                  & ! intent(out):   flux vector
                   eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
@@ -515,15 +516,15 @@ subroutine summaSolveSundialsIDA(                         &
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
     eqns_data%scalarCanopyIcePrev      = eqns_data%scalarCanopyIceTrial
     eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
+    eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
     eqns_data%mLayerTempPrev(:)        = eqns_data%mLayerTempTrial(:)
     mLayerMatricHeadLiqPrev(:)         = eqns_data%mLayerMatricHeadLiqTrial(:)
     eqns_data%mLayerMatricHeadPrev(:)  = eqns_data%mLayerMatricHeadTrial(:)
     eqns_data%mLayerVolFracWatPrev(:)  = eqns_data%mLayerVolFracWatTrial(:)
     eqns_data%mLayerVolFracIcePrev(:)  = eqns_data%mLayerVolFracIceTrial(:)
     eqns_data%mLayerVolFracLiqPrev(:)  = eqns_data%mLayerVolFracLiqTrial(:)
-    eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
     eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
-    eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
+    eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
 
   enddo ! while loop on one_step mode until time dt
 
@@ -549,8 +550,6 @@ subroutine summaSolveSundialsIDA(                         &
   deallocate( eqns_data%mLayerMatricHeadLiqTrial )
   deallocate( eqns_data%mLayerMatricHeadTrial )
   deallocate( eqns_data%mLayerMatricHeadPrev )
-  deallocate( eqns_data%fluxVec )
-  deallocate( eqns_data%resSink )
   deallocate( eqns_data%mLayerVolFracWatTrial )
   deallocate( eqns_data%mLayerVolFracWatPrev )
   deallocate( eqns_data%mLayerVolFracIceTrial )
@@ -560,6 +559,8 @@ subroutine summaSolveSundialsIDA(                         &
   deallocate( eqns_data%mLayerVolFracLiqPrev )
   deallocate( eqns_data%mLayerEnthalpyTrial )
   deallocate( eqns_data%mLayerEnthalpyPrev )
+  deallocate( eqns_data%fluxVec )
+  deallocate( eqns_data%resSink )
 
   call FIDAFree(ida_mem)
   retval = FSUNNonlinSolFree(sunnonlin_NLS)

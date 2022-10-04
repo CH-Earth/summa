@@ -316,7 +316,7 @@ subroutine varSubstepSundials(&
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
-                      firstSplitOper,    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
+                      firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                       computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                       scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                       ! input/output: data structures
@@ -683,11 +683,11 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     ! ------------------
 
     ! initialize to state variable from the last update
-    scalarCanairTempTrial = scalarCanairTemp
-    scalarCanopyTempTrial = scalarCanopyTemp
-    scalarCanopyWatTrial  = scalarCanopyWat
-    scalarCanopyLiqTrial  = scalarCanopyLiq
-    scalarCanopyIceTrial  = scalarCanopyIce
+    scalarCanairTempTrial     = scalarCanairTemp
+    scalarCanopyTempTrial     = scalarCanopyTemp
+    scalarCanopyWatTrial      = scalarCanopyWat
+    scalarCanopyLiqTrial      = scalarCanopyLiq
+    scalarCanopyIceTrial      = scalarCanopyIce
     mLayerTempTrial           = mLayerTemp
     mLayerVolFracWatTrial     = mLayerVolFracWat
     mLayerVolFracLiqTrial     = mLayerVolFracLiq
