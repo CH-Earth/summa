@@ -439,7 +439,6 @@ subroutine systemSolvSundials(&
                     err,cmessage)              ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
     if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
-    endif
 
     ! copy over the initial flux structure since some model fluxes are not computed in the iterations
     do concurrent ( iVar=1:size(flux_meta) )
