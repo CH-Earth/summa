@@ -210,7 +210,6 @@ subroutine systemSolvSundials(&
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
-  logical(lgt),parameter          :: oldway=.true.
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
@@ -372,9 +371,7 @@ subroutine systemSolvSundials(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     ! compute the flux and the residual vector for a given state vector
-    ! NOTE: The derivatives computed in eval8summaSundials are used to calculate the Jacobian matrix for the first iteration
-    ! ARE THEY?? or just getting flux_init?
-    if (.not.oldway)then
+    ! NOTE: The values calculated in  eval8summaSundials are used to calculate the initial flux
     call eval8summaSundials(&
                     ! input: model control
                     dt,                      & ! intent(in):    current stepsize
@@ -442,51 +439,6 @@ subroutine systemSolvSundials(&
                     err,cmessage)              ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
     if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
-    endif
-
-    if (oldway)then !dt is 7200 in residuals
-       call eval8summa(&
-                       ! input: model control
-                       dt,                      & ! intent(in):    length of the time step (seconds)
-                       nSnow,                   & ! intent(in):    number of snow layers
-                       nSoil,                   & ! intent(in):    number of soil layers
-                       nLayers,                 & ! intent(in):    number of layers
-                       nState,                  & ! intent(in):    number of state variables in the current subset
-                       firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                       firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
-                       computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                       ! input: state vectors
-                       stateVecTrial,           & ! intent(in):    model state vector
-                       fScale,                  & ! intent(in):    function scaling vector
-                       sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
-                       ! input: data structures
-                       model_decisions,         & ! intent(in):    model decisions
-                       lookup_data,             & ! intent(in):    lookup tables
-                       type_data,               & ! intent(in):    type of vegetation and soil
-                       attr_data,               & ! intent(in):    spatial attributes
-                       mpar_data,               & ! intent(in):    model parameters
-                       forc_data,               & ! intent(in):    model forcing data
-                       bvar_data,               & ! intent(in):    average model variables for the entire basin
-                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                       indx_data,               & ! intent(in):    index data
-                       ! input-output: data structures
-                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                       ! input-output: baseflow
-                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                       ! output
-                       feasible,                & ! intent(out):   flag to denote the feasibility of the solution
-                       fluxVec0,                & ! intent(out):   flux vector
-                       rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                       rVec,                    & ! intent(out):   residual vector
-                       fOld,                    & ! intent(out):   function evaluation
-                       err,cmessage)              ! intent(out):   error control
-       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-       if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
     endif
 
     ! copy over the initial flux structure since some model fluxes are not computed in the iterations
