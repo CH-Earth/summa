@@ -66,6 +66,8 @@ USE globalData,only:model_decisions ! model decision structure
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
 USE globalData,only: kl             ! number of sub-diagonal bands, assume kl>=4
+USE globalData,only: ixDiag         ! index for the diagonal band
+USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
@@ -183,8 +185,6 @@ subroutine computJacobSundials(&
   ! --------------------------------------------------------------
   ! * local variables
   ! --------------------------------------------------------------
-  integer(i4b),parameter               :: ixDiag=kl+ku+1   ! index for the diagonal band for sundials
-  integer(i4b),parameter               :: nBands=2*kl+ku+1 ! length of the leading dimension of the band diagonal matrix for sundials
   ! indices of model state variables
   integer(i4b)                         :: jState          ! index of state within the state subset
   integer(i4b)                         :: qState          ! index of cross-derivative state variable for baseflow
@@ -1378,7 +1378,6 @@ integer(c_int) function computJacob4IDA(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   implicit none
 
   ! calling variables
-  integer(i4b),parameter        :: nBands=2*kl+ku+1 ! length of the leading dimension of the band diagonal matrix for sundials
   real(rkind), value            :: t              ! current time
   real(rkind), value            :: cj             ! step size scaling factor
   type(N_Vector)                :: sunvec_y       ! solution N_Vector
@@ -1456,8 +1455,8 @@ function ixOffDiag(jState,iState)
   implicit none
   integer(i4b),intent(in)  :: jState    ! off-diagonal state
   integer(i4b),intent(in)  :: iState    ! diagonal state
-  integer(i4b),parameter   :: ixDiag=kl+ku+1   ! index for the diagonal, the offset in the band Jacobian matrix
   integer(i4b)             :: ixOffDiag ! off-diagonal index in gthe band-diagonal matrix
+
   ixOffDiag = ixDiag + jState - iState
 end function ixOffDiag
 

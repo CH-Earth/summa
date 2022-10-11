@@ -59,6 +59,8 @@ USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
 USE globalData,only: kl             ! number of sub-diagonal bands, assume kl>=4
+USE globalData,only: ixDiag         ! index for the diagonal band
+USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
@@ -125,8 +127,6 @@ subroutine computJacob(&
   ! --------------------------------------------------------------
   ! * local variables
   ! --------------------------------------------------------------
-  integer(i4b),parameter            :: ixDiag=kl+ku+1   ! index for the diagonal band for lapack
-  integer(i4b),parameter            :: nBands=2*kl+ku+1 ! length of the leading dimension of the band diagonal matrix for lapack
   ! indices of model state variables
   integer(i4b)                      :: jState          ! index of state within the state subset
   integer(i4b)                      :: qState          ! index of cross-derivative state variable for baseflow

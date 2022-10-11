@@ -30,6 +30,7 @@ USE globalData,only:globalPrintFlag
 USE globalData,only: nRHS           ! number of unknown variables on the RHS of the linear system A.X=B
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
+USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
@@ -165,8 +166,6 @@ contains
  ! local
  real(rkind)                    :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b)                   :: iPiv(nState)  ! defines if row i of the matrix was interchanged with row iPiv(i)
- integer(i4b),parameter         :: nBands=2*kl+ku+1 ! length of the leading dimension of the band diagonal matrix for lapack
-
  ! initialize error control
  select case(ixMatrix)
   case(ixFullMatrix); message='lapackSolv/dgesv/'
