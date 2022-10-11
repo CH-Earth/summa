@@ -14,7 +14,6 @@ USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
-USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
@@ -188,7 +187,7 @@ subroutine systemSolvSundials(&
   ! ------------------------------------------------------------------------------------------------------
   ! * model solver
   ! ------------------------------------------------------------------------------------------------------
-  logical(lgt),parameter          :: forceFullMatrix=.true.        ! flag to force the use of the full Jacobian matrix
+  logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
   integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
   type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
   real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed

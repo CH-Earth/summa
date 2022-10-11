@@ -31,13 +31,6 @@ USE globalData,only:integerMissing   ! missing integer
 USE globalData,only:realMissing      ! missing double precision number
 USE globalData,only:quadMissing      ! missing quadruple precision number
 
-! access matrix information
-USE globalData,only: nBands          ! length of the leading dimension of the band diagonal matrix
-USE globalData,only: ixFullMatrix    ! named variable for the full Jacobian matrix
-USE globalData,only: ixBandMatrix    ! named variable for the band diagonal matrix
-USE globalData,only: iJac1           ! first layer of the Jacobian to print
-USE globalData,only: iJac2           ! last layer of the Jacobian to print
-
 ! domain types
 USE globalData,only:iname_cas        ! named variables for the canopy air space
 USE globalData,only:iname_veg        ! named variables for vegetation
@@ -830,7 +823,7 @@ subroutine opSplittin(&
                               ! check
                   case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
                 end select
-       
+
                 if(err/=0)then
                   message=trim(message)//trim(cmessage)
                   if(err>0) return

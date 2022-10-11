@@ -18,11 +18,8 @@ USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
-USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
-USE globalData,only: iJac1          ! first layer of the Jacobian to print
-USE globalData,only: iJac2          ! last layer of the Jacobian to print
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
 

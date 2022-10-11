@@ -38,7 +38,6 @@ USE globalData,only:quadMissing     ! missing quadruple precision number
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
-USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
@@ -190,6 +189,7 @@ contains
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! Jacobian matrix
+ integer(i4b),parameter          :: nBands=2*kl+ku+1 ! length of the leading dimension of the band diagonal matrix for lapack
  logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false. ! flag to test the band diagonal Jacobian matrix
  real(rkind)                        :: nJac(nState,nState)      ! numerical Jacobian matrix

@@ -32,7 +32,8 @@ USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
-USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
+USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
+USE globalData,only: kl             ! number of sub-diagonal bands, assume kl>=4
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
 USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
@@ -205,6 +206,7 @@ contains
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
  logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
+ integer(i4b),parameter          :: nBands=2*kl+ku+1              ! length of the leading dimension of the band diagonal matrix for lapack
  integer(i4b)                    :: maxiter                       ! maximum number of iterations
  integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
  integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
@@ -556,12 +558,12 @@ contains
    stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
   end do  ! looping through non-missing water state variables in the soil domain
  endif
- 
- if ( allocated(dBaseflow_dMatric) ) deallocate(dBaseflow_dMatric)  
+
+ if ( allocated(dBaseflow_dMatric) ) deallocate(dBaseflow_dMatric)
 
  ! end associate statements
  end associate globalVars
- 
+
 
  end subroutine systemSolv
 

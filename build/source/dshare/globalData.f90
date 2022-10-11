@@ -150,13 +150,11 @@ MODULE globalData
  integer(i4b),parameter,public               :: iname_watAquifer=3006   ! named variable defining the water storage in the aquifer
 
  ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
- ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.
- !       Consequently, all indices are offset by kl and the total number of bands for storage is 2*kl+ku+1 instead of kl+ku+1.
+ ! NOTE: lapack requires kl extra rows for additional storage versus sundials
+ !       Consequently, in lapack all indices are offset by kl and the total number of bands for storage is 2*kl+ku+1 instead of kl+ku+1.
  integer(i4b),parameter,public               :: nRHS=1                  ! number of unknown variables on the RHS of the linear system A.X=B
- integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands
- integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands
- integer(i4b),parameter,public               :: ixDiag=kl+ku+1          ! index for the diagonal band
- integer(i4b),parameter,public               :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
+ integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands, ku>=3 to accommodate coupled layer above
+ integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands, kl>=4 to accommodate vegetation
 
  ! define named variables for the type of matrix used in the numerical solution.
  integer(i4b),parameter,public               :: ixFullMatrix=1001       ! named variable for the full Jacobian matrix
