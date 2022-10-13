@@ -97,9 +97,9 @@ ifeq "$(FC)" "gfortran"
 	endif
 
 # Production runs
-FLAGS_NOAH = -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-FLAGS_COMM = -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
-FLAGS_SUMMA = -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_NOAH = -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
+FLAGS_SUMMA = -O3 -ffree-line-length-none -fmax-errors=0 $(FLAGS_OMP)
 
 # Debug runs
 # FLAGS_NOAH = -p -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument -Wall
@@ -228,10 +228,7 @@ SUMMA_SOLVER= \
       computThermConduct.f90 \
       computResidSundials.f90 \
       eval8summaSundials.f90 \
-      evalDAE4IDA.f90 \
       computJacobSundials.f90 \
-      eval8JacDAE.f90 \
-      evalJac4IDA.f90 \
 		computSnowDepth.f90 \
       summaSolveSundialsIDA.f90 \
       systemSolvSundials.f90 \
@@ -271,7 +268,6 @@ NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
 SUMMA_MODRUN = \
       indexState.f90 \
       getVectorz.f90 \
-      getVectorzAddSundials.f90 \
       t2enthalpy.f90 \
       updateVars.f90 \
       updateVarsSundials.f90 \
@@ -359,21 +355,7 @@ endif
 #======================================================================
 
 # Compile
-
-production: FLAGS_NOAH += -g -O3
-production: FLAGS_COMM += -g -O3
-production: FLAGS_SUMMA += -g -O3
-production: all
-
-
-
-debug: FLAGS_NOAH += -g -O0
-debug: FLAGS_COMM += -g -O0
-debug: FLAGS_SUMMA += -g -O0
-debug: all 
-
 all: compile_noah compile_comm compile_summa link clean install
-
 part: compile_noah compile_comm compile_summa
 
 check:
