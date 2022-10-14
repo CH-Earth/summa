@@ -394,8 +394,8 @@ subroutine varSubstepSundials(&
       endif
 
       ! identify the need to check the mass balance
-      checkMassBalance = .true. ! (.not.scalarSolution)
-      checkNrgBalance = .true.
+      checkMassBalance = .false. !do not check for Sundials
+      checkNrgBalance = .false.  !do not check for Sundials
 
       ! update prognostic variables
       call updateProgSundials(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
@@ -883,15 +883,15 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
         fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
         liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
         if(abs(liqError) > absConvTol_liquid*10._rkind*iden_water)then  ! *10 because of precision issues
-          write(*,'(a,1x,f20.10)') 'dt = ', dt
-          write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
-          write(*,'(a,1x,f20.10)') 'canopyBalance0             = ', canopyBalance0
-          write(*,'(a,1x,f20.10)') 'canopyBalance1             = ', canopyBalance1
-          write(*,'(a,1x,f20.10)') 'scalarRainfall*dt          = ', scalarRainfall*dt
-          write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
-          write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
-          write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
-          write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError
+          !write(*,'(a,1x,f20.10)') 'dt = ', dt
+          !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
+          !write(*,'(a,1x,f20.10)') 'canopyBalance0             = ', canopyBalance0
+          !write(*,'(a,1x,f20.10)') 'canopyBalance1             = ', canopyBalance1
+          !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt          = ', scalarRainfall*dt
+          !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
+          !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
+          !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
+          !write(*,'(a,1x,f20.10)') 'liqError                   = ', liqError
           waterBalanceError = .true.
           return
         endif  ! if there is a water balance error
@@ -907,15 +907,15 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
         compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
         liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
         if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
-          write(*,'(a,1x,f20.10)') 'dt = ', dt
-          write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
-          write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
-          write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
-          write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-          write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
-          write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
-          write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
-          write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
+          !write(*,'(a,1x,f20.10)') 'dt = ', dt
+          !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+          !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+          !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+          !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+          !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+          !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+          !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+          !write(*,'(a,1x,f20.10)') 'absConvTol_liquid = ', absConvTol_liquid
           waterBalanceError = .true.
           return
         endif  ! if there is a water balance error
