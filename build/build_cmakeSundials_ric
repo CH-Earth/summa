@@ -3,6 +3,6 @@
 # run script from the builddir directory with ./build_cmake
 # Note, using -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF because modified constraint code and did not modify examples
 
-cmake ../../sundials-5.8.0/ -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=/u1/gwu479/SummaSundials/sundials/instdir -DEXAMPLES_INSTALL_PATH=/u1/gwu479/SummaSundials/sundials/instdir/examples
+cmake ../../sundials-6.3.0/ -DEXAMPLES_ENABLE_C=OFF -DEXAMPLES_ENABLE_F2003=OFF -DBUILD_FORTRAN_MODULE_INTERFACE=ON -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=/u1/gwu479/SummaSundials/sundials/instdir -DEXAMPLES_INSTALL_PATH=/u1/gwu479/SummaSundials/sundials/instdir/examples
 
 
