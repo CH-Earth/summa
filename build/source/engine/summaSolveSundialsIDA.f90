@@ -129,6 +129,7 @@ subroutine summaSolveSundialsIDA(                         &
 
   !======= Inclusions ===========
   USE fida_mod                                    ! Fortran interface to IDA
+  USE fsundials_context_mod                       ! Fortran interface to SUNContext
   USE fnvector_serial_mod                         ! Fortran interface to serial N_Vector
   USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
   USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
@@ -205,6 +206,7 @@ subroutine summaSolveSundialsIDA(                         &
   type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS        ! sundials nonlinear solver
   type(c_ptr)                       :: ida_mem              ! IDA memory
+  type(c_ptr)                       :: sunctx               ! SUNDIALS simulation context
   type(eqnsData),           target  :: eqns_data            ! IDA type
   integer(i4b)                      :: retval, retvalr      ! return value
   logical(lgt)                      :: feasible             ! feasibility flag
@@ -305,19 +307,20 @@ subroutine summaSolveSundialsIDA(                         &
   allocate( eqns_data%resSink(nState) )
 
   startQuadrature = .true.
+  retval = FSUNContext_Create(c_null_ptr, sunctx)
 
   ! create serial vectors
-  sunvec_y => FN_VMake_Serial(nState, stateVec)
+  sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
   if (.not. associated(sunvec_y)) then; err=20; message='summaSolveSundialsIDA: sunvec = NULL'; return; endif
 
-  sunvec_yp => FN_VMake_Serial(nState, stateVecPrime)
+  sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
   if (.not. associated(sunvec_yp)) then; err=20; message='summaSolveSundialsIDA: sunvec = NULL'; return; endif
 
   ! Initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
   ! Create memory
-  ida_mem = FIDACreate()
+  ida_mem = FIDACreate(sunctx)
   if (.not. c_associated(ida_mem)) then; err=20; message='summaSolveSundialsIDA: ida_mem = NULL'; return; endif
 
   ! Attach user data to memory
@@ -339,20 +342,20 @@ subroutine summaSolveSundialsIDA(                         &
     case(ixBandMatrix)
       mu = ku; lu = kl;
       ! Create banded SUNMatrix for use in linear solves
-      sunmat_A => FSUNBandMatrix(nState, mu, lu)
+      sunmat_A => FSUNBandMatrix(nState, mu, lu, sunctx)
       if (.not. associated(sunmat_A)) then; err=20; message='summaSolveSundialsIDA: sunmat = NULL'; return; endif
 
       ! Create banded SUNLinearSolver object
-      sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A)
+      sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A, sunctx)
       if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolveSundialsIDA: sunlinsol = NULL'; return; endif
 
     case(ixFullMatrix)
       ! Create dense SUNMatrix for use in linear solves
-      sunmat_A => FSUNDenseMatrix(nState, nState)
+      sunmat_A => FSUNDenseMatrix(nState, nState, sunctx)
       if (.not. associated(sunmat_A)) then; err=20; message='summaSolveSundialsIDA: sunmat = NULL'; return; endif
 
       ! Create dense SUNLinearSolver object
-      sunlinsol_LS => FSUNDenseLinearSolver(sunvec_y, sunmat_A)
+      sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
       if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolveSundialsIDA: sunlinsol = NULL'; return; endif
 
       ! check
@@ -370,7 +373,7 @@ subroutine summaSolveSundialsIDA(                         &
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
 
   ! Create Newton SUNNonlinearSolver object
-  sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y)
+  sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y, sunctx)
   if (.not. associated(sunnonlin_NLS)) then; err=20; message='summaSolveSundialsIDA: sunnonlinsol = NULL'; return; endif
 
   ! Attach the nonlinear solver
@@ -565,6 +568,7 @@ subroutine summaSolveSundialsIDA(                         &
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_yp)
+  retval = FSUNContext_Free(sunctx)
 
 end subroutine summaSolveSundialsIDA
 
