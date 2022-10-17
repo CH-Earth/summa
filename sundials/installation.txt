@@ -1,12 +1,12 @@
 
 1. Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
-% wget "https://github.com/LLNL/sundials/releases/download/v5.8.0/sundials-5.8.0.tar.gz"
+% wget "https://github.com/LLNL/sundials/releases/download/v6.3.0/sundials-6.3.0.tar.gz"
 
 2. Extract the corresponding compressed file
-% tar -xzf sundials-5.8.0.tar.gz
+% tar -xzf sundials-6.3.0.tar.gz
 
 3. Read INSTALL_GUIDE.pdf and follow the installation instructions. Roughly, do the following:
-Make a directory outside the sundials-5.8.0 folder and enter it, and make the install and build dirs, enter the build dir.
+Make a directory outside the sundials-6.3.0 folder and enter it, and make the install and build dirs, enter the build dir.
 % mkdir sundials
 % cd sundials
 % mkdir instdir
@@ -45,7 +45,7 @@ export LD_LIBRARY_PATH
 
 NOTE. If you'd like to print the Jacobians going into the Sundials IDA solver, you need to do the following
 
-1. to file sundials-5.8.0/src/ida/ida_ls.c around line 1345, should be after:
+1. to file sundials-6.3.0/src/ida/ida_ls.c around line 1345, should be after:
 
     /* Call Jacobian routine */
     retval = idals_mem->jac(IDA_mem->ida_tn, IDA_mem->ida_cj, y,

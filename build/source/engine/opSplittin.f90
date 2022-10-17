@@ -105,7 +105,10 @@ USE mDecisions_module,only:       &
 USE mDecisions_module,only:      &
  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
  bigBucket,                      & ! a big bucket (lumped aquifer model)
- noExplicit,                     & ! no explicit groundwater parameterization
+ noExplicit                        ! no explicit groundwater parameterization
+
+! look-up values for the numerical method
+USE mDecisions_module,only:      &
  sundials,                       & ! SUNDIALS/IDA solution
  bEuler                            ! home-grown backward Euler solution with long time step
 

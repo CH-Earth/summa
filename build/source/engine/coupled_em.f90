@@ -84,6 +84,11 @@ USE mDecisions_module,only:         &
                       localColumn  ,&      ! separate groundwater representation in each local soil column
                       singleBasin          ! single groundwater store over the entire basin
 
+! look-up values for the numerical method
+USE mDecisions_module,only:         &
+                      sundials     ,&      ! SUNDIALS/IDA solution
+                      bEuler               ! home-grown backward Euler solution with long time step
+
 ! privacy
 implicit none
 private
@@ -198,7 +203,8 @@ subroutine coupled_em(&
   logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
   logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
   logical(lgt)                         :: pauseFlag              ! flag to pause execution
-  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches.
+  logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches
+  logical(lgt)                         :: checkMassBalance       ! flag to check the mass balance
   type(var_ilength)                    :: indx_temp              ! temporary model index variables
   type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
   type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
@@ -1007,6 +1013,9 @@ subroutine coupled_em(&
       ! * balance checks for the canopy...
       ! ----------------------------------
 
+      if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler) checkMassBalance = .true.    ! convergence criteria for bEuler
+      if (model_decisions(iLookDECISIONS%num_method)%iDecision==sundials) checkMassBalance = .false. ! sundials does not use this criteria
+
       ! if computing the vegetation flux
       if(computeVegFlux)then
 
@@ -1017,7 +1026,7 @@ subroutine coupled_em(&
         ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
         scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
-        if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind)then
+        if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
           print*, '** canopy water balance error:'
           write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
@@ -1070,7 +1079,7 @@ subroutine coupled_em(&
         newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
         delSWE      = newSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
-        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind)then
+        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
         print*,                  'nSnow       = ', nSnow
         print*,                  'nSub        = ', nSub
         write(*,'(a,1x,f20.10)') 'data_step   = ', data_step
@@ -1124,7 +1133,7 @@ subroutine coupled_em(&
 
       ! check the soil water balance
       scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
-      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
         write(*,*)               'solution method           = ', ixSolution
         write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
         write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
