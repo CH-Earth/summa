@@ -382,7 +382,7 @@ subroutine summaSolveSundialsIDA(                         &
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetStopTime'; return; endif
 
   ! Set solver parameters such as maximum order, number of iterations, ...
-  call setSolverParams(dt, ida_mem, retval)
+  call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in setSolverParams'; return; endif
 
   ! Disable error messages and warnings
@@ -603,7 +603,7 @@ end subroutine setInitialCondition
 ! ----------------------------------------------------------------
 ! setSolverParams: private routine to set parameters in ida solver
 ! ----------------------------------------------------------------
-subroutine setSolverParams(dt,ida_mem,retval)
+subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
@@ -614,18 +614,19 @@ subroutine setSolverParams(dt,ida_mem,retval)
 
   ! calling variables
   real(rkind),intent(in)      :: dt                 ! time step
+  integer,intent(in)          :: nonlin_iter        ! maximum number of nonlinear iterations, default = 4, set in parameters
   type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
   integer(i4b),intent(out)    :: retval             ! return value
+
 
   !======= Internals ============
   real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
   integer,parameter           :: max_order = 5      ! maximum BDF order,  default = 5
-  integer,parameter           :: nonlin_iter = 100  ! maximun number of nonliear iterations, default = 4
   integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
   integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
-  integer(kind = 8),parameter :: max_step = 999999  ! maximum number of steps,  dafault = 500
+  integer(kind = 8),parameter :: max_step = 999999  ! maximum number of steps,  default = 500
   real(qp),parameter          :: h_init = 0         ! initial stepsize
-  real(qp)                    :: h_max              ! maximum stepsize,  dafault = infinity
+  real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
 
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order)
