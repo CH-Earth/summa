@@ -582,7 +582,7 @@ subroutine eval8summaSundials(&
                 mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
           end do
         endif ! if dt_cur is not too samll
-      else ! if using closed formula of heat capacity
+      else ! if using closed formula of heat capacity, model_decisions(iLookDECISIONS%howHeatCap)%iDecision == closedForm
         call computHeatCapAnalytic(&
                           ! input: control variables
                           computeVegFlux,              & ! intent(in):   flag to denote if computing the vegetation flux

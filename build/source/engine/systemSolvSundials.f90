@@ -128,7 +128,6 @@ subroutine systemSolvSundials(&
   ! structure allocations
   USE allocspace_module,only:allocLocal                ! allocate local data structures
   ! simulation of fluxes and residuals given a trial state vector
-  USE eval8summa_module,only:eval8summa               ! simulation of fluxes and residuals given a trial state vector
   USE eval8summaSundials_module,only:eval8summaSundials ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:getScaling                ! get the scaling vectors
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
