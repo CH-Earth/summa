@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
+! Copyright (C) 2014-2015 NCAR/RAL
 !
 ! This file is part of SUMMA
 !
@@ -43,10 +43,11 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! provide access to indices that define elements of the data structures
@@ -97,6 +98,7 @@ contains
                        fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
                        ! input/output: data structures
                        model_decisions,   & ! intent(in)    : model decisions
+                       lookup_data,       & ! intent(in)    : lookup tables
                        type_data,         & ! intent(in)    : type of vegetation and soil
                        attr_data,         & ! intent(in)    : spatial attributes
                        forc_data,         & ! intent(in)    : model forcing data
@@ -144,6 +146,7 @@ contains
  type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps)
  ! input/output: data structures
  type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
+ type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
  type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data                     ! spatial attributes
  type(var_d),intent(in)          :: forc_data                     ! model forcing data
@@ -310,6 +313,7 @@ contains
                   computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                   scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
                   ! input/output: data structures
+                  lookup_data,       & ! intent(in):    lookup tables
                   type_data,         & ! intent(in):    type of vegetation and soil
                   attr_data,         & ! intent(in):    spatial attributes
                   forc_data,         & ! intent(in):    model forcing data
@@ -398,15 +402,15 @@ contains
 
   ! update prognostic variables
   call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
-                  mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                          & ! input-output: data structures
-                  waterBalanceError,nrgFluxModified,tooMuchMelt,err,cmessage)                                              ! output: flags and error control
+                  lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                              & ! input-output: data structures
+                  waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
   if(err/=0)then
    message=trim(message)//trim(cmessage)
    if(err>0) return
   endif
 
   ! if water balance error then reduce the length of the coupled step
-  if(waterBalanceError .or. tooMuchMelt)then
+  if(waterBalanceError)then
    message=trim(message)//'water balance error'
    reduceCoupledStep=.true.
    err=-20; return
@@ -478,17 +482,8 @@ contains
      ixMax=ubound(flux_data%var(iVar)%dat)
      do ixLayer=ixMin(1),ixMax(1)
       if(fluxMask%var(iVar)%dat(ixLayer)) then
-
-       ! special case of the transpiration sink from soil layers: only computed for the top soil layer
-       if(iVar==iLookFlux%mLayerTranspire)then
-         if(ixLayer==1)  flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
-
-       ! standard case
-       else
-        flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
-       endif
+       flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
        fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
-
       endif
      end do
     endif  ! (domain splitting)
@@ -546,8 +541,8 @@ contains
  ! private subroutine updateProg: update prognostic variables
  ! **********************************************************************************************************
  subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, & ! input: model control
-                       mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                   & ! input-output: data structures
-                       waterBalanceError,nrgFluxModified,tooMuchMelt,err,message)                                        ! output: flags and error control
+                       lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                       & ! input-output: data structures
+                       waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
  USE updateVars_module,only:updateVars                             ! update prognostic variables
  implicit none
@@ -562,6 +557,7 @@ contains
  real(rkind)         ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
  logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
  ! data structures
+ type(zLookup),    intent(in)    :: lookup_data                    ! lookup tables
  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
  type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
  type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
@@ -571,7 +567,6 @@ contains
  ! flags and error control
  logical(lgt)     ,intent(out)   :: waterBalanceError              ! flag to denote that there is a water balance error
  logical(lgt)     ,intent(out)   :: nrgFluxModified                ! flag to denote that the energy fluxes were modified
- logical(lgt)     ,intent(out)   :: tooMuchMelt                    ! flag to denote that the energy fluxes were modified
  integer(i4b)     ,intent(out)   :: err                            ! error code
  character(*)     ,intent(out)   :: message                        ! error message
  ! ==================================================================================================================
@@ -670,6 +665,20 @@ contains
  ! * update states...
  ! ------------------
 
+ ! initialize to state variable from the last update
+ scalarCanairTempTrial     = scalarCanairTemp
+ scalarCanopyTempTrial     = scalarCanopyTemp
+ scalarCanopyWatTrial      = scalarCanopyWat
+ scalarCanopyLiqTrial      = scalarCanopyLiq
+ scalarCanopyIceTrial      = scalarCanopyIce
+ mLayerTempTrial           = mLayerTemp
+ mLayerVolFracWatTrial     = mLayerVolFracWat
+ mLayerVolFracLiqTrial     = mLayerVolFracLiq
+ mLayerVolFracIceTrial     = mLayerVolFracIce
+ mLayerMatricHeadTrial     = mLayerMatricHead
+ mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq
+ scalarAquiferStorageTrial = scalarAquiferStorage
+
  ! extract states from the state vector
  call varExtract(&
                  ! input
@@ -678,20 +687,18 @@ contains
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  ! output: variables for the vegetation canopy
-                 scalarCanairTempTrial,    & ! intent(out):   trial value of canopy air temperature (K)
-                 scalarCanopyTempTrial,    & ! intent(out):   trial value of canopy temperature (K)
-                 scalarCanopyWatTrial,     & ! intent(out):   trial value of canopy total water (kg m-2)
-                 scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                 scalarCanopyIceTrial,     & ! intent(out):   trial value of canopy ice content (kg m-2)
+                 scalarCanairTempTrial,    & ! intent(inout):   trial value of canopy air temperature (K)
+                 scalarCanopyTempTrial,    & ! intent(inout):   trial value of canopy temperature (K)
+                 scalarCanopyWatTrial,     & ! intent(inout):   trial value of canopy total water (kg m-2)
+                 scalarCanopyLiqTrial,     & ! intent(inout):   trial value of canopy liquid water (kg m-2)
                  ! output: variables for the snow-soil domain
-                 mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
-                 mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                 mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                 mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
-                 mLayerMatricHeadTrial,    & ! intent(out):   trial vector of total water matric potential (m)
-                 mLayerMatricHeadLiqTrial, & ! intent(out):   trial vector of liquid water matric potential (m)
+                 mLayerTempTrial,          & ! intent(inout):   trial vector of layer temperature (K)
+                 mLayerVolFracWatTrial,    & ! intent(inout):   trial vector of volumetric total water content (-)
+                 mLayerVolFracLiqTrial,    & ! intent(inout):   trial vector of volumetric liquid water content (-)
+                 mLayerMatricHeadTrial,    & ! intent(inout):   trial vector of total water matric potential (m)
+                 mLayerMatricHeadLiqTrial, & ! intent(inout):   trial vector of liquid water matric potential (m)
                  ! output: variables for the aquifer
-                 scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
+                 scalarAquiferStorageTrial,& ! intent(inout):   trial value of storage of water in the aquifer (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -701,13 +708,11 @@ contains
  !print*, 'after varExtract: scalarCanopyLiqTrial  =', scalarCanopyLiqTrial    ! trial value of canopy liquid water (kg m-2)
  !print*, 'after varExtract: scalarCanopyIceTrial  =', scalarCanopyIceTrial    ! trial value of canopy ice content (kg m-2)
 
- ! check if there was too much melt
- if(nSnow>0) tooMuchMelt = (mLayerTempTrial(1)>Tfreeze)
-
  ! update diagnostic variables
  call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                 lookup_data,              & ! intent(in):    lookup tables for a local HRU
                  mpar_data,                & ! intent(in):    model parameters for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU

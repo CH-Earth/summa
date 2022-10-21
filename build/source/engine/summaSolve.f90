@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
+! Copyright (C) 2014-2015 NCAR/RAL
 !
 ! This file is part of SUMMA
 !
@@ -64,9 +64,10 @@ USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decisi
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (dp)
+                    var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (dp)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
@@ -108,6 +109,7 @@ contains
                        fOld,                    & ! intent(in):    old function evaluation
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
+                       lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
@@ -159,6 +161,7 @@ contains
  real(rkind),intent(in)             :: fOld                     ! old function evaluation
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
+ type(zLookup),      intent(in)  :: lookup_data              ! lookup tables
  type(var_i),        intent(in)  :: type_data                ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data                ! spatial attributes
  type(var_dlength),  intent(in)  :: mpar_data                ! model parameters
@@ -635,7 +638,7 @@ contains
 
    ! get brackets if they do not exist
    if( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) )then
-    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,cmessage)
+    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    endif
 
@@ -653,7 +656,7 @@ contains
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
 
-  endif  ! if the iteration increment is the same sign as the residual vector
+  endif  ! if the iteration increment is the same sign as the residual vecto
 
   ! bi-section
   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
@@ -940,6 +943,7 @@ contains
                   sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                   ! input: data structures
                   model_decisions,         & ! intent(in):    model decisions
+                  lookup_data,             & ! intent(in):    lookup tables
                   type_data,               & ! intent(in):    type of vegetation and soil
                   attr_data,               & ! intent(in):    spatial attributes
                   mpar_data,               & ! intent(in):    model parameters

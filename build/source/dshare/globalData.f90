@@ -53,6 +53,7 @@ MODULE globalData
  USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
  USE var_lookup,only:maxvarDecisions ! maximum number of decisions
  USE var_lookup,only:maxvarFreq      ! maximum number of output files
+ USE var_lookup,only:maxvarLookup    ! maximum number of variables in the lookup tables
  implicit none
  private
 
@@ -149,11 +150,11 @@ MODULE globalData
  integer(i4b),parameter,public               :: iname_watAquifer=3006   ! named variable defining the water storage in the aquifer
 
  ! define named variables to describe the form and structure of the band-diagonal matrices used in the numerical solver
- ! NOTE: This indexing scheme provides the matrix structure expected by lapack. Specifically, lapack requires kl extra rows for additional storage.
+ ! NOTE: This indexing scheme provides the matrix structure expected by lapack and sundials. Specifically, they require kl extra rows for additional storage.
  !       Consequently, all indices are offset by kl and the total number of bands for storage is 2*kl+ku+1 instead of kl+ku+1.
  integer(i4b),parameter,public               :: nRHS=1                  ! number of unknown variables on the RHS of the linear system A.X=B
- integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands
- integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands
+ integer(i4b),parameter,public               :: ku=3                    ! number of super-diagonal bands, ku>=3 to accommodate coupled layer above
+ integer(i4b),parameter,public               :: kl=4                    ! number of sub-diagonal bands, kl>=4 to accommodate vegetation
  integer(i4b),parameter,public               :: ixDiag=kl+ku+1          ! index for the diagonal band
  integer(i4b),parameter,public               :: nBands=2*kl+ku+1        ! length of the leading dimension of the band diagonal matrix
 
@@ -173,21 +174,22 @@ MODULE globalData
  real(rkind),parameter,public                   :: dx = 1.e-8_rkind           ! finite difference increment
 
  ! define summary information on all data structures
- integer(i4b),parameter                      :: nStruct=13              ! number of data structures
+ integer(i4b),parameter                      :: nStruct=14              ! number of data structures
  type(struct_info),parameter,public,dimension(nStruct) :: structInfo=(/&
-                   struct_info('time',  'TIME' , maxvarTime ), &        ! the time data structure
-                   struct_info('forc',  'FORCE', maxvarForc ), &        ! the forcing data structure
-                   struct_info('attr',  'ATTR' , maxvarAttr ), &        ! the attribute data structure
-                   struct_info('type',  'TYPE' , maxvarType ), &        ! the type data structure
-                   struct_info('id'  ,  'ID'   , maxvarId   ), &        ! the type data structure
-                   struct_info('mpar',  'PARAM', maxvarMpar ), &        ! the model parameter data structure
-                   struct_info('bpar',  'BPAR' , maxvarBpar ), &        ! the basin parameter data structure
-                   struct_info('bvar',  'BVAR' , maxvarBvar ), &        ! the basin variable data structure
-                   struct_info('indx',  'INDEX', maxvarIndx ), &        ! the model index data structure
-                   struct_info('prog',  'PROG',  maxvarProg ), &        ! the prognostic (state) variable data structure
-                   struct_info('diag',  'DIAG' , maxvarDiag ), &        ! the diagnostic variable data structure
-                   struct_info('flux',  'FLUX' , maxvarFlux ), &        ! the flux data structure
-                   struct_info('deriv', 'DERIV', maxvarDeriv) /)        ! the model derivative data structure
+                   struct_info('time',   'TIME' ,  maxvarTime  ), &        ! the time data structure
+                   struct_info('forc',   'FORCE',  maxvarForc  ), &        ! the forcing data structure
+                   struct_info('attr',   'ATTR' ,  maxvarAttr  ), &        ! the attribute data structure
+                   struct_info('type',   'TYPE' ,  maxvarType  ), &        ! the type data structure
+                   struct_info('id'  ,   'ID'   ,  maxvarId    ), &        ! the type data structure
+                   struct_info('mpar',   'PARAM',  maxvarMpar  ), &        ! the model parameter data structure
+                   struct_info('bpar',   'BPAR' ,  maxvarBpar  ), &        ! the basin parameter data structure
+                   struct_info('bvar',   'BVAR' ,  maxvarBvar  ), &        ! the basin variable data structure
+                   struct_info('indx',   'INDEX',  maxvarIndx  ), &        ! the model index data structure
+                   struct_info('prog',   'PROG',   maxvarProg  ), &        ! the prognostic (state) variable data structure
+                   struct_info('diag',   'DIAG' ,  maxvarDiag  ), &        ! the diagnostic variable data structure
+                   struct_info('flux',   'FLUX' ,  maxvarFlux  ), &        ! the flux data structure
+                   struct_info('deriv',  'DERIV',  maxvarDeriv ), &        ! the model derivative data structure
+                   struct_info('lookup', 'LOOKUP', maxvarLookup) /)        ! the lookup table data structure
 
  ! fixed model decisions
  logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.  ! flag to overwrite RSMIN
@@ -216,6 +218,7 @@ MODULE globalData
  type(var_info),save,public                  :: diag_meta(maxvarDiag)        ! local diagnostic variables for each HRU
  type(var_info),save,public                  :: flux_meta(maxvarFlux)        ! local model fluxes for each HRU
  type(var_info),save,public                  :: deriv_meta(maxvarDeriv)      ! local model derivatives for each HRU
+ type(var_info),save,public                  :: lookup_meta(maxvarLookup)    ! local lookup tables for each HRU
  type(var_info),save,public                  :: bpar_meta(maxvarBpar)        ! basin parameters for aggregated processes
  type(var_info),save,public                  :: bvar_meta(maxvarBvar)        ! basin variables for aggregated processes
 
@@ -305,6 +308,7 @@ MODULE globalData
  logical(lgt),save,public                    :: globalPrintFlag=.false.     ! flag to compute the Jacobian
  integer(i4b),save,public                    :: chunksize=1024              ! chunk size for the netcdf read/write
  integer(i4b),save,public                    :: outputPrecision=nf90_double ! variable type
+ integer(i4b),save,public                    :: outputCompressionLevel=4             ! output netcdf file deflate level: 0-9. 0 is no compression.
 
  ! define result from the time calls
  integer(i4b),dimension(8),save,public       :: startInit,endInit       ! date/time for the start and end of the initialization
@@ -331,14 +335,14 @@ MODULE globalData
  ! output file information
  logical(lgt),dimension(maxvarFreq),save,public :: outFreq              ! true if the output frequency is desired
  integer(i4b),dimension(maxvarFreq),save,public :: ncid                 ! netcdf output file id
- 
+
  ! look-up values for the choice of the time zone information (formerly in modelDecisions module)
  integer(i4b),parameter,public               :: ncTime=1                ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  integer(i4b),parameter,public               :: utcTime=2               ! all times in UTC (timeOffset = longitude/15. hours)
  integer(i4b),parameter,public               :: localTime=3             ! all times local (timeOffset = 0)
- 
+
  ! define fixed dimensions
  integer(i4b),parameter,public               :: nBand=2          ! number of spectral bands
- integer(i4b),parameter,public               :: nTimeDelay=2000  ! number of hours in the time delay histogram (default: ~1 season = 24*365/4)
+ integer(i4b),parameter,public               :: nTimeDelay=2000  ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
 
 END MODULE globalData

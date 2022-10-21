@@ -201,7 +201,7 @@ end subroutine read_dimension
  ! provide access to derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
  USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     integer(8)
- USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (dp)
+ USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
  USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures

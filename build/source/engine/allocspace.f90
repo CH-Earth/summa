@@ -31,22 +31,24 @@ USE data_types,only:&
                     ! no spatial dimension
                     var_i,               & ! x%var(:)            (i4b)
                     var_i8,              & ! x%var(:)            integer(8)
-                    var_d,               & ! x%var(:)            (dp)
+                    var_d,               & ! x%var(:)            (rkind)
                     var_flagVec,         & ! x%var(:)%dat        (logical)
                     var_ilength,         & ! x%var(:)%dat        (i4b)
-                    var_dlength,         & ! x%var(:)%dat        (dp)
+                    var_dlength,         & ! x%var(:)%dat        (rkind)
                     ! gru dimension
                     gru_int,             & ! x%gru(:)%var(:)     (i4b)
                     gru_int8,            & ! x%gru(:)%var(:)     integer(8)
-                    gru_double,          & ! x%gru(:)%var(:)     (dp)
+                    gru_double,          & ! x%gru(:)%var(:)     (rkind)
                     gru_intVec,          & ! x%gru(:)%var(:)%dat (i4b)
-                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (dp)
+                    gru_doubleVec,       & ! x%gru(:)%var(:)%dat (rkind)
                     ! gru+hru dimension
                     gru_hru_int,         & ! x%gru(:)%hru(:)%var(:)     (i4b)
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
-                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (dp)
+                    gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (rkind)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (dp)
+                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (rkind)
+                    ! gru+hru+z dimension
+                    gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup (rkind)
 
 ! metadata structure
 USE data_types,only:var_info               ! data type for metadata
@@ -115,6 +117,8 @@ contains
   class is (gru_hru_intVec);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   class is (gru_hru_double);    if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
   class is (gru_hru_doubleVec); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
+ ! gru+hru+z dimensions
+  class is (gru_hru_z_vLookup); if(allocated(dataStruct%gru))then; check=.true.; else; allocate(dataStruct%gru(nGRU),stat=err); end if
  end select
 
  ! check errors
@@ -130,6 +134,7 @@ contains
    class is (gru_hru_intVec);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
    class is (gru_hru_double);    if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
    class is (gru_hru_doubleVec); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
+ class is (gru_hru_z_vLookup); if(allocated(dataStruct%gru(iGRU)%hru))then; check=.true.; else; allocate(dataStruct%gru(iGRU)%hru(gru_struc(iGRU)%hruCount),stat=err); end if
    class default  ! do nothing: It is acceptable to not be any of these specified cases
   end select
   ! check errors
@@ -158,6 +163,7 @@ contains
     class is (gru_hru_intVec);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
     class is (gru_hru_double);    call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
     class is (gru_hru_doubleVec); call allocLocal(metaStruct,dataStruct%gru(iGRU)%hru(iHRU),nSnow,nSoil,err,cmessage); spatial=.true.
+    class is (gru_hru_z_vLookup); spatial=.true. ! (special case, allocate space separately later)
     class default; exit hruLoop
    end select
 

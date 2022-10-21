@@ -22,7 +22,7 @@ module convE2Temp_module
 
 ! data types
 USE nrtype
-USE data_types,only:var_dlength                    ! data vector with variable length dimension (dp): x%var(:)%dat(:)
+USE data_types,only:var_dlength                    ! data vector with variable length dimension (rkind): x%var(:)%dat(:)
 
 ! constants
 USE multiconst, only: Tfreeze, &                   ! freezing point of water (K)

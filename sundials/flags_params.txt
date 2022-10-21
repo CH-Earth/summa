@@ -1,0 +1,26 @@
+
+To switch between SUMMA-BE and SUMMA-SUNDIALS, the "diffEqSolv" variabe has been added to the var_lookup module. 
+A user should add this variable to the model_decision file with one of the values "backwEuler" or "sundialIDA".
+ For now, this value is by default "sundialIDA" in mDecisions.f90. 
+
+In energy equation, the heat capacity is computed using either the analytical (closed) formula or the finite differece formula (dH_T/dT). The
+"howHeatCap" varialbe has been added to the var_lookup module to handle such decision. A user should add this variable to the model_decision
+file with one of the values "closedForm" or "enthalpyFD". For now, this value is by default "colsedForm" in mDecisions.f90. 
+
+All SUMMA-SUNDIALS files are in build/source/engine. The important ones are as following:
+
+systemSolvSundials.f90: contains public subroutine systemSolvSundials which runs the coupled energy-mass model for one timestep
+
+solveByIDA.f90: contains public subroutine solveByIDA which solves the differential equation system F(y,y') = 0 by IDA (y is the state vector)
+                and private subroutines setInitialCondition and setSolverParams. 
+                setSolverParams can be used to to set paprmeters (maximum order, number of nonlinear iteration , etc) in IDA solver
+
+evalDAE4IDA.f90: contains public function evalDAE4IDA which is the interface wrapper for computing the residual vector F(t,y,y') required for IDA solver
+
+eval8DAE.f90: contains public subroutine eval8DAE which computes the residual vector mainly by calling varExtractSundials, updateVarsSundials, computFlux,
+              and computResidDAE. We also switch between different forms of the energy equation in this subroutine. 
+
+evalJac4IDA.f90: contains public function evalJac4IDA which is the interface wrapper for computing the Jacobian matrix dF/dy + c dF/dy' for IDA solver
+
+eval8JacDAE.f90: contains public subroutine eval8JacDAE which computes the residual vector and the Jacobian matrix mainly by calling computJacDAE
+

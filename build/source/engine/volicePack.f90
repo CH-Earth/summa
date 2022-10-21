@@ -25,9 +25,9 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! named variables for snow and soil
@@ -110,6 +110,8 @@ contains
                   divideLayer,                 & ! intent(out): flag to denote that layers were modified
                   err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ 
+! print *, 'in coupled_em divideLayer = ', divideLayer
 
  ! merge snow layers if they are too thin
  call layerMerge(&
@@ -125,6 +127,8 @@ contains
                  mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ 
+! print *, 'in coupled_em mergeLayers = ', mergedLayers
 
  ! update the number of layers
  indx_data%var(iLookINDEX%nSnow)%dat(1)   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)

@@ -39,7 +39,7 @@ contains
  USE globalData,only:model_decisions  ! model decision structure
  USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
  ! SUMMA look-up variables
- USE data_types,only:var_dlength      ! data vector with variable length dimension (dp): x%var(:)%dat(:)
+ USE data_types,only:var_dlength      ! data vector with variable length dimension (rkind): x%var(:)%dat(:)
  USE var_lookup,only:iLookPARAM       ! named variables for elements of the data structures
  implicit none
  ! define input

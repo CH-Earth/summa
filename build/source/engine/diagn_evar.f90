@@ -1,5 +1,5 @@
 ! SUMMA - Structure for Unifying Multiple Modeling Alternatives
-! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
+! Copyright (C) 2014-2015 NCAR/RAL
 !
 ! This file is part of SUMMA
 !
@@ -25,9 +25,9 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (dp)
+                    var_dlength         ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
@@ -185,7 +185,7 @@ contains
  else
   scalarBulkVolHeatCapVeg = valueMissing
  end if
- !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
+
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -217,7 +217,7 @@ contains
    ! * soil
    case(iname_soil)
     mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
-                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
    ! * snow

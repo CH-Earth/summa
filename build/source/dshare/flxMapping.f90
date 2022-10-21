@@ -143,7 +143,7 @@ contains
  flux2state_orig(iLookFLUX%mLayerLiqFluxSnow)               = flux2state(state1=iname_watLayer,  state2=integerMissing)
 
  ! liquid water fluxes for the soil domain
- flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_watLayer,  state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarRainPlusMelt)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarMaxInfilRate)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarInfiltration)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
  flux2state_orig(iLookFLUX%scalarExfiltration)              = flux2state(state1=iname_matLayer,  state2=integerMissing)
@@ -164,9 +164,9 @@ contains
  flux2state_orig(iLookFLUX%scalarAquiferBaseflow)           = flux2state(state1=iname_matLayer,  state2=integerMissing)
 
  ! derived variables
- flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarTotalET)                   = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
  flux2state_orig(iLookFLUX%scalarTotalRunoff)               = flux2state(state1=iname_matLayer,  state2=integerMissing)
- flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=integerMissing)
+ flux2state_orig(iLookFLUX%scalarNetRadiation)              = flux2state(state1=iname_nrgCanopy, state2=iname_nrgLayer)
 
  ! ** copy across flux metadata
  do iVar=1,nFlux

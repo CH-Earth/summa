@@ -158,13 +158,13 @@ contains
  ! dummy
  integer(i4b),intent(in)        :: ixMatrix      ! type of matrix (full Jacobian or band diagonal)
  integer(i4b),intent(in)        :: nState        ! number of state variables
- real(rkind),intent(inout)         :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
- real(rkind),intent(in)            :: rVec(:)       ! the residual vector B
- real(rkind),intent(out)           :: xInc(:)       ! the solution vector X
+ real(rkind),intent(inout)      :: aJac(:,:)     ! input = the Jacobian matrix A; output = decomposed matrix
+ real(rkind),intent(in)         :: rVec(:)       ! the residual vector B
+ real(rkind),intent(out)        :: xInc(:)       ! the solution vector X
  integer(i4b),intent(out)       :: err           ! error code
  character(*),intent(out)       :: message       ! error message
  ! local
- real(rkind)                       :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
+ real(rkind)                    :: rhs(nState,1) ! the nState-by-nRHS matrix of matrix B, for the linear system A.X=B
  integer(i4b)                   :: iPiv(nState)  ! defines if row i of the matrix was interchanged with row iPiv(i)
  ! initialize error control
  select case(ixMatrix)
