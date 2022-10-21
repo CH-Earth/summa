@@ -401,7 +401,7 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
   end select
 
-  ! how to compute heat capacity in energy equation
+  ! how to compute heat capacity in energy equation, only has an effect if num_method==sundials. Choice enthalpyFD has better coincidence of energy conservation with sundials tolerance.
   select case(trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision))
     case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! enthalpyFD
     case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! closedForm
