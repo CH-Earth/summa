@@ -28,17 +28,20 @@ cp ../../summa/build/build_cmakeSundials_* build_cmake
 % make
 % make install
 
-7. Enter summa directory and build summa as in /docs/SUMMA_installation.md. You will have to edit the SUMMA Makefile as below additionally (as well as install required libraries and link them as directed in the Makefile).
+7. Enter summa directory and build summa as in /docs/SUMMA_installation.md. You will have to edit the SUMMA Makefile as below additionally (as well as install required libraries and link them as directed in the Makefile). You need to clone summa before you can change the makefile
+	git clone https://git.cs.usask.ca/numerical_simulations_lab/summa.git
+
 
 8. In SUMMA Makefile, define the FC_EXE to be the same compiler as you used for sundials and netcdf
    
-9. In SUMMA Makefile, define the SUNDIALS installation directory 
+9. In SUMMA Makefile, define the SUNDIALS installation directory (and all the folders as required in the SUMMA instructions.
 	DIR_SUNDIALS=$(YOUR_HOME)/sundials/instdir
 
-11. Inside the /summa/build/ directory run
+10. Inside the /summa/build/ directory run
 % make
+or % source build_summa_* if you are using a specific * compiler
 
-12. On some installations you may need to add to your .bashrc file (and run source .bashrc)
+11. On some installations you may need to add to your .bashrc file (and run source .bashrc)
 LD_LIBRARY_PATH='$(YOUR_HOME)/sundials/instdir/lib64'
 export LD_LIBRARY_PATH
 

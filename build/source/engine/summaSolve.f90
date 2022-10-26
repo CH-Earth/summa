@@ -433,7 +433,7 @@ contains
    end if
 
    ! check feasibility
-   if(.not.feasible) cycle
+   if(.not.feasible) return
 
    ! check convergence
    ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop

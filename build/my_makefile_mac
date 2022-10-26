@@ -19,7 +19,7 @@
 #  * FC               - compiler suite
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
-#  * ILDFLAGS         - path to libraries to include
+#  * LDFLAGS          - path to libraries to include
 #  * LIBRARIES        - libraries to include
 #  * DIR_SUNDIALS     - installation sundials directory
 #
@@ -387,7 +387,6 @@ compile_noah:
 	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
 # compile common routines
-
 compile_comm:
 	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 
