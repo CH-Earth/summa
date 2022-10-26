@@ -352,7 +352,8 @@ subroutine eval8summa(&
       fluxVec(:) = realMissing
       resVec(:)  = quadMissing
       fEval      = realMissing
-    return
+      return
+    endif
 
     ! get the start and end indices for the soil compression calculations
     if(scalarSolution)then
