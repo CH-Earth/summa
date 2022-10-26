@@ -348,6 +348,7 @@ subroutine eval8summa(&
       fluxVec(:) = realMissing
       resVec(:)  = quadMissing
       fEval      = realMissing
+      message=trim(message)//'non-feasible'
       return
     endif
 
