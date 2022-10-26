@@ -421,7 +421,6 @@ contains
    !       The internal sub routine has access to all data
    !       Hence, we only need to include the variables of interest in lineSearch
    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
-   if (.not.feasible) print*, "backtrack",err,iLine
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check line search
@@ -434,7 +433,7 @@ contains
    end if
 
    ! check feasibility
-   if(.not.feasible) cycle
+   if(.not.feasible) return
 
    ! check convergence
    ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
