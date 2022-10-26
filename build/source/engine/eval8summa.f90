@@ -352,9 +352,7 @@ subroutine eval8summa(&
       fluxVec(:) = realMissing
       resVec(:)  = quadMissing
       fEval      = realMissing
-      message=trim(message)//'non-feasible'
-      err=20; return
-    endif
+    return
 
     ! get the start and end indices for the soil compression calculations
     if(scalarSolution)then
