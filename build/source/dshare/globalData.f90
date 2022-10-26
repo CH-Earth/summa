@@ -345,4 +345,7 @@ MODULE globalData
  integer(i4b),parameter,public               :: nBand=2          ! number of spectral bands
  integer(i4b),parameter,public               :: nTimeDelay=2000  ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
 
+
+ ! printing step frequency
+ integer(i4b),parameter,public               :: print_step_freq = 1000
 END MODULE globalData
