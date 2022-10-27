@@ -134,6 +134,7 @@ subroutine bigAquifer(&
 
     ! compute the aquifer baseflow (m s-1)
     xTemp                 = scalarAquiferStorageTrial/aquiferScaleFactor
+    if (xTemp<0._rkind) xTemp = 0._rkind ! otherwise will give NaN in next line
     scalarAquiferBaseflow = aquiferBaseflowRate*(xTemp**aquiferBaseflowExp)
 
     ! compute the derivative in the net aquifer flux
