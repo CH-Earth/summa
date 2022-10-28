@@ -321,35 +321,36 @@ subroutine eval8summaSundials(&
     feasible=.true.
 
     ! check the feasibility of the solution only if not inside Sundials solver
+    !  NOTE: we will not print infeasibilities since it does not indicate a failure, just a need to iterate until maxiter
     if (.not.insideIDA) then
       ! check that the canopy air space temperature is reasonable
       if(ixCasNrg/=integerMissing)then
         if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
         if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
-        if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
+        !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
       endif
 
       ! check that the canopy temperature is reasonable
       if(ixVegNrg/=integerMissing)then
         if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
         if(stateVec(ixVegNrg) > canopyTempMax) message=trim(message)//'canopy temp high,'
-        if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
+        !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
       endif
 
       ! check canopy liquid water is not negative
       if(ixVegHyd/=integerMissing)then
         if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
         if(stateVec(ixVegHyd) < 0._rkind) message=trim(message)//'canopy water negative,'
-        if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
+        !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
       end if
 
       ! check snow temperature is below freezing
       if(count(ixSnowOnlyNrg/=integerMissing)>0)then
         if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
         if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) message=trim(message)//'snow temp above freezing,'
-        do iLayer=1,nSnow
-          if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
-        enddo
+        !do iLayer=1,nSnow
+        !  if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
+        !enddo
       endif
 
       ! loop through non-missing hydrology state variables in the snow+soil domain
@@ -374,7 +375,7 @@ subroutine eval8summaSundials(&
           ! --> check
           if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
           if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)  message=trim(message)//'layer water outside bounds,'
-          if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+          !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
         endif  ! if water states
 
@@ -385,7 +386,7 @@ subroutine eval8summaSundials(&
         fluxVec(:) = realMissing
         resVec(:)  = quadMissing
         message=trim(message)//'non-feasible'
-        err=20; return
+        return
       end if
 
     end if ! ( feasibility check )

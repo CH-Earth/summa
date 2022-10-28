@@ -287,7 +287,7 @@ subroutine eval8summa(&
     err=0; message="eval8summa/"
 
     ! check the feasibility of the solution always with SUMMA BE
-    !  NOTE: we will not print infeasibilities since it does not indicate a failure, just a need to backtrack
+    !  NOTE: we will not print infeasibilities since it does not indicate a failure, just a need to iterate until maxiter
     feasible=.true.
 
     ! check that the canopy air space temperature is reasonable
@@ -337,7 +337,7 @@ subroutine eval8summa(&
 
         ! --> check
         if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-        if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax
+        !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
       endif  ! if water states
 
