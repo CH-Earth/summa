@@ -262,6 +262,33 @@ subroutine computJacob(&
     ! *********************************************************************************************************************************************************
     ! *********************************************************************************************************************************************************
 
+    ! UNDO bulk heat capacity depends on frac ice/liq
+    dVolHtCapBulk_dPsi0          = 0._rkind
+    dVolHtCapBulk_dTheta         = 0._rkind
+    dVolHtCapBulk_dCanWat        = 0._rkind
+    dVolHtCapBulk_dTk            = 0._rkind
+    dVolHtCapBulk_dTkCanopy      = 0._rkind
+    ! UNDO thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux)
+    dNrgFlux_dWatAbove           = 0._rkind
+    dNrgFlux_dWatBelow           = 0._rkind
+    !dNrgFlux_dTempAbove, Have nonzero terms: in ssdNrgFlux make dThermalC_dNrgStateAbove = 0._rkind
+    !dNrgFlux_dTempBelow, Have nonzero terms: in ssdNrgFlux make dThermalC_dNrgStateBelow = 0._rkind
+    ! UNDO soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration)
+    mLayerdTrans_dTCanair        = 0._rkind
+    mLayerdTrans_dTCanopy        = 0._rkind
+    mLayerdTrans_dTGround        = 0._rkind
+    mLayerdTrans_dCanWat         = 0._rkind
+    dAquiferTrans_dTCanair       = 0._rkind
+    dAquiferTrans_dTCanopy       = 0._rkind
+    dAquiferTrans_dTGround       = 0._rkind
+    dAquiferTrans_dCanWat        = 0._rkind
+    ! UNDO aquifer recharge depends on soil drainage from interface above
+    !dq_dNrgStateAbove(nSoil), Used correctly elsewhere: zero out in aquifer equations a bit later
+    !dq_dHydStateAbove(nSoil), Used correctly elsewhere: zero out in aquifer equations a bit later
+    ! UNDO soil infiltration at surface depends on all layers below and above water and temp
+    dq_dHydStateLayerSurfVec     = 0._rkind
+    dq_dNrgStateLayerSurfVec     = 0._rkind
+
     ! get the number of state variables
     nState = size(dMat)
 
@@ -528,8 +555,8 @@ subroutine computJacob(&
         ! ----------------------------------------
         if(ixAqWat/=integerMissing) then
           aJac(ixDiag,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat)
-          if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixOffDiag(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
-          if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixOffDiag(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
+          !if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixOffDiag(ixAqWat,ixSoilOnlyNrg(nSoil)),ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
+          !if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixOffDiag(ixAqWat,ixSoilOnlyHyd(nSoil)),ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
           ! - only include banded derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration), would have to have few soil layers
           if(computeVegFlux)then
             if(ixCasNrg/=integerMissing)then
@@ -882,8 +909,8 @@ subroutine computJacob(&
         ! ----------------------------------------
         if(ixAqWat/=integerMissing) then
           aJac(ixAqWat,ixAqWat) = -dBaseflow_dAquifer*dt + dMat(ixAqWat)
-          if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixAqWat,ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
-          if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixAqWat,ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
+          !if(ixSoilOnlyNrg(nSoil)/=integerMissing) aJac(ixAqWat,ixSoilOnlyNrg(nSoil)) = -dq_dNrgStateAbove(nSoil)*dt ! dAquiferRecharge_dTk  = d_iLayerLiqFluxSoil(nSoil)_dTk
+          !if(ixSoilOnlyHyd(nSoil)/=integerMissing) aJac(ixAqWat,ixSoilOnlyHyd(nSoil)) = -dq_dHydStateAbove(nSoil)*dt ! dAquiferRecharge_dWat = d_iLayerLiqFluxSoil(nSoil)_dWat
           ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
           if(computeVegFlux)then
             if(ixCasNrg/=integerMissing) aJac(ixAqWat,ixCasNrg) = -dAquiferTrans_dTCanair*dt ! dVol/dT (K-1)
