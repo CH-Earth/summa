@@ -227,7 +227,7 @@ subroutine ssdNrgFlux(&
   real(rkind),dimension(2)         :: vectorthCond_soil            ! layer above and below thermal conductivity of soil (W m-1 K-1)
   real(rkind),dimension(2)         :: vectorfrac_sand              ! layer above and below fraction of sand (-)
   real(rkind),dimension(2)         :: vectorfrac_clay              ! layer above and below fraction of clay (-)
-  ! recompute the perturbed version of iLayerThermalC, this could be the only version and remove the omputThermConduct_module
+  ! recompute the perturbed version of iLayerThermalC, this could be the only version and remove the computThermConduct_module
   real(rkind)                      :: dThermalC_dHydStateAbove     ! derivative in the thermal conductivity w.r.t. water state in the layer above
   real(rkind)                      :: dThermalC_dHydStateBelow     ! derivative in the thermal conductivity w.r.t. water state in the layer above
   real(rkind)                      :: dThermalC_dNrgStateAbove     ! derivative in the thermal conductivity w.r.t. energy state in the layer above

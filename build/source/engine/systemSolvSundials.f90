@@ -545,7 +545,7 @@ subroutine systemSolvSundials(&
     end do
 
     ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
- diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
+    diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
     diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
     ! save the computed solution

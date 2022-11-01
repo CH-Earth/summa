@@ -670,7 +670,7 @@ subroutine eval8summaSundials(&
                     firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                     computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
-                    insideIDA,                 & ! intent(in): logical flag if inside Sundials solver
+                    .false.,                   & ! intent(in):    do not check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
