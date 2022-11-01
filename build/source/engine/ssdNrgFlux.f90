@@ -481,10 +481,6 @@ subroutine ssdNrgFlux(&
                             ! output: error control
                             err,cmessage)               ! intent(out): error control
 
-        ! to zero out new Jacobian terms
-        dThermalC_dNrgStateAbove = 0._rkind
-        dThermalC_dNrgStateBelow = 0._rkind
-
         if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
         ! compute total vertical flux, to compute derivatives

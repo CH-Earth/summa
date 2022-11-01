@@ -116,7 +116,7 @@ subroutine computJacob(&
   type(var_ilength),intent(in)      :: indx_data       ! indices defining model states and layers
   type(var_dlength),intent(in)      :: prog_data       ! prognostic variables for a local HRU
   type(var_dlength),intent(in)      :: diag_data       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
+  type(var_dlength),intent(in)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
   ! input-output: Jacobian and its diagonal
   real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
@@ -261,33 +261,6 @@ subroutine computJacob(&
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
     ! *********************************************************************************************************************************************************
     ! *********************************************************************************************************************************************************
-
-    ! UNDO bulk heat capacity depends on frac ice/liq
-    dVolHtCapBulk_dPsi0          = 0._rkind
-    dVolHtCapBulk_dTheta         = 0._rkind
-    dVolHtCapBulk_dCanWat        = 0._rkind
-    dVolHtCapBulk_dTk            = 0._rkind
-    dVolHtCapBulk_dTkCanopy      = 0._rkind
-    ! UNDO thermal conductivity at snow soil layer interfaces depends on frac ice/liq (ssdNrgFlux)
-    dNrgFlux_dWatAbove           = 0._rkind
-    dNrgFlux_dWatBelow           = 0._rkind
-    !dNrgFlux_dTempAbove, Have nonzero terms: in ssdNrgFlux make dThermalC_dNrgStateAbove = 0._rkind
-    !dNrgFlux_dTempBelow, Have nonzero terms: in ssdNrgFlux make dThermalC_dNrgStateBelow = 0._rkind
-    ! UNDO soil layer and aquifer transpiration depends on canopy nrg and wat (canopy transpiration)
-    mLayerdTrans_dTCanair        = 0._rkind
-    mLayerdTrans_dTCanopy        = 0._rkind
-    mLayerdTrans_dTGround        = 0._rkind
-    mLayerdTrans_dCanWat         = 0._rkind
-    dAquiferTrans_dTCanair       = 0._rkind
-    dAquiferTrans_dTCanopy       = 0._rkind
-    dAquiferTrans_dTGround       = 0._rkind
-    dAquiferTrans_dCanWat        = 0._rkind
-    ! UNDO aquifer recharge depends on soil drainage from interface above
-    !dq_dNrgStateAbove(nSoil), Used correctly elsewhere: zero out in aquifer equations a bit later
-    !dq_dHydStateAbove(nSoil), Used correctly elsewhere: zero out in aquifer equations a bit later
-    ! UNDO soil infiltration at surface depends on all layers below and above water and temp
-    dq_dHydStateLayerSurfVec     = 0._rkind
-    dq_dNrgStateLayerSurfVec     = 0._rkind
 
     ! get the number of state variables
     nState = size(dMat)
