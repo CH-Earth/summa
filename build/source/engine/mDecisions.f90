@@ -406,7 +406,11 @@ subroutine mDecisions(err,message)
     case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! enthalpyFD
     case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! closedForm
     case default
-      err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
+      if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler)then
+        model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm ! not used (included for backwards compatibility)
+      else
+        err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
+      endif
   end select
 
   ! identify the method used to calculate flux derivatives

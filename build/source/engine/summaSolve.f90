@@ -671,7 +671,7 @@ contains
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
   ! check feasibility (should be feasible because of the call to imposeConstraints
-  if(.not.feasible)then; err=20; message=trim(message)//'infeasible solution'; return; endif
+  if(.not.feasible)then; err=20; message=trim(message)//'state vector not feasible'; return; endif
 
   ! check convergence
   converged = checkConv(resVecNew,xInc,stateVecNew)
@@ -724,7 +724,7 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check that the trial value is feasible (should not happen because of the call to impose constraints)
-   if(.not.feasible)then; message=trim(message)//'state vector is not feasible'; err=20; return; endif
+   if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
 
    ! update brackets
    if(real(resVecNew(1), rkind)<0._rkind)then
