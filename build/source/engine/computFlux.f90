@@ -699,6 +699,10 @@ subroutine computFlux(&
                       .true.,                                    & ! intent(in):    flag indicating if derivatives are desired
                       ! input: trial state variables
                       mLayerTempTrial(nSnow+1:nLayers),          & ! intent(in):    trial temperature at the current iteration (K)
+<<<<<<< HEAD
+=======
+                      mLayerMatricHeadTrial(1:nSoil),            & ! intent(in):    matric potential (m)
+>>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
                       mLayerMatricHeadLiqTrial(1:nSoil),         & ! intent(in):    liquid water matric potential (m)
                       mLayerVolFracLiqTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of ice (-)

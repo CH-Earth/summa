@@ -96,6 +96,10 @@ subroutine soilLiqFlx(&
                       deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                       ! input: trial state variables
                       mLayerTempTrial,              & ! intent(in): temperature (K)
+<<<<<<< HEAD
+=======
+                      mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
+>>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
                       mLayerMatricHeadLiqTrial,     & ! intent(in): liquid matric head (m)
                       mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice (-)
@@ -165,6 +169,10 @@ subroutine soilLiqFlx(&
   logical(lgt),intent(in)          :: deriv_desired                 ! flag indicating if derivatives are desired
   ! input: trial model state variables
   real(rkind),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
+<<<<<<< HEAD
+=======
+  real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
+>>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
   real(rkind),intent(in)              :: mLayerMatricHeadLiqTrial(:)   ! liquid matric head in each layer at the current iteration (m)
   real(rkind),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
   real(rkind),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
@@ -516,7 +524,11 @@ subroutine soilLiqFlx(&
                       ! input: state variables
                       mLayerTempTrial,                    & ! intent(in): temperature (K)
                       scalarMatricHeadLiqTrial,           & ! intent(in): liquid matric head in the upper-most soil layer (m)
+<<<<<<< HEAD
                       mLayerMatricHeadLiqTrial,           & ! intent(in): liquid matric head in each soil layer (m)
+=======
+                      mLayerMatricHeadTrial,              & ! intent(in): matric head in each soil layer (m)
+>>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
                       scalarVolFracLiqTrial,              & ! intent(in): volumetric liquid water content the upper-most soil layer (-)
                       mLayerVolFracLiqTrial,              & ! intent(in): volumetric liquid water content in each soil layer (-)
                       mLayerVolFracIceTrial,              & ! intent(in): volumetric ice content in each soil layer (-)
@@ -1104,7 +1116,7 @@ subroutine surfaceFlx(&
                       nSoil,                     & ! intent(in): number of soil layers
                       ! input: state variables
                       mLayerTemp,                & ! intent(in): temperature (K)
-                      scalarMatricHead,          & ! intent(in): matric head in the upper-most soil layer (m)
+                      scalarMatricHeadLiq,       & ! intent(in): liquid matric head in the upper-most soil layer (m)
                       mLayerMatricHead,          & ! intent(in): matric head in each soil layer (m)
                       scalarVolFracLiq,          & ! intent(in): volumetric liquid water content in the upper-most soil layer (-)
                       mLayerVolFracLiq,          & ! intent(in): volumetric liquid water content in each soil layer (-)
@@ -1173,7 +1185,7 @@ subroutine surfaceFlx(&
   integer(i4b),intent(in)          :: nSoil                     ! number of soil layers
   ! input: state and diagnostic variables
   real(rkind),intent(in)           :: mLayerTemp(:)             ! temperature (K)
-  real(rkind),intent(in)           :: scalarMatricHead          ! matric head in the upper-most soil layer (m)
+  real(rkind),intent(in)           :: scalarMatricHeadLiq       ! liquid matric head in the upper-most soil layer (m)
   real(rkind),intent(in)           :: mLayerMatricHead(:)       ! matric head in each soil layer (m)
   real(rkind),intent(in)           :: scalarVolFracLiq          ! volumetric liquid water content in the upper-most soil layer (-)
   real(rkind),intent(in)           :: mLayerVolFracLiq(:)       ! volumetric liquid water content in each soil layer (-)
@@ -1303,7 +1315,7 @@ subroutine surfaceFlx(&
           surfaceHydCond = hydCond_psi(upperBoundHead,surfaceSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
           surfaceDiffuse = realMissing
           ! compute the capillary flux
-          cflux = -surfaceHydCond*(scalarMatricHead - upperBoundHead) / (mLayerDepth(1)*0.5_rkind)
+          cflux = -surfaceHydCond*(scalarMatricHeadLiq - upperBoundHead) / (mLayerDepth(1)*0.5_rkind)
         case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
       end select  ! (form of Richards' eqn)
       ! compute the total flux
@@ -1317,7 +1329,7 @@ subroutine surfaceFlx(&
           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
         end select
         ! compute the energy derivative at the surface
-        dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHead - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
+        dq_dNrgStateVec(1) = -(dHydCond_dTemp/2._rkind)*(scalarMatricHeadLiq - upperBoundHead)/(mLayerDepth(1)*0.5_rkind) + dHydCond_dTemp/2._rkind
       else
         dNum         = 0._rkind
       end if
@@ -1664,7 +1676,7 @@ subroutine qDrainFlux(&
                       ixRichards,                & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                       bc_lower,                  & ! intent(in): index defining the type of boundary conditions
                       ! input: state variables
-                      nodeMatricHead,            & ! intent(in): matric head in the lowest unsaturated node (m)
+                      nodeMatricHeadLiq,         & ! intent(in): liquid matric head in the lowest unsaturated node (m)
                       nodeVolFracLiq,            & ! intent(in): volumetric liquid water content the lowest unsaturated node (-)
                       ! input: model coordinate variables
                       nodeDepth,                 & ! intent(in): depth of the lowest unsaturated soil layer (m)
@@ -1714,7 +1726,11 @@ subroutine qDrainFlux(&
   integer(i4b),intent(in)       :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
   integer(i4b),intent(in)       :: bc_lower                  ! index defining the type of boundary conditions
   ! input: state and diagnostic variables
+<<<<<<< HEAD
   real(rkind),intent(in)           :: nodeMatricHead            ! matric head in the lowest unsaturated node (m)
+=======
+  real(rkind),intent(in)           :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
+>>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
   real(rkind),intent(in)           :: nodeVolFracLiq            ! volumetric liquid water content in the lowest unsaturated node (-)
   ! input: model coordinate variables
   real(rkind),intent(in)           :: nodeDepth                 ! depth of the lowest unsaturated soil layer (m)
@@ -1783,7 +1799,7 @@ subroutine qDrainFlux(&
           bottomHydCond = hydCond_psi(lowerBoundHead,bottomSatHydCond,vGn_alpha,vGn_n,vGn_m) * iceImpedeFac
           bottomDiffuse = realMissing
           ! compute the capillary flux
-          cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHead) / (nodeDepth*0.5_rkind)
+          cflux = -bottomHydCond*(lowerBoundHead  - nodeMatricHeadLiq) / (nodeDepth*0.5_rkind)
         case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
       end select  ! (form of Richards' eqn)
       scalarDrainage = cflux + bottomHydCond
@@ -1797,7 +1813,7 @@ subroutine qDrainFlux(&
           case default; err=10; message=trim(message)//"unknown form of Richards' equation"; return
         end select
         ! energy derivatives
-        dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHead)/(nodeDepth*0.5_rkind) + dHydCond_dTemp/2._rkind
+        dq_dNrgStateUnsat = -(dHydCond_dTemp/2._rkind)*(lowerBoundHead  - nodeMatricHeadLiq)/(nodeDepth*0.5_rkind) + dHydCond_dTemp/2._rkind
       else     ! (do not desire derivatives)
         dq_dHydStateUnsat = realMissing
         dq_dNrgStateUnsat = realMissing
@@ -1811,7 +1827,7 @@ subroutine qDrainFlux(&
       ! compute fluxes
       select case(ixRichards)
         case(moisture); nodePsi = matricHead(nodeVolFracLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-        case(mixdform); nodePsi = nodeMatricHead
+        case(mixdform); nodePsi = nodeMatricHeadLiq
       end select
       zWater = nodeHeight - nodePsi
       scalarDrainage = kAnisotropic*surfaceSatHydCond * exp(-zWater/zScale_TOPMODEL)
