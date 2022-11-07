@@ -952,10 +952,9 @@ subroutine opSplittin(&
     if(ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
 
     ! compute the melt in each snow and soil layer
-    if(nSnow>0)then
-      diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
-      diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
-    endif
+    if(nSnow>0)&
+    mLayerMeltFreeze(      1:nSnow  ) = -(mLayerVolFracIce(      1:nSnow  ) - mLayerVolFracIceInit(      1:nSnow  ))*iden_ice
+    mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
 
     ! end associate statements
   end associate globalVars
