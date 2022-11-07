@@ -816,19 +816,19 @@ subroutine coupled_em(&
         end if  ! (if computing the vegetation flux)
 
         call computSnowDepth(&
-                  dt_sub,					    							& ! intent(in)
-                  nSnow,													& ! intent(in)
-                  scalarSnowSublimation,									& ! intent(in)
-                  mLayerVolFracLiq, 			  							& ! intent(inout)
-                  mLayerVolFracIce,										& ! intent(inout)
-                  prog_data%var(iLookPROG%mLayerTemp)%dat,				& ! intent(in)
-                  diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,			& ! intent(in)
-                  mpar_data,												& ! intent(in)
-                    ! output
-                              tooMuchSublim,                                          & ! intent(out): flag to denote that there was too much sublimation in a given time step
-                    mLayerDepth,											& ! intent(inout)
-                              ! error control
-                              err,message)         				  					 ! intent(out):   error control
+                  dt_sub,                                           & ! intent(in)
+                  nSnow,                                            & ! intent(in)
+                  scalarSnowSublimation,                            & ! intent(in)
+                  mLayerVolFracLiq,                                 & ! intent(inout)
+                  mLayerVolFracIce,                                 & ! intent(inout)
+                  prog_data%var(iLookPROG%mLayerTemp)%dat,          & ! intent(in)
+                  diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,    & ! intent(in)
+                  mpar_data,                                        & ! intent(in)
+                  ! output
+                  tooMuchSublim,                                    & ! intent(out): flag to denote that there was too much sublimation in a given time step
+                  mLayerDepth,                                      & ! intent(inout)
+                  ! error control
+                  err,message)                                        ! intent(out):   error control
         if(err/=0)then; err=55; return; end if
 
         ! process the flag for too much sublimation
