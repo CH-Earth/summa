@@ -355,7 +355,7 @@ subroutine coupled_em(&
           err=20; return
         endif
         if(nSnow>0) liqSnowInit = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)
-        liqSoilInit = mLayerVolFracLiq
+                    liqSoilInit =                         mLayerVolFracLiq
       endif
 
     ! end association of local variables with information in the data structures

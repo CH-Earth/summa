@@ -418,7 +418,9 @@ subroutine computFlux(&
     ! initialize liquid water fluxes throughout the snow and soil domains
     ! NOTE: used in the energy routines, which is called before the hydrology routines
     if(firstFluxCall)then
-      if(nSnow > 0) iLayerLiqFluxSnow(0:nSnow) = 0._rkind
+      if(nSnow>0)&
+      iLayerLiqFluxSnow(0:nSnow) = 0._rkind
+      iLayerLiqFluxSoil(0:nSoil) = 0._rkind
     end if
 
     ! *****
