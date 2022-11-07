@@ -87,8 +87,6 @@ USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water charact
 USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water characteristic (soil)
 USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
-USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-USE soil_utils_module,only:liquidHead     ! compute the liquid water matric potential
 
 implicit none
 private
