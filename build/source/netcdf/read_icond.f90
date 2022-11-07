@@ -294,7 +294,7 @@ contains
      ixFile = 1  ! use for single HRU restart file
     ! get the index in the file: multi HRU
     else
-     ixFile = startGRU + iHRU_local - 1
+     ixFile = iHRU_global
     endif
 
     ! put the data into data structures and check that none of the values are set to nf90_fill_double
