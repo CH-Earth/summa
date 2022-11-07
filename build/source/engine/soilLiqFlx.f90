@@ -96,10 +96,7 @@ subroutine soilLiqFlx(&
                       deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                       ! input: trial state variables
                       mLayerTempTrial,              & ! intent(in): temperature (K)
-<<<<<<< HEAD
-=======
                       mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
->>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
                       mLayerMatricHeadLiqTrial,     & ! intent(in): liquid matric head (m)
                       mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water (-)
                       mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice (-)
@@ -169,10 +166,7 @@ subroutine soilLiqFlx(&
   logical(lgt),intent(in)          :: deriv_desired                 ! flag indicating if derivatives are desired
   ! input: trial model state variables
   real(rkind),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
-<<<<<<< HEAD
-=======
   real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
->>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
   real(rkind),intent(in)              :: mLayerMatricHeadLiqTrial(:)   ! liquid matric head in each layer at the current iteration (m)
   real(rkind),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
   real(rkind),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
@@ -524,11 +518,7 @@ subroutine soilLiqFlx(&
                       ! input: state variables
                       mLayerTempTrial,                    & ! intent(in): temperature (K)
                       scalarMatricHeadLiqTrial,           & ! intent(in): liquid matric head in the upper-most soil layer (m)
-<<<<<<< HEAD
-                      mLayerMatricHeadLiqTrial,           & ! intent(in): liquid matric head in each soil layer (m)
-=======
                       mLayerMatricHeadTrial,              & ! intent(in): matric head in each soil layer (m)
->>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
                       scalarVolFracLiqTrial,              & ! intent(in): volumetric liquid water content the upper-most soil layer (-)
                       mLayerVolFracLiqTrial,              & ! intent(in): volumetric liquid water content in each soil layer (-)
                       mLayerVolFracIceTrial,              & ! intent(in): volumetric ice content in each soil layer (-)
@@ -1286,7 +1276,7 @@ subroutine surfaceFlx(&
 
   ! initialize error control
   err=0; message="surfaceFlx/"
-  
+
   ! initialize derivatives
   dq_dHydStateVec(:) = 0._rkind
   dq_dNrgStateVec(:) = 0._rkind
@@ -1478,17 +1468,17 @@ subroutine surfaceFlx(&
           dInfilRate_dWat(1:nSoil) = 0._rkind
           dInfilRate_dTk(1:nSoil)  = 0._rkind
         endif
- 
+
         ! dq w.r.t. infiltration only, scalarRainPlusMelt accounted for in computJacob module
         dq_dHydStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dWat(:)*min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dWat(:) ) +&
                               (-dFrozenArea_dWat(:))*scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
         dq_dNrgStateVec(:) = (1._rkind - scalarFrozenArea) * ( dInfilArea_dTk(:) *min(scalarRainPlusMelt,xMaxInfilRate) + scalarInfilArea*dInfilRate_dTk(:)  ) +&
                               (-dFrozenArea_dTk(:)) *scalarInfilArea*min(scalarRainPlusMelt,xMaxInfilRate)
-    
+
       else ! do not compute infiltration after first flux call in a splitting operation
         dq_dHydStateVec(:) = 0._rkind
         dq_dNrgStateVec(:) = 0._rkind
-    
+
       end if ! (if desire to compute infiltration)
 
       ! compute infiltration (m s-1), if after first flux call in a splitting operation does not change
@@ -1496,11 +1486,11 @@ subroutine surfaceFlx(&
 
       ! compute surface runoff (m s-1)
       scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration
- 
+
       ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
       surfaceHydCond = realMissing
       surfaceDiffuse = realMissing
- 
+
     ! ***** error check
     case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return
 
@@ -1726,11 +1716,7 @@ subroutine qDrainFlux(&
   integer(i4b),intent(in)       :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
   integer(i4b),intent(in)       :: bc_lower                  ! index defining the type of boundary conditions
   ! input: state and diagnostic variables
-<<<<<<< HEAD
-  real(rkind),intent(in)           :: nodeMatricHead            ! matric head in the lowest unsaturated node (m)
-=======
   real(rkind),intent(in)           :: nodeMatricHeadLiq         ! liquid matric head in the lowest unsaturated node (m)
->>>>>>> d92f5885 (change inputs to be matric head liq, correct in most cases, except where calculating critT)
   real(rkind),intent(in)           :: nodeVolFracLiq            ! volumetric liquid water content in the lowest unsaturated node (-)
   ! input: model coordinate variables
   real(rkind),intent(in)           :: nodeDepth                 ! depth of the lowest unsaturated soil layer (m)
