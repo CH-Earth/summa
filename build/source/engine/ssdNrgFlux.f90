@@ -186,7 +186,7 @@ subroutine ssdNrgFlux(&
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   character(LEN=256)               :: cmessage                     ! error message of downwind routine
-  integer(i4b)                     :: i,j,iLayer                   ! index of model layers
+  integer(i4b)                     :: i,j,iLayer,iLayer0           ! index of model layers
   integer(i4b)                     :: ixLayerDesired(1)            ! layer desired (scalar solution)
   integer(i4b)                     :: ixTop                        ! top layer in subroutine call
   integer(i4b)                     :: ixBot                        ! bottom layer in subroutine call
@@ -293,7 +293,7 @@ subroutine ssdNrgFlux(&
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
-      ixTop = 0 !include layer 0 in layer interface derivatives
+      ixTop = 1 !include layer 0 in layer interface derivatives
       ixBot = nLayers
     endif
 
@@ -310,8 +310,13 @@ subroutine ssdNrgFlux(&
     dFlux_dTempBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
     dFlux_dWatBelow(nLayers) = -huge(lowerBoundTemp)  ! don't expect this to be used, so deliberately set to a ridiculous value to cause problems
 
-      ! loop through INTERFACES...
-    do iLayer=ixTop,ixBot
+    ! loop through INTERFACES...
+    do iLayer0=ixTop-1,ixBot
+      if(ixTop-1/=0 .and. iLayer==ixTop-1)then
+       iLayer = 0 !need to always do layer 0
+      else
+       iLayer = iLayer0
+      endif
 
       ! either one or multiple flux calls, depending on if using analytical or numerical derivatives
       do itry=nFlux,0,-1  ! (work backwards to ensure all computed fluxes come from the un-perturbed case)
@@ -506,7 +511,7 @@ subroutine ssdNrgFlux(&
 
           ! * prescribed temperature at the upper boundary
           case(prescribedTemp)
-            dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
+            dz = mLayerHeight(iLayer+1)*0.5_rkind
             if(ixDerivMethod==analytical)then    ! ** analytical derivatives
               dFlux_dWatBelow(iLayer)  = -dThermalC_dHydStateBelow * ( mLayerTempTrial(iLayer+1) - upperBoundTemp )/dz
               dFlux_dTempBelow(iLayer) = -dThermalC_dNrgStateBelow * ( mLayerTempTrial(iLayer+1) - upperBoundTemp )/dz - iLayerThermalC(iLayer)/dz
@@ -595,23 +600,22 @@ subroutine ssdNrgFlux(&
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! Compute flux after the derivatives, because need iLayerThermal as calculated above
     ! -------------------------------------------------------------------------------------------------------------------------
-    do iLayer=ixTop,ixBot ! (loop through model layers)
+    do iLayer0=ixTop-1,ixBot
+      if(ixTop-1/=0 .and. iLayer==ixTop-1)then
+       iLayer = 0 !need to always do layer 0
+      else
+       iLayer = iLayer0
+      endif
 
       if(iLayer==0)then  ! (upper boundary fluxes -- positive downwards)
-      ! flux depends on the type of upper boundary condition
-      select case(ix_bcUpprTdyn) ! (identify the upper boundary condition for thermodynamics
-        case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1) - upperBoundTemp )/ &
-                                        (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-        case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
-        case(energyFlux);     iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
-      end select  ! (identifying the lower boundary condition for thermodynamics)
+        iLayerConductiveFlux(iLayer) = groundNetFlux !from vegNrgFlux module
 
       else if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)
       ! flux depends on the type of lower boundary condition
-      select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
-        case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
-        case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
-      end select  ! (identifying the lower boundary condition for thermodynamics)
+        select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
+          case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
+          case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
+        end select  ! (identifying the lower boundary condition for thermodynamics)
 
       else ! (domain boundary fluxes -- positive downwards)
         iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
@@ -624,7 +628,12 @@ subroutine ssdNrgFlux(&
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the advective fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
-    do iLayer=ixTop,ixBot  !(loop through model layers)
+    do iLayer0=ixTop-1,ixBot
+      if(ixTop-1/=0 .and. iLayer==ixTop-1)then
+       iLayer = 0 !need to always do layer 0
+      else
+       iLayer = iLayer0
+      endif
 
       if (iLayer==0) then
         iLayerAdvectiveFlux(iLayer) = realMissing !advective flux at the upper boundary is included in the ground heat flux
@@ -648,6 +657,7 @@ subroutine ssdNrgFlux(&
     ! ***** compute the total fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     ! NOTE: ignore advective fluxes for now
+    iLayerNrgFlux(0)           = iLayerConductiveFlux(0)
     iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
 
   ! end association of local variables with information in the data structures
