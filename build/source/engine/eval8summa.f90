@@ -210,7 +210,7 @@ subroutine eval8summa(&
   real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
   real(rkind)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
   ! diagnostic variables
-  logical(lgt),parameter          :: needEnthalpy=.true.      ! flag to compute enthalpy
+  logical(lgt),parameter          :: needEnthalpy=.false.      ! flag to compute enthalpy, turn off to match Summa BE
   real(rkind)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)

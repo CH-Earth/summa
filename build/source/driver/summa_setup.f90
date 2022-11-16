@@ -129,10 +129,10 @@ contains
   ! basin-average structures
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
-  
+
   ! lookup table structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
-  
+
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
@@ -292,13 +292,15 @@ contains
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table to compute enthalpy from temperature
-   call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
-                   mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
-                   lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
-                   err,cmessage)                              ! intent(out):   error control
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   
+   ! calculate a lookup table to compute enthalpy from temperature, only for sundials
+   if(model_decisions(iLookDECISIONS%num_method)%iDecision == sundials)then
+     call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
+                     mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
+                     lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
+                     err,cmessage)                              ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
+
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)
    HVB(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyBottom)%dat(1)
