@@ -39,6 +39,11 @@ USE globalData,only:urbanVegCategory                        ! vegetation categor
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta                     ! parameter metadata structures
 
+! look-up values for the numerical method
+USE mDecisions_module,only:         &
+ bEuler,                            &      ! home-grown backward Euler solution with long time steps
+ sundials                                  ! SUNDIALS/IDA solution
+
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
   sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
