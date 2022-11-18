@@ -293,7 +293,7 @@ subroutine ssdNrgFlux(&
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
-      ixTop = 1 !include layer 0 in layer interface derivatives
+      ixTop = 1
       ixBot = nLayers
     endif
 
