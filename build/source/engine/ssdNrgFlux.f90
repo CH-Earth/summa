@@ -312,7 +312,7 @@ subroutine ssdNrgFlux(&
 
     ! loop through INTERFACES...
     do iLayer0=ixTop-1,ixBot
-      if(ixTop-1/=0 .and. iLayer==ixTop-1)then
+      if(ixTop-1/=0 .and. iLayer0==ixTop-1)then
        iLayer = 0 !need to always do layer 0
       else
        iLayer = iLayer0
@@ -601,7 +601,7 @@ subroutine ssdNrgFlux(&
     ! Compute flux after the derivatives, because need iLayerThermal as calculated above
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer0=ixTop-1,ixBot
-      if(ixTop-1/=0 .and. iLayer==ixTop-1)then
+      if(ixTop-1/=0 .and. iLayer0==ixTop-1)then
        iLayer = 0 !need to always do layer 0
       else
        iLayer = iLayer0
@@ -629,7 +629,7 @@ subroutine ssdNrgFlux(&
     ! ***** compute the advective fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer0=ixTop-1,ixBot
-      if(ixTop-1/=0 .and. iLayer==ixTop-1)then
+      if(ixTop-1/=0 .and. iLayer0==ixTop-1)then
        iLayer = 0 !need to always do layer 0
       else
        iLayer = iLayer0
