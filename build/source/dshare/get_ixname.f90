@@ -490,6 +490,16 @@ contains
   case('scalarLambda_wetsoil'           ); get_ixdiag = iLookDIAG%scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1)
   case('mLayerThermalC'                 ); get_ixdiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('iLayerThermalC'                 ); get_ixdiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
+  ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
+  case('dVolHtCapBulk_dPsi0'            ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dPsi0              ! derivative in bulk heat capacity w.r.t. matric potential
+  case('dVolHtCapBulk_dTheta'           ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dTheta             ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dCanWat'          ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dCanWat            ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dTk'              ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dTk                ! derivative in bulk heat capacity w.r.t. temperature
+  case('dVolHtCapBulk_dTkCanopy'        ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
+  case('dThermalC_dTempAbove'           ); get_ixdiag = iLookDIAG%dThermalC_dTempAbove             ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  case('dThermalC_dTempBelow'           ); get_ixdiag = iLookDIAG%dThermalC_dTempBelow             ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  case('dThermalC_dWatAbove'            ); get_ixdiag = iLookDIAG%dThermalC_dWatAbove              ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  case('dThermalC_dWatBelow'            ); get_ixdiag = iLookDIAG%dThermalC_dWatBelow              ! derivative in the thermal conductivity w.r.t. water state in the layer above
   ! enthalpy
   case('scalarCanairEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
   case('scalarCanopyEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
@@ -776,12 +786,6 @@ contains
   case('dFracLiqSnow_dTk'               ); get_ixderiv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
   case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixderiv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
- ! derivate in bulk heat capacity w.r.t. relevant state variables
-  case('dVolHtCapBulk_dPsi0'            ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dPsi0            ! derivative in bulk heat capacity w.r.t. matric potential
-  case('dVolHtCapBulk_dTheta'           ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTheta           ! derivative in bulk heat capacity w.r.t. volumetric water content
-  case('dVolHtCapBulk_dCanWat'          ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWat          ! derivative in bulk heat capacity w.r.t. volumetric water content
-  case('dVolHtCapBulk_dTk'              ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTk              ! derivative in bulk heat capacity w.r.t. temperature
-  case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
  ! derivatives in time
   case( 'mLayerdTemp_dt'               ); get_ixderiv = iLookDERIV%mLayerdTemp_dt                  ! timestep change in layer temperature
   case( 'scalarCanopydTemp_dt'         ); get_ixderiv = iLookDERIV%scalarCanopydTemp_dt            ! timestep change in canopy temperature

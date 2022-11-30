@@ -529,7 +529,6 @@ subroutine computFlux(&
       call ssdNrgFlux(&
                       ! input: model control
                       (scalarSolution .and. .not.firstFluxCall), & ! intent(in): flag to indicate the scalar solution
-                      .true.,                                    & ! intent(in):    flag indicating if derivatives are desired
                       ! input: fluxes and derivatives at the upper boundary
                       scalarGroundNetNrgFlux,                    & ! intent(in): total flux at the ground surface (W m-2)
                       dGroundNetFlux_dGroundTemp,                & ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
@@ -538,12 +537,6 @@ subroutine computFlux(&
                       iLayerLiqFluxSoil,                         & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
                       ! input: trial value of model state variables
                       mLayerTempTrial,                           & ! intent(in): trial temperature at the current iteration (K)
-                      mLayerMatricHeadTrial,                     & ! intent(in): trial value for the total water matric potential in each soil layer (m)
-                      mLayerVolFracLiqTrial,                     & ! intent(in): trial volumetric fraction of liquid water at the current iteration(-)
-                      mLayerVolFracIceTrial,                     & ! intent(in): trial volumetric fraction of ice water at the current iteration(-)
-                      ! input: pre-computed derivatives
-                      mLayerdTheta_dTk,                          & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                      mLayerFracLiqSnow,                         & ! intent(in):    fraction of liquid water (-)
                       ! input-output: data structures
                       mpar_data,                                 & ! intent(in):    model parameters
                       indx_data,                                 & ! intent(in):    model indices

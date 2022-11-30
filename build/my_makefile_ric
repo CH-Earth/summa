@@ -217,16 +217,16 @@ SUMMA_SOLVER= \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \
 		computFlux.f90 \
-		computResid.f90 \
-		computJacob.f90 \
-		eval8summa.f90 \
-		summaSolve.f90 \
-		systemSolv.f90 \
       type4IDA.f90 \
       tol4IDA.f90 \
       computEnthalpy.f90 \
       computHeatCap.f90 \
       computThermConduct.f90 \
+		computResid.f90 \
+		computJacob.f90 \
+		eval8summa.f90 \
+		summaSolve.f90 \
+		systemSolv.f90 \
       computResidSundials.f90 \
       eval8summaSundials.f90 \
       computJacobSundials.f90 \

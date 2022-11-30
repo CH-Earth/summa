@@ -234,11 +234,11 @@ subroutine computJacob(&
     ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     ! derivative in bulk heat capacity w.r.t. relevant state variables
-    dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0         )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta        )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat       )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dPsi0          => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
+    dVolHtCapBulk_dTheta         => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta          )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dCanWat        => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat         )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dTk            => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk             )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dTkCanopy      => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. temperature
     ! derivatives in time
     mLayerdTemp_dt               => deriv_data%var(iLookDERIV%mLayerdTemp_dt              )%dat     ,& ! intent(in): [dp(:)] timestep change in layer temperature
     scalarCanopydTemp_dt         => deriv_data%var(iLookDERIV%scalarCanopydTemp_dt        )%dat(1)  ,& ! intent(in): [dp   ] timestep change in canopy temperature

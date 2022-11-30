@@ -381,7 +381,7 @@ contains
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
                  fScale,                  & ! intent(in):    function scaling vector
-                 sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                 sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  ! input: data structures
                  model_decisions,         & ! intent(in):    model decisions
                  lookup_data,             & ! intent(in):    lookup tables
@@ -473,7 +473,7 @@ contains
                   fScale,                        & ! intent(in):    function scaling vector
                   xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
                   rVec,                          & ! intent(in):    residual vector
-                  sMul,                          & ! intent(in):    state vector multiplier (used in the residual calculations)
+                  sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                   dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
                   fOld,                          & ! intent(in):    old function evaluation
                   ! input: data structures
