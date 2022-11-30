@@ -39,10 +39,9 @@ USE globalData,only:urbanVegCategory                        ! vegetation categor
 ! metadata structures
 USE globalData,only:mpar_meta,bpar_meta                     ! parameter metadata structures
 
-! look-up values for the numerical method
-USE mDecisions_module,only:         &
- bEuler,                            &      ! home-grown backward Euler solution with long time steps
- sundials                                  ! SUNDIALS/IDA solution
+! look-up values for the choice of heat capacity computation
+USE mDecisions_module,only:  &
+ enthalpyFD                    ! heat capacity using enthalpy
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -297,8 +296,8 @@ contains
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table to compute enthalpy from temperature, only for sundials
-   if(model_decisions(iLookDECISIONS%num_method)%iDecision == sundials)then
+   ! calculate a lookup table to compute enthalpy from temperature, only for enthalpyFD
+   if(model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD)then
      call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
                      mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
                      lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure

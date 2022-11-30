@@ -56,6 +56,7 @@ USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! look up structure for variable types
 USE var_lookup,only:iLookVarType
@@ -395,7 +396,7 @@ subroutine varSubstepSundials(&
 
       ! identify the need to check the mass balance
       checkMassBalance = .false. !do not check for Sundials
-      checkNrgBalance = .false.  !do not check for Sundials
+      checkNrgBalance = .false.  !do not check for Sundials, also only check if ixHowHeatCap == enthalpyFD
 
       ! update prognostic variables
       call updateProgSundials(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
@@ -535,8 +536,7 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
                        waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
   USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
   USE updateVarsSundials_module,only:updateVarsSundials             ! update prognostic variables
-  USE computEnthalpy_module,only:computEnthalpy
-  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
+  USE t2enthalpy_module, only:t2enthalpy                            ! compute enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                             ! time step (s)
@@ -612,6 +612,11 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
   real(rkind)                     :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
   real(rkind)                     :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial            ! enthalpy of snow + soil (J m-3)
+  ! enthalpy derivatives
+  real(rkind)                     :: dCanEnthalpy_dTk               ! derivatives in canopy enthalpy w.r.t. temperature
+  real(rkind)                     :: dCanEnthalpy_dWat              ! derivatives in canopy enthalpy w.r.t. water state
+  real(rkind),dimension(nLayers)  :: dEnthalpy_dTk                  ! derivatives in layer enthalpy w.r.t. temperature
+  real(rkind),dimension(nLayers)  :: dEnthalpy_dWat                 ! derivatives in layer enthalpy w.r.t. water state
   ! -------------------------------------------------------------------------------------------------------------------
 
   ! -------------------------------------------------------------------------------------------------------------------
@@ -659,9 +664,15 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     mLayerMatricHead          => prog_data%var(iLookPROG%mLayerMatricHead)%dat              ,& ! intent(inout) : [dp(:)]  matric head (m)
     mLayerMatricHeadLiq       => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat           ,& ! intent(inout) : [dp(:)]  matric potential of liquid water (m)
     ! enthalpy
-    scalarCanairEnthalpy      => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(inout): [dp]    enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy      => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy            => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(inout): [dp(:)] enthalpy of the snow+soil layers (J m-3)
+    scalarCanairEnthalpy      => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)       ,& ! intent(inout): [dp]    enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthalpy      => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)       ,& ! intent(inout): [dp]    enthalpy of the vegetation canopy (J m-3)
+    mLayerEnthalpy            => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)] enthalpy of the snow+soil layers (J m-3)
+    ! derivatives, diagnositic for enthalpy
+    dTheta_dTkCanopy          => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)         ,& ! intent(in): [dp]    derivative of volumetric liquid water content w.r.t. temperature
+    dVolTot_dPsi0             => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat               ,& ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
+    mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat            ,& ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+    scalarFracLiqVeg          => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)           ,& ! intent(in): [dp]    fraction of liquid water on vegetation (-)
+    mLayerFracLiqSnow         => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat             ,& ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
     ! model state variables (aquifer)
     scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout) : [dp(:)]  storage of water in the aquifer (m)
     ! error tolerance
@@ -758,7 +769,6 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
                   err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-
     ! update diagnostic variables
     call updateVarsSundials(&
                     ! input
@@ -801,10 +811,11 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     ! ----
     ! * check energy balance
     !------------------------
-    ! NOTE: for now, we just compute enthalpy
+    ! NOTE: for now, we just compute enthalpy with phase change, should check, and should also mirror in varSubstep non-Sundials
     if(checkNrgBalance)then
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
+                  .true.,                      & ! intent(in): logical flag to include phase change in enthalpy
                   ! input: data structures
                   diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                   mpar_data,                   & ! intent(in):  parameter data structure
@@ -820,10 +831,20 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
                   mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                   mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
                   mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
+                  ! input: pre-computed derivatives
+                        dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                        scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
+                        mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                        mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
+                        dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                   ! output: enthalpy
                   scalarCanairEnthalpyTrial,        & ! intent(out):  enthalpy of the canopy air space (J m-3)
                   scalarCanopyEnthalpyTrial,        & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
                   mLayerEnthalpyTrial,             & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                        dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
+                        dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
+                        dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
+                        dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

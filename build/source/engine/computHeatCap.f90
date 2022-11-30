@@ -107,8 +107,12 @@ subroutine computHeatCap(&
                      mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
                      mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
                      dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                     dCanEnthalpy_dTk,            & ! intent(in):  derivatives in canopy enthalpy w.r.t. temperature
+                     dCanEnthalpy_dWat,           & ! intent(in):  derivatives in canopy enthalpy w.r.t. water state
+                     dEnthalpy_dTk,               & ! intent(in):  derivatives in layer enthalpy w.r.t. temperature
+                     dEnthalpy_dWat,              & ! intent(in):  derivatives in layer enthalpy w.r.t. water state
                      ! output
-                     heatCapVeg,                  &
+                     heatCapVeg,                  & ! intent(out): heat capacity for canopy
                      mLayerHeatCap,               & ! intent(out): heat capacity for snow and soil
                      ! output: error control
                      err,message)                   ! intent(out): error control
@@ -117,22 +121,16 @@ subroutine computHeatCap(&
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: control variables
-  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
-  real(rkind),intent(in)          :: canopyDepth            ! depth of the vegetation canopy (m)
-  ! input: pre-computed derivatives
-  real(rkind),intent(in)          :: dTheta_dTkCanopy       ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)          :: scalarFracLiqVeg       ! fraction of canopy liquid water (-)
-  real(rkind),intent(in)          :: mLayerdTheta_dTk(:)    ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)          :: mLayerFracLiqSnow(:)   ! fraction of liquid water (-)
-  real(rkind),intent(in)          :: dVolTot_dPsi0(:)       ! derivative in total water content w.r.t. total water matric potential (m-1)
+  integer(i4b),intent(in)         :: nLayers                   ! number of layers (soil+snow)
+  logical(lgt),intent(in)         :: computeVegFlux            ! logical flag to denote if computing the vegetation flux
+  real(rkind),intent(in)          :: canopyDepth               ! depth of the vegetation canopy (m)
   ! input/output: data structures
-  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
-  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
-  ! input:
-  integer(i4b),intent(in)         :: nLayers
-  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
-  real(rkind),intent(in)          :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
-  real(rkind),intent(in)          :: scalarCanopyLiquid
+  type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
+  type(var_ilength),intent(in)    :: indx_data                 ! model layer indices
+  type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  ! input: state variables
+  real(rkind),intent(in)          :: scalarCanopyIce           ! trial value of canopy ice content (kg m-2)
+  real(rkind),intent(in)          :: scalarCanopyLiquid        ! trial value for the liquid water on the vegetation canopy (kg m-2)
   real(rkind),intent(in)          :: scalarCanopyTempTrial     ! trial value of canopy temperature
   real(rkind),intent(in)          :: scalarCanopyEnthalpyTrial ! trial enthalpy of the vegetation canopy (J m-3)
   real(rkind),intent(in)          :: scalarCanopyEnthalpyPrev  ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
@@ -144,11 +142,21 @@ subroutine computHeatCap(&
   real(rkind),intent(in)          :: mLayerEnthalpyTrial(:)    ! trial enthalpy for snow and soil
   real(rkind),intent(in)          :: mLayerEnthalpyPrev(:)     ! previous enthalpy for snow and soil
   real(rkind),intent(in)          :: mLayerMatricHeadTrial(:)  !  vector of total water matric potential (m)
+  ! input: pre-computed derivatives
+  real(rkind),intent(in)          :: dTheta_dTkCanopy          ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)          :: scalarFracLiqVeg          ! fraction of canopy liquid water (-)
+  real(rkind),intent(in)          :: mLayerdTheta_dTk(:)       ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)          :: mLayerFracLiqSnow(:)      ! fraction of liquid water (-)
+  real(rkind),intent(in)          :: dVolTot_dPsi0(:)          ! derivative in total water content w.r.t. total water matric potential (m-1)
+  real(rkind),intent(in)          :: dCanEnthalpy_dTk          ! derivatives in canopy enthalpy w.r.t. temperature
+  real(rkind),intent(in)          :: dCanEnthalpy_dWat         ! derivatives in canopy enthalpy w.r.t. water state
+  real(rkind),intent(in)          :: dEnthalpy_dTk(:)          ! derivatives in layer enthalpy w.r.t. temperature
+  real(rkind),intent(in)          :: dEnthalpy_dWat(:)         ! derivatives in layer enthalpy w.r.t. water state
   ! output:
-  real(qp),intent(out)            :: heatCapVeg
+  real(qp),intent(out)            :: heatCapVeg                ! heat capacity for canopy
   real(qp),intent(out)            :: mLayerHeatCap(:)          ! heat capacity for snow and soil
-  integer(i4b),intent(out)        :: err                    ! error code
-  character(*),intent(out)        :: message                ! error message
+  integer(i4b),intent(out)        :: err                       ! error code
+  character(*),intent(out)        :: message                   ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   integer(i4b)                    :: iLayer                 ! index of model layer
@@ -190,7 +198,7 @@ subroutine computHeatCap(&
                      Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
                      Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
 
-        !derivatives
+        ! derivatives
         fLiq = scalarFracLiqVeg
         dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
         if(scalarCanopyTempTrial < Tfreeze)then
@@ -202,9 +210,9 @@ subroutine computHeatCap(&
       else
         delEnt = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpyPrev
         heatCapVeg = delEnt / delT
-        ! NEED TO COMPUTE THESE STILL
-        dVolHtCapBulk_dCanWat = 0._rkind ! dCanEnthalpy_dWat / delT
-        dVolHtCapBulk_dTkCanopy = 0._rkind ! ( dCanEnthalpy_dTk - delEnt/delT ) / delT
+        ! derivatives
+        dVolHtCapBulk_dCanWat = dCanEnthalpy_dWat / delT
+        dVolHtCapBulk_dTkCanopy = ( dCanEnthalpy_dTk - delEnt/delT ) / delT
       endif
     endif
 
@@ -221,7 +229,7 @@ subroutine computHeatCap(&
                                       iden_ice         * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                       iden_water       * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                       iden_air         * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
-             !derivatives
+             ! derivatives
              dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
              Tcrit = crit_soilT( mLayerMatricHeadTrial(iSoil) )
              if( mLayerTempTrial(iLayer) < Tcrit)then
@@ -236,7 +244,7 @@ subroutine computHeatCap(&
               mLayerHeatCap(iLayer) = iden_ice         * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                       iden_water       * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                       iden_air         * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
-              !derivatives
+              ! derivatives
               fLiq = mLayerFracLiqSnow(iLayer)
               dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
               if( mLayerTempTrial(iLayer) < Tfreeze)then
@@ -250,15 +258,15 @@ subroutine computHeatCap(&
       else
         delEnt = mLayerEnthalpyTrial(iLayer) - mLayerEnthalpyPrev(iLayer)
         mLayerHeatCap(iLayer) = delEnt / delT
-        ! NEED TO COMPUTE THESE STILL
+        ! derivatives
         if(iLayer>nSnow)then
           iSoil = iLayer-nSnow
           dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
-          dVolHtCapBulk_dPsi0(iSoil) = 0._rkind ! dEnthalpy_dWat(iLayer) / delT
+          dVolHtCapBulk_dPsi0(iSoil) = dEnthalpy_dWat(iLayer) / delT
         else
-          dVolHtCapBulk_dTheta(iLayer) = 0._rkind ! dEnthalpy_dWat(iLayer) / delT
+          dVolHtCapBulk_dTheta(iLayer) = dEnthalpy_dWat(iLayer) / delT
         endif
-        dVolHtCapBulk_dTk(iLayer) = 0._rkind ! ( dEnthalpy_dTk(iLayer) - delEnt/delT ) / delT
+        dVolHtCapBulk_dTk(iLayer) = ( dEnthalpy_dTk(iLayer) - delEnt/delT ) / delT
       endif
     end do  ! looping through layers
 
@@ -389,8 +397,8 @@ subroutine computHeatCapAnalytic(&
                       indx_data,               & ! intent(in):   model layer indices
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       ! output
-                      heatCapVeg,              &
-                      mLayerHeatCap,           &
+                      heatCapVeg,              & ! intent(out): heat capacity for canopy
+                      mLayerHeatCap,           & ! intent(out): heat capacity for snow and soil
                       ! output: error control
                       err,message)               ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -407,21 +415,19 @@ subroutine computHeatCapAnalytic(&
   real(rkind),intent(in)          :: mLayerVolFracIce(:)    ! trial vector of volumetric ice water content (-)
   real(rkind),intent(in)          :: mLayerTemp(:)          ! vector of temperature (-)
   real(rkind),intent(in)          :: mLayerMatricHead(:)    ! vector of total water matric potential (m)
-
   ! input: pre-computed derivatives
   real(rkind),intent(in)          :: dTheta_dTkCanopy       ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)          :: scalarFracLiqVeg       ! fraction of canopy liquid water (-)
   real(rkind),intent(in)          :: mLayerdTheta_dTk(:)    ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)          :: mLayerFracLiqSnow(:)   ! fraction of liquid water (-)
   real(rkind),intent(in)          :: dVolTot_dPsi0(:)       ! derivative in total water content w.r.t. total water matric potential (m-1)
-
   ! input/output: data structures
   type(var_dlength),intent(in)    :: mpar_data              ! model parameters
   type(var_ilength),intent(in)    :: indx_data              ! model layer indices
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
   ! output: error control
-  real(qp),intent(out)            :: heatCapVeg
-  real(qp),intent(out)            :: mLayerHeatCap(:)
+  real(qp),intent(out)            :: heatCapVeg             ! heat capacity for canopy
+  real(qp),intent(out)            :: mLayerHeatCap(:)       ! heat capacity for snow and soil
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -464,7 +470,7 @@ subroutine computHeatCapAnalytic(&
                     Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
                     Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
 
-      !derivatives
+      ! derivatives
       fLiq = scalarFracLiqVeg
       dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
       if(scalarCanopyTemp < Tfreeze)then
@@ -491,7 +497,7 @@ subroutine computHeatCapAnalytic(&
                                    iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                    iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
 
-         !derivatives
+         ! derivatives
          dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
          Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
          if( mLayerTemp(iLayer) < Tcrit)then
@@ -506,7 +512,7 @@ subroutine computHeatCapAnalytic(&
           mLayerHeatCap(iLayer) =  iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                    iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                    iden_air          * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
-          !derivatives
+          ! derivatives
           fLiq = mLayerFracLiqSnow(iLayer)
           dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
           if( mLayerTemp(iLayer) < Tfreeze)then
@@ -532,12 +538,12 @@ subroutine computCm(&
                       ! input: control variables
                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
                       ! input: state variables
-                      scalarCanopyTemp,        & ! intent(in)
-                      mLayerTemp,             & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
-                      mLayerMatricHead,        & ! intent(in)
+                      scalarCanopyTemp,        & ! intent(in): value of canopy temperature (kg m-2)
+                      mLayerTemp,              & ! intent(in): vector of temperature (-)
+                      mLayerMatricHead,        & ! intent(in): vector of total water matric potential (m)
                       ! input data structures
-                      mpar_data,               & ! intent(in):    model parameters
-                      indx_data,               & ! intent(in):    model layer indices
+                      mpar_data,               & ! intent(in): model parameters
+                      indx_data,               & ! intent(in): model layer indices
                       ! output
                       scalarCanopyCm,          & ! intent(out):   Cm for vegetation
                       mLayerCm,                & ! intent(out):   Cm for soil and snow
@@ -556,8 +562,8 @@ subroutine computCm(&
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   type(var_ilength),intent(in)         :: indx_data              ! model layer indices
   ! output: error control
-  real(qp),intent(out)                 :: scalarCanopyCm
-  real(qp),intent(out)                 :: mLayerCm(:)
+  real(qp),intent(out)                 :: scalarCanopyCm         ! Cm for vegetation
+  real(qp),intent(out)                 :: mLayerCm(:)            ! Cm for soil and snow
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------

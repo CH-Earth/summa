@@ -401,13 +401,13 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
   end select
 
-  ! how to compute heat capacity in energy equation, only has an effect if num_method==sundials. Choice enthalpyFD has better coincidence of energy conservation with sundials tolerance.
+  ! how to compute heat capacity in energy equation, choice enthalpyFD has better coincidence of energy conservation with sundials tolerance.
   select case(trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision))
-    case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! enthalpyFD
-    case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! closedForm
+    case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! heat capacity using enthalpy
+    case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! heat capacity using closed form, not using enthalpy
     case default
-      if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler)then
-        model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm ! not used (included for backwards compatibility)
+      if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
+        model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm ! included for backwards compatibility
       else
         err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
       endif

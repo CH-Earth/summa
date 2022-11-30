@@ -720,7 +720,7 @@ subroutine updateVarsSundials(&
       ! =======================================================================================================================================
 
       ! -----
-      ! - compute the liquid water matric potential (and necessay derivatives)...
+      ! - compute the liquid water matric potential (and necessary derivatives)...
       ! -------------------------------------------------------------------------
 
       ! only for soil

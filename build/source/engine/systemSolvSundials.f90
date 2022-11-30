@@ -64,10 +64,14 @@ USE data_types,only:&
                     zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
+! look-up values for the choice of heat capacity computation
+USE mDecisions_module,only:  &
+ enthalpyFD                    ! heat capacity using enthalpy
+
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
-USE mDecisions_module,only:       &
- localColumn,                     & ! separate groundwater representation in each local soil column
- singleBasin                        ! single groundwater store over the entire basin
+USE mDecisions_module,only:  &
+ localColumn,                & ! separate groundwater representation in each local soil column
+ singleBasin                   ! single groundwater store over the entire basin
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:      &
@@ -133,7 +137,7 @@ subroutine systemSolvSundials(&
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
   USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances
   USE summaSolveSundialsIDA_module,only:summaSolveSundialsIDA                ! solve DAE by IDA
-  USE t2enthalpy_module, only:t2enthalpy_T             ! compute enthalpy
+  USE t2enthalpy_module, only:t2enthalpy               ! compute enthalpy
   use, intrinsic :: iso_c_binding
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -208,18 +212,30 @@ subroutine systemSolvSundials(&
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
+  ! enthalpy derivatives
+  real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
+  real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
+  real(rkind)                     :: dEnthalpy_dTk(nState)         ! derivatives in layer enthalpy w.r.t. temperature
+  real(rkind)                     :: dEnthalpy_dWat(nState)        ! derivatives in layer enthalpy w.r.t. water state
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
   globalVars: associate(&
     ! model decisions
+    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
     ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
     ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
     ! enthalpy
     scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
     mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out): [dp(:)] enthalpy of the snow+soil layers (J m-3)
+    ! derivatives, diagnostic for enthalpy
+    dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in): [dp]    derivative of volumetric liquid water content w.r.t. temperature
+    dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,& ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
+    mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(in): [dp]    fraction of liquid water on vegetation (-)
+    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
     ! soil parameters
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in):  [dp(:)] soil porosity (-)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,&  ! intent(in):  [dp(:)] residual volumetric water content (-)
@@ -343,8 +359,10 @@ subroutine systemSolvSundials(&
     if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
     if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
 
-    ! compute H_T at the beginning of the data step
-    call t2enthalpy_T(&
+    if(ixHowHeatCap == enthalpyFD)then
+      ! compute H_T at the beginning of the data step without phase change
+      call t2enthalpy(&
+                    .false.,                     & ! intent(in): logical flag to not include phase change in enthalpy
                     ! input: data structures
                     diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                     mpar_data,                   & ! intent(in):  parameter data structure
@@ -360,13 +378,24 @@ subroutine systemSolvSundials(&
                     mLayerVolFracWat,            & ! intent(in):  vector of volumetric total water content (-)
                     mLayerMatricHead,            & ! intent(in):  vector of total water matric potential (m)
                     mLayerVolFracIce,            & ! intent(in):  vector of volumetric fraction of ice (-)
+                    ! input: pre-computed derivatives
+                    dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                    scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
+                    mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
+                    dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                     ! output: enthalpy
                     scalarCanairEnthalpy,        & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthalpy,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
                     mLayerEnthalpy,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
+                    dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
+                    dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
+                    dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
+                    dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
     ! compute the flux and the residual vector for a given state vector
     ! NOTE: The values calculated in  eval8summaSundials are used to calculate the initial flux

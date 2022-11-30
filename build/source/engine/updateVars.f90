@@ -73,9 +73,6 @@ USE var_lookup,only:iLookDERIV            ! named variables for structure elemen
 USE var_lookup,only:iLookPARAM            ! named variables for structure elements
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
-! provide access to the routines to calculate enthalpy
-USE t2enthalpy_module,only:t2enthalpy
-
 ! provide access to routines to update states
 USE updatState_module,only:updateSnow     ! update snow states
 USE updatState_module,only:updateSoil     ! update soil states
@@ -628,7 +625,7 @@ subroutine updateVars(&
       ! =======================================================================================================================================
 
       ! -----
-      ! - compute the liquid water matric potential (and necessay derivatives)...
+      ! - compute the liquid water matric potential (and necessary derivatives)...
       ! -------------------------------------------------------------------------
 
       ! only for soil
