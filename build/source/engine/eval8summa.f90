@@ -79,21 +79,10 @@ USE var_lookup,only:iLookDIAG                    ! named variables for structure
 USE var_lookup,only:iLookFLUX                    ! named variables for structure elements
 USE var_lookup,only:iLookDERIV                   ! named variables for structure elements
 
-! look-up values for the choice of groundwater representation (local-column, or single-basin)
+! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:  &
- localColumn,                & ! separate groundwater representation in each local soil column
- singleBasin                   ! single groundwater store over the entire basin
-
-! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  &
- qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
- bigBucket,                  & ! a big bucket (lumped aquifer model)
- noExplicit                    ! no explicit groundwater parameterization
-
-! look-up values for the form of Richards' equation
-USE mDecisions_module,only:  &
- moisture,                   & ! moisture-based form of Richards' equation
- mixdform                      ! mixed form of Richards' equation
+ closedForm,                 & ! heat capacity using closed form, not using enthalpy
+ enthalpyFD                    ! heat capacity using enthalpy
 
 implicit none
 private
@@ -120,7 +109,7 @@ subroutine eval8summa(&
                       ! input: state vectors
                       stateVecTrial,           & ! intent(in):    model state vector
                       fScale,                  & ! intent(in):    function scaling vector
-                      sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                      sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
                       lookup_data,             & ! intent(in):    lookup tables
@@ -147,17 +136,22 @@ subroutine eval8summa(&
                       err,message)               ! intent(out):   error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
-  USE getVectorz_module, only:varExtract           ! extract variables from the state vector
-  USE updateVars_module, only:updateVars           ! update prognostic variables
-  USE t2enthalpy_module, only:t2enthalpy           ! compute enthalpy
-  USE computFlux_module, only:soilCmpres           ! compute soil compression, use non-sundials version because sundials version needs mLayerMatricHeadPrime
-  USE computFlux_module, only:computFlux           ! compute fluxes given a state vector
-  USE computResid_module,only:computResid          ! compute residuals given a state vector
+  USE getVectorz_module, only:varExtract                ! extract variables from the state vector
+  USE updateVars_module, only:updateVars                ! update prognostic variables
+  USE t2enthalpy_module, only:t2enthalpy                ! compute enthalpy
+  USE computFlux_module, only:soilCmpres                ! compute soil compression, use non-sundials version because sundials version needs mLayerMatricHeadPrime
+  USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
+  USE computHeatCap_module,only:computHeatCap           ! recompute heat capacity and derivatives
+  USE computHeatCap_module,only:computHeatCapAnalytic   ! recompute heat capacity and derivatives
+  USE computHeatCap_module,only:computCm
+  USE computHeatCap_module, only:computStatMult         ! recompute state multiplier
+  USE computResid_module,only:computResid               ! compute residuals given a state vector
+  USE computThermConduct_module,only:computThermConduct ! recompute thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)             :: dt                     ! length of the time step (seconds)
+  real(rkind),intent(in)          :: dt                     ! length of the time step (seconds)
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -168,9 +162,9 @@ subroutine eval8summa(&
   logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
   ! input: state vectors
-  real(rkind),intent(in)             :: stateVecTrial(:)       ! model state vector
-  real(rkind),intent(in)             :: fScale(:)              ! function scaling vector
-  real(rkind),intent(in)             :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+  real(rkind),intent(in)          :: stateVecTrial(:)       ! model state vector
+  real(rkind),intent(in)          :: fScale(:)              ! function scaling vector
+  real(rkind),intent(inout)       :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
@@ -187,13 +181,13 @@ subroutine eval8summa(&
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(out)         :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
   ! output: flux and residual vectors
   logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
-  real(rkind),intent(out)            :: fluxVec(:)             ! flux vector
-  real(rkind),intent(out)            :: resSink(:)             ! sink terms on the RHS of the flux equation
-  real(rkind),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
-  real(rkind),intent(out)            :: fEval                  ! function evaluation
+  real(rkind),intent(out)         :: fluxVec(:)             ! flux vector
+  real(rkind),intent(out)         :: resSink(:)             ! sink terms on the RHS of the flux equation
+  real(rkind),intent(out)         :: resVec(:) ! NOTE: qp   ! residual vector
+  real(rkind),intent(out)         :: fEval                  ! function evaluation
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -210,27 +204,39 @@ subroutine eval8summa(&
   real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
   real(rkind)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
   ! diagnostic variables
-  logical(lgt),parameter          :: needEnthalpy=.false.      ! flag to compute enthalpy, turn off to match Summa BE
   real(rkind)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
+  ! enthalpy
+  real(rkind)                        :: scalarCanopyEnthalpyTrial ! trial value for enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial       ! trial vector of enthalpy for snow+soil layers (J m-3)
+  real(rkind)                        :: dCanEnthalpy_dTk          ! derivatives in canopy enthalpy w.r.t. temperature
+  real(rkind)                        :: dCanEnthalpy_dWat         ! derivatives in canopy enthalpy w.r.t. water state
+  real(rkind),dimension(nLayers)     :: dEnthalpy_dTk             ! derivatives in layer enthalpy w.r.t. temperature
+  real(rkind),dimension(nLayers)     :: dEnthalpy_dWat            ! derivatives in layer enthalpy w.r.t. water state
   ! other local variables
-  integer(i4b)                    :: iLayer                    ! index of model layer in the snow+soil domain
-  integer(i4b)                    :: jState(1)                 ! index of model state for the scalar solution within the soil domain
-  integer(i4b)                    :: ixBeg,ixEnd               ! index of indices for the soil compression routine
-  integer(i4b),parameter          :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
+  integer(i4b)                       :: iLayer                    ! index of model layer in the snow+soil domain
+  integer(i4b)                       :: jState(1)                 ! index of model state for the scalar solution within the soil domain
+  integer(i4b)                       :: ixBeg,ixEnd               ! index of indices for the soil compression routine
+  integer(i4b),parameter             :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                        :: xMin,xMax                 ! minimum and maximum values for water content
   real(rkind)                        :: scalarCanopyHydTrial      ! trial value for mass of water on the vegetation canopy (kg m-2)
-  real(rkind),parameter              :: canopyTempMax=500._rkind     ! expected maximum value for the canopy temperature (K)
+  real(rkind),parameter              :: canopyTempMax=500._rkind  ! expected maximum value for the canopy temperature (K)
   real(rkind),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
   real(rkind),dimension(nState)      :: rVecScaled                ! scaled residual vector
-  character(LEN=256)              :: cmessage                  ! error message of downwind routine
+  character(LEN=256)                 :: cmessage                  ! error message of downwind routine
+  real(rkind)                        :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
+  real(rkind),dimension(nLayers)     :: mLayerCmTrial             ! trial vector of Cm for snow+soil
+  logical(lgt),parameter             :: updateCp=.true.           ! flag to indicate if we update Cp at each step
+  logical(lgt),parameter             :: needCm=.false.            ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   ! --------------------------------------------------------------------------------------------------------------------------------
   associate(&
     ! model decisions
+    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
     ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,&  ! intent(in):  [i4b]   index of the form of Richards' equation
     ! snow parameters
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,&  ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
@@ -251,13 +257,13 @@ subroutine eval8summa(&
     mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)]  liquid water matric potential (m)
     scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in):  [dp]     storage of water in the aquifer (m)
     ! model diagnostic variables from a previous solution
-    scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in):  [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
     scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)]  mass of ice on the vegetation canopy (kg m-2)
+    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out): [dp]    fraction of liquid water on vegetation (-)
+    scalarSfcMeltPond       => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)      ,&  ! intent(in): [dp]    ponded water caused by melt of the "snow without a layer" (kg m-2)
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
-    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in):  [dp]    fraction of liquid water on vegetation (-)
-    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
+    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
     ! enthalpy
     scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
@@ -266,8 +272,10 @@ subroutine eval8summa(&
     scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(in): [dp]    total change in storage associated with compression of the soil matrix (kg m-2)
     mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(in): [dp(:)] change in storage associated with compression of the soil matrix (-)
     ! derivatives
+    dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,&  ! intent(out): [dp]    derivative of volumetric liquid water content w.r.t. temperature
     dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
     dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(in): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
+    mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,&  ! intent(out): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
     ! mapping
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,&  ! intent(in): [i4b(:)] mapping of full state vector to the state subset
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,&  ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
@@ -280,7 +288,9 @@ subroutine eval8summa(&
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
     ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+    heatCapVegTrial         =>  diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),& ! intent(out): volumetric heat capacity of vegetation canopy
+    mLayerHeatCapTrial      =>  diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat        &  ! intent(out): heat capacity for snow and soil
     ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
@@ -426,39 +436,177 @@ subroutine eval8summa(&
                     err,cmessage)                                ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    ! compute enthalpy (J m-3)
-    if(needEnthalpy)then
-      call t2enthalpy(&
-                      ! input: data structures
-                      diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
-                      mpar_data,                   & ! intent(in):  parameter data structure
-                      indx_data,                   & ! intent(in):  model indices
-                      lookup_data,                 & ! intent(in):  lookup table data structure
-                      ! input: state variables for the vegetation canopy
-                      scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
-                      scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
-                      scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
-                      scalarCanopyIceTrial,        & ! intent(in):  trial value of canopy ice content (kg m-2)
-                      ! input: variables for the snow-soil domain
-                      mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
-                      mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
-                      mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                      mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
-                      ! output: enthalpy
-                      scalarCanairEnthalpy,        & ! intent(out):  enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpy,        & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpy,              & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
-                      ! output: error control
-                      err,cmessage)                  ! intent(out): error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif  ! if computing enthalpy
+    if(updateCp)then
+       ! *** compute volumetric heat capacity C_p
+      if(ixHowHeatCap == enthalpyFD)then
+        ! compute H_T without phase change
+        call t2enthalpy(&
+                         .false.,                    & ! intent(in): logical flag to not include phase change in enthalpy
+                        ! input: data structures
+                        diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
+                        mpar_data,                   & ! intent(in):  parameter data structure
+                        indx_data,                   & ! intent(in):  model indices
+                        lookup_data,                 & ! intent(in):  lookup table data structure
+                        ! input: state variables for the vegetation canopy
+                        scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
+                        scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
+                        scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
+                        scalarCanopyIceTrial,        & ! intent(in):  trial value of canopy ice content (kg m-2)
+                        ! input: variables for the snow-soil domain
+                        mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
+                        mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
+                        mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
+                        mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
+                        ! input: pre-computed derivatives
+                        dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                        scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
+                        mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                        mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
+                        dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                        ! output: enthalpy
+                        scalarCanairEnthalpy,        & ! intent(out):  enthalpy of the canopy air space (J m-3)
+                        scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
+                        mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                        dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
+                        dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
+                        dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
+                        dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
+                        ! output: error control
+                        err,cmessage)                  ! intent(out): error control
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    ! print the water content
-    if(globalPrintFlag)then
-      if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracWatTrial = ', mLayerVolFracWatTrial(iJac1:min(iJac2,nSnow))
-      if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracLiqTrial = ', mLayerVolFracLiqTrial(iJac1:min(iJac2,nSnow))
-      if(iJac1<nSnow) write(*,'(a,10(f16.10,1x))') 'mLayerVolFracIceTrial = ', mLayerVolFracIceTrial(iJac1:min(iJac2,nSnow))
-    endif
+
+        ! *** compute volumetric heat capacity C_p = dH_T/dT
+        call computHeatCap(&
+                            ! input: control variables
+                            nLayers,                   & ! intent(in): number of layers (soil+snow)
+                            computeVegFlux,            & ! intent(in): flag to denote if computing the vegetation flux
+                            canopyDepth,               & ! intent(in): canopy depth (m)
+                            ! input output data structures
+                            mpar_data,                 & ! intent(in): model parameters
+                            indx_data,                 & ! intent(in): model layer indices
+                            diag_data,                 & ! intent(inout): model diagnostic variables for a local HRU
+                            ! input: state variables
+                            scalarCanopyIceTrial,      & ! intent(in): trial value for mass of ice on the vegetation canopy (kg m-2)
+                            scalarCanopyLiqTrial,      & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
+                            scalarCanopyTempTrial,     & ! intent(in): trial value of canopy temperature (K)
+                            scalarCanopyTemp,          & ! intent(in): previous value of canopy temperature (K)
+                            scalarCanopyEnthalpyTrial, & ! intent(in): trial enthalpy of the vegetation canopy (J m-3)
+                            scalarCanopyEnthalpy,      & ! intent(in): previous enthalpy of the vegetation canopy (J m-3)
+                            mLayerVolFracIceTrial,     & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                            mLayerVolFracLiqTrial,     & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                            mLayerTempTrial,           & ! intent(in): trial temperature
+                            mLayerTemp,                & ! intent(in): previous temperature
+                            mLayerEnthalpyTrial,       & ! intent(in): trial enthalpy for snow and soil
+                            mLayerEnthalpy,            & ! intent(in): previous enthalpy for snow and soil
+                            mLayerMatricHeadTrial,     & ! intent(in):   trial total water matric potential (m)
+                            ! input: pre-computed derivatives
+                            dTheta_dTkCanopy,          & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                            scalarFracLiqVeg,          & ! intent(in): fraction of canopy liquid water (-)
+                            mLayerdTheta_dTk,          & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                            mLayerFracLiqSnow,         & ! intent(in): fraction of liquid water (-)
+                            dVolTot_dPsi0,             & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                            dCanEnthalpy_dTk,          & ! intent(in):  derivatives in canopy enthalpy w.r.t. temperature
+                            dCanEnthalpy_dWat,         & ! intent(in):  derivatives in canopy enthalpy w.r.t. water state
+                            dEnthalpy_dTk,             & ! intent(in):  derivatives in layer enthalpy w.r.t. temperature
+                            dEnthalpy_dWat,            & ! intent(in):  derivatives in layer enthalpy w.r.t. water state
+                            ! output
+                            heatCapVegTrial,           & ! intent(out): volumetric heat capacity of vegetation canopy
+                            mLayerHeatCapTrial,        & ! intent(out): heat capacity for snow and soil
+                            ! output: error control
+                            err,cmessage)                ! intent(out): error control
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        ! update values
+        mLayerEnthalpy = mLayerEnthalpyTrial
+        scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
+      else if(ixHowHeatCap == closedForm)then
+        call computHeatCapAnalytic(&
+                          ! input: control variables
+                          computeVegFlux,              & ! intent(in):   flag to denote if computing the vegetation flux
+                          canopyDepth,                 & ! intent(in):   canopy depth (m)
+                          ! input: state variables
+                          scalarCanopyIceTrial,        & ! intent(in):   trial value for mass of ice on the vegetation canopy (kg m-2)
+                          scalarCanopyLiqTrial,        & ! intent(in):   trial value for the liquid water on the vegetation canopy (kg m-2)
+                          scalarCanopyTempTrial,       & ! intent(in):   trial value of canopy temperature (K)
+                          mLayerVolFracIceTrial,       & ! intent(in):   volumetric fraction of ice at the start of the sub-step (-)
+                          mLayerVolFracLiqTrial,       & ! intent(in):   fraction of liquid water at the start of the sub-step (-)
+                          mLayerTempTrial,             & ! intent(in):   trial value of layer temperature (K)
+                          mLayerMatricHeadTrial,       & ! intent(in):   trial total water matric potential (m)
+                          ! input: pre-computed derivatives
+                          dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                          scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
+                          mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                          mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
+                          dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                          ! input output data structures
+                          mpar_data,                   & ! intent(in):   model parameters
+                          indx_data,                   & ! intent(in):   model layer indices
+                          diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                          ! output
+                          heatCapVegTrial,             & ! intent(out):  volumetric heat capacity of vegetation canopy
+                          mLayerHeatCapTrial,          & ! intent(out):  volumetric heat capacity of soil and snow
+                          ! output: error control
+                          err,cmessage)                  ! intent(out):  error control
+      endif
+
+      ! compute multiplier of state vector
+      call computStatMult(&
+                    ! input
+                    heatCapVegTrial,                  & ! intent(in):    volumetric heat capacity of vegetation canopy
+                    mLayerHeatCapTrial,               & ! intent(in):    volumetric heat capacity of soil and snow
+                    diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                    indx_data,                        & ! intent(in):    indices defining model states and layers
+                    ! output
+                    sMul,                             & ! intent(out):   multiplier for state vector (used in the residual calculations)
+                    err,cmessage)                       ! intent(out):   error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+
+      ! update thermal conductivity
+      call computThermConduct(&
+                          ! input: control variables
+                          computeVegFlux,               & ! intent(in): flag to denote if computing the vegetation flux
+                          nLayers,                      & ! intent(in): total number of layers
+                          canopyDepth,                  & ! intent(in): canopy depth (m)
+                          ! input: state variables
+                          scalarCanopyIceTrial,         & ! intent(in): trial value for mass of ice on the vegetation canopy (kg m-2)
+                          scalarCanopyLiqTrial,         & ! intent(in): trial value of canopy liquid water (kg m-2)
+                          mLayerTempTrial,              & ! intent(in): trial temperature of layer temperature (K)
+                          mLayerMatricHeadTrial,        & ! intent(in): trial value for total water matric potential (m)
+                          mLayerVolFracIceTrial,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
+                          mLayerVolFracLiqTrial,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                         ! input: pre-computed derivatives
+                          mLayerdTheta_dTk,             & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
+                          mLayerFracLiqSnow,            & ! intent(in): fraction of liquid water (-)
+                          ! input/output: data structures
+                          mpar_data,                    & ! intent(in):    model parameters
+                          indx_data,                    & ! intent(in):    model layer indices
+                          prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
+                          diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
+                          err,cmessage)                   ! intent(out): error control
+      if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+
+    endif ! updateCp
+
+    if(needCm)then
+      ! compute C_m
+      call computCm(&
+                      ! input: control variables
+                      computeVegFlux,           & ! intent(in): flag to denote if computing the vegetation flux
+                      ! input: state variables
+                      scalarCanopyTempTrial,    & ! intent(in): trial value of canopy temperature (K)
+                      mLayerTempTrial,          & ! intent(in): trial value of layer temperature (K)
+                      mLayerMatricHeadTrial,    & ! intent(in): trial value for total water matric potential (m)
+                      ! input data structures
+                      mpar_data,                & ! intent(in):    model parameters
+                      indx_data,                & ! intent(in):    model layer indices
+                      ! output
+                      scalarCanopyCmTrial,      & ! intent(out):   Cm for vegetation
+                      mLayerCmTrial,            & ! intent(out):   Cm for soil and snow
+                      err,cmessage)                ! intent(out): error control
+    else
+      scalarCanopyCmTrial = 0._qp
+      mLayerCmTrial = 0._qp
+    endif ! needCm
 
     ! save the number of flux calls per time step
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1

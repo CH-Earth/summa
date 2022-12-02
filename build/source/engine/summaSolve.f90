@@ -104,7 +104,7 @@ contains
                        fScale,                  & ! intent(in):    function scaling vector
                        xScale,                  & ! intent(in):    "variable" scaling vector, i.e., for state variables
                        rVec,                    & ! intent(in):    residual vector
-                       sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal matrix (excludes flux derivatives)
                        fOld,                    & ! intent(in):    old function evaluation
                        ! input: data structures
@@ -156,7 +156,7 @@ contains
  real(rkind),intent(in)             :: fScale(:)                ! function scaling vector
  real(rkind),intent(in)             :: xScale(:)                ! "variable" scaling vector, i.e., for state variables
  real(rkind),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
- real(rkind),intent(in)             :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
+ real(rkind),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
  real(rkind),intent(inout)          :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
  real(rkind),intent(in)             :: fOld                     ! old function evaluation
  ! input: data structures
@@ -940,7 +940,7 @@ contains
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
                   fScale,                  & ! intent(in):    function scaling vector
-                  sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                  sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                   ! input: data structures
                   model_decisions,         & ! intent(in):    model decisions
                   lookup_data,             & ! intent(in):    lookup tables

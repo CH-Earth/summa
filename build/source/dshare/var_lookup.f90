@@ -367,6 +367,16 @@ MODULE var_lookup
   integer(i4b)    :: scalarLambda_wetsoil            = integerMissing ! thermal conductivity of wet soil     (W m-1 K-1)
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
+  ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
+  integer(i4b)    :: dVolHtCapBulk_dPsi0             = integerMissing ! derivative in bulk heat capacity w.r.t. matric potential
+  integer(i4b)    :: dVolHtCapBulk_dTheta            = integerMissing ! derivative in bulk heat capacity w.r.t. volumetric water content
+  integer(i4b)    :: dVolHtCapBulk_dCanWat           = integerMissing ! derivative in bulk heat capacity w.r.t. volumetric water content
+  integer(i4b)    :: dVolHtCapBulk_dTk               = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
+  integer(i4b)    :: dVolHtCapBulk_dTkCanopy         = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
+  integer(i4b)    :: dThermalC_dTempAbove            = integerMissing ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  integer(i4b)    :: dThermalC_dTempBelow            = integerMissing ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  integer(i4b)    :: dThermalC_dWatAbove             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  integer(i4b)    :: dThermalC_dWatBelow             = integerMissing ! derivative in the thermal conductivity w.r.t. water state in the layer above
   ! enthalpy
   integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! enthalpy of the canopy air space (J m-3)
   integer(i4b)    :: scalarCanopyEnthalpy            = integerMissing ! enthalpy of the vegetation canopy (J m-3)
@@ -629,12 +639,6 @@ MODULE var_lookup
   integer(i4b)    :: dFracLiqSnow_dTk                = integerMissing ! derivative in fraction of liquid snow w.r.t. temperature
   integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
- ! derivate in bulk heat capacity w.r.t. relevant state variables
-  integer(i4b)    :: dVolHtCapBulk_dPsi0             = integerMissing ! derivative in bulk heat capacity w.r.t. matric potential
-  integer(i4b)    :: dVolHtCapBulk_dTheta            = integerMissing ! derivative in bulk heat capacity w.r.t. volumetric water content
-  integer(i4b)    :: dVolHtCapBulk_dCanWat           = integerMissing ! derivative in bulk heat capacity w.r.t. volumetric water content
-  integer(i4b)    :: dVolHtCapBulk_dTk               = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
-  integer(i4b)    :: dVolHtCapBulk_dTkCanopy         = integerMissing ! derivative in bulk heat capacity w.r.t. temperature
  ! derivatives in time
   integer(i4b)    ::  mLayerdTemp_dt                 = integerMissing ! timestep change in layer temperature
   integer(i4b)    ::  scalarCanopydTemp_dt           = integerMissing ! timestep change in canopy temperature
@@ -862,7 +866,8 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86, 87)
+                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
+                                                                         91, 92, 93, 94, 95, 96)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
@@ -881,7 +886,7 @@ MODULE var_lookup
                                                                          31, 32, 33, 34, 35, 36, 37, 38, 39, 40,&
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
-                                                                         61, 62, 63, 64, 65, 66, 67)
+                                                                         61, 62)
 
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

@@ -53,13 +53,8 @@ USE globalData,only:indx_meta       ! metadata for the variables in the index st
 
 ! constants
 USE multiconst,only:&
-                    gravity,      & ! acceleration of gravity              (m s-2)
                     Tfreeze,      & ! temperature at freezing              (K)
-                    Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
-                    Cp_ice,       & ! specific heat of ice                 (J kg-1 K-1)
-                    Cp_water,     & ! specific heat of liquid water        (J kg-1 K-1)
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    iden_air,     & ! intrinsic density of air             (kg m-3)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
@@ -280,11 +275,6 @@ subroutine updateVarsSundials(&
     dFracLiqSnow_dTk        => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk      )%dat     ,& ! intent(out): [dp(:)] derivative in fraction of liquid snow w.r.t. temperature
     dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy )%dat(1)  ,& ! intent(out): [dp   ] derivative in fraction of (throughfall + drainage) w.r.t. temperature
     ! derivatives inside solver for Jacobian only
-    dVolHtCapBulk_dPsi0     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0   )%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta    => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta  )%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dCanWat   => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)   ,& ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk )%dat         ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1) ,& ! intent(out): [dp   ] derivative in bulk heat capacity w.r.t. temperature
     d2VolTot_d2Psi0         => deriv_data%var(iLookDERIV%d2VolTot_d2Psi0       )%dat     ,& ! intent(out): [dp(:)] second derivative in total water content w.r.t. total water matric potential
     mLayerd2Theta_dTk2      => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2    )%dat     ,& ! intent(out): [dp(:)] second derivative of volumetric liquid water content w.r.t. temperature
     d2Theta_dTkCanopy2      => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2    )%dat(1)   & ! intent(out): [dp   ] second derivative of volumetric liquid water content w.r.t. temperature
@@ -452,41 +442,21 @@ subroutine updateVarsSundials(&
         ! compute the derivative in bulk heat capacity w.r.t. total water content or water matric potential (m-1)
         ! compute the derivative in total water content w.r.t. total water matric potential (m-1)
         ! NOTE 1: valid for frozen and unfrozen conditions
-        ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi, dVolHtCapBulk_dPsi0 may be wrong
-        select case(ixDomainType)
-          case(iname_veg)
-            if(computJac)then
-              fLiq = fracLiquid(xTemp,snowfrz_scale)
-              dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
-            endif
-
-          case(iname_snow)
-
-            if(computJac)then
-              fLiq = fracLiquid(xTemp,snowfrz_scale)
-              dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
-            endif
-          case(iname_soil)
-            select case( ixStateType(ixFullVector) )
-              case(iname_lmpLayer)
-                dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-                if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-              case default
-                dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-                if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
+        ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi
+        if(ixDomainType==iname_soil)then
+          select case( ixStateType(ixFullVector) )
+            case(iname_lmpLayer)
+              dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+              if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+            case default
+              dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
+              if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
                                                 vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             end select
-            ! dVolHtCapBulk_dPsi0 uses the derivative in water retention curve above critical temp w.r.t.state variable dVolTot_dPsi0
-            if(computJac)then
-              dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
-              if(xTemp< Tcrit) dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_ice * Cp_ice     - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
-              if(xTemp>=Tcrit) dVolHtCapBulk_dPsi0(ixControlIndex) = (iden_water * Cp_water - iden_air * Cp_air) * dVolTot_dPsi0(ixControlIndex)
-            endif
-        end select
+        endif
 
         ! compute the derivative in liquid water content w.r.t. temperature
         ! --> partially frozen: dependence of liquid water on temperature
-        ! compute the derivative in bulk heat capacity w.r.t. temperature
         if(xTemp<Tcrit)then
           select case(ixDomainType)
             case(iname_veg)
@@ -495,7 +465,6 @@ subroutine updateVarsSundials(&
               if(computJac)then
                 fLiq = fracLiquid(xTemp,snowfrz_scale)
                 d2Theta_dTkCanopy2 = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqVeg_dTkCanopy - fLiq**2._rkind ) * scalarCanopyWatTrial/(iden_water*canopyDepth)
-                dVolHtCapBulk_dTkCanopy = iden_water * (-Cp_ice + Cp_water) * dTheta_dTkCanopy !same as snow but there is no derivative in air
               endif
             case(iname_snow)
               dFracLiqSnow_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)
@@ -503,14 +472,12 @@ subroutine updateVarsSundials(&
               if(computJac)then
                 fLiq = fracLiquid(xTemp,snowfrz_scale)
                 mLayerd2Theta_dTk2(iLayer) = 2._rkind * snowfrz_scale**2._rkind * ( (Tfreeze - xTemp) * 2._rkind * fLiq * dFracLiqSnow_dTk(iLayer) - fLiq**2._rkind ) * mLayerVolFracWatTrial(iLayer)
-                dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
               endif
             case(iname_soil)
               dFracLiqSnow_dTk(iLayer) = 0._rkind !dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))/ mLayerVolFracWatTrial(iLayer)
               mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
               if(computJac)then
                 mLayerd2Theta_dTk2(iLayer) = d2Theta_dTk2(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-                dVolHtCapBulk_dTk(iLayer) = (-iden_ice * Cp_ice + iden_water * Cp_water) * mLayerdTheta_dTk(iLayer)
               endif
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
           end select  ! domain type
@@ -518,8 +485,8 @@ subroutine updateVarsSundials(&
         ! --> unfrozen: no dependence of liquid water on temperature
         else
           select case(ixDomainType)
-            case(iname_veg);              dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2         = 0._rkind; dFracLiqVeg_dTkCanopy    = 0._rkind; dVolHtCapBulk_dTkCanopy   = 0._rkind
-            case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqSnow_dTk(iLayer) = 0._rkind; dVolHtCapBulk_dTk(iLayer) = 0._rkind
+            case(iname_veg);              dTheta_dTkCanopy         = 0._rkind; d2Theta_dTkCanopy2         = 0._rkind; dFracLiqVeg_dTkCanopy    = 0._rkind
+            case(iname_snow, iname_soil); mLayerdTheta_dTk(iLayer) = 0._rkind; mLayerd2Theta_dTk2(iLayer) = 0._rkind; dFracLiqSnow_dTk(iLayer) = 0._rkind
           end select  ! domain type
         endif
 
@@ -753,7 +720,7 @@ subroutine updateVarsSundials(&
       ! =======================================================================================================================================
 
       ! -----
-      ! - compute the liquid water matric potential (and necessay derivatives)...
+      ! - compute the liquid water matric potential (and necessary derivatives)...
       ! -------------------------------------------------------------------------
 
       ! only for soil

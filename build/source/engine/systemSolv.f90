@@ -72,6 +72,7 @@ USE var_lookup,only:iLookFORCE      ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -82,10 +83,14 @@ USE data_types,only:&
                     zLookup,      & ! data vector with variable length dimension (rkind)
                     model_options   ! defines the model decisions
 
+! look-up values for the choice of heat capacity computation
+USE mDecisions_module,only:  &
+ enthalpyFD                    ! heat capacity using enthalpy
+
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
-USE mDecisions_module,only:       &
- localColumn,                     & ! separate groundwater representation in each local soil column
- singleBasin                        ! single groundwater store over the entire basin
+USE mDecisions_module,only:  &
+ localColumn,                & ! separate groundwater representation in each local soil column
+ singleBasin                   ! single groundwater store over the entire basin
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:      &
@@ -149,6 +154,7 @@ contains
  USE summaSolve_module,only:summaSolve                ! calculate the iteration increment, evaluate the new state, and refine if necessary
  USE getVectorz_module,only:getScaling                ! get the scaling vectors
  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
+ USE t2enthalpy_module, only:t2enthalpy               ! compute enthalpy
  implicit none
  ! ---------------------------------------------------------------------------------------
  ! * dummy variables
@@ -204,12 +210,12 @@ contains
  ! ------------------------------------------------------------------------------------------------------
  ! * model solver
  ! ------------------------------------------------------------------------------------------------------
- logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
- integer(i4b)                    :: maxiter                       ! maximum number of iterations
- integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
- integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type)
- integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
- type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
+ logical(lgt),parameter             :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
+ integer(i4b)                       :: maxiter                       ! maximum number of iterations
+ integer(i4b)                       :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
+ integer(i4b)                       :: localMaxIter                  ! maximum number of iterations (depends on solution type)
+ integer(i4b), parameter            :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution
+ type(var_dlength)                  :: flux_init                     ! model fluxes at the start of the time step
  real(rkind),allocatable            :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
  real(rkind)                        :: stateVecNew(nState)           ! new state vector (mixed units)
  real(rkind)                        :: fluxVec0(nState)              ! flux vector (mixed units)
@@ -221,22 +227,46 @@ contains
  real(rkind)                        :: rAdd(nState)                  ! additional terms in the residual vector
  real(rkind)                        :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled
  real(rkind)                        :: xMin,xMax                     ! state minimum and maximum (mixed units)
- logical(lgt)                    :: converged                     ! convergence flag
- logical(lgt)                    :: feasible                      ! feasibility flag
+ logical(lgt)                       :: converged                     ! convergence flag
+ logical(lgt)                       :: feasible                      ! feasibility flag
  real(rkind)                        :: resSinkNew(nState)            ! additional terms in the residual vector
  real(rkind)                        :: fluxVecNew(nState)            ! new flux vector
  real(rkind)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector
+ ! enthalpy derivatives
+ real(rkind)                        :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
+ real(rkind)                        :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
+ real(rkind)                        :: dEnthalpy_dTk(nState)         ! derivatives in layer enthalpy w.r.t. temperature
+ real(rkind)                        :: dEnthalpy_dWat(nState)        ! derivatives in layer enthalpy w.r.t. water state
  ! ---------------------------------------------------------------------------------------
  ! point to variables in the data structures
  ! ---------------------------------------------------------------------------------------
  globalVars: associate(&
  ! model decisions
+ ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
  ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
  ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
+ ! enthalpy
+ scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
+ scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
+ mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out): [dp(:)] enthalpy of the snow+soil layers (J m-3)
+ ! derivatives, diagnositic for enthalpy
+ dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,&  ! intent(in): [dp]    derivative of volumetric liquid water content w.r.t. temperature
+ dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
+ mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,&  ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+ scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,&  ! intent(in): [dp]    fraction of liquid water on vegetation (-)
+ mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
+ ! model state variables
+ scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the canopy air space (K)
+ scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the vegetation canopy (K)
+ scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp]     mass of ice on the vegetation canopy (kg m-2)
+ scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in): [dp]     mass of total water on the vegetation canopy (kg m-2)
+ ! model state variables (snow and soil domains)
+ mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)]  temperature of each snow/soil layer (K)
+ mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of ice (-)
+ mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
+ mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of total water (-)
+ mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)]  matric head (m)
  ! check the need to merge snow layers
- mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
- mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
- mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
  mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
  snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
  ! accelerate solution for temperature
@@ -363,6 +393,44 @@ contains
  if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
  if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
 
+ if(ixHowHeatCap == enthalpyFD)then
+   ! compute H_T at the beginning of the data step without phase change
+   call t2enthalpy(&
+                    .false.,                     & ! intent(in): logical flag to not include phase change in enthalpy
+                    ! input: data structures
+                    diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
+                    mpar_data,                   & ! intent(in):  parameter data structure
+                    indx_data,                   & ! intent(in):  model indices
+                    lookup_data,                 & ! intent(in):  lookup table data structure
+                    ! input: state variables for the vegetation canopy
+                    scalarCanairTemp,            & ! intent(in):  value of canopy air temperature (K)
+                    scalarCanopyTemp,            & ! intent(in):  value of canopy temperature (K)
+                    scalarCanopyWat,             & ! intent(in):  value of canopy total water (kg m-2)
+                    scalarCanopyIce,             & ! intent(in):  value for canopy ice content (kg m-2)
+                    ! input: variables for the snow-soil domain
+                    mLayerTemp,                  & ! intent(in):  vector of layer temperature (K)
+                    mLayerVolFracWat,            & ! intent(in):  vector of volumetric total water content (-)
+                    mLayerMatricHead,            & ! intent(in):  vector of total water matric potential (m)
+                    mLayerVolFracIce,            & ! intent(in):  vector of volumetric fraction of ice (-)
+                    ! input: pre-computed derivatives
+                    dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                    scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
+                    mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                    mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
+                    dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                    ! output: enthalpy
+                    scalarCanairEnthalpy,        & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
+                    scalarCanopyEnthalpy,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+                    mLayerEnthalpy,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
+                    dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
+                    dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
+                    dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
+                    dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
+                    ! output: error control
+                    err,cmessage)                  ! intent(out): error control
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+ endif
+
  ! compute the flux and the residual vector for a given state vector
  ! NOTE 1: The derivatives computed in eval8summa are used to calculate the Jacobian matrix for the first iteration
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
@@ -381,7 +449,7 @@ contains
                  ! input: state vectors
                  stateVecTrial,           & ! intent(in):    model state vector
                  fScale,                  & ! intent(in):    function scaling vector
-                 sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
+                 sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                  ! input: data structures
                  model_decisions,         & ! intent(in):    model decisions
                  lookup_data,             & ! intent(in):    lookup tables
@@ -473,7 +541,7 @@ contains
                   fScale,                        & ! intent(in):    function scaling vector
                   xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
                   rVec,                          & ! intent(in):    residual vector
-                  sMul,                          & ! intent(in):    state vector multiplier (used in the residual calculations)
+                  sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                   dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
                   fOld,                          & ! intent(in):    old function evaluation
                   ! input: data structures

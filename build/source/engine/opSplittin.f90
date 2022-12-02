@@ -784,9 +784,7 @@ subroutine opSplittin(&
                                 tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                                 dt_out,					   & ! intent(out)
                                 err,cmessage)                 ! intent(out)   : error code and error message
-
-                                dt = dt_out
-
+                    dt = dt_out
                   case(bEuler)
                     call varSubstep(&
                                 ! input: model control
