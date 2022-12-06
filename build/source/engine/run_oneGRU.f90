@@ -140,7 +140,7 @@ contains
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control
- err=0; write(message, '(A24,I0,A2)' ) 'run_oneGRU (gru index = ',gruInfo%gru_nc,')/'
+ err=0; write(message, '(A24,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
 
  ! ----- basin initialization --------------------------------------------------------------------------------------------
 
@@ -182,6 +182,7 @@ contains
   ! simulation for a single HRU
   call run_oneHRU(&
                   ! model control
+                  gruInfo%hruInfo(iHRU)%hru_nc,    & ! intent(in):    hru count Id
                   gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                   dt_init(iHRU),                   & ! intent(inout): initial time step
                   computeVegFluxFlag,              & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)

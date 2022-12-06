@@ -85,6 +85,7 @@ contains
  ! simulation for a single HRU
  subroutine run_oneHRU(&
                        ! model control
+                       hru_nc,              & ! intent(in):    hru index in netcdf
                        hruId,               & ! intent(in):    hruId
                        dt_init,             & ! intent(inout): used to initialize the length of the sub-step for each HRU
                        computeVegFlux,      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
@@ -113,8 +114,9 @@ contains
  implicit none
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
- 
+
  ! model control
+ integer(i4b)      , intent(in)    :: hru_nc              ! hru index in netcdf
  integer(8)        , intent(in)    :: hruId               ! hruId
  real(rkind)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
@@ -143,8 +145,8 @@ contains
  real(rkind)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
  ! initialize error control
- err=0; write(message, '(A20,I0,A2)' ) 'run_oneHRU (hruId = ',hruId,')/'
- 
+ err=0; write(message, '(A20,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
+
  ! ----- hru initialization ---------------------------------------------------------------------------------------------
 
  ! water pixel: do nothing

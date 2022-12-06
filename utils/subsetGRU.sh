@@ -11,7 +11,6 @@ module load nco/5.0.6
 # GRU want to subset, change to do another GRU
 # 155th basin in the slurm batch run, offset-th script (offset is SLURM_ARRAY_TASK_ID
 # could also just set this as GRU_file from G* on output nc files (here the equation output is 487981).
-# GRU_file is not the actual GRUid, it is one off from the nc files, so subtract one before ncks
 
 offset=942
 gruCount=518
@@ -23,9 +22,9 @@ gruCount=518
 GRU_file=487980
 nbasin_slurm=$((GRU_file-gruCount*offset))
 
-GRU_id=$((GRU_file - 1))
+GRU_id=$GRU_file
 HRU_id=$GRU_id
-echo "file name id is ${GRU_file}, actual GRU id is ${GRU_id}, number in batch is ${nbasin_slurm}" 
+echo "file name id is ${GRU_file}, GRU id is ${GRU_id}, HRU id is ${HRU_id}, number in batch is ${nbasin_slurm}" 
 
 # top paths, change these to yours
 homeDir=/globalhome/gwu479/HPC/
