@@ -248,8 +248,6 @@ contains
 
   end do ! (looping through snow layers)
 
-  !print*, 'ksnow = ', ksnow
-
   ! exit if finished
   if(kSnow==nCheck)exit
 

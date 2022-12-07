@@ -356,12 +356,6 @@ contains
      mLayerSatHydCond(iLayer-nSnow)   = k_soil(iLayer-nSnow)      * midDepthScaleFactor
      mLayerSatHydCondMP(iLayer-nSnow) = k_macropore(iLayer-nSnow) * midDepthScaleFactor
     end if
-    !print*, iLayer, nSnow
-    !print*, 'compactedDepth = ', compactedDepth
-    !print*, 'k_soil, k_macropore   = ', k_soil, k_macropore
-    !print*, 'mLayerHeight(iLayer)  = ', mLayerHeight(iLayer)
-    !print*, 'iLayerHeight(nLayers) = ', iLayerHeight(nLayers)
-    !print*, 'iLayer, mLayerSatHydCond, mLayerSatHydCondMP = ', mLayerSatHydCond(iLayer-nSnow), mLayerSatHydCondMP(iLayer-nSnow)
 
    ! error check (errors checked earlier also, so should not get here)
    case default
@@ -372,9 +366,7 @@ contains
   !if(iLayer > nSnow)& ! avoid layer 0
   ! write(*,'(a,1x,i4,1x,2(f11.5,1x,e20.10,1x))') 'satHydCond: ', iLayer, mLayerHeight(iLayer), mLayerSatHydCond(iLayer-nSnow), iLayerHeight(iLayer), iLayerSatHydCond(iLayer-nSnow)
  end do  ! looping through soil layers
- !print*, trim(model_decisions(iLookDECISIONS%hc_profile)%cDecision)
- !print*, 'k_soil, k_macropore, zScale_TOPMODEL = ', k_soil, k_macropore, zScale_TOPMODEL
- !pause ' in satHydCond'
+
  end associate
 
  end subroutine satHydCond

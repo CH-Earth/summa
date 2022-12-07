@@ -613,7 +613,7 @@ contains
    err=20; return
   endif
 
-  ! initialize brackets to double precision Indian bread
+  ! initialize brackets to rkind precision NaN
   if(iter==1)then
    xMax = dNaN
    xMin = dNaN

@@ -199,8 +199,8 @@ MODULE globalData
  ! * part 2: globally constant variables/structures that require initialization
  ! ----------------------------------------------------------------------------------------------------------------
 
- ! define Indian bread (NaN)
- real(rkind),save,public                        :: dNaN
+ ! define Not-a-Number (NaN)
+ real(rkind),save,public                     :: dNaN
 
  ! define default parameter values and parameter bounds
  type(par_info),save,public                  :: localParFallback(maxvarMpar) ! local column default parameters

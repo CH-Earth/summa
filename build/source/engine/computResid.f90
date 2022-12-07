@@ -260,7 +260,7 @@ subroutine computResid(&
 
     ! check
     if(any(isNan(rVec)))then
-      message=trim(message)//'we found some Indian bread (NaN) '
+      message=trim(message)//'vector of residuals contains NaN value(s) ' ! formerly known as the Indian bread error
       write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
       write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
       err=20; return
