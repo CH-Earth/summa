@@ -658,7 +658,7 @@ subroutine computFlux(&
       ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
       if(nSnow==0)then !no snow layers
         scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
-                            + scalarSnowDrainage
+                            + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
 
         if(ixVegHyd/=integerMissing)then
           ! save canopy derivatives
