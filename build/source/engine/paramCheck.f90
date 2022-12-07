@@ -107,7 +107,9 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------
 
  ! *****
- ! * check parameter dependencies...
+ ! * check soil parameter dependencies...
+ ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacit < theta_sat
+ ! k_macropore < k_soil
  ! *********************************
 
  ! associations
@@ -121,7 +123,9 @@ contains
  ! soil properties
  fieldCapacity          => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in): [dp]    field capacity (-)
  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp(:)] soil porosity (-)
- theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat             & ! intent(in): [dp(:)] soil residual volumetric water content (-)
+ theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat,            & ! intent(in): [dp(:)] soil residual volumetric water content (-)
+ k_soil                 => mpar_data%var(iLookPARAM%k_soil)%dat,               & ! intent(in): [dp(:)] saturated hydraulic conductivity at the compacted depth (m s-1)
+ k_macropore            => mpar_data%var(iLookPARAM%k_macropore)%dat           & ! intent(in): [dp(:)] saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
  ) ! associations to parameters
 
  ! check canopy geometry
@@ -168,7 +172,17 @@ contains
 
  ! check porosity
  if( any(theta_sat < theta_res) )then
+  print*, 'theta_res     = ', theta_res
+  print*, 'theta_sat     = ', theta_sat
   write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
+  err=20; return
+ endif
+
+ ! - check macropore and micropore conductivity
+ if( any(k_macropore < k_soil) )then
+  print*, 'k_macropore = ', k_macropore
+  print*, 'k_soil      = ', k_soil
+  write(message,'(a,i0,a)') trim(message)//"hydraulic conductivity for macropores is less than the hydraulic conductivity for micropores"
   err=20; return
  endif
 

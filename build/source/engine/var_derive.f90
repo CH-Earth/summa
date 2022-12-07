@@ -341,11 +341,6 @@ contains
      else
       iLayerSatHydCond(iLayer-nSnow)   = 0.5_rkind * (k_soil(iLayer-nSnow) + k_soil(iLayer+1-nSnow) ) * ifcDepthScaleFactor
      endif
-     ! - check macropore conductivity > micropore conductivity
-     if(k_macropore(iLayer-nSnow) < k_soil(iLayer-nSnow))then
-      message=trim(message)//"hydraulic conductivity for macropores is less than the hydraulic conductivity for micropores"
-      err=20; return
-     endif
      ! - conductivity at layer midpoints
      if(compactedDepth/iLayerHeight(nLayers) /= 1._rkind) then    ! avoid divide by zero
       midDepthScaleFactor = ( (1._rkind - mLayerHeight(iLayer)/iLayerHeight(nLayers))**(zScale_TOPMODEL - 1._rkind) ) / &
