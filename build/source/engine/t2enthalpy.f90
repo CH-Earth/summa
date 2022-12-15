@@ -96,6 +96,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
   real(rkind)                   :: T_incr               ! temperature increment
   real(rkind),parameter         :: T_test=272.9742_rkind   ! test value for temperature (K)
   real(rkind)                   :: E_test               ! test value for enthalpy (J m-3)
+  real(rkind)                   :: dE                   ! derivative of enthalpy with temperature at T_test
   integer(i4b)                  :: iVar                 ! loop through variables
   integer(i4b)                  :: iSoil                ! loop through soil layers
   integer(i4b)                  :: iLook                ! loop through lookup table
@@ -213,7 +214,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
       if(doTest)then
 
         ! calculate enthalpy
-        call splint(Tk,Ey,E2,T_test,E_test,err,cmessage)
+        call splint(Tk,Ey,E2,T_test,E_test,dE,err,cmessage)
         if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
         ! write values
@@ -335,6 +336,9 @@ subroutine t2enthalpy(&
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
   real(rkind)                      :: dVolFracLiq_dTk           ! derivative of volumetric fraction of liquid water with temperature
   real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
+  real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
+  real(rkind)                      :: dEcrit                    ! derivative of enthalpy with temperature at critical temperature
+
   ! enthalpy
   real(rkind)                      :: enthVeg                   ! enthalpy of the vegetation (J m-3)
   real(rkind)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
@@ -560,11 +564,11 @@ subroutine t2enthalpy(&
               ! *** compute enthalpy of water for frozen conditions
               else
                 ! calculate enthalpy at the temperature (cubic spline interpolation)
-                call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),enthTemp,err,cmessage)
+                call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),enthTemp,dE,err,cmessage)
                 if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
                 ! calculate enthalpy at the critical temperature (cubic spline interpolation)
-                call splint(Tk,Ey,E2,Tcrit,enthTcrit,err,cmessage)
+                call splint(Tk,Ey,E2,Tcrit,enthTcrit,dEcrit,err,cmessage)
                 if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
                 ! calculate the enthalpy of water
@@ -580,11 +584,11 @@ subroutine t2enthalpy(&
                 ! derivatives
                 dVolFracLiq_dTk = dTheta_dPsi(psiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)*LH_fus/(gravity*Tfreeze)
                 dTcrit_dPsi0 = 0._rkind
-                if (mlayerTempTrial(iLayer)<0._rkind) dTcrit_dPsi0 = gravity*Tfreeze/LH_fus
+                if (mLayerMatricHeadTrial(ixControlIndex)<0._rkind) dTcrit_dPsi0 = gravity*Tfreeze/LH_fus
                 ! enthalpy derivatives
-                dEnthWater_dTk = 0._rkind ! THIS NEEDS TO BE COMPUTED, d_enthMix_dTk using splines
+                dEnthWater_dTk = dE
                 dEnthPhase_dTk = -iden_water*LH_fus*dVolFracLiq_dTk
-                dEnthWater_dWat = iden_water*Cp_water*dVolTot_dPsi0(ixControlIndex)*(Tcrit - Tfreeze) + iden_water*Cp_water*volFracWat*dTcrit_dPsi0
+                dEnthWater_dWat = -dEcrit*dTcrit_dPsi0 + iden_water*Cp_water*dVolTot_dPsi0(ixControlIndex)*(Tcrit - Tfreeze) + iden_water*Cp_water*volFracWat*dTcrit_dPsi0
                 dEnthPhase_dWat = iden_water*LH_fus*dVolTot_dPsi0(ixControlIndex)
               endif ! (if frozen conditions)
 
@@ -602,7 +606,7 @@ subroutine t2enthalpy(&
               ! *** compute the total enthalpy (J m-3)
               mLayerEnthalpy(iLayer) = enthSoil + enthWater + enthAir
               dEnthalpy_dTk(iLayer) =  dEnthSoil_dTk + dEnthWater_dTk + dEnthAir_dTk
-              dEnthalpy_dWat(iLayer) =  dEnthSoil_dWat + dEnthWater_dWat + dEnthAir_dWat
+              dEnthalpy_dWat(iLayer) = dEnthSoil_dWat + dEnthWater_dWat + dEnthAir_dWat
               if (doPhase)then
                 mLayerEnthalpy(iLayer) = mLayerEnthalpy(iLayer) - enthPhase
                 dEnthalpy_dTk(iLayer)  = dEnthalpy_dTk(iLayer) - dEnthPhase_dTk

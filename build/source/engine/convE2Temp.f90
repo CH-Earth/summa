@@ -59,12 +59,13 @@ contains
  character(*),intent(out)      :: message              ! error message
  ! declare local variables
  character(len=128)            :: cmessage             ! error message in downwind routine
- real(rkind),parameter            :: T_start=260.0_rkind     ! start temperature value where all liquid water is assumed frozen (K)
- real(rkind)                      :: T_incr,E_incr        ! temperature/enthalpy increments
- real(rkind),dimension(nlook)     :: Tk                   ! initial temperature vector
- real(rkind),dimension(nlook)     :: Ey                   ! initial enthalpy vector
- real(rkind),parameter            :: waterWght=1._rkind      ! weight applied to total water (kg m-3) --- cancels out
- real(rkind),dimension(nlook)     :: T2deriv              ! 2nd derivatives of the interpolating function at tabulated points
+ real(rkind),parameter         :: T_start=260.0_rkind  ! start temperature value where all liquid water is assumed frozen (K)
+ real(rkind)                   :: T_incr,E_incr        ! temperature/enthalpy increments
+ real(rkind),dimension(nlook)  :: Tk                   ! initial temperature vector
+ real(rkind),dimension(nlook)  :: Ey                   ! initial enthalpy vector
+ real(rkind),parameter         :: waterWght=1._rkind   ! weight applied to total water (kg m-3) --- cancels out
+ real(rkind),dimension(nlook)  :: T2deriv              ! 2nd derivatives of the interpolating function at tabulated points
+ real(rkind)                   :: dT                   ! derivative of temperature with enthalpy at E_lookup
  integer(i4b)                  :: ilook                ! loop through lookup table
  ! initialize error control
  err=0; message="E2T_lookup/"
@@ -84,7 +85,7 @@ contains
  call spline(Ey,Tk,1.e30_rkind,1.e30_rkind,T2deriv,err,cmessage)  ! get the second derivatives
  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
  do ilook=1,nlook
-  call splint(Ey,Tk,T2deriv,E_lookup(ilook),T_lookup(ilook),err,cmessage)
+  call splint(Ey,Tk,T2deriv,E_lookup(ilook),T_lookup(ilook),dT,err,cmessage)
   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
   !write(*,'(i6,1x,2(f20.4,1x))') ilook, E_lookup(ilook), T_lookup(ilook)
  end do
