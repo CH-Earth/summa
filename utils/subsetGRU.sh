@@ -3,6 +3,7 @@
 #
 # Inside forcingFile_out need to change forcingPath to = desForcingPath
 # Inside forcingFile_out need to change initConditionFile, attributeFile, trialParamFile to = _${GRU_file} versions
+# written originally by A. Van Beusekom 2023, hardwired paths run on Copernicus
 
 module load StdEnv/2020
 module load gcc/9.3.0
@@ -24,7 +25,7 @@ nbasin_slurm=$((GRU_file-gruCount*offset))
 
 GRU_id=$GRU_file
 HRU_id=$GRU_id
-echo "file name id is ${GRU_file}, GRU id is ${GRU_id}, HRU id is ${HRU_id}, number in batch is ${nbasin_slurm}" 
+echo "file name id is ${GRU_file}, GRU id is ${GRU_id}, HRU id is ${HRU_id}, number in batch is ${nbasin_slurm}"
 
 # top paths, change these to yours
 homeDir=/globalhome/gwu479/HPC/
