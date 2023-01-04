@@ -14,48 +14,57 @@ from pathlib import Path
 import multiprocessing as mp
 
 # Settings
-method_name = 'be64'
+method_name = 'sundials_1en6'
+bench_name = 'cat_sundials_1en8'
 src_dir = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/summa-' + method_name
+ben_dir = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
-des_dir = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics/' + method_name
-des_fil = 'run1_summa_day_stats_{}_{}_{}.nc'
-settings= {'averageRoutedRunoff': 'mean'; 'wallClockTime': 'mean'; 'scalarTotalET': 'mean'; 'scalarSWE': 'mean'; 'scalarCanopyWat': 'mean'; 'scalarTotalSoilWat': 'mean'}
-}
-viz_fil = 'run1_summa_day_stats_{}_{}.nc'
+des_dir = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics'
+des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
+stat = 'max'
+settings= {'averageRoutedRunoff': stat; 'wallClockTime': stat; 'scalarTotalET': stat; 'scalarSWE': stat; 'scalarCanopyWat': stat; 'scalarTotalSoilWat': stat}
+
+viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
 viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)
+ben_dir = Path(ben_dir)
 des_dir = Path(des_dir)
 
 # Ensure the output path exists
 des_dir.mkdir(parents=True, exist_ok=True)
 
-# Get the names of all inputs
+# Get the names of all inputs, assuming folders have same splits of domains and same file names
 src_files = glob.glob(str( src_dir / src_pat ))
 src_files.sort()
 
 # -- functions
-def run_loop(file):
+def run_loop(file,bench):
 
     # extract the subset IDs
     subset = file.split('/')[-1].split('_')[1]
 
-    # pass if file exists already
-    if os.path.isfile(des_dir / 'run1_summa_day_stats_mean_wallClockTime_{}'.format(subset)):
-        return
-
     # open file
     dat = xr.open_dataset(file)
+    ben = xr.open_dataset(bench)
+
+    diff = (np.fabs(dat - ben))
+    # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
+    diff = diff.drop_vars(['hruId','gruId']) #'wallClockTime'
+    m = diff.drop_dims('hru')
+    m = m.rename({'gru': 'hru'})
+    diff = diff.drop_dims('gru')
+    diff = xr.merge([diff,m])
 
     # compute the requested statistics
     for var,stat in settings.items():
 
         # Select the case
         if stat == 'mean':
-            new = dat[var].mean(dim='time')
+            new = diff[var].mean(dim='time')
         elif stat == 'max':
-            new = dat[var].max(dim='time')
+            new = diff[var].max(dim='time')
 
         new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
     return
