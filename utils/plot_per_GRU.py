@@ -24,7 +24,7 @@ import matplotlib.gridspec as gridspec
 # Simulation statistics file locations
 method_name = 'sundials_1en6'
 stat = 'max'
-settings= {'averageRoutedRunoff': stat; 'wallClockTime': stat; 'scalarTotalET': stat; 'scalarSWE': stat; 'scalarCanopyWat': stat; 'scalarTotalSoilWat': stat}
+settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
 viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
 viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))

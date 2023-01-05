@@ -1,6 +1,6 @@
 '''Summarize all SUMMA logs in a folder. Assumes all .txt files in folder are SUMMA logs.
 Summary file is placed inside the log folder. Specifying a summary file name is optional.
-Usage: python SUMMA_summarize_logs.py [log_folder] [name_of_summary_file.txt] [log file extension]'''
+Usage: python summarize_logs.py [log_folder] [name_of_summary_file.txt] [log file extension]'''
 
 # Modules
 import os

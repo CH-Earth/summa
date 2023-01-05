@@ -1,7 +1,7 @@
 # concatenate the outputs of a split domain summa run into fewer groups
 # written originally by Manab Saharia, updated by Hongli Liu and Andy Wood, and W. Knoben
 # modified by A. Van Beusekom (2023)
-# Usage: python SUMMA_concat_split_summa.py
+# Usage: python concat_split_summa.py
 
 import sys
 import warnings
@@ -13,24 +13,27 @@ import numpy as np
 
 method_name = 'sundials_1en8'
 catby_num    = 2 #number of files to cat into one
-ncdir        = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/summa-' + method_name + '/'
+top_fold     = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
+#top_fold     = '/Users/amedin/Research/USask/test_py/'
+
+ncdir        = top_fold + 'summa-' + method_name
 file_pattern = 'run1_G*_timestep.nc'
-ctdir        = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/cat_summa-' + method_name + '/'
+ctdir        = top_fold + 'summa-' + method_name + '_cat'
 
 # get list of split summa output files (hardwired pattern)
 outfilelist0 = glob((ncdir+'/'+file_pattern))
 outfilelist0.sort()
 
 # make new outlist of catby_num
-for i in 0:(len(outfilelist0)/catby_nums):
-	outfilelist = [outfilelist0[catby_nums*i:catby_nums*(i+1)]
-    print([i,len(outfilelist0)/catby_nums,outfilelist])
+for i in range(0,int(len(outfilelist0)/catby_num)):
+	outfilelist = outfilelist0[catby_num*i:catby_num*(i+1)]
+	print((i,len(outfilelist0)/catby_num,outfilelist))
 	# count the number of gru and hru
 	gru_num = 0
 	hru_num = 0
 	subset0 = outfilelist[0].split('/')[-1].split('_')[1]
 	subset1 = outfilelist[-1].split('/')[-1].split('_')[1]
-	out_name = 'run1_'+subset0[0:7]+subset1[7:14]+'_timestep.nc' # will fail if GRU numbers are more than 5 digits
+	out_name = 'run1_'+subset0[0:7]+subset1[7:14]+'_timestep.nc' # will fail if GRU numbers are more than 6 digits
 
 	for file in outfilelist:
 		# f = nc.Dataset(os.path.join(ncdir, file))
@@ -40,9 +43,8 @@ for i in 0:(len(outfilelist0)/catby_nums):
 		# extract the subset IDs
 
 	# write output
-	# with nc.Dataset(os.path.join(ncdir, outfilelist[0])) as src:
 	with nc.Dataset(outfilelist[0]) as src:
-		with nc.Dataset(os.path.join(ncdir, ctdir+out_name), "w") as dst:
+		with nc.Dataset(ctdir+'/'+out_name, "w") as dst:
 
 			# copy dimensions
 			for name, dimension in src.dimensions.items():
@@ -112,6 +114,6 @@ for i in 0:(len(outfilelist0)/catby_nums):
 			#else:
 			#    print('Warning: gruId variable cannot be created since it has different size from hruId')
 
-	print("wrote output: %s" % (ncdir+ctdir+out_name))
+	print("wrote output: %s" % (ctdir+'/'+out_name))
 
 print('Done')
