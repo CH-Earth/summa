@@ -3,10 +3,8 @@
 # modified by A. Van Beusekom (2023)
 # Usage: python concat_split_summa.py
 
-import sys
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-import os
 from glob import glob
 import netCDF4 as nc
 import numpy as np

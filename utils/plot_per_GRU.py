@@ -12,14 +12,14 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # modules
-import pyproj
+#import pyproj
 import matplotlib
-import numpy as np
+#import numpy as np
 import xarray as xr
 import geopandas as gpd
 from pathlib import Path
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+#import matplotlib.gridspec as gridspec
 
 # Simulation statistics file locations
 method_name = 'sundials_1en6'
@@ -83,10 +83,9 @@ def make_default_path(suffix):
 
 
 ## Catchment shapefile location and variable names
-
 # HM catchment shapefile path & name
-hm_catchment_path = read_from_control(controlFolder/controlFile,'catchment_shp_path')
-hm_catchment_name = read_from_control(controlFolder/controlFile,'catchment_shp_name')
+hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
+hm_catchment_name = read_from_control(controlFile,'catchment_shp_name')
 # Specify default path if needed
 if hm_catchment_path == 'default':
     hm_catchment_path = make_default_path('shapefiles/catchment') # outputs a Path()
@@ -94,14 +93,15 @@ else:
     hm_catchment_path = Path(hm_catchment_path) # make sure a user-specified path is a Path()
 
 # Find the GRU and HRU identifiers
-hm_hruid = read_from_control(controlFolder/controlFile,'catchment_shp_hruid')
+hm_hruid = read_from_control(controlFile,'catchment_shp_hruid')
 
 
 ## River network shapefile location and variable names
-
+# Plot rivers?
+plot_rivers = False
 # River network path & name
-river_network_path = read_from_control(controlFolder/controlFile,'river_network_shp_path')
-river_network_name = read_from_control(controlFolder/controlFile,'river_network_shp_name')
+river_network_path = read_from_control(controlFile,'river_network_shp_path')
+river_network_name = read_from_control(controlFile,'river_network_shp_name')
 # Specify default path if needed
 if river_network_path == 'default':
     river_network_path = make_default_path('shapefiles/river_network') # outputs a Path()
@@ -109,25 +109,30 @@ else:
     river_network_path = Path(river_network_path) # make sure a user-specified path is a Path()
 
 # Find the segment ID
-seg_id = read_from_control(controlFolder/controlFile,'river_network_shp_segid')
+seg_id = read_from_control(controlFile,'river_network_shp_segid')
 
 
-## Load all shapefiles and project to Albers Conformal Conic
-
-# catchment shapefile
-bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
-# river network shapefile
-riv = gpd.read_file(river_network_path/river_network_name)
-# lakes shapefile
-if plot_lakes: lakes = gpd.read_file(lake_path/lake_name)
-
+## Load all shapefiles and project to Albers Conformal Conic and reproject
 # Set the target CRS
 acc = 'ESRI:102008'
 
-# Reproject
+# catchment shapefile
+bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
 bas_albers = bas.to_crs(acc)
-riv_albers = riv.to_crs(acc)
-if plot_lakes: lak_albers = lakes.to_crs(acc)
+bas_albers = gpd.read_file(main/'basin.shp')
+
+# river network shapefile
+if plot_rivers:
+	riv = gpd.read_file(river_network_path/river_network_name)
+	riv_albers = riv.to_crs(acc)
+	riv_albers = gpd.read_file(main/'river.shp')
+
+# lakes shapefile
+if plot_lakes:
+	lakes = gpd.read_file(lake_path/lake_name)
+	lakes.to_crs(acc)
+	lak_albers = gpd.read_file(main/'lakes.shp')
+
 
 # Print the median basin size for curiousity
 print('median area = {} m^2'.format(bas['HRU_area'].median() / 10**6))
@@ -136,13 +141,9 @@ print('mean area   = {} m^2'.format(bas['HRU_area'].mean() / 10**6))
 #median area = 33.06877343600296 m^2
 #mean area   = 40.19396140285971 m^2
 
-lak_albers = gpd.read_file(main/'lakes.shp')
-riv_albers = gpd.read_file(main/'river.shp')
-bas_albers = gpd.read_file(main/'basin.shp')
-
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
-summa = xr.open_dataset(viz_dir/vis_fil)
+summa = xr.open_dataset(viz_dir/viz_fil)
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
@@ -189,6 +190,7 @@ plt.tight_layout()
 
 # add maps
 var = 'scalarSWE'
+norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
 bas_albers.plot(ax=axs[0,0], column=var, edgecolor='none', legend=True,\
                 cmap='Greys_r', cax=cax1, norm=norm, zorder=0)
 axs[0,0].set_title('(a) Snow Water Equivalent Absolute '+stat+ ' Diffs')
