@@ -11,6 +11,13 @@
 # Dealing with HydroLAKES inputs is not considered within scope of the workflow and therefore requires some manual downloading and preprocessing of this data for those who wish to reproduce this step.
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
+# Run:
+#  module load python/3.10
+#  module load scipy-stack
+#  source nump_xarray/bin/activate
+#  python plot_per_GRU.py
+
+
 # modules
 #import pyproj
 import matplotlib

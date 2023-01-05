@@ -5,6 +5,14 @@
 # Currently implemented are finding the maximum and mean value across the entire time series.
 # Outputs are stored in a single file that covers the full spatial extent of the domain.
 # written originally by W. Knoben, modified by A. Van Beusekom (2023)
+#   Best to comment out parallel processing lines and run that way on Graham or for full dataset
+
+# Run:
+#  module load python/3.10
+#  module load scipy-stack
+#  source nump_xarray/bin/activate
+#  python timeseries_to_statistics.py
+
 
 import os
 import glob
@@ -17,7 +25,7 @@ import numpy as np
 method_name = 'sundials_1en6'
 bench_name = 'sundials_1en8_cat'
 top_fold     = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
-#top_fold     = '/Users/amedin/Research/USask/test_py/'
+#top_fold     = '/Users/amedin/Research/USask/test_py/' #testing
 
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
@@ -78,7 +86,7 @@ def run_loop(file,bench):
         
     print("wrote output: %s" % (top_fold + 'statistics/' +subset))
         
-    return
+    return #nothing
 
 def merge_subsets_into_one(src,pattern,des,name):
 
@@ -96,14 +104,15 @@ def merge_subsets_into_one(src,pattern,des,name):
     return #nothing
 # -- end functions
 
-for i, (file, bench) in enumerate(zip(src_files,ben_files)):
+for (file, bench) in zip(src_files,ben_files):
     run_loop(file, bench)
     
 # -- start parallel processing
 #ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
 #if __name__ == "__main__":
 #    pool = mp.Pool(processes=ncpus)
-#    pool.map(run_loop,src_files)
+#    results = [pool.apply_async(run_loop, args=(file, bench)) for (file, bench) in zip(src_files,ben_files)]
+#    dojob = [p.get() for p in results]
 #    pool.close()
 # -- end parallel processing
 
