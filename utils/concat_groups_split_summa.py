@@ -9,18 +9,20 @@
 #  source nump_xarray/bin/activate
 #  python concat_groups_split_summa.py
 
-
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+import os
 from glob import glob
 import netCDF4 as nc
 import numpy as np
-#import multiprocessing as mp
 
 method_name = 'sundials_1en8'
-catby_num    = 2 #number of files to cat into one
-top_fold     = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
-#top_fold     = '/Users/amedin/Research/USask/test_py/' #testing
+catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
+top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
+
+testing = False
+if testing: 
+    top_fold = '/Users/amedin/Research/USask/test_py/'
+else:
+    import multiprocessing as mp
 
 ncdir        = top_fold + 'summa-' + method_name
 file_pattern = 'run1_G*_timestep.nc'
@@ -121,18 +123,19 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
     return #nothing
 # -- end functions
 
-# make new outlist of catby_num
-for g in range(0,int(len(outfilelist0)/catby_num)):
-    get_stat(g,catby_num,outfilelist0,ctdir)
-    
-    
-# -- start parallel processing
-#ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
-#if __name__ == "__main__":
-#    pool = mp.Pool(processes=ncpus)
-#    results = [pool.apply_async(get_stat, args=(g,ctdir,catby_num,outfilelist0,ctdir)) for g in range(0,int(len(outfilelist0)/catby_num)]
-#    dojob = [p.get() for p in results]
-#    pool.close()
-# -- end parallel processing
+
+if testing: 
+    # -- no parallel processing
+    for g in range(0,int(len(outfilelist0)/catby_num)):
+        get_stat(g,catby_num,outfilelist0,ctdir)
+else:
+    # -- start parallel processing
+    ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
+    if __name__ == "__main__":
+        pool = mp.Pool(processes=ncpus)
+        results = [pool.apply_async(get_stat, args=(g,ctdir,catby_num,outfilelist0,ctdir)) for g in range(0,int(len(outfilelist0)/catby_num))]
+        dojob = [p.get() for p in results]
+        pool.close()
+    # -- end parallel processing
 
 

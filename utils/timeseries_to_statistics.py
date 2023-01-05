@@ -19,13 +19,17 @@ import glob
 import xarray as xr
 from pathlib import Path
 import numpy as np
-#import multiprocessing as mp
 
 # Settings
 method_name = 'sundials_1en6'
-bench_name = 'sundials_1en8_cat'
-top_fold     = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
-#top_fold     = '/Users/amedin/Research/USask/test_py/' #testing
+bench_name  = 'sundials_1en8_cat'
+top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
+
+testing = False
+if testing: 
+    top_fold = '/Users/amedin/Research/USask/test_py/'
+else:
+    import multiprocessing as mp
 
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
@@ -104,17 +108,20 @@ def merge_subsets_into_one(src,pattern,des,name):
     return #nothing
 # -- end functions
 
-for (file, bench) in zip(src_files,ben_files):
-    run_loop(file, bench)
-    
-# -- start parallel processing
-#ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
-#if __name__ == "__main__":
-#    pool = mp.Pool(processes=ncpus)
-#    results = [pool.apply_async(run_loop, args=(file, bench)) for (file, bench) in zip(src_files,ben_files)]
-#    dojob = [p.get() for p in results]
-#    pool.close()
-# -- end parallel processing
+
+if testing: 
+    # -- no parallel processing
+    for (file, bench) in zip(src_files,ben_files):   
+        run_loop(file, bench)
+else:
+    # -- start parallel processing
+    ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
+    if __name__ == "__main__":
+        pool = mp.Pool(processes=ncpus)
+        results = [pool.apply_async(run_loop, args=(file, bench)) for (file, bench) in zip(src_files,ben_files)]
+        dojob = [p.get() for p in results]
+        pool.close()
+    # -- end parallel processing
 
      
 # merge the individual files into one for further vizualization
