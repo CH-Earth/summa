@@ -1,0 +1,231 @@
+# SUMMA workflow setting file.
+# a lot of this is unneeded for Sundials paper plots so not updating values
+# Characters '|' and '#' are used as separators to find the actual setting values. Any text behind '|' is assumed to be part of the setting value, unless preceded by '#'.
+
+# Note on path specification
+# If deviating from default paths, a full path must be specified. E.g. '/home/user/non-default/path'
+
+
+# Modeling domain settings
+root_path                   | /home/avanb/projects/rpp-kshook/wknoben/CWARHM_data       # Root folder where data will be stored.
+domain_name                 | NorthAmerica                                  # Used as part of the root folder name for the prepared data.
+
+
+# Shapefile settings - SUMMA catchment file
+catchment_shp_path          | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/catchment'.
+catchment_shp_name          | merit_hydro_basins_and_coastal_hillslopes_merged_NA.shp          # Name of the catchment shapefile. Requires extension '.shp'.
+catchment_shp_gruid         | COMID                                       # Name of the GRU ID column (can be any numeric value, HRU's within a single GRU have the same GRU ID).
+catchment_shp_hruid         | COMID                                       # Name of the HRU ID column (consecutive from 1 to total number of HRUs, must be unique).
+catchment_shp_area          | HRU_area                                    # Name of the catchment area column. Area must be in units [m^2]
+catchment_shp_lat           | center_lat                                  # Name of the latitude column. Should be a value representative for the HRU. Typically the centroid.
+catchment_shp_lon           | center_lon                                  # Name of the longitude column. Should be a value representative for the HRU. Typically the centroid.
+
+
+# Shapefile settings - mizuRoute river network file
+river_network_shp_path      | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/river_network'.
+river_network_shp_name      | merit_river_na_full.shp                     # Name of the river network shapefile. Requires extension '.shp'.
+river_network_shp_segid     | COMID                                       # Name of the segment ID column.
+river_network_shp_downsegid | NextDownID                                  # Name of the downstream segment ID column.
+river_network_shp_slope     | slope                                       # Name of the slope column. Slope must be in in units [length/length].
+river_network_shp_length    | length                                      # Name of the segment length column. Length must be in units [m].
+
+
+# Shapefile settings - mizuRoute catchment file
+river_basin_shp_path        | /home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/catchment/ # Same file as the SUMMA catchments
+river_basin_shp_name        | merit_hydro_basins_and_coastal_hillslopes_merged_NA.shp                                   # Name of the routing subbasins shapefile needed for remapping. Requires extension '.shp'.
+river_basin_shp_rm_hruid    | COMID                                       # Name of the routing basin ID column.
+river_basin_shp_area        | HRU_area                                    # Name of the catchment area column. Area must be in units [m^2]
+river_basin_shp_hru_to_seg  | COMID                                       # Name of the column that shows which river segment each HRU connects to. HRUs and river segments have the same COMID so this works.
+
+
+# Shapefile settings - SUMMA-to-mizuRoute
+river_basin_needs_remap     | no                                          # 'no' if routing basins map 1:1 onto model GRUs. 'yes' if river segments span multiple GRUs or if multiple segments are inside a single GRU.
+
+
+# Install settings
+github_summa                | https://github.com/ncar/summa               # Replace this with the path to your own fork if you forked the repo.
+github_mizuroute            | https://github.com/ncar/mizuroute           # Replace this with the path to your own fork if you forked the repo.
+install_path_summa          | default                                     # If 'default', clones source code into 'root_path/installs/summa'.
+install_path_mizuroute      | default                                     # If 'default', clones source code into 'root_path/installs/mizuRoute'.
+exe_name_summa              | summa.exe                                   # Name of the compiled executable.
+exe_name_mizuroute          | mizuroute.exe                               # Name of the compiled executable.
+
+
+# Forcing settings
+forcing_raw_time            | 1979,1984                                   # Years to download: Jan-[from],Dec-[to].
+forcing_raw_space           | 85/-179.5/5/-50                             # Bounding box of the shapefile: lat_max/lon_min/lat_min/lon_max. Will be converted to ERA5 download coordinates in script. Order and use of '/' to separate values is mandatory.
+forcing_time_step_size      | 3600                                        # Size of the forcing time step in [s]. Must be constant.
+forcing_measurement_height  | 3                                           # Reference height for forcing measurements [m].
+forcing_shape_path          | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/forcing'.
+forcing_shape_name          | era5_grid.shp                               # Name of the forcing shapefile. Requires extension '.shp'.
+forcing_shape_lat_name      | lat                                         # Name of the latitude field that contains the latitude of ERA5 data points.
+forcing_shape_lon_name      | lon                                         # Name of the longitude field that contains the latitude of ERA5 data points.
+forcing_geo_path            | default                                     # If 'default', uses 'root_path/domain_[name]/forcing/0_geopotential'.
+forcing_raw_path            | default                                     # If 'default', uses 'root_path/domain_[name]/forcing/1_raw_data'.
+forcing_merged_path         | default                                     # If 'default', uses 'root_path/domain_[name]/forcing/2_merged_data'.
+forcing_easymore_path       | default                                     # If 'default', uses 'root_path/domain_[name]/forcing/3_temp_easymore'.
+forcing_basin_avg_path      | default                                     # If 'default', uses 'root_path/domain_[name]/forcing/3_basin_averaged_data'.
+forcing_summa_path          | default                                     # If 'default', uses 'root_path/domain_[name]/forcing/4_SUMMA_input'.
+
+
+# Parameter settings - DEM
+parameter_dem_main_url      | http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/distribute/v1.0.1/     # Primary download URL for MERIT Hydro adjusted elevation data. Needs to be appended with filenames.
+parameter_dem_file_template | elv_{}{}.tar                                # Template for download file names.
+parameter_dem_raw_path      | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/dem/1_MERIT_hydro_raw_data'.
+parameter_dem_unpack_path   | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/dem/2_MERIT_hydro_unpacked_data'.
+parameter_dem_vrt1_path     | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/dem/3_vrt'.
+parameter_dem_vrt2_path     | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/dem/4_domain_vrt'.
+parameter_dem_tif_path      | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/dem/5_elevation'.
+parameter_dem_tif_name      | elevation.tif                               # Name of the final DEM for the domain. Must be in .tif format.
+
+
+# Parameter settings - soil
+parameter_soil_hydro_ID     | 1361509511e44adfba814f6950c6e742            # ID of the Hydroshare resource to download.
+parameter_soil_raw_path     | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/soilclass/1_soil_classes_global'.
+parameter_soil_domain_path  | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/soilclass/2_soil_classes_domain'.
+parameter_soil_tif_name     | soil_classes.tif                            # Name of the final soil class overview for the domain. Must be in .tif format.
+
+
+# Parameter settings - land
+parameter_land_list_path    | default                                     # If 'default', uses 'summaWorkflow_public/3b_parameters/MODIS_MCD12Q1_V6/1_download/'. Location of file with data download links.
+parameter_land_list_name    | daac_mcd12q1_data_links.txt                 # Name of file that contains list of MODIS download urls.
+parameter_land_raw_path     | /home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/parameters/landclass/1_MODIS_raw_data   # If 'default', uses 'root_path/domain_[name]/parameters/landclass/1_MODIS_raw_data'.
+parameter_land_vrt1_path    | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/landclass/2_vrt_native_crs'. Virtual dataset composed of .hdf files.
+parameter_land_vrt2_path    | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/landclass/3_vrt_epsg_4326'. Virtual dataset projected in EPSG:4326.
+parameter_land_vrt3_path    | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/landclass/4_domain_vrt_epsg_4326'. Virtual dataset cropped to model domain.
+parameter_land_vrt4_path    | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/landclass/5_multiband_domain_vrt_epsg_4326'. Multiband cropped virtual dataset.
+parameter_land_tif_path     | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/landclass/6_tif_multiband'.
+parameter_land_mode_path    | default                                     # If 'default', uses 'root_path/domain_[name]/parameters/landclass/7_mode_land_class'.
+parameter_land_tif_name     | land_classes.tif                            # Name of the final landclass overview for the domain. Must be in .tif format.
+
+
+# Intersection settings
+intersect_dem_path          | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/catchment_intersection/with_dem'.
+intersect_dem_name          | catchment_with_merit_dem.shp                # Name of the shapefile with intersection between catchment and MERIT Hydro DEM, stored in column 'elev_mean'.
+intersect_soil_path         | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/catchment_intersection/with_soilgrids'.
+intersect_soil_name         | catchment_with_soilgrids.shp                # Name of the shapefile with intersection between catchment and SOILGRIDS-derived USDA soil classes, stored in columns 'USDA_{1,...n}'
+intersect_land_path         | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/catchment_intersection/with_modis'.
+intersect_land_name         | catchment_with_modis.shp                    # Name of the shapefile with intersection between catchment and MODIS-derived IGBP land classes, stored in columns 'IGBP_{1,...n}'
+intersect_forcing_path      | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/catchment_intersection/with_forcing'.
+intersect_routing_path      | default                                     # If 'default', uses 'root_path/domain_[name]/shapefiles/catchment_intersection/with_routing'.
+intersect_routing_name      | catchment_with_routing_basins.shp           # Name of the shapefile with intersection between hydrologic model catchments and routing model catchments.
+
+
+# Experiment settings - general
+experiment_id               | run1                                        # Descriptor of the modelling experiment; used as output folder name.
+experiment_time_start       | default                                     # Simulation start. If 'default', constructs this from 'forcing_raw_time' setting and uses all downloaded forcing data; e.g. '1979-01-01 00:00'.
+experiment_time_end         | default                                     # Simulation end. If 'default', constructs this from 'forcing_raw_time' setting and uses all downloaded forcing data; e.g. '1979-12-31 23:00'.
+experiment_output_summa     | default                                     # If 'default', uses 'root_path/domain_[name]/simulations/[experiment_id]/SUMMA'.
+experiment_output_mizuRoute | default                                     # If 'default', uses 'root_path/domain_[name]/simulations/[experiment_id]/mizuRoute'.
+experiment_log_summa        | default                                     # If 'default', uses 'root_path/domain_[name]/simulations/[experiment_id]/SUMMA/SUMMA_logs'.
+experiment_log_mizuroute    | default                                     # If 'default', uses 'root_path/domain_[name]/simulations/[experiment_id]/mizuRoute/mizuRoute_logs'.
+experiment_backup_settings  | yes                                         # Flag to (not) create a copy of the model settings in the output folder; "no" or "yes". Copying settings may be undesirable if files are large.
+
+
+# Experiment settings - SUMMA
+settings_summa_path         | default                                     # If 'default', uses 'root_path/domain_[name]/settings/SUMMA'.
+settings_summa_filemanager  | fileManager.txt                             # Name of the file with the SUMMA inputs.
+settings_summa_coldstate    | coldState.nc                                # Name of the file with intial states.
+settings_summa_trialParams  | trialParams.nc                              # Name of the file that can contain trial parameter values (note, can be empty of any actual parameter values but must be provided and must contain an 'hruId' variable).
+settings_summa_forcing_list | forcingFileList.txt                         # Name of the file that has the list of forcing files.
+settings_summa_attributes   | attributes.nc                               # Name of the attributes file.
+settings_summa_connect_HRUs | no                                          # Attribute setting: "no" or "yes". Tricky concept, see README in ./5_model_input/SUMMA/3f_attributes. If no; all HRUs modeled as independent columns (downHRUindex = 0). If yes; HRUs within each GRU are connected based on relative HRU elevation (highest = upstream, lowest = outlet).
+settings_summa_trialParam_n | 1                                           # Number of trial parameter specifications. Specify 0 if none are wanted (they can still be included in this file but won't be read).
+settings_summa_trialParam_1 | maxstep,900                                 # Name of trial parameter and value to assign. Value assumed to be float.
+
+
+# Experiment settings - mizuRoute
+settings_mizu_path          | default                                     # If 'default', uses 'root_path/domain_[name]/settings/mizuRoute'.
+settings_mizu_parameters    | param.nml.default                           # Name of the routing parameters file.
+settings_mizu_topology      | topology.nc                                 # Name of the river network topology file.
+settings_mizu_remap         | routing_remap.nc                            # Name of the optional catchment remapping file, for cases when SUMMA uses different catchments than mizuRoute.
+settings_mizu_control_file  | mizuroute.control                           # Name of the control file.
+settings_mizu_routing_var   | averageRoutedRunoff                         # Name of SUMMA output variable to use for routing.
+settings_mizu_routing_units | m/s                                         # Units of the variable to be routed.
+settings_mizu_routing_dt    | 3600                                        # Size of the routing time step [s].
+settings_mizu_output_freq   | annual                                      # Frequency with which mizuRoute generates new output files. Must be one of 'single', 'day', 'month', 'annual'.
+settings_mizu_output_vars   | 0                                           # Routing output. '0' for both KWT and IRF; '1' IRF only; '2' KWT only.
+settings_mizu_within_basin  | 0                                           # '0' (no) or '1' (IRF routing). Flag to enable within-basin routing by mizuRoute. Should be set to 0 if SUMMA is run with "subRouting" decision "timeDlay".
+settings_mizu_make_outlet   | n/a                                         # Segment ID or IDs that should be set as network outlet. Specify multiple IDs separated by commas: X,Y,Z. Specify no IDs as: n/a. Note that this can also be done in the network shapefile.
+
+
+# Postprocessing settings
+visualization_folder        | default                                     # If 'default', uses 'root_path/domain_[name]/visualization'.
+
+
+# Default folder structure
+# Example of the resulting folder structure in "root_path".
+# New domains will go into their own folder.
+
+- summWorkflow_data
+   |
+   |_ domain_BowAtBanff
+   |   |
+   |   |_ forcing
+   |   |   |_ 0_geopotential
+   |   |   |_ 1_raw_data
+   |   |   |_ 2_merged_data
+   |   |   |_ 3_basin_averaged_data
+   |   |   |_ 4_SUMMA_input
+   |   |
+   |   |_ parameters
+   |   |   |_ soilclass
+   |   |   |   |_ 1_soil_classes_global
+   |   |   |   |_ 2_soil_classes_domain
+   |   |   |
+   |   |   |_ landclass
+   |   |   |   |_ 1_MODIS_raw_data
+   |   |   |   |_ 2_vrt_native_crs
+   |   |   |   |_ 3_vrt_epsg_4326
+   |   |   |   |_ 4_domain_vrt_epsg_4326
+   |   |   |   |_ 5_multiband_domain_vrt_epsg_4326
+   |   |   |   |_ 6_tif_multiband
+   |   |   |   |_ 7_mode_land_class
+   |   |   |
+   |   |   |_ dem
+   |   |       |_ 1_MERIT_hydro_raw_data
+   |   |       |_ 2_MERIT_hydro_unpacked_data
+   |   |       |_ 3_vrt
+   |   |       |_ 4_domain_vrt
+   |   |       |_ 5_elevation
+   |   |
+   |   |_ settings
+   |   |   |_ mizuRoute
+   |   |   |_ SUMMA
+   |   |
+   |   |_ shapefiles
+   |   |   |_ catchment
+   |   |   |_ catchment_intersection
+   |   |   |   |_ with_dem
+   |   |   |   |_ with_forcing
+   |   |   |   |_ with_soil
+   |   |   |   |_ with_veg
+   |   |   |_ forcing
+   |   |   |_ river_basins
+   |   |   |_ river_network
+   |   |
+   |   |_ simulations
+   |   |   |_run1
+   |   |   |  |_ 0_settings_backup
+   |   |   |  |   |_ summa
+   |   |   |  |   |_ mizuRoute
+   |   |   |  |_ summa
+   |   |   |  |   |_run_settings
+   |   |   |  |   |_SUMMA_logs
+   |   |   |  |_ mizuRoute
+   |   |   |  |   |_run_settings
+   |   |   |  |   |_mizuRoute_logs
+   |   |   |_run2
+   |   |      |_ ...
+   |   |
+   |   |_ visualization
+   |
+   |_ domain_global
+   |   |_ ...
+   |
+   |_ domain_northAmerica
+   |   |_ ...
+   |
+   |_ installs
+       |_ mizuRoute
+       |_ SUMMA
