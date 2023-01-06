@@ -19,14 +19,22 @@
 
 
 # modules
-#import pyproj
+import conda
+import os
+
+conda_file_dir = conda.__file__
+conda_dir = conda_file_dir.split('lib')[0]
+proj_lib = os.path.join(os.path.join(conda_dir, 'share'), 'proj')
+os.environ["PROJ_LIB"] = proj_lib
+
+import pyproj
 import matplotlib
-#import numpy as np
+import numpy as np
 import xarray as xr
 import geopandas as gpd
 from pathlib import Path
 import matplotlib.pyplot as plt
-#import matplotlib.gridspec as gridspec
+import matplotlib.gridspec as gridspec
 
 # Simulation statistics file locations
 method_name = 'sundials_1en6'

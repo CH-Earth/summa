@@ -18,6 +18,10 @@ method_name = 'sundials_1en8'
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
+missing = False # if appending nan hrus to batch because failed
+missgru = 72055933 # batch 205 summa-be32 value
+misshru = missgru  # could be different
+
 testing = False
 if testing: 
     top_fold = '/Users/amedin/Research/USask/test_py/'
@@ -109,6 +113,16 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
             for j in range(hru_vars_num):
                 dst.variables[hru_vars[j][0]][:] = Dict[hru_vars[j][0]]
 
+            #if missing HRUs, this is slow
+            if missing:
+                new_index = np.append(dst["gru"].values,missgru)
+                dst.reindex({"gru": new_index})
+                dst.sel(gru=missgru)["gruId"] = missgru
+
+                new_index = np.append(dst["hru"].values,misshru)
+                dst.reindex({"hru": new_index})
+                dst.sel(gru=misshru)["hruId"] = misshru
+
             # Temporarily create gruId from hruId
             #if gru_num == hru_num:
             #    gruId = dst.createVariable('gruId', dst['hruId'].datatype, ('gru',))
@@ -133,7 +147,7 @@ else:
     ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
     if __name__ == "__main__":
         pool = mp.Pool(processes=ncpus)
-        results = [pool.apply_async(get_stat, args=(g,ctdir,catby_num,outfilelist0,ctdir)) for g in range(0,int(len(outfilelist0)/catby_num))]
+        results = [pool.apply_async(get_stat, args=(g,catby_num,outfilelist0,ctdir)) for g in range(0,int(len(outfilelist0)/catby_num))]
         dojob = [p.get() for p in results]
         pool.close()
     # -- end parallel processing
