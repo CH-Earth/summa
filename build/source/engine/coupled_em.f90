@@ -906,7 +906,7 @@ subroutine coupled_em(&
       endif
 
       ! adjust length of the sub-step (make sure that we don't exceed the step)
-      dt_sub = data_step - dt_solv !min(data_step - dt_solv, dt_sub)
+      dt_sub = min(data_step - dt_solv, dt_sub)
 
     end do  substeps ! (sub-step loop)
 
