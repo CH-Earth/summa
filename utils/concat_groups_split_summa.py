@@ -4,10 +4,15 @@
 #   Best to comment out parallel processing lines and run that way on Graham or for full dataset
 
 # Run:
-#  module load python/3.10
-#  module load scipy-stack
-#  source nump_xarray/bin/activate
-#  python concat_groups_split_summa.py
+# module load gcc/9.3.0
+# module load scipy-stack
+# module load gdal/3.2.3
+# virtualenv --no-download $SLURM_TMPDIR/env
+# source $SLURM_TMPDIR/env/bin/activate
+# pip install --no-index --upgrade pip
+# pip install --no-index -r requirements.txt
+# python concat_groups_split_summa.py
+
 
 import os
 from glob import glob

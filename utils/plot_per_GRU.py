@@ -12,21 +12,17 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-#  module load python/3.10
-#  module load scipy-stack
-#  source nump_xarray/bin/activate
-#  python plot_per_GRU.py
+# module load gcc/9.3.0
+# module load scipy-stack
+# module load gdal/3.2.3
+# virtualenv --no-download $SLURM_TMPDIR/env
+# source $SLURM_TMPDIR/env/bin/activate
+# pip install --no-index --upgrade pip
+# pip install --no-index -r requirements.txt
+# python plot_per_GRU.py
 
 
 # modules
-import conda
-import os
-
-conda_file_dir = conda.__file__
-conda_dir = conda_file_dir.split('lib')[0]
-proj_lib = os.path.join(os.path.join(conda_dir, 'share'), 'proj')
-os.environ["PROJ_LIB"] = proj_lib
-
 import pyproj
 import matplotlib
 import numpy as np
