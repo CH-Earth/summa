@@ -205,17 +205,22 @@ if stat == 'max':
     stat_word = 'Abs Max'
 
 # add maps
+# SWE
 var = 'scalarSWE' 
 minval = (bas_albers[var].where(bas_albers[var]>0)).min()
+a = bas_albers[var].where(bas_albers[var]>0)
+bas_albers[var] = a.fillna(minval)
 bas_albers.plot(ax=axs[0,0], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
                 cax=cax1, norm=matplotlib.colors.LogNorm(vmin=minval),zorder=0)
 axs[0,0].set_title('(a) Snow Water Equivalent '+stat_word+ ' Diffs')
 axs[0,0].axis('off')
 cax1.set_ylabel('scalarSWE $[kg~m^{-2}]$',labelpad=-100)
 
-# SM
+# SoilWat
 var = 'scalarTotalSoilWat'
 minval = (bas_albers[var].where(bas_albers[var]>0)).min()
+a = bas_albers[var].where(bas_albers[var]>0)
+bas_albers[var] = a.fillna(minval)
 bas_albers.plot(ax=axs[0,1], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
                 cax=cax2, norm=matplotlib.colors.LogNorm(vmin=minval),zorder=0)
 axs[0,1].set_title('(b) Total soil water content '+stat_word+ ' Diffs')
@@ -225,6 +230,8 @@ cax2.set_ylabel('scalarTotalSoilWat $[kg~m^{-2}]$',labelpad=-100)
 # ET
 var = 'scalarTotalET'
 minval = (bas_albers[var].where(bas_albers[var]>0)).min()
+a = bas_albers[var].where(bas_albers[var]>0)
+bas_albers[var] = a.fillna(minval)
 bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
                 cax=cax3, norm=matplotlib.colors.LogNorm(vmin=minval),zorder=0)
 axs[1,0].set_title('(c) Total evapotranspiration '+stat_word+ ' Diffs')
@@ -234,6 +241,8 @@ cax3.set_ylabel('scalarTotalET $[kg~m^{-2}~s^{-1}]$',labelpad=-100)
 # CanWat
 var = 'scalarCanopyWat'
 minval = (bas_albers[var].where(bas_albers[var]>0)).min()
+a = bas_albers[var].where(bas_albers[var]>0)
+bas_albers[var] = a.fillna(minval)
 bas_albers.plot(ax=axs[1,1], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
                 cax=cax4, norm=matplotlib.colors.LogNorm(vmin=minval),zorder=0)
 axs[1,1].set_title('(d) Total water on the vegetation canopy '+stat_word+ ' Diffs')
@@ -243,6 +252,8 @@ cax4.set_ylabel('scalarCanopyWat $[kg~m^{-2}]$',labelpad=-100)
 # Runoff
 var = 'averageRoutedRunoff'
 minval = (bas_albers[var].where(bas_albers[var]>0)).min()
+a = bas_albers[var].where(bas_albers[var]>0)
+bas_albers[var] = a.fillna(minval)
 bas_albers.plot(ax=axs[2,0], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
                 cax=cax5, norm=matplotlib.colors.LogNorm(vmin=minval), zorder=0)
 axs[2,0].set_title('(e) Routed runoff '+stat_word+ ' Diffs')
@@ -252,6 +263,8 @@ cax5.set_ylabel('averageRoutedRunoff $[m~s^{-1}]$',labelpad=-100)
 # Clock time
 var = 'wallClockTime'
 minval = (bas_albers[var].where(bas_albers[var]>0)).min()
+a = bas_albers[var].where(bas_albers[var]>0)
+bas_albers[var] = a.fillna(minval)
 bas_albers.plot(ax=axs[2,1], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
                 cax=cax6, norm=matplotlib.colors.LogNorm(vmin=minval),zorder=0)
 
