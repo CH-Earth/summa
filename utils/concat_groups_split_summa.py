@@ -111,7 +111,7 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
             for j in range(hru_vars_num):
                 dst.variables[hru_vars[j][0]][:] = Dict[hru_vars[j][0]]
 
-            #if missing HRUs, this is slow
+            #if missing HRUs, this is slow or broken
             if missing:
                 new_index = np.append(dst["gru"].values,missgru)
                 dst.reindex({"gru": new_index})
