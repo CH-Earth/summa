@@ -25,10 +25,11 @@ import geopandas as gpd
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import copy
 
 # Simulation statistics file locations
 method_name = 'sundials_1en6'
-stat = 'max'
+stat = 'max' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
 viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
@@ -43,7 +44,7 @@ fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
 
 # Plot lakes?
-plot_lakes = False
+plot_lakes = True
 # lakes shapefile WHERE IS THIS
 lake_path = Path('C:/Globus endpoint/HydroLAKES/HydroLAKES_polys_v10_shp')
 lake_name = 'HydroLAKES_polys_v10_subset_NA.shp'
@@ -195,56 +196,54 @@ cax6 = fig.add_axes([0.97 ,0.07,0.02,0.3])
 
 plt.tight_layout()
 
+my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+my_cmap.set_bad(my_cmap.colors[0])
+
 # add maps
-var = 'scalarSWE'
-norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
-bas_albers.plot(ax=axs[0,0], column=var, edgecolor='none', legend=True,\
-                cmap='Greys_r', cax=cax1, norm=norm, zorder=0)
+var = 'scalarSWE'    
+bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
+                cmap=my_cmap, cax=cax1, norm=matplotlib.colors.LogNorm(), zorder=0)
 axs[0,0].set_title('(a) Snow Water Equivalent Absolute '+stat+ ' Diffs')
 axs[0,0].axis('off')
 cax1.set_ylabel('scalarSWE $[kg~m^{-2}]$',labelpad=-100)
 
 # SM
 var = 'scalarTotalSoilWat'
-norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
-bas_albers.plot(ax=axs[0,1], column=var, edgecolor='none', legend=True,\
-                cmap='cividis_r', cax=cax2, norm=norm, zorder=0)
+bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
+                cmap=my_cmap, cax=cax2, norm=matplotlib.colors.LogNorm(), zorder=0)
 axs[0,1].set_title('(b) Total soil water content Absolute '+stat+ ' Diffs')
 axs[0,1].axis('off')
 cax2.set_ylabel('scalarTotalSoilWat $[kg~m^{-2}]$',labelpad=-100)
 
 # ET
 var = 'scalarTotalET'
-norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
 bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
-                cmap='viridis', cax=cax3, norm=norm, zorder=0)
+                cmap=my_cmap, cax=cax3, norm=matplotlib.colors.LogNorm(), zorder=0)
 axs[1,0].set_title('(c) Total evapotranspiration Absolute '+stat+ ' Diffs')
 axs[1,0].axis('off')
 cax3.set_ylabel('scalarTotalET $[kg~m^{-2}~s^{-1}]$',labelpad=-100)
 
 # CanWat
 var = 'scalarCanopyWat'
-norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
 bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
-                cmap='viridis_r', cax=cax4, norm=norm, zorder=0)
+                cmap=my_cmap, cax=cax4, norm=matplotlib.colors.LogNorm(), zorder=0)
 axs[1,1].set_title('(d) Total water on the vegetation canopy Absolute '+stat+ ' Diffs')
 axs[1,1].axis('off')
 cax4.set_ylabel('scalarCanopyWat $[kg~m^{-2}]$',labelpad=-100)
 
 # Runoff
 var = 'averageRoutedRunoff'
-norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
-bas_albers.plot(ax=axs[2,0], column=var, edgecolor='none', legend=True,\
-                cmap='Blues', cax=cax3, norm=norm, zorder=0)
+bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
+                cmap=my_cmap, cax=cax5, norm=matplotlib.colors.LogNorm(), zorder=0)
 axs[2,0].set_title('(e) Routed runoff Absolute '+stat+ ' Diffs')
 axs[2,0].axis('off')
 cax5.set_ylabel('averageRoutedRunoff $[m~s^{-1}]$',labelpad=-100)
 
 # Clock time
 var = 'wallClockTime('
-norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
-bas_albers.plot(ax=axs[2,1], column=var, edgecolor='none', legend=True,\
-                cmap='Greys', cax=cax3, norm=norm, zorder=0)
+bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
+                cmap=my_cmap, cax=cax6, norm=matplotlib.colors.LogNorm(), zorder=0)
+
 axs[2,1].set_title('(f) Wall clock time Absolute '+stat+ ' Diffs')
 axs[2,1].axis('off')
 cax6.set_ylabel('wallClockTime( $[s]$',labelpad=-100)

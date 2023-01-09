@@ -33,7 +33,7 @@ ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
 des_dir =  top_fold + 'statistics'
 des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
-stat = 'max'
+stat = 'max' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 
 viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
@@ -66,9 +66,10 @@ def run_loop(file,bench):
     # open file
     dat,ben = xr.open_dataset(file), xr.open_dataset(bench)
 
-    diff = (np.fabs(dat - ben))
+    #diff = (np.fabs(dat - ben)) #1-norm
+    diff = (np.square(dat - ben)) #2-norm   
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
-    diff = diff.drop_vars(['hruId','gruId'])
+    diff = diff.drop_vars(['hruId','gruId']) 
     m = diff.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     diff = diff.drop_dims('gru')
@@ -78,10 +79,11 @@ def run_loop(file,bench):
     for var,stat in settings.items():
 
         # Select the case
-        if stat == 'mean':
-            new = diff[var].mean(dim='time')
-        elif stat == 'max':
-            new = diff[var].max(dim='time')
+        if stat == 'rmse':
+            #new = diff[var].mean(dim='time') #1-norm
+            new = ((diff[var].mean(dim='time'))**(1/2)) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
+        if stat == 'max':
+            new = diff[var].max(dim='time') #same regardless
 
         new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
         
