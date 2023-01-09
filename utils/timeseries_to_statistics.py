@@ -33,7 +33,7 @@ ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
 des_dir =  top_fold + 'statistics'
 des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
-stat = 'max' #max or rmse
+stat = 'rmse' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 
 viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
@@ -76,13 +76,13 @@ def run_loop(file,bench):
     diff = xr.merge([diff,m])
 
     # compute the requested statistics
-    for var,stat in settings.items():
+    for var,stat0 in settings.items():
 
         # Select the case
-        if stat == 'rmse':
+        if stat0 == 'rmse':
             #new = diff[var].mean(dim='time') #1-norm
             new = ((diff[var].mean(dim='time'))**(1/2)) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
-        if stat == 'max':
+        if stat0 == 'max':
             new = diff[var].max(dim='time') #same regardless
 
         new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
