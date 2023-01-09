@@ -186,12 +186,12 @@ else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
 
 # colorbar axes
-cax1 = fig.add_axes([0.473,0.60,0.02,0.3])
-cax2 = fig.add_axes([0.97 ,0.60,0.02,0.3])
-cax3 = fig.add_axes([0.473,0.10,0.02,0.3])
-cax4 = fig.add_axes([0.97 ,0.10,0.02,0.3])
-cax5 = fig.add_axes([0.473,0.10,0.02,0.3])
-cax6 = fig.add_axes([0.97 ,0.10,0.02,0.3])
+cax1 = fig.add_axes([0.473,0.73,0.02,0.3])
+cax2 = fig.add_axes([0.97 ,0.73,0.02,0.3])
+cax3 = fig.add_axes([0.473,0.40,0.02,0.3])
+cax4 = fig.add_axes([0.97 ,0.40,0.02,0.3])
+cax5 = fig.add_axes([0.473,0.07,0.02,0.3])
+cax6 = fig.add_axes([0.97 ,0.07,0.02,0.3])
 
 plt.tight_layout()
 
