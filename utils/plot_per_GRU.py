@@ -12,18 +12,12 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-# module load gcc/9.3.0
-# module load scipy-stack
-# module load gdal/3.2.3
-# virtualenv --no-download $SLURM_TMPDIR/env
-# source $SLURM_TMPDIR/env/bin/activate
-# pip install --no-index --upgrade pip
-# pip install --no-index -r requirements.txt
 # python plot_per_GRU.py
 
 
 # modules
-import pyproj
+import pyproj 
+import fiona
 import matplotlib
 import numpy as np
 import xarray as xr

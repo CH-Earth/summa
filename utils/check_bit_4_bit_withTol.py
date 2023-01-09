@@ -1,12 +1,5 @@
 #!/usr/bin/env python
 
-# module load gcc/9.3.0
-# module load scipy-stack
-# module load gdal/3.2.3
-# virtualenv --no-download $SLURM_TMPDIR/env
-# source $SLURM_TMPDIR/env/bin/activate
-# pip install --no-index --upgrade pip
-# pip install --no-index -r requirements.txt
 # python check_bit_4_bit_withTol.py
 
 import sys
