@@ -121,27 +121,27 @@ seg_id = read_from_control(controlFile,'river_network_shp_segid')
 # Set the target CRS
 acc = 'ESRI:102008'
 
-# catchment shapefile
-bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
-bas_albers = bas.to_crs(acc)
+# catchment shapefile, first 2 lines throw error so cutting them
+#bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
+#bas_albers = bas.to_crs(acc)
 bas_albers = gpd.read_file(main/'basin.shp')
 
-# river network shapefile
+# river network shapefile, first 2 lines throw error so cutting them
 if plot_rivers:
-	riv = gpd.read_file(river_network_path/river_network_name)
-	riv_albers = riv.to_crs(acc)
+	#riv = gpd.read_file(river_network_path/river_network_name)
+	#riv_albers = riv.to_crs(acc)
 	riv_albers = gpd.read_file(main/'river.shp')
 
-# lakes shapefile
+# lakes shapefile, first 2 lines throw error so cutting them
 if plot_lakes:
-	lakes = gpd.read_file(lake_path/lake_name)
-	lakes.to_crs(acc)
+	#lakes = gpd.read_file(lake_path/lake_name)
+	#lak_albers = lakes.to_crs(acc)
 	lak_albers = gpd.read_file(main/'lakes.shp')
 
 
 # Print the median basin size for curiousity
-print('median area = {} m^2'.format(bas['HRU_area'].median() / 10**6))
-print('mean area   = {} m^2'.format(bas['HRU_area'].mean() / 10**6))
+#print('median area = {} m^2'.format(bas['HRU_area'].median() / 10**6))
+#print('mean area   = {} m^2'.format(bas['HRU_area'].mean() / 10**6))
 
 #median area = 33.06877343600296 m^2
 #mean area   = 40.19396140285971 m^2
@@ -190,6 +190,8 @@ cax1 = fig.add_axes([0.473,0.60,0.02,0.3])
 cax2 = fig.add_axes([0.97 ,0.60,0.02,0.3])
 cax3 = fig.add_axes([0.473,0.10,0.02,0.3])
 cax4 = fig.add_axes([0.97 ,0.10,0.02,0.3])
+cax5 = fig.add_axes([0.473,0.10,0.02,0.3])
+cax6 = fig.add_axes([0.97 ,0.10,0.02,0.3])
 
 plt.tight_layout()
 
@@ -200,7 +202,7 @@ bas_albers.plot(ax=axs[0,0], column=var, edgecolor='none', legend=True,\
                 cmap='Greys_r', cax=cax1, norm=norm, zorder=0)
 axs[0,0].set_title('(a) Snow Water Equivalent Absolute '+stat+ ' Diffs')
 axs[0,0].axis('off')
-cax1.set_ylabel('scalarSWE $[kg~m^{-2}]$',labelpad=-600)
+cax1.set_ylabel('scalarSWE $[kg~m^{-2}]$',labelpad=-100)
 
 # SM
 var = 'scalarTotalSoilWat'
@@ -209,7 +211,7 @@ bas_albers.plot(ax=axs[0,1], column=var, edgecolor='none', legend=True,\
                 cmap='cividis_r', cax=cax2, norm=norm, zorder=0)
 axs[0,1].set_title('(b) Total soil water content Absolute '+stat+ ' Diffs')
 axs[0,1].axis('off')
-cax2.set_ylabel('scalarTotalSoilWat $[kg~m^{-2}]$',labelpad=-600)
+cax2.set_ylabel('scalarTotalSoilWat $[kg~m^{-2}]$',labelpad=-100)
 
 # ET
 var = 'scalarTotalET'
@@ -218,16 +220,16 @@ bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
                 cmap='viridis', cax=cax3, norm=norm, zorder=0)
 axs[1,0].set_title('(c) Total evapotranspiration Absolute '+stat+ ' Diffs')
 axs[1,0].axis('off')
-cax3.set_ylabel('scalarTotalET $[kg~m^{-2}~s^{-1}]$',labelpad=-600)
+cax3.set_ylabel('scalarTotalET $[kg~m^{-2}~s^{-1}]$',labelpad=-100)
 
 # CanWat
 var = 'scalarCanopyWat'
 norm = matplotlib.colors.LogNorm(vmin=bas_albers[var].min(), vmax=bas_albers[var].max())
 bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True,\
-                cmap='viridis_r', cax=cax3, norm=norm, zorder=0)
+                cmap='viridis_r', cax=cax4, norm=norm, zorder=0)
 axs[1,1].set_title('(d) Total water on the vegetation canopy Absolute '+stat+ ' Diffs')
 axs[1,1].axis('off')
-cax3.set_ylabel('scalarCanopyWat $[kg~m^{-2}]$',labelpad=-600)
+cax4.set_ylabel('scalarCanopyWat $[kg~m^{-2}]$',labelpad=-100)
 
 # Runoff
 var = 'averageRoutedRunoff'
@@ -236,7 +238,7 @@ bas_albers.plot(ax=axs[2,0], column=var, edgecolor='none', legend=True,\
                 cmap='Blues', cax=cax3, norm=norm, zorder=0)
 axs[2,0].set_title('(e) Routed runoff Absolute '+stat+ ' Diffs')
 axs[2,0].axis('off')
-cax3.set_ylabel('averageRoutedRunoff $[m~s^{-1}]$',labelpad=-600)
+cax5.set_ylabel('averageRoutedRunoff $[m~s^{-1}]$',labelpad=-100)
 
 # Clock time
 var = 'wallClockTime('
@@ -245,7 +247,7 @@ bas_albers.plot(ax=axs[2,1], column=var, edgecolor='none', legend=True,\
                 cmap='Greys', cax=cax3, norm=norm, zorder=0)
 axs[2,1].set_title('(f) Wall clock time Absolute '+stat+ ' Diffs')
 axs[2,1].axis('off')
-cax3.set_ylabel('wallClockTime( $[s]$',labelpad=-600)
+cax6.set_ylabel('wallClockTime( $[s]$',labelpad=-100)
 
 
 # lakes
@@ -254,6 +256,8 @@ if plot_lakes:
     large_lakes_albers.plot(ax=axs[0,1], color=lake_col, zorder=1)
     large_lakes_albers.plot(ax=axs[1,0], color=lake_col, zorder=1)
     large_lakes_albers.plot(ax=axs[1,1], color=lake_col, zorder=1)
+    large_lakes_albers.plot(ax=axs[2,0], color=lake_col, zorder=1)
+    large_lakes_albers.plot(ax=axs[2,1], color=lake_col, zorder=1)
 
 # Save
 plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=True)
