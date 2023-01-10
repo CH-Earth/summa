@@ -16,6 +16,7 @@
 
 
 # modules
+import os
 import pyproj 
 import fiona
 import matplotlib
@@ -24,19 +25,26 @@ import xarray as xr
 import geopandas as gpd
 from pathlib import Path
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import copy
+import multiprocessing as mp
+
 
 # Simulation statistics file locations
 method_name = 'sundials_1en6'
-stat = 'max' #max or rmse
+stat = 'rmse' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
-viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
-viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
+#viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
+viz_dir = Path('/home/avanb/scratch/statistics')
+viz_fil = method_name + '_hrly_diff_stats_{}_{}2.nc'
 viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))
 
 # Specify variables of interest
-plot_vars = ['averageRoutedRunoff','wallClockTime','scalarTotalET','scalarSWE','scalarCanopyWat','scalarTotalSoilWat']
+plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
+if stat=='rmse': maxes = [60,30,5e-6,0.2,1e-8,200]
+if stat=='max' : maxes = []
+
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 
@@ -46,8 +54,8 @@ main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAme
 # Plot lakes?
 plot_lakes = True
 # lakes shapefile WHERE IS THIS
-lake_path = Path('C:/Globus endpoint/HydroLAKES/HydroLAKES_polys_v10_shp')
-lake_name = 'HydroLAKES_polys_v10_subset_NA.shp'
+#lake_path = Path('C:/Globus endpoint/HydroLAKES/HydroLAKES_polys_v10_shp')
+#lake_name = 'HydroLAKES_polys_v10_subset_NA.shp'
 
 ## Control file handling
 # Store the name of the 'active' file in a variable
@@ -140,12 +148,6 @@ if plot_lakes:
 	lak_albers = gpd.read_file(main/'lakes.shp')
 
 
-# Print the median basin size for curiousity
-#print('median area = {} m^2'.format(bas['HRU_area'].median() / 10**6))
-#print('mean area   = {} m^2'.format(bas['HRU_area'].mean() / 10**6))
-
-#median area = 33.06877343600296 m^2
-#mean area   = 40.19396140285971 m^2
 
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
@@ -155,7 +157,6 @@ summa = xr.open_dataset(viz_dir/viz_fil)
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for plot_var in plot_vars:
     bas_albers[plot_var] = summa[plot_var].sel(hru=hru_ids_shp.values)
-
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -187,85 +188,51 @@ else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
 
 # colorbar axes
-cax1 = fig.add_axes([0.473,0.73,0.02,0.3])
-cax2 = fig.add_axes([0.97 ,0.73,0.02,0.3])
-cax3 = fig.add_axes([0.473,0.40,0.02,0.3])
-cax4 = fig.add_axes([0.97 ,0.40,0.02,0.3])
-cax5 = fig.add_axes([0.473,0.07,0.02,0.3])
-cax6 = fig.add_axes([0.97 ,0.07,0.02,0.3])
+f_x_mat = [0.473,0.97,0.473,0.97,0.473,0.97]
+f_y_mat = [0.69,0.69,0.36,0.36,0.03,0.03]
 
 plt.tight_layout()
 
 my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
-my_cmap.set_bad(my_cmap.colors[0])
+#my_cmap.set_bad(my_cmap.colors[0])
 
 if stat == 'rmse':
-    stat_word = 'RMSE'
+    stat_word = ' Hourly RMSE'
 if stat == 'max':
-    stat_word = 'Abs Max'
+    stat_word = ' Hourly max abs error'
+    
+def run_loop(i,var,the_max,f_x,f_y):
+    #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
+    #a = bas_albers[var].where(bas_albers[var]>0)
+    #bas_albers[var] = a.fillna(vmin)
+    vmin,vmax = bas_albers[var].min(), bas_albers[var].max()
+    vmin,vmax = 0, the_max
+    norm=matplotlib.colors.Powernorm(vmin=vmin,vmax=vmax,gamma=0.5)
+    
+    # Data
+    sm = bas_albers.plot(ax=axs[i], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+    
+    # Custom colorbar
+    cax = fig.add_axes([f_x,f_y,0.02,0.3])
+    cbr = fig.colorbar(sm, cax=cax, extend='max')
+    cbr.ax.set_title('[{}]'.format(leg_titl[i]))
 
-# add maps
-# SWE
-var = 'scalarSWE' 
-#minval = (bas_albers[var].where(bas_albers[var]>0)).min()
-#a = bas_albers[var].where(bas_albers[var]>0)
-#bas_albers[var] = a.fillna(minval)
-#norm=matplotlib.colors.LogNorm(vmin=minval)
-bas_albers.plot(ax=axs[0,0], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
-                cax=cax1, zorder=0)
-axs[0,0].set_title('(a) Snow Water Equivalent '+stat_word+ ' Diffs')
-axs[0,0].axis('off')
-cax1.set_ylabel('scalarSWE $[kg~m^{-2}]$',labelpad=-100)
-
-# SoilWat
-var = 'scalarTotalSoilWat'
-bas_albers.plot(ax=axs[0,1], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
-                cax=cax2, zorder=0)
-axs[0,1].set_title('(b) Total soil water content '+stat_word+ ' Diffs')
-axs[0,1].axis('off')
-cax2.set_ylabel('scalarTotalSoilWat $[kg~m^{-2}]$',labelpad=-100)
-
-# ET
-var = 'scalarTotalET'
-bas_albers.plot(ax=axs[1,0], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
-                cax=cax3, zorder=0)
-axs[1,0].set_title('(c) Total evapotranspiration '+stat_word+ ' Diffs')
-axs[1,0].axis('off')
-cax3.set_ylabel('scalarTotalET $[kg~m^{-2}~s^{-1}]$',labelpad=-100)
-
-# CanWat
-var = 'scalarCanopyWat'
-bas_albers.plot(ax=axs[1,1], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
-                cax=cax4, zorder=0)
-axs[1,1].set_title('(d) Total water on the vegetation canopy '+stat_word+ ' Diffs')
-axs[1,1].axis('off')
-cax4.set_ylabel('scalarCanopyWat $[kg~m^{-2}]$',labelpad=-100)
-
-# Runoff
-var = 'averageRoutedRunoff'
-bas_albers.plot(ax=axs[2,0], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
-                cax=cax5, zorder=0)
-axs[2,0].set_title('(e) Routed runoff '+stat_word+ ' Diffs')
-axs[2,0].axis('off')
-cax5.set_ylabel('averageRoutedRunoff $[m~s^{-1}]$',labelpad=-100)
-
-# Clock time
-var = 'wallClockTime'
-bas_albers.plot(ax=axs[2,1], column=var, edgecolor='none', legend=True, cmap=my_cmap, \
-                cax=cax6, zorder=0)
-axs[2,1].set_title('(f) Wall clock time '+stat_word+ ' Diffs')
-axs[2,1].axis('off')
-cax6.set_ylabel('wallClockTime( $[s]$',labelpad=-100)
+    axs[i].set_title(plt_titl[i] + stat_word)
+    axs[i].axis('off')
+    
+    # lakes
+    if plot_lakes: large_lakes_albers.plot(ax=axs[i], color=lake_col, zorder=1)
 
 
-# lakes
-if plot_lakes:
-    large_lakes_albers.plot(ax=axs[0,0], color=lake_col, zorder=1)
-    large_lakes_albers.plot(ax=axs[0,1], color=lake_col, zorder=1)
-    large_lakes_albers.plot(ax=axs[1,0], color=lake_col, zorder=1)
-    large_lakes_albers.plot(ax=axs[1,1], color=lake_col, zorder=1)
-    large_lakes_albers.plot(ax=axs[2,0], color=lake_col, zorder=1)
-    large_lakes_albers.plot(ax=axs[2,1], color=lake_col, zorder=1)
+# -- start parallel processing
+ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
+if __name__ == "__main__":
+    pool = mp.Pool(processes=ncpus)
+    results = [pool.apply_async(run_loop, args=(i,var,the_max,f_x,f_y)) for i,(var,the_max,f_x,f_y) in enumerate(zip(plot_vars,maxes,f_x_mat,f_y_mat))]
+    dojob = [p.get() for p in results]
+    pool.close()
+# -- end parallel processing
+
 
 # Save
 plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=True)

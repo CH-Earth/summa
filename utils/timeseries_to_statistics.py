@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 
 # Settings
-method_name = 'sundials_1en6'
+method_name = 'be1'
 bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
@@ -31,9 +31,10 @@ else:
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
-des_dir =  top_fold + 'statistics'
+#des_dir =  top_fold + 'statistics'
+des_dir =  '/home/avanb/scratch/statistics'
 des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
-stat = 'rmse' #max or rmse
+stat = 'max' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 
 viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'

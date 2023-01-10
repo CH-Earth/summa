@@ -12,7 +12,7 @@ from glob import glob
 import netCDF4 as nc
 import numpy as np
 
-method_name = 'sundials_1en8'
+method_name = 'be64'
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
