@@ -66,9 +66,10 @@ def run_loop(file,bench):
 
     # open file
     dat,ben = xr.open_dataset(file), xr.open_dataset(bench)
-
-    #diff = (np.fabs(dat - ben)) #1-norm
-    diff = (np.square(dat - ben)) #2-norm   
+    diff = (np.fabs(dat - ben)) 
+    for var,stat0 in settings.items():
+        # Select the case, redo if not max (slighly inefficient)
+        if stat0 == 'rmse':diff[var] = np.square(diff[var]) #2-norm   
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
     diff = diff.drop_vars(['hruId','gruId']) 
     m = diff.drop_dims('hru')
@@ -78,13 +79,9 @@ def run_loop(file,bench):
 
     # compute the requested statistics
     for var,stat0 in settings.items():
-
         # Select the case
-        if stat0 == 'rmse':
-            #new = diff[var].mean(dim='time') #1-norm
-            new = ((diff[var].mean(dim='time'))**(1/2)) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
-        if stat0 == 'max':
-            new = diff[var].max(dim='time') #same regardless
+        if stat0 == 'rmse':new = ((diff[var].mean(dim='time'))**(1/2)) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
+        if stat0 == 'max': new = diff[var].max(dim='time') #same regardless
 
         new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
         
