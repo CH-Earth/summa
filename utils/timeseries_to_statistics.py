@@ -10,34 +10,34 @@
 # Run:
 # python timeseries_to_statistics.py sundials_1en6 rmse
 
-import sys
 import os
 import glob
 import xarray as xr
 from pathlib import Path
 import numpy as np
 
-# The first input argument specifies the run where the files are
-method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
-stat = sys.argv[2] # max or rmse
-#method_name = 'be1'
-#stat = "max" 
-
 # Settings
 bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
+#des_dir =  top_fold + 'statistics'
+des_dir =  '/home/avanb/scratch/statistics'
 
 testing = False
-if testing: 
+if testing:
     top_fold = '/Users/amedin/Research/USask/test_py/'
+    des_dir =  top_fold + 'statistics'
+    method_name = 'be1'
+    stat = "max" 
 else:
     import multiprocessing as mp
+    import sys
+    # The first input argument specifies the run where the files are
+    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+    stat = sys.argv[2] # max or rmse
 
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
-#des_dir =  top_fold + 'statistics'
-des_dir =  '/home/avanb/scratch/statistics'
 des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 
@@ -64,24 +64,24 @@ assert len(ben_files) == len(src_files), \
 
 # -- functions
 def run_loop(file,bench):
-    
+
     # extract the subset IDs
     subset = file.split('/')[-1].split('_')[1]
 
     # open file
     dat,ben = xr.open_dataset(file), xr.open_dataset(bench)
-    diff = (np.fabs(dat - ben)) 
+    diff = (np.fabs(dat - ben))
     for var,stat0 in settings.items():
         # Select the case, redo if not max (slighly inefficient)
-        if stat0 == 'rmse':diff[var] = np.square(diff[var]) #2-norm   
+        if stat0 == 'rmse':diff[var] = np.square(diff[var]) #2-norm
         # wall clock don't do difference
         # sometimes wall clock only gives -9999 the whole run, make these nan and plot as lowest value (somewhat rare)
-        if var == 'wallClockTime': 
+        if var == 'wallClockTime':
             diff[var] = dat[var]
             diff[var] = diff[var].where(diff[var]>0)
- 
+
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
-    diff = diff.drop_vars(['hruId','gruId']) 
+    diff = diff.drop_vars(['hruId','gruId'])
     m = diff.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     diff = diff.drop_dims('gru')
@@ -96,9 +96,9 @@ def run_loop(file,bench):
         if var == 'wallClockTime' and stat0 == 'rmse': new = diff[var].mean(dim='time')
 
         new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
-        
+
     print("wrote output: %s" % (top_fold + 'statistics/' +subset))
-        
+
     return #nothing
 
 def merge_subsets_into_one(src,pattern,des,name):
@@ -118,9 +118,9 @@ def merge_subsets_into_one(src,pattern,des,name):
 # -- end functions
 
 
-if testing: 
+if testing:
     # -- no parallel processing
-    for (file, bench) in zip(src_files,ben_files):   
+    for (file, bench) in zip(src_files,ben_files):
         run_loop(file, bench)
 else:
     # -- start parallel processing
@@ -132,12 +132,11 @@ else:
         pool.close()
     # -- end parallel processing
 
-     
+
 # merge the individual files into one for further vizualization
 merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),des_dir,viz_fil)
 
 # remove the individual files for cleanliness
 for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):
     os.remove(file)
-    
-    
+

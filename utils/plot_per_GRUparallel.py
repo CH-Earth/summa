@@ -199,11 +199,6 @@ plt.tight_layout()
 
 my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
 my_cmap.set_bad(my_cmap.colors[0]) #any nans
-
-if stat == 'rmse':
-    stat_word = ' Hourly RMSE'
-if stat == 'max':
-    stat_word = ' Hourly max abs error'
     
 def make_plot(var,the_max,f_x,f_y,plt_t,leg_t, fig, axes):
     #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
@@ -221,10 +216,15 @@ def make_plot(var,the_max,f_x,f_y,plt_t,leg_t, fig, axes):
     cbr = fig.colorbar(sm, cax=cax, extend='max')
     cbr.ax.set_title('[{}]'.format(leg_t))
     
+    if stat == 'rmse':
+        stat_word = ' Hourly RMSE'
+    if stat == 'max':
+        stat_word = ' Hourly max abs error'
+        
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
         if stat == 'rmse': stat_word = ' Hourly mean'
-        if stat == 'rmse': stat_word = ' Hourly max'
+        if stat == 'max': stat_word = ' Hourly max'
 
     axes.set_title(plt_t+ stat_word)
     axes.axis('off')

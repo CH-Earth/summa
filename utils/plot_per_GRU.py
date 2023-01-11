@@ -222,10 +222,15 @@ def run_loop(i,var,the_max,f_x,f_y):
     cbr = fig.colorbar(sm, cax=cax, extend='max')
     cbr.ax.set_title('[{}]'.format(leg_titl[i]))
     
+    if stat == 'rmse':
+        stat_word = ' Hourly RMSE'
+    if stat == 'max':
+        stat_word = ' Hourly max abs error'
+        
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
         if stat == 'rmse': stat_word = ' Hourly mean'
-        if stat == 'rmse': stat_word = ' Hourly max'
+        if stat == 'max': stat_word = ' Hourly max'
 
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].axis('off')
