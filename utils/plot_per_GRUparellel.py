@@ -26,6 +26,13 @@ import geopandas as gpd
 from pathlib import Path
 import matplotlib.pyplot as plt
 import copy
+# for parallellization
+import multiprocessing as mp
+from functools import partial
+import io
+from copy import deepcopy
+from PIL import Image
+
 
 # Simulation statistics file locations
 method_name = 'sundials_1en6'
@@ -40,8 +47,8 @@ viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))
 plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-if stat=='rmse': maxes = [60,30,5e-6,0.2,1e-8,10]
-if stat=='max' : maxes = [100,50,5e-4,4,35e-8,10]
+if stat=='rmse': maxes = [60,30,5e-6,0.2,1e-8,200]
+if stat=='max' : maxes = [100,50,5e-4,4,35e-8,50000]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed2.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
@@ -180,11 +187,6 @@ else:
 #bas_albers['plot_ET'] = bas_albers['scalarTotalET'] * -1
 #bas_albers['plot_ET'] = bas_albers['plot_ET'].where(bas_albers['scalarTotalET'] != -9999, np.nan)
 
-if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(3,2,figsize=(35,33))
-else:
-    fig,axs = plt.subplots(3,2,figsize=(140,133))
-
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 # colorbar axes
@@ -201,38 +203,78 @@ if stat == 'rmse':
 if stat == 'max':
     stat_word = ' Hourly max abs error'
     
-def run_loop(i,var,the_max,f_x,f_y):
+def make_plot(var,the_max,f_x,f_y,plt_t,leg_t, fig, axes):
     #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
     #a = bas_albers[var].where(bas_albers[var]>0)
     #bas_albers[var] = a.fillna(vmin)
     #vmin,vmax = bas_albers[var].min(), bas_albers[var].max()
     vmin,vmax = 0, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
-    r = i//2
-    c = i-r*2
     
     # Data
-    sm = bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+    sm = bas_albers.plot(ax=axes,column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
     
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.3])
     cbr = fig.colorbar(sm, cax=cax, extend='max')
-    cbr.ax.set_title('[{}]'.format(leg_titl[i]))
+    cbr.ax.set_title('[{}]'.format(leg_t))
     
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
         if stat == 'rmse': stat_word = ' Hourly mean'
         if stat == 'rmse': stat_word = ' Hourly max'
 
-    axs[r,c].set_title(plt_titl[i] + stat_word)
-    axs[r,c].axis('off')
+    axes.set_title(plt_t+ stat_word)
+    axes.axis('off')
     
     # lakes
-    if plot_lakes: large_lakes_albers.plot(ax=axs[i], color=lake_col, zorder=1)
+    if plot_lakes: large_lakes_albers.plot(color=lake_col, zorder=1)
 
 
-for i,(var,the_max,f_x,f_y) in enumerate(zip(plot_vars,maxes,f_x_mat,f_y_mat)): 
-    run_loop(i,var,the_max,f_x,f_y)
+#From https://github.com/paulgavrikov/parallel-matplotlib-grid
+def parallel_plot(plot_fn, data1,data2,data3,data4,data5,data6):
+    if 'compressed' in fig_fil:
+        fig,axes = plt.subplots(3,2,figsize=(35,33))
+    else:
+        fig,axes = plt.subplots(3,2,figsize=(140,133))
+
+    
+    with mp.Pool() as pool:
+        for ax, rastered in zip(axes.ravel(), pool.map(partial(_parallel_plot_worker, plot_fn=plot_fn), data1,data2,data3,data4,data5,data6)):
+            ax.imshow(rastered)
+            
+            # The following code hides axes
+            ax.get_xaxis().set_ticks([])
+            ax.get_yaxis().set_ticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+    
+    plt.subplots_adjust(hspace=0, wspace=0)
+    
+def _parallel_plot_worker( data1,data2,data3,data4,data5,data6, plot_fn):
+    fig = plt.figure()
+    matplotlib.font_manager._get_font.cache_clear()  # necessary to reduce text corruption artifacts
+    axes = plt.axes()
+    
+    plot_fn( data1,data2,data3,data4,data5,data6, fig, axes)
+    pil_img = rasterize(fig)
+    plt.close()
+    
+    return pil_img
+
+
+def rasterize(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    pil_img = deepcopy(Image.open(buf))
+    buf.close()
+    
+    return pil_img
+
+# Run
+parallel_plot(make_plot,plot_vars,maxes,f_x_mat,f_y_mat,plt_titl,leg_titl)
+
 
 # Save
 plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=True)

@@ -18,11 +18,11 @@ from pathlib import Path
 import numpy as np
 
 # Settings
-method_name = 'be1'
+method_name = 'sundials_1en6'
 bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
-testing = False
+testing = True
 if testing: 
     top_fold = '/Users/amedin/Research/USask/test_py/'
 else:
@@ -70,6 +70,9 @@ def run_loop(file,bench):
     for var,stat0 in settings.items():
         # Select the case, redo if not max (slighly inefficient)
         if stat0 == 'rmse':diff[var] = np.square(diff[var]) #2-norm   
+        # wall clock don't do difference
+        if var == 'wallClockTime': diff[var] = dat[var]
+
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
     diff = diff.drop_vars(['hruId','gruId']) 
     m = diff.drop_dims('hru')
@@ -82,6 +85,8 @@ def run_loop(file,bench):
         # Select the case
         if stat0 == 'rmse':new = ((diff[var].mean(dim='time'))**(1/2)) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
         if stat0 == 'max': new = diff[var].max(dim='time') #same regardless
+        # wall clock don't do difference
+        if var == 'wallClockTime' and stat0 == 'rmse': new = diff[var].mean(dim='time')
 
         new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
         
