@@ -10,15 +10,18 @@
 # Run:
 # python timeseries_to_statistics.py
 
-
+import sys
 import os
 import glob
 import xarray as xr
 from pathlib import Path
 import numpy as np
 
+# The first input argument specifies the run where the files are
+method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+stat = sys.argv[2] # max or rmse
+
 # Settings
-method_name = 'sundials_1en6'
 bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
@@ -34,7 +37,6 @@ src_pat = 'run1_G*_timestep.nc'
 #des_dir =  top_fold + 'statistics'
 des_dir =  '/home/avanb/scratch/statistics'
 des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
-stat = 'max' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 
 viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'

@@ -12,10 +12,11 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-# python plot_per_GRU.py
+# python plot_per_GRU.py sundials_1en6 rmse
 
 
 # modules
+import sys
 import os
 import pyproj 
 import fiona
@@ -27,9 +28,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import copy
 
+# The first input argument specifies the run where the files are
+method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+stat = sys.argv[2] # max or rmse
+
 # Simulation statistics file locations
-method_name = 'sundials_1en6'
-stat = 'rmse' #max or rmse
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 #viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
 viz_dir = Path('/home/avanb/scratch/statistics')
