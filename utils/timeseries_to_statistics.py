@@ -8,7 +8,7 @@
 #   Best to comment out parallel processing lines and run that way on Graham or for full dataset
 
 # Run:
-# python timeseries_to_statistics.py
+# python timeseries_to_statistics.py sundials_1en6 rmse
 
 import sys
 import os
@@ -20,12 +20,14 @@ import numpy as np
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
 stat = sys.argv[2] # max or rmse
+#method_name = 'be1'
+#stat = "max" 
 
 # Settings
 bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
-testing = True
+testing = False
 if testing: 
     top_fold = '/Users/amedin/Research/USask/test_py/'
 else:
@@ -73,8 +75,11 @@ def run_loop(file,bench):
         # Select the case, redo if not max (slighly inefficient)
         if stat0 == 'rmse':diff[var] = np.square(diff[var]) #2-norm   
         # wall clock don't do difference
-        if var == 'wallClockTime': diff[var] = dat[var]
-
+        # sometimes wall clock only gives -9999 the whole run, make these nan and plot as lowest value (somewhat rare)
+        if var == 'wallClockTime': 
+            diff[var] = dat[var]
+            diff[var] = diff[var].where(diff[var]>0)
+ 
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
     diff = diff.drop_vars(['hruId','gruId']) 
     m = diff.drop_dims('hru')

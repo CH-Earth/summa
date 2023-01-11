@@ -6,7 +6,6 @@
 # Run:
 # python concat_groups_split_summa.py
 
-
 import os
 from glob import glob
 import netCDF4 as nc
