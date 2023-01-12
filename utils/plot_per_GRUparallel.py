@@ -49,8 +49,8 @@ viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))
 plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-if stat=='rmse': maxes = [60,30,5e-6,0.2,1e-8,1e-2]
-if stat=='max' : maxes = [100,50,5e-4,4,35e-8,100]
+if stat=='rmse': maxes = [10,10,5e-6,0.2,8e-9,7e-3]
+if stat=='max' : maxes = [40,40,5e-4,4,35e-8,10]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed2.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
