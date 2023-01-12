@@ -84,7 +84,6 @@ else:
 def run_loop(i,var,mx):
     r = i//2
     c = i-r*2
-    vmin = 0
     num_bins = 200
     if 'zoom' in fig_fil:
         mx = mx

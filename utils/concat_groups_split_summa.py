@@ -4,14 +4,13 @@
 #   Best to comment out parallel processing lines and run that way on Graham or for full dataset
 
 # Run:
-# python concat_groups_split_summa.py
+# python concat_groups_split_summa.py sundials_1en8
 
 import os
 from glob import glob
 import netCDF4 as nc
 import numpy as np
 
-method_name = 'be64'
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 
@@ -20,10 +19,14 @@ missgru = 72055933 # batch 205 summa-be32 value
 misshru = missgru  # could be different
 
 testing = False
-if testing: 
+if testing:
     top_fold = '/Users/amedin/Research/USask/test_py/'
+    method_name = 'sundials_1en8'
 else:
     import multiprocessing as mp
+    import sys
+    # The first input argument specifies the run where the files are
+    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
 
 ncdir        = top_fold + 'summa-' + method_name
 file_pattern = 'run1_G*_timestep.nc'
@@ -130,12 +133,12 @@ def get_stat(g,catby_num,outfilelist0,ctdir):
             #    print('Warning: gruId variable cannot be created since it has different size from hruId')
 
         print("wrote output: %s" % (ctdir+'/'+out_name))
-        
+
     return #nothing
 # -- end functions
 
 
-if testing: 
+if testing:
     # -- no parallel processing
     for g in range(0,int(len(outfilelist0)/catby_num)):
         get_stat(g,catby_num,outfilelist0,ctdir)
