@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem-per-cpu=2GB
+#SBATCH --mem-per-cpu=6GB
 #SBATCH --time=1-00:00
 #SBATCH --job-name=CONCAT
 #SBATCH --mail-user=gwu479@usask.ca

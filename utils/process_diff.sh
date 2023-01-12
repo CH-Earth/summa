@@ -2,7 +2,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --time=1-00:00
-#SBATCH --job-name=DIFFFF
+#SBATCH --job-name=DIFF
 #SBATCH --mail-user=gwu479@usask.ca
 #SBATCH --mail-type=ALL
 #SBATCH --account=rpp-kshook
