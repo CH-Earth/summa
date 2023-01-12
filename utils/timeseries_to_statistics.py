@@ -19,8 +19,7 @@ import numpy as np
 # Settings
 bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
-#des_dir =  top_fold + 'statistics'
-des_dir =  '/home/avanb/scratch/statistics'
+des_dir =  top_fold + 'statistics'
 
 testing = False
 if testing:

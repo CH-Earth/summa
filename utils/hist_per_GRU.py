@@ -25,8 +25,7 @@ import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import copy
 
-#viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
-viz_dir = Path('/home/avanb/scratch/statistics')
+viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
 
 testing = False
 if testing: 
