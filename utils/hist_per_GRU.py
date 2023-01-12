@@ -52,7 +52,7 @@ plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat',
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 
-fig_fil = method_name1 + method_name2 + '_hrly_diff_hist_{}_{}_compressed.png'
+fig_fil = method_name1 + method_name2 + '_hrly_diff_hist_{}_{}__zoom_compressed.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 # possibly want to use these to shrink the axes a bit
 if stat=='rmse': maxes = [120,80,3e-5,0.2,1e-8,1e-2]
@@ -86,7 +86,10 @@ def run_loop(i,var,mx):
     c = i-r*2
     vmin = 0
     num_bins = 200
-    mx = max([summa1[var].max(),summa2[var].max()]).values
+    if 'zoom' in fig_fil:
+        mx = mx
+    else:
+        mx = max([summa1[var].max(),summa2[var].max()]).values
 
     # Data
     sm = summa1[var].plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=method_name1,linewidth=2.0,range=(0,mx))
