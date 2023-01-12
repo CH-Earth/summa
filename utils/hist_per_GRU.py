@@ -55,8 +55,9 @@ leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~
 fig_fil = method_name1 + method_name2 + '_hrly_diff_hist_{}_{}__zoom_compressed.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 # possibly want to use these to shrink the axes a bit
-if stat=='rmse': maxes = [120,80,3e-5,0.2,1e-8,1e-2]
-if stat=='max' : maxes = [100,50,5e-4,4,35e-8,100]
+if stat=='rmse': maxes = [10,20,1e-5,0.1,8e-9,7e-3]
+if stat=='max' : maxes = [40,40,4e-4,3,35e-8,10]
+
 
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
