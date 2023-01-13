@@ -43,7 +43,7 @@ plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat',
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,7e-3]
-if stat=='max' : maxes = [20,30,3e-4,2,35e-8,1]
+if stat=='max' : maxes = [20,30,3e-4,2,35e-8,0.7]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed2.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
@@ -214,10 +214,12 @@ def run_loop(i,var,the_max,f_x,f_y):
     c = i-r*2
     
     # Data
-    sm = bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+    bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
     
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.3])
+    sm = plt.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+    sm._A = []
     cbr = fig.colorbar(sm, cax=cax, extend='max')
     cbr.ax.set_title('[{}]'.format(leg_titl[i]))
     
