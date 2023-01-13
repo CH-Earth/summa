@@ -210,6 +210,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     #vmin,vmax = bas_albers[var].min(), bas_albers[var].max()
     vmin,vmax = 0, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
+    #norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     r = i//2
     c = i-r*2
     
@@ -218,7 +219,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.3])
-    sm = plt.cm.ScalarMappable(cmap=my_cmap, norm=norm)
+    sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax, extend='max')
     cbr.ax.set_title('[{}]'.format(leg_titl[i]))
