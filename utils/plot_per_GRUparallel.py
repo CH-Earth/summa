@@ -199,7 +199,8 @@ plt.tight_layout()
 my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
 my_cmap.set_bad(my_cmap.colors[0]) #any nans
     
-def make_plot(var,the_max,f_x,f_y,plt_t,leg_t, fig, axes):
+def make_plot(data, fig, axes):
+    var,the_max,f_x,f_y,plt_t,leg_t = data[0:6]
     #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
     #a = bas_albers[var].where(bas_albers[var]>0)
     #bas_albers[var] = a.fillna(vmin)
@@ -236,7 +237,8 @@ def make_plot(var,the_max,f_x,f_y,plt_t,leg_t, fig, axes):
 
 
 #From https://github.com/paulgavrikov/parallel-matplotlib-grid
-def parallel_plot(plot_fn, data1,data2,data3,data4,data5,data6):
+# https://towardsdatascience.com/plotting-in-parallel-with-matplotlib-and-python-f7efb3d944de
+def parallel_plot(plot_fn, data):
     if 'compressed' in fig_fil:
         fig,axes = plt.subplots(3,2,figsize=(35,33))
     else:
@@ -244,7 +246,7 @@ def parallel_plot(plot_fn, data1,data2,data3,data4,data5,data6):
 
     
     with mp.Pool() as pool:
-        for ax, rastered in zip(axes.ravel(), pool.map(partial(_parallel_plot_worker, plot_fn=plot_fn), data1,data2,data3,data4,data5,data6)):
+        for ax, rastered in zip(axes.ravel(), pool.map(partial(_parallel_plot_worker, plot_fn=plot_fn), data)):
             ax.imshow(rastered)
             
             # The following code hides axes
@@ -255,12 +257,12 @@ def parallel_plot(plot_fn, data1,data2,data3,data4,data5,data6):
     
     plt.subplots_adjust(hspace=0, wspace=0)
     
-def _parallel_plot_worker( data1,data2,data3,data4,data5,data6, plot_fn):
+def _parallel_plot_worker( data, plot_fn):
     fig = plt.figure()
     matplotlib.font_manager._get_font.cache_clear()  # necessary to reduce text corruption artifacts
     axes = plt.axes()
     
-    plot_fn( data1,data2,data3,data4,data5,data6, fig, axes)
+    plot_fn( data, fig, axes)
     pil_img = rasterize(fig)
     plt.close()
     
@@ -277,7 +279,8 @@ def rasterize(fig):
     return pil_img
 
 # Run
-parallel_plot(make_plot,plot_vars,maxes,f_x_mat,f_y_mat,plt_titl,leg_titl)
+data = np.array(list(zip(plot_vars,maxes,f_x_mat,f_y_mat,plt_titl,leg_titl)))
+parallel_plot(make_plot,data)
 
 
 # Save
