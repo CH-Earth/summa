@@ -232,7 +232,7 @@ def make_plot(var,the_max,f_x,f_y,plt_t,leg_t, fig, axes):
     axes.axis('off')
     
     # lakes
-    if plot_lakes: large_lakes_albers.plot(color=lake_col, zorder=1)
+    if plot_lakes: large_lakes_albers.plot(ax=axes,color=lake_col, zorder=1)
 
 
 #From https://github.com/paulgavrikov/parallel-matplotlib-grid

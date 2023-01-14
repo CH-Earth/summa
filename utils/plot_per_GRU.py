@@ -45,7 +45,7 @@ leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,7e-3]
 if stat=='max' : maxes = [20,30,3e-4,2,35e-8,0.7]
 
-fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed2.png'
+fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 
 # Get the albers shapes
@@ -238,7 +238,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     axs[r,c].axis('off')
     
     # lakes
-    if plot_lakes: large_lakes_albers.plot(ax=axs[i], color=lake_col, zorder=1)
+    if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
 
 
 for i,(var,the_max,f_x,f_y) in enumerate(zip(plot_vars,maxes,f_x_mat,f_y_mat)): 
