@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# python check_bit_4_bit_withTol.py
+# python check_bit_4_bit_withTol.py [bench_dir] [test_dir] [tol]
 
 import sys
 import numpy as np
@@ -17,9 +17,15 @@ USAGE = 'USAGE: python check_bit_4_bit_withTol.py BENCHMARK_DIRECTORY TEST_DIREC
 #    print(USAGE)
 #    exit(1)
 
-bench_dir = 'summa_be' #sys.argv[1]
-test_dir = 'summa-sundials_be' #sys.argv[2]
-tol = 0.1 #sys.argv[3]
+testing = False
+if testing:
+    bench_dir = 'summa_be' #sys.argv[1]
+    test_dir = 'summa-sundials_be' #sys.argv[2]
+    tol = 0.1 #sys.argv[3]
+else:
+    bench_dir = sys.argv[1]
+    test_dir = sys.argv[2]
+    tol = sys.argv[3]
 
 bench_files = sorted(list(Path(bench_dir).glob('**/*.nc')))
 test_files = sorted(list(Path(test_dir).glob('**/*.nc')))
@@ -94,34 +100,33 @@ print(combined_tmean)
 for v in rem(list(combined_max.variables.keys()), list(combined_time.dims.keys())):
     print(FINAL_MESSAGE.format(v, np.int(max_ind[v].values), combined_max[v].sel(hru = np.int(max_ind[v].values)).values, combined_time[v].sel(hru = np.int(max_ind[v].values)).values))
 
+if testing:
+    bench_files = "run_3766_summa_be.nc"
+    f1 = bench_files
 
+    #test_files = ["run_3766_summa_be_conv.nc","run_3766_summa-sundials_beclosed_new.nc","run_3766_summa-sundials_closed_new.nc","run_3766_summa-sundials_closed.nc","run_3766_summa-sundials_enthal_new.nc","run_3766_summa-sundials_enthal_new_noderiv.nc","run_3766_summa-sundials_enthal.nc","run_3766_summa-sundials_beclosed_new_noCp.nc","run_3766_summa-sundials_closed_new_noCp.nc"]
+    #test_files = ["run_3766_summa-sundials_beclosed_new.nc","run_3766_summa-sundials_beclosed_new_noCp.nc","run_3766_summa-sundials_beclosed_new_noCp_oldJac.nc"]
+    test_files = ["run_3766_sun_updateCp_withDeriv.nc","run_3766_be_updateCp_withDeriv.nc","run_3766_be_original_withDeriv.nc","run_3766_be_orginal.nc"]
+    vars = ['averageRoutedRunoff','scalarTotalET','scalarTotalSoilWat','scalarSWE','scalarCanopyWat']
 
-bench_files = "run_3766_summa_be.nc"
-f1 = bench_files
+    for j, v in enumerate(vars):
+        for i, f2 in enumerate(test_files):
+            ds1, ds2 = xr.open_dataset(f1), xr.open_dataset(f2)
+            m = ds1[v]- ds2[v]
+            m.plot()
 
-#test_files = ["run_3766_summa_be_conv.nc","run_3766_summa-sundials_beclosed_new.nc","run_3766_summa-sundials_closed_new.nc","run_3766_summa-sundials_closed.nc","run_3766_summa-sundials_enthal_new.nc","run_3766_summa-sundials_enthal_new_noderiv.nc","run_3766_summa-sundials_enthal.nc","run_3766_summa-sundials_beclosed_new_noCp.nc","run_3766_summa-sundials_closed_new_noCp.nc"]
-#test_files = ["run_3766_summa-sundials_beclosed_new.nc","run_3766_summa-sundials_beclosed_new_noCp.nc","run_3766_summa-sundials_beclosed_new_noCp_oldJac.nc"]
-test_files = ["run_3766_sun_updateCp_withDeriv.nc","run_3766_be_updateCp_withDeriv.nc","run_3766_be_original_withDeriv.nc","run_3766_be_orginal.nc"]
-vars = ['averageRoutedRunoff','scalarTotalET','scalarTotalSoilWat','scalarSWE','scalarCanopyWat']
+        plt.gca().legend(test_files)
+        plt.show()
 
-for j, v in enumerate(vars):
-    for i, f2 in enumerate(test_files):
-        ds1, ds2 = xr.open_dataset(f1), xr.open_dataset(f2)
-        m = ds1[v]- ds2[v]
-        m.plot()
+    test_files = ["run_3766_nrgWatTermOrderSwitch_commita2c16c8c.nc","run_3766_nrgWatTermOrderSame_commitec1f42b4.nc"]
+    vars = ['averageRoutedRunoff','scalarTotalET','scalarTotalSoilWat','scalarSWE','scalarCanopyWat']
 
-    plt.gca().legend(test_files)
-    plt.show()
+    for j, v in enumerate(vars):
+        for i, f2 in enumerate(test_files):
+            ds1, ds2 = xr.open_dataset(f1), xr.open_dataset(f2)
+            m = ds1[v]- ds2[v]
+            m.plot()
 
-test_files = ["run_3766_nrgWatTermOrderSwitch_commita2c16c8c.nc","run_3766_nrgWatTermOrderSame_commitec1f42b4.nc"]
-vars = ['averageRoutedRunoff','scalarTotalET','scalarTotalSoilWat','scalarSWE','scalarCanopyWat']
-
-for j, v in enumerate(vars):
-    for i, f2 in enumerate(test_files):
-        ds1, ds2 = xr.open_dataset(f1), xr.open_dataset(f2)
-        m = ds1[v]- ds2[v]
-        m.plot()
-
-    plt.gca().legend(test_files)
-    plt.show()
+        plt.gca().legend(test_files)
+        plt.show()
 
