@@ -37,32 +37,34 @@ else:
     stat = sys.argv[1] # max or rmse
  
 # Simulation statistics file locations
-method_name1='sundials_1en6' #keep constant?
-method_name2='be1' #maybe make this an argument
+method_name=['sundials_1en6', 'be1','be32'] #maybe make this an argument
 
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
-viz_fil1 = method_name1 + '_hrly_diff_stats_{}_{}.nc'
-viz_fil1 = viz_fil1.format(','.join(settings.keys()),','.join(settings.values()))
-viz_fil2 = method_name2 + '_hrly_diff_stats_{}_{}.nc'
-viz_fil2 = viz_fil2.format(','.join(settings.keys()),','.join(settings.values()))
-
+viz_fil = method_name.copy()
+for i, m in enumerate(method_name):
+    viz_fil[i] = m + '_hrly_diff_stats_{}_{}.nc'
+    viz_fil[i] = viz_fil[i].format(','.join(settings.keys()),','.join(settings.values()))
 
 # Specify variables of interest
 plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 
-fig_fil = method_name1 + method_name2 + '_hrly_diff_hist_{}_{}__zoom_compressed.png'
+fig_fil =''
+for m in method_name:
+    fig_fil = fig_fil + m
+fig_fil = fig_fil + '_hrly_diff_hist_{}_{}__zoom_compressed.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 # possibly want to use these to shrink the axes a bit
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,7e-3]
 if stat=='max' : maxes = [20,30,3e-4,2,35e-8,0.7]
 
 
-## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
-summa1 = xr.open_dataset(viz_dir/viz_fil1)
-summa2 = xr.open_dataset(viz_dir/viz_fil2)
+summa = {}
+for i, m in enumerate(method_name):
+    summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
+    
 
 ##Figure
 
@@ -89,11 +91,15 @@ def run_loop(i,var,mx):
     if 'zoom' in fig_fil:
         mx = mx
     else:
-        mx = max([summa1[var].max(),summa2[var].max()]).values
+        mx = 0.0
+        for m in method_name:
+            s = summa[m]
+            mx = max(s[var].max(),mx)
 
     # Data
-    sm = summa1[var].plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=method_name1,linewidth=2.0,range=(0,mx))
-    sm = summa2[var].plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=1,label=method_name2,linewidth=2.0,range=(0,mx))
+    for m in method_name:
+        s = summa[m]
+        s[var].plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=(0,mx))
     
     if stat == 'rmse':
         stat_word = ' Hourly RMSE'
