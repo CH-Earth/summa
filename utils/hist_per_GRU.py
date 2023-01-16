@@ -37,7 +37,7 @@ else:
     stat = sys.argv[1] # max or rmse
  
 # Simulation statistics file locations
-method_name=['sundials_1en6', 'be1','be32'] #maybe make this an argument
+method_name=['sundials_1en6','be32','be1'] #maybe make this an argument
 
 settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
 viz_fil = method_name.copy()
@@ -56,8 +56,8 @@ for m in method_name:
 fig_fil = fig_fil + '_hrly_diff_hist_{}_{}__zoom_compressed.png'
 fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
 # possibly want to use these to shrink the axes a bit
-if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,7e-3]
-if stat=='max' : maxes = [20,30,3e-4,2,35e-8,0.7]
+if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
+if stat=='max' : maxes = [20,30,3e-4,2,4e-7,0.7]
 
 
 # Get the aggregated statistics of SUMMA simulations
