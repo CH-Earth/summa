@@ -7,9 +7,8 @@
 ## Special note
 # SUMMA simulations have been preprocessed into single value statistics per model element, using auxiliary scripts in ~/utils
 # Run:
-# python hist_per_GRU.py [stat]
+# python scat_per_GRU.py rmse
 # where stat is rmse or maxe
-
 
 # modules
 import os
@@ -46,11 +45,15 @@ plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat',
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 
-fig_fil = '{}_hrly_diff_hist_{}_{}_zoom_compressed.png'
+fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
 # possibly want to use these to shrink the axes a bit
-if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
-if stat=='maxe' : maxes = [20,30,3e-4,2,4e-7,0.7]
+if stat=='rmse': 
+    maxes = [2,15,8e-6,0.08,7e-9,100]
+    maxes0 = [2,15,8e-6,0.08,7e-9,13e-3]
+if stat=='maxe' : 
+    maxes = [20,30,3e-4,2,4e-7,5000]
+    maxes0 = [100,2000,-1e-3,20,2e-5,0.7]
 
 # Get the aggregated statistics of SUMMA simulations
 summa = {}
@@ -75,46 +78,38 @@ else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
 
     
-def run_loop(i,var,mx):
+def run_loop(i,var,mx,mx0):
     r = i//2
     c = i-r*2
-    num_bins = 200
-    stat0 = stat
-    if var == 'wallClockTime':
-        if stat == 'rmse': stat0 = 'mean'
-        if stat == 'maxe': stat0 = 'amax'
-        
-    if 'zoom' in fig_fil:
-        mx = mx
-    else:
-        mx = 0.0
-        for m in method_name:
-            s = summa[m][var].sel(stat=stat0)
-            if stat == 'maxe': s = np.fabs(s) # make absolute value norm
-            mx = max(s.max(),mx)
+    if stat == 'rmse': stat0 = 'mean'
+    if stat == 'maxe': stat0 = 'amax'
 
     # Data
     for m in method_name:
-        s = summa[m][var].sel(stat=stat0)
-        if stat == 'maxe': s = np.fabs(s) # make absolute value norm
-        s.plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=(0,mx))
-    
-    if stat == 'rmse': stat_word = ' Hourly RMSE'
-    if stat == 'maxe': stat_word = ' Hourly max abs error'
+        s = summa[m][var].sel(stat=[stat,stat0])
+        if stat == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
+        axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat0).values,zorder=0,label=m)
+        if 'zoom' in fig_fil: 
+            axs[r,c].set_xlim(0,mx)
+            if mx0<0: axs[r,c].set_ylim(mx0,0)
+            if mx0>0: axs[r,c].set_ylim(0,mx0)
         
-    # wall Clock doesn't do difference
-    if var == 'wallClockTime':
-        if stat == 'rmse': stat_word = ' Hourly mean'
-        if stat == 'maxe': stat_word = ' Hourly max'
-
+    if stat == 'rmse': 
+        stat_word = 'Hourly RMSE '
+        stat0_word ='Hourly mean '
+    if stat == 'maxe': 
+        stat_word = ' Hourly max abs error '
+        stat0_word =' Hourly max '
+ 
     axs[r,c].legend()
-    axs[r,c].set_title(plt_titl[i] + stat_word)
-    axs[r,c].set_xlabel('[{}]'.format(leg_titl[i]))
-    axs[r,c].set_ylabel('GRU count')
+    axs[r,c].set_title(plt_titl[i])
+    axs[r,c].set_xlabel(stat_word + '[{}]'.format(leg_titl[i]))
+    axs[r,c].set_ylabel(stat0_word + '[{}]'.format(leg_titl[i]))
     
 
-for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
-    run_loop(i,var,mx)
+for i,(var,mx,mx0) in enumerate(zip(plot_vars,maxes,maxes0)): 
+    run_loop(i,var,mx,mx0)
 
 # Save
-plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
+plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=True)
+

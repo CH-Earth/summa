@@ -12,7 +12,8 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-# python plot_per_GRU.py sundials_1en6 rmse
+# python plot_per_GRU.py sundials_1en6 [stat]
+# where stat is rmse or maxe
 
 
 # modules
@@ -30,23 +31,23 @@ import copy
 
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
-stat = sys.argv[2] # max or rmse
+stat = sys.argv[2] # maxe or rmse
 
 # Simulation statistics file locations
-settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
-viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
-viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))
+viz_fil = method_name + '_hrly_diff_stats_{}.nc'
+viz_fil = viz_fil.format(','.join(settings))
 
 # Specify variables of interest
-plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+plot_vars = settings
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
-if stat=='max' : maxes = [20,30,3e-4,2,4e-7,0.7]
+if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.7]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
-fig_fil = fig_fil.format(','.join(settings.keys()),','.join(settings.values()))
+fig_fil = fig_fil.format(','.join(settings),stat)
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -156,7 +157,13 @@ summa = xr.open_dataset(viz_dir/viz_fil)
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for plot_var in plot_vars:
-    bas_albers[plot_var] = summa[plot_var].sel(hru=hru_ids_shp.values)
+    stat0 = stat
+    if plot_var == 'wallClockTime':
+        if stat == 'rmse': stat0 = 'mean'
+        if stat == 'maxe': stat0 = 'amax'
+    s = summa[plot_var].sel(stat=stat0)
+    if stat == 'maxe': s = np.fabs(s) # make absolute value norm, max is not not all positive
+    bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -196,12 +203,8 @@ f_y_mat = [0.69,0.69,0.36,0.36,0.03,0.03]
 plt.tight_layout()
 
 my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
-my_cmap.set_bad(my_cmap.colors[0]) #any nans
-
-if stat == 'rmse':
-    stat_word = ' Hourly RMSE'
-if stat == 'max':
-    stat_word = ' Hourly max abs error'
+#my_cmap.set_bad(my_cmap.colors[0]) #any nans, maybe should be white?
+my_cmap.set_bad(color='white') #nan color white
     
 def run_loop(i,var,the_max,f_x,f_y):
     #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
@@ -224,15 +227,13 @@ def run_loop(i,var,the_max,f_x,f_y):
     cbr = fig.colorbar(sm, cax=cax, extend='max')
     cbr.ax.set_title('[{}]'.format(leg_titl[i]))
     
-    if stat == 'rmse':
-        stat_word = ' Hourly RMSE'
-    if stat == 'max':
-        stat_word = ' Hourly max abs error'
+    if stat == 'rmse': stat_word = ' Hourly RMSE'
+    if stat == 'maxe': stat_word = ' Hourly max abs error'
         
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
         if stat == 'rmse': stat_word = ' Hourly mean'
-        if stat == 'max': stat_word = ' Hourly max'
+        if stat == 'maxe': stat_word = ' Hourly max'
 
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].axis('off')

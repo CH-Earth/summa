@@ -21,27 +21,25 @@ bench_name  = 'sundials_1en8_cat'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 des_dir =  top_fold + 'statistics'
 
-testing = False
+testing = True
 if testing:
     top_fold = '/Users/amedin/Research/USask/test_py/'
     des_dir =  top_fold + 'statistics'
-    method_name = 'be1'
-    stat = "max" 
+    method_name = 'sundials_1en6'
 else:
     import multiprocessing as mp
     import sys
     # The first input argument specifies the run where the files are
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
-    stat = sys.argv[2] # max or rmse
 
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
-des_fil = method_name + '_hrly_diff_stats_{}_{}_{}.nc'
-settings= {'averageRoutedRunoff': stat, 'wallClockTime': stat, 'scalarTotalET': stat, 'scalarSWE': stat, 'scalarCanopyWat': stat, 'scalarTotalSoilWat': stat}
+des_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
+settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 
-viz_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
-viz_fil = viz_fil.format(','.join(settings.keys()),','.join(settings.values()))
+viz_fil = method_name + '_hrly_diff_stats_{}.nc'
+viz_fil = viz_fil.format(','.join(settings))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)
@@ -69,32 +67,48 @@ def run_loop(file,bench):
 
     # open file
     dat,ben = xr.open_dataset(file), xr.open_dataset(bench)
-    diff = (np.fabs(dat - ben))
-    for var,stat0 in settings.items():
-        # Select the case, redo if not max (slighly inefficient)
-        if stat0 == 'rmse':diff[var] = np.square(diff[var]) #2-norm
-        # wall clock don't do difference
-        # sometimes wall clock only gives -9999 the whole run, make these nan and plot as lowest value (somewhat rare)
-        if var == 'wallClockTime':
-            diff[var] = dat[var]
-            diff[var] = diff[var].where(diff[var]>0)
-
+    # sometimes gives -9999 the whole run (non-compute), make these nan and plot as lowest value 0 in geographic
+    dat = dat.where(dat!=-9999)
+    ben = ben.where(ben!=-9999)
+    # some weird negative values in runoff if not routed
+    dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
+    ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0)   
+    #dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].fillna(0)   
+    #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].fillna(0)
+    diff = dat - ben
+    
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
     diff = diff.drop_vars(['hruId','gruId'])
     m = diff.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     diff = diff.drop_dims('gru')
     diff = xr.merge([diff,m])
+    
+    dat = dat.drop_vars(['hruId','gruId'])
+    m = dat.drop_dims('hru')
+    m = m.rename({'gru': 'hru'})
+    dat = dat.drop_dims('gru')
+    dat = xr.merge([dat,m])    
+    
+    for var in settings:
+        mean = dat[var].mean(dim='time')
+        mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
+        
+        na_mx = np.fabs(dat[var]).max()+1
+        amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
+        amax = dat[var].isel(amx).drop_vars('time')
+        amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
+        
+        rmse = (np.square(diff[var]).mean(dim='time'))**(1/2) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
+        rmse = rmse.expand_dims("stat").assign_coords(stat=("stat",["rmse"]))
 
-    # compute the requested statistics
-    for var,stat0 in settings.items():
-        # Select the case
-        if stat0 == 'rmse':new = ((diff[var].mean(dim='time'))**(1/2)) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
-        if stat0 == 'max': new = diff[var].max(dim='time') #same regardless
-        # wall clock don't do difference
-        if var == 'wallClockTime' and stat0 == 'rmse': new = diff[var].mean(dim='time')
-
-        new.to_netcdf(des_dir / des_fil.format(stat,var,subset))
+        na_mx = np.fabs(diff[var]).max()+1
+        amx = np.fabs(diff[var].fillna(na_mx)).argmax(dim=['time'])
+        maxe = diff[var].isel(amx).drop_vars('time')
+        maxe = maxe.expand_dims("stat").assign_coords(stat=("stat",["maxe"]))
+            
+        new = xr.merge([mean,amax,rmse,maxe])
+        new.to_netcdf(des_dir / des_fil.format(var,subset))
 
     print("wrote output: %s" % (top_fold + 'statistics/' +subset))
 
