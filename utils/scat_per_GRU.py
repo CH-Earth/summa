@@ -22,7 +22,7 @@ import copy
 
 viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/statistics')
 
-testing = True
+testing = False
 if testing: 
     stat = 'rmse'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')

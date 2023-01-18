@@ -59,6 +59,7 @@ contains
  integer(i4b),intent(out)   :: err                    ! error code
  character(*),intent(out)   :: message                ! error message
  ! internal
+ real(rkind),parameter            :: valueMissing=-9999._rkind     ! missing value
  integer(i4b)               :: nTDH                   ! number of points in the time-delay histogram
  integer(i4b)               :: iFuture                ! index in time delay histogram
  ! initialize error control
@@ -91,6 +92,8 @@ contains
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return
 
  end select ! (select option for sub-grid routing)
+ !if (averageRoutedRunoff < 0._rkind) averageRoutedRunoff = valueMissing
+
 
  end subroutine qOverland
 
