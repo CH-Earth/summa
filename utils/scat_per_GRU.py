@@ -16,7 +16,6 @@ import matplotlib
 import numpy as np
 import xarray as xr
 from pathlib import Path
-import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import copy
 
@@ -88,7 +87,7 @@ def run_loop(i,var,mx,mx0):
     for m in method_name:
         s = summa[m][var].sel(stat=[stat,stat0])
         if stat == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
-        axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat0).values,zorder=0,label=m)
+        axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat0).values,s=5,zorder=0,label=m)
         if 'zoom' in fig_fil: 
             axs[r,c].set_xlim(0,mx)
             if mx0<0: axs[r,c].set_ylim(mx0,0)
@@ -111,5 +110,5 @@ for i,(var,mx,mx0) in enumerate(zip(plot_vars,maxes,maxes0)):
     run_loop(i,var,mx,mx0)
 
 # Save
-plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=True)
+plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
 

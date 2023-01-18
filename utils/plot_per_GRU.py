@@ -19,15 +19,15 @@
 # modules
 import sys
 import os
-import pyproj 
-import fiona
 import matplotlib
 import numpy as np
 import xarray as xr
-import geopandas as gpd
 from pathlib import Path
 import matplotlib.pyplot as plt
 import copy
+import pyproj 
+import fiona
+import geopandas as gpd
 
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
@@ -148,8 +148,6 @@ if plot_lakes:
 	#lak_albers = lakes.to_crs(acc)
 	lak_albers = gpd.read_file(main/'lakes.shp')
 
-
-
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
 summa = xr.open_dataset(viz_dir/viz_fil)
@@ -241,7 +239,6 @@ def run_loop(i,var,the_max,f_x,f_y):
     
     # lakes
     if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
-
 
 for i,(var,the_max,f_x,f_y) in enumerate(zip(plot_vars,maxes,f_x_mat,f_y_mat)): 
     run_loop(i,var,the_max,f_x,f_y)

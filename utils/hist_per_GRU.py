@@ -10,14 +10,12 @@
 # python hist_per_GRU.py [stat]
 # where stat is rmse or maxe
 
-
 # modules
 import os
 import matplotlib
 import numpy as np
 import xarray as xr
 from pathlib import Path
-import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import copy
 

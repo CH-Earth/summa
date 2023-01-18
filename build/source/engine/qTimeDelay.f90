@@ -92,6 +92,9 @@ contains
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return
 
  end select ! (select option for sub-grid routing)
+ ! For open water SUMMA doesn't run any calculations
+ !  the values for any output variables in the netCDF will stay at the value at which they were initialized, which may be a large negative
+ ! Coast may be similarly large and negative
  !if (averageRoutedRunoff < 0._rkind) averageRoutedRunoff = valueMissing
 
 
