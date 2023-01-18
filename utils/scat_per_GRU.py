@@ -25,12 +25,12 @@ testing = False
 if testing: 
     stat = 'rmse'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['sundials_1en6','be1'] #maybe make this an argument
+    method_name=['be1','sundials_1en6'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1] # max or rmse
-    method_name=['sundials_1en6','be32','be1'] #maybe make this an argument
+    method_name=['be32','be1','sundials_1en6',] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -87,7 +87,7 @@ def run_loop(i,var,mx,mx0):
     for m in method_name:
         s = summa[m][var].sel(stat=[stat,stat0])
         if stat == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
-        axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat0).values,s=5,zorder=0,label=m)
+        axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)
         if 'zoom' in fig_fil: 
             axs[r,c].set_xlim(0,mx)
             if mx0<0: axs[r,c].set_ylim(mx0,0)
@@ -100,11 +100,13 @@ def run_loop(i,var,mx,mx0):
         stat_word = ' Hourly max abs error '
         stat0_word =' Hourly max '
  
-    axs[r,c].legend()
+    lgnd = axs[r,c].legend()
+    for j, m in enumerate(method_name):
+       lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_titl[i])
     axs[r,c].set_xlabel(stat_word + '[{}]'.format(leg_titl[i]))
     axs[r,c].set_ylabel(stat0_word + '[{}]'.format(leg_titl[i]))
-    
+
 
 for i,(var,mx,mx0) in enumerate(zip(plot_vars,maxes,maxes0)): 
     run_loop(i,var,mx,mx0)

@@ -25,12 +25,12 @@ testing = False
 if testing: 
     stat = 'rmse'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['sundials_1en6','be1'] #maybe make this an argument
+    method_name=['be1','sundials_1en6'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1] # max or rmse
-    method_name=['sundials_1en6','be32','be1'] #maybe make this an argument
+    method_name=['be32','be1','sundials_1en6',] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
