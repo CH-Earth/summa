@@ -28,9 +28,9 @@ else:
     # The first input argument specifies the run where the files are
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en8 or be64)
 
-ncdir        = top_fold + 'summa-' + method_name
+ncdir        = top_fold + 'summa-' + method_name + '_nocat'
 file_pattern = 'run1_G*_timestep.nc'
-ctdir        = top_fold + 'summa-' + method_name + '_cat'
+ctdir        = top_fold + 'summa-' + method_name
 
 # get list of split summa output files (hardwired pattern)
 outfilelist0 = glob((ncdir+'/'+file_pattern))
