@@ -19,12 +19,10 @@ import numpy as np
 # Settings
 bench_name  = 'sundials_1en8'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
-des_dir =  top_fold + 'statistics'
 
 testing = False
 if testing:
     top_fold = '/Users/amedin/Research/USask/test_py/'
-    des_dir =  top_fold + 'statistics'
     method_name = 'sundials_1en6'
 else:
     import multiprocessing as mp
@@ -32,6 +30,7 @@ else:
     # The first input argument specifies the run where the files are
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
 
+des_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
