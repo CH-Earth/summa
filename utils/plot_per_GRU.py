@@ -195,8 +195,8 @@ else:
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
 # colorbar axes
-f_x_mat = [0.473,0.97,0.473,0.97,0.473,0.97]
-f_y_mat = [0.73,0.73,0.40,0.40,0.067,0.067]
+f_x_mat = [0.453,0.95,0.453,0.96,0.453,0.95]
+f_y_mat = [0.71,0.71,0.38,0.38,0.047,0.047]
 
 plt.tight_layout()
 
@@ -223,7 +223,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-    cbr.ax.set_title('[{}]'.format(leg_titl[i]))
+    cbr.ax.set_label('[{}]'.format(leg_titl[i]), labelpad=20, rotation=270)
     #cbr.ax.yaxis.set_offset_position('right') 
     
     if stat == 'rmse': stat_word = ' Hourly RMSE'
