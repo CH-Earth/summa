@@ -27,3 +27,5 @@ python plot_per_GRU.py be1 rmse
 python plot_per_GRU.py be1 maxe
 python plot_per_GRU.py be32 rmse
 python plot_per_GRU.py be32 maxe
+python plot_per_GRU.py be64 rmse
+python plot_per_GRU.py be64 maxe

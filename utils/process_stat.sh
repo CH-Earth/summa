@@ -22,3 +22,4 @@ pip install --no-index netCDF4
 python timeseries_to_statistics.py sundials_1en6
 python timeseries_to_statistics.py be1
 python timeseries_to_statistics.py be32
+python timeseries_to_statistics.py be64

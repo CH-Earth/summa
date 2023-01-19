@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 # Settings
-bench_name  = 'sundials_1en8_cat'
+bench_name  = 'sundials_1en8'
 top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
 des_dir =  top_fold + 'statistics'
 
