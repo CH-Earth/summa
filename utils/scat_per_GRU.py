@@ -44,8 +44,10 @@ plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat',
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 
-fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
-fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
+#fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
+#fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
+fig_fil = 'Hrly_diff_scat_{}_{}_zoom_compressed.png'
+fig_fil = fig_fil.format(','.join(settings),stat)
 # possibly want to use these to shrink the axes a bit
 if stat=='rmse': 
     maxes = [2,15,8e-6,0.08,7e-9,100]
