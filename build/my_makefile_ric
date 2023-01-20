@@ -199,6 +199,11 @@ SUMMA_UTILMS= \
 		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
+# interface modules
+SUMMA_INTERFACE= \
+		summa_bmi.f90
+INTERFACE = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_INTERFACE))
+
 # Model guts
 SUMMA_MODGUT= \
 		MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
@@ -300,7 +305,7 @@ NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
 COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
 
 # ... stitch together SUMMA programs
-SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
+SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER $(INTERFACE)
 
 # Define the driver routine
 SUMMA_DRIVER= \
@@ -318,8 +323,14 @@ SUMMA_DRIVER= \
 		summa_driver.f90
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
 
+# Define BMI testing infrastructure
+BMI_TEST = \
+		test_bmi.f90
+BMI = $(patsubst %, $(DRIVER_DIR)/%, $(BMI_TEST))
+
 # Define the executable
 DRIVER__EX = summa_sundials.exe
+BMI__EX = test_bmi.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
@@ -358,6 +369,8 @@ endif
 # Compile
 all: compile_noah compile_comm compile_summa link clean install
 part: compile_noah compile_comm compile_summa
+bmi: compile_noah compile_comm compile_bmi link_bmi clean install_test
+
 
 check:
 	$(info)
@@ -387,7 +400,6 @@ compile_noah:
 	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
 # compile common routines
-
 compile_comm:
 	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 
@@ -396,9 +408,17 @@ compile_summa: update_version
 	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
 	$(INCLUDES) $(INC_SUNDIALS)
 
+compile_bmi: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(BMI) \
+	$(INCLUDES) $(INC_SUNDIALS)
+
 # link routines
 link:
 	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(DRIVER__EX)
+
+# link routines
+link_bmi:
+	$(FC_EXE) -pg -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(BMI__EX)
 
 # Remove object files
 clean:
@@ -411,3 +431,9 @@ install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(DRIVER__EX) $(EXE_PATH)
 	$(info $(DRIVER__EX) successfully installed in $(EXE_PATH))
+
+# Copy the executable to the bin directory
+install_test:
+	@mkdir -p $(EXE_PATH)
+	@mv $(BMI__EX) $(EXE_PATH)
+	$(info $(BMI__EX) successfully installed in $(EXE_PATH))
