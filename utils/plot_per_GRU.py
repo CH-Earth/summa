@@ -223,7 +223,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-    cbr.ax.set_label('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+    cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
     #cbr.ax.yaxis.set_offset_position('right') 
     
     if stat == 'rmse': stat_word = ' Hourly RMSE'
