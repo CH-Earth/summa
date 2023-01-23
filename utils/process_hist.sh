@@ -21,3 +21,4 @@ pip install --no-index netCDF4
 
 python hist_per_GRU.py rmse
 python hist_per_GRU.py maxe
+python hist_per_GRU.py kgem

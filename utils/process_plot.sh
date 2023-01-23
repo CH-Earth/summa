@@ -23,9 +23,4 @@ pip install --no-index netCDF4
 
 python plot_per_GRU.py sundials_1en6 rmse
 python plot_per_GRU.py sundials_1en6 maxe
-python plot_per_GRU.py be1 rmse
-python plot_per_GRU.py be1 maxe
-python plot_per_GRU.py be32 rmse
-python plot_per_GRU.py be32 maxe
-python plot_per_GRU.py be64 rmse
-python plot_per_GRU.py be64 maxe
+python plot_per_GRU.py sundials_1en6 kgem

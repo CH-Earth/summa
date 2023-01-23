@@ -21,3 +21,4 @@ pip install --no-index netCDF4
 
 python scat_per_GRU.py rmse
 python scat_per_GRU.py maxe
+python scat_per_GRU.py kgem

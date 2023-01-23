@@ -13,7 +13,7 @@
 
 # Run:
 # python plot_per_GRU.py sundials_1en6 [stat]
-# where stat is rmse or maxe
+# where stat is rmse or maxe or kgem
 
 
 # modules
@@ -25,13 +25,13 @@ import xarray as xr
 from pathlib import Path
 import matplotlib.pyplot as plt
 import copy
-import pyproj 
+import pyproj
 import fiona
 import geopandas as gpd
 
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
-stat = sys.argv[2] # maxe or rmse
+stat = sys.argv[2]
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -45,6 +45,7 @@ plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Tota
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
 if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.7]
+if stat=='kgem' : maxes = [0.8,0.8,0.8,0.8,0.8,13e-3]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
@@ -157,7 +158,7 @@ hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for plot_var in plot_vars:
     stat0 = stat
     if plot_var == 'wallClockTime':
-        if stat == 'rmse': stat0 = 'mean'
+        if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
         if stat == 'maxe': stat0 = 'amax'
     s = summa[plot_var].sel(stat=stat0)
     if stat == 'maxe': s = np.fabs(s) # make absolute value norm, max is not not all positive
@@ -203,7 +204,7 @@ plt.tight_layout()
 my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
 #my_cmap.set_bad(my_cmap.colors[0]) #any nans, maybe should be white?
 my_cmap.set_bad(color='white') #nan color white
-    
+
 def run_loop(i,var,the_max,f_x,f_y):
     #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
     #a = bas_albers[var].where(bas_albers[var]>0)
@@ -211,36 +212,39 @@ def run_loop(i,var,the_max,f_x,f_y):
     #vmin,vmax = bas_albers[var].min(), bas_albers[var].max()
     vmin,vmax = 0, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
-    #norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    if stat=='kgem' and var!='wallClockTime': 
+        vmin,vmax = the_max, 1.0
+        norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     r = i//2
     c = i-r*2
-    
+
     # Data
     bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
-    
+
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.25])
     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
     cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
-    #cbr.ax.yaxis.set_offset_position('right') 
-    
+    #cbr.ax.yaxis.set_offset_position('right')
+
     if stat == 'rmse': stat_word = ' Hourly RMSE'
     if stat == 'maxe': stat_word = ' Hourly max abs error'
-        
+    if stat == 'kgem': stat_word = ' Hourly KGEm'
+
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
-        if stat == 'rmse': stat_word = ' Hourly mean'
+        if stat == 'rmse' or stat == 'kgem': stat_word = ' Hourly mean'
         if stat == 'maxe': stat_word = ' Hourly max'
 
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].axis('off')
-    
+
     # lakes
     if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
 
-for i,(var,the_max,f_x,f_y) in enumerate(zip(plot_vars,maxes,f_x_mat,f_y_mat)): 
+for i,(var,the_max,f_x,f_y) in enumerate(zip(plot_vars,maxes,f_x_mat,f_y_mat)):
     run_loop(i,var,the_max,f_x,f_y)
 
 # Save

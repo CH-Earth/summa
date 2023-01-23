@@ -8,7 +8,7 @@
 # SUMMA simulations have been preprocessed into single value statistics per model element, using auxiliary scripts in ~/utils
 # Run:
 # python hist_per_GRU.py [stat]
-# where stat is rmse or maxe
+# where stat is rmse or maxe or kgem
 
 # modules
 import os
@@ -23,13 +23,13 @@ viz_dir = Path('/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_
 
 testing = False
 if testing: 
-    stat = 'rmse'
+    stat = 'kgem'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1','sundials_1en6'] #maybe make this an argument
+    method_name=['be64','be1','sundials_1en6'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
-    stat = sys.argv[1] # max or rmse
+    stat = sys.argv[1]
     method_name=['be64','be32','be1','sundials_1en6'] #maybe make this an argument
 
 # Simulation statistics file locations
@@ -51,6 +51,7 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 # possibly want to use these to shrink the axes a bit
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
 if stat=='maxe' : maxes = [20,30,3e-4,2,4e-7,0.7]
+if stat=='kgem' : maxes = [0.8,0.8,0.8,0.8,0.8,13e-3]
 
 # Get the aggregated statistics of SUMMA simulations
 summa = {}
@@ -81,30 +82,36 @@ def run_loop(i,var,mx):
     num_bins = 200
     stat0 = stat
     if var == 'wallClockTime':
-        if stat == 'rmse': stat0 = 'mean'
+        if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
         if stat == 'maxe': stat0 = 'amax'
         
     if 'zoom' in fig_fil:
         mx = mx
+        mn = mx
     else:
         mx = 0.0
+        mn = 1.0
         for m in method_name:
             s = summa[m][var].sel(stat=stat0)
             if stat == 'maxe': s = np.fabs(s) # make absolute value norm
             mx = max(s.max(),mx)
+            if stat=='kgem' : mn = min(s.min(),mn)
 
     # Data
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
-        s.plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=(0,mx))
+        range = (0,mx)
+        if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
+        s.plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
     
     if stat == 'rmse': stat_word = ' Hourly RMSE'
     if stat == 'maxe': stat_word = ' Hourly max abs error'
+    if stat == 'kgem': stat_word = ' Hourly KGEm'
         
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
-        if stat == 'rmse': stat_word = ' Hourly mean'
+        if stat == 'rmse' or stat == 'kgem': stat_word = ' Hourly mean'
         if stat == 'maxe': stat_word = ' Hourly max'
 
     axs[r,c].legend()

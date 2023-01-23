@@ -7,8 +7,14 @@
 # written originally by W. Knoben, modified by A. Van Beusekom (2023)
 #   Best to comment out parallel processing lines and run that way on Graham or for full dataset
 
+# Uses modified KGEm calculation avoids the amplified values when mean is small 
+#  and avoids the KGE value dependence  on the units of measurement (as discussed by Santos et al. 2018; Clark et al. 2021).
+# The KGEm values range from -∞ to 1, with 1 being a perfect match with the benchmark results. 
+# Similar to Beck et al.(2020), we scaled KGEm values to avoid the heavy influence of large negative values. 
+# This results in KGE values that range between -1 and 1, with lower KGE values indicating larger differences from bench.
+
 # Run:
-# python timeseries_to_statistics.py sundials_1en6 rmse
+# python timeseries_to_statistics.py sundials_1en6
 
 import os
 import glob
@@ -23,7 +29,7 @@ top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_N
 testing = False
 if testing:
     top_fold = '/Users/amedin/Research/USask/test_py/'
-    method_name = 'sundials_1en6'
+    method_name = 'be1'
 else:
     import multiprocessing as mp
     import sys
@@ -54,6 +60,13 @@ src_files.sort()
 ben_files = glob.glob(str( ben_dir / src_pat ))
 ben_files.sort()
 
+# definitions for KGE computation
+def covariance(x,y,dims=None):
+    return xr.dot(x-x.mean(dims), y-y.mean(dims), dims=dims) / x.count(dims)
+
+def correlation(x,y,dims=None):
+    return (covariance(x,y,dims)) / (x.std(dims) * y.std(dims))
+
 assert len(ben_files) == len(src_files), \
     'Found {} files but need {}!'.format(len(src_files), len(ben_files))
 
@@ -74,21 +87,23 @@ def run_loop(file,bench):
     ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0)   
     #dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].fillna(0)   
     #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].fillna(0)
-    diff = dat - ben
     
     # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
-    diff = diff.drop_vars(['hruId','gruId'])
-    m = diff.drop_dims('hru')
-    m = m.rename({'gru': 'hru'})
-    diff = diff.drop_dims('gru')
-    diff = xr.merge([diff,m])
-    
     dat = dat.drop_vars(['hruId','gruId'])
     m = dat.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     dat = dat.drop_dims('gru')
-    dat = xr.merge([dat,m])    
+    dat = xr.merge([dat,m])  
     
+    ben = ben.drop_vars(['hruId','gruId'])
+    m = ben.drop_dims('hru')
+    m = m.rename({'gru': 'hru'})
+    ben = ben.drop_dims('gru')
+    ben = xr.merge([ben,m])  
+    
+    diff = dat - ben
+    the_hru = np.array(ben['hru'])
+
     for var in settings:
         mean = dat[var].mean(dim='time')
         mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
@@ -105,8 +120,21 @@ def run_loop(file,bench):
         amx = np.fabs(diff[var].fillna(na_mx)).argmax(dim=['time'])
         maxe = diff[var].isel(amx).drop_vars('time')
         maxe = maxe.expand_dims("stat").assign_coords(stat=("stat",["maxe"]))
+
+        r = correlation(dat[var],ben[var],dims='time')
+        kgem = 1 - np.sqrt( np.square(r-1)
+               + np.square( dat[var].std(dim='time')/ben[var].std(dim='time') - 1)
+               + np.square( (dat[var].mean(dim='time')-ben[var].mean(dim='time'))/ben[var].std(dim='time') ) )
+        
+        #if constant and identical, want this as 1.0 -- correlation with a constant = 0 and std dev = 0\n",
+        for h in the_hru:
+            ss = dat[var].sel(hru=h)
+            tt = ben[var].sel(hru=h)
+            kgem.loc[h] =kgem.sel(hru=h).where(np.allclose(ss,tt, atol = 1e-10)==False, other=1.0)
+        kgem = kgem/(2.0-kgem)
+        kgem = kgem.expand_dims("stat").assign_coords(stat=("stat",["kgem"]))
             
-        new = xr.merge([mean,amax,rmse,maxe])
+        new = xr.merge([mean,amax,rmse,maxe,kgem])
         new.to_netcdf(des_dir / des_fil.format(var,subset))
 
     print("wrote output: %s" % (top_fold + 'statistics/' +subset))
