@@ -51,7 +51,7 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 # possibly want to use these to shrink the axes a bit
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
 if stat=='maxe' : maxes = [20,30,3e-4,2,4e-7,0.7]
-if stat=='kgem' : maxes = [0.8,0.8,0.8,0.8,0.8,13e-3]
+if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,13e-3]
 
 # Get the aggregated statistics of SUMMA simulations
 summa = {}

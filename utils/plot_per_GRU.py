@@ -45,7 +45,7 @@ plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Tota
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
 if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.7]
-if stat=='kgem' : maxes = [0.8,0.8,0.8,0.8,0.8,13e-3]
+if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,13e-3]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
@@ -201,18 +201,15 @@ f_y_mat = [0.71,0.71,0.38,0.38,0.047,0.047]
 
 plt.tight_layout()
 
-my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
-#my_cmap.set_bad(my_cmap.colors[0]) #any nans, maybe should be white?
-my_cmap.set_bad(color='white') #nan color white
-
 def run_loop(i,var,the_max,f_x,f_y):
-    #vmin = (bas_albers[var].where(bas_albers[var]>0)).min()
-    #a = bas_albers[var].where(bas_albers[var]>0)
-    #bas_albers[var] = a.fillna(vmin)
-    #vmin,vmax = bas_albers[var].min(), bas_albers[var].max()
+    my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
+    my_cmap.set_bad(color='white') #nan color white    
     vmin,vmax = 0, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     if stat=='kgem' and var!='wallClockTime': 
+        my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
+        my_cmap.set_bad(color='white') #nan color white    
+
         vmin,vmax = the_max, 1.0
         norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     r = i//2
