@@ -610,7 +610,7 @@ subroutine updateVarsSundials(&
         ! ------------------------
 
         ! check the need to adjust temperature (will always be false if inside solver)
-        !  can be true if inside varSubstepSundials, outside solver, but currently will not work so turn off
+        !  can be true if inside varSubstepSundials, outside solver, but currently will not work so turn off always and not sure should ever do this
         if(do_adjustTemp .and. computJac)then
 
           ! get the melt energy
