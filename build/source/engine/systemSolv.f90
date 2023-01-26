@@ -384,14 +384,14 @@ contains
  ! initialize the trial state vectors
  stateVecTrial = stateVecInit
 
+ ! Changing in read_icond, not here
  ! need to intialize canopy water at a positive value
- if(ixVegHyd/=integerMissing)then
-  if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
- endif
-
+ !if(ixVegHyd/=integerMissing)then
+ !  if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
+ !endif
  ! try to accelerate solution for energy
- if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
- if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
+ !if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
+ !if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
 
  if(ixHowHeatCap == enthalpyFD)then
    ! compute H_T at the beginning of the data step without phase change
