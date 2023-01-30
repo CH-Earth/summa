@@ -1018,7 +1018,7 @@ subroutine coupled_em(&
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
       ) ! (association of local variables with information in the data structures
-     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat2'
+     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat5'
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
