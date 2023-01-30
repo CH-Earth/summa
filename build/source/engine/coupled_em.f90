@@ -503,6 +503,7 @@ subroutine coupled_em(&
     ! -----------------------------------------------
     ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation (and throughfall/unloading)
     ! NOTE 2: the unloading flux is computed using canopy drip (scalarCanopyLiqDrainage) from the previous time step
+    ! this changes canopy ice
     call canopySnow(&
                     ! input: model control
                     data_step,                   & ! intent(in): time step (seconds)
@@ -999,7 +1000,6 @@ subroutine coupled_em(&
       scalarCanopyLiq            => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                               ,&  ! canopy liquid water (kg m-2)
       scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,&  ! canopy ice content (kg m-2)
       scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                               ,&  ! canopy ice content (kg m-2)
-
       ! state variables in the soil domain
       mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)                     ,&  ! depth of each soil layer (m)
       mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)                ,&  ! volumetric ice content in each soil layer (-)
@@ -1020,7 +1020,7 @@ subroutine coupled_em(&
 
       ! if computing the vegetation flux
       if(computeVegFlux)then
-
+        scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce !update
         ! canopy water balance
         balanceCanopyWater1 = scalarCanopyWat
 
