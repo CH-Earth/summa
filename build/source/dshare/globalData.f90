@@ -347,5 +347,5 @@ MODULE globalData
 
 
  ! printing step frequency
- integer(i4b),parameter,public               :: print_step_freq = 1000
+ integer(i4b),parameter,public               :: print_step_freq = 1
 END MODULE globalData
