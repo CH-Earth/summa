@@ -1050,7 +1050,6 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
             scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
             scalarCanopyLiqTrial = 0._rkind
 
-
           ! encountered an inconsistency: spit the dummy
           else
             print*, 'dt = ', dt

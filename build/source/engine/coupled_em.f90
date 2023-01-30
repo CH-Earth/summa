@@ -744,8 +744,6 @@ subroutine coupled_em(&
 
       ! check for all errors (error recovery within opSplittin)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat1'
-
 
       ! process the flag for too much melt
       if(tooMuchMelt)then
@@ -770,7 +768,6 @@ subroutine coupled_em(&
         ! try again
         cycle substeps
       endif
-     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat2'
 
       ! update first step
       firstSubStep=.false.
@@ -786,6 +783,7 @@ subroutine coupled_em(&
         scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
         scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
         scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
+        scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                               ,&  ! canopy ice content (kg m-2)
         mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
         mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
         mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
@@ -815,6 +813,9 @@ subroutine coupled_em(&
             scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
             scalarCanopyLiq         = 0._rkind
           endif
+
+          ! update water
+          scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
 
         end if  ! (if computing the vegetation flux)
 
@@ -912,7 +913,6 @@ subroutine coupled_em(&
 
       ! adjust length of the sub-step (make sure that we don't exceed the step)
       dt_sub = min(data_step - dt_solv, dt_sub)
-     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat3'
 
     end do  substeps ! (sub-step loop)
 
@@ -940,7 +940,6 @@ subroutine coupled_em(&
                   ! output: error control
                   err,cmessage)                                                ! error control
     if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
-     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat4'
 
     ! re-compute snow depth, SWE, and top layer water
     if(nSnow > 0)then
@@ -1005,8 +1004,6 @@ subroutine coupled_em(&
       averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation)  )%dat(1)     ,&  ! soil evaporation (kg m-2 s-1)
       averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1)     ,&  ! canopy transpiration (kg m-2 s-1)
       ! state variables in the vegetation canopy
-      scalarCanopyLiq            => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                               ,&  ! canopy liquid water (kg m-2)
-      scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,&  ! canopy ice content (kg m-2)
       scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                               ,&  ! canopy ice content (kg m-2)
       ! state variables in the soil domain
       mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)                     ,&  ! depth of each soil layer (m)
@@ -1018,7 +1015,7 @@ subroutine coupled_em(&
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
       ) ! (association of local variables with information in the data structures
-     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat5'
+
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
@@ -1028,8 +1025,7 @@ subroutine coupled_em(&
 
       ! if computing the vegetation flux
       if(computeVegFlux)then
-        scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce !update
-        ! canopy water balance
+        ! get the canopy water balance at the end of the time step
         balanceCanopyWater1 = scalarCanopyWat
 
         ! balance checks for the canopy
@@ -1039,7 +1035,6 @@ subroutine coupled_em(&
           print*, 'coupled_em canopy, tolerance', absConvTol_liquid*iden_water*10._rkind
           write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
           write(*,'(a,1x,e20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
-          write(*,'(a,1x,e20.10)') 'balanceCanopyWater old way                   = ', scalarCanopyLiq + scalarCanopyIce
           write(*,'(a,1x,e20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
           write(*,'(a,1x,e20.10)') 'scalarSnowfall                               = ', scalarSnowfall
           write(*,'(a,1x,e20.10)') 'scalarRainfall                               = ', scalarRainfall
@@ -1061,14 +1056,6 @@ subroutine coupled_em(&
       ! -----
       ! * balance checks for SWE...
       ! ---------------------------
-
-      ! recompute snow depth (m) and SWE (kg m-2)
-      if(nSnow > 0)then
-        prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
-        prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                                prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                              * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
-      end if
 
       ! check the individual layers
       if(printBalance .and. nSnow>0)then
