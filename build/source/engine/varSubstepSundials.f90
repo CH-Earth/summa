@@ -644,6 +644,10 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)    : [dp(:)]  change in storage associated with compression of the soil matrix (-)
     scalarCanopySublimation   => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)    ,& ! intent(in)    : [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
     scalarSnowSublimation     => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)      ,& ! intent(in)    : [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
+    scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1)             ,& ! intent(in)    : [dp]     computed snowfall rate (kg m-2 s-1)
+    scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1)      ,& ! intent(in)    : [dp]     snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
+    scalarCanopySnowUnloading => flux_data%var(iLookFLUX%scalarCanopySnowUnloading)%dat(1)  ,& ! intent(in)    : [dp]     unloading of snow from the vegetion canopy (kg m-2 s-1)
+
     ! energy fluxes
     scalarLatHeatCanopyEvap   => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)    ,& ! intent(in)    : [dp]     latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
     scalarSenHeatCanopy       => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)        ,& ! intent(in)    : [dp]     sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -901,18 +905,23 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
         endif  ! cases where fluxes empty the canopy
 
         ! check the mass balance
-        fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+        fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage &
+                   + scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading - scalarCanopyLiqDrainage + scalarCanopySublimation
         liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
-          write(*,'(a,1x,f20.10)') 'dt = ', dt
-          write(*,'(a,1x,e20.10)') 'scalarCanopyWatTrial       = ', scalarCanopyWatTrial
-          write(*,'(a,1x,e20.10)') 'canopyBalance0             = ', canopyBalance0
-          write(*,'(a,1x,e20.10)') 'canopyBalance1             = ', canopyBalance1
-          write(*,'(a,1x,e20.10)') 'scalarRainfall*dt          = ', scalarRainfall*dt
-          write(*,'(a,1x,e20.10)') 'scalarCanopyLiqDrainage*dt = ', scalarCanopyLiqDrainage*dt
-          write(*,'(a,1x,e20.10)') 'scalarCanopyEvaporation*dt = ', scalarCanopyEvaporation*dt
-          write(*,'(a,1x,e20.10)') 'scalarThroughfallRain*dt   = ', scalarThroughfallRain*dt
-          write(*,'(a,1x,e20.10)') 'liqError                   = ', liqError
-        if(abs(liqError) > absConvTol_liquid*10._rkind*iden_water)then  ! *10 because of precision issues
+        write(*,'(a,1x,f20.10)') 'dt = ', dt
+        write(*,'(a,1x,e20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
+        write(*,'(a,1x,e20.10)') 'canopyBalance0               = ', canopyBalance0
+        write(*,'(a,1x,e20.10)') 'canopyBalance1               = ', canopyBalance1
+        write(*,'(a,1x,e20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
+        write(*,'(a,1x,e20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
+        write(*,'(a,1x,e20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
+        write(*,'(a,1x,e20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
+        write(*,'(a,1x,e20.10)') 'scalarSnowfall*dt            = ', scalarSnowfall*dt
+        write(*,'(a,1x,e20.10)') 'scalarCanopySublimatione*dt  = ', scalarCanopySublimation*dt
+        write(*,'(a,1x,e20.10)') 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
+        write(*,'(a,1x,e20.10)') 'scalarThroughfallSnow*dt     = ', scalarThroughfallSnow*dt
+        write(*,'(a,1x,e20.10)') 'liqError                     = ', liqError        if(abs(liqError) > absConvTol_liquid*10._rkind*iden_water)then  ! *10 because of precision issues
+        if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
           waterBalanceError = .true.
           return
         endif  ! if there is a water balance error
