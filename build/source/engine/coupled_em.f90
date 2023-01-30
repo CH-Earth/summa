@@ -1026,20 +1026,21 @@ subroutine coupled_em(&
         ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
         scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
+          print*, 'coupled_em canopy, tolerance', absConvTol_liquid*iden_water*10._rkind
+          write(*,'(a,1x,e20.10)') 'data_step                                    = ', data_step
+          write(*,'(a,1x,e20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
+          write(*,'(a,1x,e20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
+          write(*,'(a,1x,e20.10)') 'scalarSnowfall                               = ', scalarSnowfall
+          write(*,'(a,1x,e20.10)') 'scalarRainfall                               = ', scalarRainfall
+          write(*,'(a,1x,e20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)!*data_step
+          write(*,'(a,1x,e20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)!*data_step
+          write(*,'(a,1x,e20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading!*data_step
+          write(*,'(a,1x,e20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage!*data_step
+          write(*,'(a,1x,e20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation!*data_step
+          write(*,'(a,1x,e20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation!*data_step
+          write(*,'(a,1x,e20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
         if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
           print*, '** canopy water balance error:'
-          write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
-          write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
-          write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
-          write(*,'(a,1x,f20.10)') 'scalarSnowfall                               = ', scalarSnowfall
-          write(*,'(a,1x,f20.10)') 'scalarRainfall                               = ', scalarRainfall
-          write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)!*data_step
-          write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation!*data_step
-          write(*,'(a,1x,f20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
           message=trim(message)//'canopy hydrology does not balance'
           err=20; return
         end if
@@ -1079,7 +1080,7 @@ subroutine coupled_em(&
         newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
         delSWE      = newSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
-        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
+        print*, 'coupled_em snow, tolerance', absConvTol_liquid*iden_water*10._rkind
         print*,                  'nSnow       = ', nSnow
         print*,                  'nSub        = ', nSub
         write(*,'(a,1x,f20.10)') 'data_step   = ', data_step
@@ -1092,6 +1093,7 @@ subroutine coupled_em(&
         write(*,'(a,1x,f20.10)') 'snwDrainage = ', averageSnowDrainage*iden_water*data_step
         write(*,'(a,1x,f20.10)') 'sfcMeltPond = ', sfcMeltPond
         write(*,'(a,1x,f20.10)') 'massBalance = ', massBalance
+      if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
         message=trim(message)//'SWE does not balance'
         err=20; return
         endif  ! if failed mass balance check
@@ -1134,6 +1136,7 @@ subroutine coupled_em(&
       ! check the soil water balance
       scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
       if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+        print*, 'coupled_em soil, tolerance', absConvTol_liquid*iden_water*10._rkind
         write(*,*)               'solution method           = ', ixSolution
         write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
         write(*,'(a,1x,f20.10)') 'totalSoilCompress         = ', totalSoilCompress
@@ -1149,6 +1152,7 @@ subroutine coupled_em(&
         write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError/iden_water
         write(*,'(a,1x,f20.10)') 'absConvTol_liquid         = ', absConvTol_liquid
         ! error control
+      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
         message=trim(message)//'soil hydrology does not balance'
         err=20; return
       end if
