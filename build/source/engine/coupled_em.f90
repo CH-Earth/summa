@@ -1146,7 +1146,6 @@ subroutine coupled_em(&
         write(*,'(a,1x,e20.10)') 'balanceSoilDrainage       = ', balanceSoilDrainage
         write(*,'(a,1x,e20.10)') 'balanceSoilET             = ', balanceSoilET
         write(*,'(a,1x,e20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
-        write(*,'(a,1x,e20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError/iden_water
         write(*,'(a,1x,e20.10)') 'absConvTol_liquid         = ', absConvTol_liquid
         ! error control
       if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
