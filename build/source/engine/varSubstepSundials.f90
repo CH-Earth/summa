@@ -920,7 +920,7 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
         write(*,'(a,1x,e20.10)') 'scalarCanopySublimatione*dt  = ', scalarCanopySublimation*dt
         write(*,'(a,1x,e20.10)') 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
         write(*,'(a,1x,e20.10)') 'scalarThroughfallSnow*dt     = ', scalarThroughfallSnow*dt
-        write(*,'(a,1x,e20.10)') 'liqError                     = ', liqError        if(abs(liqError) > absConvTol_liquid*10._rkind*iden_water)then  ! *10 because of precision issues
+        write(*,'(a,1x,e20.10)') 'liqError                     = ', liqError
         if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
           waterBalanceError = .true.
           return
