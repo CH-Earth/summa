@@ -869,12 +869,14 @@ subroutine coupled_em(&
                       err,cmessage)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-      ! recompute snow depth and SWE
+      ! recompute snow depth, SWE, and layer water
       if(nSnow > 0)then
         prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
         prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                                 prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                               * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1:nSnow) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow) &
+                                                                + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice/iden_water
       end if
 
       ! increment fluxes
@@ -940,12 +942,14 @@ subroutine coupled_em(&
     if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
      print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat4'
 
-    ! re-compute snow depth and SWE
+    ! re-compute snow depth, SWE, and top layer water
     if(nSnow > 0)then
       prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
       prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
                                                               prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
                                                             * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+      prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1) &
+                                                        + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1)*iden_ice/iden_water
     end if
 
     ! re-assign dimension lengths
