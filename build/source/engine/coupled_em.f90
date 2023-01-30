@@ -998,6 +998,8 @@ subroutine coupled_em(&
       ! state variables in the vegetation canopy
       scalarCanopyLiq            => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)                               ,&  ! canopy liquid water (kg m-2)
       scalarCanopyIce            => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)                               ,&  ! canopy ice content (kg m-2)
+      scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                               ,&  ! canopy ice content (kg m-2)
+
       ! state variables in the soil domain
       mLayerDepth                => prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers)                     ,&  ! depth of each soil layer (m)
       mLayerVolFracIce           => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(nSnow+1:nLayers)                ,&  ! volumetric ice content in each soil layer (-)
@@ -1020,7 +1022,7 @@ subroutine coupled_em(&
       if(computeVegFlux)then
 
         ! canopy water balance
-        balanceCanopyWater1 = scalarCanopyLiq + scalarCanopyIce
+        balanceCanopyWater1 = scalarCanopyWat
 
         ! balance checks for the canopy
         ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
@@ -1029,6 +1031,7 @@ subroutine coupled_em(&
           print*, 'coupled_em canopy, tolerance', absConvTol_liquid*iden_water*10._rkind
           write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
           write(*,'(a,1x,e20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
+          write(*,'(a,1x,e20.10)') 'balanceCanopyWater old way                   = ', scalarCanopyLiq + scalarCanopyIce
           write(*,'(a,1x,e20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
           write(*,'(a,1x,e20.10)') 'scalarSnowfall                               = ', scalarSnowfall
           write(*,'(a,1x,e20.10)') 'scalarRainfall                               = ', scalarRainfall
