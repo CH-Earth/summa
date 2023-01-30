@@ -744,6 +744,7 @@ subroutine coupled_em(&
 
       ! check for all errors (error recovery within opSplittin)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat1'
 
 
       ! process the flag for too much melt
@@ -769,6 +770,7 @@ subroutine coupled_em(&
         ! try again
         cycle substeps
       endif
+     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat2'
 
       ! update first step
       firstSubStep=.false.
@@ -908,6 +910,7 @@ subroutine coupled_em(&
 
       ! adjust length of the sub-step (make sure that we don't exceed the step)
       dt_sub = min(data_step - dt_solv, dt_sub)
+     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat3'
 
     end do  substeps ! (sub-step loop)
 
@@ -935,6 +938,7 @@ subroutine coupled_em(&
                   ! output: error control
                   err,cmessage)                                                ! error control
     if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
+     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat4'
 
     ! re-compute snow depth and SWE
     if(nSnow > 0)then
@@ -1010,7 +1014,7 @@ subroutine coupled_em(&
       scalarTotalSoilIce         => diag_data%var(iLookDIAG%scalarTotalSoilIce)%dat(1)                            ,&  ! total ice in the soil column (kg m-2)
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
       ) ! (association of local variables with information in the data structures
-
+     print*, prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)+prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1) ,'wat2'
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
