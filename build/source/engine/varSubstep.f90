@@ -661,8 +661,8 @@ contains
  waterBalanceError=.false.
 
  ! get storage at the start of the step
- canopyBalance0 = merge(scalarCanopyWat, realMissing, computeVegFlux)
- soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers)  + mLayerVolFracIce(nSnow+1:nLayers)  )*mLayerDepth(nSnow+1:nLayers) )
+ canopyBalance0 = merge(scalarCanopyLiq + scalarCanopyIce, realMissing, computeVegFlux)
+ soilBalance0   = sum( (mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)  )*mLayerDepth(nSnow+1:nLayers) )
 
  ! -----
  ! * update states...
@@ -753,11 +753,13 @@ contains
   if(ixVegHyd/=integerMissing)then
 
    ! handle cases where fluxes empty the canopy
-   fluxNet = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+   fluxNet = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage &
+            + scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading + scalarCanopySublimation
    if(-fluxNet*dt > canopyBalance0)then
 
     ! --> first add water
-    canopyBalance1 = canopyBalance0 + (scalarRainfall - scalarThroughfallRain)*dt
+    canopyBalance1 = canopyBalance0 + (scalarRainfall - scalarThroughfallRain)*dt &
+                     + (scalarSnowfall - scalarThroughfallSnow)*dt
 
     ! --> next, remove canopy evaporation -- put the unsatisfied evap into sensible heat
     canopyBalance1 = canopyBalance1 + scalarCanopyEvaporation*dt
@@ -772,10 +774,10 @@ contains
      scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
     endif
 
-    ! --> next, remove canopy drainage
-    canopyBalance1 = canopyBalance1 - scalarCanopyLiqDrainage*dt
+    ! --> next, remove canopy drainage, snow unloading, sublimination
+    canopyBalance1 = canopyBalance1 + (-scalarCanopyLiqDrainage- scalarCanopySnowUnloading + scalarCanopySublimation)*dt
     if(canopyBalance1 < 0._rkind)then
-     superflousWat            = -canopyBalance1/dt     ! kg m-2 s-1
+     superflousWat           = -canopyBalance1/dt     ! kg m-2 s-1
      canopyBalance1          = 0._rkind
      scalarCanopyLiqDrainage = scalarCanopyLiqDrainage + superflousWat
     endif
@@ -793,7 +795,7 @@ contains
 
    ! check the mass balance
    fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage &
-              + scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading - scalarCanopyLiqDrainage + scalarCanopySublimation
+              + scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading + scalarCanopySublimation
    liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
    write(*,'(a,1x,f20.10)') 'dt = ', dt
    write(*,'(a,1x,e20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
@@ -804,7 +806,7 @@ contains
    write(*,'(a,1x,e20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
    write(*,'(a,1x,e20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
    write(*,'(a,1x,e20.10)') 'scalarSnowfall*dt            = ', scalarSnowfall*dt
-   write(*,'(a,1x,e20.10)') 'scalarCanopySublimatione*dt  = ', scalarCanopySublimation*dt
+   write(*,'(a,1x,e20.10)') 'scalarCanopySublimation*dt   = ', scalarCanopySublimation*dt
    write(*,'(a,1x,e20.10)') 'scalarCanopySnowUnloading*dt = ', scalarCanopySnowUnloading*dt
    write(*,'(a,1x,e20.10)') 'scalarThroughfallSnow*dt     = ', scalarThroughfallSnow*dt
    write(*,'(a,1x,e20.10)') 'liqError                     = ', liqError
