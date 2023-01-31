@@ -978,8 +978,8 @@ subroutine soilCmpres(&
       ! compute the derivative for the compressibility term (m-1)
       dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
       ! compute the compressibility term (-)
-      compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)
-      print*,mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer),mLayerMatricHeadTrial(iLayer), mLayerMatricHead(iLayer),'oh'
+      compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer) !at the current time step only
+      if (iLayer==1) print*,mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer),mLayerMatricHeadTrial(iLayer), mLayerMatricHead(iLayer),'oh'
       endif
     end do
   else
@@ -1032,6 +1032,7 @@ subroutine soilCmpresSundials(&
           dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
           ! compute the compressibility term (-)
           compress(iLayer)       =   mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
+      if (iLayer==1) print*,mLayerVolFracLiqTrial(iLayer), mLayerVolFracIceTrial(iLayer),mLayerMatricHeadPrime(iLayer),'oh'
       endif
     end do
   else
