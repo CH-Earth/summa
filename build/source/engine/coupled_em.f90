@@ -218,7 +218,7 @@ subroutine coupled_em(&
   real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
   ! balance checks
   integer(i4b)                         :: iVar                   ! loop through model variables
-  real(rkind)                          :: totalSoilCompress      ! total soil compression (kg m-2)
+  real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
   real(rkind)                          :: scalarCanopyWatBalError! water balance error for the vegetation canopy (kg m-2)
   real(rkind)                          :: scalarSoilWatBalError  ! water balance error (kg m-2)
   real(rkind)                          :: scalarInitCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
@@ -308,9 +308,8 @@ subroutine coupled_em(&
     call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! initialize compression and surface melt pond
+    ! initialize surface melt pond
     sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
-    totalSoilCompress = 0._rkind  ! change in soil storage associated with compression of the matrix (kg m-2)
 
     ! initialize mean fluxes
     do iVar=1,size(averageFlux_meta)
@@ -889,9 +888,6 @@ subroutine coupled_em(&
       ! increment change in storage associated with the surface melt pond (kg m-2)
       if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
-      ! increment soil compression (kg m-2)
-      totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression over whole layer (kg m-2)
-
       ! ****************************************************************************************************
       ! *** END MAIN SOLVER ********************************************************************************
       ! ****************************************************************************************************
@@ -1001,6 +997,7 @@ subroutine coupled_em(&
       averageSoilInflux          => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarInfiltration)       )%dat(1)     ,&  ! influx of water at the top of the soil profile (m s-1)
       averageSoilDrainage        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilDrainage)       )%dat(1)     ,&  ! drainage from the bottom of the soil profile (m s-1)
       averageSoilBaseflow        => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSoilBaseflow)       )%dat(1)     ,&  ! total baseflow from throughout the soil profile (m s-1)
+      averageSoilCompress        => flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress)       )%dat(1)     ,&  ! soil compression (kg m-2 s-1)
       averageGroundEvaporation   => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarGroundEvaporation)  )%dat(1)     ,&  ! soil evaporation (kg m-2 s-1)
       averageCanopyTranspiration => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopyTranspiration))%dat(1)     ,&  ! canopy transpiration (kg m-2 s-1)
       ! state variables in the vegetation canopy
@@ -1116,6 +1113,7 @@ subroutine coupled_em(&
       balanceSoilBaseflow      = averageSoilBaseflow*iden_water*data_step
       balanceSoilDrainage      = averageSoilDrainage*iden_water*data_step
       balanceSoilET            = (averageCanopyTranspiration + averageGroundEvaporation)*data_step
+      balanceSoilCompress      = averageSoilCompress*data_step
 
       ! check the individual layers
       if(printBalance)then
@@ -1132,11 +1130,11 @@ subroutine coupled_em(&
       endif
 
       ! check the soil water balance
-      scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - totalSoilCompress) )
+      scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilCompress) )
         print*, 'coupled_em soil, tolerance', absConvTol_liquid*iden_water*10._rkind
         write(*,*)               'solution method           = ', ixSolution
         write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
-        write(*,'(a,1x,e20.10)') 'totalSoilCompress         = ', totalSoilCompress
+        write(*,'(a,1x,e20.10)') 'balanceSoilCompress       = ', balanceSoilCompress
         write(*,'(a,1x,e20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq
         write(*,'(a,1x,e20.10)') 'scalarTotalSoilIce        = ', scalarTotalSoilIce
         write(*,'(a,1x,e20.10)') 'balanceSoilWater0         = ', balanceSoilWater0

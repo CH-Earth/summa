@@ -814,7 +814,6 @@ contains
    tranSink     = sum(mLayerTranspire)*dt                                ! m s-1 --> m
    baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
    compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
-   print*, mLayerCompress(1:nSoil)
    liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
     write(*,'(a,1x,f20.10)') 'dt = ', dt
     write(*,'(a,1x,e20.10)') 'soilBalance0      = ', soilBalance0

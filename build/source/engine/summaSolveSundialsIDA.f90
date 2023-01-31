@@ -120,7 +120,6 @@ subroutine summaSolveSundialsIDA(                         &
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
-                      mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
                       dt_out,                  & ! intent(out):   time step
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
@@ -184,7 +183,6 @@ subroutine summaSolveSundialsIDA(                         &
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
@@ -215,7 +213,6 @@ subroutine summaSolveSundialsIDA(                         &
   integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
   integer(i4b)                      :: iVar
   logical(lgt)                      :: startQuadrature
-  real(rkind)                       :: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
@@ -400,7 +397,6 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
   eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
   eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  mLayerMatricHeadLiqPrev(:)         = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
   eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
   eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
   eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
@@ -508,9 +504,6 @@ subroutine summaSolveSundialsIDA(                         &
       flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1)
     end do
 
-    ! sum of mLayerCmpress
-    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
@@ -518,7 +511,6 @@ subroutine summaSolveSundialsIDA(                         &
     eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
     eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
     eqns_data%mLayerTempPrev(:)        = eqns_data%mLayerTempTrial(:)
-    mLayerMatricHeadLiqPrev(:)         = eqns_data%mLayerMatricHeadLiqTrial(:)
     eqns_data%mLayerMatricHeadPrev(:)  = eqns_data%mLayerMatricHeadTrial(:)
     eqns_data%mLayerVolFracWatPrev(:)  = eqns_data%mLayerVolFracWatTrial(:)
     eqns_data%mLayerVolFracIcePrev(:)  = eqns_data%mLayerVolFracIceTrial(:)

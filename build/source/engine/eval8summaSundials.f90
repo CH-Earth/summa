@@ -287,8 +287,8 @@ subroutine eval8summaSundials(&
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,&  ! intent(in):  [dp(:)] volumetric fraction of ice (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,&  ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
     ! soil compression
-    scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(in): [dp]    total change in storage associated with compression of the soil matrix (kg m-2)
-    mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(in): [dp(:)] change in storage associated with compression of the soil matrix (-)
+    scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)     ,&  ! intent(in): [dp]    total change in storage associated with compression of the soil matrix (kg m-2 s-1)
+    mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,&  ! intent(in): [dp(:)] change in volumetric water content due to compression of soil (s-1)
     ! derivatives
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,&  ! intent(out): [dp]    derivative of volumetric liquid water content w.r.t. temperature
     dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
@@ -751,6 +751,9 @@ subroutine eval8summaSundials(&
                     dCompress_dPsi,                         & ! intent(inout): derivative in compressibility w.r.t. matric head (m-1)
                     err,cmessage)                             ! intent(out): error code and error message
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+    ! compute the total change in storage associated with compression of the soil matrix (kg m-2 s-1)
+    scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
     ! compute the residual vector
     if (insideIDA)then
