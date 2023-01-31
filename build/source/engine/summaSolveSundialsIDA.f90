@@ -661,6 +661,7 @@ end subroutine setSolverParams
 
 ! *********************************************************************************************************
 ! private subroutine implctMelt: compute melt of the "snow without a layer"
+! currently not used, but maybe should be used as SWE updates through data window
 ! *********************************************************************************************************
 subroutine implctMelt(&
                       ! input/output: integrated snowpack properties

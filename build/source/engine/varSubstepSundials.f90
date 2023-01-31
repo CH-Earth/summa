@@ -857,6 +857,7 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     ! -----------------------
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver
+    !   for sundials will not work since fluxes are instantaneous
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
