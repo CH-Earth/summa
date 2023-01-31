@@ -198,6 +198,7 @@ subroutine coupled_em(&
   real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
   logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
+  logical(lgt)                         :: lastSubStep            ! flag to denote if the last time step
   logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
   logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
   logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
@@ -280,8 +281,9 @@ subroutine coupled_em(&
     modifiedLayers    = .false.    ! flag to denote that snow layers were modified
     modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
-    ! define the first step
+    ! define the first step and last step
     firstSubStep = .true.
+    lastSubStep = .false.
 
     ! count the number of snow and soil layers
     ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
@@ -687,11 +689,11 @@ subroutine coupled_em(&
       if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
 
-      ! *** compute melt of the "snow without a layer"...
+      ! *** compute melt of the "snow without a layer" at beginning of data window ...
       ! -------------------------------------------------
       ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
       ! (check for the special case of "snow without a layer")
-      if(nSnow==0)then
+      if(nSnow==0 .and. (firstSubStep .or. modifiedVegState .or. modifiedLayers)) then
         call implctMelt(&
                         ! input/output: integrated snowpack properties
                         prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
@@ -768,11 +770,13 @@ subroutine coupled_em(&
         cycle substeps
       endif
 
-      ! update first step
-      firstSubStep=.false.
+      ! update first step and last step
+      firstSubStep = .false.
+      if (dt_solv + dt_sub >= data_step) lastSubStep = .true.
 
-      ! ***  remove ice due to sublimation...
+      ! ***  remove ice due to sublimation at end of data window...
       ! --------------------------------------------------------------
+      if (lastSubStep .or. modifiedVegState .or. modifiedLayers)then
       sublime: associate(&
         scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
         scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
@@ -879,18 +883,20 @@ subroutine coupled_em(&
                                                                 + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice/iden_water
       end if
 
+      ! increment change in storage associated with the surface melt pond (kg m-2)
+      if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
+
+      endif !if lastSubStep
+
+      ! ****************************************************************************************************
+      ! *** END MAIN SOLVER ********************************************************************************
+      ! ****************************************************************************************************
+
       ! increment fluxes
       dt_wght = dt_sub/data_step ! define weight applied to each sub-step
       do iVar=1,size(averageFlux_meta)
         flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
-
-      ! increment change in storage associated with the surface melt pond (kg m-2)
-      if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
-
-      ! ****************************************************************************************************
-      ! *** END MAIN SOLVER ********************************************************************************
-      ! ****************************************************************************************************
 
       ! increment sub-step
       dt_solv = dt_solv + dt_sub
