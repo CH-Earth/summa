@@ -395,7 +395,7 @@ subroutine varSubstepSundials(&
       endif
 
       ! identify the need to check the mass balance
-      checkMassBalance = .true. !do not check for Sundials
+      checkMassBalance = .false. !do not check for Sundials
       checkNrgBalance = .false.  !do not check for Sundials, also only check if ixHowHeatCap == enthalpyFD
 
       ! update prognostic variables

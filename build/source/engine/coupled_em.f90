@@ -197,8 +197,6 @@ subroutine coupled_em(&
   real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
   integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
-  logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
-  logical(lgt)                         :: lastSubStep            ! flag to denote if the last time step
   logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
   logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
   logical(lgt)                         :: tooMuchSublim          ! flag to denote that there was too much sublimation in a given time step
@@ -241,6 +239,12 @@ subroutine coupled_em(&
   ! timing information
   real(rkind)                          :: startTime              ! start time (used to compute wall clock time)
   real(rkind)                          :: endTime                ! end time (used to compute wall clock time)
+  ! outer loop control
+  logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
+  logical(lgt)                         :: lastSubStep            ! flag to denote if the last time step
+  logical(lqt)                         :: outer_steps            ! flag to denote if doing the outer_steps surrounding the call to sopSplitting
+  logical(lgt), parameter              :: check_outer=.true.     ! flag to check if we want to only do the outer_steps on first, last, and layer index changes
+
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message="coupled_em/"
@@ -688,12 +692,15 @@ subroutine coupled_em(&
                       err,cmessage)              ! intent(out): error control
       if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
+      outer_steps = .true.
+      if (check_outer .and. .not.(firstSubStep .or. modifiedVegState .or. modifiedLayers)) outer_steps = .false.
 
       ! *** compute melt of the "snow without a layer" at beginning of data window ...
       ! -------------------------------------------------
       ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
       ! (check for the special case of "snow without a layer")
-      if(nSnow==0 .and. (firstSubStep .or. modifiedVegState .or. modifiedLayers)) then
+      ! if only compute on outer loop,
+      if(nSnow==0 .and. outer_steps) then
         call implctMelt(&
                         ! input/output: integrated snowpack properties
                         prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
@@ -706,13 +713,13 @@ subroutine coupled_em(&
                         ! output: error control
                         err,cmessage                                             ) ! intent(out): error control
         if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
       end if
 
       ! *** solve model equations...
       ! ----------------------------
       ! save input step
       dtSave = dt_sub
-
 
       ! get the new solution
       call opSplittin(&
@@ -773,10 +780,12 @@ subroutine coupled_em(&
       ! update first step and last step
       firstSubStep = .false.
       if (dt_solv + dt_sub >= data_step) lastSubStep = .true.
+      outer_steps = .true.
+      if (check_outer .and. .not.(lastSubStep .or. modifiedVegState .or. modifiedLayers)) outer_steps = .false.
 
       ! ***  remove ice due to sublimation at end of data window...
       ! --------------------------------------------------------------
-      if (lastSubStep .or. modifiedVegState .or. modifiedLayers)then
+      if (outer_steps)then
       sublime: associate(&
         scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
         scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
