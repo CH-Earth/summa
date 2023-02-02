@@ -155,20 +155,20 @@ subroutine popTol4IDA(&
   integer(i4b)                       :: iLayer                    ! index of layer within the snow+soil domain
   integer(i4b)                       :: ixStateSubset             ! index within the state subset
   logical(lgt),dimension(nState)     :: tolFlag                   ! flag to denote that the state is populated
-  real(rkind)                        :: absTolTempCas = 1e-8      ! could use absConvTol_energy 1e-6 = 1e-0 bEuler
-  real(rkind)                        :: relTolTempCas = 1e-8      ! could use relConvTol_energy 1e-6 = 1e-2 bEuler
-  real(rkind)                        :: absTolTempVeg = 1e-8      ! could use absConvTol_energy
-  real(rkind)                        :: relTolTempVeg = 1e-8      ! could use relConvTol_energy
-  real(rkind)                        :: absTolWatVeg = 1e-8       ! could use absConvTol_liquid 1e-6 = 1e-5 bEuler
-  real(rkind)                        :: relTolWatVeg = 1e-8       ! could use relConvTol_liquid 1e-6 = 1e-3 bEuler
-  real(rkind)                        :: absTolTempSoilSnow = 1e-8 ! could use absConvTol_energy
-  real(rkind)                        :: relTolTempSoilSnow = 1e-8 ! could use relConvTol_energy
-  real(rkind)                        :: absTolWatSnow = 1e-8      ! could use absConvTol_liquid
-  real(rkind)                        :: relTolWatSnow = 1e-8      ! could use relConvTol_liquid
-  real(rkind)                        :: absTolMatric = 1e-8       ! could use absConvTol_matric 1e-6 = 1e-6 bEuler
-  real(rkind)                        :: relTolMatric = 1e-8       ! could use relConvTol_matric 1e-6 = 1e-6 bEuler
-  real(rkind)                        :: absTolAquifr = 1e-8       ! could use absConvTol_aquifr 1e-6 = 1e-5 bEuler
-  real(rkind)                        :: relTolAquifr = 1e-8       ! could use relConvTol_aquifr 1e-6 = 1e-0 bEuler
+  real(rkind)                        :: absTolTempCas = 1e-6      ! could use absConvTol_energy 1e-6 = 1e-0 bEuler
+  real(rkind)                        :: relTolTempCas = 1e-6      ! could use relConvTol_energy 1e-6 = 1e-2 bEuler
+  real(rkind)                        :: absTolTempVeg = 1e-6      ! could use absConvTol_energy
+  real(rkind)                        :: relTolTempVeg = 1e-6      ! could use relConvTol_energy
+  real(rkind)                        :: absTolWatVeg = 1e-6       ! could use absConvTol_liquid 1e-6 = 1e-5 bEuler
+  real(rkind)                        :: relTolWatVeg = 1e-6       ! could use relConvTol_liquid 1e-6 = 1e-3 bEuler
+  real(rkind)                        :: absTolTempSoilSnow = 1e-6 ! could use absConvTol_energy
+  real(rkind)                        :: relTolTempSoilSnow = 1e-6 ! could use relConvTol_energy
+  real(rkind)                        :: absTolWatSnow = 1e-6      ! could use absConvTol_liquid
+  real(rkind)                        :: relTolWatSnow = 1e-6      ! could use relConvTol_liquid
+  real(rkind)                        :: absTolMatric = 1e-6       ! could use absConvTol_matric 1e-6 = 1e-6 bEuler
+  real(rkind)                        :: relTolMatric = 1e-6       ! could use relConvTol_matric 1e-6 = 1e-6 bEuler
+  real(rkind)                        :: absTolAquifr = 1e-6       ! could use absConvTol_aquifr 1e-6 = 1e-5 bEuler
+  real(rkind)                        :: relTolAquifr = 1e-6       ! could use relConvTol_aquifr 1e-6 = 1e-0 bEuler
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
