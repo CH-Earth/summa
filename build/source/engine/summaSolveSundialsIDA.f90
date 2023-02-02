@@ -120,7 +120,6 @@ subroutine summaSolveSundialsIDA(                         &
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
-                      mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
                       dt_out,                  & ! intent(out):   time step
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
@@ -184,7 +183,6 @@ subroutine summaSolveSundialsIDA(                         &
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
@@ -215,7 +213,6 @@ subroutine summaSolveSundialsIDA(                         &
   integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
   integer(i4b)                      :: iVar
   logical(lgt)                      :: startQuadrature
-  real(rkind)                       :: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
@@ -400,7 +397,6 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
   eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
   eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  mLayerMatricHeadLiqPrev(:)         = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
   eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
   eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
   eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
@@ -508,9 +504,6 @@ subroutine summaSolveSundialsIDA(                         &
       flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1)
     end do
 
-    ! sum of mLayerCmpress
-    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
@@ -518,7 +511,6 @@ subroutine summaSolveSundialsIDA(                         &
     eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
     eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
     eqns_data%mLayerTempPrev(:)        = eqns_data%mLayerTempTrial(:)
-    mLayerMatricHeadLiqPrev(:)         = eqns_data%mLayerMatricHeadLiqTrial(:)
     eqns_data%mLayerMatricHeadPrev(:)  = eqns_data%mLayerMatricHeadTrial(:)
     eqns_data%mLayerVolFracWatPrev(:)  = eqns_data%mLayerVolFracWatTrial(:)
     eqns_data%mLayerVolFracIcePrev(:)  = eqns_data%mLayerVolFracIceTrial(:)
@@ -666,68 +658,5 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
   if (retval /= 0) return
 
 end subroutine setSolverParams
-
-! *********************************************************************************************************
-! private subroutine implctMelt: compute melt of the "snow without a layer"
-! *********************************************************************************************************
-subroutine implctMelt(&
-                      ! input/output: integrated snowpack properties
-                      scalarSWE,         & ! intent(inout): snow water equivalent (kg m-2)
-                      scalarSnowDepth,   & ! intent(inout): snow depth (m)
-                      scalarSfcMeltPond, & ! intent(inout): surface melt pond (kg m-2)
-                      ! input/output: properties of the upper-most soil layer
-                      soilTemp,          & ! intent(inout): surface layer temperature (K)
-                      soilDepth,         & ! intent(inout): surface layer depth (m)
-                      soilHeatcap,       & ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
-                      ! output: error control
-                      err,message        ) ! intent(out): error control
-  implicit none
-  ! input/output: integrated snowpack properties
-  real(rkind),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
-  real(rkind),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
-  real(rkind),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
-  ! input/output: properties of the upper-most soil layer
-  real(rkind),intent(inout)    :: soilTemp           ! surface layer temperature (K)
-  real(rkind),intent(inout)    :: soilDepth          ! surface layer depth (m)
-  real(rkind),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
-  ! output: error control
-  integer(i4b),intent(out)  :: err                ! error code
-  character(*),intent(out)  :: message            ! error message
-  ! local variables
-  real(rkind)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
-  real(rkind)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
-  real(rkind)                  :: snwDensity         ! snow density (kg m-3)
-  ! initialize error control
-  err=0; message='implctMelt/'
-
-  if(scalarSWE > 0._rkind)then
-    ! only melt if temperature of the top soil layer is greater than Tfreeze
-    if(soilTemp > Tfreeze)then
-      ! compute the energy required to melt all the snow (J m-2)
-      nrgRequired     = scalarSWE*LH_fus
-      ! compute the energy available to melt the snow (J m-2)
-      nrgAvailable    = soilHeatcap*(soilTemp - Tfreeze)*soilDepth
-      ! compute the snow density (not saved)
-      snwDensity      = scalarSWE/scalarSnowDepth
-      ! compute the amount of melt, and update SWE (kg m-2)
-      if(nrgAvailable > nrgRequired)then
-        scalarSfcMeltPond  = scalarSWE
-        scalarSWE          = 0._rkind
-      else
-        scalarSfcMeltPond  = nrgAvailable/LH_fus
-        scalarSWE          = scalarSWE - scalarSfcMeltPond
-      end if
-      ! update depth
-      scalarSnowDepth = scalarSWE/snwDensity
-      ! update temperature of the top soil layer (K)
-      soilTemp =  soilTemp - (LH_fus*scalarSfcMeltPond/soilDepth)/soilHeatcap
-    else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
-      scalarSfcMeltPond = 0._rkind  ! kg m-2
-    end if ! (if the temperature of the top soil layer is greater than Tfreeze)
-  else  ! melt is zero if the "snow without a layer" does not exist
-    scalarSfcMeltPond = 0._rkind  ! kg m-2
-  end if ! (if the "snow without a layer" exists)
-
-end subroutine implctMelt
 
 end module summaSolveSundialsIDA_module

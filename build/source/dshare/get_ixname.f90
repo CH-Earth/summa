@@ -560,8 +560,8 @@ contains
   case('scalarSoilControl'              ); get_ixdiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration: 1=controlling; 0=not (-)
   case('mLayerVolFracAir'               ); get_ixdiag = iLookDIAG%mLayerVolFracAir                 ! volumetric fraction of air in each layer (-)
   case('mLayerTcrit'                    ); get_ixdiag = iLookDIAG%mLayerTcrit                      ! critical soil temperature above which all water is unfrozen (K)
-  case('mLayerCompress'                 ); get_ixdiag = iLookDIAG%mLayerCompress                   ! change in volumetric water content due to compression of soil (-)
-  case('scalarSoilCompress'             ); get_ixdiag = iLookDIAG%scalarSoilCompress               ! change in total soil storage due to compression of the soil matrix (kg m-2)
+  case('mLayerCompress'                 ); get_ixdiag = iLookDIAG%mLayerCompress                   ! change in volumetric water content due to compression of soil (s-1)
+  case('scalarSoilCompress'             ); get_ixdiag = iLookDIAG%scalarSoilCompress               ! change in total soil storage due to compression of the soil matrix (kg m-2 s-1)
   case('mLayerMatricHeadLiq'            ); get_ixdiag = iLookDIAG%mLayerMatricHeadLiq              ! matric potential of liquid water (m)
   ! mass balance check
   case('scalarSoilWatBalError'          ); get_ixdiag = iLookDIAG%scalarSoilWatBalError            ! error in the total soil water balance (kg m-2)

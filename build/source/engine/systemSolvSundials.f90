@@ -209,7 +209,6 @@ subroutine systemSolvSundials(&
   real(rkind)                     :: xMin,xMax                     ! minimum and maximum values for water content
   real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a data step
-  real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
   ! enthalpy derivatives
@@ -476,9 +475,6 @@ subroutine systemSolvSundials(&
     call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-    ! allocate space for mLayerCmpress_sum
-    allocate( mLayerCmpress_sum(nSoil) )
-
     ! check the need to merge snow layers
     if(nSnow>0)then
       ! compute the energy required to melt the top snow layer (J m-2)
@@ -513,9 +509,6 @@ subroutine systemSolvSundials(&
     do concurrent ( iVar=1:size(flux_meta) )
       flux_sum%var(iVar)%dat(:) = 0._rkind
     end do
-
-    ! initialize sum of compression of the soil matrix
-    mLayerCmpress_sum(:) = 0._rkind
 
     call summaSolveSundialsIDA(&
                   dt,                      & ! intent(in):    data time step
@@ -552,8 +545,7 @@ subroutine systemSolvSundials(&
                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                   tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
-                  mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
-                  dt_out,                          & ! intent(out):   time step
+                  dt_out,                  & ! intent(out):   time step
                   stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                   stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                   err,cmessage)              ! intent(out):   error control
@@ -573,15 +565,10 @@ subroutine systemSolvSundials(&
       flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
     end do
 
-    ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
-    diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
-    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
-
     ! save the computed solution
     stateVecTrial = stateVecNew
 
     ! free memory
-    deallocate(mLayerCmpress_sum)
     deallocate(dBaseflow_dMatric)
 
   ! end associate statements
