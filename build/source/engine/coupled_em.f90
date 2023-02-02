@@ -1143,7 +1143,6 @@ subroutine coupled_em(&
         write(*,'(a,1x,f20.10)') 'balanceSoilDrainage       = ', balanceSoilDrainage
         write(*,'(a,1x,f20.10)') 'balanceSoilET             = ', balanceSoilET
         write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
-        write(*,'(a,1x,f20.10)') 'absConvTol_liquid         = ', absConvTol_liquid
         ! error control
         message=trim(message)//'soil hydrology does not balance'
         err=20; return
