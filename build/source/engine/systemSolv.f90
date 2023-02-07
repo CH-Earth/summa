@@ -117,6 +117,7 @@ contains
  ! **********************************************************************************************************
  subroutine systemSolv(&
                        ! input: model control
+                       dt_cur,            & ! intent(in):    current stepsize
                        dt,                & ! intent(in):    time step (s)
                        nState,            & ! intent(in):    total number of state variables
                        firstSubStep,      & ! intent(in):    flag to denote first sub-step
@@ -160,7 +161,8 @@ contains
  ! * dummy variables
  ! ---------------------------------------------------------------------------------------
  ! input: model control
- real(rkind),intent(in)             :: dt                            ! time step (seconds)
+ real(rkind),intent(in)          :: dt_cur                        ! current stepsize
+ real(rkind),intent(in)          :: dt                            ! entire time step
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
@@ -305,7 +307,7 @@ contains
  ! ---------------
 
  ! check
- if(dt < tinyStep)then
+ if(dt_cur < tinyStep)then
   message=trim(message)//'dt is tiny'
   err=20; return
  endif
@@ -436,7 +438,8 @@ contains
  ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the first iteration increment
  call eval8summa(&
                  ! input: model control
-                 dt,                      & ! intent(in):    length of the time step (seconds)
+                 dt_cur,                  & ! intent(in):    current stepsize
+                 dt,                      & ! intent(in):    length of the entire time step (seconds)
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of layers
@@ -488,7 +491,7 @@ contains
   bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
   volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
   ! set flag and error codes for too much melt
-  if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+  if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
    tooMuchMelt=.true.
    message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
    err=-20; return ! negative error code to denote a warning
@@ -510,10 +513,6 @@ contains
  ! iterate
  do iter=1,localMaxIter
 
-  ! print iteration count
-  !print*, '*** iter, maxiter, dt = ', iter, localMaxiter, dt
-  !print*, trim(message)//'before summaSolve'
-
   ! keep track of the number of iterations
   niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
 
@@ -523,7 +522,8 @@ contains
   !  3) Computes new fluxes and derivatives, new residuals, and (if necessary) refines the state vector
   call summaSolve(&
                   ! input: model control
-                  dt,                            & ! intent(in):    length of the time step (seconds)
+                  dt_cur,                        & ! intent(in):    current stepsize
+                  dt,                            & ! intent(in):    length of the entire time step (seconds)
                   iter,                          & ! intent(in):    iteration index
                   nSnow,                         & ! intent(in):    number of snow layers
                   nSoil,                         & ! intent(in):    number of soil layers
@@ -582,12 +582,6 @@ contains
   rVec          = resVecNew
   stateVecTrial = stateVecNew
 
-  ! print progress
-  !write(*,'(a,10(f16.14,1x))') 'rVec                  = ', rVec           ( min(nState,iJac1) : min(nState,iJac2) )
-  !write(*,'(a,10(f16.10,1x))') 'fluxVecNew            = ', fluxVecNew     ( min(nState,iJac1) : min(nState,iJac2) )*dt
-  !write(*,'(a,10(f16.10,1x))') 'stateVecTrial         = ', stateVecTrial  ( min(nState,iJac1) : min(nState,iJac2) )
-  !print*, 'PAUSE: check states and fluxes'; read(*,*)
-
   ! exit iteration loop if converged
   if(converged) exit
 
@@ -612,7 +606,7 @@ contains
  if(nSnowSoilNrg>0)then
   do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
    iState = ixSnowSoilNrg(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))/real(sMul(iState), rkind)
+   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
   end do  ! looping through non-missing energy state variables in the snow+soil domain
  endif
 
@@ -621,7 +615,7 @@ contains
  if(nSnowSoilHyd>0)then
   do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
    iState = ixSnowSoilHyd(iLayer)
-   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt + resSinkNew(iState))
+   stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
   end do  ! looping through non-missing water state variables in the soil domain
  endif
 

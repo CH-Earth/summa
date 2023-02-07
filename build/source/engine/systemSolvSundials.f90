@@ -99,6 +99,7 @@ contains
 ! **********************************************************************************************************
 subroutine systemSolvSundials(&
                       ! input: model control
+                      dt_cur,            & ! intent(in):    current stepsize
                       dt,                & ! intent(in):    time step (s)
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
@@ -144,6 +145,7 @@ subroutine systemSolvSundials(&
   ! * dummy variables
   ! ---------------------------------------------------------------------------------------
   ! input: model control
+  real(rkind),intent(in)          :: dt_cur                        ! current stepsize
   real(rkind),intent(in)          :: dt                            ! time step (seconds)
   integer(i4b),intent(in)         :: nState                        ! total number of state variables
   logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -285,7 +287,7 @@ subroutine systemSolvSundials(&
     ! ---------------
 
     ! check
-    if(dt < tinyStep)then
+    if(dt_cur < tinyStep)then
       message=trim(message)//'dt is tiny'
       err=20; return
     endif
@@ -400,7 +402,7 @@ subroutine systemSolvSundials(&
     ! NOTE: The values calculated in  eval8summaSundials are used to calculate the initial flux
     call eval8summaSundials(&
                     ! input: model control
-                    dt,                      & ! intent(in):    current stepsize
+                    dt_cur,                  & ! intent(in):    current stepsize
                     dt,                      & ! intent(in):    length of the time step (seconds)
                     nSnow,                   & ! intent(in):    number of snow layers
                     nSoil,                   & ! intent(in):    number of soil layers
@@ -481,7 +483,7 @@ subroutine systemSolvSundials(&
       bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
       volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
       ! set flag and error codes for too much melt
-      if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+      if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
         tooMuchMelt=.true.
         message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
         err=-20; return ! negative error code to denote a warning
@@ -511,7 +513,7 @@ subroutine systemSolvSundials(&
     end do
 
     call summaSolveSundialsIDA(&
-                  dt,                      & ! intent(in):    data time step
+                  dt_cur,                  & ! intent(in):    data time step
                   atol,                    & ! intent(in):    absolute telerance
                   rtol,                    & ! intent(in):    relative tolerance
                   nSnow,                   & ! intent(in):    number of snow layers

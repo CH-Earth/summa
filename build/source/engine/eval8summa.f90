@@ -96,7 +96,8 @@ contains
 ! **********************************************************************************************************
 subroutine eval8summa(&
                       ! input: model control
-                      dt,                      & ! intent(in):    length of the time step (seconds)
+                      dt_cur,                  & ! intent(in):    current stepsize
+                      dt,                      & ! intent(in):    entire time step
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
                       nLayers,                 & ! intent(in):    total number of layers
@@ -151,7 +152,8 @@ subroutine eval8summa(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)          :: dt                     ! length of the time step (seconds)
+  real(rkind),intent(in)          :: dt_cur                 ! current stepsize
+  real(rkind),intent(in)          :: dt                     ! entire time step
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -662,11 +664,11 @@ subroutine eval8summa(&
     ! use non-sundials version because sundials version needs mLayerMatricHeadPrime
     call soilCmpres(&
                     ! input:
-                    dt,                                   & ! intent(in):    length of the time step (seconds)
+                    dt_cur,                                 & ! intent(in):    length of the time step (seconds)
                     ixRichards,                             & ! intent(in): choice of option for Richards' equation
                     ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
-                    mLayerMatricHead(1:nSoil),           & ! intent(in): matric head at the start of the time step (m)
-                    mLayerMatricHeadTrial(1:nSoil),      & ! intent(in): trial value of matric head (m)
+                    mLayerMatricHead(1:nSoil),              & ! intent(in): matric head at the start of the time step (m)
+                    mLayerMatricHeadTrial(1:nSoil),         & ! intent(in): trial value of matric head (m)
                     mLayerVolFracLiqTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric liquid water content in each soil layer (-)
                     mLayerVolFracIceTrial(nSnow+1:nLayers), & ! intent(in): trial value for the volumetric ice content in each soil layer (-)
                     specificStorage,                        & ! intent(in): specific storage coefficient (m-1)
@@ -693,7 +695,7 @@ subroutine eval8summa(&
     ! compute the residual vector
     call computResid(&
                       ! input: model control
-                      dt,                        & ! intent(in):    length of the time step (seconds)
+                      dt_cur,                    & ! intent(in):    length of the time step (seconds)
                       nSnow,                     & ! intent(in):    number of snow layers
                       nSoil,                     & ! intent(in):    number of soil layers
                       nLayers,                   & ! intent(in):    total number of layers

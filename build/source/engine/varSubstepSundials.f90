@@ -128,7 +128,6 @@ subroutine varSubstepSundials(&
   ! structure allocations
   USE allocspace_module,only:allocLocal                ! allocate local data structures
   ! simulation of fluxes and residuals given a trial state vector
-  USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
   USE updateVarsSundials_module,only:updateVarsSundials ! update prognostic variables
@@ -172,7 +171,7 @@ subroutine varSubstepSundials(&
   logical(lgt),intent(out)           :: failedMinimumStep             ! flag to denote success of substepping for a given split
   logical(lgt),intent(out)           :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
   logical(lgt),intent(out)           :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
-  real(qp),intent(out)   		         :: dt_out
+  real(qp),intent(out)   		     :: dt_out
   integer(i4b),intent(out)           :: err                           ! error code
   character(*),intent(out)           :: message                       ! error message
   ! ---------------------------------------------------------------------------------------
@@ -314,6 +313,7 @@ subroutine varSubstepSundials(&
       call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
+                      dtInit,            & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -340,7 +340,7 @@ subroutine varSubstepSundials(&
                       stateVecPrime,     & ! intent(out):   updated state vector
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
-                      dt_out,			       & ! intent(out):   time step (s)
+                      dt_out,			 & ! intent(out):   time step (s)
                       err,cmessage)        ! intent(out):   error code and error message
 
       if(err/=0)then
@@ -355,7 +355,7 @@ subroutine varSubstepSundials(&
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
       if(tooMuchMelt .or. reduceCoupledStep) return
 
-      ! identify failure
+      ! identify failure, this should not happen because will be fixed inside Sundials
       failedSubstep = (err<0)
 
       ! reduce step based on failure
@@ -450,11 +450,11 @@ subroutine varSubstepSundials(&
       if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
         ! scalar compression
         if(.not.scalarSolution .or. iStateSplit==nSoil)&
-        sumSoilCompress = sumSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
+        sumSoilCompress = sumSoilCompress + dt_out*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
         ! vector compression
         do iSoil=1,nSoil
           if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-          sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
+          sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dt_out*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
         end do
       endif
 
@@ -644,7 +644,6 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)    : [dp(:)]  change in storage associated with compression of the soil matrix (-)
     scalarCanopySublimation   => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)    ,& ! intent(in)    : [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
     scalarSnowSublimation     => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)      ,& ! intent(in)    : [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
-
     ! energy fluxes
     scalarLatHeatCanopyEvap   => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)    ,& ! intent(in)    : [dp]     latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
     scalarSenHeatCanopy       => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)        ,& ! intent(in)    : [dp]     sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -812,7 +811,6 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     ! ----
     ! * check energy balance
     !------------------------
-    ! NOTE: for now, we just compute enthalpy with phase change, should check, and should also mirror in varSubstep non-Sundials
     if(checkNrgBalance)then
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
@@ -833,19 +831,19 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
                   mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
                   mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
                   ! input: pre-computed derivatives
-                        dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-                        scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
-                        mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                        mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
-                        dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                  dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                  scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
+                  mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                  mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
+                  dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                   ! output: enthalpy
                   scalarCanairEnthalpyTrial,        & ! intent(out):  enthalpy of the canopy air space (J m-3)
                   scalarCanopyEnthalpyTrial,        & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
                   mLayerEnthalpyTrial,             & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
-                        dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
-                        dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
-                        dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
-                        dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
+                  dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
+                  dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
+                  dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
+                  dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

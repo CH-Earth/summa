@@ -363,6 +363,7 @@ subroutine coupled_em(&
 
     ! short-cut to the algorithmic control parameters
     ! NOTE - temporary assignment of minstep to foce something reasonable
+    ! change maxstep with hard code here to make only the outer loop computations here in coupled_em happen more frequently for num_method = bEuler or sundials
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
 
