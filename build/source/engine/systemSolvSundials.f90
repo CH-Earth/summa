@@ -127,7 +127,6 @@ subroutine systemSolvSundials(&
                       stateVecPrime,     & ! intent(out):   updated state vector
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
-                      dt_out,            & ! intent(out)
                       err,message)         ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
@@ -173,13 +172,13 @@ subroutine systemSolvSundials(&
   real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
   logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
   logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                        ! time step
   integer(i4b),intent(out)        :: err                           ! error code
   character(*),intent(out)        :: message                       ! error message
 
   ! ---------------------------------------------------------------------------------------
   ! * general local variables
   ! ---------------------------------------------------------------------------------------
+  real(qp)                        :: dt_out                        ! time step sum for data window at termination of sundials
   character(LEN=256)              :: cmessage                      ! error message of downwind routine
   integer(i4b)                    :: iVar                          ! index of variable
   integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
@@ -514,7 +513,7 @@ subroutine systemSolvSundials(&
 
     call summaSolveSundialsIDA(&
                   dt_cur,                  & ! intent(in):    data time step
-                  atol,                    & ! intent(in):    absolute telerance
+                  atol,                    & ! intent(in):    absolute tolerance
                   rtol,                    & ! intent(in):    relative tolerance
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
@@ -547,7 +546,7 @@ subroutine systemSolvSundials(&
                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                   tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
-                  dt_out,                  & ! intent(out):   time step
+                  dt_out,                  & ! intent(out):   time step sum for data window at termination of sundials
                   stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                   stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                   err,cmessage)              ! intent(out):   error control

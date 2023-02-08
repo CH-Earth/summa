@@ -82,7 +82,7 @@ subroutine computSnowDepth(&
   ! * compute change in ice content of the top snow layer due to sublimation...
   ! ---------------------------------------------------------------------------
   ! initialize the flags
-  tooMuchSublim=.false.  ! too much sublimination (merge snow layers)
+  tooMuchSublim=.false.  ! too much sublimation (merge snow layers)
   ! NOTE: this is done BEFORE densification
   if(nSnow > 0)then ! snow layers exist
 

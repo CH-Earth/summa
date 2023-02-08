@@ -291,7 +291,6 @@ subroutine opSplittin(&
   logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
   integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   integer(i4b)                    :: nCoupling
-  real(qp)						 :: dt_out                         !
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -782,9 +781,7 @@ subroutine opSplittin(&
                                 failedMinimumStep,          & ! intent(out)   : flag for failed substeps
                                 reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                                 tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                                dt_out,					    & ! intent(out)
                                 err,cmessage)                 ! intent(out)   : error code and error message
-                    dt = dt_out
                   case(bEuler)
                     call varSubstep(&
                                 ! input: model control
@@ -820,9 +817,7 @@ subroutine opSplittin(&
                                 failedMinimumStep,          & ! intent(out)   : flag for failed substeps
                                 reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                                 tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                                dt_out,					    & ! intent(out)
                                 err,cmessage)                 ! intent(out)   : error code and error message
-                    dt = dt_out
                   case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
                 end select
 

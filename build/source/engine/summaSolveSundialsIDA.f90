@@ -120,7 +120,7 @@ subroutine summaSolveSundialsIDA(                         &
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
-                      dt_out,                  & ! intent(out):   time step
+                      dt_out,                  & ! intent(out):   time step sum for data window at termination of sundials
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
                       err,message              & ! intent(out):   error control
@@ -188,8 +188,8 @@ subroutine summaSolveSundialsIDA(                         &
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
-  logical(lgt),intent(inout)      :: tooMuchMelt                   ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                 ! time step
+  logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
+  real(qp),intent(out)            :: dt_out                 ! time step sum for data window at termination of sundials
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -532,7 +532,7 @@ subroutine summaSolveSundialsIDA(                         &
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
-    dt_out        = tret(1)
+    dt_out        = tret(1) ! should be dt, probably do not need to keep this
   endif
 
   ! free memory

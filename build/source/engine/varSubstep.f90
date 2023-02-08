@@ -117,7 +117,6 @@ contains
                        failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
                        reduceCoupledStep, & ! intent(out)   : flag to denote need to reduce the length of the coupled step
                        tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                       dt_out,			  & ! intent(out)
                        err,message)         ! intent(out)   : error code and error message
  ! ---------------------------------------------------------------------------------------
  ! structure allocations
@@ -166,7 +165,6 @@ contains
  logical(lgt),intent(out)           :: failedMinimumStep             ! flag to denote success of substepping for a given split
  logical(lgt),intent(out)           :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
  logical(lgt),intent(out)           :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
- real(qp),intent(out)   		    :: dt_out
  integer(i4b),intent(out)           :: err                           ! error code
  character(*),intent(out)           :: message                       ! error message
  ! ---------------------------------------------------------------------------------------
@@ -252,8 +250,8 @@ contains
 
  ! initialize the length of the substep
  ! change maxstep with hard code here to make only the newton step loop in systemSolve happen more frequently for num_method = bEuler
- maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
- dtSubstep = dtInit !min(dtInit,maxstep)
+ maxstep = 1800._rkind !mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
+ dtSubstep = dtInit
 
  ! allocate space for the temporary model flux structure
  call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -281,7 +279,7 @@ contains
  ! loop through substeps
  ! NOTE: continuous do statement with exit clause
  substeps: do
-  print*, dtSubstep,maxStep,dtInit
+  dtSubstep = min(dtSubstep,maxstep)
 
   ! initialize error control
   err=0; message='varSubstep/'
@@ -394,9 +392,7 @@ contains
   ! * update model fluxes...
   ! ------------------------
 
-  ! NOTE: if we get to here then we are accepting the step
-
-  ! NOTE: we get to here if iterations are successful
+  ! NOTE: if we get to here then we are accepting the step of dtSubstep
   if(err/=0)then
    message=trim(message)//'expect err=0 if updating fluxes'
    return
@@ -406,9 +402,8 @@ contains
   checkMassBalance = .true. ! (.not.scalarSolution)
   checkNrgBalance = .false.  ! only check if ixHowHeatCap == enthalpyFD
 
-  dt_out = dtSubstep
   ! update prognostic variables
-  call updateProg(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, checkNrgBalance, & ! input: model control
+  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, checkNrgBalance, & ! input: model control
                   lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                              & ! input-output: data structures
                   waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
   if(err/=0)then
@@ -443,28 +438,27 @@ contains
    endif
 
   endif  ! if errors in prognostic update
-  dt_out = dtSubstep
 
   ! get the total energy fluxes (modified in updateProg)
   if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
-   sumCanopyEvaporation = sumCanopyEvaporation + dt_out*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
-   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_out*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   sumSenHeatCanopy     = sumSenHeatCanopy     + dt_out*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   else
-   sumCanopyEvaporation = sumCanopyEvaporation + dt_out*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
-   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_out*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   sumSenHeatCanopy     = sumSenHeatCanopy     + dt_out*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
   endif  ! if energy fluxes were modified
 
   ! get the total soil compression
   if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
    ! scalar compression
    if(.not.scalarSolution .or. iStateSplit==nSoil)&
-   sumSoilCompress = sumSoilCompress + dt_out*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
+   sumSoilCompress = sumSoilCompress + dtSubstep*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
    ! vector compression
    do iSoil=1,nSoil
     if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-    sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dt_out*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
+    sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dtSubstep*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
    end do
   endif
 
@@ -473,7 +467,7 @@ contains
   write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
   ! increment fluxes
-  dt_wght = dt_out/dt ! (define weight applied to each splitting operation)
+  dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
   do iVar=1,size(flux_meta)
    if(count(fluxMask%var(iVar)%dat)>0) then
 
@@ -518,6 +512,7 @@ contains
   dtSubstep = min(dt - dtSum, max(dtSubstep*dtMultiplier, dt_min) )
 
  end do substeps  ! time steps for variable-dependent sub-stepping
+ ! NOTE: if we get to here then we are accepting then dtSum should dt
 
  ! save the energy fluxes
  flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
