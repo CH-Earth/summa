@@ -160,7 +160,7 @@ contains
 ! (1) Attempt different solutions in the following order: (a) fully coupled; (b) split by state type and by
 !      domain type for a given energy and mass split (vegetation, snow, and soil); and (c) scalar solution
 !      for a given state type and domain subset.
-! (2) For a given split, compute a variable number of substeps (in varSubstepSundials).
+! (2) For a given split, compute a variable number of substeps (in varSubstep).
 ! **********************************************************************************************************
 subroutine opSplittin(&
                       ! input: model control
