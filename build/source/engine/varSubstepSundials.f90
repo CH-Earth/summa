@@ -505,9 +505,9 @@ subroutine varSubstepSundials(&
     end do substeps  ! time steps for variable-dependent sub-stepping
 
     ! save the energy fluxes
-    flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt_out      ! canopy evaporation/condensation (kg m-2 s-1)
-    flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt_out      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-    flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt_out      ! sensible heat flux from the canopy to the canopy air space (W m-2)
+    flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
+    flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+    flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
 
     ! save the soil compression diagnostics
     diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
@@ -682,7 +682,7 @@ subroutine updateProgSundials(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux
     ! initialize error control
     err=0; message='updateProgSundials/'
 
-    ! initialize water balancmLayerVolFracWatTriale error
+    ! initialize water balancmLayerVolFracWatTrial error
     waterBalanceError=.false.
 
     ! get storage at the start of the step

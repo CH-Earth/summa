@@ -252,8 +252,8 @@ contains
 
  ! initialize the length of the substep
  ! change maxstep with hard code here to make only the newton step loop in systemSolve happen more frequently for num_method = bEuler
- maxstep = 1800._rkind !mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
- dtSubstep = min(dtInit,maxstep)
+ maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
+ dtSubstep = dtInit !min(dtInit,maxstep)
 
  ! allocate space for the temporary model flux structure
  call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -281,6 +281,7 @@ contains
  ! loop through substeps
  ! NOTE: continuous do statement with exit clause
  substeps: do
+  print*, dtSubstep,maxStep,dtInit
 
   ! initialize error control
   err=0; message='varSubstep/'
@@ -405,7 +406,7 @@ contains
   checkMassBalance = .true. ! (.not.scalarSolution)
   checkNrgBalance = .false.  ! only check if ixHowHeatCap == enthalpyFD
 
-
+  dt_out = dtSubstep
   ! update prognostic variables
   call updateProg(dt_out,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, checkNrgBalance, & ! input: model control
                   lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                              & ! input-output: data structures
@@ -440,9 +441,9 @@ contains
    else
     cycle substeps
    endif
-   dt_out = dtSubstep
 
   endif  ! if errors in prognostic update
+  dt_out = dtSubstep
 
   ! get the total energy fluxes (modified in updateProg)
   if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
@@ -519,9 +520,9 @@ contains
  end do substeps  ! time steps for variable-dependent sub-stepping
 
  ! save the energy fluxes
- flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt_out      ! canopy evaporation/condensation (kg m-2 s-1)
- flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt_out      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt_out      ! sensible heat flux from the canopy to the canopy air space (W m-2)
+ flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
+ flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+ flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
 
  ! save the soil compression diagnostics
  diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
@@ -682,7 +683,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
    ! initialize error control
    err=0; message='updateProg/'
 
-    ! initialize water balancmLayerVolFracWatTriale error
+    ! initialize water balancmLayerVolFracWatTrial error
     waterBalanceError=.false.
 
     ! get storage at the start of the step
