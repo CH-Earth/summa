@@ -57,6 +57,7 @@ USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDERIV      ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
 ! look up structure for variable types
 USE var_lookup,only:iLookVarType
@@ -69,6 +70,11 @@ USE multiconst,only:&
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
+! look-up values for the numerical method
+USE mDecisions_module,only:      &
+ sundials,                       & ! SUNDIALS/IDA solution
+ bEuler                            ! home-grown backward Euler solution with long time step
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -80,472 +86,521 @@ real(rkind),parameter     :: verySmall=1.e-6_rkind   ! used as an additive const
 contains
 
 
- ! **********************************************************************************************************
- ! public subroutine varSubstep: run the model for a collection of substeps for a given state subset
- ! **********************************************************************************************************
- subroutine varSubstep(&
-                       ! input: model control
-                       dt,                & ! intent(in)    : time step (s)
-                       dtInit,            & ! intent(in)    : initial time step (seconds)
-                       dt_min,            & ! intent(in)    : minimum time step (seconds)
-                       nState,            & ! intent(in)    : total number of state variables
-                       doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
-                       firstSubStep,      & ! intent(in)    : flag to denote first sub-step
-                       firstFluxCall,     & ! intent(inout) : flag to indicate if we are processing the first flux call
-                       computeVegFlux,    & ! intent(in)    : flag to denote if computing energy flux over vegetation
-                       scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
-                       iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
-                       fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
-                       fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
-                       ! input/output: data structures
-                       model_decisions,   & ! intent(in)    : model decisions
-                       lookup_data,       & ! intent(in)    : lookup tables
-                       type_data,         & ! intent(in)    : type of vegetation and soil
-                       attr_data,         & ! intent(in)    : spatial attributes
-                       forc_data,         & ! intent(in)    : model forcing data
-                       mpar_data,         & ! intent(in)    : model parameters
-                       indx_data,         & ! intent(inout) : index data
-                       prog_data,         & ! intent(inout) : model prognostic variables for a local HRU
-                       diag_data,         & ! intent(inout) : model diagnostic variables for a local HRU
-                       flux_data,         & ! intent(inout) : model fluxes for a local HRU
-                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
-                       bvar_data,         & ! intent(in)    : model variables for the local basin
-                       ! output: model control
-                       ixSaturation,      & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                       dtMultiplier,      & ! intent(out)   : substep multiplier (-)
-                       nSubsteps,         & ! intent(out)   : number of substeps taken for a given split
-                       failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
-                       reduceCoupledStep, & ! intent(out)   : flag to denote need to reduce the length of the coupled step
-                       tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                       err,message)         ! intent(out)   : error code and error message
- ! ---------------------------------------------------------------------------------------
- ! structure allocations
- USE allocspace_module,only:allocLocal                ! allocate local data structures
- ! simulation of fluxes and residuals given a trial state vector
- USE systemSolv_module,only:systemSolv                ! solve the system of equations for one time step
- USE getVectorz_module,only:popStateVec               ! populate the state vector
- USE getVectorz_module,only:varExtract                ! extract variables from the state vector
- USE updateVars_module,only:updateVars                ! update prognostic variables
- ! identify name of variable type (for error message)
- USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
- implicit none
- ! ---------------------------------------------------------------------------------------
- ! * dummy variables
- ! ---------------------------------------------------------------------------------------
- ! input: model control
- real(rkind),intent(in)             :: dt                            ! time step (seconds)
- real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
- real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
- integer(i4b),intent(in)         :: nState                        ! total number of state variables
- logical(lgt),intent(in)         :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
- logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
- logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- logical(lgt),intent(in)         :: scalarSolution                ! flag to denote implementing the scalar solution
- integer(i4b),intent(in)         :: iStateSplit                   ! index of the state in the splitting operation
- type(var_flagVec),intent(in)    :: fluxMask                      ! flags to denote if the flux is calculated in the given state subset
- type(var_ilength),intent(inout) :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps)
- ! input/output: data structures
- type(model_options),intent(in)     :: model_decisions(:)            ! model decisions
- type(zLookup),intent(in)           :: lookup_data                   ! lookup tables
- type(var_i),intent(in)             :: type_data                     ! type of vegetation and soil
- type(var_d),intent(in)             :: attr_data                     ! spatial attributes
- type(var_d),intent(in)             :: forc_data                     ! model forcing data
- type(var_dlength),intent(in)       :: mpar_data                     ! model parameters
- type(var_ilength),intent(inout)    :: indx_data                     ! indices for a local HRU
- type(var_dlength),intent(inout)    :: prog_data                     ! prognostic variables for a local HRU
- type(var_dlength),intent(inout)    :: diag_data                     ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout)    :: flux_data                     ! model fluxes for a local HRU
- type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
- type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
- ! output: model control
- integer(i4b),intent(inout)         :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
- integer(i4b),intent(out)           :: nSubsteps                     ! number of substeps taken for a given split
- logical(lgt),intent(out)           :: failedMinimumStep             ! flag to denote success of substepping for a given split
- logical(lgt),intent(out)           :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
- logical(lgt),intent(out)           :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
- integer(i4b),intent(out)           :: err                           ! error code
- character(*),intent(out)           :: message                       ! error message
- ! ---------------------------------------------------------------------------------------
- ! * general local variables
- ! ---------------------------------------------------------------------------------------
- ! error control
- character(LEN=256)                 :: cmessage                      ! error message of downwind routine
- ! general local variables
- integer(i4b)                       :: iVar                          ! index of variables in data structures
- integer(i4b)                       :: iSoil                         ! index of soil layers
- integer(i4b)                       :: ixLayer                       ! index in a given domain
- integer(i4b), dimension(1)         :: ixMin,ixMax                   ! bounds of a given flux vector
- ! time stepping
- real(rkind)                        :: dtSum                         ! sum of time from successful steps (seconds)
- real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
- real(rkind)                        :: dtSubstep                     ! length of a substep (s)
- real(rkind)                        :: maxstep                       ! maximum time step length (seconds)
- ! adaptive sub-stepping for the explicit solution
- logical(lgt)                       :: failedSubstep                 ! flag to denote success of substepping for a given split
- real(rkind),parameter              :: safety=0.85_rkind             ! safety factor in adaptive sub-stepping
- real(rkind),parameter              :: reduceMin=0.1_rkind           ! mimimum factor that time step is reduced
- real(rkind),parameter              :: increaseMax=4.0_rkind         ! maximum factor that time step is increased
- ! adaptive sub-stepping for the implicit solution
- integer(i4b)                       :: niter                         ! number of iterations taken
- integer(i4b),parameter             :: n_inc=5                       ! minimum number of iterations to increase time step
- integer(i4b),parameter             :: n_dec=15                      ! maximum number of iterations to decrease time step
- real(rkind),parameter              :: F_inc = 1.25_rkind            ! factor used to increase time step
- real(rkind),parameter              :: F_dec = 0.90_rkind            ! factor used to decrease time step
- ! state and flux vectors
- real(rkind)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
- real(rkind)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
- real(rkind)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
- type(var_dlength)                  :: flux_temp                     ! temporary model fluxes
- ! flags
- logical(lgt)                       :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
- logical(lgt)                       :: checkMassBalance              ! flag to check the mass balance
- logical(lgt)                       :: checkNrgBalance
- logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
- logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
- ! energy fluxes
- real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
- real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
- real(rkind)                        :: sumSoilCompress
- real(rkind),allocatable            :: sumLayerCompress(:)
- ! ---------------------------------------------------------------------------------------
- ! point to variables in the data structures
- ! ---------------------------------------------------------------------------------------
- globalVars: associate(&
- ! number of layers
- nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
- nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
- nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
- nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
- mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
- ! mapping between state vectors and control volumes
- ixLayerActive           => indx_data%var(iLookINDEX%ixLayerActive)%dat            ,& ! intent(in):    [i4b(:)] list of indices for all active layers (inactive=integerMissing)
- ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] mapping of full state vector to the state subset
- ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b(:)] index of control volume for different domains (veg, snow, soil)
- ! model state variables (vegetation canopy)
- scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
- scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the vegetation canopy (K)
- scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(inout): [dp]     mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(inout): [dp]     mass of liquid water on the vegetation canopy (kg m-2)
- scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(inout): [dp]     mass of total water on the vegetation canopy (kg m-2)
- ! model state variables (snow and soil domains)
- mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(inout): [dp(:)]  temperature of each snow/soil layer (K)
- mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of ice (-)
- mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of liquid water (-)
- mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of total water (-)
- mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)]  matric head (m)
- mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(inout): [dp(:)]  matric potential of liquid water (m)
- )  ! end association with variables in the data structures
- ! *********************************************************************************************************************************************************
- ! *********************************************************************************************************************************************************
- ! Procedure starts here
+! **********************************************************************************************************
+! public subroutine varSubstep: run the model for a collection of substeps for a given state subset
+! **********************************************************************************************************
+subroutine varSubstep(&
+                      ! input: model control
+                      dt,                & ! intent(in)    : time step (s)
+                      dtInit,            & ! intent(in)    : initial time step (seconds)
+                      dt_min,            & ! intent(in)    : minimum time step (seconds)
+                      nState,            & ! intent(in)    : total number of state variables
+                      doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
+                      firstSubStep,      & ! intent(in)    : flag to denote first sub-step
+                      firstFluxCall,     & ! intent(inout) : flag to indicate if we are processing the first flux call
+                      computeVegFlux,    & ! intent(in)    : flag to denote if computing energy flux over vegetation
+                      scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
+                      iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
+                      fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
+                      fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
+                      ! input/output: data structures
+                      model_decisions,   & ! intent(in)    : model decisions
+                      lookup_data,       & ! intent(in)    : lookup tables
+                      type_data,         & ! intent(in)    : type of vegetation and soil
+                      attr_data,         & ! intent(in)    : spatial attributes
+                      forc_data,         & ! intent(in)    : model forcing data
+                      mpar_data,         & ! intent(in)    : model parameters
+                      indx_data,         & ! intent(inout) : index data
+                      prog_data,         & ! intent(inout) : model prognostic variables for a local HRU
+                      diag_data,         & ! intent(inout) : model diagnostic variables for a local HRU
+                      flux_data,         & ! intent(inout) : model fluxes for a local HRU
+                      deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
+                      bvar_data,         & ! intent(in)    : model variables for the local basin
+                      ! output: model control
+                      ixSaturation,      & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                      dtMultiplier,      & ! intent(out)   : substep multiplier (-)
+                      nSubsteps,         & ! intent(out)   : number of substeps taken for a given split
+                      failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
+                      reduceCoupledStep, & ! intent(out)   : flag to denote need to reduce the length of the coupled step
+                      tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
+                      err,message)         ! intent(out)   : error code and error message
+  ! ---------------------------------------------------------------------------------------
+  ! structure allocations
+  USE allocspace_module,only:allocLocal                ! allocate local data structures
+  ! simulation of fluxes and residuals given a trial state vector
+  USE getVectorz_module,only:popStateVec                ! populate the state vector
+  USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
+  USE systemSolvSundials_module,only:systemSolvSundials ! solve the system of equations for one time step
+  USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
+  ! identify name of variable type (for error message)
+  USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
+  implicit none
+  ! ---------------------------------------------------------------------------------------
+  ! * dummy variables
+  ! ---------------------------------------------------------------------------------------
+  ! input: model control
+  real(rkind),intent(in)             :: dt                            ! time step (seconds)
+  real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
+  real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
+  integer(i4b),intent(in)            :: nState                        ! total number of state variables
+  logical(lgt),intent(in)            :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
+  logical(lgt),intent(in)            :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(inout)         :: firstFluxCall                 ! flag to define the first flux call
+  logical(lgt),intent(in)            :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+  logical(lgt),intent(in)            :: scalarSolution                ! flag to denote implementing the scalar solution
+  integer(i4b),intent(in)            :: iStateSplit                   ! index of the state in the splitting operation
+  type(var_flagVec),intent(in)       :: fluxMask                      ! flags to denote if the flux is calculated in the given state subset
+  type(var_ilength),intent(inout)    :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps)
+  ! input/output: data structures
+  type(model_options),intent(in)     :: model_decisions(:)            ! model decisions
+  type(zLookup),intent(in)           :: lookup_data                   ! lookup tables
+  type(var_i),intent(in)             :: type_data                     ! type of vegetation and soil
+  type(var_d),intent(in)             :: attr_data                     ! spatial attributes
+  type(var_d),intent(in)             :: forc_data                     ! model forcing data
+  type(var_dlength),intent(in)       :: mpar_data                     ! model parameters
+  type(var_ilength),intent(inout)    :: indx_data                     ! indices for a local HRU
+  type(var_dlength),intent(inout)    :: prog_data                     ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)    :: diag_data                     ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)    :: flux_data                     ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
+  type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
+  ! output: model control
+  integer(i4b),intent(inout)         :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
+  integer(i4b),intent(out)           :: nSubsteps                     ! number of substeps taken for a given split
+  logical(lgt),intent(out)           :: failedMinimumStep             ! flag to denote success of substepping for a given split
+  logical(lgt),intent(out)           :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
+  logical(lgt),intent(out)           :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
+  integer(i4b),intent(out)           :: err                           ! error code
+  character(*),intent(out)           :: message                       ! error message
+  ! ---------------------------------------------------------------------------------------
+  ! * general local variables
+  ! ---------------------------------------------------------------------------------------
+  ! error control
+  character(LEN=256)                 :: cmessage                      ! error message of downwind routine
+  ! general local variables
+  integer(i4b)                       :: iVar                          ! index of variables in data structures
+  integer(i4b)                       :: iSoil                         ! index of soil layers
+  integer(i4b)                       :: ixLayer                       ! index in a given domain
+  integer(i4b), dimension(1)         :: ixMin,ixMax                   ! bounds of a given flux vector
+  ! time stepping
+  real(rkind)                        :: dtSum                         ! sum of time from successful steps (seconds)
+  real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
+  real(rkind)                        :: dtSubstep                     ! length of a substep (s)
+  real(rkind)                        :: maxstep                       ! maximum time step length (seconds)
+  ! adaptive sub-stepping for the explicit solution
+  logical(lgt)                       :: failedSubstep                 ! flag to denote success of substepping for a given split
+  real(rkind),parameter              :: safety=0.85_rkind             ! safety factor in adaptive sub-stepping
+  real(rkind),parameter              :: reduceMin=0.1_rkind           ! mimimum factor that time step is reduced
+  real(rkind),parameter              :: increaseMax=4.0_rkind         ! maximum factor that time step is increased
+  ! adaptive sub-stepping for the implicit solution
+  integer(i4b)                       :: niter                         ! number of iterations taken
+  integer(i4b),parameter             :: n_inc=5                       ! minimum number of iterations to increase time step
+  integer(i4b),parameter             :: n_dec=15                      ! maximum number of iterations to decrease time step
+  real(rkind),parameter              :: F_inc = 1.25_rkind            ! factor used to increase time step
+  real(rkind),parameter              :: F_dec = 0.90_rkind            ! factor used to decrease time step
+  ! state and flux vectors
+  real(rkind)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
+  real(rkind)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
+  real(rkind)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
+  real(rkind)                        :: stateVecPrime(nState)         ! trial state vector (mixed units)
+  type(var_dlength)                  :: flux_temp                     ! temporary model fluxes
+  ! flags
+  logical(lgt)                       :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
+  logical(lgt)                       :: checkMassBalance              ! flag to check the mass balance
+  logical(lgt)                       :: checkNrgBalance
+  logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
+  logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
+  ! energy fluxes
+  real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: sumSoilCompress
+  real(rkind),allocatable            :: sumLayerCompress(:)
+  ! ---------------------------------------------------------------------------------------
+  ! point to variables in the data structures
+  ! ---------------------------------------------------------------------------------------
+  globalVars: associate(&
+    ! model decisions
+    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical method, backward Euler or SUNDIALS/IDA
+    ! number of layers
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):    [i4b]    total number of layers
+    nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
+    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    ! mapping between state vectors and control volumes
+    ixLayerActive           => indx_data%var(iLookINDEX%ixLayerActive)%dat            ,& ! intent(in):    [i4b(:)] list of indices for all active layers (inactive=integerMissing)
+    ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b(:)] mapping of full state vector to the state subset
+    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b(:)] index of control volume for different domains (veg, snow, soil)
+    ! model state variables (vegetation canopy)
+    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the canopy air space (K)
+    scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(inout): [dp]     temperature of the vegetation canopy (K)
+    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(inout): [dp]     mass of ice on the vegetation canopy (kg m-2)
+    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(inout): [dp]     mass of liquid water on the vegetation canopy (kg m-2)
+    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(inout): [dp]     mass of total water on the vegetation canopy (kg m-2)
+    ! model state variables (snow and soil domains)
+    mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(inout): [dp(:)]  temperature of each snow/soil layer (K)
+    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of ice (-)
+    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of liquid water (-)
+    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of total water (-)
+    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)]  matric head (m)
+    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(inout): [dp(:)]  matric potential of liquid water (m)
+    )  ! end association with variables in the data structures
+    ! *********************************************************************************************************************************************************
+    ! *********************************************************************************************************************************************************
+    ! Procedure starts here
 
- ! initialize error control
- err=0; message='varSubstep/'
+    ! initialize error control
+    err=0; message='varSubstep/'
 
- ! initialize flag for the success of the substepping
- failedMinimumStep=.false.
+    ! initialize flag for the success of the substepping
+    failedMinimumStep=.false.
 
- ! initialize the length of the substep
- ! change maxstep with hard code here to make only the newton step loop in systemSolve happen more frequently for num_method = bEuler
- maxstep = 1800._rkind !mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
- dtSubstep = dtInit
+    ! initialize the length of the substep
+    dtSubstep = dtInit
 
- ! allocate space for the temporary model flux structure
- call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
- if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+    ! change maxstep with hard code here to make only the newton step loop in systemSolve happen more frequently for num_method = bEuler with BE>1
+     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
 
- ! initialize the model fluxes (some model fluxes are not computed in the iterations)
- do iVar=1,size(flux_data%var)
-  flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
- end do
+    ! initalize flag for checking if energy fluxes had been modified
+    nrgFluxModified = .false.
 
- ! initialize the total energy fluxes (modified in updateProg)
- sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
- sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
- sumSoilCompress      = 0._rkind  ! total soil compression
- allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
+    ! allocate space for the temporary model flux structure
+    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
- ! define the first flux call in a splitting operation
- firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
+    ! initialize the model fluxes (some model fluxes are not computed in the iterations)
+    do iVar=1,size(flux_data%var)
+      flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+    end do
 
- ! initialize subStep
- dtSum     = 0._rkind  ! keep track of the portion of the time step that is completed
- nSubsteps = 0
+    ! initialize the total energy fluxes (modified in updateProg)
+    sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
+    sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+    sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+    sumSoilCompress      = 0._rkind  ! total soil compression
+    allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
 
- ! loop through substeps
- ! NOTE: continuous do statement with exit clause
- substeps: do
-  dtSubstep = min(dtSubstep,maxstep)
+    ! define the first flux call in a splitting operation
+    firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
 
-  ! initialize error control
-  err=0; message='varSubstep/'
+    ! initialize subStep
+    dtSum     = 0._rkind  ! keep track of the portion of the time step that is completed
+    nSubsteps = 0
 
-  ! -----
-  ! * populate state vectors...
-  ! ---------------------------
+    ! loop through substeps
+    ! NOTE: continuous do statement with exit clause
+    substeps: do
+      dtSubstep = min(dtSubstep,maxstep)
 
-  ! initialize state vectors
-  call popStateVec(&
-                   ! input
-                   nState,                           & ! intent(in):    number of desired state variables
-                   prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
-                   indx_data,                        & ! intent(in):    indices defining model states and layers
-                   ! output
-                   stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
-                   err,cmessage)                       ! intent(out):   error control
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+      ! initialize error control
+      err=0; message='varSubstep/'
 
-  ! -----
-  ! * iterative solution...
-  ! -----------------------
+      ! -----
+      ! * populate state vectors...
+      ! ---------------------------
 
-  ! solve the system of equations for a given state subset
-  call systemSolv(&
-                  ! input: model control
-                  dtSubstep,         & ! intent(in):    time step (s)
-                  dtInit,            & ! intent(in):    entire time step (s)
-                  nState,            & ! intent(in):    total number of state variables
-                  firstSubStep,      & ! intent(in):    flag to denote first sub-step
-                  firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
-                  firstSplitOper,    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
-                  computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
-                  scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
-                  ! input/output: data structures
-                  lookup_data,       & ! intent(in):    lookup tables
-                  type_data,         & ! intent(in):    type of vegetation and soil
-                  attr_data,         & ! intent(in):    spatial attributes
-                  forc_data,         & ! intent(in):    model forcing data
-                  mpar_data,         & ! intent(in):    model parameters
-                  indx_data,         & ! intent(inout): index data
-                  prog_data,         & ! intent(inout): model prognostic variables for a local HRU
-                  diag_data,         & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_temp,         & ! intent(inout): model fluxes for a local HRU
-                  bvar_data,         & ! intent(in):    model variables for the local basin
-                  model_decisions,   & ! intent(in):    model decisions
-                  stateVecInit,      & ! intent(in):    initial state vector
-                  ! output: model control
-                  deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                  untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
-                  stateVecTrial,     & ! intent(out):   updated state vector
-                  reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
-                  tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
-                  niter,             & ! intent(out):   number of iterations taken
-                  err,cmessage)        ! intent(out):   error code and error message
-  if(err/=0)then
-   message=trim(message)//trim(cmessage)
-   if(err>0) return
-  endif
+      ! initialize state vectors
+      call popStateVec(&
+                      ! input
+                      nState,                           & ! intent(in):    number of desired state variables
+                      prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
+                      diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
+                      indx_data,                        & ! intent(in):    indices defining model states and layers
+                      ! output
+                      stateVecInit,                     & ! intent(out):   initial model state vector (mixed units)
+                      err,cmessage)                       ! intent(out):   error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  ! if too much melt or need to reduce length of the coupled step then return
-  ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-  if(tooMuchMelt .or. reduceCoupledStep) return
+      ! -----
+      ! * iterative solution...
+      ! -----------------------
+      ! solve the system of equations for a given state subset
+      select case(ixNumericalMethod)
+        case(sundials)
+          call systemSolvSundials(&
+                      ! input: model control
+                      dtSubstep,         & ! intent(in):    time step (s)
+                      dtInit,            & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
+                      nState,            & ! intent(in):    total number of state variables
+                      firstSubStep,      & ! intent(in):    flag to denote first sub-step
+                      firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
+                      firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
+                      computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
+                      scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
+                      ! input/output: data structures
+                      lookup_data,       & ! intent(in):    lookup tables
+                      type_data,         & ! intent(in):    type of vegetation and soil
+                      attr_data,         & ! intent(in):    spatial attributes
+                      forc_data,         & ! intent(in):    model forcing data
+                      mpar_data,         & ! intent(in):    model parameters
+                      indx_data,         & ! intent(inout): index data
+                      prog_data,         & ! intent(inout): model prognostic variables for a local HRU
+                      diag_data,         & ! intent(inout): model diagnostic variables for a local HRU
+                      flux_temp,         & ! intent(inout): model fluxes for a local HRU
+                      bvar_data,         & ! intent(in):    model variables for the local basin
+                      model_decisions,   & ! intent(in):    model decisions
+                      stateVecInit,      & ! intent(in):    initial state vector
+                      ! output: model control
+                      deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                      ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                      stateVecTrial,     & ! intent(out):   updated state vector
+                      stateVecPrime,     & ! intent(out):   updated state vector
+                      reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
+                      tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
+                      err,cmessage)        ! intent(out):   error code and error message
+          untappedMelt(:) = 0._rkind ! set untapped melt energy to zero
+          niter = 0  ! will not use
+        case(bEuler)
+          call systemSolv(&
+                      ! input: model control
+                      dtSubstep,         & ! intent(in):    time step (s)
+                      dtInit,            & ! intent(in):    entire time step (s)
+                      nState,            & ! intent(in):    total number of state variables
+                      firstSubStep,      & ! intent(in):    flag to denote first sub-step
+                      firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
+                      firstSplitOper,    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
+                      computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
+                      scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
+                      ! input/output: data structures
+                      lookup_data,       & ! intent(in):    lookup tables
+                      type_data,         & ! intent(in):    type of vegetation and soil
+                      attr_data,         & ! intent(in):    spatial attributes
+                      forc_data,         & ! intent(in):    model forcing data
+                      mpar_data,         & ! intent(in):    model parameters
+                      indx_data,         & ! intent(inout): index data
+                      prog_data,         & ! intent(inout): model prognostic variables for a local HRU
+                      diag_data,         & ! intent(inout): model diagnostic variables for a local HRU
+                      flux_temp,         & ! intent(inout): model fluxes for a local HRU
+                      bvar_data,         & ! intent(in):    model variables for the local basin
+                      model_decisions,   & ! intent(in):    model decisions
+                      stateVecInit,      & ! intent(in):    initial state vector
+                      ! output: model control
+                      deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                      ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                      untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
+                      stateVecTrial,     & ! intent(out):   updated state vector
+                      reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
+                      tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
+                      niter,             & ! intent(out):   number of iterations taken
+                      err,cmessage)        ! intent(out):   error code and error message
+          stateVecPrime = stateVecTrial ! will not use, dummy
+        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+      end select
 
-  ! identify failure
-  failedSubstep = (err<0)
-
-  ! check
-  if(globalPrintFlag)then
-   print*, 'niter, failedSubstep, dtSubstep = ', niter, failedSubstep, dtSubstep
-   print*, trim(cmessage)
-  endif
-
-  ! reduce step based on failure
-  if(failedSubstep)then
-    err=0; message='varSubstep/'  ! recover from failed convergence
-    dtMultiplier  = 0.5_rkind        ! system failure: step halving
-  else
-
-   ! ** implicit Euler: adjust step length based on iteration count
-    if(niter<n_inc)then
-     dtMultiplier = F_inc
-    elseif(niter>n_dec)then
-     dtMultiplier = F_dec
-    else
-     dtMultiplier = 1._rkind
-    endif
-
-  endif  ! switch between failure and success
-
-  ! check if we failed the substep
-  if(failedSubstep)then
-
-   ! check that the substep is greater than the minimum step
-   if(dtSubstep*dtMultiplier<dt_min)then
-    ! --> exit, and either (1) try another solution method; or (2) reduce coupled step
-    failedMinimumStep=.true.
-    exit subSteps
-
-   else ! step is still OK
-    dtSubstep = dtSubstep*dtMultiplier
-    cycle subSteps
-   endif  ! if step is less than the minimum
-
-  endif  ! if failed the substep
-
-  ! -----
-  ! * update model fluxes...
-  ! ------------------------
-
-  ! NOTE: if we get to here then we are accepting the step of dtSubstep
-  if(err/=0)then
-   message=trim(message)//'expect err=0 if updating fluxes'
-   return
-  endif
-
-  ! identify the need to check the mass balance
-  checkMassBalance = .true. ! (.not.scalarSolution)
-  checkNrgBalance = .false.  ! only check if ixHowHeatCap == enthalpyFD
-
-  ! update prognostic variables
-  call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, checkNrgBalance, & ! input: model control
-                  lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                              & ! input-output: data structures
-                  waterBalanceError,nrgFluxModified,err,cmessage)                                                           ! output: flags and error control
-  if(err/=0)then
-   message=trim(message)//trim(cmessage)
-   if(err>0) return
-  endif
-
-  ! if water balance error then reduce the length of the coupled step
-  if(waterBalanceError)then
-   message=trim(message)//'water balance error'
-   reduceCoupledStep=.true.
-   err=-20; return
-  endif
-
-  if(globalPrintFlag)&
-  print*, trim(cmessage)//': dt = ', dtSubstep
-
-  ! recover from errors in prognostic update
-  if(err<0)then
-
-   ! modify step
-   err=0  ! error recovery
-   dtSubstep = dtSubstep/2._rkind
-
-   ! check minimum: fail minimum step if there is an error in the update
-   if(dtSubstep<dt_min)then
-    failedMinimumStep=.true.
-    exit subSteps
-   ! minimum OK -- try again
-   else
-    cycle substeps
-   endif
-
-  endif  ! if errors in prognostic update
-
-  ! get the total energy fluxes (modified in updateProg)
-  if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
-   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
-   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
-  else
-   sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
-   sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-   sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
-  endif  ! if energy fluxes were modified
-
-  ! get the total soil compression
-  if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
-   ! scalar compression
-   if(.not.scalarSolution .or. iStateSplit==nSoil)&
-   sumSoilCompress = sumSoilCompress + dtSubstep*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
-   ! vector compression
-   do iSoil=1,nSoil
-    if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-    sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dtSubstep*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
-   end do
-  endif
-
-  ! print progress
-  if(globalPrintFlag)&
-  write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
-
-  ! increment fluxes
-  dt_wght = dtSubstep/dt ! (define weight applied to each splitting operation)
-  do iVar=1,size(flux_meta)
-   if(count(fluxMask%var(iVar)%dat)>0) then
-
-    !print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
-
-    ! ** no domain splitting
-    if(count(ixLayerActive/=integerMissing)==nLayers)then
-     flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
-     fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
-
-    ! ** domain splitting
-    else
-     ixMin=lbound(flux_data%var(iVar)%dat)
-     ixMax=ubound(flux_data%var(iVar)%dat)
-     do ixLayer=ixMin(1),ixMax(1)
-      if(fluxMask%var(iVar)%dat(ixLayer)) then
-       flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
-       fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        if(err>0) return
       endif
-     end do
-    endif  ! (domain splitting)
 
-   endif   ! (if the flux is desired)
-  end do  ! (loop through fluxes)
+      ! if too much melt or need to reduce length of the coupled step then return
+      ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
+      if(tooMuchMelt .or. reduceCoupledStep) return
 
-  ! ------------------------------------------------------
-  ! ------------------------------------------------------
+      ! identify failure, should not happen in sundials
+      failedSubstep = (err<0)
 
-  ! increment the number of substeps
-  nSubsteps = nSubsteps+1
+      ! check
+      if(globalPrintFlag)then
+        print*, 'niter, failedSubstep, dtSubstep = ', niter, failedSubstep, dtSubstep
+        print*, trim(cmessage)
+      endif
 
-  ! increment the sub-step legth
-  dtSum = dtSum + dtSubstep
+      ! reduce step based on failure
+      if(failedSubstep)then
+        err=0; message='varSubstep/'  ! recover from failed convergence
+        dtMultiplier  = 0.5_rkind        ! system failure: step halving
+      else
+        ! ** implicit Euler: adjust step length based on iteration count
+        if(niter<n_inc)then
+          dtMultiplier = F_inc
+        elseif(niter>n_dec)then
+          dtMultiplier = F_dec
+        else
+          dtMultiplier = 1._rkind
+        endif
+      endif  ! switch between failure and success
 
-  ! check that we have completed the sub-step
-  if(dtSum >= dt-verySmall)then
-   failedMinimumStep=.false.
-   exit subSteps
+      ! check if we failed the substep
+      if(failedSubstep)then
+
+        ! check that the substep is greater than the minimum step
+        if(dtSubstep*dtMultiplier<dt_min)then
+          ! --> exit, and either (1) try another solution method; or (2) reduce coupled step
+          failedMinimumStep=.true.
+          exit subSteps
+
+        else ! step is still OK
+          dtSubstep = dtSubstep*dtMultiplier
+          cycle subSteps
+        endif  ! if step is less than the minimum
+
+      endif  ! if failed the substep
+
+      ! -----
+      ! * update model fluxes...
+      ! ------------------------
+
+      ! NOTE: if we get to here then we are accepting the step of dtSubstep
+      if(err/=0)then
+        message=trim(message)//'expect err=0 if updating fluxes'
+        return
+      endif
+
+      ! identify the need to check the mass balance, only for bEuler as fluxes are not not for checking in sundials
+      select case(ixNumericalMethod)
+        case(sundials); checkMassBalance = .false.
+        case(bEuler); checkMassBalance = .true.  ! (.not.scalarSolution)
+        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+      end select
+      ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
+      checkNrgBalance = .false.
+
+      ! update prognostic variables
+      call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                             & ! input-output: data structures
+                      waterBalanceError,nrgFluxModified,err,cmessage)                                                                                         ! output: flags and error control
+      if(err/=0)then
+        message=trim(message)//trim(cmessage)
+        if(err>0) return
+      endif
+
+      ! if water balance error then reduce the length of the coupled step
+      if(waterBalanceError)then
+        message=trim(message)//'water balance error'
+        reduceCoupledStep=.true.
+        err=-20; return
+      endif
+
+      if(globalPrintFlag)&
+      print*, trim(cmessage)//': dt = ', dtSubstep
+
+      ! recover from errors in prognostic update
+      if(err<0)then
+
+        ! modify step
+        err=0  ! error recovery
+        dtSubstep = dtSubstep/2._rkind
+
+        ! check minimum: fail minimum step if there is an error in the update
+        if(dtSubstep<dt_min)then
+          failedMinimumStep=.true.
+          exit subSteps
+        ! minimum OK -- try again
+        else
+          cycle substeps
+        endif
+
+      endif  ! if errors in prognostic update
+
+      ! get the total energy fluxes (modified in updateProg)
+      if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+        sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+        sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+        sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+      else
+        sumCanopyEvaporation = sumCanopyEvaporation + dtSubstep*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ! canopy evaporation/condensation (kg m-2 s-1)
+        sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+        sumSenHeatCanopy     = sumSenHeatCanopy     + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+      endif  ! if energy fluxes were modified
+
+      ! get the total soil compression
+      if (count(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat/=integerMissing)>0) then
+        ! scalar compression
+        if(.not.scalarSolution .or. iStateSplit==nSoil)&
+        sumSoilCompress = sumSoilCompress + dtSubstep*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
+        ! vector compression
+        do iSoil=1,nSoil
+          if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+          sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dtSubstep*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
+        end do
+      endif
+
+      ! print progress
+      if(globalPrintFlag)&
+      write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
+
+      ! increment fluxes, define weight applied to each splitting operation only possible in bEuler right now
+      select case(ixNumericalMethod)
+        case(sundials); dt_wght = 1._qp
+        case(bEuler); dt_wght = dtSubstep/dt
+        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+      end select
+
+      do iVar=1,size(flux_meta)
+        if(count(fluxMask%var(iVar)%dat)>0) then
+
+          ! ** no domain splitting
+          if(count(ixLayerActive/=integerMissing)==nLayers)then
+            flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+            fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
+
+          ! ** domain splitting
+          else
+            ixMin=lbound(flux_data%var(iVar)%dat)
+            ixMax=ubound(flux_data%var(iVar)%dat)
+            do ixLayer=ixMin(1),ixMax(1)
+              if(fluxMask%var(iVar)%dat(ixLayer)) then
+                flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+                fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
+              endif
+            end do
+          endif  ! (domain splitting)
+
+        endif   ! (if the flux is desired)
+      end do  ! (loop through fluxes)
+
+      ! increment the number of substeps
+      nSubsteps = nSubsteps+1
+
+      ! increment the sub-step legth
+      dtSum = dtSum + dtSubstep
+
+      ! check that we have completed the sub-step
+      if(dtSum >= dt-verySmall)then
+        failedMinimumStep=.false.
+        exit subSteps
+      endif
+
+      ! adjust length of the sub-step (make sure that we don't exceed the step)
+      dtSubstep = min(dt - dtSum, max(dtSubstep*dtMultiplier, dt_min) )
+
+    end do substeps  ! time steps for variable-dependent sub-stepping
+    ! NOTE: if we get to here then we are accepting then dtSum should dt
+
+    ! save the energy fluxes
+    flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
+    flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+    flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+
+    ! save the soil compression diagnostics
+    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
+    do iSoil=1,nSoil
+      if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+      diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)
+    end do
+    deallocate(sumLayerCompress)
+
+  ! end associate statements
+  end associate globalVars
+
+  ! update error codes
+  if(failedMinimumStep)then
+    err=-20 ! negative = recoverable error
+    message=trim(message)//'failed minimum step'
   endif
-
-  ! adjust length of the sub-step (make sure that we don't exceed the step)
-  dtSubstep = min(dt - dtSum, max(dtSubstep*dtMultiplier, dt_min) )
-
- end do substeps  ! time steps for variable-dependent sub-stepping
- ! NOTE: if we get to here then we are accepting then dtSum should dt
-
- ! save the energy fluxes
- flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
- flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
- flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
-
- ! save the soil compression diagnostics
- diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
- do iSoil=1,nSoil
-  if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-  diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)
- end do
- deallocate(sumLayerCompress)
-
- ! end associate statements
- end associate globalVars
-
- ! update error codes
- if(failedMinimumStep)then
-  err=-20 ! negative = recoverable error
-  message=trim(message)//'failed minimum step'
- endif
-
- end subroutine varSubstep
+end subroutine varSubstep
 
 
- ! **********************************************************************************************************
- ! private subroutine updateProg: update prognostic variables
- ! **********************************************************************************************************
-subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,checkMassBalance, checkNrgBalance, & ! input: model control
-                       lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                   & ! input-output: data structures
-                       waterBalanceError,nrgFluxModified,err,message)                                                    ! output: flags and error control
+! **********************************************************************************************************
+! private subroutine updateProg: update prognostic variables
+! **********************************************************************************************************
+subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                      & ! input-output: data structures
+                      waterBalanceError,nrgFluxModified,err,message)                                                                                   ! output: flags and error control
   USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
+  USE updateVarsSundials_module,only:updateVarsSundials             ! update prognostic variables
   USE updateVars_module,only:updateVars                             ! update prognostic variables
   USE t2enthalpy_module, only:t2enthalpy                            ! compute enthalpy
   implicit none
@@ -558,10 +613,12 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   logical(lgt)     ,intent(in)    :: computeVegFlux                 ! flag to compute the vegetation flux
   real(rkind)      ,intent(in)    :: untappedMelt(:)                ! un-tapped melt energy (J m-3 s-1)
   real(rkind)      ,intent(in)    :: stateVecTrial(:)               ! trial state vector (mixed units)
+  real(rkind)      ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
   logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
   logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance
   ! data structures
-  type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
+  type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
+  type(zLookup),intent(in)        :: lookup_data                    ! lookup tables
   type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
   type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
   type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
@@ -573,7 +630,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   logical(lgt)     ,intent(out)   :: nrgFluxModified                ! flag to denote that the energy fluxes were modified
   integer(i4b)     ,intent(out)   :: err                            ! error code
   character(*)     ,intent(out)   :: message                        ! error message
- ! ==================================================================================================================
+  ! ==================================================================================================================
   ! general
   integer(i4b)                    :: iState                         ! index of model state variable
   integer(i4b)                    :: ixSubset                       ! index within the state subset
@@ -605,6 +662,20 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   real(rkind)                     :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial          ! trial vector for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial          ! trial vector for volumetric fraction of ice (-)
+    ! derivative of state variables
+  real(rkind)                     :: scalarCanairTempPrime          ! trial value for temperature of the canopy air space (K)
+  real(rkind)                     :: scalarCanopyTempPrime          ! trial value for temperature of the vegetation canopy (K)
+  real(rkind)                     :: scalarCanopyWatPrime           ! trial value for liquid water storage in the canopy (kg m-2)
+  real(rkind),dimension(nLayers)  :: mLayerTempPrime                ! trial vector for temperature of layers in the snow and soil domains (K)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracWatPrime          ! trial vector for volumetric fraction of total water (-)
+  real(rkind),dimension(nSoil)    :: mLayerMatricHeadPrime          ! trial vector for total water matric potential (m)
+  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime       ! trial vector for liquid water matric potential (m)
+  real(rkind)                     :: scalarAquiferStoragePrime      ! trial value for storage of water in the aquifer (m)
+  ! diagnostic variables
+  real(rkind)                     :: scalarCanopyLiqPrime           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+  real(rkind)                     :: scalarCanopyIcePrime           ! trial value for mass of ice on the vegetation canopy (kg m-2)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
   real(rkind)                     :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
   real(rkind)                     :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial            ! enthalpy of snow + soil (J m-3)
@@ -618,6 +689,8 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   ! -------------------------------------------------------------------------------------------------------------------
   ! point to flux variables in the data structure
   associate(&
+    ! model decisions
+    ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in): [i4b] choice of numerical method, backward Euler or SUNDIALS/IDA
     ! get indices for mass balance
     ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)    : [i4b]    index of canopy hydrology state variable (mass)
     ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)    : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
@@ -674,9 +747,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! error tolerance
     absConvTol_liquid         => mpar_data%var(iLookPARAM%absConvTol_liquid)%dat(1)          & ! intent(in)    : [dp]     absolute convergence tolerance for vol frac liq water (-)
     ) ! associating flux variables in the data structure
-   ! -------------------------------------------------------------------------------------------------------------------
-   ! initialize error control
-   err=0; message='updateProg/'
+    ! -------------------------------------------------------------------------------------------------------------------
+    ! initialize error control
+    err=0; message='updateProg/'
 
     ! initialize water balancmLayerVolFracWatTrial error
     waterBalanceError=.false.
@@ -727,8 +800,86 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    ! update diagnostic variables
-    call updateVars(&
+    ! initialize to state variable from the last update
+    ! should all be set to previous values if splits, but for now operator splitting is not hooked up
+    scalarCanairTempPrime     = realMissing
+    scalarCanopyTempPrime     = realMissing
+    scalarCanopyWatPrime      = realMissing
+    scalarCanopyLiqPrime      = realMissing
+    scalarCanopyIcePrime      = realMissing
+    mLayerTempPrime           = realMissing
+    mLayerVolFracWatPrime     = realMissing
+    mLayerVolFracLiqPrime     = realMissing
+    mLayerVolFracIcePrime     = realMissing
+    mLayerMatricHeadPrime     = realMissing
+    mLayerMatricHeadLiqPrime  = realMissing
+    scalarAquiferStoragePrime = realMissing
+
+    select case(ixNumericalMethod)
+      case(sundials)
+        call varExtract(&
+                  ! input
+                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
+                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
+                  indx_data,                & ! intent(in):    indices defining model states and layers
+                  ! output: variables for the vegetation canopy
+                  scalarCanairTempPrime,    & ! intent(inout):   derivative of canopy air temperature (K)
+                  scalarCanopyTempPrime,    & ! intent(inout):   derivative of canopy temperature (K)
+                  scalarCanopyWatPrime,     & ! intent(inout):   derivative of canopy total water (kg m-2)
+                  scalarCanopyLiqPrime,     & ! intent(inout):   derivative of canopy liquid water (kg m-2)
+                  ! output: variables for the snow-soil domain
+                  mLayerTempPrime,          & ! intent(inout):   derivative of layer temperature (K)
+                  mLayerVolFracWatPrime,    & ! intent(inout):   derivative of volumetric total water content (-)
+                  mLayerVolFracLiqPrime,    & ! intent(inout):   derivative of volumetric liquid water content (-)
+                  mLayerMatricHeadPrime,    & ! intent(inout):   derivative of total water matric potential (m)
+                  mLayerMatricHeadLiqPrime, & ! intent(inout):   derivative of liquid water matric potential (m)
+                  ! output: variables for the aquifer
+                  scalarAquiferStoragePrime,& ! intent(inout):   derivative of storage of water in the aquifer (m)
+                  ! output: error control
+                  err,cmessage)               ! intent(out):   error control
+        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+
+        ! update diagnostic variables
+        call updateVarsSundials(&
+                    ! input
+                    dt,                                        &
+                    .false.,                                   & ! intent(in):    logical flag if computing Jacobian for Sundials solver
+                    doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                    mpar_data,                                 & ! intent(in):    model parameters for a local HRU
+                    indx_data,                                 & ! intent(in):    indices defining model states and layers
+                    prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                    mLayerVolFracWatTrial,                     & ! intent(in):    use current vector for prev vector of volumetric total water content (-)
+                    mLayerMatricHeadTrial,                     & ! intent(in):    use current vector for prev vector of total water matric potential (m)
+                    diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
+                    deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                    ! output: variables for the vegetation canopy
+                    scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
+                    scalarCanopyTempPrime,                     & ! intent(inout): trial value of canopy temperature (K)
+                    scalarCanopyWatPrime,                      & ! intent(inout): trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqPrime,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIcePrime,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
+                    ! output: variables for the snow-soil domain
+                    mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
+                    mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
+                    mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
+                    mLayerTempPrime,                           & !
+                    mLayerVolFracWatPrime,                     & ! intent(inout): Prime vector of volumetric total water content (-)
+                    mLayerVolFracLiqPrime,                     & ! intent(inout): Prime vector of volumetric liquid water content (-)
+                    mLayerVolFracIcePrime,                     & !
+                    mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
+                    mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
+                    ! output: error control
+                    err,cmessage)                                ! intent(out):   error control
+      case(bEuler)
+        ! update diagnostic variables
+        call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                  lookup_data,              & ! intent(in):    lookup tables for a local HRU
@@ -751,6 +902,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                  mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
+      case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+    end select
+
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! ----
@@ -800,6 +954,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! -----------------------
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver
+    !   for sundials will not work since fluxes are instantaneous so not currently checked
     if(checkMassBalance)then
 
       ! check mass balance for the canopy

@@ -198,7 +198,6 @@ subroutine opSplittin(&
   ! population/extraction of state vectors
   USE indexState_module,only:indexSplit                ! get state indices
   USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
-  USE varSubstepSundials_module,only:varSubstepSundials                ! complete substeps for a given split
   ! identify name of variable type (for error message)
   USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
   implicit none
@@ -744,10 +743,8 @@ subroutine opSplittin(&
                 ! keep track of the number of scalar solutions
                 if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
-                ! solve variable subset for one full time step
-                select case(ixNumericalMethod)
-                  case(sundials)
-                    call varSubstepSundials(&
+                ! solve variable subset for one full time steps
+                call varSubstep(&
                                 ! input: model control
                                 dt,                         & ! intent(in)    : time step (s)
                                 dtInit,                     & ! intent(in)    : initial time step (seconds)
@@ -782,45 +779,6 @@ subroutine opSplittin(&
                                 reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
                                 tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
                                 err,cmessage)                 ! intent(out)   : error code and error message
-                  case(bEuler)
-                    call varSubstep(&
-                                ! input: model control
-                                dt,                         & ! intent(in)    : time step (s)
-                                dtInit,                     & ! intent(in)    : initial time step (seconds)
-                                dt_min,                     & ! intent(in)    : minimum time step (seconds)
-                                nSubset,                    & ! intent(in)    : total number of variables in the state subset
-                                doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
-                                firstSubStep,               & ! intent(in)    : flag to denote first sub-step
-                                firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
-                                computeVegFlux,             & ! intent(in)    : flag to denote if computing energy flux over vegetation
-                                (ixSolution==scalar),       & ! intent(in)    : flag to denote computing the scalar solution
-                                iStateSplit,                & ! intent(in)    : index of the layer in the splitting operation
-                                fluxMask,                   & ! intent(in)    : mask for the fluxes used in this given state subset
-                                fluxCount,                  & ! intent(inout) : number of times fluxes are updated (should equal nsubstep)
-                                ! input/output: data structures
-                                model_decisions,            & ! intent(in)    : model decisions
-                                lookup_data,                & ! intent(in)    : lookup tables
-                                type_data,                  & ! intent(in)    : type of vegetation and soil
-                                attr_data,                  & ! intent(in)    : spatial attributes
-                                forc_data,                  & ! intent(in)    : model forcing data
-                                mpar_data,                  & ! intent(in)    : model parameters
-                                indx_data,                  & ! intent(inout) : index data
-                                prog_data,                  & ! intent(inout) : model prognostic variables for a local HRU
-                                diag_data,                  & ! intent(inout) : model diagnostic variables for a local HRU
-                                flux_data,                  & ! intent(inout) : model fluxes for a local HRU
-                                deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
-                                bvar_data,                  & ! intent(in)    : model variables for the local basin
-                                ! output: control
-                                ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                                dtMultiplier,               & ! intent(out)   : substep multiplier (-)
-                                nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
-                                failedMinimumStep,          & ! intent(out)   : flag for failed substeps
-                                reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
-                                tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                                err,cmessage)                 ! intent(out)   : error code and error message
-                  case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
-                end select
-
                 if(err/=0)then
                   message=trim(message)//trim(cmessage)
                   if(err>0) return
