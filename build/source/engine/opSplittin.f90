@@ -169,7 +169,9 @@ subroutine opSplittin(&
                       nLayers,        & ! intent(in):    total number of layers
                       nState,         & ! intent(in):    total number of state variables
                       dt,             & ! intent(inout): time step (s)
+                      tdrainage,      & ! intent(in):    length drainage pond drains in
                       firstSubStep,   & ! intent(in):    flag to denote first sub-step
+                      firstInnerStep, & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       computeVegFlux, & ! intent(in):    flag to denote if computing energy flux over vegetation
                       ! input/output: data structures
                       type_data,      & ! intent(in):    type of vegetation and soil
@@ -210,6 +212,7 @@ subroutine opSplittin(&
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
   real(rkind),intent(inout)       :: dt                             ! time step (seconds)
+  real(rkind),intent(in)          :: tdrainage                      ! length drainage pond drains in
   logical(lgt),intent(in)         :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! input/output: data structures
@@ -290,6 +293,7 @@ subroutine opSplittin(&
   logical(lgt)                    :: failedMinimumStep              ! flag to denote failure of substepping for a given split
   integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   integer(i4b)                    :: nCoupling
+  logical(lgt)                    :: firstInnerStep                 ! flag to denote if the first time step in maxstep subStep
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -376,6 +380,7 @@ subroutine opSplittin(&
 
     ! initialize the first success call
     firstSuccess=.false.
+    if (.not.firstInnerStep) firstSuccess=.true.
 
     ! initialize the flags
     tooMuchMelt=.false.  ! too much melt (merge snow layers)
@@ -567,8 +572,6 @@ subroutine opSplittin(&
                 ! avoid redundant case where vector solution is of length 1
                 if(ixSolution==vector .and. count(stateMask)==1) cycle solution
 
-
-
                 ! -----
                 ! * assemble vectors for a given split...
                 ! ---------------------------------------
@@ -749,6 +752,7 @@ subroutine opSplittin(&
                                 dt,                         & ! intent(in)    : time step (s)
                                 dtInit,                     & ! intent(in)    : initial time step (seconds)
                                 dt_min,                     & ! intent(in)    : minimum time step (seconds)
+                                tdrainage,                  & ! intent(in)    : length drainage pond drains in
                                 nSubset,                    & ! intent(in)    : total number of variables in the state subset
                                 doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
                                 firstSubStep,               & ! intent(in)    : flag to denote first sub-step

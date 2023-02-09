@@ -162,7 +162,7 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! input: model control
  real(rkind),intent(in)          :: dt_cur                        ! current stepsize
- real(rkind),intent(in)          :: dt                            ! entire time step
+ real(rkind),intent(in)          :: dt                            ! entire time step for drainage pond rate
  integer(i4b),intent(in)         :: nState                        ! total number of state variables
  logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
  logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
@@ -439,7 +439,7 @@ contains
  call eval8summa(&
                  ! input: model control
                  dt_cur,                  & ! intent(in):    current stepsize
-                 dt,                      & ! intent(in):    length of the entire time step (seconds)
+                 dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                  nSnow,                   & ! intent(in):    number of snow layers
                  nSoil,                   & ! intent(in):    number of soil layers
                  nLayers,                 & ! intent(in):    number of layers
@@ -523,7 +523,7 @@ contains
   call summaSolve(&
                   ! input: model control
                   dt_cur,                        & ! intent(in):    current stepsize
-                  dt,                            & ! intent(in):    length of the entire time step (seconds)
+                  dt,                            & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                   iter,                          & ! intent(in):    iteration index
                   nSnow,                         & ! intent(in):    number of snow layers
                   nSoil,                         & ! intent(in):    number of soil layers

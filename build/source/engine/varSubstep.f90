@@ -94,6 +94,7 @@ subroutine varSubstep(&
                       dt,                & ! intent(in)    : time step (s)
                       dtInit,            & ! intent(in)    : initial time step (seconds)
                       dt_min,            & ! intent(in)    : minimum time step (seconds)
+                      tdrainage,         & ! intent(in)    : length drainage pond drains in
                       nState,            & ! intent(in)    : total number of state variables
                       doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
                       firstSubStep,      & ! intent(in)    : flag to denote first sub-step
@@ -142,6 +143,7 @@ subroutine varSubstep(&
   real(rkind),intent(in)             :: dt                            ! time step (seconds)
   real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
   real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
+  real(rkind),intent(in)             :: tdrainage                     ! length drainage pond drains in
   integer(i4b),intent(in)            :: nState                        ! total number of state variables
   logical(lgt),intent(in)            :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
   logical(lgt),intent(in)            :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -260,7 +262,8 @@ subroutine varSubstep(&
     ! initialize the length of the substep
     dtSubstep = dtInit
 
-    ! change maxstep with hard code here to make only the newton step loop in systemSolve happen more frequently for num_method = bEuler with BE>1
+    ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently for num_method = bEuler or sundials
+    !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
      maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
 
     ! initalize flag for checking if energy fluxes had been modified
@@ -322,7 +325,7 @@ subroutine varSubstep(&
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      dtInit,            & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
+                      tdrainage,         & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -356,7 +359,7 @@ subroutine varSubstep(&
           call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      dtInit,            & ! intent(in):    entire time step (s)
+                      tdrainage,         & ! intent(in):    entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -1003,15 +1006,15 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
         liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
         if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
-          write(*,'(a,1x,f20.10)') 'dt = ', dt
-          write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
-          write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
-          write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
-          write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
-          write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
-          write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
-          write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
-          write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
+          !write(*,'(a,1x,f20.10)') 'dt = ', dt
+          !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
+          !write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
+          !write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
+          !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
+          !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
+          !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
+          !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
+          !write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
           waterBalanceError = .true.
           return
         endif  ! if there is a water balance error
@@ -1027,14 +1030,14 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
         liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
         if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
-          write(*,'(a,1x,f20.10)') 'dt = ', dt
-          write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
-          write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
-          write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
-          write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-          write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
-          write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
-          write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+          !write(*,'(a,1x,f20.10)') 'dt = ', dt
+          !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+          !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+          !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+          !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+          !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+          !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+          !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
           waterBalanceError = .true.
           return
         endif  ! if there is a water balance error

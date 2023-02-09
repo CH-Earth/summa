@@ -80,7 +80,7 @@ contains
 subroutine eval8summaSundials(&
                       ! input: model control
                       dt_cur,                  & ! intent(in):    current stepsize
-                      dt,                      & ! intent(in):    entire time step
+                      dt,                      & ! intent(in):    entire time step for drainage pond rate
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
                       nLayers,                 & ! intent(in):    total number of layers
@@ -160,7 +160,7 @@ subroutine eval8summaSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
   real(rkind),intent(in)          :: dt_cur                 ! current stepsize
-  real(rkind),intent(in)          :: dt                     ! entire time step
+  real(rkind),intent(in)          :: dt                     ! entire time step for drainage pond rate
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers

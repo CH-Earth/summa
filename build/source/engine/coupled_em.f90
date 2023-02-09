@@ -179,6 +179,7 @@ subroutine coupled_em(&
   real(rkind)                          :: dt_solv                ! seconds in the data step that have been completed
   real(rkind)                          :: dtMultiplier           ! time step multiplier (-) based on what happenned in "opSplittin"
   real(rkind)                          :: minstep,maxstep        ! minimum and maximum time step length (seconds)
+  real(rkind)                          :: maxstep_op             ! maximum time step length (seconds) to run opSplitting over
   integer(i4b)                         :: nsub                   ! number of substeps
   logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
   logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
@@ -240,6 +241,11 @@ subroutine coupled_em(&
   ! timing information
   real(rkind)                          :: startTime              ! start time (used to compute wall clock time)
   real(rkind)                          :: endTime                ! end time (used to compute wall clock time)
+  ! outer loop control
+  logical(lgt)                         :: firstInnerStep         ! flag to denote if the first time step in maxstep subStep
+  logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
+  logical(lgt)                         :: do_outer               ! flag to denote if doing the outer steps surrounding the call to sopSplitting
+  real(rkind)                          :: dt_solvInner           ! seconds in the maxstep subStep that have been completed
 
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -281,8 +287,10 @@ subroutine coupled_em(&
     modifiedLayers    = .false.    ! flag to denote that snow layers were modified
     modifiedVegState  = .false.    ! flag to denote that vegetation states were modified
 
-    ! define the first step
+    ! define the first step and first and last inner steps
     firstSubStep = .true.
+    firstInnerStep = .true.
+    lastInnerStep = .false.
 
     ! count the number of snow and soil layers
     ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
@@ -363,9 +371,11 @@ subroutine coupled_em(&
 
     ! short-cut to the algorithmic control parameters
     ! NOTE - temporary assignment of minstep to foce something reasonable
-    ! change maxstep with hard code here to make only the outer loop computations here in coupled_em happen more frequently for num_method = bEuler or sundials
+    ! change maxstep with hard code here to make the outer and inner loop computations here in coupled_em happen more frequently for num_method = bEuler or sundials
+    ! change maxstep_op with hard code here to make the inner loop computations in opSplitting happen more frequently for num_method = bEuler or sundials
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
+    maxstep_op = 900._rkind !mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplitting over
 
     ! compute the number of layers with roots
     nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
@@ -551,8 +561,9 @@ subroutine coupled_em(&
     ! ****************************************************************************************************
 
     ! initialize the length of the sub-step
-    dt_solv = 0._rkind   ! length of time step that has been completed (s)
-    dt_init = min(data_step,maxstep)  ! initial substep length (s)
+    dt_solv       = 0._rkind   ! length of time step that has been completed (s)
+    dt_solvInner  = 0._rkind   ! length of time step that has been completed (s) in maxstep subStep
+    dt_init = min(data_step,maxstep,maxstep_op)  ! initial substep length (s)
     dt_sub  = dt_init                 ! length of substep
     dtSave  = dt_init                 ! length of substep
 
@@ -613,106 +624,113 @@ subroutine coupled_em(&
       nSoil   = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
       nLayers = nSnow+nSoil
 
+      ! check outer
+      do_outer = .true.
+      if (maxstep_op < maxstep .and. .not.(firstInnerStep .or. stepFailure)) do_outer = .false.
+
       ! *** merge/sub-divide snow layers...
       ! -----------------------------------
-      call volicePack(&
-                      ! input/output: model data structures
-                      doLayerMerge,                & ! intent(in):    flag to force merge of snow layers
-                      model_decisions,             & ! intent(in):    model decisions
-                      mpar_data,                   & ! intent(in):    model parameters
-                      indx_data,                   & ! intent(inout): type of each layer
-                      prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                      diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                      flux_data,                   & ! intent(inout): model fluxes for a local HRU
-                      ! output
-                      modifiedLayers,              & ! intent(out): flag to denote that layers were modified
-                      err,cmessage)                  ! intent(out): error control
-      if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+      if(do_outer)then
+         call volicePack(&
+                         ! input/output: model data structures
+                         doLayerMerge,                & ! intent(in):    flag to force merge of snow layers
+                         model_decisions,             & ! intent(in):    model decisions
+                         mpar_data,                   & ! intent(in):    model parameters
+                         indx_data,                   & ! intent(inout): type of each layer
+                         prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                         diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                         flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                         ! output
+                         modifiedLayers,              & ! intent(out): flag to denote that layers were modified
+                         err,cmessage)                  ! intent(out): error control
+         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
-      ! save the number of snow and soil layers
-      nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
-      nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
-      nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
+         ! save the number of snow and soil layers
+         nSnow   = indx_data%var(iLookINDEX%nSnow)%dat(1)
+         nSoil   = indx_data%var(iLookINDEX%nSoil)%dat(1)
+         nLayers = indx_data%var(iLookINDEX%nLayers)%dat(1)
 
-      ! compute the indices for the model state variables
-      if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
-        call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
-                      includeAquifer,          & ! intent(in):    flag to denote if included the aquifer
-                      nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
-                      indx_data,               & ! intent(inout): indices defining model states and layers
-                      err,cmessage)              ! intent(out):   error control
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
-      end if
+         ! compute the indices for the model state variables
+         if(firstSubStep .or. modifiedVegState .or. modifiedLayers)then
+           call indexState(computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                         includeAquifer,          & ! intent(in):    flag to denote if included the aquifer
+                         nSnow,nSoil,nLayers,     & ! intent(in):    number of snow and soil layers, and total number of layers
+                         indx_data,               & ! intent(inout): indices defining model states and layers
+                         err,cmessage)              ! intent(out):   error control
+           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+         end if
 
-      ! recreate the temporary data structures
-      ! NOTE: resizeData(meta, old, new, ..)
-      if(modifiedVegState .or. modifiedLayers)then
+         ! recreate the temporary data structures
+         ! NOTE: resizeData(meta, old, new, ..)
+         if(modifiedVegState .or. modifiedLayers)then
 
-        ! create temporary data structures for prognostic variables
-        call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+           ! create temporary data structures for prognostic variables
+           call resizeData(prog_meta(:),prog_data,prog_temp,copy=.true.,err=err,message=cmessage)
+           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-        ! create temporary data structures for diagnostic variables
-        call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+           ! create temporary data structures for diagnostic variables
+           call resizeData(diag_meta(:),diag_data,diag_temp,copy=.true.,err=err,message=cmessage)
+           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-        ! create temporary data structures for index variables
-        call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+           ! create temporary data structures for index variables
+           call resizeData(indx_meta(:),indx_data,indx_temp,copy=.true.,err=err,message=cmessage)
+           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-        do iVar=1,size(indx_data%var)
-          select case(stepFailure)
-            case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
-            case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
-          end select
-        end do  ! looping through variables
+           do iVar=1,size(indx_data%var)
+             select case(stepFailure)
+               case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
+               case(.true.);  indx_data%var(iVar)%dat(:) = indx_temp%var(iVar)%dat(:)
+             end select
+           end do  ! looping through variables
 
-      endif  ! if modified the states
+         endif  ! if modified the states
 
-      ! define the number of state variables
-      nState = indx_data%var(iLookINDEX%nState)%dat(1)
+         ! define the number of state variables
+         nState = indx_data%var(iLookINDEX%nState)%dat(1)
 
-      ! *** compute diagnostic variables for each layer...
-      ! --------------------------------------------------
-      ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
-      call diagn_evar(&
-                      ! input: control variables
-                      computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                      diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),             & ! intent(in): canopy depth (m)
-                      ! input/output: data structures
-                      mpar_data,               & ! intent(in):    model parameters
-                      indx_data,               & ! intent(in):    model layer indices
-                      prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                      ! output: error control
-                      err,cmessage)              ! intent(out): error control
-      if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
+         ! *** compute diagnostic variables for each layer...
+         ! --------------------------------------------------
+         ! NOTE: this needs to be done AFTER volicePack, since layers may have been sub-divided and/or merged
+         call diagn_evar(&
+                         ! input: control variables
+                         computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
+                         diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),             & ! intent(in): canopy depth (m)
+                         ! input/output: data structures
+                         mpar_data,               & ! intent(in):    model parameters
+                         indx_data,               & ! intent(in):    model layer indices
+                         prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                         diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                         ! output: error control
+                         err,cmessage)              ! intent(out): error control
+         if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
 
+         ! *** compute melt of the "snow without a layer"...
+         ! -------------------------------------------------
+         ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
+         ! (check for the special case of "snow without a layer")
+         ! this pond melts evenly over entire time of maxstep until it gets recomputed because based on SWE when computed
+         if(nSnow==0) then
+           call implctMelt(&
+                           ! input/output: integrated snowpack properties
+                           prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
+                           prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
+                           prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
+                           ! input/output: properties of the upper-most soil layer
+                           prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
+                           prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
+                           diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
+                           ! output: error control
+                           err,cmessage                                             ) ! intent(out): error control
+           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+         endif
 
-      ! *** compute melt of the "snow without a layer"...
-      ! -------------------------------------------------
-      ! NOTE: forms a surface melt pond, which drains into the upper-most soil layer through the time step
-      ! (check for the special case of "snow without a layer")
-      if(nSnow==0)then
-        call implctMelt(&
-                        ! input/output: integrated snowpack properties
-                        prog_data%var(iLookPROG%scalarSWE)%dat(1),               & ! intent(inout): snow water equivalent (kg m-2)
-                        prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),         & ! intent(inout): snow depth (m)
-                        prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1),       & ! intent(inout): surface melt pond (kg m-2)
-                        ! input/output: properties of the upper-most soil layer
-                        prog_data%var(iLookPROG%mLayerTemp)%dat(nSnow+1),        & ! intent(inout): surface layer temperature (K)
-                        prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1),       & ! intent(inout): surface layer depth (m)
-                        diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat(nSnow+1),& ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
-                        ! output: error control
-                        err,cmessage                                             ) ! intent(out): error control
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-      end if
+      endif ! (do_outer loop)
 
       ! *** solve model equations...
       ! ----------------------------
       ! save input step
       dtSave = dt_sub
+
 
       ! get the new solution
       call opSplittin(&
@@ -722,7 +740,9 @@ subroutine coupled_em(&
                       nLayers,                                & ! intent(in):    total number of layers
                       nState,                                 & ! intent(in):    total number of layers
                       dt_sub,                                 & ! intent(inout): length of the model sub-step
+                      maxstep,                                & ! intent(in):    length drainage pond drains in
                       (nsub==1),                              & ! intent(in):    logical flag to denote the first substep
+                      firstInnerStep,                         & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
                       ! input/output: data structures
                       type_data,                              & ! intent(in):    type of vegetation and soil
@@ -770,129 +790,145 @@ subroutine coupled_em(&
         cycle substeps
       endif
 
-      ! update first step
+      ! update first step and first and last inner steps
       firstSubStep = .false.
+      firstInnerStep = .false.
+      if(dt_solvInner + dt_sub >= maxstep) lastInnerStep = .true.
 
+      ! increment sub-step
+      dt_solvInner = dt_solvInner + dt_sub
+
+      ! check outer
+      do_outer = .true.
+      if(maxstep_op < maxstep .and. .not.lastInnerStep) do_outer = .false.
       ! ***  remove ice due to sublimation...
       ! --------------------------------------------------------------
-      sublime: associate(&
-        scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
-        scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
-        scalarLatHeatCanopyEvap => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-        scalarSenHeatCanopy     => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1),     & ! sensible heat flux from the canopy to the canopy air space (W m-2)
-        scalarLatHeatGround     => flux_data%var(iLookFLUX%scalarLatHeatGround)%dat(1),     & ! latent heat flux from ground surface below vegetation (W m-2)
-        scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
-        scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
-        scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
-        scalarCanopyWat            => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                               ,&  ! canopy ice content (kg m-2)
-        mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
-        mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
-        mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
-        ) ! associations to variables in data structures
+      if(do_outer)then
+        sublime: associate(&
+          scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
+          scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
+          scalarLatHeatCanopyEvap => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+          scalarSenHeatCanopy     => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1),     & ! sensible heat flux from the canopy to the canopy air space (W m-2)
+          scalarLatHeatGround     => flux_data%var(iLookFLUX%scalarLatHeatGround)%dat(1),     & ! latent heat flux from ground surface below vegetation (W m-2)
+          scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
+          scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
+          scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
+          scalarCanopyWat           => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                             ,&  ! canopy ice content (kg m-2)
+          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,          & ! volumetric fraction of ice in the snow+soil domain (-)
+          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,          & ! volumetric fraction of liquid water in the snow+soil domain (-)
+          mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat                & ! depth of each snow+soil layer (m)
+          ) ! associations to variables in data structures
 
-        ! * compute change in canopy ice content due to sublimation...
-        ! ------------------------------------------------------------
-        if(computeVegFlux)then
+          ! * compute change in canopy ice content due to sublimation...
+          ! ------------------------------------------------------------
+          if(computeVegFlux)then
 
-          ! remove mass of ice on the canopy
-          scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*dt_sub
+            ! remove mass of ice on the canopy
+            scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*dt_sub
 
-          ! if removed all ice, take the remaining sublimation from water
-          if(scalarCanopyIce < 0._rkind)then
-            scalarCanopyLiq = scalarCanopyLiq + scalarCanopyIce
-            scalarCanopyIce = 0._rkind
+            ! if removed all ice, take the remaining sublimation from water
+            if(scalarCanopyIce < 0._rkind)then
+              scalarCanopyLiq = scalarCanopyLiq + scalarCanopyIce
+              scalarCanopyIce = 0._rkind
+            endif
+
+            ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_sub
+            if(scalarCanopyLiq < 0._rkind)then
+              ! --> superfluous sublimation flux
+              superflousSub = -scalarCanopyLiq/dt_sub  ! kg m-2 s-1
+              superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
+              ! --> update fluxes and states
+              scalarCanopySublimation = scalarCanopySublimation + superflousSub
+              scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
+              scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
+              scalarCanopyLiq         = 0._rkind
+            endif
+
+            ! update water
+            scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
+
+          end if  ! (if computing the vegetation flux)
+
+          call computSnowDepth(&
+                    dt_sub,                                        & ! intent(in)
+                    nSnow,                                         & ! intent(in)
+                    scalarSnowSublimation,                         & ! intent(in)
+                    mLayerVolFracLiq,                              & ! intent(inout)
+                    mLayerVolFracIce,                              & ! intent(inout)
+                    prog_data%var(iLookPROG%mLayerTemp)%dat,       & ! intent(in)
+                    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat, & ! intent(in)
+                    mpar_data,                                     & ! intent(in)
+                    ! output
+                    tooMuchSublim,                                 & ! intent(out): flag to denote that there was too much sublimation in a given time step
+                    mLayerDepth,                                   & ! intent(inout)
+                    ! error control
+                    err,message)                                     ! intent(out):   error control
+          if(err/=0)then; err=55; return; end if
+
+          ! process the flag for too much sublimation
+          if(tooMuchSublim)then
+            stepFailure  = .true.
+            doLayerMerge = .true.
+          else
+            doLayerMerge = .false.
           endif
 
-          ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_sub
-          if(scalarCanopyLiq < 0._rkind)then
-            ! --> superfluous sublimation flux
-            superflousSub = -scalarCanopyLiq/dt_sub  ! kg m-2 s-1
-            superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
-            ! --> update fluxes and states
-            scalarCanopySublimation = scalarCanopySublimation + superflousSub
-            scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
-            scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
-            scalarCanopyLiq         = 0._rkind
+          ! handle special case of the step failure
+          ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
+          if(stepFailure)then
+            ! halve step
+            dt_sub = dtSave/2._rkind
+            ! check that the step is not tiny
+            if(dt_sub < minstep)then
+              print*,ixSolution
+              print*, 'dtSave, dt_sub', dtSave, dt_sub
+              message=trim(message)//'length of the coupled step is below the minimum step length'
+              err=20; return
+            endif
+            ! try again
+            cycle substeps
           endif
 
-          ! update water
-          scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
+        end associate sublime
 
-        end if  ! (if computing the vegetation flux)
+        ! update coordinate variables
+        call calcHeight(&
+                   ! input/output: data structures
+                   indx_data,   & ! intent(in): layer type
+                   prog_data,   & ! intent(inout): model variables for a local HRU
+                   ! output: error control
+                   err,cmessage)
+        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-        call computSnowDepth(&
-                  dt_sub,                                           & ! intent(in)
-                  nSnow,                                            & ! intent(in)
-                  scalarSnowSublimation,                            & ! intent(in)
-                  mLayerVolFracLiq,                                 & ! intent(inout)
-                  mLayerVolFracIce,                                 & ! intent(inout)
-                  prog_data%var(iLookPROG%mLayerTemp)%dat,          & ! intent(in)
-                  diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,    & ! intent(in)
-                  mpar_data,                                        & ! intent(in)
-                  ! output
-                  tooMuchSublim,                                    & ! intent(out): flag to denote that there was too much sublimation in a given time step
-                  mLayerDepth,                                      & ! intent(inout)
-                  ! error control
-                  err,message)                                        ! intent(out):   error control
-        if(err/=0)then; err=55; return; end if
-
-        ! process the flag for too much sublimation
-        if(tooMuchSublim)then
-          stepFailure  = .true.
-          doLayerMerge = .true.
-        else
-          doLayerMerge = .false.
+        ! recompute snow depth, SWE, and layer water
+        if(nSnow > 0)then
+          prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
+          prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
+                                                             prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
+                                                           * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
+          prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1:nSnow) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow) &
+                                                             + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice/iden_water
         endif
 
-        ! handle special case of the step failure
-        ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
-        if(stepFailure)then
-          ! halve step
-          dt_sub = dtSave/2._rkind
-          ! check that the step is not tiny
-          if(dt_sub < minstep)then
-            print*,ixSolution
-            print*, 'dtSave, dt_sub', dtSave, dt_sub
-            message=trim(message)//'length of the coupled step is below the minimum step length'
-            err=20; return
-          endif
-          ! try again
-          cycle substeps
-        endif
+        ! increment change in storage associated with the surface melt pond (kg m-2)
+        if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
-      end associate sublime
+        ! update time increment and first and last inner steps
+        dt_solvInner = 0._rkind
+        firstInnerStep = .true.
+        lastInnerStep = .false.
 
-      ! update coordinate variables
-      call calcHeight(&
-                      ! input/output: data structures
-                      indx_data,   & ! intent(in): layer type
-                      prog_data,   & ! intent(inout): model variables for a local HRU
-                      ! output: error control
-                      err,cmessage)
-      if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+      endif ! (do_outer loop)
 
-      ! recompute snow depth, SWE, and layer water
-      if(nSnow > 0)then
-        prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
-        prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                                prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                              * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
-        prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1:nSnow) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow) &
-                                                                + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice/iden_water
-      end if
+      ! ****************************************************************************************************
+      ! *** END MAIN SOLVER ********************************************************************************
+      ! ****************************************************************************************************
 
       ! increment fluxes
       dt_wght = dt_sub/data_step ! define weight applied to each sub-step
       do iVar=1,size(averageFlux_meta)
         flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
-
-      ! increment change in storage associated with the surface melt pond (kg m-2)
-      if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
-
-      ! ****************************************************************************************************
-      ! *** END MAIN SOLVER ********************************************************************************
-      ! ****************************************************************************************************
 
       ! increment sub-step
       dt_solv = dt_solv + dt_sub
