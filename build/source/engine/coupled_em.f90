@@ -811,6 +811,7 @@ subroutine coupled_em(&
       if(do_outer)then
 
         ! ***  remove ice due to sublimation...
+        ! NOTE: In the future this should be moved into the solver, makes a big difference
         ! --------------------------------------------------------------
         sublime: associate(&
           scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
@@ -832,7 +833,7 @@ subroutine coupled_em(&
           if(computeVegFlux)then
 
             ! remove mass of ice on the canopy
-            scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*dt_sub
+            scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*maxstep
 
             ! if removed all ice, take the remaining sublimation from water
             if(scalarCanopyIce < 0._rkind)then
@@ -840,10 +841,10 @@ subroutine coupled_em(&
               scalarCanopyIce = 0._rkind
             endif
 
-            ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the time step dt_sub
+            ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the whole time step
             if(scalarCanopyLiq < 0._rkind)then
               ! --> superfluous sublimation flux
-              superflousSub = -scalarCanopyLiq/dt_sub  ! kg m-2 s-1
+              superflousSub = -scalarCanopyLiq/maxstep  ! kg m-2 s-1
               superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
               ! --> update fluxes and states
               scalarCanopySublimation = scalarCanopySublimation + superflousSub
@@ -858,7 +859,7 @@ subroutine coupled_em(&
           end if  ! (if computing the vegetation flux)
 
           call computSnowDepth(&
-                    dt_sub,                                        & ! intent(in)
+                    maxstep,                                       & ! intent(in)
                     nSnow,                                         & ! intent(in)
                     scalarSnowSublimation,                         & ! intent(in)
                     mLayerVolFracLiq,                              & ! intent(inout)
@@ -894,7 +895,7 @@ subroutine coupled_em(&
               err=20; return
             endif
             ! try again, restart step (at end inner step)
-            dt_solv = dt_solv - maxstep_op
+            dt_solv = 0._rkind
             dt_solvInner = 0._rkind
             cycle substeps
           endif
