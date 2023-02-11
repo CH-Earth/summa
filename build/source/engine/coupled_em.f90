@@ -602,7 +602,7 @@ subroutine coupled_em(&
 
       ! check if on outer loop
       do_outer = .true.
-      if (maxstep_op < maxstep .and. .not.(firstInnerStep .or. stepFailure)) do_outer = .false.
+      if (.not.(firstInnerStep .or. stepFailure)) do_outer = .false.
       if(do_outer)then
 
         ! save/recover copies of index variables, temp saved on lastInnerStep, failed starts at lastInnerSTep
@@ -807,11 +807,11 @@ subroutine coupled_em(&
 
       ! check if on outer loop
       do_outer = .true.
-      if(maxstep_op < maxstep .and. .not.lastInnerStep) do_outer = .false.
+      if(.not.lastInnerStep) do_outer = .false.
       if(do_outer)then
 
         ! ***  remove ice due to sublimation...
-        ! NOTE: In the future this should be moved into the solver, makes a big difference
+        ! NOTE: In the future this should be moved into the solver, makes a big difference, and here only applying last substep amount to whole thing
         ! --------------------------------------------------------------
         sublime: associate(&
           scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
@@ -822,10 +822,10 @@ subroutine coupled_em(&
           scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
           scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
           scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
-          scalarCanopyWat           => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)                             ,&  ! canopy ice content (kg m-2)
-          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,          & ! volumetric fraction of ice in the snow+soil domain (-)
-          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,          & ! volumetric fraction of liquid water in the snow+soil domain (-)
-          mLayerDepth            => prog_data%var(iLookPROG%mLayerDepth)%dat                & ! depth of each snow+soil layer (m)
+          scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),         &  ! canopy ice content (kg m-2)
+          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
+          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
+          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
 
           ! * compute change in canopy ice content due to sublimation...
