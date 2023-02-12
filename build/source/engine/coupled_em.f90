@@ -180,6 +180,7 @@ subroutine coupled_em(&
   real(rkind)                          :: dtMultiplier           ! time step multiplier (-) based on what happenned in "opSplittin"
   real(rkind)                          :: minstep,maxstep        ! minimum and maximum time step length (seconds)
   real(rkind)                          :: maxstep_op             ! maximum time step length (seconds) to run opSplitting over
+  real(rkind)                          :: whole_step             ! step the surface pond drainage and sublimation calculated over
   integer(i4b)                         :: nsub                   ! number of substeps
   logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
   logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
@@ -378,6 +379,7 @@ subroutine coupled_em(&
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
     maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplitting over
+    if(maxstep_op > maxstep) maxstep_op = maxstep
 
     ! compute the number of layers with roots
     nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
@@ -600,9 +602,9 @@ subroutine coupled_em(&
         end do
       endif
 
-      ! check if on outer loop
+      ! check if on outer loop, always do outer if after failed step and on small step
       do_outer = .true.
-      if (.not.(firstInnerStep .or. stepFailure)) do_outer = .false.
+      if ( dt_sub == maxstep_op .and. .not.(firstInnerStep .or. stepFailure) ) do_outer = .false.
       if(do_outer)then
 
         ! save/recover copies of index variables, temp saved on lastInnerStep, failed starts at lastInnerSTep
@@ -736,6 +738,8 @@ subroutine coupled_em(&
       ! save input step
       dtSave = dt_sub
 
+     whole_step = maxstep
+     if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
       ! get the new solution
       call opSplittin(&
@@ -745,7 +749,7 @@ subroutine coupled_em(&
                       nLayers,                                & ! intent(in):    total number of layers
                       nState,                                 & ! intent(in):    total number of layers
                       dt_sub,                                 & ! intent(inout): length of the model sub-step
-                      maxstep,                                & ! intent(in):    length drainage pond drains in
+                      whole_step,                             & ! intent(in):    length drainage pond drains in
                       (nsub==1),                              & ! intent(in):    logical flag to denote the first substep
                       firstInnerStep,                         & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
@@ -805,9 +809,9 @@ subroutine coupled_em(&
       ! increment sub-step
       dt_solvInner = dt_solvInner + dt_sub
 
-      ! check if on outer loop
+      ! check if on outer loop, always do outer if after failed step and on small step
       do_outer = .true.
-      if(.not.lastInnerStep) do_outer = .false.
+      if( dt_sub == maxstep_op .and. .not.lastInnerStep ) do_outer = .false.
       if(do_outer)then
 
         ! ***  remove ice due to sublimation...
@@ -828,6 +832,9 @@ subroutine coupled_em(&
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
 
+          whole_step = maxstep
+          if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
+
           ! * compute change in canopy ice content due to sublimation...
           ! ------------------------------------------------------------
           if(computeVegFlux)then
@@ -844,7 +851,7 @@ subroutine coupled_em(&
             ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the whole time step
             if(scalarCanopyLiq < 0._rkind)then
               ! --> superfluous sublimation flux
-              superflousSub = -scalarCanopyLiq/maxstep  ! kg m-2 s-1
+              superflousSub = -scalarCanopyLiq/whole_step  ! kg m-2 s-1
               superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
               ! --> update fluxes and states
               scalarCanopySublimation = scalarCanopySublimation + superflousSub
@@ -859,7 +866,7 @@ subroutine coupled_em(&
           end if  ! (if computing the vegetation flux)
 
           call computSnowDepth(&
-                    maxstep,                                       & ! intent(in)
+                    whole_step,                                       & ! intent(in)
                     nSnow,                                         & ! intent(in)
                     scalarSnowSublimation,                         & ! intent(in)
                     mLayerVolFracLiq,                              & ! intent(inout)
@@ -1067,7 +1074,7 @@ subroutine coupled_em(&
       ! ----------------------------------
 
       if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler)then ! convergence criteria for bEuler
-        if (maxstep_op >= maxstep) checkMassBalance = .true.
+        if (maxstep_op == maxstep) checkMassBalance = .true.
         if (maxstep_op < maxstep)  checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
       endif
       if (model_decisions(iLookDECISIONS%num_method)%iDecision==sundials) checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
