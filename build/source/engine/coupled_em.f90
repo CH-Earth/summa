@@ -570,6 +570,7 @@ subroutine coupled_em(&
     dt_init = min(data_step,maxstep,maxstep_op)  ! initial substep length (s)
     dt_sub  = dt_init                 ! length of substep
     dtSave  = dt_init                 ! length of substep
+    whole_step = maxstep
 
     ! initialize the number of sub-steps
     nsub=0
@@ -606,6 +607,11 @@ subroutine coupled_em(&
       do_outer = .true.
       if ( dt_sub == maxstep_op .and. .not.(firstInnerStep .or. stepFailure) ) do_outer = .false.
       if(do_outer)then
+
+        if(.not.stepFailure)then
+          call resizeData(indx_meta(:),indx_data,indx_temp,err=err,message=cmessage)
+          if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+        endif
 
         ! save/recover copies of index variables, temp saved on lastInnerStep, failed starts at lastInnerSTep
         do iVar=1,size(indx_data%var)
@@ -731,15 +737,15 @@ subroutine coupled_em(&
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
         endif
 
+        whole_step = maxstep
+        if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
+
       endif ! (do_outer loop)
 
       ! *** solve model equations...
       ! ----------------------------
       ! save input step
       dtSave = dt_sub
-
-     whole_step = maxstep
-     if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
       ! get the new solution
       call opSplittin(&
@@ -840,7 +846,7 @@ subroutine coupled_em(&
           if(computeVegFlux)then
 
             ! remove mass of ice on the canopy
-            scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*maxstep
+            scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*whole_step
 
             ! if removed all ice, take the remaining sublimation from water
             if(scalarCanopyIce < 0._rkind)then
