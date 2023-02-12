@@ -578,10 +578,10 @@ subroutine varSubstep(&
     flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt     ! sensible heat flux from the canopy to the canopy air space (W m-2)
 
     ! save the soil compression diagnostics
-    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress
+    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/dt
     do iSoil=1,nSoil
       if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-      diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)
+      diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/dt
     end do
     deallocate(sumLayerCompress)
 
