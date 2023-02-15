@@ -164,33 +164,39 @@ contains
 ! **********************************************************************************************************
 subroutine opSplittin(&
                       ! input: model control
-                      nSnow,          & ! intent(in):    number of snow layers
-                      nSoil,          & ! intent(in):    number of soil layers
-                      nLayers,        & ! intent(in):    total number of layers
-                      nState,         & ! intent(in):    total number of state variables
-                      dt,             & ! intent(inout): time step (s)
-                      tdrainage,      & ! intent(in):    length drainage pond drains in
-                      firstSubStep,   & ! intent(in):    flag to denote first sub-step
-                      firstInnerStep, & ! intent(in):    flag to denote if the first time step in maxstep subStep
-                      computeVegFlux, & ! intent(in):    flag to denote if computing energy flux over vegetation
+                      nSnow,                & ! intent(in):    number of snow layers
+                      nSoil,                & ! intent(in):    number of soil layers
+                      nLayers,              & ! intent(in):    total number of layers
+                      nState,               & ! intent(in):    total number of state variables
+                      dt,                   & ! intent(in):    time step (s)
+                      tdrainage,            & ! intent(in):    length drainage pond drains in
+                      firstSubStep,         & ! intent(in):    flag to denote first sub-step
+                      firstInnerStep,       & ! intent(in):    flag to denote if the first time step in maxstep subStep
+                      computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
                       ! input/output: data structures
-                      type_data,      & ! intent(in):    type of vegetation and soil
-                      attr_data,      & ! intent(in):    spatial attributes
-                      forc_data,      & ! intent(in):    model forcing data
-                      mpar_data,      & ! intent(in):    model parameters
-                      indx_data,      & ! intent(inout): index data
-                      prog_data,      & ! intent(inout): model prognostic variables for a local HRU
-                      diag_data,      & ! intent(inout): model diagnostic variables for a local HRU
-                      flux_data,      & ! intent(inout): model fluxes for a local HRU
-                      bvar_data,      & ! intent(in):    model variables for the local basin
-                      lookup_data,    & ! intent(in):    lookup tables
-                      model_decisions,& ! intent(in):    model decisions
+                      type_data,            & ! intent(in):    type of vegetation and soil
+                      attr_data,            & ! intent(in):    spatial attributes
+                      forc_data,            & ! intent(in):    model forcing data
+                      mpar_data,            & ! intent(in):    model parameters
+                      indx_data,            & ! intent(inout): index data
+                      prog_data,            & ! intent(inout): model prognostic variables for a local HRU
+                      diag_data,            & ! intent(inout): model diagnostic variables for a local HRU
+                      flux_data,            & ! intent(inout): model fluxes for a local HRU
+                      bvar_data,            & ! intent(in):    model variables for the local basin
+                      lookup_data,          & ! intent(in):    lookup tables
+                      model_decisions,      & ! intent(in):    model decisions
+                      ! energy fluxes
+                      sumCanopyEvaporation, & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
+                      sumLatHeatCanopyEvap, & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+                      sumSenHeatCanopy,     & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+                      sumSoilCompress,      & ! intent(inout): sum of total soil compression
+                      sumLayerCompress,     & ! intent(inout): sum of soil compression by layer
                       ! output: model control
-                      dtMultiplier,   & ! intent(out):   substep multiplier (-)
-                      tooMuchMelt,    & ! intent(out):   flag to denote that ice is insufficient to support melt
-                      stepFailure,    & ! intent(out):   flag to denote step failure
-                      ixCoupling,     & ! intent(out):   coupling method used in this iteration
-                      err,message)      ! intent(out):   error code and error message
+                      dtMultiplier,         & ! intent(out):   substep multiplier (-)
+                      tooMuchMelt,          & ! intent(out):   flag to denote that ice is insufficient to support melt
+                      stepFailure,          & ! intent(out):   flag to denote step failure
+                      ixCoupling,           & ! intent(out):   coupling method used in this iteration
+                      err,message)            ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
   USE allocspace_module,only:allocLocal                ! allocate local data structures
@@ -211,7 +217,7 @@ subroutine opSplittin(&
   integer(i4b),intent(in)         :: nSoil                          ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
-  real(rkind),intent(inout)       :: dt                             ! time step (seconds)
+  real(rkind),intent(in)          :: dt                             ! time step (seconds)
   real(rkind),intent(in)          :: tdrainage                      ! length drainage pond drains in
   logical(lgt),intent(in)         :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -227,6 +233,12 @@ subroutine opSplittin(&
   type(var_dlength),intent(in)    :: bvar_data                      ! model variables for the local basin
   type(zLookup),    intent(in)    :: lookup_data                    ! lookup tables
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
+  ! energy fluxes
+  real(rkind),intent(out)         :: sumCanopyEvaporation           ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind),intent(out)         :: sumLatHeatCanopyEvap           ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(out)         :: sumSenHeatCanopy               ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(out)         :: sumSoilCompress                ! sum of total soil compression
+  real(rkind),intent(out)         :: sumLayerCompress(:)            ! sum of soil compression by layer
   ! output: model control
   real(rkind),intent(out)         :: dtMultiplier                   ! substep multiplier (-)
   logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
@@ -255,14 +267,14 @@ subroutine opSplittin(&
   ! * operator splitting
   ! ------------------------------------------------------------------------------------------------------
   ! minimum timestep
-  real(rkind),parameter           :: dtmin_coupled=1800._rkind         ! minimum time step for the fully coupled solution (seconds)
-  real(rkind),parameter           :: dtmin_split=60._rkind             ! minimum time step for the fully split solution (seconds)
-  real(rkind),parameter           :: dtmin_scalar=10._rkind            ! minimum time step for the scalar solution (seconds)
+  real(rkind),parameter           :: dtmin_coupled=1800._rkind      ! minimum time step for the fully coupled solution (seconds)
+  real(rkind),parameter           :: dtmin_split=60._rkind          ! minimum time step for the fully split solution (seconds)
+  real(rkind),parameter           :: dtmin_scalar=10._rkind         ! minimum time step for the scalar solution (seconds)
   real(rkind)                     :: dt_min                         ! minimum time step (seconds)
   real(rkind)                     :: dtInit                         ! initial time step (seconds)
   ! explicit error tolerance (depends on state type split, so defined here)
-  real(rkind),parameter           :: errorTolLiqFlux=0.01_rkind        ! error tolerance in the explicit solution (liquid flux)
-  real(rkind),parameter           :: errorTolNrgFlux=10._rkind         ! error tolerance in the explicit solution (energy flux)
+  real(rkind),parameter           :: errorTolLiqFlux=0.01_rkind     ! error tolerance in the explicit solution (liquid flux)
+  real(rkind),parameter           :: errorTolNrgFlux=10._rkind      ! error tolerance in the explicit solution (energy flux)
   ! number of substeps taken for a given split
   integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
   ! named variables defining the coupling and solution method
@@ -775,6 +787,12 @@ subroutine opSplittin(&
                                 flux_data,                  & ! intent(inout) : model fluxes for a local HRU
                                 deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                                 bvar_data,                  & ! intent(in)    : model variables for the local basin
+                                ! energy fluxes
+                                sumCanopyEvaporation,       & ! intent(inout) : sum of canopy evaporation/condensation (kg m-2 s-1)
+                                sumLatHeatCanopyEvap,       & ! intent(inout) : sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+                                sumSenHeatCanopy,           & ! intent(inout) : sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+                                sumSoilCompress,            & ! intent(inout) : sum of total soil compression
+                                sumLayerCompress,           & ! intent(inout) : sum of soil compression by layer
                                 ! output: control
                                 ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
                                 dtMultiplier,               & ! intent(out)   : substep multiplier (-)

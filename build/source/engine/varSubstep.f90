@@ -117,6 +117,12 @@ subroutine varSubstep(&
                       flux_data,         & ! intent(inout) : model fluxes for a local HRU
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
+                      ! energy fluxes
+                      sumCanopyEvaporation,& !intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
+                      sumLatHeatCanopyEvap,& !intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+                      sumSenHeatCanopy,  & ! intent(inout) : sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+                      sumSoilCompress,   & ! intent(inout) : sum of total soil compression
+                      sumLayerCompress,  & ! intent(inout) : sum of soil compression by layer
                       ! output: model control
                       ixSaturation,      & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       dtMultiplier,      & ! intent(out)   : substep multiplier (-)
@@ -166,6 +172,12 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)    :: flux_data                     ! model fluxes for a local HRU
   type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
+  ! energy fluxes
+  real(rkind),intent(inout)          :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind),intent(inout)          :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(inout)          :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(inout)          :: sumSoilCompress               ! sum of total soil compression
+  real(rkind),intent(inout)          :: sumLayerCompress(:)           ! sum of soil compression by layer
   ! output: model control
   integer(i4b),intent(inout)         :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
@@ -213,12 +225,6 @@ subroutine varSubstep(&
   logical(lgt)                       :: checkNrgBalance
   logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
   logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
-  ! energy fluxes
-  real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind)                        :: sumSoilCompress
-  real(rkind),allocatable            :: sumLayerCompress(:)
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -264,7 +270,7 @@ subroutine varSubstep(&
 
     ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently for num_method = bEuler or sundials
     !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
-     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
+    maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
 
     ! initalize flag for checking if energy fluxes had been modified
     nrgFluxModified = .false.
@@ -277,13 +283,6 @@ subroutine varSubstep(&
     do iVar=1,size(flux_data%var)
       flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
     end do
-
-    ! initialize the total energy fluxes (modified in updateProg)
-    sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
-    sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-    sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
-    sumSoilCompress      = 0._rkind  ! total soil compression
-    allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
 
     ! define the first flux call in a splitting operation
     firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
@@ -571,19 +570,6 @@ subroutine varSubstep(&
 
     end do substeps  ! time steps for variable-dependent sub-stepping
     ! NOTE: if we get to here then we are accepting then dtSum should dt
-
-    ! save the energy fluxes
-    flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
-    flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-    flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt     ! sensible heat flux from the canopy to the canopy air space (W m-2)
-
-    ! save the soil compression diagnostics
-    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/dt
-    do iSoil=1,nSoil
-      if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-      diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/dt
-    end do
-    deallocate(sumLayerCompress)
 
   ! end associate statements
   end associate globalVars

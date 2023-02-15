@@ -59,6 +59,7 @@ USE globalData,only:prog_meta              ! metadata on the model prognostic va
 USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
 
 ! global data
+USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:data_step              ! time step of forcing data (s)
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
@@ -179,7 +180,7 @@ subroutine coupled_em(&
   real(rkind)                          :: dt_solv                ! seconds in the data step that have been completed
   real(rkind)                          :: dtMultiplier           ! time step multiplier (-) based on what happenned in "opSplittin"
   real(rkind)                          :: minstep,maxstep        ! minimum and maximum time step length (seconds)
-  real(rkind)                          :: maxstep_op             ! maximum time step length (seconds) to run opSplitting over
+  real(rkind)                          :: maxstep_op             ! maximum time step length (seconds) to run opSplittin over
   real(rkind)                          :: whole_step             ! step the surface pond drainage and sublimation calculated over
   integer(i4b)                         :: nsub                   ! number of substeps
   logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
@@ -198,7 +199,7 @@ subroutine coupled_em(&
   real(rkind)                          :: massLiquid             ! mass liquid water (kg m-2)
   real(rkind)                          :: superflousSub          ! superflous sublimation (kg m-2 s-1)
   real(rkind)                          :: superflousNrg          ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  integer(i4b)                         :: ixSolution             ! solution method used by opSplitting
+  integer(i4b)                         :: ixSolution             ! solution method used by opSplittin
   logical(lgt)                         :: firstSubStep           ! flag to denote if the first time step
   logical(lgt)                         :: stepFailure            ! flag to denote the need to reduce length of the coupled step and try again
   logical(lgt)                         :: tooMuchMelt            ! flag to denote that there was too much melt in a given time step
@@ -219,6 +220,13 @@ subroutine coupled_em(&
   real(rkind)                          :: effSnowfall            ! effective snowfall (kg m-2 s-1)
   real(rkind)                          :: sfcMeltPond            ! surface melt pond (kg m-2)
   real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
+  ! energy fluxes
+  integer(i4b)                         :: iSoil                  ! index of soil layers
+  real(rkind)                          :: sumCanopyEvaporation   ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind)                          :: sumSoilCompress        ! sum of total soil compression
+  real(rkind),allocatable              :: sumLayerCompress(:)    ! sum of soil compression by layer
   ! balance checks
   integer(i4b)                         :: iVar                   ! loop through model variables
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
@@ -246,7 +254,7 @@ subroutine coupled_em(&
   ! outer loop control
   logical(lgt)                         :: firstInnerStep         ! flag to denote if the first time step in maxstep subStep
   logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
-  logical(lgt)                         :: do_outer               ! flag to denote if doing the outer steps surrounding the call to sopSplitting
+  logical(lgt)                         :: do_outer               ! flag to denote if doing the outer steps surrounding the call to opSplittin
   real(rkind)                          :: dt_solvInner           ! seconds in the maxstep subStep that have been completed
 
   ! ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -375,10 +383,10 @@ subroutine coupled_em(&
     ! short-cut to the algorithmic control parameters
     ! NOTE - temporary assignment of minstep to foce something reasonable
     ! change maxstep with hard code here to make the outer and inner loop computations here in coupled_em happen more frequently for num_method = bEuler or sundials
-    ! change maxstep_op with hard code here to make the inner loop computations in opSplitting happen more frequently for num_method = bEuler or sundials
+    ! change maxstep_op with hard code here to make the inner loop computations in opSplittin happen more frequently for num_method = bEuler or sundials
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
-    maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplitting over
+    maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplittin over
     if(maxstep_op > maxstep) maxstep_op = maxstep
 
     ! compute the number of layers with roots
@@ -592,7 +600,7 @@ subroutine coupled_em(&
       ! NOTE: this is necessary because the length of index variables depends on a given split
       !        --> the resize here is overwritten later (in indexSplit)
       !        --> admittedly ugly, and retained for now
-      if(stepFailure)then ! resize temp to current, later current = lastInnerSTep
+      if(stepFailure)then ! resize temp to current data, later in code current data is set to lastInnerStep data
         call resizeData(indx_meta(:),indx_temp,indx_data,err=err,message=cmessage)
         if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
       else ! resize current data to temp0, temp0 is saved for next run
@@ -671,6 +679,7 @@ subroutine coupled_em(&
                           indx_data,              & ! intent(inout): indices defining model states and layers
                           err,cmessage)             ! intent(out):   error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
         end if
 
         ! recreate the temporary data structures
@@ -737,6 +746,13 @@ subroutine coupled_em(&
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
         endif
 
+        ! initialize the total energy fluxes over whole step (modified in updateProg in opSplittin in varSubstep)
+        sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
+        sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+        sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+        sumSoilCompress      = 0._rkind  ! total soil compression
+        allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
+
         whole_step = maxstep
         if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
@@ -771,6 +787,12 @@ subroutine coupled_em(&
                       bvar_data,                              & ! intent(in):    model variables for the local basin
                       lookup_data,                            & ! intent(in):    lookup tables
                       model_decisions,                        & ! intent(in):    model decisions
+                      ! energy fluxes over whole_step added on by dt_sub
+                      sumCanopyEvaporation,                   & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
+                      sumLatHeatCanopyEvap,                   & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+                      sumSenHeatCanopy,                       & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+                      sumSoilCompress,                        & ! intent(inout): sum of total soil compression
+                      sumLayerCompress,                       & ! intent(inout): sum of soil compression by layer
                       ! output: model control
                       dtMultiplier,                           & ! intent(out):   substep multiplier (-)
                       tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
@@ -804,6 +826,7 @@ subroutine coupled_em(&
         ! try again, restart step
         dt_solv = dt_solv - dt_solvInner
         dt_solvInner = 0._rkind
+        deallocate(sumLayerCompress)
         cycle substeps
       endif
 
@@ -819,6 +842,19 @@ subroutine coupled_em(&
       do_outer = .true.
       if( dt_sub == maxstep_op .and. .not.lastInnerStep ) do_outer = .false.
       if(do_outer)then
+
+        ! apply the energy fluxes
+        flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /whole_step      ! canopy evaporation/condensation (kg m-2 s-1)
+        flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /whole_step      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+        flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /whole_step     ! sensible heat flux from the canopy to the canopy air space (W m-2)
+
+        ! apply the soil compression diagnostics
+        diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/whole_step
+        do iSoil=1,nSoil
+          if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+          diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/whole_step
+        end do
+        deallocate(sumLayerCompress)
 
         ! ***  remove ice due to sublimation...
         ! NOTE: In the future this should be moved into the solver, makes a big difference, and here only applying last substep amount to whole thing
