@@ -523,12 +523,8 @@ subroutine varSubstep(&
       if(globalPrintFlag)&
       write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
-      ! increment fluxes, define weight applied to each splitting operation only possible in bEuler right now
-      select case(ixNumericalMethod)
-        case(sundials); dt_wght = 1._qp
-        case(bEuler); dt_wght = dtSubstep/dt
-        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
-      end select
+      ! increment fluxes, define weight applied to each substep
+      dt_wght = dtSubstep/dt
 
       do iVar=1,size(flux_meta)
         if(count(fluxMask%var(iVar)%dat)>0) then
