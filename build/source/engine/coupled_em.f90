@@ -613,7 +613,8 @@ subroutine coupled_em(&
 
       ! check if on outer loop, always do outer if after failed step and on small step
       do_outer = .true.
-      if ( dt_sub == maxstep_op .and. .not.(firstInnerStep .or. stepFailure) ) do_outer = .false.
+      if(stepFailure) firstInnerStep = .true.
+      if ( dt_sub == maxstep_op .and. .not.firstInnerStep ) do_outer = .false.
       if(do_outer)then
 
         if(.not.stepFailure)then
