@@ -121,9 +121,6 @@ subroutine varSubstep(&
                       sumCanopyEvaporation,  & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
                       sumLatHeatCanopyEvap,  & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                       sumSenHeatCanopy,      & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-                      sumCanopyTranspiration,& ! intent(inout): sum of canopy transpiration (kg m-2 s-1)
-                      sumLatHeatCanopyTrans, & ! intent(inout): sum of latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
-                      sumCanopySublimation,  & ! intent(inout): sum of sublimation from the vegetation canopy ((kg m-2 s-1)
                       sumSoilCompress,   & ! intent(inout) : sum of total soil compression
                       sumLayerCompress,  & ! intent(inout) : sum of soil compression by layer
                       ! output: model control
@@ -179,9 +176,6 @@ subroutine varSubstep(&
   real(rkind),intent(inout)          :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind),intent(inout)          :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind),intent(inout)          :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout)          :: sumCanopyTranspiration        ! sum of canopy transpiration (kg m-2 s-1)
-  real(rkind),intent(inout)          :: sumLatHeatCanopyTrans         ! sum of latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout)          :: sumCanopySublimation          ! sum of sublimation from the vegetation canopy ((kg m-2 s-1)
   real(rkind),intent(inout)          :: sumSoilCompress               ! sum of total soil compression
   real(rkind),intent(inout)          :: sumLayerCompress(:)           ! sum of soil compression by layer
   ! output: model control
@@ -507,16 +501,10 @@ subroutine varSubstep(&
         sumCanopyEvaporation  = sumCanopyEvaporation  + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  ! canopy evaporation/condensation (kg m-2 s-1)
         sumLatHeatCanopyEvap  = sumLatHeatCanopyEvap  + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
         sumSenHeatCanopy      = sumSenHeatCanopy      + dtSubstep*flux_temp%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)      ! sensible heat flux from the canopy to the canopy air space (W m-2)
-        sumCanopyTranspiration= sumCanopyTranspiration+ dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)! canopy transpiration (kg m-2 s-1)
-        sumLatHeatCanopyTrans = sumLatHeatCanopyTrans + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyTrans)%dat(1) ! latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
-        sumCanopySublimation  = sumCanopySublimation  + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopySublimation)%dat(1)  ! sublimation from the vegetation canopy ((kg m-2 s-1)
       else
         sumCanopyEvaporation  = sumCanopyEvaporation  + dtSubstep*flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  ! canopy evaporation/condensation (kg m-2 s-1)
         sumLatHeatCanopyEvap  = sumLatHeatCanopyEvap  + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
         sumSenHeatCanopy      = sumSenHeatCanopy      + dtSubstep*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)      ! sensible heat flux from the canopy to the canopy air space (W m-2)
-        sumCanopyTranspiration= sumCanopyTranspiration+ dtSubstep*flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)! canopy transpiration (kg m-2 s-1)
-        sumLatHeatCanopyTrans = sumLatHeatCanopyTrans + dtSubstep*flux_data%var(iLookFLUX%scalarLatHeatCanopyTrans)%dat(1) ! latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
-        sumCanopySublimation  = sumCanopySublimation  + dtSubstep*flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)  ! sublimation from the vegetation canopy ((kg m-2 s-1)
       endif  ! if energy fluxes were modified
 
       ! get the total soil compression
