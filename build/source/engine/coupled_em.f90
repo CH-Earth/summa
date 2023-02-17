@@ -860,19 +860,19 @@ subroutine coupled_em(&
       if(do_outer)then
 
         ! apply the energy fluxes
-        !flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  = sumCanopyEvaporation  /whole_step ! canopy evaporation/condensation (kg m-2 s-1)
-        !flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  = sumLatHeatCanopyEvap  /whole_step ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-        !flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)      = sumSenHeatCanopy      /whole_step ! sensible heat flux from the canopy to the canopy air space (W m-2)
-        !flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)= sumCanopyTranspiration/whole_step ! canopy transpiration (kg m-2 s-1)
-        !flux_data%var(iLookFLUX%scalarLatHeatCanopyTrans)%dat(1) = sumLatHeatCanopyTrans /whole_step ! latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
-        !flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)  = sumCanopySublimation  /whole_step ! sublimation from the vegetation canopy ((kg m-2 s-1)
+        flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  = sumCanopyEvaporation  /whole_step ! canopy evaporation/condensation (kg m-2 s-1)
+        flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  = sumLatHeatCanopyEvap  /whole_step ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+        flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)      = sumSenHeatCanopy      /whole_step ! sensible heat flux from the canopy to the canopy air space (W m-2)
+        flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)= sumCanopyTranspiration/whole_step ! canopy transpiration (kg m-2 s-1)
+        flux_data%var(iLookFLUX%scalarLatHeatCanopyTrans)%dat(1) = sumLatHeatCanopyTrans /whole_step ! latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
+        flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)  = sumCanopySublimation  /whole_step ! sublimation from the vegetation canopy ((kg m-2 s-1)
 
         ! apply the soil compression diagnostics
-        !diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/whole_step
-        !do iSoil=1,nSoil
-        !  if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-        !  diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/whole_step
-        !end do
+        diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/whole_step
+        do iSoil=1,nSoil
+          if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+          diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/whole_step
+        end do
         deallocate(sumLayerCompress)
 
 
