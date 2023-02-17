@@ -189,6 +189,9 @@ subroutine opSplittin(&
                       sumCanopyEvaporation, & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
                       sumLatHeatCanopyEvap, & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                       sumSenHeatCanopy,     & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+                      sumCanopyTranspiration,&! intent(inout): sum of canopy transpiration (kg m-2 s-1)
+                      sumLatHeatCanopyTrans,& ! intent(inout): sum of latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
+                      sumCanopySublimation, & ! intent(inout): sum of sublimation from the vegetation canopy ((kg m-2 s-1)
                       sumSoilCompress,      & ! intent(inout): sum of total soil compression
                       sumLayerCompress,     & ! intent(inout): sum of soil compression by layer
                       ! output: model control
@@ -237,6 +240,9 @@ subroutine opSplittin(&
   real(rkind),intent(out)         :: sumCanopyEvaporation           ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind),intent(out)         :: sumLatHeatCanopyEvap           ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind),intent(out)         :: sumSenHeatCanopy               ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(out)         :: sumCanopyTranspiration         ! sum of canopy transpiration (kg m-2 s-1)
+  real(rkind),intent(out)         :: sumLatHeatCanopyTrans          ! sum of latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(out)         :: sumCanopySublimation           ! sum of sublimation from the vegetation canopy ((kg m-2 s-1)
   real(rkind),intent(out)         :: sumSoilCompress                ! sum of total soil compression
   real(rkind),intent(out)         :: sumLayerCompress(:)            ! sum of soil compression by layer
   ! output: model control
@@ -784,6 +790,9 @@ subroutine opSplittin(&
                                 sumCanopyEvaporation,       & ! intent(inout) : sum of canopy evaporation/condensation (kg m-2 s-1)
                                 sumLatHeatCanopyEvap,       & ! intent(inout) : sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                                 sumSenHeatCanopy,           & ! intent(inout) : sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+                                sumCanopyTranspiration,     & ! intent(inout) : sum of canopy transpiration (kg m-2 s-1)
+                                sumLatHeatCanopyTrans,      & ! intent(inout) : sum of latent heat flux associated with transpiration from the canopy to the canopy air space (W m-2)
+                                sumCanopySublimation,       & ! intent(inout) : sum of sublimation from the vegetation canopy ((kg m-2 s-1)
                                 sumSoilCompress,            & ! intent(inout) : sum of total soil compression
                                 sumLayerCompress,           & ! intent(inout) : sum of soil compression by layer
                                 ! output: control
