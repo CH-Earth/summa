@@ -212,6 +212,7 @@ subroutine coupled_em(&
   type(var_ilength)                    :: indx_temp0             ! temporary model index variables saved every time
   type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
   type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
+  real(rkind),allocatable              :: mLayerVolFracIceInit(:)! initial vector for volumetric fraction of ice (-)
   ! check SWE
   real(rkind)                          :: oldSWE                 ! SWE at the start of the substep
   real(rkind)                          :: newSWE                 ! SWE at the end of the substep
@@ -611,7 +612,7 @@ subroutine coupled_em(&
         end do
       endif
 
-      ! check if on outer loop, always do outer if after failed step and on small step
+      ! check if on outer loop, always do outer if after failed step and on then on reduced timestep
       do_outer = .true.
       if(stepFailure) firstInnerStep = .true.
       if ( dt_sub == maxstep_op .and. .not.firstInnerStep ) do_outer = .false.
@@ -754,6 +755,10 @@ subroutine coupled_em(&
         sumSoilCompress      = 0._rkind  ! total soil compression
         allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
 
+        ! save volumetric ice content at the start of the step
+        ! NOTE: used for volumetric loss due to melt-freeze
+        allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
+
         whole_step = maxstep
         if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
@@ -828,6 +833,7 @@ subroutine coupled_em(&
         dt_solv = dt_solv - dt_solvInner
         dt_solvInner = 0._rkind
         deallocate(sumLayerCompress)
+        deallocate(mLayerVolFracIceInit)
         cycle substeps
       endif
 
@@ -857,10 +863,12 @@ subroutine coupled_em(&
         end do
         deallocate(sumLayerCompress)
 
-        ! ***  remove ice due to sublimation...
+
+        ! ***  remove ice due to sublimation and freeze calculations...
         ! NOTE: In the future this should be moved into the solver, makes a big difference, and here only applying last substep amount to whole thing
         ! --------------------------------------------------------------
         sublime: associate(&
+          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,           & ! melt-freeze in each snow and soil layer (kg m-3)
           scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
           scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
           scalarLatHeatCanopyEvap => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -874,6 +882,13 @@ subroutine coupled_em(&
           mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
+
+
+          ! compute the melt in each snow and soil layer
+          if(nSnow>0)&
+          mLayerMeltFreeze(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
+          mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
+          deallocate(mLayerVolFracIceInit)
 
           whole_step = maxstep
           if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep

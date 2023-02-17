@@ -354,7 +354,6 @@ subroutine opSplittin(&
     ! model diagnostic variables (fraction of liquid water)
     scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out):   [dp]     fraction of liquid water on vegetation (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out):   [dp(:)]  fraction of liquid water in each snow layer (-)
-    mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,& ! intent(out):   [dp(:)]  melt-freeze in each snow and soil layer (kg m-3)
     ! model state variables (vegetation canopy)
     scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(out):   [dp]     temperature of the canopy air space (K)
     scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(out):   [dp]     temperature of the vegetation canopy (K)
@@ -410,10 +409,6 @@ subroutine opSplittin(&
     ! compute the total water content in the vegetation canopy
     scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
 
-    ! save volumetric ice content at the start of the step
-    ! NOTE: used for volumetric loss due to melt-freeze
-    mLayerVolFracIceInit(:) = mLayerVolFracIce(:)
-
     ! compute the total water content in snow and soil
     ! NOTE: no ice expansion allowed for soil
     if(nSnow>0)&
@@ -455,28 +450,26 @@ subroutine opSplittin(&
     call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! intialize the flux conter
-    do iVar=1,size(flux_meta)  ! loop through fluxes
-      fluxCount%var(iVar)%dat(:) = 0
-    end do
+    ! intialize the flux counter on first inner step
+    if(firstInnerStep) then
+      do iVar=1,size(flux_meta)  ! loop through fluxes
+        fluxCount%var(iVar)%dat(:) = 0
+      end do
 
-    ! initialize the model fluxes
-    do iVar=1,size(flux_meta)  ! loop through fluxes
-      if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
-      if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
-      flux_data%var(iVar)%dat(:) = 0._rkind
-    end do
+      ! initialize the model fluxes on first inner step
+      do iVar=1,size(flux_meta)  ! loop through fluxes
+        if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
+        if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
+        flux_data%var(iVar)%dat(:) = 0._rkind
+      end do
 
-    ! initialize derivatives
-    do iVar=1,size(deriv_meta)
-      deriv_data%var(iVar)%dat(:) = 0._rkind
-    end do
+      ! initialize derivatives on first inner step
+      do iVar=1,size(deriv_meta)
+        deriv_data%var(iVar)%dat(:) = 0._rkind
+      end do
+    endif
 
     ! ==========================================================================================================================================
-    ! ==========================================================================================================================================
-    ! ==========================================================================================================================================
-    ! ==========================================================================================================================================
-
     ! loop through different coupling strategies
     coupling: do ixCoupling=1,nCoupling
 
@@ -714,8 +707,6 @@ subroutine opSplittin(&
                 end associate stateSubset
 
                 ! *******************************************************************************************************************************
-                ! *******************************************************************************************************************************
-                ! *******************************************************************************************************************************
                 ! ***** trial with a given solution method...
 
                 ! check that we do not attempt the scalar solution for the fully coupled case
@@ -727,29 +718,31 @@ subroutine opSplittin(&
                 ! reset the flag for the first flux call
                 if(.not.firstSuccess) firstFluxCall=.true.
 
-                ! save/recover copies of prognostic variables
-                do iVar=1,size(prog_data%var)
-                  select case(failure)
-                    case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
-                    case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
-                  end select
-                end do  ! looping through variables
+                if(firstInnerStep)then
+                  ! save/recover copies of prognostic variables
+                  do iVar=1,size(prog_data%var)
+                    select case(failure)
+                      case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
+                      case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
+                    end select
+                  end do  ! looping through variables
 
-                ! save/recover copies of diagnostic variables
-                do iVar=1,size(diag_data%var)
-                  select case(failure)
-                    case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
-                    case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
-                  end select
-                end do  ! looping through variables
+                  ! save/recover copies of diagnostic variables
+                  do iVar=1,size(diag_data%var)
+                    select case(failure)
+                      case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
+                      case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
+                    end select
+                  end do  ! looping through variables
 
-                ! save/recover copies of model fluxes
-                do iVar=1,size(flux_data%var)
-                  select case(failure)
-                    case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
-                    case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
-                  end select
-                end do  ! looping through variables
+                  ! save/recover copies of model fluxes
+                  do iVar=1,size(flux_data%var)
+                    select case(failure)
+                      case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+                      case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+                    end select
+                  end do  ! looping through variables
+                endif
 
                 ! -----
                 ! * solve variable subset for one time step...
@@ -879,14 +872,10 @@ subroutine opSplittin(&
 
           ! ***** trial with a given solution method...
           ! *******************************************************************************************************************************
-          ! *******************************************************************************************************************************
-          ! *******************************************************************************************************************************
 
           end do domainSplit ! domain type splitting loop
 
-
         end do stateThenDomain  ! switch between the state and the domain
-
 
         ! -----
         ! * reset state variables for the mass split...
@@ -924,11 +913,6 @@ subroutine opSplittin(&
 
     ! use step halving if unable to complete the fully coupled solution in one substep
     if(ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
-
-    ! compute the melt in each snow and soil layer
-    if(nSnow>0)&
-    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
-    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
 
     ! end associate statements
   end associate globalVars

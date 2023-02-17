@@ -523,9 +523,8 @@ subroutine varSubstep(&
       if(globalPrintFlag)&
       write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
-      ! increment fluxes, define weight applied to each substep
+      ! increment fluxes as average over timestep
       dt_wght = dtSubstep/dt
-
       do iVar=1,size(flux_meta)
         if(count(fluxMask%var(iVar)%dat)>0) then
 
