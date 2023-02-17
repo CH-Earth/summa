@@ -94,7 +94,7 @@ subroutine varSubstep(&
                       dt,                & ! intent(in)    : time step (s)
                       dtInit,            & ! intent(in)    : initial time step (seconds)
                       dt_min,            & ! intent(in)    : minimum time step (seconds)
-                      tdrainage,         & ! intent(in)    : length drainage pond drains in
+                      whole_step,        & ! intent(in)    : length of whole step for surface drainage and average flux
                       nState,            & ! intent(in)    : total number of state variables
                       doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
                       firstSubStep,      & ! intent(in)    : flag to denote first sub-step
@@ -149,7 +149,7 @@ subroutine varSubstep(&
   real(rkind),intent(in)             :: dt                            ! time step (seconds)
   real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
   real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
-  real(rkind),intent(in)             :: tdrainage                     ! length drainage pond drains in
+  real(rkind),intent(in)             :: whole_step                    ! length of whole step for surface drainage and average flux
   integer(i4b),intent(in)            :: nState                        ! total number of state variables
   logical(lgt),intent(in)            :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
   logical(lgt),intent(in)            :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -324,7 +324,7 @@ subroutine varSubstep(&
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      tdrainage,         & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
+                      whole_step,         & ! intent(in):   entire time step (s), right now same as dtSubstep but might change with operator splitting
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -358,7 +358,7 @@ subroutine varSubstep(&
           call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      tdrainage,         & ! intent(in):    entire time step (s)
+                      whole_step,         & ! intent(in):   entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -523,8 +523,8 @@ subroutine varSubstep(&
       if(globalPrintFlag)&
       write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
-      ! increment fluxes as average over timestep
-      dt_wght = dtSubstep/dt
+      ! increment fluxes as average over entire timestep
+      dt_wght = dtSubstep/whole_step
       do iVar=1,size(flux_meta)
         if(count(fluxMask%var(iVar)%dat)>0) then
 

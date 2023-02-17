@@ -169,7 +169,7 @@ subroutine opSplittin(&
                       nLayers,              & ! intent(in):    total number of layers
                       nState,               & ! intent(in):    total number of state variables
                       dt,                   & ! intent(in):    time step (s)
-                      tdrainage,            & ! intent(in):    length drainage pond drains in
+                      whole_step,           & ! intent(in):    length of whole step for surface drainage and average flux
                       firstSubStep,         & ! intent(in):    flag to denote first sub-step
                       firstInnerStep,       & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
@@ -218,7 +218,7 @@ subroutine opSplittin(&
   integer(i4b),intent(in)         :: nLayers                        ! total number of layers
   integer(i4b),intent(in)         :: nState                         ! total number of state variables
   real(rkind),intent(in)          :: dt                             ! time step (seconds)
-  real(rkind),intent(in)          :: tdrainage                      ! length drainage pond drains in
+  real(rkind),intent(in)          :: whole_step                     ! length of whole step for surface drainage and average flux
   logical(lgt),intent(in)         :: firstSubStep                   ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)         :: computeVegFlux                 ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! input/output: data structures
@@ -450,24 +450,24 @@ subroutine opSplittin(&
     call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! intialize the flux counter on first inner step
-    if(firstInnerStep) then
-      do iVar=1,size(flux_meta)  ! loop through fluxes
-        fluxCount%var(iVar)%dat(:) = 0
-      end do
+    ! intialize the flux counter
+    do iVar=1,size(flux_meta)  ! loop through fluxes
+      fluxCount%var(iVar)%dat(:) = 0
+    end do
 
+    if(firstInnerStep) then
       ! initialize the model fluxes on first inner step
       do iVar=1,size(flux_meta)  ! loop through fluxes
         if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
         if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
         flux_data%var(iVar)%dat(:) = 0._rkind
       end do
-
-      ! initialize derivatives on first inner step
-      do iVar=1,size(deriv_meta)
-        deriv_data%var(iVar)%dat(:) = 0._rkind
-      end do
     endif
+
+    ! initialize derivatives
+    do iVar=1,size(deriv_meta)
+      deriv_data%var(iVar)%dat(:) = 0._rkind
+    end do
 
     ! ==========================================================================================================================================
     ! loop through different coupling strategies
@@ -757,7 +757,7 @@ subroutine opSplittin(&
                                 dt,                         & ! intent(in)    : time step (s)
                                 dtInit,                     & ! intent(in)    : initial time step (seconds)
                                 dt_min,                     & ! intent(in)    : minimum time step (seconds)
-                                tdrainage,                  & ! intent(in)    : length drainage pond drains in
+                                whole_step,                 & ! intent(in)    : length of whole step for surface drainage and average flux
                                 nSubset,                    & ! intent(in)    : total number of variables in the state subset
                                 doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
                                 firstSubStep,               & ! intent(in)    : flag to denote first sub-step

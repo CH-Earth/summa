@@ -777,7 +777,7 @@ subroutine coupled_em(&
                       nLayers,                                & ! intent(in):    total number of layers
                       nState,                                 & ! intent(in):    total number of layers
                       dt_sub,                                 & ! intent(in):    length of the model sub-step
-                      whole_step,                             & ! intent(in):    length drainage pond drains in
+                      whole_step,                             & ! intent(in):    length of whole step for surface drainage and average flux
                       (nsub==1),                              & ! intent(in):    logical flag to denote the first substep
                       firstInnerStep,                         & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
