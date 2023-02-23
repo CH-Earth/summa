@@ -15,13 +15,12 @@
 # To troubleshoot your paths and setup, type 'make check'
 #
 # At a minimum you will need to set the following:
-#  * F_MASTER         - top level summa directory
+#  * F_MASTER_TOP     - top level directory
 #  * FC               - compiler suite
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
 #  * ILDFLAGS         - path to libraries to include
 #  * LIBRARIES        - libraries to include
-#  * DIR_SUNDIALS     - installation sundials directory
 #
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
 # the Makefile. You don't need to make any changes in PART 1 and
@@ -40,7 +39,8 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =/globalhome/gwu479/HPC/SummaSundials/summa
+F_MASTER_TOP = /globalhome/gwu479/HPC/SummaSundials
+F_MASTER = $(F_MASTER_TOP)/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
@@ -65,9 +65,13 @@ INCLUDES = -I$(EBROOTNETCDFMINFORTRAN)/include
 LDFLAGS  = -L$(EBROOTNETCDFMINFORTRAN)/lib64 -L$(EBROOTOPENBLAS)/lib
 LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas
 
-DIR_SUNDIALS=/globalhome/gwu479/HPC/SummaSundials/sundials/instdir
+DIR_SUNDIALS= $(F_MASTER_TOP)/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
 LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
+
+DIR_BMI= $(F_MASTER_TOP)/instdir
+INC_BMI=-I$(DIR_BMI)/include
+LIB_BMI=-L$(DIR_BMI)/lib -lbmif
 
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -199,11 +203,6 @@ SUMMA_UTILMS= \
 		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
-# interface modules
-SUMMA_INTERFACE= \
-		summa_bmi.f90
-INTERFACE = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_INTERFACE))
-
 # Model guts
 SUMMA_MODGUT= \
 		MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
@@ -305,9 +304,9 @@ NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
 COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
 
 # ... stitch together SUMMA programs
-SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER $(INTERFACE)
+SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
 
-# Define the driver routine
+# Define the driver routines
 SUMMA_DRIVER= \
 		summa_type.f90 \
 		summa_util.f90 \
@@ -320,17 +319,22 @@ SUMMA_DRIVER= \
 		summa_forcing.f90 \
 		summa_modelRun.f90 \
 		summa_writeOutput.f90 \
-		summa_driver.f90
+        summa_driver.f90
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
+
+# Define SUMMA running infrastructure
+SUMMA_RUN = \
+		summa_run.f90
+SUMMA = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_RUN))
 
 # Define BMI testing infrastructure
 BMI_TEST = \
-		test_bmi.f90
+		summa_runBMI.f90
 BMI = $(patsubst %, $(DRIVER_DIR)/%, $(BMI_TEST))
 
 # Define the executable
 DRIVER__EX = summa_sundials.exe
-BMI__EX = test_bmi.exe
+BMI__EX = summa_bmi.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
@@ -386,6 +390,9 @@ check:
 	$(info   SUNDIALSDIR: $(DIR_SUNDIALS))
 	$(info   INC_SUNDIALS: $(INC_SUNDIALS))
 	$(info   LIB_SUNDIALS: $(LIB_SUNDIALS))
+	$(info   BMIDIR: $(DIR_BMI))
+	$(info   INC_BMI: $(INC_BMI))
+	$(info   LIB_BMI: $(LIB_BMI))
 	$(info)
 
 # update version information
@@ -399,26 +406,22 @@ update_version:
 compile_noah:
 	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
-# compile common routines
-compile_comm:
-	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
-
 # compile SUMMA routines
 compile_summa: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCLUDES) $(INC_SUNDIALS)
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(SUMMA) \
+	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
 
 compile_bmi: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(BMI) \
-	$(INCLUDES) $(INC_SUNDIALS)
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(BMI) \
+	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
 
 # link routines
 link:
-	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(DRIVER__EX)
+	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(DRIVER__EX)
 
 # link routines
 link_bmi:
-	$(FC_EXE) -pg -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(BMI__EX)
+	$(FC_EXE) -pg -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(BMI__EX)
 
 # Remove object files
 clean:
