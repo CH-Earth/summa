@@ -23,10 +23,11 @@ program summa_run
   ! *****************************************************************************
   ! * use desired modules
   ! *****************************************************************************
+  USE nrtype                                                  ! variable types, etc.
   ! subroutines and functions: model simulation
-  USE summa_bmi, only: initialize, update, finalize
+  USE summa_driver
   ! global data
-  USE globalData,only:numtim              ! number of time steps
+  USE globalData,only:numtim                                  ! number of time steps
 
   implicit none
 
@@ -36,12 +37,13 @@ program summa_run
   type (summa_bmi) :: model
   integer(i4b)                       :: istat
   ! define timing information
-  integer(i4b)                       :: modelTimeStep              ! index of model time step
+  integer(i4b)                       :: modelTimeStep         ! index of model time step
 
   ! *****************************************************************************
   ! * model simulation
   ! *****************************************************************************
-  istat = model%initialize()
+  ! give this a 0 length argument to use fileManager from summa standard command arguments
+  istat = model%initialize('')
 
   ! loop through time
   do modelTimeStep=1,numtim

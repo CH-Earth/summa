@@ -371,9 +371,10 @@ endif
 #======================================================================
 
 # Compile
-all: compile_noah compile_comm compile_summa link clean install
-part: compile_noah compile_comm compile_summa
-bmi: compile_noah compile_comm compile_bmi link_bmi clean install_test
+all: compile_noah compile_comm compile_rout compile_test link_test clean_test compile_summa link clean install install_test
+part: compile_noah compile_comm compile_rout
+summa: compile_noah compile_comm compile_rout compile_summa link clean install
+bmi: compile_noah compile_comm compile_rout compile_test link_test clean install_test
 
 
 check:
@@ -411,21 +412,29 @@ compile_noah:
 	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
 # compile SUMMA routines
+compile_rout: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
+	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
+
+# compile run scripts
 compile_summa: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(SUMMA) \
-	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA)
 
-compile_bmi: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(BMI) \
-	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
+# compile test scripts
+compile_test: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(BMI)
 
-# link routines
+# link run routines
 link:
 	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(DRIVER__EX)
 
-# link routines
-link_bmi:
-	$(FC_EXE) -pg -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(BMI__EX)
+# link test routines
+link_test:
+	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(BMI__EX)
+
+# remove test script objects
+clean_test:
+	rm -f summa_runBMI.o
 
 # Remove object files
 clean:

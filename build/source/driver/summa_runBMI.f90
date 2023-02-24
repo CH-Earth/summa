@@ -24,7 +24,7 @@ program summa_runBMI
   ! * use desired modules
   ! *****************************************************************************
   ! subroutines and functions: model simulation
-  use summa_bmi
+  use summa_driver
   use, intrinsic :: iso_fortran_env, only : file_unit=>input_unit
 
   implicit none
@@ -37,8 +37,8 @@ program summa_runBMI
   type (summa_bmi) :: model
   integer                      :: arg_count = 0
   character (len=80)           :: arg
-  integer(i4b)                 :: i, j, istat, grid_id, grid_size
-  real                         :: current_time, end_time
+  integer                      :: i, j, istat, grid_id, grid_size
+  double precision             :: current_time, end_time
   real, allocatable            :: runoff(:)
 
   ! *****************************************************************************
@@ -70,15 +70,14 @@ program summa_runBMI
   allocate(runoff(grid_size))
 
   do while (current_time <= end_time)
-     write(file_unit,"(a, f6.1)") "Model values at time = ", current_time
-     istat = model%get_value(var_name, runoff)
-     do j = 1, grid_size
-           write (file_unit,"(f6.1)", advance="no") runoff(j)
-        end do
-        write (file_unit,*)
-     end do
-     istat = model%update()
-     istat = model%get_current_time(current_time)
+    write(file_unit,"(a, f6.1)") "Model values at time = ", current_time
+    istat = model%get_value(var_name, runoff)
+    do j = 1, grid_size
+      write (file_unit,"(f6.1)", advance="no") runoff(j)
+    end do
+    write (file_unit,*)
+    istat = model%update()
+    istat = model%get_current_time(current_time)
   end do
 
   deallocate(runoff)

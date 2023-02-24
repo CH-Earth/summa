@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summa_bmi
+module summa_driver
   ! provides functions needed for summa driver routines adding BMI functions
   ! *****************************************************************************
   ! * use desired modules
@@ -49,16 +49,19 @@ module summa_bmi
   USE globalData, only: gru_struc                             ! gru-hru mapping structures
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
-  USE var_lookup, only: iLookATTR                             ! look-up values for local attributes
-  USE var_lookup, only: iLookFLUX                             ! named variables for flux variables
-  USE var_lookup, only: iLookDIAG                             ! named variables for diagnostic variables
-  USE var_lookup, only: iLookPROG                             ! named variables for prognostic variables
+  USE var_lookup, only: iLookATTR                             ! named variables for real valued attribute data structure
+  USE var_lookup, only: iLookFORCE                            ! named variables for forcing data structure
+  USE var_lookup, only: iLookFLUX                             ! named variables for local flux variables
+  USE var_lookup, only: iLookDIAG                             ! named variables for local diagnostic variables
+  USE var_lookup, only: iLookPROG                             ! named variables for local prognostic variables
 
   implicit none
 
   ! Define the attributes of the model.
   type :: summa_model
      integer(i4b) :: timeStep      ! index of model time step
+     !type(summa1_type_dec), allocatable :: summa1_struc(:)
+     type(summa1_type_dec) :: summa1_struc(1)
   end type summa_model
 
   type, extends (bmi) :: summa_bmi
@@ -70,7 +73,7 @@ module summa_bmi
      procedure :: get_output_item_count => summa_output_item_count
      procedure :: get_input_var_names => summa_input_var_names
      procedure :: get_output_var_names => summa_output_var_names
-     procedure :: initialize => summa_initialize
+     procedure :: initialize => summa_bmi_initialize
      procedure :: finalize => summa_finalize
      procedure :: get_start_time => summa_start_time
      procedure :: get_end_time => summa_end_time
@@ -136,7 +139,6 @@ module summa_bmi
           set_value_at_indices_int, &
           set_value_at_indices_float, &
           set_value_at_indices_double
-     procedure :: print_model_info
   end type summa_bmi
 
   private
@@ -147,13 +149,8 @@ module summa_bmi
   ! *****************************************************************************
   character (len=BMI_MAX_COMPONENT_NAME), target :: &
        component_name = "Structure for Unifying Multiple Modeling Alternatives: SUMMA"
-  ! define the master summa data structure
-  type(summa1_type_dec), allocatable :: summa1_struc(:)
   ! define parameters for the model simulation
   integer(i4b), parameter            :: n=1                        ! number of instantiations
-  ! error control
-  integer(i4b)                       :: err=0                      ! error code
-  character(len=1024)                :: message=''                 ! error message
   ! Exchange items
   integer, parameter :: input_item_count = 1
   integer, parameter :: output_item_count = 16
@@ -166,62 +163,68 @@ module summa_bmi
    ! *****************************************************************************
    ! * model setup/initialization
    ! *****************************************************************************
-   function summa_initialize(this, config_file) result (bmi_status)
+   function summa_bmi_initialize(this, config_file) result (bmi_status)
      class (summa_bmi), intent(out) :: this
      character (len=*), intent(in) :: config_file
+     ! error control
+     integer(i4b)                       :: err=0                      ! error code
+     character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status, i
 
      ! initialize time steps
-     this%model%timeStep == 0
+     this%model%timeStep = 0
 
      ! allocate space for the master summa structure, could happen outside of BMI function
-     allocate(summa1_struc(n), stat=err)
-     if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+     !allocate(this%model%summa1_struc(n), stat=err)
+     !if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
      ! if using the BMI interface, there is an argument pointing to the file manager file
      !  then make sure summaFileManagerFile is set before executing initialization
-     if (len(config_file) > 0) then
-       do i=1,256
-         if (dir(i) == C_NULL_CHAR) exit
-         summa1_struc%summaFileManagerFile(i:i)=config_file(i)  ! copying character array to string
-       end do
+     if (len(config_file) > 0)then
+       this%model%summa1_struc(n)%summaFileManagerFile=config_file
+       !do i=1,256
+       !  summa1_struc(n)%summaFileManagerFile(i:i)=config_file(i)  ! copying character array to string
+       !end do
      endif
 
      ! declare and allocate summa data structures and initialize model state to known values
-     call summa_initialize(summa1_struc(n), err, message)
+     call summa_initialize(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! initialize parameter data structures (e.g. vegetation and soil parameters)
-     call summa_paramSetup(summa1_struc(n), err, message)
+     call summa_paramSetup(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! read restart data and reset the model state
-     call summa_readRestart(summa1_struc(n), err, message)
+     call summa_readRestart(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      bmi_status = BMI_SUCCESS
-   end function summa_initialize
+   end function summa_bmi_initialize
 
    ! *****************************************************************************
    ! * advance model by one time step.
    ! *****************************************************************************
    function summa_update(this) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
+     ! error control
+     integer(i4b)                       :: err=0                      ! error code
+     character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status
 
      ! read model forcing data
-     call summa_readForcing(this%model%timeStep, summa1_struc(n), err, message)
+     call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      if (mod(this%model%timeStep, print_step_freq) == 0)then
        print *, 'step ---> ', this%model%timeStep
      endif
      ! run the summa physics for one time step
-     call summa_runPhysics(this%model%timeStep, summa1_struc(n), err, message)
+     call summa_runPhysics(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      ! write the model output
-     call summa_writeOutputFiles(this%model%timeStep, summa1_struc(n), err, message)
+     call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
      bmi_status = BMI_SUCCESS
@@ -234,9 +237,9 @@ module summa_bmi
      class (summa_bmi), intent(inout) :: this
      double precision, intent(in) :: time   ! unit days (julian days, same as get_model_time)
      integer :: bmi_status, istat
-     real :: current
+     double precision :: current
 
-     current = this%current_time()
+     istat = this%get_current_time(current)
      if (time < current) then
        bmi_status = BMI_FAILURE
        return
@@ -249,7 +252,7 @@ module summa_bmi
 
      do while (current < time .and. this%model%timeStep < numtim)
        istat = this%update()
-       current = this%current_time()
+       istat = this%get_current_time(current)
        this%model%timeStep = this%model%timeStep + 1
      end do  ! (looping through time)
 
@@ -265,7 +268,7 @@ module summa_bmi
 
      call stop_program(0, 'finished simulation successfully.')
      bmi_status = BMI_SUCCESS
-   end function finalize
+   end function summa_finalize
 
    ! *****************************************************************************
    ! * extra BMI functions
@@ -312,7 +315,7 @@ module summa_bmi
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
 
-   ! List output variables NAMES SHOULD BE STANDARDIZED "https://csdms.colorado.edu/wiki/CSDMS_Standard_Names"
+   ! List output variables standardized as "https://csdms.colorado.edu/wiki/CSDMS_Standard_Names"
    function summa_output_var_names(this, names) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (*), pointer, intent(out) :: names(:)
@@ -418,7 +421,7 @@ module summa_bmi
        type = 'points'
        bmi_status = BMI_SUCCESS
      case default
-       shape(:) = -1
+       type = "-"
        bmi_status = BMI_FAILURE
      end select
    end function summa_grid_type
@@ -463,7 +466,7 @@ module summa_bmi
 
      select case(grid)
      case default
-       size = nHRUcount
+       size = nHRUfile
        bmi_status = BMI_FAILURE
      end select
    end function summa_grid_size
@@ -502,17 +505,18 @@ module summa_bmi
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: x
      integer :: bmi_status, iGRU, jHRU
-     summaVars: associate(attrStruct => summa1_struc%attrStruct) ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
 
-     select case(grid)
-     case default
-       do iGRU = 1, summa1_struc%nGRU
-         do jHRU = 1, gru_struc(iGRU)%hruCount
-           x((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%longitude)
-         end do
-       end do
-       bmi_status = BMI_SUCCESS
-     end select
+     summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+      )
+      select case(grid)
+      case default
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+          do jHRU = 1, gru_struc(iGRU)%hruCount
+            x((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%longitude)
+          end do
+        end do
+        bmi_status = BMI_SUCCESS
+      end select
      end associate summaVars
    end function summa_grid_x
 
@@ -522,17 +526,18 @@ module summa_bmi
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: y
      integer :: bmi_status, iGRU, jHRU
-     summaVars: associate(attrStruct => summa1_struc%attrStruct) ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
 
-     select case(grid)
-     case default
-       do iGRU = 1, summa1_struc%nGRU
-         do jHRU = 1, gru_struc(iGRU)%hruCount
-           y((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%latitude)
-         end do
-       end do
-       bmi_status = BMI_SUCCESS
-     end select
+     summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+      )
+      select case(grid)
+      case default
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+          do jHRU = 1, gru_struc(iGRU)%hruCount
+            y((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%latitude)
+          end do
+        end do
+        bmi_status = BMI_SUCCESS
+      end select
      end associate summaVars
    end function summa_grid_y
 
@@ -541,18 +546,19 @@ module summa_bmi
      class (summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
      double precision, dimension(:), intent(out) :: z
-     integer :: bmi_status, iGRU, jHRUs
-     summaVars: associate(attrStruct => summa1_struc%attrStruct) ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+     integer :: bmi_status, iGRU, jHRU
 
-     select case(grid)
-     case default
-       do iGRU = 1, summa1_struc%nGRU
-         do jHRU = 1, gru_struc(iGRU)%hruCount
-           z((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%elevation)
-         end do
-       end do
-       bmi_status = BMI_SUCCESS
-     end select
+     summaVars: associate(attrStruct => this%model%summa1_struc(n)%attrStruct    & ! x%gru(:)%hru(:)%var(:)     -- local attributes for each HRU
+      )
+      select case(grid)
+      case default
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+          do jHRU = 1, gru_struc(iGRU)%hruCount
+            z((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = attrStruct%gru(iGRU)%hru(jHRU)%var(iLookATTR%elevation)
+          end do
+        end do
+        bmi_status = BMI_SUCCESS
+      end select
      end associate summaVars
    end function summa_grid_z
 
@@ -655,7 +661,7 @@ module summa_bmi
    end function summa_grid_nodes_per_face
 
    ! The data type of the variable, as a string
-   function summa_var_type(this, name, units) result (bmi_status)
+   function summa_var_type(this, name, type) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      character (len=*), intent(out) :: type
@@ -701,12 +707,13 @@ module summa_bmi
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      integer, intent(out) :: size
-     real :: targetarr
+     real ,target :: targetarr(nHRUfile)
      integer :: bmi_status
 
      select case(name)
      case default
-       size = sizeof(get_basin_field(name, 1, 1, targetarr))  ! 'sizeof' in gcc & ifort
+       call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
+       size = sizeof(targetarr(1))  ! 'sizeof' in gcc & ifort
        bmi_status = BMI_SUCCESS
      end select
    end function summa_var_itemsize
@@ -764,16 +771,13 @@ module summa_bmi
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      real, intent(inout) :: dest(:)
-     real :: targetarr
-     integer :: bmi_status, iGRU, jHRU
+     real, target :: targetarr(nHRUfile)
+     integer :: bmi_status
 
      select case(name)
      case default
-       do iGRU = 1, summa1_struc%nGRU
-         do jHRU = 1, gru_struc(iGRU)%hruCount
-           dest((iGRU-1) * gru_struc(iGRU)%hruCount + jHRU) = get_basin_field(name, iGRU, jHRU, targetarr)
-         end do
-       end do
+       call get_basin_field(this, name, nHRUfile, targetarr)
+       dest = targetarr
        bmi_status = BMI_SUCCESS
      end select
    end function summa_get_float
@@ -812,15 +816,16 @@ module summa_bmi
      character (len=*), intent(in) :: name
      real, pointer, intent(inout) :: dest_ptr(:)
      integer :: bmi_status, n_elements
-     real :: targetarr
+     real, target :: targetarr(nHRUfile)
      type (c_ptr) :: src
 
      select case(name)
      case default
-      src = c_loc(get_basin_field(name, 1, 1, targetarr))
-      n_elements = nHRUcount
-      call c_f_pointer(src, dest_ptr, [n_elements])
-      bmi_status = BMI_SUCCESS
+       call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
+       src = c_loc(targetarr(1))
+       n_elements = nHRUfile
+       call c_f_pointer(src, dest_ptr, [n_elements])
+       bmi_status = BMI_SUCCESS
      end select
    end function summa_get_ptr_float
 
@@ -839,8 +844,7 @@ module summa_bmi
    end function summa_get_ptr_double
 
    ! Get values of an integer variable at the given locations
-   function summa_get_at_indices_int(this, name, dest, inds) &
-        result (bmi_status)
+   function summa_get_at_indices_int(this, name, dest, inds) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      integer, intent(inout) :: dest(:)
@@ -856,20 +860,20 @@ module summa_bmi
    end function summa_get_at_indices_int
 
    ! Get values of a real variable at the given locations
-   function summa_get_at_indices_float(this, name, dest, inds) &
-        result (bmi_status)
+   function summa_get_at_indices_float(this, name, dest, inds) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      real, intent(inout) :: dest(:)
      integer, intent(in) :: inds(:)
      integer :: bmi_status, i, n_elements
-     real :: targetarr
+     real, target :: targetarr(nHRUfile)
      type (c_ptr) src
      real, pointer :: src_flattened(:)
 
      select case(name)
      case default
-       src = c_loc(get_basin_field(name, 1, 1, targetarr))
+       call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
+       src = c_loc(targetarr(1))
        call c_f_pointer(src, src_flattened, [n_elements])
        n_elements = size(inds)
        do i = 1, n_elements
@@ -880,8 +884,7 @@ module summa_bmi
    end function summa_get_at_indices_float
 
    ! Get values of a double variable at the given locations
-   function summa_get_at_indices_double(this, name, dest, inds) &
-        result (bmi_status)
+   function summa_get_at_indices_double(this, name, dest, inds) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      double precision, intent(inout) :: dest(:)
@@ -936,8 +939,7 @@ module summa_bmi
    end function summa_set_double
 
    ! Set integer values at particular locations
-   function summa_set_at_indices_int(this, name, inds, src) &
-        result (bmi_status)
+   function summa_set_at_indices_int(this, name, inds, src) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
      character (len=*), intent(in) :: name
      integer, intent(in) :: inds(:)
@@ -954,8 +956,7 @@ module summa_bmi
    end function summa_set_at_indices_int
 
    ! Set real values at particular locations, ONLY FOR INPUT VARIABLES
-   function summa_set_at_indices_float(this, name, inds, src) &
-        result (bmi_status)
+   function summa_set_at_indices_float(this, name, inds, src) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
      character (len=*), intent(in) :: name
      integer, intent(in) :: inds(:)
@@ -972,8 +973,7 @@ module summa_bmi
    end function summa_set_at_indices_float
 
    ! Set double values at particular locations
-   function summa_set_at_indices_double(this, name, inds, src) &
-        result (bmi_status)
+   function summa_set_at_indices_double(this, name, inds, src) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
      character (len=*), intent(in) :: name
      integer, intent(in) :: inds(:)
@@ -989,53 +989,63 @@ module summa_bmi
      end select
    end function summa_set_at_indices_double
 
-   ! non-BMI helper function to get fields
-   function get_basin_field(name, iGRU, jHRU, targetarr)
+   ! non-BMI helper function to get fields, only get first do_nHRU of them
+   subroutine get_basin_field(this, name, do_nHRU, targetarr)
      implicit none
-     integer, intent(in)  :: name, iGRU, jHRU
-     real, intent(out) :: targetarr
+     class (summa_bmi), intent(in) :: this
+     integer, intent(in)  :: do_nHRU
+     character (len=*), intent(in) :: name
+     real, target, intent(out) :: targetarr(nHRUfile)
+     integer ::  iGRU, jHRU, i
+
      summaVars: associate(&
-      forcStruct           => summa1_struc%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
-      progStruct           => summa1_struc%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
-      diagStruct           => summa1_struc%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
-      fluxStruct           => summa1_struc%fluxStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
-     )
-
-     select case (name)
-     case('land_surface_water__runoff_volume_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)
-     case('land_surface_water__evaporation_mass_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
-     case('atmosphere_water__precipitation_mass_flux')
-       targetarr = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORC%pptrate)%dat(1)
-     case('land_vegetation_water__evaporation_mass_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
-     case('land_vegetation_water__transpiration_mass_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
-     case('snowpack__sublimation_mass_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
-     case('land_vegetation_water__sublimation_mass_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
-     case('snowpack_mass')
-       targetarr = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
-     case('soil_water__mass')
-       targetarr = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
-     case('land_vegetation_water__mass')
-       targetarr = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
-     case('land_surface_radiation~net~total__energy_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarNetRadiation)%dat(1)
-     case('land_atmosphere_heat~net~latent__energy_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarLatHeatTotal)%dat(1)
-     case('land_atmosphere_heat~net~sensible__energy_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSenHeatTotal)%dat(1)
-     case('atmosphere_energy~net~total__energy_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)
-     case('land_vegetation_energy~net~total__energy_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
-     case('land_surface_energy~net~total__energy_flux')
-       targetarr = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
-     end select
+      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+      progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
+      diagStruct           => this%model%summa1_struc(n)%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
+      fluxStruct           => this%model%summa1_struc(n)%fluxStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
+      )
+      targetarr = -999.0
+      do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          if (i > do_nHRU) return
+          select case (name)
+          case('land_surface_water__runoff_volume_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)
+          case('land_surface_water__evaporation_mass_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
+          case('atmosphere_water__precipitation_mass_flux')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
+          case('land_vegetation_water__evaporation_mass_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
+          case('land_vegetation_water__transpiration_mass_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
+          case('snowpack__sublimation_mass_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
+          case('land_vegetation_water__sublimation_mass_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
+          case('snowpack_mass')
+            targetarr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
+          case('soil_water__mass')
+            targetarr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
+          case('land_vegetation_water__mass')
+            targetarr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
+          case('land_surface_radiation~net~total__energy_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarNetRadiation)%dat(1)
+          case('land_atmosphere_heat~net~latent__energy_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarLatHeatTotal)%dat(1)
+          case('land_atmosphere_heat~net~sensible__energy_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSenHeatTotal)%dat(1)
+          case('atmosphere_energy~net~total__energy_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)
+          case('land_vegetation_energy~net~total__energy_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
+          case('land_surface_energy~net~total__energy_flux')
+            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
+          end select
+        end do
+      end do
      end associate summaVars
-   end function get_basin_field
+   end subroutine get_basin_field
 
-end program summa_bmi
+end module summa_driver
