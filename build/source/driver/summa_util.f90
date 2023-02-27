@@ -248,9 +248,7 @@ contains
     call printCommandHelp
 
    case default
-    call printCommandHelp
-    message='unknown command line option'
-    err=1; return
+    ! assume BMI, already set master control file
 
   end select
  end do  ! looping through command line arguments

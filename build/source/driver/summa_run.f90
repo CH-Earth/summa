@@ -45,7 +45,8 @@ program summa_run
   ! give this a 0 length argument to use fileManager from summa standard command arguments
   istat = model%initialize('')
 
-  ! loop through time
+  ! loop through time where numtim has been already computed as
+  ! numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
   do modelTimeStep=1,numtim
     istat = model%update()
   end do  ! (looping through time)

@@ -50,7 +50,7 @@ program summa_runBMI
   end do
 
   if (len_trim(arg) == 0) then
-     write(*,"(a)") "Usage: summa_bmi CONFIGURATION_FILE"
+     write(*,"(a)") "Usage: summa_bmi.exe CONFIGURATION_FILE<80char"
      write(*,"(a)")
      write(*,"(a)") "Run the summa model through its BMI with a configuration file."
      write(*,"(a)") "Output is written to the file `summa_bmi.out`."
@@ -64,16 +64,17 @@ program summa_runBMI
 
   istat = model%get_current_time(current_time)
   istat = model%get_end_time(end_time)
+! variable will need to be on a grid that is constant through simulation and set in initialization
   istat = model%get_var_grid(var_name, grid_id)
   istat = model%get_grid_size(grid_id, grid_size)
 
   allocate(runoff(grid_size))
 
   do while (current_time <= end_time)
-    write(file_unit,"(a, f6.1)") "Model values at time = ", current_time
+    write(file_unit,"(a, f10.2)") "Model values at time = ", current_time
     istat = model%get_value(var_name, runoff)
     do j = 1, grid_size
-      write (file_unit,"(f6.1)", advance="no") runoff(j)
+      write (file_unit,"(e13.5)", advance="no") runoff(j)
     end do
     write (file_unit,*)
     istat = model%update()

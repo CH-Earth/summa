@@ -45,7 +45,6 @@ module summa_driver
   USE globalData, only: dJulianStart                          ! julian day of start time of simulation
   USE globalData, only: dJulianFinsh                          ! julian day of end time of simulation
   USE globalData, only: data_step                             ! length of time steps for the outermost timeloop
-  USE globalData, only: nHRUfile                              ! number of HRUs in the file, = gru_struc(iGRU)%hruCount and summa1_struc%nHRU
   USE globalData, only: gru_struc                             ! gru-hru mapping structures
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
@@ -180,11 +179,10 @@ module summa_driver
 
      ! if using the BMI interface, there is an argument pointing to the file manager file
      !  then make sure summaFileManagerFile is set before executing initialization
+     ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
      if (len(config_file) > 0)then
-       this%model%summa1_struc(n)%summaFileManagerFile=config_file
-       !do i=1,256
-       !  summa1_struc(n)%summaFileManagerFile(i:i)=config_file(i)  ! copying character array to string
-       !end do
+       this%model%summa1_struc(n)%summaFileManagerFile=trim(config_file)
+       print "(A)", "file_master is '"//trim(config_file)//"'."
      endif
 
      ! declare and allocate summa data structures and initialize model state to known values
@@ -199,6 +197,7 @@ module summa_driver
      call summa_readRestart(this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
+     ! done with initialization
      bmi_status = BMI_SUCCESS
    end function summa_bmi_initialize
 
@@ -211,6 +210,9 @@ module summa_driver
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status
+
+     ! start, advance time, as model uses this time step throughout
+     this%model%timeStep = this%model%timeStep + 1
 
      ! read model forcing data
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
@@ -227,6 +229,7 @@ module summa_driver
      call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
 
+     ! done with step
      bmi_status = BMI_SUCCESS
    end function summa_update
 
@@ -236,7 +239,7 @@ module summa_driver
    function summa_update_until(this, time) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
      double precision, intent(in) :: time   ! unit days (julian days, same as get_model_time)
-     integer :: bmi_status, istat
+     integer :: bmi_status, istat, n_steps, i
      double precision :: current
 
      istat = this%get_current_time(current)
@@ -245,17 +248,10 @@ module summa_driver
        return
      end if
 
-     ! loop through time
-     if (this%model%timeStep == 0) then
-       this%model%timeStep = 1
-     end if
-
-     do while (current < time .and. this%model%timeStep < numtim)
+     n_steps = nint( (time - current)*secprday/data_step ) + 1 ! model can only do a full data_step
+     do i = 1, n_steps
        istat = this%update()
-       istat = this%get_current_time(current)
-       this%model%timeStep = this%model%timeStep + 1
-     end do  ! (looping through time)
-
+     end do
      bmi_status = BMI_SUCCESS
    end function summa_update_until
 
@@ -465,8 +461,11 @@ module summa_driver
      integer :: bmi_status
 
      select case(grid)
+     case(0)
+       size = sum(gru_struc(:)%hruCount)
+       bmi_status = BMI_SUCCESS
      case default
-       size = nHRUfile
+       size = -1
        bmi_status = BMI_FAILURE
      end select
    end function summa_grid_size
@@ -571,7 +570,7 @@ module summa_driver
 
      select case(grid)
      case default
-       count = nHRUfile
+       count = sum(gru_struc(:)%hruCount)
        bmi_status = BMI_SUCCESS
      end select
    end function summa_grid_node_count
@@ -707,7 +706,7 @@ module summa_driver
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      integer, intent(out) :: size
-     real ,target :: targetarr(nHRUfile)
+     real ,target :: targetarr(sum(gru_struc(:)%hruCount))
      integer :: bmi_status
 
      select case(name)
@@ -771,12 +770,12 @@ module summa_driver
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      real, intent(inout) :: dest(:)
-     real, target :: targetarr(nHRUfile)
+     real, target :: targetarr(sum(gru_struc(:)%hruCount))
      integer :: bmi_status
 
      select case(name)
      case default
-       call get_basin_field(this, name, nHRUfile, targetarr)
+       call get_basin_field(this, name, sum(gru_struc(:)%hruCount), targetarr)
        dest = targetarr
        bmi_status = BMI_SUCCESS
      end select
@@ -816,14 +815,14 @@ module summa_driver
      character (len=*), intent(in) :: name
      real, pointer, intent(inout) :: dest_ptr(:)
      integer :: bmi_status, n_elements
-     real, target :: targetarr(nHRUfile)
+     real, target :: targetarr(sum(gru_struc(:)%hruCount))
      type (c_ptr) :: src
 
      select case(name)
      case default
        call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
        src = c_loc(targetarr(1))
-       n_elements = nHRUfile
+       n_elements = sum(gru_struc(:)%hruCount)
        call c_f_pointer(src, dest_ptr, [n_elements])
        bmi_status = BMI_SUCCESS
      end select
@@ -866,7 +865,7 @@ module summa_driver
      real, intent(inout) :: dest(:)
      integer, intent(in) :: inds(:)
      integer :: bmi_status, i, n_elements
-     real, target :: targetarr(nHRUfile)
+     real, target :: targetarr(sum(gru_struc(:)%hruCount))
      type (c_ptr) src
      real, pointer :: src_flattened(:)
 
@@ -995,7 +994,7 @@ module summa_driver
      class (summa_bmi), intent(in) :: this
      integer, intent(in)  :: do_nHRU
      character (len=*), intent(in) :: name
-     real, target, intent(out) :: targetarr(nHRUfile)
+     real, target, intent(out) :: targetarr(sum(gru_struc(:)%hruCount))
      integer ::  iGRU, jHRU, i
 
      summaVars: associate(&
