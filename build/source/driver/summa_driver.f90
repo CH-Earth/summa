@@ -59,8 +59,7 @@ module summa_driver
   ! Define the attributes of the model.
   type :: summa_model
      integer(i4b) :: timeStep      ! index of model time step
-     !type(summa1_type_dec), allocatable :: summa1_struc(:)
-     type(summa1_type_dec) :: summa1_struc(1)
+     type(summa1_type_dec), allocatable :: summa1_struc(:)
   end type summa_model
 
   type, extends (bmi) :: summa_bmi
@@ -174,8 +173,8 @@ module summa_driver
      this%model%timeStep = 0
 
      ! allocate space for the master summa structure, could happen outside of BMI function
-     !allocate(this%model%summa1_struc(n), stat=err)
-     !if(err/=0) call stop_program(1, 'problem allocating master summa structure')
+     allocate(this%model%summa1_struc(n), stat=err)
+     if(err/=0) call stop_program(1, 'problem allocating master summa structure')
 
      ! if using the BMI interface, there is an argument pointing to the file manager file
      !  then make sure summaFileManagerFile is set before executing initialization
