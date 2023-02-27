@@ -413,8 +413,7 @@ compile_noah:
 
 # compile SUMMA routines
 compile_rout: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
 
 # compile run scripts
 compile_summa: update_version

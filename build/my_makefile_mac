@@ -71,7 +71,7 @@ LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fid
 
 DIR_BMI= $(F_MASTER_TOP)/bmi/instdir
 INC_BMI=-I$(DIR_BMI)/include
-LIB_BMI=-L$(DIR_BMI)/lib -lbmif
+LIB_BMI=-L$(DIR_BMI)/lib -lbmif -Xlinker -rpath -Xlinker $(DIR_BMI)/lib
 
 # Eventually we plan move to a real configure script, but for now we like
 # to keep track of successful compilations of SUMMA on different platforms
@@ -413,8 +413,7 @@ compile_noah:
 
 # compile SUMMA routines
 compile_rout: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
 
 # compile run scripts
 compile_summa: update_version
