@@ -174,7 +174,7 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
   ! energy fluxes
-  real(rkind),intent(inout)          :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a whole_step
+  type(var_dlength),intent(inout)    :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a whole_step
   real(rkind),intent(inout)          :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind),intent(inout)          :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind),intent(inout)          :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)

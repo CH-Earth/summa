@@ -128,6 +128,8 @@ subroutine coupled_em(&
   ! structure allocations
   USE allocspace_module,only:allocLocal      ! allocate local data structures
   USE allocspace_module,only:resizeData      ! clone a data structure
+  ! simulation of fluxes and residuals given a trial state vector
+  USE soil_utils_module,only:liquidHead                ! compute the liquid water matric potential
   ! preliminary subroutines
   USE vegPhenlgy_module,only:vegPhenlgy      ! compute vegetation phenology
   USE vegNrgFlux_module,only:wettedFrac      ! compute wetted fraction of the canopy (used in sw radiation fluxes)
@@ -224,7 +226,7 @@ subroutine coupled_em(&
   real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
   ! energy fluxes
   integer(i4b)                         :: iSoil                  ! index of soil layers
-  type(var_dlength)                    :: flux_sum(:)            ! sum of fluxes model fluxes for a local HRU over a whole_step
+  type(var_dlength)                    :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a whole_step
   real(rkind)                          :: sumCanopyEvaporation   ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -844,7 +846,7 @@ subroutine coupled_em(&
                       lookup_data,                            & ! intent(in):    lookup tables
                       model_decisions,                        & ! intent(in):    model decisions
                       ! energy fluxes over whole_step added on by dt_sub
-                      flux_sum,                               & ! intent(inout) : sum of model fluxes for a local HRU over a whole_step
+                      flux_sum,                               & ! intent(inout): sum of model fluxes for a local HRU over a whole_step
                       sumCanopyEvaporation,                   & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
                       sumLatHeatCanopyEvap,                   & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                       sumSenHeatCanopy,                       & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)

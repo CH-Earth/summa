@@ -161,7 +161,6 @@ subroutine opSplittin(&
                       dt,                   & ! intent(in):    time step (s)
                       whole_step,           & ! intent(in):    length of whole step for surface drainage and average flux
                       firstSubStep,         & ! intent(in):    flag to denote first sub-step
-                      firstInnerStep,       & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       firstInnerStep,       & ! intent(in):    flag to denote if the last time step in maxstep subStep
                       computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
                       ! input/output: data structures
@@ -177,6 +176,7 @@ subroutine opSplittin(&
                       lookup_data,          & ! intent(in):    lookup tables
                       model_decisions,      & ! intent(in):    model decisions
                       ! energy fluxes
+                      flux_sum,             & ! intent(inout): sum of model fluxes for a local HRU over a whole_step
                       sumCanopyEvaporation, & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
                       sumLatHeatCanopyEvap, & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                       sumSenHeatCanopy,     & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -191,9 +191,6 @@ subroutine opSplittin(&
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
   USE allocspace_module,only:allocLocal                ! allocate local data structures
-  ! simulation of fluxes and residuals given a trial state vector
-  USE soil_utils_module,only:matricHead                ! compute the matric head based on volumetric water content
-  USE soil_utils_module,only:liquidHead                ! compute the liquid water matric potential
   ! population/extraction of state vectors
   USE indexState_module,only:indexSplit                ! get state indices
   USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
@@ -229,8 +226,8 @@ subroutine opSplittin(&
   real(rkind),intent(inout)       :: sumCanopyEvaporation           ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind),intent(inout)       :: sumLatHeatCanopyEvap           ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind),intent(inout)       :: sumSenHeatCanopy               ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout        :: sumSoilCompress                ! sum of total soil compression
-  real(rkind),intent(niout)       :: sumLayerCompress(:)            ! sum of soil compression by layer
+  real(rkind),intent(inout)       :: sumSoilCompress                ! sum of total soil compression
+  real(rkind),intent(inout)       :: sumLayerCompress(:)            ! sum of soil compression by layer
   ! output: model control
   real(rkind),intent(out)         :: dtMultiplier                   ! substep multiplier (-)
   logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
