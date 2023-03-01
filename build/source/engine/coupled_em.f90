@@ -766,6 +766,49 @@ subroutine coupled_em(&
         ! NOTE: used for volumetric loss due to melt-freeze
         allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
 
+        ! make sure have consistent state variables to start, later done in updateVars
+        ! associate local variables with information in the data structures
+        init: associate(&
+          ! depth-varying soil parameters
+          vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat               ,& ! intent(in):    [dp(:)]  van Genutchen "m" parameter (-)
+          vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):    [dp(:)]  van Genutchen "n" parameter (-)
+          vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):    [dp(:)]  van Genutchen "alpha" parameter (m-1)
+          theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in):    [dp(:)]  soil porosity (-)
+          theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in):    [dp(:)]  soil residual volumetric water content (-)
+          ! state variables in the vegetation canopy
+          scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(out):   [dp]     mass of ice on the vegetation canopy (kg m-2)
+          scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(out):   [dp]     mass of liquid water on the vegetation canopy (kg m-2)
+          scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(out):   [dp]     mass of total water on the vegetation canopy (kg m-2)
+          ! state variables in the snow and soil domains
+          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of ice (-)
+          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of liquid water (-)
+          mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of total water (-)
+          mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(out):   [dp(:)]  matric head (m)
+          mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(out):   [dp(:)]  matric potential of liquid water (m)
+          ) ! associations to variables in data structures
+
+          ! compute the total water content in the vegetation canopy
+          scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
+
+          ! compute the total water content in snow and soil
+          ! NOTE: no ice expansion allowed for soil
+          if(nSnow>0)&
+          mLayerVolFracWat(      1:nSnow  ) = mLayerVolFracLiq(      1:nSnow  ) + mLayerVolFracIce(      1:nSnow  )*(iden_ice/iden_water)
+          mLayerVolFracWat(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
+
+          ! compute the liquid water matric potential (m)
+          ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
+          ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
+          do iSoil=1,nSoil
+            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+iSoil),  & ! input:  state variables
+                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),         & ! input:  parameters
+                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                             & ! output: liquid water matric potential (m)
+                      err=err,message=cmessage)                                                               ! output: error control
+            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+          end do  ! looping through soil layers (computing liquid water matric potential)
+
+        end associate init
+
         whole_step = maxstep
         if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
