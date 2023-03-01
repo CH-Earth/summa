@@ -112,15 +112,14 @@ subroutine summaSolveSundialsIDA(                         &
                       ! input-output: data structures
                       indx_data,               & ! intent(in):    index data
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                      flux_temp,               & ! intent(inout): model fluxes for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
-                      flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
+                      flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a dt
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ! output
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
-                      dt_out,                  & ! intent(out):   time step sum for data window at termination of sundials
+                      dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
                       err,message              & ! intent(out):   error control
@@ -179,9 +178,8 @@ subroutine summaSolveSundialsIDA(                         &
   type(var_ilength),  intent(in)  :: indx_data              ! indices defining model states and layers
   ! input-output: data structures
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_temp              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes
+  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
@@ -189,7 +187,7 @@ subroutine summaSolveSundialsIDA(                         &
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                 ! time step sum for data window at termination of sundials
+  real(qp),intent(out)            :: dt_out                 ! time step sum for entire data window at termination of sundials
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message

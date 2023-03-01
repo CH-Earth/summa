@@ -209,7 +209,7 @@ subroutine systemSolvSundials(&
   integer(i4b)                    :: iLayer                        ! index of model layer in the snow+soil domain
   real(rkind)                     :: xMin,xMax                     ! minimum and maximum values for water content
   real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
-  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a data step
+  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
   ! enthalpy derivatives
@@ -538,7 +538,6 @@ subroutine systemSolvSundials(&
                   indx_data,               & ! intent(in):    index data
                   ! input-output: data structures
                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                   flux_temp,               & ! intent(inout): model fluxes for a local HRU
                   flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -546,7 +545,7 @@ subroutine systemSolvSundials(&
                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                   tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
-                  dt_out,                  & ! intent(out):   time step sum for data window at termination of sundials
+                  dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                   stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                   stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                   err,cmessage)              ! intent(out):   error control

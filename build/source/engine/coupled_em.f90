@@ -53,6 +53,7 @@ USE globalData,only:iname_soil             ! named variables for soil
 USE var_lookup,only:childFLUX_MEAN
 
 ! metadata
+USE globalData,only:flux_meta              ! metadata on the model fluxes
 USE globalData,only:indx_meta              ! metadata on the model index variables
 USE globalData,only:diag_meta              ! metadata on the model diagnostic variables
 USE globalData,only:prog_meta              ! metadata on the model prognostic variables
@@ -223,6 +224,7 @@ subroutine coupled_em(&
   real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
   ! energy fluxes
   integer(i4b)                         :: iSoil                  ! index of soil layers
+  type(var_dlength)                    :: flux_sum(:)            ! sum of fluxes model fluxes for a local HRU over a whole_step
   real(rkind)                          :: sumCanopyEvaporation   ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -623,7 +625,7 @@ subroutine coupled_em(&
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
         endif
 
-        ! save/recover copies of index variables, temp saved on lastInnerStep, failed starts at lastInnerSTep
+        ! save/recover copies of index variables, temp saved on lastInnerStep, failed starts at lastInnerStep
         do iVar=1,size(indx_data%var)
           select case(stepFailure)
             case(.false.); indx_temp%var(iVar)%dat(:) = indx_data%var(iVar)%dat(:)
@@ -753,7 +755,12 @@ subroutine coupled_em(&
         sumLatHeatCanopyEvap  = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
         sumSenHeatCanopy      = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
         sumSoilCompress       = 0._rkind  ! total soil compression
-        allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
+        allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind  ! soil compression by layer
+        call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage) ! flux_sum structure
+        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+        do concurrent ( iVar=1:size(flux_meta) )
+          flux_sum%var(iVar)%dat(:) = 0._rkind
+        end do
 
         ! save volumetric ice content at the start of the step
         ! NOTE: used for volumetric loss due to melt-freeze
@@ -794,6 +801,7 @@ subroutine coupled_em(&
                       lookup_data,                            & ! intent(in):    lookup tables
                       model_decisions,                        & ! intent(in):    model decisions
                       ! energy fluxes over whole_step added on by dt_sub
+                      flux_sum,                               & ! intent(inout) : sum of model fluxes for a local HRU over a whole_step
                       sumCanopyEvaporation,                   & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
                       sumLatHeatCanopyEvap,                   & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                       sumSenHeatCanopy,                       & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -850,7 +858,12 @@ subroutine coupled_em(&
       if( dt_sub == maxstep_op .and. .not.lastInnerStep ) do_outer = .false.
       if(do_outer)then
 
-        ! apply the energy fluxes
+        ! compute average flux for whole_step
+        do iVar=1,size(flux_meta)
+         flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /whole_step
+        end do
+
+        ! apply the canopy energy fluxes
         flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  = sumCanopyEvaporation  /whole_step ! canopy evaporation/condensation (kg m-2 s-1)
         flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  = sumLatHeatCanopyEvap  /whole_step ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
         flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)      = sumSenHeatCanopy      /whole_step ! sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -1075,7 +1088,7 @@ subroutine coupled_em(&
                     err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! overwrite flux_data with flux_mean (returns timestep-average fluxes for scalar variables)
+    ! overwrite flux_data with flux_mean for data_step (returns timestep-average fluxes for scalar variables)
     do iVar=1,size(averageFlux_meta)
       flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:) = flux_mean%var(iVar)%dat(:)
     end do

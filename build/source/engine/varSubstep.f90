@@ -118,6 +118,7 @@ subroutine varSubstep(&
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
                       ! energy fluxes
+                      flux_sum,              & ! intent(inout): sum of fluxes model fluxes for a local HRU over a whole_step
                       sumCanopyEvaporation,  & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
                       sumLatHeatCanopyEvap,  & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                       sumSenHeatCanopy,      & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -173,6 +174,7 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
   ! energy fluxes
+  real(rkind),intent(inout)          :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a whole_step
   real(rkind),intent(inout)          :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
   real(rkind),intent(inout)          :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
   real(rkind),intent(inout)          :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -523,14 +525,13 @@ subroutine varSubstep(&
       if(globalPrintFlag)&
       write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
-      ! increment fluxes as average over entire timestep
-      dt_wght = dtSubstep/whole_step
+      ! get the total energy fluxes
       do iVar=1,size(flux_meta)
         if(count(fluxMask%var(iVar)%dat)>0) then
 
           ! ** no domain splitting
           if(count(ixLayerActive/=integerMissing)==nLayers)then
-            flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+            flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)
             fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
 
           ! ** domain splitting
@@ -539,14 +540,13 @@ subroutine varSubstep(&
             ixMax=ubound(flux_data%var(iVar)%dat)
             do ixLayer=ixMin(1),ixMax(1)
               if(fluxMask%var(iVar)%dat(ixLayer)) then
-
                 ! Makes Jacobian more diagonal if do this, but less correct
                 ! special case of the transpiration sink from soil layers: only computed for the top soil layer
                 !if(iVar==iLookFlux%mLayerTranspire)then
-                !  if(ixLayer==1)  flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+                !  if(ixLayer==1) flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)
                 ! standard case
                 !else
-                  flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+                  flux_sum%var(iVar)%dat(ixLayer) = flux_sum%var(iVar)%dat(ixLayer) + dtSubstep*flux_temp%var(iVar)%dat(ixLayer)
                 !endif
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
               endif

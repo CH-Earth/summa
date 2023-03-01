@@ -172,6 +172,7 @@ subroutine opSplittin(&
                       whole_step,           & ! intent(in):    length of whole step for surface drainage and average flux
                       firstSubStep,         & ! intent(in):    flag to denote first sub-step
                       firstInnerStep,       & ! intent(in):    flag to denote if the first time step in maxstep subStep
+                      firstInnerStep,       & ! intent(in):    flag to denote if the last time step in maxstep subStep
                       computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
                       ! input/output: data structures
                       type_data,            & ! intent(in):    type of vegetation and soil
@@ -234,11 +235,12 @@ subroutine opSplittin(&
   type(zLookup),    intent(in)    :: lookup_data                    ! lookup tables
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
   ! energy fluxes
-  real(rkind),intent(out)         :: sumCanopyEvaporation           ! sum of canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind),intent(out)         :: sumLatHeatCanopyEvap           ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(out)         :: sumSenHeatCanopy               ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(out)         :: sumSoilCompress                ! sum of total soil compression
-  real(rkind),intent(out)         :: sumLayerCompress(:)            ! sum of soil compression by layer
+  type(var_dlength),intent(inout) :: flux_sum                       ! sum of fluxes model fluxes for a local HRU over a dt
+  real(rkind),intent(inout)       :: sumCanopyEvaporation           ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind),intent(inout)       :: sumLatHeatCanopyEvap           ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(inout)       :: sumSenHeatCanopy               ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind),intent(inout        :: sumSoilCompress                ! sum of total soil compression
+  real(rkind),intent(niout)       :: sumLayerCompress(:)            ! sum of soil compression by layer
   ! output: model control
   real(rkind),intent(out)         :: dtMultiplier                   ! substep multiplier (-)
   logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
@@ -455,14 +457,12 @@ subroutine opSplittin(&
       fluxCount%var(iVar)%dat(:) = 0
     end do
 
-    if(firstInnerStep) then
-      ! initialize the model fluxes on first inner step
-      do iVar=1,size(flux_meta)  ! loop through fluxes
-        if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
-        if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
-        flux_data%var(iVar)%dat(:) = 0._rkind
-      end do
-    endif
+    ! initialize the model fluxes
+    do iVar=1,size(flux_meta)  ! loop through fluxes
+      if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
+      if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
+      flux_data%var(iVar)%dat(:) = 0._rkind
+    end do
 
     ! initialize derivatives
     do iVar=1,size(deriv_meta)
@@ -718,31 +718,30 @@ subroutine opSplittin(&
                 ! reset the flag for the first flux call
                 if(.not.firstSuccess) firstFluxCall=.true.
 
-                if(firstInnerStep)then
-                  ! save/recover copies of prognostic variables
-                  do iVar=1,size(prog_data%var)
-                    select case(failure)
-                      case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
-                      case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
-                    end select
-                  end do  ! looping through variables
+                ! update variables, also updated inside Sundials (if fail a split will need these)
+                ! save/recover copies of prognostic variables
+                do iVar=1,size(prog_data%var)
+                  select case(failure)
+                    case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
+                    case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
+                  end select
+                end do  ! looping through variables
 
-                  ! save/recover copies of diagnostic variables
-                  do iVar=1,size(diag_data%var)
-                    select case(failure)
-                      case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
-                      case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
-                    end select
-                  end do  ! looping through variables
+                ! save/recover copies of diagnostic variables
+                do iVar=1,size(diag_data%var)
+                  select case(failure)
+                    case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
+                    case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
+                  end select
+                end do  ! looping through variables
 
-                  ! save/recover copies of model fluxes
-                  do iVar=1,size(flux_data%var)
-                    select case(failure)
-                      case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
-                      case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
-                    end select
-                  end do  ! looping through variables
-                endif
+                ! save/recover copies of model fluxes
+                do iVar=1,size(flux_data%var)
+                  select case(failure)
+                    case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
+                    case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+                  end select
+                end do  ! looping through variables
 
                 ! -----
                 ! * solve variable subset for one time step...
@@ -781,6 +780,7 @@ subroutine opSplittin(&
                                 deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                                 bvar_data,                  & ! intent(in)    : model variables for the local basin
                                 ! energy fluxes
+                                flux_sum,                   & ! intent(inout) : sum of model fluxes for a local HRU over a dt
                                 sumCanopyEvaporation,       & ! intent(inout) : sum of canopy evaporation/condensation (kg m-2 s-1)
                                 sumLatHeatCanopyEvap,       & ! intent(inout) : sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
                                 sumSenHeatCanopy,           & ! intent(inout) : sum of sensible heat flux from the canopy to the canopy air space (W m-2)
