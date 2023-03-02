@@ -184,9 +184,6 @@ subroutine opSplittin(&
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
   USE allocspace_module,only:allocLocal                ! allocate local data structures
-  ! simulation of fluxes and residuals given a trial state vector
-  USE soil_utils_module,only:matricHead                ! compute the matric head based on volumetric water content
-  USE soil_utils_module,only:liquidHead                ! compute the liquid water matric potential
   ! population/extraction of state vectors
   USE indexState_module,only:indexSplit                ! get state indices
   USE varSubstep_module,only:varSubstep                ! complete substeps for a given split
@@ -310,37 +307,7 @@ subroutine opSplittin(&
     numberStateSplit        => indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) ,& ! intent(inout): [i4b]    number of state splitting solutions             (-)
     numberDomainSplitNrg    => indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1) ,& ! intent(inout): [i4b]    number of domain splitting solutions for energy (-)
     numberDomainSplitMass   => indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) ,& ! intent(inout): [i4b]    number of domain splitting solutions for mass   (-)
-    numberScalarSolutions   => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1) ,& ! intent(inout): [i4b]    number of scalar solutions                      (-)
-    ! domain configuration
-    canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):    [dp]     canopy depth (m)
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-    ! snow parameters
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
-    ! depth-varying soil parameters
-    vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat               ,& ! intent(in):    [dp(:)]  van Genutchen "m" parameter (-)
-    vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):    [dp(:)]  van Genutchen "n" parameter (-)
-    vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):    [dp(:)]  van Genutchen "alpha" parameter (m-1)
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in):    [dp(:)]  soil porosity (-)
-    theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in):    [dp(:)]  soil residual volumetric water content (-)
-    ! soil parameters
-    specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,& ! intent(in):    [dp]     specific storage coefficient (m-1)
-    ! model diagnostic variables (fraction of liquid water)
-    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out):   [dp]     fraction of liquid water on vegetation (-)
-    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out):   [dp(:)]  fraction of liquid water in each snow layer (-)
-    mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat          ,& ! intent(out):   [dp(:)]  melt-freeze in each snow and soil layer (kg m-3)
-    ! model state variables (vegetation canopy)
-    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(out):   [dp]     temperature of the canopy air space (K)
-    scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(out):   [dp]     temperature of the vegetation canopy (K)
-    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(out):   [dp]     mass of ice on the vegetation canopy (kg m-2)
-    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(out):   [dp]     mass of liquid water on the vegetation canopy (kg m-2)
-    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(out):   [dp]     mass of total water on the vegetation canopy (kg m-2)
-    ! model state variables (snow and soil domains)
-    mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(out):   [dp(:)]  temperature of each snow/soil layer (K)
-    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of ice (-)
-    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of liquid water (-)
-    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of total water (-)
-    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(out):   [dp(:)]  matric head (m)
-    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(out):   [dp(:)]  matric potential of liquid water (m)
+    numberScalarSolutions   => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)  & ! intent(inout): [i4b]    number of scalar solutions                      (-)
     )
     ! ---------------------------------------------------------------------------------------
     ! initialize error control
@@ -379,30 +346,6 @@ subroutine opSplittin(&
 
     ! initialize the state check
     stateCheck(:) = 0
-
-    ! compute the total water content in the vegetation canopy
-    scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce  ! kg m-2
-
-    ! save volumetric ice content at the start of the step
-    ! NOTE: used for volumetric loss due to melt-freeze
-    !mLayerVolFracIceInit(:) = mLayerVolFracIce(:)
-
-    ! compute the total water content in snow and soil
-    ! NOTE: no ice expansion allowed for soil
-    if(nSnow>0)&
-    mLayerVolFracWat(      1:nSnow  ) = mLayerVolFracLiq(      1:nSnow  ) + mLayerVolFracIce(      1:nSnow  )*(iden_ice/iden_water)
-    mLayerVolFracWat(nSnow+1:nLayers) = mLayerVolFracLiq(nSnow+1:nLayers) + mLayerVolFracIce(nSnow+1:nLayers)
-
-    ! compute the liquid water matric potential (m)
-    ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
-    ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
-    do iSoil=1,nSoil
-      call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+iSoil),  & ! input:  state variables
-                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),         & ! input:  parameters
-                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                             & ! output: liquid water matric potential (m)
-                      err=err,message=cmessage)                                                               ! output: error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    end do  ! looping through soil layers (computing liquid water matric potential)
 
     ! allocate space for the flux mask (used to define when fluxes are updated)
     call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
