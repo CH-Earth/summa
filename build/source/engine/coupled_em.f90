@@ -227,9 +227,6 @@ subroutine coupled_em(&
   ! energy fluxes
   integer(i4b)                         :: iSoil                  ! index of soil layers
   type(var_dlength)                    :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a whole_step
-  real(rkind)                          :: sumCanopyEvaporation   ! sum of canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
   real(rkind)                          :: sumSoilCompress        ! sum of total soil compression
   real(rkind),allocatable              :: sumLayerCompress(:)    ! sum of soil compression by layer
   ! balance checks
@@ -620,6 +617,7 @@ subroutine coupled_em(&
       do_outer = .true.
       if(stepFailure) firstInnerStep = .true.
       if ( dt_sub == maxstep_op .and. .not.firstInnerStep ) do_outer = .false.
+
       if(do_outer)then
 
         if(.not.stepFailure)then
@@ -752,10 +750,7 @@ subroutine coupled_em(&
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
         endif
 
-        ! initialize the total energy fluxes over whole step (modified in updateProg in opSplittin in varSubstep)
-        sumCanopyEvaporation  = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
-        sumLatHeatCanopyEvap  = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-        sumSenHeatCanopy      = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+        ! initialize the compression and total energy fluxes to average over whole step (averaged over substep in varSubStep)
         sumSoilCompress       = 0._rkind  ! total soil compression
         allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind  ! soil compression by layer
         call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage) ! flux_sum structure
@@ -845,13 +840,6 @@ subroutine coupled_em(&
                       bvar_data,                              & ! intent(in):    model variables for the local basin
                       lookup_data,                            & ! intent(in):    lookup tables
                       model_decisions,                        & ! intent(in):    model decisions
-                      ! energy fluxes over whole_step added on by dt_sub
-                      flux_sum,                               & ! intent(inout): sum of model fluxes for a local HRU over a whole_step
-                      sumCanopyEvaporation,                   & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
-                      sumLatHeatCanopyEvap,                   & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-                      sumSenHeatCanopy,                       & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-                      sumSoilCompress,                        & ! intent(inout): sum of total soil compression
-                      sumLayerCompress,                       & ! intent(inout): sum of soil compression by layer
                       ! output: model control
                       dtMultiplier,                           & ! intent(out):   substep multiplier (-)
                       tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
@@ -890,6 +878,17 @@ subroutine coupled_em(&
         cycle substeps
       endif
 
+      ! get the total soil compression
+      sumSoilCompress = sumSoilCompress + dt_sub*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
+      do iSoil=1,nSoil
+        if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+        sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dt_sub*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
+      end do
+      ! get the total energy fluxes
+      do iVar=1,size(flux_meta)
+        flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + dt_sub*flux_data%var(iVar)%dat(:)
+      end do
+
       ! update first step and first and last inner steps
       firstSubStep = .false.
       firstInnerStep = .false.
@@ -908,19 +907,14 @@ subroutine coupled_em(&
          flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /whole_step
         end do
 
-        ! apply the canopy energy fluxes
-        flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  = sumCanopyEvaporation  /whole_step ! canopy evaporation/condensation (kg m-2 s-1)
-        flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  = sumLatHeatCanopyEvap  /whole_step ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-        flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)      = sumSenHeatCanopy      /whole_step ! sensible heat flux from the canopy to the canopy air space (W m-2)
-
-        ! apply the soil compression diagnostics
+        ! compute average soil compression diagnostics for whole_step
         diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/whole_step
+        ! vector compression
         do iSoil=1,nSoil
           if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
           diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/whole_step
         end do
         deallocate(sumLayerCompress)
-
 
         ! ***  remove ice due to sublimation and freeze calculations...
         ! NOTE: In the future this should be moved into the solver, makes a big difference, and here only applying last substep amount to whole thing

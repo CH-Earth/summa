@@ -175,13 +175,6 @@ subroutine opSplittin(&
                       bvar_data,            & ! intent(in):    model variables for the local basin
                       lookup_data,          & ! intent(in):    lookup tables
                       model_decisions,      & ! intent(in):    model decisions
-                      ! energy fluxes
-                      flux_sum,             & ! intent(inout): sum of model fluxes for a local HRU over a whole_step
-                      sumCanopyEvaporation, & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
-                      sumLatHeatCanopyEvap, & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-                      sumSenHeatCanopy,     & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-                      sumSoilCompress,      & ! intent(inout): sum of total soil compression
-                      sumLayerCompress,     & ! intent(inout): sum of soil compression by layer
                       ! output: model control
                       dtMultiplier,         & ! intent(out):   substep multiplier (-)
                       tooMuchMelt,          & ! intent(out):   flag to denote that ice is insufficient to support melt
@@ -221,13 +214,6 @@ subroutine opSplittin(&
   type(var_dlength),intent(in)    :: bvar_data                      ! model variables for the local basin
   type(zLookup),    intent(in)    :: lookup_data                    ! lookup tables
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
-  ! energy fluxes
-  type(var_dlength),intent(inout) :: flux_sum                       ! sum of fluxes model fluxes for a local HRU over a dt
-  real(rkind),intent(inout)       :: sumCanopyEvaporation           ! sum of canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind),intent(inout)       :: sumLatHeatCanopyEvap           ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout)       :: sumSenHeatCanopy               ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout)       :: sumSoilCompress                ! sum of total soil compression
-  real(rkind),intent(inout)       :: sumLayerCompress(:)            ! sum of soil compression by layer
   ! output: model control
   real(rkind),intent(out)         :: dtMultiplier                   ! substep multiplier (-)
   logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
@@ -712,13 +698,6 @@ subroutine opSplittin(&
                                 flux_data,                  & ! intent(inout) : model fluxes for a local HRU
                                 deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                                 bvar_data,                  & ! intent(in)    : model variables for the local basin
-                                ! energy fluxes
-                                flux_sum,                   & ! intent(inout) : sum of model fluxes for a local HRU over a dt
-                                sumCanopyEvaporation,       & ! intent(inout) : sum of canopy evaporation/condensation (kg m-2 s-1)
-                                sumLatHeatCanopyEvap,       & ! intent(inout) : sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-                                sumSenHeatCanopy,           & ! intent(inout) : sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-                                sumSoilCompress,            & ! intent(inout) : sum of total soil compression
-                                sumLayerCompress,           & ! intent(inout) : sum of soil compression by layer
                                 ! output: control
                                 ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
                                 dtMultiplier,               & ! intent(out)   : substep multiplier (-)

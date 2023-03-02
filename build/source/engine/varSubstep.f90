@@ -117,13 +117,6 @@ subroutine varSubstep(&
                       flux_data,         & ! intent(inout) : model fluxes for a local HRU
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
-                      ! energy fluxes
-                      flux_sum,              & ! intent(inout): sum of fluxes model fluxes for a local HRU over a whole_step
-                      sumCanopyEvaporation,  & ! intent(inout): sum of canopy evaporation/condensation (kg m-2 s-1)
-                      sumLatHeatCanopyEvap,  & ! intent(inout): sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-                      sumSenHeatCanopy,      & ! intent(inout): sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-                      sumSoilCompress,   & ! intent(inout) : sum of total soil compression
-                      sumLayerCompress,  & ! intent(inout) : sum of soil compression by layer
                       ! output: model control
                       ixSaturation,      & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       dtMultiplier,      & ! intent(out)   : substep multiplier (-)
@@ -173,13 +166,6 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)    :: flux_data                     ! model fluxes for a local HRU
   type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
-  ! energy fluxes
-  type(var_dlength),intent(inout)    :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a whole_step
-  real(rkind),intent(inout)          :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind),intent(inout)          :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout)          :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind),intent(inout)          :: sumSoilCompress               ! sum of total soil compression
-  real(rkind),intent(inout)          :: sumLayerCompress(:)           ! sum of soil compression by layer
   ! output: model control
   integer(i4b),intent(inout)         :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
@@ -227,6 +213,12 @@ subroutine varSubstep(&
   logical(lgt)                       :: checkNrgBalance
   logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
   logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
+  ! energy fluxes
+  real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: sumSoilCompress               ! sum of total soil compression
+  real(rkind),allocatable            :: sumLayerCompress(:)           ! sum of soil compression by layer
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -285,6 +277,13 @@ subroutine varSubstep(&
     do iVar=1,size(flux_data%var)
       flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
     end do
+
+    ! initialize the total energy fluxes (modified in updateProg)
+    sumCanopyEvaporation = 0._rkind  ! canopy evaporation/condensation (kg m-2 s-1)
+    sumLatHeatCanopyEvap = 0._rkind  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+    sumSenHeatCanopy     = 0._rkind  ! sensible heat flux from the canopy to the canopy air space (W m-2)
+    sumSoilCompress      = 0._rkind  ! total soil compression
+    allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind ! soil compression by layer
 
     ! define the first flux call in a splitting operation
     firstSplitOper = (.not.scalarSolution .or. iStateSplit==1)
@@ -452,7 +451,7 @@ subroutine varSubstep(&
         return
       endif
 
-      ! identify the need to check the mass balance, only for bEuler as fluxes are not not for checking in sundials
+      ! identify the need to check the mass balance, only for bEuler because of how store variables
       select case(ixNumericalMethod)
         case(sundials); checkMassBalance = .false.
         case(bEuler); checkMassBalance = .true.  ! (.not.scalarSolution)
@@ -498,7 +497,7 @@ subroutine varSubstep(&
 
       endif  ! if errors in prognostic update
 
-      ! get the total energy fluxes (modified in updateProg)
+      ! get the total energy fluxes (modified in updateProg), have to do differently because of splitting in bEuler
       if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
         sumCanopyEvaporation  = sumCanopyEvaporation  + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  ! canopy evaporation/condensation (kg m-2 s-1)
         sumLatHeatCanopyEvap  = sumLatHeatCanopyEvap  + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -531,7 +530,7 @@ subroutine varSubstep(&
 
           ! ** no domain splitting
           if(count(ixLayerActive/=integerMissing)==nLayers)then
-            flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)
+            flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)/dt
             fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
 
           ! ** domain splitting
@@ -543,10 +542,10 @@ subroutine varSubstep(&
                 ! Makes Jacobian more diagonal if do this, but less correct
                 ! special case of the transpiration sink from soil layers: only computed for the top soil layer
                 !if(iVar==iLookFlux%mLayerTranspire)then
-                !  if(ixLayer==1) flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)
+                !  if(ixLayer==1) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)/dt
                 ! standard case
                 !else
-                  flux_sum%var(iVar)%dat(ixLayer) = flux_sum%var(iVar)%dat(ixLayer) + dtSubstep*flux_temp%var(iVar)%dat(ixLayer)
+                  flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + dtSubstep*flux_temp%var(iVar)%dat(ixLayer)/dt
                 !endif
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
               endif
@@ -573,6 +572,19 @@ subroutine varSubstep(&
 
     end do substeps  ! time steps for variable-dependent sub-stepping
     ! NOTE: if we get to here then we are accepting then dtSum should dt
+
+    ! save the energy fluxes as averages
+    flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
+    flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1) = sumLatHeatCanopyEvap /dt      ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+    flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)     = sumSenHeatCanopy     /dt      ! sensible heat flux from the canopy to the canopy air space (W m-2)
+
+    ! save the soil compression diagnostics as averages
+    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/dt
+    do iSoil=1,nSoil
+      if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
+      diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/dt
+    end do
+    deallocate(sumLayerCompress)
 
   ! end associate statements
   end associate globalVars
@@ -946,7 +958,8 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! -----------------------
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver
-    !   for sundials will not work since fluxes are instantaneous so not currently checked
+    !   for sundials will not work since fluxes are averaged over data window for output but canopyBalance0 only off last step
+    !   so not currently checked in sundials
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
@@ -1009,7 +1022,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         endif  ! if there is a water balance error
       endif  ! if veg canopy
 
-      ! check mass balance for soil
+      ! check mass balance for soil, again not checked for sundials
       ! NOTE: fatal errors, though possible to recover using negative error codes
       if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
         soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )

@@ -210,6 +210,7 @@ subroutine systemSolvSundials(&
   real(rkind)                     :: xMin,xMax                     ! minimum and maximum values for water content
   real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
+  real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
   ! enthalpy derivatives
@@ -306,6 +307,9 @@ subroutine systemSolvSundials(&
     ! allocate space for the model fluxes at the start of the time step
     call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+    ! allocate space for mLayerCmpress_sum at the start of the time step
+    allocate( mLayerCmpress_sum(nSoil) )
 
     ! allocate space for the baseflow derivatives
     ! NOTE: needs allocation because only used when baseflow sinks are active
@@ -506,10 +510,13 @@ subroutine systemSolvSundials(&
     !-------------------
     ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
     ! ------------------
-   ! initialize flux_sum
+
+    ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
       flux_sum%var(iVar)%dat(:) = 0._rkind
     end do
+    ! initialize sum of compression of the soil matrix
+    mLayerCmpress_sum(:) = 0._rkind
 
     call summaSolveSundialsIDA(&
                   dt_cur,                  & ! intent(in):    data time step
@@ -541,6 +548,7 @@ subroutine systemSolvSundials(&
                   flux_temp,               & ! intent(inout): model fluxes for a local HRU
                   flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                   ! output
                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
@@ -564,6 +572,10 @@ subroutine systemSolvSundials(&
     do iVar=1,size(flux_meta)
       flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
     end do
+
+    ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
+    diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:) /  dt_out
+    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
     ! save the computed solution
     stateVecTrial = stateVecNew
