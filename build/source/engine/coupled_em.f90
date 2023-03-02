@@ -873,6 +873,7 @@ subroutine coupled_em(&
         ! try again, restart step
         dt_solv = dt_solv - dt_solvInner
         dt_solvInner = 0._rkind
+        deallocate(flux_sum)
         deallocate(sumLayerCompress)
         deallocate(mLayerVolFracIceInit)
         cycle substeps
@@ -906,6 +907,7 @@ subroutine coupled_em(&
         do iVar=1,size(flux_meta)
          flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /whole_step
         end do
+        deallocate(flux_sum)
 
         ! compute average soil compression diagnostics for whole_step
         diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/whole_step
