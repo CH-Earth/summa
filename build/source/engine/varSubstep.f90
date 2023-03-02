@@ -524,13 +524,14 @@ subroutine varSubstep(&
       if(globalPrintFlag)&
       write(*,'(a,1x,3(f13.2,1x))') 'updating: dtSubstep, dtSum, dt = ', dtSubstep, dtSum, dt
 
-      ! get the total energy fluxes
+     ! increment fluxes
+      dt_wght = dtSubstep/dt ! define weight applied to each sub-step
       do iVar=1,size(flux_meta)
         if(count(fluxMask%var(iVar)%dat)>0) then
 
           ! ** no domain splitting
           if(count(ixLayerActive/=integerMissing)==nLayers)then
-            flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)/dt
+            flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
             fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
 
           ! ** domain splitting
@@ -542,10 +543,10 @@ subroutine varSubstep(&
                 ! Makes Jacobian more diagonal if do this, but less correct
                 ! special case of the transpiration sink from soil layers: only computed for the top soil layer
                 !if(iVar==iLookFlux%mLayerTranspire)then
-                !  if(ixLayer==1) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + dtSubstep*flux_temp%var(iVar)%dat(:)/dt
+                !  if(ixLayer==1) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
                 ! standard case
                 !else
-                  flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + dtSubstep*flux_temp%var(iVar)%dat(ixLayer)/dt
+                  flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
                 !endif
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
               endif

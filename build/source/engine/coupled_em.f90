@@ -60,7 +60,6 @@ USE globalData,only:prog_meta              ! metadata on the model prognostic va
 USE globalData,only:averageFlux_meta       ! metadata on the timestep-average model flux structure
 
 ! global data
-USE globalData,only:integerMissing         ! missing integer
 USE globalData,only:data_step              ! time step of forcing data (s)
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
@@ -190,7 +189,6 @@ subroutine coupled_em(&
   logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
   logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
   logical(lgt)                         :: modifiedVegState       ! flag to denote that vegetation states were modified
-  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
   integer(i4b)                         :: nLayersRoots           ! number of soil layers that contain roots
   real(rkind)                          :: exposedVAI             ! exposed vegetation area index
   real(rkind)                          :: dCanopyWetFraction_dWat ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
@@ -226,9 +224,8 @@ subroutine coupled_em(&
   real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
   ! energy fluxes
   integer(i4b)                         :: iSoil                  ! index of soil layers
-  type(var_dlength)                    :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a whole_step
-  real(rkind)                          :: sumSoilCompress        ! sum of total soil compression
-  real(rkind),allocatable              :: sumLayerCompress(:)    ! sum of soil compression by layer
+  type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
+  real(rkind)                          :: meanSoilCompress       ! timestep-average soil compression
   ! balance checks
   integer(i4b)                         :: iVar                   ! loop through model variables
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
@@ -333,10 +330,12 @@ subroutine coupled_em(&
     ! initialize surface melt pond
     sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
 
-    ! initialize mean fluxes
+    ! initialize fluxes to average over whole step (averaged over substep in varSubStep)
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
+    ! initialize the compression to average over whole step (averaged over substep in varSubStep)
+    meanSoilCompress       = 0._rkind  ! total soil compression
 
     ! associate local variables with information in the data structures
     associate(&
@@ -750,15 +749,6 @@ subroutine coupled_em(&
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
         endif
 
-        ! initialize the compression and total energy fluxes to average over whole step (averaged over substep in varSubStep)
-        sumSoilCompress       = 0._rkind  ! total soil compression
-        allocate(sumLayerCompress(nSoil)); sumLayerCompress = 0._rkind  ! soil compression by layer
-        call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage) ! flux_sum structure
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-        do concurrent ( iVar=1:size(flux_meta) )
-          flux_sum%var(iVar)%dat(:) = 0._rkind
-        end do
-
         ! save volumetric ice content at the start of the step
         ! NOTE: used for volumetric loss due to melt-freeze
         allocate(mLayerVolFracIceInit(nLayers)); mLayerVolFracIceInit = prog_data%var(iLookPROG%mLayerVolFracIce)%dat
@@ -873,22 +863,9 @@ subroutine coupled_em(&
         ! try again, restart step
         dt_solv = dt_solv - dt_solvInner
         dt_solvInner = 0._rkind
-        deallocate(flux_sum)
-        deallocate(sumLayerCompress)
         deallocate(mLayerVolFracIceInit)
         cycle substeps
       endif
-
-      ! get the total soil compression
-      sumSoilCompress = sumSoilCompress + dt_sub*diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression
-      do iSoil=1,nSoil
-        if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-        sumLayerCompress(iSoil) = sumLayerCompress(iSoil) + dt_sub*diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) ! soil compression in layers
-      end do
-      ! get the total energy fluxes
-      do iVar=1,size(flux_meta)
-        flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + dt_sub*flux_data%var(iVar)%dat(:)
-      end do
 
       ! update first step and first and last inner steps
       firstSubStep = .false.
@@ -902,21 +879,6 @@ subroutine coupled_em(&
       do_outer = .true.
       if( dt_sub == maxstep_op .and. .not.lastInnerStep ) do_outer = .false.
       if(do_outer)then
-
-        ! compute average flux for whole_step
-        do iVar=1,size(flux_meta)
-         flux_data%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /whole_step
-        end do
-        deallocate(flux_sum)
-
-        ! compute average soil compression diagnostics for whole_step
-        diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sumSoilCompress/whole_step
-        ! vector compression
-        do iSoil=1,nSoil
-          if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(iSoil)/=integerMissing)&
-          diag_data%var(iLookDIAG%mLayerCompress)%dat(iSoil) = sumLayerCompress(iSoil)/whole_step
-        end do
-        deallocate(sumLayerCompress)
 
         ! ***  remove ice due to sublimation and freeze calculations...
         ! NOTE: In the future this should be moved into the solver, makes a big difference, and here only applying last substep amount to whole thing
@@ -1054,11 +1016,13 @@ subroutine coupled_em(&
       ! *** END MAIN SOLVER ********************************************************************************
       ! ****************************************************************************************************
 
-      ! increment fluxes
+      ! increment fluxes and soil compression
       dt_wght = dt_sub/data_step ! define weight applied to each sub-step
       do iVar=1,size(averageFlux_meta)
         flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
+      meanSoilCompress = meanSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght ! total soil compression
+      flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
 
       ! increment sub-step
       dt_solv = dt_solv + dt_sub
@@ -1129,16 +1093,13 @@ subroutine coupled_em(&
                     err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-    ! overwrite flux_data with flux_mean for data_step (returns timestep-average fluxes for scalar variables)
+    ! overwrite flux_data and soil compression with the timestep-average value (returns timestep-average fluxes for scalar variables)
     do iVar=1,size(averageFlux_meta)
       flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:) = flux_mean%var(iVar)%dat(:)
     end do
+    diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = meanSoilCompress
 
     ! ***********************************************************************************************************************************
-    ! ***********************************************************************************************************************************
-    ! ***********************************************************************************************************************************
-    ! ***********************************************************************************************************************************
-
     ! ---
     ! *** balance checks...
     ! ---------------------
@@ -1329,10 +1290,10 @@ subroutine coupled_em(&
   ! save the surface temperature (just to make things easier to visualize)
   prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
 
-  ! overwrite flux data with the timestep-average value
+  ! again overwrite flux data with timestep-average value
   if(.not.backwardsCompatibility)then
     do iVar=1,size(flux_mean%var)
-    flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat
+      flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat
     end do
   end if
 
