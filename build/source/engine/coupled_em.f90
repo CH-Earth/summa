@@ -471,7 +471,7 @@ subroutine coupled_em(&
                       prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),              & ! canopy liquid water (kg m-2)
                       prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),              & ! canopy ice (kg m-2)
                       diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy liquid water (kg m-2)
-                      diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
+                      diag_data%var(iLookDIAG%scalarCanopyIceMax)%dat(1),           & ! maximum canopy ice content (kg m-2)
                       mpar_data%var(iLookPARAM%canopyWettingFactor)%dat(1),         & ! maximum wetted fraction of the canopy (-)
                       mpar_data%var(iLookPARAM%canopyWettingExp)%dat(1),            & ! exponent in canopy wetting function (-)
                       ! output
@@ -1146,10 +1146,13 @@ subroutine coupled_em(&
       ! * balance checks for the canopy...
       ! ----------------------------------
 
-      if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler)then ! convergence criteria for bEuler
-        if (maxstep_op == maxstep) checkMassBalance = .true.
-        if (maxstep_op < maxstep)  checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
-      endif
+      !if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler)then ! convergence criteria for bEuler
+      !  if (maxstep_op == maxstep) checkMassBalance = .true.
+      !  if (maxstep_op < maxstep)  checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
+      !endif
+      !if (model_decisions(iLookDECISIONS%num_method)%iDecision==sundials) checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
+
+      if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler) checkMassBalance = .true. ! convergence criteria for bEuler
       if (model_decisions(iLookDECISIONS%num_method)%iDecision==sundials) checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
 
       ! if computing the vegetation flux
@@ -1290,7 +1293,7 @@ subroutine coupled_em(&
   ! save the surface temperature (just to make things easier to visualize)
   prog_data%var(iLookPROG%scalarSurfaceTemp)%dat(1) = prog_data%var(iLookPROG%mLayerTemp)%dat(1)
 
-  ! again overwrite flux data with timestep-average value
+  ! overwrite flux data with timestep-average value for all flux_mean vars, hard-coded to not happen
   if(.not.backwardsCompatibility)then
     do iVar=1,size(flux_mean%var)
       flux_data%var(averageFlux_meta(iVar)%ixParent)%dat = flux_mean%var(iVar)%dat

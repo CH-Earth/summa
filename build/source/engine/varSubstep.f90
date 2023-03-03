@@ -1048,7 +1048,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     endif  ! if checking the mass balance
 
     ! -----
-    ! * remove untapped melt energy...
+    ! * remove untapped melt energy... always 0 at the moment but if use should be in solved as affects state
     ! --------------------------------
 
     ! only work with energy state variables
