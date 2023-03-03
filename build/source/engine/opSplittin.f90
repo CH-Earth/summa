@@ -469,6 +469,7 @@ subroutine opSplittin(&
 
               ! initialize the first flux call
               firstFluxCall=.true.
+              if (.not.firstInnerStep) firstFluxCall=.false
 
               ! get the number of split layers
               select case(ixSolution)

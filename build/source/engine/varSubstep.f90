@@ -497,7 +497,7 @@ subroutine varSubstep(&
 
       endif  ! if errors in prognostic update
 
-      ! get the total energy fluxes (modified in updateProg), have to do differently because of splitting in bEuler
+      ! get the total energy fluxes (modified in updateProg), have to do differently because only updated on firstFluxCall
       if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
         sumCanopyEvaporation  = sumCanopyEvaporation  + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  ! canopy evaporation/condensation (kg m-2 s-1)
         sumLatHeatCanopyEvap  = sumLatHeatCanopyEvap  + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -960,7 +960,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver
     !   for sundials will not work since fluxes are averaged over data window for output but canopyBalance0 only off last step
-    !   so not currently checked in sundials
+    !   so not currently checked in sundials, could cause problems if should modify nrgFlux
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
