@@ -355,7 +355,7 @@ subroutine coupled_em(&
       ! save the liquid water and ice on the vegetation canopy
       scalarInitCanopyLiq = scalarCanopyLiq    ! initial liquid water on the vegetation canopy (kg m-2)
       scalarInitCanopyIce = scalarCanopyIce    ! initial ice          on the vegetation canopy (kg m-2)
-
+  print*,scalarCanopyIce, 'canIce init'
       ! compute total soil moisture and ice at the *START* of the step (kg m-2)
       scalarTotalSoilLiq = sum(iden_water*mLayerVolFracLiq(1:nSoil)*mLayerDepth(1:nSoil))
       scalarTotalSoilIce = sum(iden_water*mLayerVolFracIce(1:nSoil)*mLayerDepth(1:nSoil))  ! NOTE: no expansion and hence use iden_water
@@ -543,7 +543,7 @@ subroutine coupled_em(&
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
+  print*,prog_data%var(iLookPROG%scalarCanopyIce)%dat(1), 'canIce after canSnow before water updates'
     ! adjust canopy temperature to account for new snow
     if(computeVegFlux)then ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
       call tempAdjust(&
@@ -898,8 +898,7 @@ subroutine coupled_em(&
           mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
-
-
+  print*,scalarCanopyIce, 'canIce beforeSublim after iteration water updates'
           ! compute the melt in each snow and soil layer
           if(nSnow>0)&
           mLayerMeltFreeze(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
@@ -915,7 +914,7 @@ subroutine coupled_em(&
 
             ! remove mass of ice on the canopy
             scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*whole_step
-
+  print*,scalarCanopyIce, scalarCanopySublimation, whole_step,'canIce afterSublim, sublim, step'
             ! if removed all ice, take the remaining sublimation from water
             if(scalarCanopyIce < 0._rkind)then
               scalarCanopyLiq = scalarCanopyLiq + scalarCanopyIce
