@@ -236,6 +236,7 @@ subroutine opSplittin(&
   type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
   type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
   type(var_dlength)               :: flux_temp                      ! temporary model fluxes
+  type(var_dlength)               :: flux_mean                      ! mean model fluxes
   type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
   ! ------------------------------------------------------------------------------------------------------
   ! * operator splitting
@@ -367,6 +368,10 @@ subroutine opSplittin(&
     call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
+    ! allocate space for the mean flux variable structure
+    call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
     ! allocate space for the derivative structure
     call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -377,13 +382,12 @@ subroutine opSplittin(&
     end do
 
     ! initialize the model fluxes
-    if (firstInnerStep)then
-      do iVar=1,size(flux_meta)  ! loop through fluxes
-        if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
-        if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
-        flux_data%var(iVar)%dat(:) = 0._rkind
-      end do
-    endif
+    do iVar=1,size(flux_meta)  ! loop through fluxes
+      if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
+      if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
+      if (firstInnerStep) flux_data%var(iVar)%dat(:) = 0._rkind
+      flux_mean%var(iVar)%dat(:) = 0._rkind
+    end do
 
     ! initialize derivatives
     do iVar=1,size(deriv_meta)
@@ -699,6 +703,7 @@ subroutine opSplittin(&
                                 prog_data,                  & ! intent(inout) : model prognostic variables for a local HRU
                                 diag_data,                  & ! intent(inout) : model diagnostic variables for a local HRU
                                 flux_data,                  & ! intent(inout) : model fluxes for a local HRU
+                                flux_mean,                  & ! intent(inout) : mean model fluxes for a local HRU
                                 deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                                 bvar_data,                  & ! intent(in)    : model variables for the local basin
                                 ! output: control

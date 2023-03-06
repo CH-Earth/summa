@@ -114,7 +114,8 @@ subroutine varSubstep(&
                       indx_data,         & ! intent(inout) : index data
                       prog_data,         & ! intent(inout) : model prognostic variables for a local HRU
                       diag_data,         & ! intent(inout) : model diagnostic variables for a local HRU
-                      flux_data,         & ! intent(inout) : model fluxes for a local HRU
+                      flux_data,         & ! intent(inout)    : model fluxes for a local HRU
+                      flux_mean,         & ! intent(inout) : mean model fluxes for a local HRU
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
                       ! output: model control
@@ -164,6 +165,7 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)    :: prog_data                     ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)    :: diag_data                     ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)    :: flux_data                     ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)    :: flux_mean                     ! mean model fluxes for a local HRU
   type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
   ! output: model control
@@ -497,7 +499,7 @@ subroutine varSubstep(&
 
       endif  ! if errors in prognostic update
 
-      ! get the total energy fluxes (modified in updateProg), have to do differently because only updated on firstFluxCall
+      ! get the total energy fluxes (modified in updateProg), have to do differently
       if(nrgFluxModified .or. indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
         sumCanopyEvaporation  = sumCanopyEvaporation  + dtSubstep*flux_temp%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  ! canopy evaporation/condensation (kg m-2 s-1)
         sumLatHeatCanopyEvap  = sumLatHeatCanopyEvap  + dtSubstep*flux_temp%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)  ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
@@ -531,7 +533,7 @@ subroutine varSubstep(&
 
           ! ** no domain splitting
           if(count(ixLayerActive/=integerMissing)==nLayers)then
-            flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+            flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
             fluxCount%var(iVar)%dat(:) = fluxCount%var(iVar)%dat(:) + 1
 
           ! ** domain splitting
@@ -543,10 +545,10 @@ subroutine varSubstep(&
                 ! Makes Jacobian more diagonal if do this, but less correct
                 ! special case of the transpiration sink from soil layers: only computed for the top soil layer
                 !if(iVar==iLookFlux%mLayerTranspire)then
-                !  if(ixLayer==1) flux_data%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
+                !  if(ixLayer==1) flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_temp%var(iVar)%dat(:)*dt_wght
                 ! standard case
                 !else
-                  flux_data%var(iVar)%dat(ixLayer) = flux_data%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
+                  flux_mean%var(iVar)%dat(ixLayer) = flux_mean%var(iVar)%dat(ixLayer) + flux_temp%var(iVar)%dat(ixLayer)*dt_wght
                 !endif
                 fluxCount%var(iVar)%dat(ixLayer) = fluxCount%var(iVar)%dat(ixLayer) + 1
               endif
@@ -573,6 +575,11 @@ subroutine varSubstep(&
 
     end do substeps  ! time steps for variable-dependent sub-stepping
     ! NOTE: if we get to here then we are accepting then dtSum should dt
+
+    ! save the fluxes as averages
+    do iVar=1,size(flux_meta)
+      if(count(fluxMask%var(iVar)%dat)>0) flux_data%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:)
+    enddo
 
     ! save the energy fluxes as averages
     flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) = sumCanopyEvaporation /dt      ! canopy evaporation/condensation (kg m-2 s-1)
