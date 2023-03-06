@@ -940,7 +940,7 @@ subroutine coupled_em(&
           end if  ! (if computing the vegetation flux)
 
           call computSnowDepth(&
-                    whole_step,                                    & ! intent(in)
+                    whole_step,                                       & ! intent(in)
                     nSnow,                                         & ! intent(in)
                     scalarSnowSublimation,                         & ! intent(in)
                     mLayerVolFracLiq,                              & ! intent(inout)
