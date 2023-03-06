@@ -148,6 +148,7 @@ contains
  newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1),      & ! scaling factor for new snow density (K)
  ! model parameters (control the depth of snow layers)
  zmax                   => mpar_data%var(iLookPARAM%zmax)%dat(1),                & ! maximum layer depth (m)
+ zminLayer1             => mpar_data%var(iLookPARAM%zminLayer1)%dat(1),          & ! minimum layer depth for the 1st (top) layer (m)
  zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower)%dat(1),    & ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
  zmaxLayer2_lower       => mpar_data%var(iLookPARAM%zmaxLayer2_lower)%dat(1),    & ! maximum layer depth for the 2nd layer when only 2 layers (m)
  zmaxLayer3_lower       => mpar_data%var(iLookPARAM%zmaxLayer3_lower)%dat(1),    & ! maximum layer depth for the 3rd layer when only 3 layers (m)
@@ -183,7 +184,7 @@ contains
   ! check if create the first snow layer
   select case(ix_snowLayers)
    case(sameRulesAllLayers);    createLayer = (scalarSnowDepth > zmax)
-   case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > zmaxLayer1_lower)
+   case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > (zminLayer1 + zmaxLayer1_lower)/2._rkind) ! Initialize the first layer if we're halfway between the minimum and maximum depth for this layer. This gives some room for the layer to change depth in either direction and avoids excessive layer creation/deletion
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
 
