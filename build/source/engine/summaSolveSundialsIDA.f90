@@ -506,9 +506,9 @@ subroutine summaSolveSundialsIDA(                         &
       flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * dt_last(1)
     end do
 
-    ! sum of mLayerCmpress
+    ! sum of mLayerCmpress over the time step, since using prev value not * dt_last(1)
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) ) * dt_last(1)
+                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial

@@ -64,11 +64,6 @@ USE globalData,only:data_step              ! time step of forcing data (s)
 USE globalData,only:model_decisions        ! model decision structure
 USE globalData,only:globalPrintFlag        ! the global print flag
 
-! look-up values for the numerical method
-USE mDecisions_module,only:         &
- bEuler,                            &      ! home-grown backward Euler solution with long time steps
- sundials                                  ! SUNDIALS/IDA solution
-
 ! look-up values for the maximum interception capacity
 USE mDecisions_module,only:         &
                       stickySnow,   &      ! maximum interception capacity an increasing function of temerature
@@ -395,8 +390,8 @@ subroutine coupled_em(&
 
     ! short-cut to the algorithmic control parameters
     ! NOTE - temporary assignment of minstep to foce something reasonable
-    ! change maxstep with hard code here to make the outer and inner loop computations here in coupled_em happen more frequently for num_method = bEuler or sundials
-    ! change maxstep_op with hard code here to make the inner loop computations in opSplittin happen more frequently for num_method = bEuler or sundials
+    ! change maxstep with hard code here to make the outer and inner loop computations here in coupled_em happen more frequently
+    ! change maxstep_op with hard code here to make the inner loop computations in opSplittin happen more frequently
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
     maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplittin over
@@ -1168,12 +1163,7 @@ subroutine coupled_em(&
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
-
-      if (model_decisions(iLookDECISIONS%num_method)%iDecision==bEuler)then ! convergence criteria for bEuler
-        if (maxstep_op == maxstep) checkMassBalance = .true.
-        if (maxstep_op < maxstep)  checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
-      endif
-      if (model_decisions(iLookDECISIONS%num_method)%iDecision==sundials) checkMassBalance = .false. ! cannot check since not saving fluxes on inner loops
+      checkMassBalance = .true.
 
       ! if computing the vegetation flux
       if(computeVegFlux)then
