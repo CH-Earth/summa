@@ -226,6 +226,14 @@ subroutine coupled_em(&
   integer(i4b)                         :: iSoil                  ! index of soil layers
   type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
   real(rkind)                          :: meanSoilCompress       ! timestep-average soil compression
+  ! sublimation sums over substep and means over data_step
+  real(rkind)                          :: sumCanopySublimation   ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
+  real(rkind)                          :: sumSnowSublimation     ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
+  real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over substep
+  real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2) over substep
+  real(rkind)                          :: meanCanopySublimation  ! mean sublimation from the vegetation canopy (kg m-2 s-1) over data_step
+  real(rkind)                          :: meanLatHeatCanopyEvap  ! mean latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over data_step
+  real(rkind)                          :: meanSenHeatCanopy      ! mean sensible heat flux from the canopy to the canopy air space (W m-2) over data_step
   ! balance checks
   integer(i4b)                         :: iVar                   ! loop through model variables
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
@@ -330,12 +338,16 @@ subroutine coupled_em(&
     ! initialize surface melt pond
     sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
 
-    ! initialize fluxes to average over whole step (averaged over substep in varSubStep)
+    ! initialize fluxes to average over maxstep (averaged over substep in varSubStep)
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
-    ! initialize the compression to average over whole step (averaged over substep in varSubStep)
-    meanSoilCompress       = 0._rkind  ! total soil compression
+    ! initialize the compression to average over data_step (averaged over substep in varSubStep)
+    meanSoilCompress      = 0._rkind ! mean total soil compression
+    ! initialize the canopy sublimation to average over data_step (averaged over substep in varSubStep)
+    meanCanopySublimation = 0._rkind ! mean sublimation from the vegetation canopy (kg m-2 s-1) over data_step
+    meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over data_step
+    meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy to the canopy air space (W m-2) over data_step
 
     ! associate local variables with information in the data structures
     associate(&
@@ -402,7 +414,6 @@ subroutine coupled_em(&
 
     ! save SWE
     oldSWE = prog_data%var(iLookPROG%scalarSWE)%dat(1)
-
 
     ! *** compute phenology...
     ! ------------------------
@@ -799,6 +810,12 @@ subroutine coupled_em(&
         whole_step = maxstep
         if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
+        ! initialize sublimation sums to average over whole_step
+        sumCanopySublimation = 0._rkind
+        sumSnowSublimation   = 0._rkind
+        sumLatHeatCanopyEvap = 0._rkind
+        sumSenHeatCanopy     = 0._rkind
+
       endif ! (do_outer loop)
 
       ! *** solve model equations...
@@ -867,6 +884,12 @@ subroutine coupled_em(&
         cycle substeps
       endif
 
+      ! increment sublimation sums
+      sumCanopySublimation = sumCanopySublimation + dt_sub*flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)
+      sumSnowSublimation   = sumSnowSublimation   + dt_sub*flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)
+      sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_sub*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)
+      sumSenHeatCanopy     = sumSenHeatCanopy     + dt_sub*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)
+
       ! update first step and first and last inner steps
       firstSubStep = .false.
       firstInnerStep = .false.
@@ -881,24 +904,18 @@ subroutine coupled_em(&
       if(do_outer)then
 
         ! ***  remove ice due to sublimation and freeze calculations...
-        ! NOTE: In the future this should be moved into the solver, makes a big difference, and here only applying last substep amount to whole thing
+        ! NOTE: In the future this should be moved into the solver, makes a big difference
         ! --------------------------------------------------------------
         sublime: associate(&
-          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,           & ! melt-freeze in each snow and soil layer (kg m-3)
-          scalarCanopySublimation => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1), & ! sublimation from the vegetation canopy (kg m-2 s-1)
-          scalarSnowSublimation   => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1),   & ! sublimation from the snow surface (kg m-2 s-1)
-          scalarLatHeatCanopyEvap => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1), & ! latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-          scalarSenHeatCanopy     => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1),     & ! sensible heat flux from the canopy to the canopy air space (W m-2)
-          scalarLatHeatGround     => flux_data%var(iLookFLUX%scalarLatHeatGround)%dat(1),     & ! latent heat flux from ground surface below vegetation (W m-2)
-          scalarSenHeatGround     => flux_data%var(iLookFLUX%scalarSenHeatGround)%dat(1),     & ! sensible heat flux from ground surface below vegetation (W m-2)
+          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,          & ! melt-freeze in each snow and soil layer (kg m-3)
           scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
           scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
           scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),         & ! canopy ice content (kg m-2)
           mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat,           & ! volumetric fraction of ice in the snow+soil domain (-)
           mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat,           & ! volumetric fraction of liquid water in the snow+soil domain (-)
+          mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat,           & ! volumetric fraction of total water (-)
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat                 & ! depth of each snow+soil layer (m)
           ) ! associations to variables in data structures
-
 
           ! compute the melt in each snow and soil layer
           if(nSnow>0)&
@@ -914,7 +931,7 @@ subroutine coupled_em(&
           if(computeVegFlux)then
 
             ! remove mass of ice on the canopy
-            scalarCanopyIce = scalarCanopyIce + scalarCanopySublimation*whole_step
+            scalarCanopyIce = scalarCanopyIce + sumCanopySublimation
 
             ! if removed all ice, take the remaining sublimation from water
             if(scalarCanopyIce < 0._rkind)then
@@ -922,16 +939,16 @@ subroutine coupled_em(&
               scalarCanopyIce = 0._rkind
             endif
 
-            ! modify fluxes if there is insufficient canopy water to support the converged sublimation rate over the whole time step
+            ! modify fluxes and mean fluxes if there is insufficient canopy water to support the converged sublimation rate over the whole time step
             if(scalarCanopyLiq < 0._rkind)then
               ! --> superfluous sublimation flux
               superflousSub = -scalarCanopyLiq/whole_step  ! kg m-2 s-1
               superflousNrg = superflousSub*LH_sub     ! W m-2 (J m-2 s-1)
               ! --> update fluxes and states
-              scalarCanopySublimation = scalarCanopySublimation + superflousSub
-              scalarLatHeatCanopyEvap = scalarLatHeatCanopyEvap + superflousNrg
-              scalarSenHeatCanopy     = scalarSenHeatCanopy - superflousNrg
-              scalarCanopyLiq         = 0._rkind
+              sumCanopySublimation = sumCanopySublimation + superflousSub*whole_step
+              sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + superflousNrg*whole_step
+              sumSenHeatCanopy     = sumSenHeatCanopy     - superflousNrg*whole_step
+              scalarCanopyLiq      = 0._rkind
             endif
 
             ! update water
@@ -940,17 +957,17 @@ subroutine coupled_em(&
           end if  ! (if computing the vegetation flux)
 
           call computSnowDepth(&
-                    whole_step,                                       & ! intent(in)
-                    nSnow,                                         & ! intent(in)
-                    scalarSnowSublimation,                         & ! intent(in)
-                    mLayerVolFracLiq,                              & ! intent(inout)
-                    mLayerVolFracIce,                              & ! intent(inout)
-                    prog_data%var(iLookPROG%mLayerTemp)%dat,       & ! intent(in)
-                    diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat, & ! intent(in)
-                    mpar_data,                                     & ! intent(in)
+                    whole_step,                               & ! intent(in)
+                    nSnow,                                    & ! intent(in)
+                    sumSnowSublimation/whole_step,            & ! intent(in)
+                    mLayerVolFracLiq,                         & ! intent(inout)
+                    mLayerVolFracIce,                         & ! intent(inout)
+                    prog_data%var(iLookPROG%mLayerTemp)%dat,  & ! intent(in)
+                    mLayerMeltFreeze,                         & ! intent(in)
+                    mpar_data,                                & ! intent(in)
                     ! output
-                    tooMuchSublim,                                 & ! intent(out): flag to denote that there was too much sublimation in a given time step
-                    mLayerDepth,                                   & ! intent(inout)
+                    tooMuchSublim,                            & ! intent(out): flag to denote that there was too much sublimation in a given time step
+                    mLayerDepth,                              & ! intent(inout)
                     ! error control
                     err,message)                                     ! intent(out):   error control
           if(err/=0)then; err=55; return; end if
@@ -981,26 +998,29 @@ subroutine coupled_em(&
             cycle substeps
           endif
 
+          ! update coordinate variables
+          call calcHeight(&
+                     ! input/output: data structures
+                     indx_data,   & ! intent(in): layer type
+                     prog_data,   & ! intent(inout): model variables for a local HRU
+                     ! output: error control
+                     err,cmessage)
+          if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+          ! increment mean canopy sublimation
+          meanCanopySublimation = meanCanopySublimation + sumCanopySublimation/whole_step
+          meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/whole_step
+          meanSenHeatCanopy     = meanSenHeatCanopy     + sumSenHeatCanopy/whole_step
+
+          ! recompute snow depth, SWE, and layer water
+          if(nSnow > 0)then
+            prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( mLayerDepth(1:nSnow) )
+            prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (mLayerVolFracLiq(1:nSnow)*iden_water &
+                                                              + mLayerVolFracIce(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
+            mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*iden_ice/iden_water
+          endif
+
         end associate sublime
-
-        ! update coordinate variables
-        call calcHeight(&
-                   ! input/output: data structures
-                   indx_data,   & ! intent(in): layer type
-                   prog_data,   & ! intent(inout): model variables for a local HRU
-                   ! output: error control
-                   err,cmessage)
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-        ! recompute snow depth, SWE, and layer water
-        if(nSnow > 0)then
-          prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
-          prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
-                                                             prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice) &
-                                                           * prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow) )
-          prog_data%var(iLookPROG%mLayerVolFracWat)%dat(1:nSnow) = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow) &
-                                                             + prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow)*iden_ice/iden_water
-        endif
 
         ! increment change in storage associated with the surface melt pond (kg m-2)
         if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
@@ -1016,13 +1036,16 @@ subroutine coupled_em(&
       ! *** END MAIN SOLVER ********************************************************************************
       ! ****************************************************************************************************
 
-      ! increment fluxes and soil compression
+      ! increment mean fluxes, soil compression, and canopy sublimation
       dt_wght = dt_sub/data_step ! define weight applied to each sub-step
       do iVar=1,size(averageFlux_meta)
-        flux_mean%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
+        flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
-      meanSoilCompress = meanSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght ! total soil compression
+      meanSoilCompress = meanSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght
       flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
+      flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = meanCanopySublimation ! these two will be equal unless insufficient canopy water for sublim
+      flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap ! these two will be equal unless insufficient canopy water for sublim
+      flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy     ! these two will be equal unless insufficient canopy water for sublim
 
       ! increment sub-step
       dt_solv = dt_solv + dt_sub
