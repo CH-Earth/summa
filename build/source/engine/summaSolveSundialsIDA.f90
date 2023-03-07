@@ -213,7 +213,6 @@ subroutine summaSolveSundialsIDA(                         &
   integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
   integer(i4b)                      :: iVar
   logical(lgt)                      :: startQuadrature
-  real(rkind)                       :: mLayerMatricHeadLiqPrev(nSoil)
   real(qp)                          :: h_init
   integer(c_long)                   :: nState               ! total number of state variables
   real(rkind)                       :: rVec(nStat)
@@ -398,7 +397,6 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
   eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
   eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  mLayerMatricHeadLiqPrev(:)         = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
   eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
   eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
   eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
@@ -508,7 +506,7 @@ subroutine summaSolveSundialsIDA(                         &
 
     ! sum of mLayerCmpress over the time step, since using prev value not * dt_last(1)
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
+                                    * ( eqns_data%mLayerMatricHeadTrial(:) - eqns_data%mLayerMatricHeadPrev(:) )
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
@@ -516,7 +514,6 @@ subroutine summaSolveSundialsIDA(                         &
     eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
     eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
     eqns_data%mLayerTempPrev(:)        = eqns_data%mLayerTempTrial(:)
-    mLayerMatricHeadLiqPrev(:)         = eqns_data%mLayerMatricHeadLiqTrial(:)
     eqns_data%mLayerMatricHeadPrev(:)  = eqns_data%mLayerMatricHeadTrial(:)
     eqns_data%mLayerVolFracWatPrev(:)  = eqns_data%mLayerVolFracWatTrial(:)
     eqns_data%mLayerVolFracIcePrev(:)  = eqns_data%mLayerVolFracIceTrial(:)
