@@ -139,7 +139,6 @@ subroutine coupled_em(&
   USE time_utils_module,only:elapsedSec      ! calculate the elapsed time
   ! additional subroutines
   USE tempAdjust_module,only:tempAdjust      ! adjust snow temperature associated with new snowfall
-  USE snwDensify_module,only:snwDensify      ! snow densification (compaction and cavitation)
   USE var_derive_module,only:calcHeight      ! module to calculate height at layer interfaces and layer mid-point
   USE computSnowDepth_module,only:computSnowDepth
 
@@ -769,14 +768,14 @@ subroutine coupled_em(&
           theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in):    [dp(:)]  soil porosity (-)
           theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in):    [dp(:)]  soil residual volumetric water content (-)
           ! state variables in the vegetation canopy
-          scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(out):   [dp]     mass of ice on the vegetation canopy (kg m-2)
-          scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(out):   [dp]     mass of liquid water on the vegetation canopy (kg m-2)
+          scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):    [dp]     mass of ice on the vegetation canopy (kg m-2)
+          scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):    [dp]     mass of liquid water on the vegetation canopy (kg m-2)
           scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(out):   [dp]     mass of total water on the vegetation canopy (kg m-2)
           ! state variables in the snow and soil domains
-          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of ice (-)
-          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of liquid water (-)
+          mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
+          mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
           mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(out):   [dp(:)]  volumetric fraction of total water (-)
-          mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(out):   [dp(:)]  matric head (m)
+          mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in):    [dp(:)]  matric head (m)
           mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(out):   [dp(:)]  matric potential of liquid water (m)
           ) ! associations to variables in data structures
 
@@ -873,7 +872,6 @@ subroutine coupled_em(&
           err=20; return
         endif
         ! try again, restart step
-        dt_solv = dt_solv - dt_solvInner
         dt_solvInner = 0._rkind
         deallocate(mLayerVolFracIceInit)
         cycle substeps
@@ -890,9 +888,6 @@ subroutine coupled_em(&
       firstInnerStep = .false.
       if(dt_solvInner + dt_sub >= maxstep) lastInnerStep = .true.
 
-      ! increment sub-step
-      dt_solvInner = dt_solvInner + dt_sub
-
       ! check if on outer loop, always do outer if after failed step and on small step
       do_outer = .true.
       if( dt_sub == maxstep_op .and. .not.lastInnerStep ) do_outer = .false.
@@ -902,7 +897,7 @@ subroutine coupled_em(&
         ! NOTE: In the future this should be moved into the solver, makes a big difference
         ! --------------------------------------------------------------
         sublime: associate(&
-          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,          & ! melt-freeze in each snow and soil layer (kg m-3)
+          mLayerMeltFreeze        => diag_data%var(iLookDIAG%mLayerMeltFreeze)%dat,           & ! melt-freeze in each snow and soil layer (kg m-3)
           scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),         & ! liquid water stored on the vegetation canopy (kg m-2)
           scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),         & ! ice          stored on the vegetation canopy (kg m-2)
           scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1),         & ! canopy ice content (kg m-2)
@@ -988,7 +983,6 @@ subroutine coupled_em(&
               err=20; return
             endif
             ! try again, restart step (at end inner step)
-            dt_solv = 0._rkind
             dt_solvInner = 0._rkind
             cycle substeps
           endif
@@ -1043,6 +1037,7 @@ subroutine coupled_em(&
       flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy     ! these two will be equal unless insufficient canopy water for sublim
 
       ! increment sub-step
+      dt_solvInner = dt_solvInner + dt_sub
       dt_solv = dt_solv + dt_sub
 
       ! save the time step to initialize the subsequent step

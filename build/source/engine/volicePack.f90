@@ -159,10 +159,10 @@ contains
                        ! input/output: state variables
                        scalarSWE,                 & ! SWE (kg m-2)
                        scalarSnowDepth,           & ! total snow depth (m)
-                       surfaceLayerTemp,          & ! temperature of each layer (K)
-                       surfaceLayerDepth,         & ! depth of each layer (m)
-                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in each layer (-)
-                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in each layer (-)
+                       surfaceLayerTemp,          & ! temperature of surface layer (K)
+                       surfaceLayerDepth,         & ! depth of surface layer (m)
+                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in surface layer (-)
+                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in surface layer (-)
                        ! output: error control
                        err,message                ) ! error control
  ! computational modules
@@ -181,10 +181,10 @@ contains
  ! input/output: state variables
  real(rkind),intent(inout)              :: scalarSWE                  ! SWE (kg m-2)
  real(rkind),intent(inout)              :: scalarSnowDepth            ! total snow depth (m)
- real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of each layer (K)
+ real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of surface layer (K)
  real(rkind),intent(inout)              :: surfaceLayerDepth          ! depth of each layer (m)
- real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
- real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in surface layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in surface layer (-)
  ! output: error control
  integer(i4b),intent(out)            :: err                        ! error code
  character(*),intent(out)            :: message                    ! error message
