@@ -1039,7 +1039,7 @@ subroutine coupled_em(&
 
         dt_wght = whole_step/data_step ! define weight applied to each sub-step
         do iVar=1,size(averageFlux_meta)
-          flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
+          flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(iVar)%dat(:)*dt_wght
         end do
         meanSoilCompress = meanSoilCompress + innerSoilCompress
         flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
