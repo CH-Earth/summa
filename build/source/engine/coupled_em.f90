@@ -170,7 +170,7 @@ subroutine coupled_em(&
   integer(i4b)                         :: nSoil                  ! number of soil layers
   integer(i4b)                         :: nLayers                ! total number of layers
   integer(i4b)                         :: nState                 ! total number of state variables
-  real(rkind)                          :: dtSave                 ! length of last input model sub-step (seconds)
+  real(rkind)                          :: dtSave                 ! length of last input model whole sub-step (seconds)
   real(rkind)                          :: dt_sub                 ! length of model sub-step (seconds)
   real(rkind)                          :: dt_wght                ! weight applied to model sub-step (dt_sub/data_step)
   real(rkind)                          :: dt_solv                ! seconds in the data step that have been completed
@@ -219,15 +219,14 @@ subroutine coupled_em(&
   ! energy fluxes
   integer(i4b)                         :: iSoil                  ! index of soil layers
   type(var_dlength)                    :: flux_mean              ! timestep-average model fluxes for a local HRU
+  type(var_dlength)                    :: flux_inner             ! inner step average model fluxes for a local HRU
   real(rkind)                          :: meanSoilCompress       ! timestep-average soil compression
+  real(rkind)                          :: innerSoilCompress      ! inner step average soil compression
   ! sublimation sums over substep and means over data_step
   real(rkind)                          :: sumCanopySublimation   ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
   real(rkind)                          :: sumSnowSublimation     ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
   real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over substep
   real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2) over substep
-  real(rkind)                          :: meanCanopySublimation  ! mean sublimation from the vegetation canopy (kg m-2 s-1) over data_step
-  real(rkind)                          :: meanLatHeatCanopyEvap  ! mean latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over data_step
-  real(rkind)                          :: meanSenHeatCanopy      ! mean sensible heat flux from the canopy to the canopy air space (W m-2) over data_step
   ! balance checks
   integer(i4b)                         :: iVar                   ! loop through model variables
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
@@ -328,20 +327,23 @@ subroutine coupled_em(&
     ! allocate space for the local fluxes
     call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+    call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+
 
     ! initialize surface melt pond
     sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
 
-    ! initialize fluxes to average over maxstep (averaged over substep in varSubStep)
+    ! initialize fluxes to average over data_step (averaged over substep in varSubStep)
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
-    ! initialize the compression to average over data_step (averaged over substep in varSubStep)
     meanSoilCompress      = 0._rkind ! mean total soil compression
-    ! initialize the canopy sublimation to average over data_step (averaged over substep in varSubStep)
-    meanCanopySublimation = 0._rkind ! mean sublimation from the vegetation canopy (kg m-2 s-1) over data_step
-    meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over data_step
-    meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy to the canopy air space (W m-2) over data_step
+    ! initialize fluxes to average over whole_step (averaged over substep in varSubStep)
+    do iVar=1,size(averageFlux_meta)
+      flux_inner%var(iVar)%dat(:) = 0._rkind
+    end do
+    innerSoilCompress      = 0._rkind ! mean total soil compression
 
     ! associate local variables with information in the data structures
     associate(&
@@ -394,7 +396,6 @@ subroutine coupled_em(&
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
     maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplittin over
-    if(maxstep_op > maxstep) maxstep_op = maxstep
 
     ! compute the number of layers with roots
     nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)
@@ -578,19 +579,21 @@ subroutine coupled_em(&
     ! *** MAIN SOLVER ************************************************************************************
     ! ****************************************************************************************************
 
-    ! initialize the length of the sub-step
-    dt_solv       = 0._rkind   ! length of time step that has been completed (s)
-    dt_solvInner  = 0._rkind   ! length of time step that has been completed (s) in maxstep subStep
-    dt_init = min(data_step,maxstep,maxstep_op)  ! initial substep length (s)
-    dt_sub  = dt_init                 ! length of substep
-    dtSave  = dt_init                 ! length of substep
+    ! initialize the length of the sub-step and counters
     whole_step = maxstep
+    dt_solv       = 0._rkind   ! length of time step that has been completed (s)
+    dt_solvInner  = 0._rkind   ! length of time step that has been completed (s) in whole_step subStep
+    dt_init = min(data_step,whole_step,maxstep_op)  ! initial substep length (s)
+    dt_sub = dt_init
+    dtSave  = whole_step              ! length of whole substep
 
     ! initialize the number of sub-steps
     nsub=0
 
     ! loop through sub-steps
     substeps: do  ! continuous do statement with exit clause (alternative to "while")
+
+      dt_sub = min(data_step,whole_step,maxstep_op,dt_sub) ! adjust for possible whole_step changes
 
       ! print progress
       if(globalPrintFlag)then
@@ -617,10 +620,10 @@ subroutine coupled_em(&
         end do
       endif
 
-      ! check if on outer loop, always do outer if after failed step and on then on reduced timestep
-      do_outer = .true.
+      ! check if on outer loop, always do outer if after failed step and on then on reduced whole_step
+      do_outer = .false.
       if(stepFailure) firstInnerStep = .true.
-      if ( dt_sub == maxstep_op .and. .not.firstInnerStep ) do_outer = .false.
+      if(firstInnerStep) do_outer = .true.
 
       if(do_outer)then
 
@@ -801,21 +804,26 @@ subroutine coupled_em(&
 
         end associate init
 
-        whole_step = maxstep
-        if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
+        ! correct increments (if need to redo inner step) and reset increment
+        dt_solv = dt_solv - dt_solvInner
+        dt_solvInner = 0._rkind
 
         ! initialize sublimation sums to average over whole_step
         sumCanopySublimation = 0._rkind
         sumSnowSublimation   = 0._rkind
         sumLatHeatCanopyEvap = 0._rkind
         sumSenHeatCanopy     = 0._rkind
+        ! initialize fluxes to average over whole_step (averaged over substep in varSubStep)
+        do iVar=1,size(averageFlux_meta)
+          flux_inner%var(iVar)%dat(:) = 0._rkind
+        end do
 
       endif ! (do_outer loop)
 
       ! *** solve model equations...
       ! ----------------------------
       ! save input step
-      dtSave = dt_sub
+      dtSave = whole_step
 
       ! get the new solution
       call opSplittin(&
@@ -862,17 +870,16 @@ subroutine coupled_em(&
       ! handle special case of the step failure
       ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
       if(stepFailure)then
-        ! halve step
-        dt_sub = dtSave/2._rkind
+        ! halve whole_step, for more frequent outer loop updates
+        whole_step = dtSave/2._rkind
         ! check that the step is not tiny
-        if(dt_sub < minstep)then
+        if(whole_step < minstep)then
           print*,ixSolution
-          print*, 'dtSave, dt_sub', dtSave, dt_sub
+          print*, 'dtSave, dt_sub', dtSave, whole_step
           message=trim(message)//'length of the coupled step is below the minimum step length'
           err=20; return
         endif
         ! try again, restart step
-        dt_solvInner = 0._rkind
         deallocate(mLayerVolFracIceInit)
         cycle substeps
       endif
@@ -886,11 +893,13 @@ subroutine coupled_em(&
       ! update first step and first and last inner steps
       firstSubStep = .false.
       firstInnerStep = .false.
-      if(dt_solvInner + dt_sub >= maxstep) lastInnerStep = .true.
+      if(dt_solvInner + dt_sub >= whole_step) lastInnerStep = .true.
+      if(dt_solv + dt_sub >= data_step-verySmall) lastInnerStep = .true.
 
-      ! check if on outer loop, always do outer if after failed step and on small step
-      do_outer = .true.
-      if( dt_sub == maxstep_op .and. .not.lastInnerStep ) do_outer = .false.
+      ! check if on outer loop
+      do_outer = .false.
+      if(lastInnerStep) do_outer = .true.
+
       if(do_outer)then
 
         ! ***  remove ice due to sublimation and freeze calculations...
@@ -912,9 +921,6 @@ subroutine coupled_em(&
           mLayerMeltFreeze(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
           mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
           deallocate(mLayerVolFracIceInit)
-
-          whole_step = maxstep
-          if(dt_sub < maxstep_op) whole_step = dt_sub ! only happens if fails a step in the maxstep
 
           ! * compute change in canopy ice content due to sublimation...
           ! ------------------------------------------------------------
@@ -973,17 +979,16 @@ subroutine coupled_em(&
           ! handle special case of the step failure
           ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
           if(stepFailure)then
-            ! halve step
-            dt_sub = dtSave/2._rkind
+            ! halve whole_step, for more frequent outer loop updates
+            whole_step = dtSave/2._rkind
             ! check that the step is not tiny
-            if(dt_sub < minstep)then
+            if(whole_step < minstep)then
               print*,ixSolution
-              print*, 'dtSave, dt_sub', dtSave, dt_sub
+              print*, 'dtSave, dt_sub', dtSave, whole_step
               message=trim(message)//'length of the coupled step is below the minimum step length'
               err=20; return
             endif
             ! try again, restart step (at end inner step)
-            dt_solvInner = 0._rkind
             cycle substeps
           endif
 
@@ -995,11 +1000,6 @@ subroutine coupled_em(&
                      ! output: error control
                      err,cmessage)
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-          ! increment mean canopy sublimation
-          meanCanopySublimation = meanCanopySublimation + sumCanopySublimation/whole_step
-          meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/whole_step
-          meanSenHeatCanopy     = meanSenHeatCanopy     + sumSenHeatCanopy/whole_step
 
           ! recompute snow depth, SWE, and layer water
           if(nSnow > 0)then
@@ -1014,31 +1014,39 @@ subroutine coupled_em(&
         ! increment change in storage associated with the surface melt pond (kg m-2)
         if(nSnow==0) sfcMeltPond = sfcMeltPond + prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)
 
-        ! update time increment and first and last inner steps
-        dt_solvInner = 0._rkind
-        firstInnerStep = .true.
-        lastInnerStep = .false.
-
       endif ! (do_outer loop)
 
       ! ****************************************************************************************************
       ! *** END MAIN SOLVER ********************************************************************************
       ! ****************************************************************************************************
 
-      ! increment mean fluxes, soil compression, and canopy sublimation
-      dt_wght = dt_sub/data_step ! define weight applied to each sub-step
+      ! increment mean fluxes, soil compression, and canopy sublimation, reset on whole_step
+      dt_wght = dt_sub/whole_step ! define weight applied to each sub-step
       do iVar=1,size(averageFlux_meta)
-        flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
+        flux_inner%var(iVar)%dat(:)    = flux_inner%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
-      meanSoilCompress = meanSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght
-      flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
-      flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = meanCanopySublimation ! these two will be equal unless insufficient canopy water for sublim
-      flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap ! these two will be equal unless insufficient canopy water for sublim
-      flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy     ! these two will be equal unless insufficient canopy water for sublim
+      innerSoilCompress = innerSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght
 
-      ! increment sub-step
+      ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub
       dt_solv = dt_solv + dt_sub
+
+      ! update first and last inner steps if did successful lastInnerStep, increment fluxes over data_step
+      if (lastInnerStep)then
+        firstInnerStep = .true.
+        lastInnerStep = .false.
+        dt_solvInner = 0._rkind
+
+        dt_wght = whole_step/data_step ! define weight applied to each sub-step
+        do iVar=1,size(averageFlux_meta)
+          flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
+        end do
+        meanSoilCompress = meanSoilCompress + innerSoilCompress
+        flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = sumCanopySublimation/whole_step ! these two will be equal unless insufficient canopy water for sublim
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = sumLatHeatCanopyEvap/whole_step ! these two will be equal unless insufficient canopy water for sublim
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = sumSenHeatCanopy/whole_step     ! these two will be equal unless insufficient canopy water for sublim
+      endif
 
       ! save the time step to initialize the subsequent step
       if(dt_solv<data_step .or. nsub==1) dt_init = dt_sub
