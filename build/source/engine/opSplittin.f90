@@ -237,6 +237,7 @@ subroutine opSplittin(&
   type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
   type(var_dlength)               :: flux_temp                      ! temporary model fluxes
   type(var_dlength)               :: flux_mean                      ! mean model fluxes
+  type(var_dlength)               :: flux_mntemp                     ! temporary mean model fluxes
   type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
   ! ------------------------------------------------------------------------------------------------------
   ! * operator splitting
@@ -370,6 +371,10 @@ subroutine opSplittin(&
 
     ! allocate space for the mean flux variable structure
     call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+    ! allocate space for the temporary mean flux variable structure
+    call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! allocate space for the derivative structure
@@ -661,11 +666,15 @@ subroutine opSplittin(&
                   end select
                 end do  ! looping through variables
 
-                ! save/recover copies of model fluxes
+                ! save/recover copies of model fluxes and mean fluxes
                 do iVar=1,size(flux_data%var)
                   select case(failure)
-                    case(.false.); flux_temp%var(iVar)%dat(:) = flux_data%var(iVar)%dat(:)
-                    case(.true.);  flux_data%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+                    case(.false.)
+                      flux_temp%var(iVar)%dat(:)   = flux_data%var(iVar)%dat(:)
+                      flux_mntemp%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:)
+                    case(.true.)
+                      flux_data%var(iVar)%dat(:)  = flux_temp%var(iVar)%dat(:)
+                      flux_mean%var(iVar)%dat(:)  = flux_mntemp%var(iVar)%dat(:)
                   end select
                 end do  ! looping through variables
 
