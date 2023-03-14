@@ -769,21 +769,21 @@ subroutine eval8summaSundials(&
                       sMul,                      & ! intent(in):    state vector multiplier (used in the residual calculations)
                       fluxVec,                   & ! intent(in):    flux vector
                       ! input: state variables (already disaggregated into scalars and vectors)
-                      scalarCanopyTempTrial,     & ! intent(in):
-                      mLayerTempTrial,           & ! intent(in)
-                      scalarCanairTempPrime,     & ! intent(in):    Prime value for the temperature of the canopy air space (K)
-                      scalarCanopyTempPrime,     & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
-                      scalarCanopyWatPrime,      &
-                      mLayerTempPrime,           & ! intent(in):    Prime value for the temperature of each snow and soil layer (K)
-                      scalarAquiferStoragePrime, & ! intent(in):    Prime value of storage of water in the aquifer (m)
+                      scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
+                      mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                      scalarCanairTempPrime,     & ! intent(in):    Prime value for the temperature of the canopy air space (K s-1)
+                      scalarCanopyTempPrime,     & ! intent(in):    Prime value for the temperature of the vegetation canopy (K s-1)
+                      scalarCanopyWatPrime,      & ! intent(in):    Prime value for the water on the vegetation canopy (kg m-2 s-1)
+                      mLayerTempPrime,           & ! intent(in):    Prime value for the temperature of each snow and soil layer (K s-1)
+                      scalarAquiferStoragePrime, & ! intent(in):    Prime value of storage of water in the aquifer (m s-1)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                      scalarCanopyIcePrime,      & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
-                      scalarCanopyLiqPrime,      & ! intent(in):
-                      mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (-)
-                      mLayerVolFracWatPrime,     &
-                      mLayerVolFracLiqPrime,     &
-                      scalarCanopyCmTrial,       & ! intent(in) Cm of vegetation canopy
-                      mLayerCmTrial,             & ! intent(in) Cm of soil and snow
+                      scalarCanopyIcePrime,      & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2 s-1)
+                      scalarCanopyLiqPrime,      & ! intent(in):    Prime value for the liq on the vegetation canopy (kg m-2 s-1)
+                      mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (s-1)
+                      mLayerVolFracWatPrime,     & ! intent(in):    Prime value for the volumetric water in each snow and soil layer (s-1)
+                      mLayerVolFracLiqPrime,     & ! intent(in):    Prime value for the volumetric liq in each snow and soil layer (s-1)
+                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (-)
+                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (-)
                       ! input: data structures
                       prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU

@@ -223,9 +223,7 @@ subroutine eval8summa(&
   integer(i4b)                       :: ixBeg,ixEnd               ! index of indices for the soil compression routine
   integer(i4b),parameter             :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
   real(rkind)                        :: xMin,xMax                 ! minimum and maximum values for water content
-  real(rkind)                        :: scalarCanopyHydTrial      ! trial value for mass of water on the vegetation canopy (kg m-2)
   real(rkind),parameter              :: canopyTempMax=500._rkind  ! expected maximum value for the canopy temperature (K)
-  real(rkind),dimension(nLayers)     :: mLayerVolFracHydTrial     ! trial value for volumetric fraction of water (-), general vector merged from Wat and Liq
   real(rkind),dimension(nState)      :: rVecScaled                ! scaled residual vector
   character(LEN=256)                 :: cmessage                  ! error message of downwind routine
   real(rkind)                        :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
@@ -682,16 +680,6 @@ subroutine eval8summa(&
     ! compute the total change in storage associated with compression of the soil matrix (kg m-2 s-1)
     scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
-    ! vegetation domain: get the correct water states (total water, or liquid water, depending on the state type)
-    if(computeVegFlux)then
-      scalarCanopyHydTrial = merge(scalarCanopyWatTrial, scalarCanopyLiqTrial, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
-    else
-      scalarCanopyHydTrial = realMissing
-    endif
-
-    ! snow+soil domain: get the correct water states (total water, or liquid water, depending on the state type)
-    mLayerVolFracHydTrial = merge(mLayerVolFracWatTrial, mLayerVolFracLiqTrial, (ixHydType==iname_watLayer .or. ixHydType==iname_matLayer) )
-
     ! compute the residual vector
     call computResid(&
                       ! input: model control
@@ -705,13 +693,17 @@ subroutine eval8summa(&
                       ! input: state variables (already disaggregated into scalars and vectors)
                       scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
                       scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
-                      scalarCanopyHydTrial,      & ! intent(in):    trial value of canopy hydrology state variable (kg m-2)
+                      scalarCanopyWatTrial,      & ! intent(in):    trial value for the water on the vegetation canopy (kg m-2)
                       mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                      mLayerVolFracHydTrial,     & ! intent(in):    trial vector of volumetric water content (-)
                       scalarAquiferStorageTrial, & ! intent(in):    trial value of storage of water in the aquifer (m)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
                       scalarCanopyIceTrial,      & ! intent(in):    trial value for the ice on the vegetation canopy (kg m-2)
+                      scalarCanopyLiqTrial,      & ! intent(in):    trial value for the liq on the vegetation canopy (kg m-2)
                       mLayerVolFracIceTrial,     & ! intent(in):    trial value for the volumetric ice in each snow and soil layer (-)
+                      mLayerVolFracWatTrial,     & ! intent(in):    trial value for the volumetric water in each snow and soil layer (-)
+                      mLayerVolFracLiqTrial,     & ! intent(in):    trial value for the volumetric liq in each snow and soil layer (-)
+                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (-)
+                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (-)
                       ! input: data structures
                       prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
