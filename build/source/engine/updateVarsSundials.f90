@@ -103,14 +103,11 @@ contains
 ! **********************************************************************************************************
 subroutine updateVarsSundials(&
                      ! input
-                     dt,                                        & ! intent(in):    time step
                      computJac,                                 & ! intent(in): logical flag if computing Jacobian for Sundials solve
                      do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                      mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                      indx_data,                                 & ! intent(in):    indices defining model states and layers
                      prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                     mLayerVolFracWatPrev,                      & ! intent(in):    previous vector of total water matric potential (m)
-                     mLayerMatricHeadPrev,                      & ! intent(in):    previous vector of volumetric total water content (-)
                      diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                      deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                      ! output: variables for the vegetation canopy
@@ -141,14 +138,11 @@ subroutine updateVarsSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input
-  real(rkind)      ,intent(in)       :: dt                              ! time step
   logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing Jacobian for Sundials solver
   logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
   type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
-  real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)         ! previous vector of total water matric potential (m)
-  real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)         ! previous vector of volumetric total water content (-)
   type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)    :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
   ! output: variables for the vegetation canopy
@@ -561,12 +555,8 @@ subroutine updateVarsSundials(&
 
               ! compute volumetric fraction of liquid water and ice
               call updateSoilSundials(&
-                              dt,                                                & ! intent(in) : time step
-                              computJac,                                         & ! intent(in) : logical flag if inside Sundials solver
                               xTemp,                                             & ! intent(in) : temperature (K)
                               mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in) : total water matric potential (m)
-                              mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in) : previous values, will be same as current if computJac
-                              mLayerVolFracWatPrev(iLayer),                      & ! intent(in) : previous values, will be same as current if computJac
                               mLayerTempPrime(iLayer),                           & ! intent(in) : temperature time derivative (K/s)
                               mLayerMatricHeadPrime(ixControlIndex),             & ! intent(in) : total water matric potential time derivative (m/s)
                               vGn_alpha(ixControlIndex),                         & ! intent(in) : van Genutchen "alpha" parameter
