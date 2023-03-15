@@ -339,11 +339,11 @@ function dTheta_dPsi(psi,alpha,theta_res,theta_sat,n,m)
   real(rkind),intent(in) :: m           ! vGn "m" parameter (-)
   real(rkind)            :: dTheta_dPsi ! derivative of the soil water characteristic (m-1)
   if(psi<=0._rkind)then
-  dTheta_dPsi = (theta_sat-theta_res) * &
-      (-m*(1._rkind + (psi*alpha)**n)**(-m-1._rkind)) * n*(psi*alpha)**(n-1._rkind) * alpha
-  if(abs(dTheta_dPsi) < epsilon(psi)) dTheta_dPsi = epsilon(psi)
+    dTheta_dPsi = (theta_sat-theta_res) * &
+                 (-m*(1._rkind + (psi*alpha)**n)**(-m-1._rkind)) * n*(psi*alpha)**(n-1._rkind) * alpha
+    if(abs(dTheta_dPsi) < epsilon(psi)) dTheta_dPsi = epsilon(psi)
   else
-  dTheta_dPsi = epsilon(psi)
+    dTheta_dPsi = epsilon(psi)
   end if
 end function dTheta_dPsi
 

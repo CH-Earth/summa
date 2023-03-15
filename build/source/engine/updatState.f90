@@ -116,18 +116,7 @@ subroutine updateSoil(&
 
   ! compute fractional **volume** of total water (liquid plus ice)
   mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  if(mLayerVolFracWat > (theta_sat + tinyVal)) then
-    err=20
-    message=trim(message)//'volume of liquid and ice (mLayerVolFracWat) exceeds porosity'
-    print*, 'mLayerVolFracWat     = ', mLayerVolFracWat
-    print*, 'theta_sat (porosity) = ', theta_sat
-    print*, 'mLayerMatricHead     = ', mLayerMatricHead
-    print*, 'theta_res            = ', theta_res
-    print*, 'vGn_alpha            = ', vGn_alpha
-    print*, 'vGn_n                = ', vGn_n
-    print*, 'vGn_m                = ', vGn_m
-    return
-  end if
+  if(mLayerVolFracWat > (theta_sat + tinyVal))then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
 
   ! compute the critical soil temperature where all water is unfrozen (K)
   ! (eq 17 in Dall'Amico 2011)
@@ -135,7 +124,6 @@ subroutine updateSoil(&
 
   ! *** compute volumetric fraction of liquid water and ice for partially frozen soil
   if(mLayerTemp < TcSoil)then ! (check if soil temperature is less than the critical temperature)
-
     ! - volumetric liquid water content (-)
     ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
     !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
@@ -143,18 +131,13 @@ subroutine updateSoil(&
     mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
     mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
-    ! - volumetric ice content (-)
-    mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
-
   ! *** compute volumetric fraction of liquid water and ice for unfrozen soil
-  else
-
-    ! all water is unfrozen
-    mLayerPsiLiq     = mLayerMatricHead
+  else !( mLayerTemp >= TcSoil, all water is unfrozen, mLayerPsiLiq = mLayerMatricHead )
     mLayerVolFracLiq = mLayerVolFracWat
-    mLayerVolFracIce = 0._rkind
 
   end if  ! (check if soil is partially frozen)
+  ! - volumetric ice content (-)
+  mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
 
 end subroutine updateSoil
 

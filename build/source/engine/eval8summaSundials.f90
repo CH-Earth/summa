@@ -587,13 +587,14 @@ subroutine eval8summaSundials(&
                             ! output: error control
                             err,cmessage)                    ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        ! Below commented out because it seems more correct for Sundials to use the analytical form
         ! to conserve energy compute finite difference approximation of (theta_ice)'
-        if(dt_cur > 1e-14_rkind) then
-          scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur
-          do concurrent (iLayer=1:nLayers)
-                mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-          end do
-        endif ! if dt_cur is not too small
+        !if(dt_cur > 1e-14_rkind) then
+        !  scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur
+        !  do concurrent (iLayer=1:nLayers)
+        !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+        !  end do
+        !endif ! if dt_cur is not too small
       else if(ixHowHeatCap == closedForm)then
         call computHeatCapAnalytic(&
                           ! input: control variables
