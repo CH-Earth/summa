@@ -335,16 +335,16 @@ subroutine summaSolveSundialsIDA(                         &
   ! initialize rootfinding problem and allocate space, counting roots
   if(detect_events)then
     nRoot = 0
-    if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing) nRoot = nRoot+1
+    if(indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing) nRoot = nRoot+1
     if(nSnow>0)then
       do i = 1,nSnow
-        if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
       enddo
     endif
     if(nSoil>0)then
       do i = 1,nSoil
-        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing) nRoot = nRoot+1
-        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
       enddo
     endif
     allocate( rootsfound(nRoot) )
@@ -409,7 +409,7 @@ subroutine summaSolveSundialsIDA(                         &
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
     retval = FIDASetErrFile(ida_mem, c_null_ptr)
-    if(detect_events) retval = FIDASetNoInactiveRootWarn(ida_mem)
+    retval = FIDASetNoInactiveRootWarn(ida_mem)
   endif
 
   ! need the following values for the first substep
