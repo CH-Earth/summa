@@ -335,16 +335,16 @@ subroutine summaSolveSundialsIDA(                         &
   ! initialize rootfinding problem and allocate space, counting roots
   if(detect_events)then
     nRoot = 0
-    if(indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing) nRoot = nRoot+1
+    if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing) nRoot = nRoot+1
     if(nSnow>0)then
       do i = 1,nSnow
-        if(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
       enddo
     endif
     if(nSoil>0)then
       do i = 1,nSoil
-        if(indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing) nRoot = nRoot+1
-        if(indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
       enddo
     endif
     allocate( rootsfound(nRoot) )
@@ -352,6 +352,10 @@ subroutine summaSolveSundialsIDA(                         &
     rootdir = 0
     retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
+  else ! will not use, allocate at something
+    nRoot = 1
+    allocate( rootsfound(nRoot) )
+    allocate( rootdir(nRoot) )
   endif
 
   ! define the form of the matrix
@@ -554,13 +558,13 @@ subroutine summaSolveSundialsIDA(                         &
     if(detect_events)then
       if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
         ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
-        retval = FIDAGetRootInfo(ida_mem, rootsfound)
-        if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
-        print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
+        !retval = FIDAGetRootInfo(ida_mem, rootsfound)
+        !if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
+        !print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
         ! Reininitialize solver for running after discontinuity and restart
         retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
         if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
-        if(dt_last(1)<0.01_rkind)then ! don't keep calling if step is small
+        if(dt_last(1) < 0.01_rkind)then ! don't keep calling if step is small
           retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4IDA))
         else
           retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
@@ -604,10 +608,8 @@ subroutine summaSolveSundialsIDA(                         &
   deallocate( eqns_data%mLayerEnthalpyPrev )
   deallocate( eqns_data%fluxVec )
   deallocate( eqns_data%resSink )
-  if(detect_events)then
-    deallocate( rootsfound )
-    deallocate( rootdir )
-  endif
+  deallocate( rootsfound )
+  deallocate( rootdir )
 
   call FIDAFree(ida_mem)
   retval = FSUNNonlinSolFree(sunnonlin_NLS)
@@ -752,7 +754,6 @@ end subroutine setSolverParams
  nSoil = eqns_data%nSoil
 
  ! initialize
- rootdir = 0
  ind = 0
 
  ! identify the critical point when vegetation begins to freeze
@@ -849,7 +850,6 @@ end subroutine setSolverParams
  uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
 
  ! initialize
- gout = 0._rkind
  ind = 0
 
  ! identify the critical point when vegetation begins to freeze
@@ -874,7 +874,7 @@ end subroutine setSolverParams
      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
        ind = ind+1
        xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
-       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+       gout(1+nSnow+2*i-1) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
      else
        xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
      endif
@@ -882,7 +882,7 @@ end subroutine setSolverParams
      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
        ind = ind+1
        TcSoil = crit_soilT(xPsi)
-       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+       gout(1+nSnow+2*i) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
      endif
    end do
  endif
