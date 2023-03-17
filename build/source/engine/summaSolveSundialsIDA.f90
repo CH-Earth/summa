@@ -564,12 +564,6 @@ subroutine summaSolveSundialsIDA(                         &
         ! Reininitialize solver for running after discontinuity and restart
         retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
         if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
-        if(dt_last(1) < 0.01_rkind)then ! don't keep calling if step is small
-          retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4IDA))
-        else
-          retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
-        endif
-        if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
       endif
     endif
 
