@@ -1,0 +1,9 @@
+# from ../../ngen/builddir, run 
+# cp ../../summa/build/build_cmakeBMI_mac build_cmake
+# run script from the builddir directory with ./build_cmake
+
+
+cmake -B ngen/ -S .  -DNGEN_ACTIVATE_PYTHON:BOOL=OFF -DBMI_C_LIB_ACTIVE:BOOL=ON -DBMI_FORTRAN_ACTIVE:BOOL=ON  \
+
+cmake -B /ngen -S . &&
+cmake --build . --target ngen
