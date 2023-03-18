@@ -78,6 +78,8 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
  implicit none
  private::setInitialCondition
  private::setSolverParams
+ private::find_rootdir
+ public::layerDisCont4IDA
  public::summaSolveSundialsIDA
 
 contains
@@ -868,7 +870,7 @@ end subroutine setSolverParams
      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
        ind = ind+1
        xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
-       gout(1+nSnow+2*i-1) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
      else
        xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
      endif
@@ -876,7 +878,7 @@ end subroutine setSolverParams
      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
        ind = ind+1
        TcSoil = crit_soilT(xPsi)
-       gout(1+nSnow+2*i) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
      endif
    end do
  endif
