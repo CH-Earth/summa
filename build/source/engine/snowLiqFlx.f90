@@ -58,7 +58,6 @@ subroutine snowLiqFlx(&
                       scalarThroughfallRain,   & ! intent(in):    rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                       scalarCanopyLiqDrainage, & ! intent(in):    liquid drainage from the vegetation canopy (kg m-2 s-1)
                       ! input: model state vector
-                      mLayerVolFracIceTrial,   & ! intent(in):    trial value of volumetric fraction of ice at the current iteration (-)
                       mLayerVolFracLiqTrial,   & ! intent(in):    trial value of volumetric fraction of liquid water at the current iteration (-)
                       ! input-output: data structures
                       indx_data,               & ! intent(in):    model indices
@@ -79,7 +78,6 @@ subroutine snowLiqFlx(&
   real(rkind),intent(in)             :: scalarThroughfallRain      ! computed throughfall rate (kg m-2 s-1)
   real(rkind),intent(in)             :: scalarCanopyLiqDrainage    ! computed drainage of liquid water (kg m-2 s-1)
   ! input: model state vector
-  real(rkind),intent(in)			 :: mLayerVolFracIceTrial(:)   ! trial value of volumetric fraction of ice at the current iteration (-)
   real(rkind),intent(in)             :: mLayerVolFracLiqTrial(:)   ! trial value of volumetric fraction of liquid water at the current iteration (-)
   ! input-output: data structures
   type(var_ilength),intent(in)    :: indx_data                  ! model indices
@@ -111,6 +109,7 @@ subroutine snowLiqFlx(&
     ixLayerState     => indx_data%var(iLookINDEX%ixLayerState)%dat,             & ! intent(in): list of indices for all model layers
     ixSnowOnlyHyd    => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat,            & ! intent(in): index in the state subset for hydrology state variables in the snow domain
     ! input: snow properties and parameters
+    mLayerVolFracIce => prog_data%var(iLookPROG%mLayerVolFracIce)%dat(1:nSnow), & ! intent(in): volumetric ice content at the start of the time step (-)
     Fcapil           => mpar_data%var(iLookPARAM%Fcapil)%dat(1),                & ! intent(in): capillary retention as a fraction of the total pore volume (-)
     k_snow           => mpar_data%var(iLookPARAM%k_snow)%dat(1),                & ! intent(in): hydraulic conductivity of snow (m s-1), 0.0055 = approx. 20 m/hr, from UEB
     mw_exp           => mpar_data%var(iLookPARAM%mw_exp)%dat(1),                & ! intent(in): exponent for meltwater flow (-)
@@ -120,10 +119,10 @@ subroutine snowLiqFlx(&
     ) ! association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='snowLiqFlxSundials/'
+    err=0; message='snowLiqFlx/'
 
     ! check that the input vectors match nSnow
-    if(size(mLayerVolFracLiqTrial)/=nSnow .or. size(mLayerVolFracIceTrial)/=nSnow .or. &
+    if(size(mLayerVolFracLiqTrial)/=nSnow .or. size(mLayerVolFracIce)/=nSnow .or. &
         size(iLayerLiqFluxSnow)/=nSnow+1 .or. size(iLayerLiqFluxSnowDeriv)/=nSnow+1) then
       err=20; message=trim(message)//'size mismatch of input/output vectors'; return
     end if
@@ -151,16 +150,16 @@ subroutine snowLiqFlx(&
 
     ! define the liquid flux at the upper boundary (m s-1)
     iLayerLiqFluxSnow(0)      = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water
-    iLayerLiqFluxSnowDeriv(0) = 0._rkind !computed inside computJacobSundials_module
+    iLayerLiqFluxSnowDeriv(0) = 0._rkind !computed inside computJacob
 
     ! compute properties fixed over the time step
     if(firstFluxCall)then
       ! loop through snow layers
       do iLayer=1,nSnow
         ! compute the reduction in liquid water holding capacity at high snow density (-)
-        multResid = 1._rkind / ( 1._rkind + exp( (mLayerVolFracIceTrial(iLayer)*iden_ice - residThrs) / residScal) )
+        multResid = 1._rkind / ( 1._rkind + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
         ! compute the pore space (-)
-        mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIceTrial(iLayer)
+        mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer)
         ! compute the residual volumetric liquid water content (-)
         mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
       end do  ! (looping through snow layers)
@@ -175,7 +174,7 @@ subroutine snowLiqFlx(&
         relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
         iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
         iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
-        if(mLayerVolFracIceTrial(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
+        if(mLayerVolFracIce(iLayer) > maxVolIceContent)then ! NOTE: use start-of-step ice content, to avoid convergence problems
           ! ** allow liquid water to pass through under very high ice density
           iLayerLiqFluxSnow(iLayer) = iLayerLiqFluxSnow(iLayer) + iLayerLiqFluxSnow(iLayer-1) !NOTE: derivative may need to be updated in future.
         end if
@@ -189,4 +188,5 @@ subroutine snowLiqFlx(&
   end associate
 
 end subroutine snowLiqFlx
+
 end module snowLiqFlx_module
