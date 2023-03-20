@@ -440,7 +440,7 @@ subroutine summaSolveSundialsIDA(                         &
   !************************* loop on one_step mode **********************************
   !**********************************************************************************
 
-  tret(1) = t0           ! intial time
+  tret(1) = t0           ! initial time
   do while(tret(1) < dt)
 
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)

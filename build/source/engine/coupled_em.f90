@@ -212,7 +212,8 @@ subroutine coupled_em(&
   real(rkind)                          :: oldSWE                 ! SWE at the start of the substep
   real(rkind)                          :: newSWE                 ! SWE at the end of the substep
   real(rkind)                          :: delSWE                 ! change in SWE over the subtep
-  real(rkind)                          :: effRainfall            ! effective rainfall (kg m-2 s-1)
+  real(rkind)                          :: innerEffRainfall       ! inner step average effective rainfall into snow (kg m-2 s-1)
+  real(rkind)                          :: effRainfall            ! timestep-average effective rainfall into snow (kg m-2 s-1)
   real(rkind)                          :: effSnowfall            ! effective snowfall (kg m-2 s-1)
   real(rkind)                          :: sfcMeltPond            ! surface melt pond (kg m-2)
   real(rkind)                          :: massBalance            ! mass balance error (kg m-2)
@@ -222,6 +223,7 @@ subroutine coupled_em(&
   type(var_dlength)                    :: flux_inner             ! inner step average model fluxes for a local HRU
   real(rkind)                          :: meanSoilCompress       ! timestep-average soil compression
   real(rkind)                          :: innerSoilCompress      ! inner step average soil compression
+
   ! sublimation sums over substep and means over data_step
   real(rkind)                          :: sumCanopySublimation   ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
   real(rkind)                          :: sumSnowSublimation     ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
@@ -337,12 +339,8 @@ subroutine coupled_em(&
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
-    meanSoilCompress      = 0._rkind ! mean total soil compression
-    ! initialize fluxes to average over whole_step (averaged over substep in varSubStep)
-    do iVar=1,size(averageFlux_meta)
-      flux_inner%var(iVar)%dat(:) = 0._rkind
-    end do
-    innerSoilCompress      = 0._rkind ! mean total soil compression
+    meanSoilCompress = 0._rkind ! mean total soil compression
+    effRainfall      = 0._rkind ! mean total effective rainfall over snow
 
     ! associate local variables with information in the data structures
     associate(&
@@ -584,7 +582,7 @@ subroutine coupled_em(&
     dt_solvInner  = 0._rkind   ! length of time step that has been completed (s) in whole_step subStep
     dt_init = min(data_step,whole_step,maxstep_op)  ! initial substep length (s)
     dt_sub = dt_init
-    dtSave  = whole_step              ! length of whole substep
+    dtSave  = whole_step       ! length of whole substep
 
     ! initialize the number of sub-steps
     nsub=0
@@ -816,6 +814,8 @@ subroutine coupled_em(&
         do iVar=1,size(averageFlux_meta)
           flux_inner%var(iVar)%dat(:) = 0._rkind
         end do
+       innerSoilCompress = 0._rkind ! mean total soil compression
+       innerEffRainfall  = 0._rkind ! mean total effective rainfall over snow
 
       endif ! (do_outer loop)
 
@@ -1025,6 +1025,7 @@ subroutine coupled_em(&
         flux_inner%var(iVar)%dat(:)    = flux_inner%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
       innerSoilCompress = innerSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght
+      if (nSnow>0)innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
       ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub
@@ -1041,6 +1042,7 @@ subroutine coupled_em(&
           flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(iVar)%dat(:)*dt_wght
         end do
         meanSoilCompress = meanSoilCompress + innerSoilCompress*dt_wght
+        effRainfall = effRainfall + innerEffRainfall*dt_wght
         flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = sumCanopySublimation/data_step ! these two will be equal unless insufficient canopy water for sublim
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = sumLatHeatCanopyEvap/data_step ! these two will be equal unless insufficient canopy water for sublim
@@ -1217,7 +1219,7 @@ subroutine coupled_em(&
       ! check SWE
       if(nSnow>0)then
         effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
-        effRainfall = averageThroughfallRain + averageCanopyLiqDrainage
+        !effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow
         newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
         delSWE      = newSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
