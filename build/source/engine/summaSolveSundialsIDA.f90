@@ -777,7 +777,7 @@ end subroutine setSolverParams
      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
        ind = ind+1
        rootdir(ind) = 1
-       if(xPsi > 0 ) rootdir(ind) = -1
+       if(xPsi > 0._rkind ) rootdir(ind) = -1
      endif
      ! identify the critical point when the soil layer begins to freeze
      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
