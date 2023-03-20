@@ -623,6 +623,7 @@ subroutine computFlux(&
                       scalarThroughfallRain,                     & ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
                       scalarCanopyLiqDrainage,                   & ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
                       ! input: model state vector
+                      mLayerVolFracIceTrial(1:nSnow),            & ! intent(in): trial value of volumetric fraction of ice at the current iteration (-)
                       mLayerVolFracLiqTrial(1:nSnow),            & ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
                       ! input-output: data structures
                       indx_data,                                 & ! intent(in):    model indices
