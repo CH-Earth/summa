@@ -330,7 +330,6 @@ subroutine coupled_em(&
     call allocLocal(averageFlux_meta(:)%var_info,flux_inner,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-
     ! initialize surface melt pond
     sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
 
@@ -919,7 +918,7 @@ subroutine coupled_em(&
           ! compute the melt in each snow and soil layer
           if(nSnow>0)&
           mLayerMeltFreeze(1:nSnow) = -( mLayerVolFracIce(1:nSnow) - mLayerVolFracIceInit(1:nSnow) ) * iden_ice
-          mLayerMeltFreeze(nSnow+1:nLayers) = -(mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers))*iden_water
+          mLayerMeltFreeze(nSnow+1:nLayers) = -( mLayerVolFracIce(nSnow+1:nLayers) - mLayerVolFracIceInit(nSnow+1:nLayers) )*iden_water
           deallocate(mLayerVolFracIceInit)
 
           ! * compute change in canopy ice content due to sublimation...
@@ -1041,11 +1040,11 @@ subroutine coupled_em(&
         do iVar=1,size(averageFlux_meta)
           flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(iVar)%dat(:)*dt_wght
         end do
-        meanSoilCompress = meanSoilCompress + innerSoilCompress
+        meanSoilCompress = meanSoilCompress + innerSoilCompress*dt_wght
         flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = sumCanopySublimation/whole_step ! these two will be equal unless insufficient canopy water for sublim
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = sumLatHeatCanopyEvap/whole_step ! these two will be equal unless insufficient canopy water for sublim
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = sumSenHeatCanopy/whole_step     ! these two will be equal unless insufficient canopy water for sublim
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = sumCanopySublimation/data_step ! these two will be equal unless insufficient canopy water for sublim
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = sumLatHeatCanopyEvap/data_step ! these two will be equal unless insufficient canopy water for sublim
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = sumSenHeatCanopy/data_step     ! these two will be equal unless insufficient canopy water for sublim
       endif
 
       ! save the time step to initialize the subsequent step
