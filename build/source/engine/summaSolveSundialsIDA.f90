@@ -220,6 +220,7 @@ subroutine summaSolveSundialsIDA(                         &
   real(qp)                          :: tret(1)              ! time in data window
   integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
   integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
+  logical(lgt)                      :: tinystep             ! if step goes below small size
   logical(lgt),parameter            :: offErrWarnMessage = .true. ! flag to turn IDA warnings off, default true
   logical(lgt),parameter            :: detect_events = .true.     ! flag to do event detection and restarting, default true
   logical(lgt),parameter            :: use_fdJac = .false.        ! flag to use finite difference Jacobian, default false
@@ -432,12 +433,7 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
   eqns_data%ixSaturation             = ixSaturation
 
-  ! call this at beginning of data window to reduce root bouncing (only looking in one direction)
-  if(detect_events)then
-    call find_rootdir(eqns_data, rootdir)
-    retval = FIDASetRootDirection(ida_mem, rootdir)
-    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetRootDirection'; return; endif
-  endif
+  tinystep = .false.
 
   !**********************************************************************************
   !****************************** Main Solver ***************************************
@@ -446,6 +442,13 @@ subroutine summaSolveSundialsIDA(                         &
 
   tret(1) = t0           ! intial time
   do while(tret(1) < dt)
+
+    ! call this at beginning of step to reduce root bouncing (only looking in one direction)
+    if(detect_events .and. .not.tinystep)then
+      call find_rootdir(eqns_data, rootdir)
+      retval = FIDASetRootDirection(ida_mem, rootdir)
+      if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetRootDirection'; return; endif
+    endif
 
     eqns_data%firstFluxCall = .false.
     eqns_data%firstSplitOper = .true.
@@ -566,6 +569,14 @@ subroutine summaSolveSundialsIDA(                         &
         ! Reininitialize solver for running after discontinuity and restart
         retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
         if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
+        if(dt_last(1) < 0.01_rkind)then ! don't keep calling if step is small
+          retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4IDA))
+          tinystep = .true.
+        else
+          retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
+          tinystep = .false.
+        endif
+        if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
       endif
     endif
 
