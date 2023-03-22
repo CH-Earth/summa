@@ -39,7 +39,7 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER_TOP = /Users/amedin/Research/SummaSundials
+F_MASTER_TOP =../../
 F_MASTER = $(F_MASTER_TOP)/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs

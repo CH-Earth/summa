@@ -1,5 +1,0 @@
-# from ../../bmi/builddir, run 
-# cp ../../summa/build/build_cmakeBMI_mac build_cmake
-# run script from the builddir directory with ./build_cmake
-
-cmake ../../bmi-fortran/ -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_INSTALL_PREFIX=/Users/amedin/Research/SummaSundials/bmi/instdir

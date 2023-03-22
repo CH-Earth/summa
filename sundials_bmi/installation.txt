@@ -11,26 +11,18 @@
 % cd /buildir
 NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
 
-3. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
-% cmake ../../bmi-fortran/ -DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/bmi/instdir 
+3. The install directory needs to be set while running the cmake inside the builddir, using home directory as $(YOUR_HOME)
+% cmake ../../bmi-fortran/ -DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/bmi/instdir
 
--DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DCMAKE_INSTALL_RPATH=/Users/amedin/Research/SummaSundials/bmi/instdir/lib -DCMAKE_SKIP_BUILD_RPATH=OFF -DCMAKE_BUILD_RPATH=/Users/amedin/Research/SummaSundials/bmi/instdir/lib
-
-
-INSTALL_RPATH to a specific folder and set BUILD_WITH_INSTALL_RPATH to TRUE
-You can do this by running from inside buildir, where the star is the system specific file with hardcoded paths:
-cp ../../summa/build/build_cmakeBMI_* build_cmake
-./build_cmake
-
-4. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
+4. The default compiler is gfortran. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
    -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
 
-5. If the above went well, staying in the buildir directory run
+You can do 3 and 4 by running from inside buildir:
+cp ../../summa/build/build_cmakeBMI build_cmake
+./build_cmake
 
-#!/usr/bin/env bash
-# Updates runtime paths for executables on macOS.
-install_name_tool -change @rpath/libbmif.2.0.dylib $(YOUR_HOME)/bmi/instdir/lib/libbmif.2.0.dylib
 
+5. If the above went well, staying in the buildir directory run:
 % make
 % make install
 
@@ -49,14 +41,15 @@ Make a directory outside the sundials-6.3.0 folder and enter it, and make the in
 % cd /buildir
 NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
 
-9. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
+9. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled, as well as the setting the install directory, while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
 % cmake ../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
-You can do this by running from inside buildir, where the star is the system specific file with hardcoded paths:
-cp ../../summa/build/build_cmakeSundials_* build_cmake
-./build_cmake
 
 10. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
    -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
+
+You can do 9 and 10 by running from inside buildir:
+cp ../../summa/build/build_cmakeSundials build_cmake
+./build_cmake
 
 11. If the above went well, staying in the buildir directory run
 % make
@@ -77,8 +70,5 @@ or % source build_summa_* if you are using a specific * compiler
 16. On linux installations you may need to add to your .bashrc file (and run source $(YOUR_HOME)/.bashrc)
 export LD_LIBRARY_PATH=$(YOUR_HOME)/sundials/instdir/lib64
 export LD_LIBRARY_PATH=$(YOUR_HOME)/bmi/instdir/lib64
-
-This does not work on macOS, sundials libraries should be found as complied but the BMI libraries will need to use the Xlinker commands
-LIB_BMI=-L$(DIR_BMI)/lib -lbmif -Xlinker -rpath -Xlinker $(DIR_BMI)/lib
 
 
