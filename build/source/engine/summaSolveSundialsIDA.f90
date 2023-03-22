@@ -78,6 +78,8 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
  implicit none
  private::setInitialCondition
  private::setSolverParams
+ private::find_rootdir
+ public::layerDisCont4IDA
  public::summaSolveSundialsIDA
 
 contains
@@ -112,16 +114,15 @@ subroutine summaSolveSundialsIDA(                         &
                       ! input-output: data structures
                       indx_data,               & ! intent(in):    index data
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                      flux_temp,               & ! intent(inout): model fluxes for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
-                      flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
+                      flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a dt
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                      mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                       ! output
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
-                      mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
-                      dt_out,                  & ! intent(out):   time step
+                      dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
                       err,message              & ! intent(out):   error control
@@ -143,7 +144,7 @@ subroutine summaSolveSundialsIDA(                         &
   USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE eval8summaSundials_module,only:eval8summa4IDA         ! DAE/ODE functions
   USE eval8summaSundials_module,only:eval8summaSundials     ! residual of DAE
-  USE computJacobSundials_module,only:computJacob4IDA     ! system Jacobian
+  USE computJacobSundials_module,only:computJacob4IDA       ! system Jacobian
   USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
 
@@ -168,7 +169,7 @@ subroutine summaSolveSundialsIDA(                         &
   ! input: state vectors
   real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
   real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
-  real(rkind), intent(inout)      :: dMat(:)
+  real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(zLookup),intent(in)        :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
@@ -180,9 +181,8 @@ subroutine summaSolveSundialsIDA(                         &
   type(var_ilength),  intent(in)  :: indx_data              ! indices defining model states and layers
   ! input-output: data structures
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_temp              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes
+  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
@@ -190,8 +190,8 @@ subroutine summaSolveSundialsIDA(                         &
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
-  logical(lgt),intent(inout)      :: tooMuchMelt                   ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                 ! time step
+  logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
+  real(qp),intent(out)            :: dt_out                 ! time step sum for entire data window at termination of sundials
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -212,19 +212,18 @@ subroutine summaSolveSundialsIDA(                         &
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time
   real(qp)                          :: dt_last(1)           ! last time step
-  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode
-  integer(i4b)                      :: iVar
-  logical(lgt)                      :: startQuadrature
-  real(rkind)                       :: mLayerMatricHeadLiqPrev(nSoil)
-  real(qp)                          :: h_init
-  integer(c_long)                   :: nState               ! total number of state variables
-  real(rkind)                       :: rVec(nStat)
-  real(qp)                          :: tret(1)
-  logical(lgt)                      :: mergedLayers
-  logical(lgt),parameter            :: offErrWarnMessage = .false.
-  real(rkind)                       :: superflousSub        ! superflous sublimation (kg m-2 s-1)
-  real(rkind)                       :: superflousNrg        ! superflous energy that cannot be used for sublimation (W m-2 [J m-2 s-1])
-  integer(i4b)                      :: i
+  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode in Sundials type
+  integer(c_long)                   :: nState               ! total number of state variables in Sundials type
+  real(rkind)                       :: rVec(nStat)          ! residual vector
+  integer(i4b)                      :: iVar, i              ! indices
+  integer(i4b)                      :: nRoot                ! total number of roots (events) to find
+  real(qp)                          :: tret(1)              ! time in data window
+  integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
+  integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
+  logical(lgt)                      :: tinystep             ! if step goes below small size
+  logical(lgt),parameter            :: offErrWarnMessage = .true. ! flag to turn IDA warnings off, default true
+  logical(lgt),parameter            :: detect_events = .true.     ! flag to do event detection and restarting, default true
+  logical(lgt),parameter            :: use_fdJac = .false.        ! flag to use finite difference Jacobian, default false
 
   ! -----------------------------------------------------------------------------------------------------
 
@@ -254,7 +253,7 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%sMul                    = sMul
 
   allocate( eqns_data%dMat(nState) )
-  eqns_data%dMat                   = dMat
+  eqns_data%dMat                    = dMat
 
   ! allocate space for the temporary prognostic variable structure
   call allocLocal(prog_meta(:),eqns_data%prog_data,nSnow,nSoil,err,message)
@@ -306,7 +305,6 @@ subroutine summaSolveSundialsIDA(                         &
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
 
-  startQuadrature = .true.
   retval = FSUNContext_Create(c_null_ptr, sunctx)
 
   ! create serial vectors
@@ -336,6 +334,32 @@ subroutine summaSolveSundialsIDA(                         &
   ! set tolerances
   retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4IDA))
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDAWFtolerances'; return; endif
+
+  ! initialize rootfinding problem and allocate space, counting roots
+  if(detect_events)then
+    nRoot = 0
+    if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing) nRoot = nRoot+1
+    if(nSnow>0)then
+      do i = 1,nSnow
+        if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
+      enddo
+    endif
+    if(nSoil>0)then
+      do i = 1,nSoil
+        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing) nRoot = nRoot+1
+        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
+      enddo
+    endif
+    allocate( rootsfound(nRoot) )
+    allocate( rootdir(nRoot) )
+    rootdir = 0
+    retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
+    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
+  else ! will not use, allocate at something
+    nRoot = 1
+    allocate( rootsfound(nRoot) )
+    allocate( rootdir(nRoot) )
+  endif
 
   ! define the form of the matrix
   select case(ixMatrix)
@@ -368,9 +392,10 @@ subroutine summaSolveSundialsIDA(                         &
   if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetLinearSolver'; return; endif
 
   ! Set the user-supplied Jacobian routine
-  !comment this line out to use FD Jacobian
-  retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
-  if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
+  if(.not.use_fdJac)then
+    retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
+    if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
+  endif
 
   ! Create Newton SUNNonlinearSolver object
   sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y, sunctx)
@@ -400,7 +425,6 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
   eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
   eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  mLayerMatricHeadLiqPrev(:)         = diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat(:)
   eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
   eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
   eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
@@ -409,13 +433,23 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
   eqns_data%ixSaturation             = ixSaturation
 
+  tinystep = .false.
+
   !**********************************************************************************
   !****************************** Main Solver ***************************************
   !************************* loop on one_step mode **********************************
   !**********************************************************************************
 
-  tret(1) = t0           ! intial time
+  tret(1) = t0           ! initial time
   do while(tret(1) < dt)
+
+    ! call this at beginning of step to reduce root bouncing (only looking in one direction)
+    if(detect_events .and. .not.tinystep)then
+      call find_rootdir(eqns_data, rootdir)
+      retval = FIDASetRootDirection(ida_mem, rootdir)
+      if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetRootDirection'; return; endif
+    endif
+
     eqns_data%firstFluxCall = .false.
     eqns_data%firstSplitOper = .true.
     ! call IDASolve, advance solver just one internal step
@@ -505,12 +539,12 @@ subroutine summaSolveSundialsIDA(                         &
 
     ! sum of fluxes
     do iVar=1,size(flux_meta)
-      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) *  dt_last(1)
+      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * dt_last(1)
     end do
 
-    ! sum of mLayerCmpress
+    ! sum of mLayerCmpress over the time step, since using prev value not * dt_last(1)
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadLiqTrial(:) - mLayerMatricHeadLiqPrev(:) )
+                                    * ( eqns_data%mLayerMatricHeadTrial(:) - eqns_data%mLayerMatricHeadPrev(:) )
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
@@ -518,13 +552,33 @@ subroutine summaSolveSundialsIDA(                         &
     eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
     eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
     eqns_data%mLayerTempPrev(:)        = eqns_data%mLayerTempTrial(:)
-    mLayerMatricHeadLiqPrev(:)         = eqns_data%mLayerMatricHeadLiqTrial(:)
     eqns_data%mLayerMatricHeadPrev(:)  = eqns_data%mLayerMatricHeadTrial(:)
     eqns_data%mLayerVolFracWatPrev(:)  = eqns_data%mLayerVolFracWatTrial(:)
     eqns_data%mLayerVolFracIcePrev(:)  = eqns_data%mLayerVolFracIceTrial(:)
     eqns_data%mLayerVolFracLiqPrev(:)  = eqns_data%mLayerVolFracLiqTrial(:)
     eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
     eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
+
+    ! Restart for where vegetation and layers cross freezing point
+    if(detect_events)then
+      if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
+        ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
+        !retval = FIDAGetRootInfo(ida_mem, rootsfound)
+        !if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
+        !print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
+        ! Reininitialize solver for running after discontinuity and restart
+        retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
+        if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
+        if(dt_last(1) < 0.01_rkind)then ! don't keep calling if step is small
+          retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4IDA))
+          tinystep = .true.
+        else
+          retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
+          tinystep = .false.
+        endif
+        if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
+      endif
+    endif
 
   enddo ! while loop on one_step mode until time dt
 
@@ -540,7 +594,7 @@ subroutine summaSolveSundialsIDA(                         &
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
-    dt_out        = tret(1)
+    dt_out        = tret(1) ! should be dt, probably do not need to keep this
   endif
 
   ! free memory
@@ -561,6 +615,8 @@ subroutine summaSolveSundialsIDA(                         &
   deallocate( eqns_data%mLayerEnthalpyPrev )
   deallocate( eqns_data%fluxVec )
   deallocate( eqns_data%resSink )
+  deallocate( rootsfound )
+  deallocate( rootdir )
 
   call FIDAFree(ida_mem)
   retval = FSUNNonlinSolFree(sunnonlin_NLS)
@@ -667,67 +723,181 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
 
 end subroutine setSolverParams
 
-! *********************************************************************************************************
-! private subroutine implctMelt: compute melt of the "snow without a layer"
-! *********************************************************************************************************
-subroutine implctMelt(&
-                      ! input/output: integrated snowpack properties
-                      scalarSWE,         & ! intent(inout): snow water equivalent (kg m-2)
-                      scalarSnowDepth,   & ! intent(inout): snow depth (m)
-                      scalarSfcMeltPond, & ! intent(inout): surface melt pond (kg m-2)
-                      ! input/output: properties of the upper-most soil layer
-                      soilTemp,          & ! intent(inout): surface layer temperature (K)
-                      soilDepth,         & ! intent(inout): surface layer depth (m)
-                      soilHeatcap,       & ! intent(inout): surface layer volumetric heat capacity (J m-3 K-1)
-                      ! output: error control
-                      err,message        ) ! intent(out): error control
-  implicit none
-  ! input/output: integrated snowpack properties
-  real(rkind),intent(inout)    :: scalarSWE          ! snow water equivalent (kg m-2)
-  real(rkind),intent(inout)    :: scalarSnowDepth    ! snow depth (m)
-  real(rkind),intent(inout)    :: scalarSfcMeltPond  ! surface melt pond (kg m-2)
-  ! input/output: properties of the upper-most soil layer
-  real(rkind),intent(inout)    :: soilTemp           ! surface layer temperature (K)
-  real(rkind),intent(inout)    :: soilDepth          ! surface layer depth (m)
-  real(rkind),intent(inout)    :: soilHeatcap        ! surface layer volumetric heat capacity (J m-3 K-1)
-  ! output: error control
-  integer(i4b),intent(out)  :: err                ! error code
-  character(*),intent(out)  :: message            ! error message
-  ! local variables
-  real(rkind)                  :: nrgRequired        ! energy required to melt all the snow (J m-2)
-  real(rkind)                  :: nrgAvailable       ! energy available to melt the snow (J m-2)
-  real(rkind)                  :: snwDensity         ! snow density (kg m-3)
-  ! initialize error control
-  err=0; message='implctMelt/'
 
-  if(scalarSWE > 0._rkind)then
-    ! only melt if temperature of the top soil layer is greater than Tfreeze
-    if(soilTemp > Tfreeze)then
-      ! compute the energy required to melt all the snow (J m-2)
-      nrgRequired     = scalarSWE*LH_fus
-      ! compute the energy available to melt the snow (J m-2)
-      nrgAvailable    = soilHeatcap*(soilTemp - Tfreeze)*soilDepth
-      ! compute the snow density (not saved)
-      snwDensity      = scalarSWE/scalarSnowDepth
-      ! compute the amount of melt, and update SWE (kg m-2)
-      if(nrgAvailable > nrgRequired)then
-        scalarSfcMeltPond  = scalarSWE
-        scalarSWE          = 0._rkind
-      else
-        scalarSfcMeltPond  = nrgAvailable/LH_fus
-        scalarSWE          = scalarSWE - scalarSfcMeltPond
-      end if
-      ! update depth
-      scalarSnowDepth = scalarSWE/snwDensity
-      ! update temperature of the top soil layer (K)
-      soilTemp =  soilTemp - (LH_fus*scalarSfcMeltPond/soilDepth)/soilHeatcap
-    else  ! melt is zero if the temperature of the top soil layer is less than Tfreeze
-      scalarSfcMeltPond = 0._rkind  ! kg m-2
-    end if ! (if the temperature of the top soil layer is greater than Tfreeze)
-  else  ! melt is zero if the "snow without a layer" does not exist
-    scalarSfcMeltPond = 0._rkind  ! kg m-2
-  end if ! (if the "snow without a layer" exists)
+! ----------------------------------------------------------------------------------------
+! find_rootdir: private routine to determine which direction to look for the root, by
+!  determining if the variable is greater or less than the root. Need to do this to prevent
+!  bouncing around solution
+! ----------------------------------------------------------------------------------------
+ subroutine find_rootdir(eqns_data,rootdir)
 
-end subroutine implctMelt
+ !======= Inclusions ===========
+ use, intrinsic :: iso_c_binding
+ use fsundials_nvector_mod
+ use fnvector_serial_mod
+ use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
+ use globalData,only:integerMissing     ! missing integer
+ use var_lookup,only:iLookINDEX         ! named variables for structure elements
+ use multiconst,only:Tfreeze            ! freezing point of pure water (K)
+
+ !======= Declarations =========
+ implicit none
+
+ ! calling variables
+ type(eqnsData),intent(in)  :: eqns_data  ! equations data
+ integer(i4b),intent(inout) :: rootdir(:) ! root function directions to search
+
+ ! local variables
+ integer(i4b)               :: i,ind     ! indices
+ integer(i4b)               :: nState    ! number of states
+ integer(i4b)               :: nSnow     ! number of snow layers
+ integer(i4b)               :: nSoil     ! number of soil layers
+ real(rkind)                :: xPsi      ! matric head at layer (m)
+ real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
+
+ ! get equations data variables
+ nState = eqns_data%nState
+ nSnow = eqns_data%nSnow
+ nSoil = eqns_data%nSoil
+
+ ! initialize
+ ind = 0
+
+ ! identify the critical point when vegetation begins to freeze
+ if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+   ind = ind+1
+   rootdir(ind) = 1
+   if(eqns_data%scalarCanopyTempPrev > Tfreeze) rootdir(ind) = -1
+ endif
+
+ if(nSnow>0)then
+   do i = 1,nSnow
+     ! identify the critical point when the snow layer begins to freeze
+     if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+       ind = ind+1
+       rootdir(ind) = 1
+       if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
+     endif
+   end do
+ endif
+
+ if(nSoil>0)then
+   do i = 1,nSoil
+     xPsi = eqns_data%mLayerMatricHeadPrev(i)
+     ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
+     if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
+       ind = ind+1
+       rootdir(ind) = 1
+       if(xPsi > 0._rkind ) rootdir(ind) = -1
+     endif
+     ! identify the critical point when the soil layer begins to freeze
+     if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
+       ind = ind+1
+       TcSoil = crit_soilT(xPsi)
+       rootdir(ind) = 1
+       if(eqns_data%mLayerTempPrev(i+nSnow) > TcSoil) rootdir(ind) = -1
+     endif
+   end do
+ endif
+
+ end subroutine find_rootdir
+
+
+! ----------------------------------------------------------------------------------------
+! layerDisCont4IDA: The root function routine to find soil matrix potential = 0,
+!  soil temp = critical frozen point, and snow and veg temp = Tfreeze
+! ----------------------------------------------------------------------------------------
+! Return values:
+!    0 = success,
+!    1 = recoverable error,
+!   -1 = non-recoverable error
+! ----------------------------------------------------------------------------------------
+ integer(c_int) function layerDisCont4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
+      result(ierr) bind(C,name='layerDisCont4IDA')
+
+ !======= Inclusions ===========
+ use, intrinsic :: iso_c_binding
+ use fsundials_nvector_mod
+ use fnvector_serial_mod
+ use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
+ use globalData,only:integerMissing     ! missing integer
+ use var_lookup,only:iLookINDEX         ! named variables for structure elements
+ use multiconst,only:Tfreeze            ! freezing point of pure water (K)
+
+ !======= Declarations =========
+ implicit none
+
+ ! calling variables
+ real(c_double), value      :: t         ! current time
+ type(N_Vector)             :: sunvec_u  ! solution N_Vector
+ type(N_Vector)             :: sunvec_up ! derivative N_Vector
+ real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + 2*nSoil)>999, problem
+ type(c_ptr),    value      :: user_data ! user-defined data
+
+ ! local variables
+ integer(i4b)               :: i,ind     ! indices
+ integer(i4b)               :: nState    ! number of states
+ integer(i4b)               :: nSnow     ! number of snow layers
+ integer(i4b)               :: nSoil     ! number of soil layers
+ real(rkind)                :: xPsi      ! matric head at layer (m)
+ real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
+
+ ! pointers to data in SUNDIALS vectors
+ real(c_double), pointer :: uu(:)
+ type(eqnsData), pointer :: eqns_data      ! equations data
+
+ !======= Internals ============
+ ! get equations data from user-defined data
+ call c_f_pointer(user_data, eqns_data)
+ nState = eqns_data%nState
+ nSnow = eqns_data%nSnow
+ nSoil = eqns_data%nSoil
+
+ ! get data array from SUNDIALS vector
+ uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
+
+ ! initialize
+ ind = 0
+
+ ! identify the critical point when vegetation begins to freeze
+ if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+   ind = ind+1
+   gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
+ endif
+
+ if(nSnow>0)then
+   do i = 1,nSnow
+     ! identify the critical point when the snow layer begins to freeze
+     if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+       ind = ind+1
+       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+     endif
+   end do
+ endif
+
+ if(nSoil>0)then
+   do i = 1,nSoil
+     ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
+     if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
+       ind = ind+1
+       xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+     else
+       xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
+     endif
+     ! identify the critical point when the soil layer begins to freeze
+     if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
+       ind = ind+1
+       TcSoil = crit_soilT(xPsi)
+       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+     endif
+   end do
+ endif
+
+ ! return success
+ ierr = 0
+ return
+
+ end function layerDisCont4IDA
 
 end module summaSolveSundialsIDA_module

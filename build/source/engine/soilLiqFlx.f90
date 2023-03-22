@@ -92,7 +92,7 @@ subroutine soilLiqFlx(&
                       ! input: model control
                       nSoil,                        & ! intent(in): number of soil layers
                       doInfiltrate,                 & ! intent(in): flag to compute infiltration
-                      scalarSolution,               & ! intent(in):    flag to indicate the scalar solution
+                      scalarSolution,               & ! intent(in): flag to indicate the scalar solution
                       deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                       ! input: trial state variables
                       mLayerTempTrial,              & ! intent(in): temperature (K)

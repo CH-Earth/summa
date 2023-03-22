@@ -170,7 +170,6 @@ subroutine popTol4IDA(&
   real(rkind)                        :: absTolAquifr = 1e-6       ! could use absConvTol_aquifr 1e-6 = 1e-5 bEuler
   real(rkind)                        :: relTolAquifr = 1e-6       ! could use relConvTol_aquifr 1e-6 = 1e-0 bEuler
 
-
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures

@@ -939,6 +939,7 @@ end subroutine computFlux
 ! **********************************************************************************************************
 subroutine soilCmpres(&
                       ! input:
+                      dt,                                 & ! intent(in):    length of the time step (seconds)
                       ixRichards,                         & ! intent(in): choice of option for Richards' equation
                       ixBeg,ixEnd,                        & ! intent(in): start and end indices defining desired layers
                       mLayerMatricHead,                   & ! intent(in): matric head at the start of the time step (m)
@@ -948,22 +949,23 @@ subroutine soilCmpres(&
                       specificStorage,                    & ! intent(in): specific storage coefficient (m-1)
                       theta_sat,                          & ! intent(in): soil porosity (-)
                       ! output:
-                      compress,                           & ! intent(out): compressibility of the soil matrix (-)
+                      compress,                           & ! intent(out): compressibility of the soil matrix (-), per second
                       dCompress_dPsi,                     & ! intent(out): derivative in compressibility w.r.t. matric head (m-1)
                       err,message)                          ! intent(out): error code and error message
   implicit none
   ! input:
+  real(rkind),intent(in)         :: dt                        !  length of the time step (seconds)
   integer(i4b),intent(in)        :: ixRichards                ! choice of option for Richards' equation
   integer(i4b),intent(in)        :: ixBeg,ixEnd               ! start and end indices defining desired layers
-  real(rkind),intent(in)            :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
-  real(rkind),intent(in)            :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
-  real(rkind),intent(in)            :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
-  real(rkind),intent(in)            :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
-  real(rkind),intent(in)            :: specificStorage           ! specific storage coefficient (m-1)
-  real(rkind),intent(in)            :: theta_sat(:)              ! soil porosity (-)
+  real(rkind),intent(in)         :: mLayerMatricHead(:)       ! matric head at the start of the time step (m)
+  real(rkind),intent(in)         :: mLayerMatricHeadTrial(:)  ! trial value for matric head (m)
+  real(rkind),intent(in)         :: mLayerVolFracLiqTrial(:)  ! trial value for volumetric fraction of liquid water (-)
+  real(rkind),intent(in)         :: mLayerVolFracIceTrial(:)  ! trial value for volumetric fraction of ice (-)
+  real(rkind),intent(in)         :: specificStorage           ! specific storage coefficient (m-1)
+  real(rkind),intent(in)         :: theta_sat(:)              ! soil porosity (-)
   ! output:
-  real(rkind),intent(inout)         :: compress(:)               ! soil compressibility (-)
-  real(rkind),intent(inout)         :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
+  real(rkind),intent(inout)      :: compress(:)               ! soil compressibility (-)
+  real(rkind),intent(inout)      :: dCompress_dPsi(:)         ! derivative in soil compressibility w.r.t. matric head (m-1)
   integer(i4b),intent(out)       :: err                       ! error code
   character(*),intent(out)       :: message                   ! error message
   ! local variables
@@ -975,10 +977,10 @@ subroutine soilCmpres(&
   if(ixRichards==mixdform)then
     do iLayer=1,size(mLayerMatricHead)
       if(iLayer>=ixBeg .and. iLayer<=ixEnd)then
-      ! compute the derivative for the compressibility term (m-1)
+      ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
       dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-      ! compute the compressibility term (-)
-      compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)
+      ! compute the compressibility term (-) per second
+      compress(iLayer)       = (mLayerMatricHeadTrial(iLayer) - mLayerMatricHead(iLayer))*dCompress_dPsi(iLayer)/dt
       endif
     end do
   else
@@ -1027,9 +1029,9 @@ subroutine soilCmpresSundials(&
   if(ixRichards==mixdform)then
     do iLayer=1,size(mLayerMatricHeadPrime)
       if(iLayer>=ixBeg .and. iLayer<=ixEnd)then
-          ! compute the derivative for the compressibility term (m-1)
+          ! compute the derivative for the compressibility term (m-1), no volume expansion for total water
           dCompress_dPsi(iLayer) = specificStorage*(mLayerVolFracLiqTrial(iLayer) + mLayerVolFracIceTrial(iLayer))/theta_sat(iLayer)
-          ! compute the compressibility term (-)
+          ! compute the compressibility term (-) instantaneously
           compress(iLayer)       =   mLayerMatricHeadPrime(iLayer) * dCompress_dPsi(iLayer)
       endif
     end do

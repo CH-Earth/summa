@@ -99,6 +99,7 @@ contains
 ! **********************************************************************************************************
 subroutine systemSolvSundials(&
                       ! input: model control
+                      dt_cur,            & ! intent(in):    current stepsize
                       dt,                & ! intent(in):    time step (s)
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
@@ -126,7 +127,6 @@ subroutine systemSolvSundials(&
                       stateVecPrime,     & ! intent(out):   updated state vector
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
-                      dt_out,            & ! intent(out)
                       err,message)         ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
@@ -144,6 +144,7 @@ subroutine systemSolvSundials(&
   ! * dummy variables
   ! ---------------------------------------------------------------------------------------
   ! input: model control
+  real(rkind),intent(in)          :: dt_cur                        ! current stepsize
   real(rkind),intent(in)          :: dt                            ! time step (seconds)
   integer(i4b),intent(in)         :: nState                        ! total number of state variables
   logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
@@ -171,13 +172,13 @@ subroutine systemSolvSundials(&
   real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
   logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
   logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                        ! time step
   integer(i4b),intent(out)        :: err                           ! error code
   character(*),intent(out)        :: message                       ! error message
 
   ! ---------------------------------------------------------------------------------------
   ! * general local variables
   ! ---------------------------------------------------------------------------------------
+  real(qp)                        :: dt_out                        ! time step sum for data window at termination of sundials
   character(LEN=256)              :: cmessage                      ! error message of downwind routine
   integer(i4b)                    :: iVar                          ! index of variable
   integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
@@ -208,7 +209,7 @@ subroutine systemSolvSundials(&
   integer(i4b)                    :: iLayer                        ! index of model layer in the snow+soil domain
   real(rkind)                     :: xMin,xMax                     ! minimum and maximum values for water content
   real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
-  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a data step
+  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
@@ -286,7 +287,7 @@ subroutine systemSolvSundials(&
     ! ---------------
 
     ! check
-    if(dt < tinyStep)then
+    if(dt_cur < tinyStep)then
       message=trim(message)//'dt is tiny'
       err=20; return
     endif
@@ -306,6 +307,9 @@ subroutine systemSolvSundials(&
     ! allocate space for the model fluxes at the start of the time step
     call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+    ! allocate space for mLayerCmpress_sum at the start of the time step
+    allocate( mLayerCmpress_sum(nSoil) )
 
     ! allocate space for the baseflow derivatives
     ! NOTE: needs allocation because only used when baseflow sinks are active
@@ -401,7 +405,7 @@ subroutine systemSolvSundials(&
     ! NOTE: The values calculated in  eval8summaSundials are used to calculate the initial flux
     call eval8summaSundials(&
                     ! input: model control
-                    dt,                      & ! intent(in):    current stepsize
+                    dt_cur,                  & ! intent(in):    current stepsize
                     dt,                      & ! intent(in):    length of the time step (seconds)
                     nSnow,                   & ! intent(in):    number of snow layers
                     nSoil,                   & ! intent(in):    number of soil layers
@@ -476,16 +480,13 @@ subroutine systemSolvSundials(&
     call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-    ! allocate space for mLayerCmpress_sum
-    allocate( mLayerCmpress_sum(nSoil) )
-
     ! check the need to merge snow layers
     if(nSnow>0)then
       ! compute the energy required to melt the top snow layer (J m-2)
       bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
       volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
       ! set flag and error codes for too much melt
-      if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt)then
+      if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
         tooMuchMelt=.true.
         message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
         err=-20; return ! negative error code to denote a warning
@@ -509,17 +510,17 @@ subroutine systemSolvSundials(&
     !-------------------
     ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
     ! ------------------
-   ! initialize flux_sum
+
+    ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
       flux_sum%var(iVar)%dat(:) = 0._rkind
     end do
-
     ! initialize sum of compression of the soil matrix
     mLayerCmpress_sum(:) = 0._rkind
 
     call summaSolveSundialsIDA(&
-                  dt,                      & ! intent(in):    data time step
-                  atol,                    & ! intent(in):    absolute telerance
+                  dt_cur,                  & ! intent(in):    data time step
+                  atol,                    & ! intent(in):    absolute tolerance
                   rtol,                    & ! intent(in):    relative tolerance
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
@@ -544,16 +545,15 @@ subroutine systemSolvSundials(&
                   indx_data,               & ! intent(in):    index data
                   ! input-output: data structures
                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                   flux_temp,               & ! intent(inout): model fluxes for a local HRU
                   flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                  mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                   ! output
                   ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                   idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                   tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
-                  mLayerCmpress_sum,       & ! intent(out):   sum of compression of the soil matrix
-                  dt_out,                          & ! intent(out):   time step
+                  dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                   stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                   stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                   err,cmessage)              ! intent(out):   error control
@@ -574,14 +574,13 @@ subroutine systemSolvSundials(&
     end do
 
     ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
-    diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:)
+    diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:) /  dt_out
     diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
     ! save the computed solution
     stateVecTrial = stateVecNew
 
     ! free memory
-    deallocate(mLayerCmpress_sum)
     deallocate(dBaseflow_dMatric)
 
   ! end associate statements

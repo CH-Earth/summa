@@ -97,20 +97,22 @@ contains
  ! initialize error control
  err=0; message='volicePack/'
 
- ! divide snow layers if too thick
- call layerDivide(&
-                  ! input/output: model data structures
-                  model_decisions,             & ! intent(in):    model decisions
-                  mpar_data,                   & ! intent(in):    model parameters
-                  indx_data,                   & ! intent(inout): type of each layer
-                  prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                  diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                  flux_data,                   & ! intent(inout): model fluxes for a local HRU
-                  ! output
-                  divideLayer,                 & ! intent(out): flag to denote that layers were modified
-                  err,cmessage)                  ! intent(out): error control
- if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
- 
+ ! divide snow layers if too thick, don't do it if need to merge
+ if (.not.tooMuchMelt)then
+   call layerDivide(&
+                    ! input/output: model data structures
+                    model_decisions,             & ! intent(in):    model decisions
+                    mpar_data,                   & ! intent(in):    model parameters
+                    indx_data,                   & ! intent(inout): type of each layer
+                    prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
+                    diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                    flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                    ! output
+                    divideLayer,                 & ! intent(out): flag to denote that layers were modified
+                    err,cmessage)                  ! intent(out): error control
+   if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
+ endif
+
 ! print *, 'in coupled_em divideLayer = ', divideLayer
 
  ! merge snow layers if they are too thin
@@ -127,7 +129,7 @@ contains
                  mergedLayers,                & ! intent(out): flag to denote that layers were modified
                  err,cmessage)                  ! intent(out): error control
  if(err/=0)then; err=65; message=trim(message)//trim(cmessage); return; end if
- 
+
 ! print *, 'in coupled_em mergeLayers = ', mergedLayers
 
  ! update the number of layers
@@ -157,10 +159,10 @@ contains
                        ! input/output: state variables
                        scalarSWE,                 & ! SWE (kg m-2)
                        scalarSnowDepth,           & ! total snow depth (m)
-                       surfaceLayerTemp,          & ! temperature of each layer (K)
-                       surfaceLayerDepth,         & ! depth of each layer (m)
-                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in each layer (-)
-                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in each layer (-)
+                       surfaceLayerTemp,          & ! temperature of surface layer (K)
+                       surfaceLayerDepth,         & ! depth of surface layer (m)
+                       surfaceLayerVolFracIce,    & ! volumetric fraction of ice in surface layer (-)
+                       surfaceLayerVolFracLiq,    & ! volumetric fraction of liquid water in surface layer (-)
                        ! output: error control
                        err,message                ) ! error control
  ! computational modules
@@ -179,10 +181,10 @@ contains
  ! input/output: state variables
  real(rkind),intent(inout)              :: scalarSWE                  ! SWE (kg m-2)
  real(rkind),intent(inout)              :: scalarSnowDepth            ! total snow depth (m)
- real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of each layer (K)
+ real(rkind),intent(inout)              :: surfaceLayerTemp           ! temperature of surface layer (K)
  real(rkind),intent(inout)              :: surfaceLayerDepth          ! depth of each layer (m)
- real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in each layer (-)
- real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in each layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracIce     ! volumetric fraction of ice in surface layer (-)
+ real(rkind),intent(inout)              :: surfaceLayerVolFracLiq     ! volumetric fraction of liquid water in surface layer (-)
  ! output: error control
  integer(i4b),intent(out)            :: err                        ! error code
  character(*),intent(out)            :: message                    ! error message
