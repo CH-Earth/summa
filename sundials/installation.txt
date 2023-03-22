@@ -14,15 +14,16 @@ Make a directory outside the sundials-6.3.0 folder and enter it, and make the in
 % cd /buildir
 NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
 
-4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
+4. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled, as well as the setting the install directory, while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
 % cmake ../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
-You can do this by running from inside buildir, where the star is the system specific file with hardcoded paths:
-cp ../../summa/build/build_cmakeSundials_* build_cmake
+
+5. The default compiler is gfortran. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
+   -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
+
+You can do 4 and 5 by running from inside buildir:
+cp ../../summa/build/build_cmakeSundials build_cmake
 ./build_cmake
 
-
-5. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
-   -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
 
 6. If the above went well, staying in the buildir directory run
 % make

@@ -15,13 +15,12 @@
 # To troubleshoot your paths and setup, type 'make check'
 #
 # At a minimum you will need to set the following:
-#  * F_MASTER         - top level summa directory
+#  * F_MASTER_TOP     - top level directory
 #  * FC               - compiler suite
 #  * FC_EXE           - compiler executable
 #  * INCLUDES         - path to include files
-#  * ILDFLAGS         - path to libraries to include
+#  * LDFLAGS         - path to libraries to include
 #  * LIBRARIES        - libraries to include
-#  * DIR_SUNDIALS     - installation sundials directory
 #
 # Some further options can be specified for OpenMP, etc. See in Part 0 of
 # the Makefile. You don't need to make any changes in PART 1 and
@@ -40,7 +39,8 @@
 
 # Define core directory below which everything resides. This is the
 # parent directory of the 'build' directory
-F_MASTER =/globalhome/gwu479/HPC/SummaSundials/summa
+F_MASTER_TOP =..
+F_MASTER = $(F_MASTER_TOP)/summa
 
 # Define the Fortran Compiler. If you are using gfortran, then this needs
 # to be version 6 or higher. This variable is simply used to select the right
@@ -65,7 +65,7 @@ INCLUDES = -I$(EBROOTNETCDFMINFORTRAN)/include
 LDFLAGS  = -L$(EBROOTNETCDFMINFORTRAN)/lib64 -L$(EBROOTOPENBLAS)/lib
 LIBRARIES = $(LDFLAGS) -lnetcdff -lopenblas
 
-DIR_SUNDIALS=/globalhome/gwu479/HPC/SummaSundials/sundials/instdir
+DIR_SUNDIALS=../../sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
 LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
 
