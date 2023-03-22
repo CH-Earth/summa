@@ -103,14 +103,11 @@ contains
 ! **********************************************************************************************************
 subroutine updateVarsSundials(&
                      ! input
-                     dt,                                        & ! intent(in):    time step
                      computJac,                                 & ! intent(in): logical flag if computing Jacobian for Sundials solve
                      do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                      mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                      indx_data,                                 & ! intent(in):    indices defining model states and layers
                      prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                     mLayerVolFracWatPrev,                      & ! intent(in):    previous vector of total water matric potential (m)
-                     mLayerMatricHeadPrev,                      & ! intent(in):    previous vector of volumetric total water content (-)
                      diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                      deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                      ! output: variables for the vegetation canopy
@@ -141,14 +138,11 @@ subroutine updateVarsSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input
-  real(rkind)      ,intent(in)       :: dt                              ! time step
   logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing Jacobian for Sundials solver
   logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
   type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
-  real(rkind),intent(in)             :: mLayerVolFracWatPrev(:)         ! previous vector of total water matric potential (m)
-  real(rkind),intent(in)             :: mLayerMatricHeadPrev(:)         ! previous vector of volumetric total water content (-)
   type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)    :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
   ! output: variables for the vegetation canopy
@@ -378,7 +372,6 @@ subroutine updateVarsSundials(&
           select case( ixStateType(ixFullVector) )
             ! --> update the total water from the liquid water matric potential
             case(iname_lmpLayer)
-
               effSat = volFracLiq(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))  ! effective saturation
               avPore = theta_sat(ixControlIndex) - mLayerVolFracIceTrial(iLayer) - theta_res(ixControlIndex)  ! available pore space
               mLayerVolFracLiqTrial(iLayer) = effSat*avPore + theta_res(ixControlIndex)
@@ -388,12 +381,10 @@ subroutine updateVarsSundials(&
               mLayerMatricHeadPrime(ixControlIndex) =  dPsi_dTheta(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) * mLayerVolFracWatPrime(iLayer)
               ! --> update the total water from the total water matric potential
             case(iname_matLayer)
-
               mLayerVolFracWatTrial(iLayer) = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
               mLayerVolFracWatPrime(iLayer) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) *mLayerMatricHeadPrime(ixControlIndex)
               ! --> update the total water matric potential (assume already have mLayerVolFracWatTrial given block above)
             case(iname_liqLayer, iname_watLayer)
-
               mLayerMatricHeadTrial(ixControlIndex) = matricHead(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
               mLayerMatricHeadPrime(ixControlIndex) = dPsi_dTheta(mLayerVolFracWatTrial(iLayer),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex)) * mLayerVolFracWatPrime(iLayer)
             case default; err=20; message=trim(message)//'expect iname_lmpLayer, iname_matLayer, iname_liqLayer, or iname_watLayer'; return
@@ -439,7 +430,6 @@ subroutine updateVarsSundials(&
         ! - compute derivatives...
         ! ------------------------
 
-        ! compute the derivative in bulk heat capacity w.r.t. total water content or water matric potential (m-1)
         ! compute the derivative in total water content w.r.t. total water matric potential (m-1)
         ! NOTE 1: valid for frozen and unfrozen conditions
         ! NOTE 2: for case "iname_lmpLayer", dVolTot_dPsi0 = dVolLiq_dPsi
@@ -565,12 +555,8 @@ subroutine updateVarsSundials(&
 
               ! compute volumetric fraction of liquid water and ice
               call updateSoilSundials(&
-                              dt,                                                & ! intent(in) : time step
-                              computJac,                                         & ! intent(in) : logical flag if inside Sundials solver
                               xTemp,                                             & ! intent(in) : temperature (K)
                               mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in) : total water matric potential (m)
-                              mLayerMatricHeadPrev(ixControlIndex),              & ! intent(in) : previous values, will be same as current if computJac
-                              mLayerVolFracWatPrev(iLayer),                      & ! intent(in) : previous values, will be same as current if computJac
                               mLayerTempPrime(iLayer),                           & ! intent(in) : temperature time derivative (K/s)
                               mLayerMatricHeadPrime(ixControlIndex),             & ! intent(in) : total water matric potential time derivative (m/s)
                               vGn_alpha(ixControlIndex),                         & ! intent(in) : van Genutchen "alpha" parameter
@@ -610,7 +596,7 @@ subroutine updateVarsSundials(&
         ! ------------------------
 
         ! check the need to adjust temperature (will always be false if inside solver)
-        !  can be true if inside varSubstepSundials, outside solver, but currently will not work so turn off always and not sure should ever do this
+        !  can be true if inside varSubstep, outside solver, but currently will not work so turn off always and not sure should ever do this
         if(do_adjustTemp .and. computJac)then
 
           ! get the melt energy

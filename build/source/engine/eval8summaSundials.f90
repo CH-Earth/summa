@@ -80,7 +80,7 @@ contains
 subroutine eval8summaSundials(&
                       ! input: model control
                       dt_cur,                  & ! intent(in):    current stepsize
-                      dt,                      & ! intent(in):    entire time step
+                      dt,                      & ! intent(in):    entire time step for drainage pond rate
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
                       nLayers,                 & ! intent(in):    total number of layers
@@ -160,7 +160,7 @@ subroutine eval8summaSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
   real(rkind),intent(in)          :: dt_cur                 ! current stepsize
-  real(rkind),intent(in)          :: dt                     ! entire time step
+  real(rkind),intent(in)          :: dt                     ! entire time step for drainage pond rate
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -472,14 +472,11 @@ subroutine eval8summaSundials(&
     ! update diagnostic variables and derivatives
     call updateVarsSundials(&
                     ! input
-                    dt_cur,                                    &
                     .false.,                                   & ! intent(in):    logical flag if computing Jacobian for Sundials solver
                     .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy
                     mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                     indx_data,                                 & ! intent(in):    indices defining model states and layers
                     prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                    mLayerVolFracWatPrev,                      & ! intent(in):    previous vector of total water matric potential (m)
-                    mLayerMatricHeadPrev,                      & ! intent(in):    previous vector of volumetric total water content (-)
                     diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                     deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                     ! output: variables for the vegetation canopy
@@ -587,13 +584,14 @@ subroutine eval8summaSundials(&
                             ! output: error control
                             err,cmessage)                    ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+        ! Below commented out because it seems more correct for Sundials to use the analytical form
         ! to conserve energy compute finite difference approximation of (theta_ice)'
-        if(dt_cur > 1e-14_rkind) then
-          scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur
-          do concurrent (iLayer=1:nLayers)
-                mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-          end do
-        endif ! if dt_cur is not too small
+        !if(dt_cur > 1e-14_rkind) then
+        !  scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur
+        !  do concurrent (iLayer=1:nLayers)
+        !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
+        !  end do
+        !endif ! if dt_cur is not too small
       else if(ixHowHeatCap == closedForm)then
         call computHeatCapAnalytic(&
                           ! input: control variables
@@ -769,21 +767,21 @@ subroutine eval8summaSundials(&
                       sMul,                      & ! intent(in):    state vector multiplier (used in the residual calculations)
                       fluxVec,                   & ! intent(in):    flux vector
                       ! input: state variables (already disaggregated into scalars and vectors)
-                      scalarCanopyTempTrial,     & ! intent(in):
-                      mLayerTempTrial,           & ! intent(in)
-                      scalarCanairTempPrime,     & ! intent(in):    Prime value for the temperature of the canopy air space (K)
-                      scalarCanopyTempPrime,     & ! intent(in):    Prime value for the temperature of the vegetation canopy (K)
-                      scalarCanopyWatPrime,      &
-                      mLayerTempPrime,           & ! intent(in):    Prime value for the temperature of each snow and soil layer (K)
-                      scalarAquiferStoragePrime, & ! intent(in):    Prime value of storage of water in the aquifer (m)
+                      scalarCanopyTempTrial,     & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
+                      mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
+                      scalarCanairTempPrime,     & ! intent(in):    Prime value for the temperature of the canopy air space (K s-1)
+                      scalarCanopyTempPrime,     & ! intent(in):    Prime value for the temperature of the vegetation canopy (K s-1)
+                      scalarCanopyWatPrime,      & ! intent(in):    Prime value for the water on the vegetation canopy (kg m-2 s-1)
+                      mLayerTempPrime,           & ! intent(in):    Prime value for the temperature of each snow and soil layer (K s-1)
+                      scalarAquiferStoragePrime, & ! intent(in):    Prime value of storage of water in the aquifer (m s-1)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                      scalarCanopyIcePrime,      & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2)
-                      scalarCanopyLiqPrime,      & ! intent(in):
-                      mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (-)
-                      mLayerVolFracWatPrime,     &
-                      mLayerVolFracLiqPrime,     &
-                      scalarCanopyCmTrial,       & ! intent(in) Cm of vegetation canopy
-                      mLayerCmTrial,             & ! intent(in) Cm of soil and snow
+                      scalarCanopyIcePrime,      & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2 s-1)
+                      scalarCanopyLiqPrime,      & ! intent(in):    Prime value for the liq on the vegetation canopy (kg m-2 s-1)
+                      mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (s-1)
+                      mLayerVolFracWatPrime,     & ! intent(in):    Prime value for the volumetric water in each snow and soil layer (s-1)
+                      mLayerVolFracLiqPrime,     & ! intent(in):    Prime value for the volumetric liq in each snow and soil layer (s-1)
+                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (-)
+                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (-)
                       ! input: data structures
                       prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU

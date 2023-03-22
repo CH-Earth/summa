@@ -233,8 +233,7 @@ SUMMA_SOLVER= \
 		computSnowDepth.f90 \
       summaSolveSundialsIDA.f90 \
       systemSolvSundials.f90 \
-      varSubstep.f90 \
-      varSubstepSundials.f90 \
+                varSubstep.f90 \
 		opSplittin.f90 \
 		coupled_em.f90 \
 		run_oneHRU.f90 \

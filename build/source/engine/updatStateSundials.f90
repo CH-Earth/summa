@@ -71,12 +71,8 @@ end subroutine updateSnowSundials
 ! ***********************************************************************************************************************************
 subroutine updateSoilSundials(&
                       ! input
-                      dt                    ,& ! intent(in): time step
-                      insideIDA             ,& ! intent(in): flag if inside Sundials solver
                       mLayerTemp            ,& ! intent(in): temperature (K)
                       mLayerMatricHead      ,& ! intent(in): total water matric potential (m)
-                      mLayerMatricHeadPrev  ,& ! intent(in): total water matric potential previous time step (m)
-                      mLayerVolFracWatPrev  ,& ! intent(in): volumetric fraction of total water previous time step (-)
                       mLayerTempPrime       ,& ! intent(in): temperature time derivative (K/s)
                       mLayerMatricHeadPrime, & ! intent(in): total water matric potential time derivative (m/s)
                       vGn_alpha             ,& ! intent(in): van Genutchen "alpha" parameter
@@ -98,12 +94,8 @@ subroutine updateSoilSundials(&
   USE soil_utils_module,only:dTheta_dPsi
   implicit none
   ! input variables
-  real(rkind),intent(in)           :: dt
-  logical(lgt),intent(in)          :: insideIDA            ! flag if inside Sundials solver
   real(rkind),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
   real(rkind),intent(in)           :: mLayerMatricHead     ! matric head (m)
-  real(rkind),intent(in)           :: mLayerMatricHeadPrev ! matric head previous time step (m)
-  real(rkind),intent(in)           :: mLayerVolFracWatPrev ! volumetric fraction of total waterprevious time step (m)
   real(rkind),intent(in)           :: mLayerTempPrime      ! temperature time derivative (K/s)
   real(rkind),intent(in)           :: mLayerMatricHeadPrime ! matric head time derivative (m/s)
   real(rkind),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
@@ -124,24 +116,15 @@ subroutine updateSoilSundials(&
   real(rkind)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
   real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
-  real(rkind)                      :: dt_inv               ! inverse of timestep
+  real(rkind),parameter            :: tinyVal=epsilon(1._rkind) ! used in balance check
   ! initialize error control
   err=0; message="updateSoilSundials/"
 
   ! compute fractional **volume** of total water (liquid plus ice)
   mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-  if (.not.insideIDA)then  ! calculate dt current, or use dt current as it can change here
-    if( abs(mLayerMatricHead - mLayerMatricHeadPrev) < verySmall )then !this difference is set as 0 inside varSubstep
-      dt_inv = 1._rkind/dt
-    else
-      dt_inv = mLayerMatricHeadPrime / (mLayerMatricHead - mLayerMatricHeadPrev) !
-    endif
-    mLayerVolFracWatPrime =  (mLayerVolFracWat - mLayerVolFracWatPrev)*dt_inv
-  else ! inside Sundials: instantaneous derivative will always be a full step size as input here
-    mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
-  endif
+  mLayerVolFracWatPrime = dTheta_dPsi(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * mLayerMatricHeadPrime
 
-  if(mLayerVolFracWat > theta_sat)then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
+  if(mLayerVolFracWat > (theta_sat + tinyVal))then; err=20; message=trim(message)//'volume of liquid and ice exceeds porosity'; return; end if
 
   ! compute the critical soil temperature where all water is unfrozen (K)
   ! (eq 17 in Dall'Amico 2011)
@@ -154,17 +137,12 @@ subroutine updateSoilSundials(&
     xConst           = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
     mLayerPsiLiq     = xConst*(mLayerTemp - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
     mLayerVolFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-    if(mLayerPsiLiq<0._rkind)then
-      mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
-    else
-      mLayerVolFracLiqPrime = 0._rkind
-    endif
+    mLayerVolFracLiqPrime = dTheta_dPsi(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) * xConst * mLayerTempPrime
 
   ! *** compute volumetric fraction of liquid water for unfrozen soil
-  else !( mLayerTemp >= TcSoil, all water is unfrozen )
+  else !( mLayerTemp >= TcSoil, all water is unfrozen, mLayerPsiLiq = mLayerMatricHead )
     mLayerVolFracLiq = mLayerVolFracWat
     mLayerVolFracLiqPrime = mLayerVolFracWatPrime
-    mLayerVolFracIcePrime = 0._rkind
 
   end if  ! (check if soil is partially frozen)
 

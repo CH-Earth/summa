@@ -86,7 +86,8 @@ contains
  ! *********************************************************************************************************
  subroutine summaSolve(&
                        ! input: model control
-                       dt,                      & ! intent(in):    length of the time step (seconds)
+                       dt_cur,                  & ! intent(in):    current stepsize
+                       dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                        iter,                    & ! intent(in):    iteration index
                        nSnow,                   & ! intent(in):    number of snow layers
                        nSoil,                   & ! intent(in):    number of soil layers
@@ -138,7 +139,8 @@ contains
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
- real(rkind),intent(in)             :: dt                       ! length of the time step (seconds)
+ real(rkind),intent(in)          :: dt_cur                   ! current stepsize
+ real(rkind),intent(in)          :: dt                       ! entire time step for drainage pond rate
  integer(i4b),intent(in)         :: iter                     ! interation index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
@@ -233,7 +235,7 @@ contains
  !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
  call computJacob(&
                   ! input: model control
-                  dt,                             & ! intent(in):    length of the time step (seconds)
+                  dt_cur,                             & ! intent(in):    length of the time step (seconds)
                   nSnow,                          & ! intent(in):    number of snow layers
                   nSoil,                          & ! intent(in):    number of soil layers
                   nLayers,                        & ! intent(in):    total number of layers
@@ -806,7 +808,7 @@ contains
    ! compute the row of the Jacobian matrix
    select case(ixNumType)
     case(ixNumRes);  nJac(:,iJac) = real(resVecJac - resVecInit, kind(rkind) )/dx  ! Jacobian based on residuals
-    case(ixNumFlux); nJac(:,iJac) = -dt*(fluxVecJac(:) - fluxVecInit(:))/dx     ! Jacobian based on fluxes
+    case(ixNumFlux); nJac(:,iJac) = -dt_cur*(fluxVecJac(:) - fluxVecInit(:))/dx     ! Jacobian based on fluxes
     case default; err=20; message=trim(message)//'Jacobian option not found'; return
    end select
 
@@ -855,7 +857,7 @@ contains
   ! compute the full Jacobian matrix
   call computJacob(&
                    ! input: model control
-                   dt,                             & ! intent(in):    length of the time step (seconds)
+                   dt_cur,                             & ! intent(in):    length of the time step (seconds)
                    nSnow,                          & ! intent(in):    number of snow layers
                    nSoil,                          & ! intent(in):    number of soil layers
                    nLayers,                        & ! intent(in):    total number of layers
@@ -927,6 +929,7 @@ contains
   ! compute the flux and the residual vector for a given state vector
   call eval8summa(&
                   ! input: model control
+                  dt_cur,                  & ! intent(in):    current stepsize
                   dt,                      & ! intent(in):    length of the time step (seconds)
                   nSnow,                   & ! intent(in):    number of snow layers
                   nSoil,                   & ! intent(in):    number of soil layers
