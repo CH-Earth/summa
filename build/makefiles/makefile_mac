@@ -16,7 +16,7 @@ DIR_SUNDIALS= $(ROOT_DIR)/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
 LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
 
-DIR_BMI= $(F_MASTER_TOP)/bmi/instdir
+DIR_BMI= $(ROOT_DIR)/bmi/instdir
 INC_BMI=-I$(DIR_BMI)/include
 LIB_BMI=-L$(DIR_BMI)/lib -lbmif -Xlinker -rpath -Xlinker $(DIR_BMI)/lib
 
