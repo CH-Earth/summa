@@ -255,7 +255,7 @@ message("\nBuilding SUMMA\n")
     # set(SUMMA ${DRIVER_DIR}/summa_run.f90)
     # set(BMI ${DRIVER_DIR}/summa_runBMI.f90)
 
-# Define version number
+# Define version number, not working correctly
     set(VERSIONFILE ${DRIVER_DIR}/summaversion.inc)
     execute_process(COMMAND "${GIT_EXECUTABLE} tag | tail -n 1" OUTPUT_VARIABLE VERSION)
     execute_process(COMMAND "date" OUTPUT_VARIABLE BULTTIM)
@@ -280,12 +280,11 @@ message("\nBuilding SUMMA\n")
 # PART 4: compilation
 #======================================================================
 
-# update version information
-    file(WRITE  ${VERSIONFILE}
-"character(len=64), parameter     :: summaVersion = '${VERSION}'\n
-character(len=64), parameter     :: buildTime = '${BULTTIM}'\n
-character(len=64), parameter     :: gitBranch = '${GITBRCH}'\n
-character(len=64), parameter     :: gitHash = '${GITHASH}'")
+# update version information, not working correctly
+    file(WRITE  ${VERSIONFILE} "character(len=64), parameter     :: summaVersion = '${VERSION}'\n")
+    file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: buildTime = ''\n")
+    file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${GITBRCH}'\n")
+    file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
     add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
         target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
