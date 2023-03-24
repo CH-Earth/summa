@@ -1,6 +1,8 @@
 ccmake_minimum_required(VERSION 3.10)
 enable_language( Fortran )
-#add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
+
+#Get the iso_c_fortran binding module to build as part of this build
+add_subdirectory(../iso_c_fortran_bmi ${CMAKE_BINARY_DIR}/iso_c_bmi)
 
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../cmake/")
@@ -87,6 +89,14 @@ endif()
 
 message("\nBuilding SUMMA\n")
 compile_with_bmi($(ROOT_DIR), $(F_MASTER), $(DIR_SUNDIALS), $(INCLUDES), $(LIBRARIES), $(INC_SUNDIALS), $(LIB_SUNDIALS), $(FLAGS_ALL), $(FLAGS_NOAH))
+
+
+target_link_libraries(summabmi PUBLIC iso_c_bmi)
+target_compile_options(summabmi PUBLIC -cpp -DNGEN_ACTIVE)
+
+set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
+
+include(GNUInstallDirs)
 
 install(TARGETS summabmi
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -188,7 +188,7 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
         target_include_directories(SUMMA_COMM PRIVATE ${INCLUDES})
         target_link_libraries(SUMMA_COMM PUBLIC ${LIBRARIES})
 
-    # Build SUMMA Shared Library, don't need BMI libraries in ngen
+    # Build SUMMA Shared Library, add BMI libraries outside this function
     if(WIN32)
         add_library(summabmi ${SUMMA_ALL})
     else 

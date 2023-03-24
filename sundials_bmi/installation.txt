@@ -18,7 +18,7 @@ NOTE if you need to recompile after a system upgrade, delete the contents of the
    -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
 
 You can do 3 and 4 by running from inside buildir:
-cp ../../summa/build/build_cmakeBMI build_cmake
+cp ../../summa/build/makefiles/build_cmakeBMI build_cmake
 ./build_cmake
 
 
@@ -48,7 +48,7 @@ NOTE if you need to recompile after a system upgrade, delete the contents of the
    -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
 
 You can do 9 and 10 by running from inside buildir:
-cp ../../summa/build/build_cmakeSundials build_cmake
+cp ../../summa/build/makefiles/build_cmakeSundials build_cmake
 ./build_cmake
 
 11. If the above went well, staying in the buildir directory run

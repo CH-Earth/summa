@@ -26,7 +26,13 @@ module summa_driver
   ! data types
   USE,intrinsic :: iso_c_binding, only: c_ptr, c_loc, c_f_pointer
   USE nrtype                                                  ! variable types, etc.
-  use bmif_2_0                                                ! BMI libraries
+! NGEN_ACTIVE is to be set when running in the Nextgen framework
+! https://github.com/NOAA-OWP/ngen
+#ifdef NGEN_ACTIVE
+  use bmif_2_0_iso                                            ! BMI libraries NexGen
+#else
+  use bmif_2_0                                                ! BMI libraries standard
+#endif
   USE summa_type, only: summa1_type_dec                       ! master summa data type
   ! subroutines and functions: model setup
   USE summa_init, only: summa_initialize                      ! used to allocate/initialize summa data structures
