@@ -257,10 +257,10 @@ message("\nBuilding SUMMA\n")
 
 # Define version number
     set(VERSIONFILE ${DRIVER_DIR}/summaversion.inc)
-    execute_process(COMMAND bash -c "git tag | tail -n 1" OUTPUT_VARIABLE VERSION)
-    execute_process(COMMAND bash -c "date" OUTPUT_VARIABLE BULTTIM)
-    execute_process(COMMAND bash -c "git describe --long --all --always | sed -e's/heads\///'" OUTPUT_VARIABLE GITBRCH)
-    execute_process(COMMAND bash -c "git rev-parse HEAD" OUTPUT_VARIABLE GITHASH)
+    execute_process(COMMAND "git tag | tail -n 1" OUTPUT_VARIABLE VERSION)
+    execute_process(COMMAND "date" OUTPUT_VARIABLE BULTTIM)
+    execute_process(COMMAND "git describe --long --all --always | sed -e's/heads\///'" OUTPUT_VARIABLE GITBRCH)
+    execute_process(COMMAND "git rev-parse HEAD" OUTPUT_VARIABLE GITHASH)
 
     set(COMM_ALL
         ${NRUTIL}
@@ -281,10 +281,11 @@ message("\nBuilding SUMMA\n")
 #======================================================================
 
 # update version information
-    file({WRITE}  ${VERSIONFILE} "character(len=64), parameter     :: summaVersion = '${VERSION}'")
-    file({APPEND} ${VERSIONFILE} "character(len=64), parameter     :: buildTime = '${BULTTIM}'")
-	file({APPEND} ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${GITBRCH}'")
-	file({APPEND} ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
+    file(WRITE  ${VERSIONFILE}
+"character(len=64), parameter     :: summaVersion = '${VERSION}'\n)
+character(len=64), parameter     :: buildTime = '${BULTTIM}'\n)
+character(len=64), parameter     :: gitBranch = '${GITBRCH}'\n)
+character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
 
     add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
