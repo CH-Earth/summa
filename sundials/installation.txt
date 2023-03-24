@@ -21,7 +21,7 @@ NOTE if you need to recompile after a system upgrade, delete the contents of the
    -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
 
 You can do 4 and 5 by running from inside buildir:
-cp ../../summa/build/build_cmakeSundials build_cmake
+cp ../../summa/build/makefiles/build_cmakeSundials build_cmake
 ./build_cmake
 
 
