@@ -262,7 +262,6 @@ message("\nBuilding SUMMA\n")
     execute_process(COMMAND "${GIT_EXECUTABLE} rev-parse HEAD" OUTPUT_VARIABLE GITHASH)
 
     set(COMM_ALL
-        ${NRUTIL}
         ${NRPROC}
         ${HOOKUP}
         ${DATAMS}
