@@ -81,4 +81,12 @@ After there is build system directory, the shared library can be built using the
 
 This will build a `cmake_build/libsummabmi.<version>.<ext>` file, where the version is configured within the CMake config, and the extension depends on the local machine's operating system.    
 
-There is an example of a bash script to build the ngen libraries at ngen/extern/summa/summa/build/cmake_ngen/build_ngen.[system_type].bash.
+There is an example of a bash script to build the ngen libraries at ngen/extern/summa/summa/build/cmake_ngen/build_ngen.[system_type].bash. These needs to be run at a level above the ngen directory.
+
+To run a test basin, at a level above the ngen directory, run
+
+    cmake_build/ngen data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" ./data/example_realization_config_w_summa.json
+    
+This command can be copied from ngen/extern/summa/summa/test_ngen/example_run.sh
+
+This test is currently the Celia Laugh test, not the ngen example catchment cat-27. The forcing and input data for that basin could be used once it is in the correct form.
