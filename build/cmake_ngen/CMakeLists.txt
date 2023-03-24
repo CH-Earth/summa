@@ -19,7 +19,7 @@ set(SUMMA_LIB_DESC_CMAKE "Summa-Sundials BMI Module Shared Library")
 add_compile_definitions(BMI_ACTIVE NGEN_FORCING_ACTIVE NGEN_OUTPUT_ACTIVE NGEN_ACTIVE)
 
 
-set(ROOT_DIR ../../../)
+set(ROOT_DIR ./)
 set(F_MASTER ${ROOT_DIR}/summa)
 
 SET (CMAKE_Fortran_COMPILER gfortran)
@@ -62,25 +62,25 @@ set(INC_SUNDIALS=-I${DIR_SUNDIALS}/include -I${DIR_SUNDIALS}/fortran)
 
 # Set include directories
 if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
-    set(INCLUDES ${EBROOTNETCDFMINFORTRAN}/include)
-    set(LDFLAGS ${EBROOTNETCDFMINFORTRAN}/lib64 -L${EBROOTOPENBLAS}/lib)
-    set(LIBRARIES $(LDFLAGS) -lnetcdff -lopenblas)
+    set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
+    set(LIBRARIES ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
 
     message("\nBuilding IDA\n")
 
     link_directories(${DIR_SUNDIALS}/lib64)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
+    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran
     set(LIB_SUNDIALS ${DIR_SUNDIALS}/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 else()
-    set(INCLUDES /opt/local/include -I/opt/local/lib)
-    set(LDFLAGS /opt/local/lib)
-    set(LIBRARIES $(LDFLAGS) -llapack -lgfortran -lnetcdff -lnetcdf)
+    set(INCLUDES /opt/local/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
+    set(LIBRARIES ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -llapack -lgfortran -lnetcdff -lnetcdf)
 
     message("\nBuilding IDA\n")
 
     link_directories(${DIR_SUNDIALS}/lib)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib")
+    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran
     set(LIB_SUNDIALS ${DIR_SUNDIALS}/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 
