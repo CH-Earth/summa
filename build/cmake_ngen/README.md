@@ -51,14 +51,34 @@ First, cd into the outer directory containing the submodule:
 
     cd extern/summa
 
-Before library files can be built, a CMake build system must be generated.  E.g.:
+Before summa can be built, Sundials needs to be installed. 
+Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
+
+    wget "https://github.com/LLNL/sundials/releases/download/v6.3.0/sundials-6.3.0.tar.gz"
+
+Extract the corresponding compressed file
+
+    tar -xzf sundials-6.3.0.tar.gz
+    
+Enter the buildir and run
+
+    cd sundials/buildir
+    ./build_cmake
+    make
+    make install
+    
+Note if you need to recompile after a system upgrade, delete the contents of sundials/instdir and sundials/buildir EXCEPT sundials/buildir/build_cmake before building and installing.
+
+Before ngen library files can be built, a CMake build system must be generated.  E.g.:
 
     cmake -B cmake_build -S .
 
-Note that when there is an existing directory, it may sometimes be necessary to clear it and regenerate, especially if any changes were made to the [CMakeLists.txt](CMakeLists.txt) file.
+Note (similar to above) that when there is an existing directory, it may sometimes be necessary to clear it and regenerate, especially if any changes were made to the [CMakeLists.txt](CMakeLists.txt) file.
 
-After there is build system directory, the shared library can be built using the `topmodelbmi` CMake target. For example, the SummaSundials shared library file (i.e., the build config's `topmodelbmi` target) can be built using:
+After there is build system directory, the shared library can be built using the `summabmi` CMake target. For example, the SummaSundials shared library file (i.e., the build config's `summabmi` target) can be built using:
 
     cmake --build cmake_build --target summabmi -- -j 2
 
 This will build a `cmake_build/libsummabmi.<version>.<ext>` file, where the version is configured within the CMake config, and the extension depends on the local machine's operating system.    
+
+There is an example of a bash script to build the ngen libraries at ngen/extern/summa/summa/build/cmake_ngen/build_ngen.[system_type].bash.
