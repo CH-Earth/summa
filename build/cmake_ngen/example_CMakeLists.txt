@@ -1,4 +1,4 @@
-ccmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.10)
 enable_language( Fortran )
 
 #Get the iso_c_fortran binding module to build as part of this build

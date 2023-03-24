@@ -1,4 +1,4 @@
-function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES, INC_SUNDIALS, LIB_SUNDIALS, FLAGS_ALL, FLAGS_NOAH)
+function(compile_with_bmi ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES, INC_SUNDIALS, LIB_SUNDIALS, FLAGS_ALL, FLAGS_NOAH)
 
 #========================================================================
 # PART 1: Define directory paths
