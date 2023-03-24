@@ -43,7 +43,7 @@ function(compile_with_bmi ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
         ${DSHARE_DIR}/var_lookup.f90
         ${DSHARE_DIR}/data_types.f90
         ${DSHARE_DIR}/globalData.f90
-        ${DSHARE_DIR}/flxMapping.f90)
+        ${DSHARE_DIR}/flxMapping.f90
         ${DSHARE_DIR}/get_ixname.f90
         ${DSHARE_DIR}/popMetadat.f90
         ${DSHARE_DIR}/outpt_stat.f90)
