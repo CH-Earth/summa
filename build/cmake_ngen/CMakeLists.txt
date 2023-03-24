@@ -57,8 +57,7 @@ endif()
 find_package(netCDF REQUIRED)
 find_package(LAPACK REQUIRED)
 
-set(DIR_SUNDIALS= ${ROOT_DIR}/sundials/instdir)
-set(INC_SUNDIALS=-I${DIR_SUNDIALS}/include -I${DIR_SUNDIALS}/fortran)
+set(DIR_SUNDIALS ${ROOT_DIR}/sundials/instdir)
 
 # Set include directories
 if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
