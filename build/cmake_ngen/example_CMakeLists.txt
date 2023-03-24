@@ -26,7 +26,7 @@ SET (CMAKE_Fortran_COMPILER gfortran)
 
 include($(F_MASTER)/build/cmake_ngen/bmi.cmake)
 # --------------------------------------------------------------------------------------------
-# When compiling Summa-Sundials it can be compiled in a Cluster or Debug mode, which is set by 
+# When compiling Summa-Sundials it can be compiled in a Cluster or Debug mode, which is set by
 # the CMAKE_BUILD_TYPES variables. The default is Release, non-cluster mode.
 
 ######### SET THE PATHS TO THE SUNDIALS LIBRARIES AND INCLUDE FILES #########
@@ -72,7 +72,7 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
     set(LIB_SUNDIALS $(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
-else
+else()
     set(INCLUDES /opt/local/include -I/opt/local/lib)
     set(LDFLAGS /opt/local/lib)
     set(LIBRARIES $(LDFLAGS) -llapack -lgfortran -lnetcdff -lnetcdf)

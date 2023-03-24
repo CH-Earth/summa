@@ -19,25 +19,25 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
 #========================================================================
 # PART 2: Assemble all of the SUMMA sub-routines
 #========================================================================
-   
+
 # utilities
     set(NRUTIL
         ${ENGINE_DIR}/nrtype.f90
         ${ENGINE_DIR}/f2008funcs.f90
         ${ENGINE_DIR}/nr_utility.f90)
-    
+
 # Numerical recipes procedures
 # NOTE: all numerical recipes procedures are now replaced with free versions
     set(NRPROC
         ${ENGINE_DIR}/expIntegral.f90
         ${ENGINE_DIR}/spline_int.f90)
 
-# Hook-up modules  
+# Hook-up modules
     set(HOOKUP
         ${HOOKUP_DIR}/ascii_util.f90
         ${HOOKUP_DIR}/summaFileManager.f90)
 
-# Data modules    
+# Data modules
     set(DATAMS
         ${DSHARE_DIR}/multiconst.f90
         ${DSHARE_DIR}/var_lookup.f90
@@ -74,7 +74,7 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
         ${ENGINE_DIR}/bigAquifer.f90
         ${ENGINE_DIR}/computFlux.f90
         ${ENGINE_DIR}/type4IDA.f90
-        ${ENGINE_DIR}/tol4IDA.f90 
+        ${ENGINE_DIR}/tol4IDA.f90
         ${ENGINE_DIR}/computEnthalpy.f90
         ${ENGINE_DIR}/computHeatCap.f90
         ${ENGINE_DIR}/computThermConduct.f90
@@ -94,7 +94,7 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
         ${ENGINE_DIR}/coupled_em.f90
         ${ENGINE_DIR}/run_oneHRU.f90
         ${ENGINE_DIR}/run_oneGRU.f90)
-        
+
 # Define routines for SUMMA preliminaries
     set(PRELIM
         ${ENGINE_DIR}/conv_funcs.f90
@@ -110,14 +110,14 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
         ${ENGINE_DIR}/read_param.f90
         ${ENGINE_DIR}/paramCheck.f90
         ${ENGINE_DIR}/check_icond.f90)
-    
+
     set(NOAHMP
         ${NOAHMP_DIR}/module_model_constants.F
         ${NOAHMP_DIR}/module_sf_noahutl.F
         ${NOAHMP_DIR}/module_sf_noahlsm.F
         ${NOAHMP_DIR}/module_sf_noahmplsm.F)
 
-# Define routines for the SUMMA model runs    
+# Define routines for the SUMMA model runs
     set(MODRUN
         ${ENGINE_DIR}/indexState.f90
         ${ENGINE_DIR}/getVectorz.f90
@@ -160,7 +160,7 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
 
     # run program files, do not use in ngen
     # set(SUMMA ${DRIVER_DIR}/summa_run.f90)
-    # set(BMI ${DRIVER_DIR}/summa_runBMI.f90)  
+    # set(BMI ${DRIVER_DIR}/summa_runBMI.f90)
 
     set(COMM_ALL
         ${NRUTIL}
@@ -179,7 +179,7 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
 #========================================================================
 # PART 4: compilation
 #======================================================================
-    
+
     add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
         target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 
@@ -191,9 +191,9 @@ function(compile_with_ida ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
     # Build SUMMA Shared Library, add BMI libraries outside this function
     if(WIN32)
         add_library(summabmi ${SUMMA_ALL})
-    else 
+    else()
         add_library(summabmi SHARED ${SUMMA_ALL})
-    endif
+    endif()
         target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
         target_include_directories(summabmi PUBLIC ${INCLUDES} ${INC_SUNDIALS})
         target_link_libraries(summabmi PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
