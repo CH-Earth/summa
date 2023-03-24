@@ -20,7 +20,7 @@ add_compile_definitions(BMI_ACTIVE NGEN_FORCING_ACTIVE NGEN_OUTPUT_ACTIVE NGEN_A
 
 
 set(ROOT_DIR ../../../)
-set(F_MASTER $(ROOT_DIR)/summa)
+set(F_MASTER ${ROOT_DIR}/summa)
 
 SET (CMAKE_Fortran_COMPILER gfortran)
 
@@ -57,20 +57,20 @@ endif()
 find_package(netCDF REQUIRED)
 find_package(LAPACK REQUIRED)
 
-set(DIR_SUNDIALS= $(ROOT_DIR)/sundials/instdir)
-set(INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran)
+set(DIR_SUNDIALS= ${ROOT_DIR}/sundials/instdir)
+set(INC_SUNDIALS=-I${DIR_SUNDIALS}/include -I${DIR_SUNDIALS}/fortran)
 
 # Set include directories
 if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
-    set(INCLUDES $(EBROOTNETCDFMINFORTRAN)/include)
-    set(LDFLAGS $(EBROOTNETCDFMINFORTRAN)/lib64 -L$(EBROOTOPENBLAS)/lib)
+    set(INCLUDES ${EBROOTNETCDFMINFORTRAN}/include)
+    set(LDFLAGS ${EBROOTNETCDFMINFORTRAN}/lib64 -L${EBROOTOPENBLAS}/lib)
     set(LIBRARIES $(LDFLAGS) -lnetcdff -lopenblas)
 
     message("\nBuilding IDA\n")
 
     link_directories(${DIR_SUNDIALS}/lib64)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
-    set(LIB_SUNDIALS $(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+    set(LIB_SUNDIALS ${DIR_SUNDIALS}/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 else()
     set(INCLUDES /opt/local/include -I/opt/local/lib)
@@ -81,14 +81,14 @@ else()
 
     link_directories(${DIR_SUNDIALS}/lib)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib")
-    set(LIB_SUNDIALS $(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+    set(LIB_SUNDIALS ${DIR_SUNDIALS}/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 
 endif()
 
 
 message("\nBuilding SUMMA\n")
-compile_with_bmi($(ROOT_DIR), $(F_MASTER), $(DIR_SUNDIALS), $(INCLUDES), $(LIBRARIES), $(INC_SUNDIALS), $(LIB_SUNDIALS), $(FLAGS_ALL), $(FLAGS_NOAH))
+compile_with_bmi(${ROOT_DIR}, ${F_MASTER}, ${DIR_SUNDIALS}, ${INCLUDES}, ${LIBRARIES}, ${INC_SUNDIALS}, ${LIB_SUNDIALS}, ${FLAGS_ALL}, ${FLAGS_NOAH})
 
 
 target_link_libraries(summabmi PUBLIC iso_c_bmi)

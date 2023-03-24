@@ -5,16 +5,16 @@ function(compile_with_bmi ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
 #========================================================================
 
 # Core directory that contains source code
-    set(F_KORE_DIR $(F_MASTER)/build/source)
+    set(F_KORE_DIR ${F_MASTER}/build/source)
 
 # Define directories
-    set(DRIVER_DIR $(F_KORE_DIR)/driver)
-    set(HOOKUP_DIR $(F_KORE_DIR)/hookup)
-    set(NETCDF_DIR $(F_KORE_DIR)/netcdf)
-    set(DSHARE_DIR $(F_KORE_DIR)/dshare)
-    set(NUMREC_DIR $(F_KORE_DIR)/numrec)
-    set(NOAHMP_DIR $(F_KORE_DIR)/noah-mp)
-    set(ENGINE_DIR $(F_KORE_DIR)/engine)
+    set(DRIVER_DIR ${F_KORE_DIR}/driver)
+    set(HOOKUP_DIR ${F_KORE_DIR}/hookup)
+    set(NETCDF_DIR ${F_KORE_DIR}/netcdf)
+    set(DSHARE_DIR ${F_KORE_DIR}/dshare)
+    set(NUMREC_DIR ${F_KORE_DIR}/numrec)
+    set(NOAHMP_DIR ${F_KORE_DIR}/noah-mp)
+    set(ENGINE_DIR ${F_KORE_DIR}/engine)
 
 #========================================================================
 # PART 2: Assemble all of the SUMMA sub-routines
