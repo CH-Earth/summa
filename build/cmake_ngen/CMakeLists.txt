@@ -24,7 +24,7 @@ set(F_MASTER ${ROOT_DIR}/summa)
 
 SET (CMAKE_Fortran_COMPILER gfortran)
 
-include(bmi.cmake)
+#include(bmi.cmake)
 # --------------------------------------------------------------------------------------------
 # When compiling Summa-Sundials it can be compiled in a Cluster or Debug mode, which is set by
 # the CMAKE_BUILD_TYPES variables. The default is Release, cluster mode.
@@ -257,10 +257,10 @@ message("\nBuilding SUMMA\n")
 
 # Define version number
     set(VERSIONFILE ${DRIVER_DIR}/summaversion.inc)
-    set(VERSION ${shell git tag | tail -n 1}
-    set(BULTTIM ${shell date}
-    set(GITBRCH ${shell git describe --long --all --always | sed -e's/heads\///'}
-    set(GITHASH ${shell git rev-parse HEAD}
+    execute_process(COMMAND bash -c "git tag | tail -n 1" OUTPUT_VARIABLE VERSION)
+    execute_process(COMMAND bash -c "date" OUTPUT_VARIABLE BULTTIM)
+    execute_process(COMMAND bash -c "git describe --long --all --always | sed -e's/heads\///'" OUTPUT_VARIABLE GITBRCH)
+    execute_process(COMMAND bash -c "git rev-parse HEAD" OUTPUT_VARIABLE GITHASH)
 
     set(COMM_ALL
         ${NRUTIL}
@@ -279,6 +279,13 @@ message("\nBuilding SUMMA\n")
 #========================================================================
 # PART 4: compilation
 #======================================================================
+
+# update version information
+    file({WRITE}  ${VERSIONFILE} "character(len=64), parameter     :: summaVersion = '${VERSION}'")
+    file({APPEND} ${VERSIONFILE} "character(len=64), parameter     :: buildTime = '${BULTTIM}'")
+	file({APPEND} ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${GITBRCH}'")
+	file({APPEND} ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
+
 
     add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
         target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
