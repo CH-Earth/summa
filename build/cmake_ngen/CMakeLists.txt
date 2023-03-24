@@ -255,6 +255,13 @@ message("\nBuilding SUMMA\n")
     # set(SUMMA ${DRIVER_DIR}/summa_run.f90)
     # set(BMI ${DRIVER_DIR}/summa_runBMI.f90)
 
+# Define version number
+    set(VERSIONFILE ${DRIVER_DIR}/summaversion.inc)
+    set(VERSION ${shell git tag | tail -n 1}
+    set(BULTTIM ${shell date}
+    set(GITBRCH ${shell git describe --long --all --always | sed -e's/heads\///'}
+    set(GITHASH ${shell git rev-parse HEAD}
+
     set(COMM_ALL
         ${NRUTIL}
         ${NRPROC}
