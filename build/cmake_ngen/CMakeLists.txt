@@ -27,7 +27,7 @@ SET (CMAKE_Fortran_COMPILER gfortran)
 include(bmi.cmake)
 # --------------------------------------------------------------------------------------------
 # When compiling Summa-Sundials it can be compiled in a Cluster or Debug mode, which is set by
-# the CMAKE_BUILD_TYPES variables. The default is Release, non-cluster mode.
+# the CMAKE_BUILD_TYPES variables. The default is Release, cluster mode.
 
 ######### SET THE PATHS TO THE SUNDIALS LIBRARIES AND INCLUDE FILES #########
 #############################################################################
@@ -37,7 +37,7 @@ set(CMAKE_BUILD_TYPES Debug Release Cluster_Debug Cluster)
 
 # Set default configuration type to Release
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+  set(CMAKE_BUILD_TYPE Cluster)
 endif()
 
 # Set compiler flags
@@ -63,25 +63,25 @@ set(INC_SUNDIALS=-I${DIR_SUNDIALS}/include -I${DIR_SUNDIALS}/fortran)
 # Set include directories
 if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
-    set(LIBRARIES ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
+    set(LIBRARIES NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
 
     message("\nBuilding IDA\n")
 
     link_directories(${DIR_SUNDIALS}/lib64)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
-    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran
-    set(LIB_SUNDIALS ${DIR_SUNDIALS}/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
+    set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 else()
     set(INCLUDES /opt/local/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
-    set(LIBRARIES ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -llapack -lgfortran -lnetcdff -lnetcdf)
+    set(LIBRARIES NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -llapack -lgfortran -lnetcdff -lnetcdf)
 
     message("\nBuilding IDA\n")
 
     link_directories(${DIR_SUNDIALS}/lib)
     set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib")
-    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran
-    set(LIB_SUNDIALS ${DIR_SUNDIALS}/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
+    set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 
 endif()

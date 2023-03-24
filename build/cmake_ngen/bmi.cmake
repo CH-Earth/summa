@@ -196,7 +196,7 @@ function(compile_with_bmi ROOT_DIR, F_MASTER, DIR_SUNDIALS, INCLUDES, LIBRARIES,
     endif()
         target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
         target_include_directories(summabmi PUBLIC ${INCLUDES} ${INC_SUNDIALS})
-        target_link_libraries(summabmi PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
+        target_link_libraries(summabmi PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM SUMMA_NOAHMP)
 
 
 endfunction()
