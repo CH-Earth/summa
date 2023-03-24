@@ -63,7 +63,7 @@ set(INC_SUNDIALS=-I${DIR_SUNDIALS}/include -I${DIR_SUNDIALS}/fortran)
 # Set include directories
 if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
-    set(LIBRARIES NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
+    set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
 
     message("\nBuilding IDA\n")
 
@@ -74,7 +74,7 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
 
 else()
     set(INCLUDES /opt/local/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
-    set(LIBRARIES NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -llapack -lgfortran -lnetcdff -lnetcdf)
+    set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -llapack -lgfortran -lnetcdff -lnetcdf)
 
     message("\nBuilding IDA\n")
 
