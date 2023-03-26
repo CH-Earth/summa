@@ -7,17 +7,21 @@
                     "model_type_name": "bmi_fortran_summa",
                     "library_file": "./extern/summa/cmake_build/libsummabmi.dylib",
                     "forcing_file": "",
-                    "init_config": "./extern/summa/data_ngen/celia_test/settings/syntheticTestCases/celia1990/non_actors/summa_fileManager_celia1990.txt",
+                    "init_config": "./data/bmi/fortran/summa-init-{{id}}.namelist.input",
+                    
+                    ./extern/summa/data_ngen/celia_test/settings/syntheticTestCases/celia1990/non_actors/summa_fileManager_celia1990.txt",
                     "allow_exceed_end_time": true,
+                    "main_output_variable": "land_surface_water__runoff_volume_flux",
                     "uses_forcing_file": false
                 }
             }
         ],
         "forcing": {
-            "path": "./data/forcing/cats-27_52_67-2015_12_01-2015_12_30.nc",
-            "provider": "NetCDF"
-            }
-        },
+            "file_pattern": ".*{{id}}.*..csv",
+            "path": "./data/forcing/",
+            "provider": "CsvPerFeature"
+        }
+    },
     "time": {
         "start_time": "2015-12-01 00:00:00",
         "end_time": "2015-12-30 23:00:00",

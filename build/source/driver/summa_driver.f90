@@ -305,13 +305,13 @@ module summa_driver
      bmi_status = BMI_SUCCESS
    end function summa_output_item_count
 
-   ! List input variables (none)
+   ! List input variables
    function summa_input_var_names(this, names) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status
 
-     input_items(1) = ''
+     input_items(1) = 'file_manager'
      names => input_items
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
