@@ -8,8 +8,6 @@
                     "library_file": "./extern/summa/cmake_build/libsummabmi.dylib",
                     "forcing_file": "",
                     "init_config": "./data/bmi/fortran/summa-init-{{id}}.namelist.input",
-                    
-                    ./extern/summa/data_ngen/celia_test/settings/syntheticTestCases/celia1990/non_actors/summa_fileManager_celia1990.txt",
                     "allow_exceed_end_time": true,
                     "main_output_variable": "land_surface_water__runoff_volume_flux",
                     "uses_forcing_file": false
