@@ -174,7 +174,8 @@ module summa_driver
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
      integer  :: bmi_status, i,fu,rc
-     namelist :: /parameters/ file_manager
+     ! namelist definition
+     namelist /parameters/ file_manager
 
      ! initialize time steps
      this%model%timeStep = 0
@@ -200,7 +201,6 @@ module summa_driver
        print "(A)", "file_master is '"//trim(config_file)//"'."
 #endif
      endif
-
 
      ! declare and allocate summa data structures and initialize model state to known values
      call summa_initialize(this%model%summa1_struc(n), err, message)
