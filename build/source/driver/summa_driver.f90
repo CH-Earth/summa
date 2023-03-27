@@ -173,7 +173,8 @@ module summa_driver
      ! error control
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
-     integer :: bmi_status, i
+     integer  :: bmi_status, i,fu,rc
+     namelist :: /parameters/ file_manager
 
      ! initialize time steps
      this%model%timeStep = 0
@@ -184,11 +185,22 @@ module summa_driver
 
      ! if using the BMI interface, there is an argument pointing to the file manager file
      !  then make sure summaFileManagerFile is set before executing initialization
-     ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
      if (len(config_file) > 0)then
+#ifdef NGEN_ACTIVE
+       ! with NGEN the argument gives the file manager file as an input parameter in a namelist
+       open (action='read', file=config_file, iostat=rc, newunit=fu)
+       read (nml=parameters, iostat=rc, unit=fu)
+       if (rc /= 0) write (stderr, '("Error: invalid Namelist format")')
+       this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
+       print "(A)", "file_master is '"//trim(file_manager)//"'."
+#else
+       ! without NGEN the argument gives the file manager file directly
+       ! Note, if this is more than 80 characters the pre-built BMI libraries will fail
        this%model%summa1_struc(n)%summaFileManagerFile=trim(config_file)
        print "(A)", "file_master is '"//trim(config_file)//"'."
+#endif
      endif
+
 
      ! declare and allocate summa data structures and initialize model state to known values
      call summa_initialize(this%model%summa1_struc(n), err, message)
@@ -305,13 +317,13 @@ module summa_driver
      bmi_status = BMI_SUCCESS
    end function summa_output_item_count
 
-   ! List input variables
+   ! List input variables (none)
    function summa_input_var_names(this, names) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status
 
-     input_items(1) = 'file_manager'
+     input_items(1) = ''
      names => input_items
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
