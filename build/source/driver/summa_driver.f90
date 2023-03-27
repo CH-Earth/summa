@@ -173,6 +173,7 @@ module summa_driver
      ! error control
      integer(i4b)                       :: err=0                      ! error code
      character(len=1024)                :: message=''                 ! error message
+     character(len=1024)                :: file_manager
      integer  :: bmi_status, i,fu,rc
      ! namelist definition
      namelist /parameters/ file_manager
