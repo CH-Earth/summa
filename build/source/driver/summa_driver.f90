@@ -192,7 +192,6 @@ module summa_driver
        ! with NGEN the argument gives the file manager file as an input parameter in a namelist
        open (action='read', file=config_file, iostat=rc, newunit=fu)
        read (nml=parameters, iostat=rc, unit=fu)
-       if (rc /= 0) write (stderr, '("Error: invalid Namelist format")')
        this%model%summa1_struc(n)%summaFileManagerFile=trim(file_manager)
        print "(A)", "file_master is '"//trim(file_manager)//"'."
 #else
