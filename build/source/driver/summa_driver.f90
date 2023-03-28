@@ -317,13 +317,13 @@ module summa_driver
      bmi_status = BMI_SUCCESS
    end function summa_output_item_count
 
-   ! List input variables (none)
+   ! List input variables (stub)
    function summa_input_var_names(this, names) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status
 
-     input_items(1) = ''
+     input_items() = 'none'
      names => input_items
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
@@ -698,6 +698,7 @@ module summa_driver
      integer :: bmi_status
 
      select case (name)
+     case('none')                                          ; units = 'none'      ; bmi_status = BMI_SUCCESS !stub for inputs
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__evaporation_mass_flux')     ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
      case('atmosphere_water__precipitation_mass_flux')     ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
@@ -727,6 +728,9 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
+     case('none')
+       size = 0
+       bmi_status = BMI_SUCCESS
      case default
        call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
        size = sizeof(targetarr(1))  ! 'sizeof' in gcc & ifort
@@ -791,6 +795,9 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
+     case('none')
+       dest = 0.0
+       bmi_status = BMI_SUCCESS
      case default
        call get_basin_field(this, name, sum(gru_struc(:)%hruCount), targetarr)
        dest = targetarr
@@ -936,6 +943,9 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
+     case('none')
+       !this%model%input = src(1)
+       bmi_status = BMI_SUCCESS
      case default
        bmi_status = BMI_FAILURE
      end select
