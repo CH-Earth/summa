@@ -180,13 +180,11 @@ subroutine summa_initialize(summa1_struc, err, message)
     elapsedRead=0._rkind
     elapsedWrite=0._rkind
     elapsedPhysics=0._rkind
-#ifdef NGEN_ACTIVE
-    !no command arguments with NGen
-#else
+
     ! get the command line arguments
     call getCommandArguments(summa1_struc,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-#endif
+
     ! set directories and files -- summaFileManager used as command-line argument
     call summa_SetTimesDirsAndFiles(summaFileManagerFile,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

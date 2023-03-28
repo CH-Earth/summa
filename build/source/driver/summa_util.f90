@@ -86,9 +86,13 @@ contains
 
  ! check number of command-line arguments
  nArgument = command_argument_count()
+#ifdef NGEN_ACTIVE
+    !no command arguments with NGen
+#else
  if (nArgument < 1) then
   call printCommandHelp()
  end if
+#endif
 
  ! read command line arguments
  allocate(argString(nArgument))
