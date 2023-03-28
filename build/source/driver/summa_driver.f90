@@ -323,7 +323,7 @@ module summa_driver
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status
 
-     input_items() = 'none'
+     input_items(1) = 'none'
      names => input_items
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
