@@ -156,7 +156,11 @@ module summa_driver
   ! define parameters for the model simulation
   integer(i4b), parameter            :: n=1                        ! number of instantiations
   ! Exchange items
+#ifdef NGEN_ACTIVE
+  integer, parameter :: input_item_count = 8
+#else
   integer, parameter :: input_item_count = 7
+#endif
   integer, parameter :: output_item_count = 15
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
@@ -325,8 +329,13 @@ module summa_driver
 
      input_items(1) = 'atmosphere_water__precipitation_mass_flux'
      input_items(2) = 'land_surface_air__temperature'
-     input_items(3) = 'land_surface__specific_humidity'
+     input_items(3) = 'atmosphere_air_water~vapor__relative_saturation'
+#ifdef NGEN_ACTIVE
+     input_items(4) = 'land_surface_wind__x_component_of_velocity'
+     input_items(8) = 'land_surface_wind__y_component_of_velocity'
+#else
      input_items(4) = 'land_surface_wind__speed'
+#endif
      input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
      input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
      input_items(7) = 'land_surface_air__pressure'
@@ -704,12 +713,16 @@ module summa_driver
      integer :: bmi_status
 
      select case (name)
-
      ! input
      case('atmosphere_water__precipitation_mass_flux')              ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
      case('land_surface_air__temperature')                          ; units = 'K'         ; bmi_status = BMI_SUCCESS
-     case('land_surface__specific_humidity')                        ; units = 'kg kg-1'   ; bmi_status = BMI_SUCCESS
+     case('atmosphere_air_water~vapor__relative_saturation')        ; units = 'kg kg-1'   ; bmi_status = BMI_SUCCESS
+#ifdef NGEN_ACTIVE
+     case('land_surface_wind__x_component_of_velocity')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_wind__y_component_of_velocity')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+#else
      case('land_surface_wind__speed')                               ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+#endif
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_air__pressure')                             ; units = 'kg m−1 s−2'; bmi_status = BMI_SUCCESS
@@ -1061,7 +1074,8 @@ module summa_driver
      integer ::  iGRU, jHRU, i
 
      summaVars: associate(&
-      forcStruct           => this%model%summa1_struc(n)%forcStruct    & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+      diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
       )
       do iGRU = 1, this%model%summa1_struc(n)%nGRU
         do jHRU = 1, gru_struc(iGRU)%hruCount
@@ -1070,10 +1084,19 @@ module summa_driver
           ! input
           case('atmosphere_water__precipitation_mass_flux')
             forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate) = inputarr(i)
-          case('land_surface__specific_humidity')
+          case('land_surface_air__temperature')
             forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp) = inputarr(i)
+          case('atmosphere_air_water~vapor__relative_saturation')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum) = inputarr(i)
+#ifdef NGEN_ACTIVE
+          case('land_surface_wind__x_component_of_velocity')
+            diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_x)%dat(1) = inputarr(i)
+          case('land_surface_wind__y_component_of_velocity')
+            diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_y)%dat(1) = inputarr(i)
+#else
           case('land_surface_wind__speed')
             forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = inputarr(i)
+#endif
           case('land_surface_radiation~incoming~shortwave__energy_flux')
             forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm) = inputarr(i)
           case('land_surface_radiation~incoming~longwave__energy_flux')
@@ -1107,14 +1130,24 @@ module summa_driver
           i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
           if (i > do_nHRU) return
           select case (name)
-
           ! input
           case('atmosphere_water__precipitation_mass_flux')
             targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
-          case('land_surface__specific_humidity')
+          case('land_surface_air__temperature')
             targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
+          case('atmosphere_air_water~vapor__relative_saturation')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum)
           case('land_surface_wind__speed')
             targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
+#ifdef NGEN_ACTIVE
+          case('land_surface_wind__x_component_of_velocity')
+            targetarr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_x)%dat(1)
+          case('land_surface_wind__y_component_of_velocity')
+            targetarr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_y)%dat(1)
+#else
+          case('land_surface_wind__speed')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
+#endif
           case('land_surface_radiation~incoming~shortwave__energy_flux')
             targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm)
           case('land_surface_radiation~incoming~longwave__energy_flux')
