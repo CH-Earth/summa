@@ -955,8 +955,6 @@ module summa_driver
      case default
        call assign_basin_field(this, name, src) ! See near bottom of file
        bmi_status = BMI_SUCCESS
-     case default
-       bmi_status = BMI_FAILURE
      end select
    end function summa_set_float
 
