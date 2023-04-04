@@ -159,7 +159,7 @@ module summa_driver
 #ifdef NGEN_ACTIVE
   integer, parameter :: input_item_count = 8
 #else
-  integer, parameter :: input_item_count = 7
+  integer, parameter :: input_item_count = 12
 #endif
   integer, parameter :: output_item_count = 15
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
@@ -322,6 +322,8 @@ module summa_driver
    end function summa_output_item_count
 
    ! List output variables standardized as "https://csdms.colorado.edu/wiki/CSDMS_Standard_Names"
+   ! NGEN uses two component wind and a time vector that is not currently separable
+   !   (compute wind speed from the two components and time from start time and hourly step assumption)
    function summa_input_var_names(this, names) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (*), pointer, intent(out) :: names(:)
@@ -335,6 +337,11 @@ module summa_driver
      input_items(8) = 'land_surface_wind__y_component_of_velocity'
 #else
      input_items(4) = 'land_surface_wind__speed'
+     input_items(8) = 'model__time_year'
+     input_items(9) = 'model__time_month'
+     input_items(10)= 'model__time_day'
+     input_items(11)= 'model__time_hour'
+     input_items(12)= 'model__time_min'
 #endif
      input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
      input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
@@ -607,7 +614,7 @@ module summa_driver
      end select
    end function summa_grid_node_count
 
-   ! Get the number of edges in an unstructured grid, points is 0 BUT COULD BE FOR GRUs
+   ! Get the number of edges in an unstructured grid, points is 0 BUT COULD BE USED FOR GRUs
    function summa_grid_edge_count(this, grid, count) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -621,7 +628,7 @@ module summa_driver
      end select
    end function summa_grid_edge_count
 
-   ! Get the number of faces in an unstructured grid, points is 0 BUT COULD BE FOR GRUs
+   ! Get the number of faces in an unstructured grid, points is 0 BUT COULD BE USED FOR GRUs
    function summa_grid_face_count(this, grid, count) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -635,7 +642,7 @@ module summa_driver
      end select
    end function summa_grid_face_count
 
-   ! Get the edge-node connectivity, points is 0 BUT COULD BE FOR GRUs
+   ! Get the edge-node connectivity, points is 0 BUT COULD BE USED FOR GRUs
    function summa_grid_edge_nodes(this, grid, edge_nodes) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -649,7 +656,7 @@ module summa_driver
      end select
    end function summa_grid_edge_nodes
 
-   ! Get the face-edge connectivity, points is 0 BUT COULD BE FOR GRUs
+   ! Get the face-edge connectivity, points is 0 BUT COULD BE USED FOR GRUs
    function summa_grid_face_edges(this, grid, face_edges) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -663,7 +670,7 @@ module summa_driver
      end select
    end function summa_grid_face_edges
 
-   ! Get the face-node connectivity, points is 0 BUT COULD BE FOR GRUs
+   ! Get the face-node connectivity, points is 0 BUT COULD BE USED FOR GRUs
    function summa_grid_face_nodes(this, grid, face_nodes) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -677,7 +684,7 @@ module summa_driver
      end select
    end function summa_grid_face_nodes
 
-   ! Get the number of nodes for each face, points is 0 BUT COULD BE FOR GRUs
+   ! Get the number of nodes for each face, points is 0 BUT COULD BE USED FOR GRUs
    function summa_grid_nodes_per_face(this, grid, nodes_per_face) result(bmi_status)
      class(summa_bmi), intent(in) :: this
      integer, intent(in) :: grid
@@ -698,11 +705,12 @@ module summa_driver
      character (len=*), intent(out) :: type
      integer :: bmi_status
 
-     select case(name)
-     case default
+     if(name(1:5)=='model')then
+       type = "integer"
+     else
        type = "real"
-       bmi_status = BMI_SUCCESS
-     end select
+     endif
+     bmi_status = BMI_SUCCESS
    end function summa_var_type
 
    ! The units of the given variable
@@ -722,6 +730,11 @@ module summa_driver
      case('land_surface_wind__y_component_of_velocity')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
 #else
      case('land_surface_wind__speed')                               ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('model_time_year')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model_time_month')                                       ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model_time_day')                                         ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model_time_hour')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model_time_min')                                         ; units = ''          ; bmi_status = BMI_SUCCESS
 #endif
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
@@ -752,15 +765,18 @@ module summa_driver
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      integer, intent(out) :: size
-     real ,target :: targetarr(sum(gru_struc(:)%hruCount))
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      integer :: bmi_status
 
-     select case(name)
-     case default
-       call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
-       size = sizeof(targetarr(1))  ! 'sizeof' in gcc & ifort
-       bmi_status = BMI_SUCCESS
-     end select
+     call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+     ! use the real or integer target
+     if(name(1:5)=='model')then
+       size = sizeof(itarget_arr) ! 'sizeof' in gcc & ifort
+     else
+       size = sizeof(target_arr(1)) ! 'sizeof' in gcc & ifort
+     endif
+     bmi_status = BMI_SUCCESS
    end function summa_var_itemsize
 
    ! The size of the given variable
@@ -802,12 +818,16 @@ module summa_driver
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      integer, intent(inout) :: dest(:)
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      integer :: bmi_status
 
      select case(name)
      case default
-       dest(:) = -1
-       bmi_status = BMI_FAILURE
+       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       ! use the integer target
+       dest = itarget_arr
+       bmi_status = BMI_SUCCESS
      end select
    end function summa_get_int
 
@@ -816,13 +836,15 @@ module summa_driver
      class (summa_bmi), intent(in) :: this
      character (len=*), intent(in) :: name
      real, intent(inout) :: dest(:)
-     real, target :: targetarr(sum(gru_struc(:)%hruCount))
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      integer :: bmi_status
 
      select case(name)
      case default
-       call get_basin_field(this, name, sum(gru_struc(:)%hruCount), targetarr)
-       dest = targetarr
+       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       ! use the real target
+       dest = target_arr
        bmi_status = BMI_SUCCESS
      end select
    end function summa_get_float
@@ -847,11 +869,18 @@ module summa_driver
      character (len=*), intent(in) :: name
      integer, pointer, intent(inout) :: dest_ptr(:)
      integer :: bmi_status, n_elements
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      type (c_ptr) :: src
 
      select case(name)
      case default
-       bmi_status = BMI_FAILURE
+       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       ! use the integer target
+       src = c_loc(itarget_arr)
+       n_elements = sum(gru_struc(:)%hruCount)
+       call c_f_pointer(src, dest_ptr, [n_elements])
+       bmi_status = BMI_SUCCESS
      end select
    end function summa_get_ptr_int
 
@@ -861,13 +890,15 @@ module summa_driver
      character (len=*), intent(in) :: name
      real, pointer, intent(inout) :: dest_ptr(:)
      integer :: bmi_status, n_elements
-     real, target :: targetarr(sum(gru_struc(:)%hruCount))
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      type (c_ptr) :: src
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
-       src = c_loc(targetarr(1))
+       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       ! use the real target
+       src = c_loc(target_arr(1))
        n_elements = sum(gru_struc(:)%hruCount)
        call c_f_pointer(src, dest_ptr, [n_elements])
        bmi_status = BMI_SUCCESS
@@ -895,13 +926,19 @@ module summa_driver
      integer, intent(inout) :: dest(:)
      integer, intent(in) :: inds(:)
      integer :: bmi_status, i, n_elements
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      type (c_ptr) src
      integer, pointer :: src_flattened(:)
 
      select case(name)
      case default
-       bmi_status = BMI_FAILURE
-     end select
+       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       ! use the integer target
+       src = c_loc(itarget_arr)
+       n_elements = sum(gru_struc(:)%hruCount)
+       call c_f_pointer(src, dest_ptr, [n_elements])
+       bmi_status = BMI_SUCCESS     end select
    end function summa_get_at_indices_int
 
    ! Get values of a real variable at the given locations
@@ -911,14 +948,16 @@ module summa_driver
      real, intent(inout) :: dest(:)
      integer, intent(in) :: inds(:)
      integer :: bmi_status, i, n_elements
-     real, target :: targetarr(sum(gru_struc(:)%hruCount))
+     real, target    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer ,target :: itarget_arr
      type (c_ptr) src
      real, pointer :: src_flattened(:)
 
      select case(name)
      case default
-       call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
-       src = c_loc(targetarr(1))
+       call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
+       ! use the real target
+       src = c_loc(target_arr(1))
        call c_f_pointer(src, src_flattened, [n_elements])
        n_elements = size(inds)
        do i = 1, n_elements
@@ -944,16 +983,19 @@ module summa_driver
      end select
    end function summa_get_at_indices_double
 
-   ! Set new integer values
+   ! Set new integer values, ONLY FOR INPUT VARIABLES
    function summa_set_int(this, name, src) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
      character (len=*), intent(in) :: name
      integer, intent(in) :: src(:)
+     real :: rsrc(sum(gru_struc(:)%hruCount))
      integer :: bmi_status
 
      select case(name)
      case default
-       bmi_status = BMI_FAILURE
+       rsrc = -999.0
+       call assign_basin_field(this, name, rsrc, src) ! See near bottom of file
+       bmi_status = BMI_SUCCESS
      end select
    end function summa_set_int
 
@@ -962,11 +1004,12 @@ module summa_driver
      class (summa_bmi), intent(inout) :: this
      character (len=*), intent(in) :: name
      real, intent(in) :: src(:)
-     integer :: bmi_status
+     integer :: bmi_status, isrc
 
      select case(name)
      case default
-       call assign_basin_field(this, name, src) ! See near bottom of file
+       isrc = -999
+       call assign_basin_field(this, name, src, isrc) ! See near bottom of file
        bmi_status = BMI_SUCCESS
      end select
    end function summa_set_float
@@ -1066,129 +1109,161 @@ module summa_driver
 #endif
 
    ! non-BMI helper function to assign input fields
-   subroutine assign_basin_field(this, name, inputarr)
+   subroutine assign_basin_field(this, name, src_arr, isrc_arr)
      implicit none
      class (summa_bmi), intent(inout) :: this
      character (len=*), intent(in) :: name
-     real, intent(in) :: inputarr(sum(gru_struc(:)%hruCount))
+     real, intent(in)    :: src_arr(sum(gru_struc(:)%hruCount))
+     integer, intent(in) :: isrc_arr
      integer ::  iGRU, jHRU, i
 
      summaVars: associate(&
+      timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                   -- model time data
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
       diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
       )
-      do iGRU = 1, this%model%summa1_struc(n)%nGRU
-        do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
-          select case (name)
-          ! input
-          case('atmosphere_water__precipitation_mass_flux')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate) = inputarr(i)
-          case('land_surface_air__temperature')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp) = inputarr(i)
-          case('atmosphere_air_water~vapor__relative_saturation')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum) = inputarr(i)
-#ifdef NGEN_ACTIVE
-          case('land_surface_wind__x_component_of_velocity')
-            diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_x)%dat(1) = inputarr(i)
-          case('land_surface_wind__y_component_of_velocity')
-            diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_y)%dat(1) = inputarr(i)
-#else
-          case('land_surface_wind__speed')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = inputarr(i)
-#endif
-          case('land_surface_radiation~incoming~shortwave__energy_flux')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm) = inputarr(i)
-          case('land_surface_radiation~incoming~longwave__energy_flux')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm) = inputarr(i)
-          case('land_surface_air__pressure')
-            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres) = inputarr(i)
-          end select
+
+      if(name(1:5)=='model')then
+        select case (name)
+        ! input
+        case('model_time_year')
+          timeStruct%var(iLookTIME%iyyy) = isrc_arr
+        case('model_time_month')
+          timeStruct%var(iLookTIME%im) = isrc_arr
+        case('model_time_day')
+          timeStruct%var(iLookTIME%id) = isrc_arr
+        case('model_time_hour')
+          timeStruct%var(iLookTIME%ih) = isrc_arr
+        case('model_time_hour')
+          timeStruct%var(iLookTIME%imin) = isrc_arr
+        end select
+      else
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+          do jHRU = 1, gru_struc(iGRU)%hruCount
+            i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+            select case (name)
+            ! input
+            case('atmosphere_water__precipitation_mass_flux')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate) = src_arr(i)
+            case('land_surface_air__temperature')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp) = src_arr(i)
+            case('atmosphere_air_water~vapor__relative_saturation')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum) = src_arr(i)
+            case('land_surface_wind__x_component_of_velocity')
+              diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_x)%dat(1) = src_arr(i)
+            case('land_surface_wind__y_component_of_velocity')
+              diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_y)%dat(1) = src_arr(i)
+            case('land_surface_wind__speed')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = src_arr(i)
+            case('land_surface_radiation~incoming~shortwave__energy_flux')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm) = src_arr(i)
+            case('land_surface_radiation~incoming~longwave__energy_flux')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm) = src_arr(i)
+            case('land_surface_air__pressure')
+              forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres) = src_arr(i)
+            end select
+          end do
         end do
-      end do
+      endif
      end associate summaVars
    end subroutine assign_basin_field
 
    ! non-BMI helper function to get fields, only get first do_nHRU of them
-   subroutine get_basin_field(this, name, do_nHRU, targetarr)
+   subroutine get_basin_field(this, name, do_nHRU, target_arr, itarget_arr)
      implicit none
      class (summa_bmi), intent(in) :: this
      integer, intent(in)  :: do_nHRU
      character (len=*), intent(in) :: name
-     real, target, intent(out) :: targetarr(sum(gru_struc(:)%hruCount))
+     real, target, intent(out)    :: target_arr(sum(gru_struc(:)%hruCount))
+     integer, target, intent(out) :: itarget_arr
      integer ::  iGRU, jHRU, i
 
      summaVars: associate(&
+      timeStruct           => this%model%summa1_struc(n)%timeStruct  , & ! x%var(:)                   -- model time data
       forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
       progStruct           => this%model%summa1_struc(n)%progStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model prognostic (state) variables
       diagStruct           => this%model%summa1_struc(n)%diagStruct  , & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
       fluxStruct           => this%model%summa1_struc(n)%fluxStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model fluxes
       )
-      targetarr = -999.0
-      do iGRU = 1, this%model%summa1_struc(n)%nGRU
-        do jHRU = 1, gru_struc(iGRU)%hruCount
-          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
-          if (i > do_nHRU) return
-          select case (name)
-          ! input
-          case('atmosphere_water__precipitation_mass_flux')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
-          case('land_surface_air__temperature')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
-          case('atmosphere_air_water~vapor__relative_saturation')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum)
-          case('land_surface_wind__speed')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
-#ifdef NGEN_ACTIVE
-          case('land_surface_wind__x_component_of_velocity')
-            targetarr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_x)%dat(1)
-          case('land_surface_wind__y_component_of_velocity')
-            targetarr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(windspd_y)%dat(1)
-#else
-          case('land_surface_wind__speed')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
-#endif
-          case('land_surface_radiation~incoming~shortwave__energy_flux')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm)
-          case('land_surface_radiation~incoming~longwave__energy_flux')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm)
-          case('land_surface_air__pressure')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
+      target_arr = -999.0
+      itarget_arr = -999
+      if(name(1:5)=='model')then
+        select case (name)
+        ! input
+        case('model_time_year')
+          itarget_arr = timeStruct%var(iLookTIME%iyyy)
+        case('model_time_month')
+          itarget_arr = timeStruct%var(iLookTIME%im)
+        case('model_time_day')
+          itarget_arr = timeStruct%var(iLookTIME%id)
+        case('model_time_hour')
+          itarget_arr = timeStruct%var(iLookTIME%ih)
+        case('model_time_hour')
+          itarget_arr = timeStruct%var(iLookTIME%imin)
+        end select
+      else
+        do iGRU = 1, this%model%summa1_struc(n)%nGRU
+          do jHRU = 1, gru_struc(iGRU)%hruCount
+            i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+            if (i > do_nHRU) return
+            select case (name)
+            ! input
+            case('atmosphere_water__precipitation_mass_flux')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
+            case('land_surface_air__temperature')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
+            case('atmosphere_air_water~vapor__relative_saturation')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum)
+            case('land_surface_wind__speed')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
+            case('land_surface_wind__x_component_of_velocity')
+              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_x)%dat(1)
+            case('land_surface_wind__y_component_of_velocity')
+              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_y)%dat(1)
+            case('land_surface_wind__speed')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
+            case('land_surface_radiation~incoming~shortwave__energy_flux')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm)
+            case('land_surface_radiation~incoming~longwave__energy_flux')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm)
+            case('land_surface_air__pressure')
+              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
 
-          ! output
-          case('land_surface_water__runoff_volume_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)
-          case('land_surface_water__evaporation_mass_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
-          case('land_vegetation_water__evaporation_mass_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
-          case('land_vegetation_water__transpiration_mass_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
-          case('snowpack__sublimation_mass_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
-          case('land_vegetation_water__sublimation_mass_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
-          case('snowpack_mass')
-            targetarr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
-          case('soil_water__mass')
-            targetarr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
-          case('land_vegetation_water__mass')
-            targetarr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
-          case('land_surface_radiation~net~total__energy_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarNetRadiation)%dat(1)
-          case('land_atmosphere_heat~net~latent__energy_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarLatHeatTotal)%dat(1)
-          case('land_atmosphere_heat~net~sensible__energy_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSenHeatTotal)%dat(1)
-          case('atmosphere_energy~net~total__energy_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)
-          case('land_vegetation_energy~net~total__energy_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
-          case('land_surface_energy~net~total__energy_flux')
-            targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
-          end select
+            ! output
+            case('land_surface_water__runoff_volume_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)
+            case('land_surface_water__evaporation_mass_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
+            case('land_vegetation_water__evaporation_mass_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
+            case('land_vegetation_water__transpiration_mass_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyTranspiration)%dat(1)
+            case('snowpack__sublimation_mass_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSnowSublimation)%dat(1)
+            case('land_vegetation_water__sublimation_mass_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopySublimation)%dat(1)
+            case('snowpack_mass')
+              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarSWE)%dat(1)
+            case('soil_water__mass')
+              target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%scalarTotalSoilWat)%dat(1)
+            case('land_vegetation_water__mass')
+              target_arr(i) = progStruct%gru(iGRU)%hru(jHRU)%var(iLookPROG%scalarCanopyWat)%dat(1)
+            case('land_surface_radiation~net~total__energy_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarNetRadiation)%dat(1)
+            case('land_atmosphere_heat~net~latent__energy_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarLatHeatTotal)%dat(1)
+            case('land_atmosphere_heat~net~sensible__energy_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSenHeatTotal)%dat(1)
+            case('atmosphere_energy~net~total__energy_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)
+            case('land_vegetation_energy~net~total__energy_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
+            case('land_surface_energy~net~total__energy_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
+            end select
+          end do
         end do
-      end do
+      endif
      end associate summaVars
    end subroutine get_basin_field
 
