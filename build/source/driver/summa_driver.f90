@@ -1063,7 +1063,7 @@ module summa_driver
      integer ::  iGRU, jHRU, i
 
      summaVars: associate(&
-      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+      forcStruct           => this%model%summa1_struc(n)%forcStruct    & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
       )
       targetarr = -999.0
       do iGRU = 1, this%model%summa1_struc(n)%nGRU
