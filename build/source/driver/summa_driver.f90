@@ -952,8 +952,8 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
-     case('land_surface_air__temperature')
-       this%model%forcing%land_surface_air__temperature(1) = src(1)
+     case default
+       call assign_basin_field(this, name, src) ! See near bottom of file
        bmi_status = BMI_SUCCESS
      case default
        bmi_status = BMI_FAILURE
@@ -1025,34 +1025,69 @@ module summa_driver
    end function summa_set_at_indices_double
 
 #ifdef NGEN_ACTIVE
-  function register_bmi(this) result(bmi_status) bind(C, name="register_bmi")
-    use, intrinsic:: iso_c_binding, only: c_ptr, c_loc, c_int
-    use iso_c_bmif_2_0
-    implicit none
-    type(c_ptr) :: this ! If not value, then from the C perspective `this` is a void**
-    integer(kind=c_int) :: bmi_status
-    !Create the model instance to use
-    type(summa_bmi), pointer :: bmi_model
-    !Create a simple pointer wrapper
-    type(box), pointer :: bmi_box
+   function register_bmi(this) result(bmi_status) bind(C, name="register_bmi")
+     use, intrinsic:: iso_c_binding, only: c_ptr, c_loc, c_int
+     use iso_c_bmif_2_0
+     implicit none
+     type(c_ptr) :: this ! If not value, then from the C perspective `this` is a void**
+     integer(kind=c_int) :: bmi_status
+     !Create the model instance to use
+     type(summa_bmi), pointer :: bmi_model
+     !Create a simple pointer wrapper
+     type(box), pointer :: bmi_box
 
-    !allocate model
-    allocate(summa_bmi::bmi_model)
-    !allocate the pointer box
-    allocate(bmi_box)
+     !allocate model
+     allocate(summa_bmi::bmi_model)
+     !allocate the pointer box
+     allocate(bmi_box)
 
-    !associate the wrapper pointer the created model instance
-    bmi_box%ptr => bmi_model
+     !associate the wrapper pointer the created model instance
+     bmi_box%ptr => bmi_model
 
-    if( .not. associated( bmi_box ) .or. .not. associated( bmi_box%ptr ) ) then
-     bmi_status = BMI_FAILURE
-    else
-     !Return the pointer to box
-     this = c_loc(bmi_box)
-     bmi_status = BMI_SUCCESS
-    endif
-  end function register_bmi
+     if( .not. associated( bmi_box ) .or. .not. associated( bmi_box%ptr ) ) then
+       bmi_status = BMI_FAILURE
+     else
+       ! Return the pointer to box
+       this = c_loc(bmi_box)
+       bmi_status = BMI_SUCCESS
+     endif
+   end function register_bmi
 #endif
+
+   ! non-BMI helper function to assign input fields
+   subroutine assign_basin_field(this, name, inputarr)
+     implicit none
+     class (summa_bmi), intent(inout) :: this
+     character (len=*), intent(in) :: name
+     real, intent(in) :: inputarr(sum(gru_struc(:)%hruCount))
+     integer ::  iGRU, jHRU, i
+
+     summaVars: associate(&
+      forcStruct           => this%model%summa1_struc(n)%forcStruct  , & ! x%gru(:)%hru(:)%var(:)     -- model forcing data
+      )
+      targetarr = -999.0
+      do iGRU = 1, this%model%summa1_struc(n)%nGRU
+        do jHRU = 1, gru_struc(iGRU)%hruCount
+          i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
+          select case (name)
+          ! input
+          case('atmosphere_water__precipitation_mass_flux')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate) = inputarr(i)
+          case('land_surface__specific_humidity')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp) = inputarr(i)
+          case('land_surface_wind__speed')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd) = inputarr(i)
+          case('land_surface_radiation~incoming~shortwave__energy_flux')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm) = inputarr(i)
+          case('land_surface_radiation~incoming~longwave__energy_flux')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm) = inputarr(i)
+          case('land_surface_air__pressure')
+            forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres) = inputarr(i)
+          end select
+        end do
+      end do
+     end associate summaVars
+   end subroutine assign_basin_field
 
    ! non-BMI helper function to get fields, only get first do_nHRU of them
    subroutine get_basin_field(this, name, do_nHRU, targetarr)
