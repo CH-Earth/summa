@@ -156,8 +156,8 @@ module summa_driver
   ! define parameters for the model simulation
   integer(i4b), parameter            :: n=1                        ! number of instantiations
   ! Exchange items
-  integer, parameter :: input_item_count = 1
-  integer, parameter :: output_item_count = 16
+  integer, parameter :: input_item_count = 7
+  integer, parameter :: output_item_count = 15
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! ---------------------------------------------------------------------------------------
@@ -317,13 +317,20 @@ module summa_driver
      bmi_status = BMI_SUCCESS
    end function summa_output_item_count
 
-   ! List input variables (stub)
+   ! List output variables standardized as "https://csdms.colorado.edu/wiki/CSDMS_Standard_Names"
    function summa_input_var_names(this, names) result (bmi_status)
      class (summa_bmi), intent(in) :: this
      character (*), pointer, intent(out) :: names(:)
      integer :: bmi_status
 
-     input_items(1) = 'none'
+     input_items(1) = 'atmosphere_water__precipitation_mass_flux'
+     input_items(2) = 'land_surface_air__temperature'
+     input_items(3) = 'land_surface__specific_humidity'
+     input_items(4) = 'land_surface_wind__speed'
+     input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
+     input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
+     input_items(7) = 'land_surface_air__pressure'
+
      names => input_items
      bmi_status = BMI_SUCCESS
    end function summa_input_var_names
@@ -336,20 +343,19 @@ module summa_driver
 
      output_items(1) = 'land_surface_water__runoff_volume_flux'
      output_items(2) = 'land_surface_water__evaporation_mass_flux'
-     output_items(3) = 'atmosphere_water__precipitation_mass_flux'
-     output_items(4) = 'land_vegetation_water__evaporation_mass_flux'
-     output_items(5) = 'land_vegetation_water__transpiration_mass_flux'
-     output_items(6) = 'snowpack__sublimation_mass_flux'
-     output_items(7) = 'land_vegetation_water__sublimation_mass_flux'
-     output_items(8) = 'snowpack_mass'
-     output_items(9) = 'soil_water__mass'
-     output_items(10)= 'land_vegetation_water__mass'
-     output_items(11)= 'land_surface_radiation~net~total__energy_flux'
-     output_items(12)= 'land_atmosphere_heat~net~latent__energy_flux'   !(incoming to the *atmosphere*, since atmosphere is last)
-     output_items(13)= 'land_atmosphere_heat~net~sensible__energy_flux' !(incoming to the *atmosphere*, since atmosphere is last)
-     output_items(14)= 'atmosphere_energy~net~total__energy_flux'
-     output_items(15)= 'land_vegetation_energy~net~total__energy_flux'
-     output_items(16)= 'land_surface_energy~net~total__energy_flux'
+     output_items(3) = 'land_vegetation_water__evaporation_mass_flux'
+     output_items(4) = 'land_vegetation_water__transpiration_mass_flux'
+     output_items(5) = 'snowpack__sublimation_mass_flux'
+     output_items(6) = 'land_vegetation_water__sublimation_mass_flux'
+     output_items(7) = 'snowpack_mass'
+     output_items(8) = 'soil_water__mass'
+     output_items(9) = 'land_vegetation_water__mass'
+     output_items(10)= 'land_surface_radiation~net~total__energy_flux'
+     output_items(11)= 'land_atmosphere_heat~net~latent__energy_flux'   !(incoming to the *atmosphere*, since atmosphere is last)
+     output_items(12)= 'land_atmosphere_heat~net~sensible__energy_flux' !(incoming to the *atmosphere*, since atmosphere is last)
+     output_items(13)= 'atmosphere_energy~net~total__energy_flux'
+     output_items(14)= 'land_vegetation_energy~net~total__energy_flux'
+     output_items(15)= 'land_surface_energy~net~total__energy_flux'
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -698,10 +704,19 @@ module summa_driver
      integer :: bmi_status
 
      select case (name)
-     case('none')                                          ; units = 'none'      ; bmi_status = BMI_SUCCESS !stub for inputs
+
+     ! input
+     case('atmosphere_water__precipitation_mass_flux')              ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
+     case('land_surface_air__temperature')                          ; units = 'K'         ; bmi_status = BMI_SUCCESS
+     case('land_surface__specific_humidity')                        ; units = 'kg kg-1'   ; bmi_status = BMI_SUCCESS
+     case('land_surface_wind__speed')                               ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_air__pressure')                             ; units = 'kg m−1 s−2'; bmi_status = BMI_SUCCESS
+
+     ! output
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case('land_surface_water__evaporation_mass_flux')     ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
-     case('atmosphere_water__precipitation_mass_flux')     ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__evaporation_mass_flux')  ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__transpiration_mass_flux'); units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
      case('snowpack__sublimation_mass_flux')               ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
@@ -728,9 +743,6 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
-     case('none')
-       size = 0
-       bmi_status = BMI_SUCCESS
      case default
        call get_basin_field(this, name, 1, targetarr) ! See near bottom of file
        size = sizeof(targetarr(1))  ! 'sizeof' in gcc & ifort
@@ -795,9 +807,6 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
-     case('none')
-       dest = 0.0
-       bmi_status = BMI_SUCCESS
      case default
        call get_basin_field(this, name, sum(gru_struc(:)%hruCount), targetarr)
        dest = targetarr
@@ -943,8 +952,8 @@ module summa_driver
      integer :: bmi_status
 
      select case(name)
-     case('none')
-       !this%model%input = src(1)
+     case('land_surface_air__temperature')
+       this%model%forcing%land_surface_air__temperature(1) = src(1)
        bmi_status = BMI_SUCCESS
      case default
        bmi_status = BMI_FAILURE
@@ -1066,12 +1075,26 @@ module summa_driver
           i = (iGRU-1) * gru_struc(iGRU)%hruCount + jHRU
           if (i > do_nHRU) return
           select case (name)
+
+          ! input
+          case('atmosphere_water__precipitation_mass_flux')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
+          case('land_surface__specific_humidity')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
+          case('land_surface_wind__speed')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
+          case('land_surface_radiation~incoming~shortwave__energy_flux')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%SWRadAtm)
+          case('land_surface_radiation~incoming~longwave__energy_flux')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%LWRadAtm)
+          case('land_surface_air__pressure')
+            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airpres)
+
+          ! output
           case('land_surface_water__runoff_volume_flux')
             targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)
           case('land_surface_water__evaporation_mass_flux')
             targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
-          case('atmosphere_water__precipitation_mass_flux')
-            targetarr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%pptrate)
           case('land_vegetation_water__evaporation_mass_flux')
             targetarr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)
           case('land_vegetation_water__transpiration_mass_flux')
