@@ -512,6 +512,8 @@ contains
   case('scalarNewSnowDensity'           ); get_ixdiag = iLookDIAG%scalarNewSnowDensity             ! density of fresh snow, should snow be falling in this time step (kg m-3)
   case('scalarO2air'                    ); get_ixdiag = iLookDIAG%scalarO2air                      ! atmospheric o2 concentration (Pa)
   case('scalarCO2air'                   ); get_ixdiag = iLookDIAG%scalarCO2air                     ! atmospheric co2 concentration (Pa)
+  case('windspd_x'                      ); get_ixdiag = iLookDIAG%windspd_x                        ! wind speed at 10 meter height in x-direction (m s-1)
+  case('windspd_y'                      ); get_ixdiag = iLookDIAG%windspd_y                        ! wind speed at 10 meter height in y-direction (m s-1)
   ! shortwave radiation
   case('scalarCosZenith'                ); get_ixdiag = iLookDIAG%scalarCosZenith                  ! cosine of the solar zenith angle (0-1)
   case('scalarFractionDirect'           ); get_ixdiag = iLookDIAG%scalarFractionDirect             ! fraction of direct radiation (0-1)
@@ -560,8 +562,8 @@ contains
   case('scalarSoilControl'              ); get_ixdiag = iLookDIAG%scalarSoilControl                ! soil control on infiltration: 1=controlling; 0=not (-)
   case('mLayerVolFracAir'               ); get_ixdiag = iLookDIAG%mLayerVolFracAir                 ! volumetric fraction of air in each layer (-)
   case('mLayerTcrit'                    ); get_ixdiag = iLookDIAG%mLayerTcrit                      ! critical soil temperature above which all water is unfrozen (K)
-  case('mLayerCompress'                 ); get_ixdiag = iLookDIAG%mLayerCompress                   ! change in volumetric water content due to compression of soil (-)
-  case('scalarSoilCompress'             ); get_ixdiag = iLookDIAG%scalarSoilCompress               ! change in total soil storage due to compression of the soil matrix (kg m-2)
+  case('mLayerCompress'                 ); get_ixdiag = iLookDIAG%mLayerCompress                   ! change in volumetric water content due to compression of soil (s-1)
+  case('scalarSoilCompress'             ); get_ixdiag = iLookDIAG%scalarSoilCompress               ! change in total soil storage due to compression of the soil matrix (kg m-2 s-1)
   case('mLayerMatricHeadLiq'            ); get_ixdiag = iLookDIAG%mLayerMatricHeadLiq              ! matric potential of liquid water (m)
   ! mass balance check
   case('scalarSoilWatBalError'          ); get_ixdiag = iLookDIAG%scalarSoilWatBalError            ! error in the total soil water balance (kg m-2)

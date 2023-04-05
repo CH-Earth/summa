@@ -389,6 +389,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarNewSnowDensity            = integerMissing ! density of fresh snow (kg m-3)
   integer(i4b)    :: scalarO2air                     = integerMissing ! atmospheric o2 concentration (Pa)
   integer(i4b)    :: scalarCO2air                    = integerMissing ! atmospheric co2 concentration (Pa)
+  integer(i4b)    :: windspd_x                       = integerMissing ! wind speed at 10 meter height in x-direction (m s-1)
+  integer(i4b)    :: windspd_y                       = integerMissing ! wind speed at 10 meter height in y-direction (m s-1)
   ! shortwave radiation
   integer(i4b)    :: scalarCosZenith                 = integerMissing ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: scalarFractionDirect            = integerMissing ! fraction of direct radiation (0-1)
@@ -437,8 +439,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarSoilControl               = integerMissing ! soil control on infiltration: 1=controlling; 0=not (-)
   integer(i4b)    :: mLayerVolFracAir                = integerMissing ! volumetric fraction of air in each layer (-)
   integer(i4b)    :: mLayerTcrit                     = integerMissing ! critical soil temperature above which all water is unfrozen (K)
-  integer(i4b)    :: mLayerCompress                  = integerMissing ! change in volumetric water content due to compression of soil (-)
-  integer(i4b)    :: scalarSoilCompress              = integerMissing ! change in total soil storage due to compression of the soil matrix (kg m-2)
+  integer(i4b)    :: mLayerCompress                  = integerMissing ! change in volumetric water content due to compression of soil (s-1)
+  integer(i4b)    :: scalarSoilCompress              = integerMissing ! change in total soil storage due to compression of the soil matrix (kg m-2 s-1)
   integer(i4b)    :: mLayerMatricHeadLiq             = integerMissing ! matric potential of liquid water (m)
   ! mass balance check
   integer(i4b)    :: scalarSoilWatBalError           = integerMissing ! error in the total soil water balance (kg m-2)
@@ -867,7 +869,7 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94, 95, 96)
+                                                                         91, 92, 93, 94, 95, 96, 97, 98)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

@@ -54,6 +54,7 @@ module summa_driver
   USE globalData, only: gru_struc                             ! gru-hru mapping structures
   USE multiconst, only: secprday                              ! number of seconds in a day
   ! provide access to the named variables that describe elements of parent model structures
+  USE var_lookup, only: iLookTIME                             ! named variables for time data structure
   USE var_lookup, only: iLookATTR                             ! named variables for real valued attribute data structure
   USE var_lookup, only: iLookFORCE                            ! named variables for forcing data structure
   USE var_lookup, only: iLookFLUX                             ! named variables for local flux variables
@@ -936,9 +937,13 @@ module summa_driver
        call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
        ! use the integer target
        src = c_loc(itarget_arr)
-       n_elements = sum(gru_struc(:)%hruCount)
-       call c_f_pointer(src, dest_ptr, [n_elements])
-       bmi_status = BMI_SUCCESS     end select
+       call c_f_pointer(src, src_flattened, [n_elements])
+       n_elements = size(inds)
+       do i = 1, n_elements
+          dest(i) = src_flattened(inds(i))
+       end do
+       bmi_status = BMI_SUCCESS
+     end select
    end function summa_get_at_indices_int
 
    ! Get values of a real variable at the given locations

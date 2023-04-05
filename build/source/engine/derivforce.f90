@@ -162,6 +162,8 @@ contains
  ! derived model forcing data
  scalarO2air             => diag_data%var(iLookDIAG%scalarO2air)%dat(1)           , & ! atmospheric o2 concentration (Pa)
  scalarCO2air            => diag_data%var(iLookDIAG%scalarCO2air)%dat(1)          , & ! atmospheric co2 concentration (Pa)
+ windspd_x               => diag_data%var(iLookDIAG%windspd_x)%dat(1)             , & ! wind speed at 10 meter height in x-direction (m s-1)
+ windspd_y               => diag_data%var(iLookDIAG%windspd_y)%dat(1)             , & ! wind speed at 10 meter height in y-direction (m s-1)
  ! radiation variables
  scalarFractionDirect    => diag_data%var(iLookDIAG%scalarFractionDirect)%dat(1)  , & ! fraction of direct radiation (0-1)
  spectralIncomingDirect  => flux_data%var(iLookFLUX%spectralIncomingDirect)%dat   , & ! downwelling direct shortwave radiation for each waveband (W m-2)
@@ -177,6 +179,14 @@ contains
 
  ! initialize error control
  err=0; message="derivforce/"
+
+ ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
+#ifndef NGEN_FORCING_ACTIVE
+ windspd = sqrt(windspd_x**2._rkind + windspd_y**2._rkind)
+#else
+ windspd_x = windspd
+ windspd_y = 0._rkind
+#endif
 
  ! check spectral dimension
  if(size(spectralIncomingDirect) /= nBands .or. size(spectralIncomingDiffuse) /= nBands)then
