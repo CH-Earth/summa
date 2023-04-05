@@ -7,7 +7,7 @@
                     "model_type_name": "bmi_fortran_summa",
                     "library_file": "./extern/summa/cmake_build/libsummabmi.so",
                     "forcing_file": "",
-                    "init_config": "./data/bmi/fortran/summa-init-{{id}}.namelist.input",
+                    "init_config": ".//extern/summa/summa/test_ngen/summa-init-{{id}}.namelist.input",
                     "allow_exceed_end_time": true,
                     "main_output_variable": "land_surface_water__runoff_volume_flux",
                     "variables_names_map": {
@@ -26,13 +26,13 @@
         ],
         "forcing": {
             "file_pattern": ".*{{id}}.*..csv",
-            "path": "./data/forcing/",
+            "path": "./extern/summa/summa/test_ngen/celia_test/input_data/celia1990/",
             "provider": "CsvPerFeature"
         }
     },
     "time": {
-        "start_time": "2015-12-01 00:00:00",
-        "end_time": "2015-12-30 23:00:00",
+        "start_time": "2000-01-01 00:00:00",
+        "end_time": "2000-01-03 12:00:00",
         "output_interval": 3600
     }
 }

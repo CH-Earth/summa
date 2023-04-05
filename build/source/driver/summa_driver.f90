@@ -323,6 +323,7 @@ module summa_driver
    end function summa_output_item_count
 
    ! List output variables standardized as "https://csdms.colorado.edu/wiki/CSDMS_Standard_Names"
+   ! These are the inputs we will need if we do not want to call read_force inside summa_forcing.f90
    ! NGEN uses two component wind and a time vector that is not currently separable
    !   (compute wind speed from the two components and time from start time and hourly step assumption)
    function summa_input_var_names(this, names) result (bmi_status)
