@@ -5,6 +5,9 @@
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 
+cmake -B extern/noah-owp-modular/cmake_build -S extern/noah-owp-modular
+cmake --build extern/noah-owp-modular/cmake_build --target all
+
 cmake -B extern/summa/cmake_build -S extern/summa
 cmake --build extern/summa/cmake_build --target all
 

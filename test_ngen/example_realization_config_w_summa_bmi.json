@@ -7,7 +7,7 @@
                     "model_type_name": "bmi_fortran_summa",
                     "library_file": "./extern/summa/cmake_build/libsummabmi.so",
                     "forcing_file": "",
-                    "init_config": ".//extern/summa/summa/test_ngen/summa-init-{{id}}.namelist.input",
+                    "init_config": "./extern/summa/summa/test_ngen/summa-init-{{id}}.namelist.input",
                     "allow_exceed_end_time": true,
                     "main_output_variable": "land_surface_water__runoff_volume_flux",
                     "variables_names_map": {
