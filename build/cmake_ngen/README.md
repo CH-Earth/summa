@@ -87,8 +87,8 @@ To run a test basin, in the main ngen directory, run
 
     cmake_build/ngen data/catchment_data.geojson "celia" ./data/nexus_data.geojson "nex-26" ./extern/summa/summa/test_ngen/example_realization_config_w_summa_bmi.json
 or 
-    cmake_build/ngen data/catchment_data.geojson "celia" ./data/nexus_data.geojson "nex-26" ./extern/summa/summa/test_ngen/example_realization_config_w_summa_bmi__mac.json
+    cmake_build/ngen data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" ./extern/summa/summa/test_ngen/example_realization_config_w_summa_bmi__mac.json
 
 This command can be run as ./extern/summa/summa/test_ngen/example_run_celia.[system_type].sh also.
 
-This test is currently the Celia Laugh test, not a ngen example catchment.
+This test is currently the Celia Laugh test, not the cat-27 ngen example catchment.

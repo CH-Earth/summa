@@ -255,7 +255,8 @@ message("\nBuilding SUMMA\n")
         ${DRIVER_DIR}/summa_forcing.f90
         ${DRIVER_DIR}/summa_modelRun.f90
         ${DRIVER_DIR}/summa_writeOutput.f90
-        ${DRIVER_DIR}/summa_driver.f90)
+        ${DRIVER_DIR}/summa_driver.f90
+        ${DRIVER_DIR}/bmi.f90)
 
     # run program files, do not use in ngen
     # set(SUMMA ${DRIVER_DIR}/summa_run.f90)
