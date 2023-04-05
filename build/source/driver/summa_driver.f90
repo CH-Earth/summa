@@ -260,7 +260,7 @@ module summa_driver
    ! ****************************************************************************
    function summa_update_until(this, time) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
-     double precision, intent(in) :: time   ! unit days (julian days, same as get_model__time)
+     double precision, intent(in) :: time   ! unit seconds (julian_days*secprday, same as get_model__time)
      integer :: bmi_status, istat, n_steps, i
      double precision :: current
 
@@ -270,7 +270,7 @@ module summa_driver
        return
      end if
 
-     n_steps = nint( (time - current)*secprday/data_step ) + 1 ! model can only do a full data_step
+     n_steps = nint( (time - current)/data_step ) + 1 ! model can only do a full data_step
      do i = 1, n_steps
        istat = this%update()
      end do
@@ -384,7 +384,7 @@ module summa_driver
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = dJulianStart  ! unit days
+     time = dJulianStart*secprday  ! unit seconds
      bmi_status = BMI_SUCCESS
    end function summa_start_time
 
@@ -394,7 +394,7 @@ module summa_driver
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = dJulianFinsh  ! unit days
+     time = dJulianFinsh*secprday  ! unit seconds
      bmi_status = BMI_SUCCESS
    end function summa_end_time
 
@@ -405,9 +405,9 @@ module summa_driver
      integer :: bmi_status
 
      if(this%model%timeStep==1)then
-       time = dJulianStart  ! unit days
+       time = dJulianStart*secprday  ! unit seconds
      else
-       time = dJulianStart + (data_step*real(this%model%timeStep-1,dp))/secprday  ! unit days
+       time = dJulianStart*secprday + (data_step*real(this%model%timeStep-1,dp))  ! unit seconds
      end if
      bmi_status = BMI_SUCCESS
    end function summa_current_time

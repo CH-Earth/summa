@@ -8,7 +8,7 @@
                     "library_file": "./extern/summa/cmake_build/libsummabmi.so",
                     "forcing_file": "",
                     "init_config": "./extern/summa/summa/test_ngen/summa-init-celia.namelist.input",
-                    "allow_exceed_end_time": true,
+                    "allow_exceed_end_time": false,
                     "main_output_variable": "land_surface_water__runoff_volume_flux",
                     "variables_names_map": {
                         "atmosphere_water__precipitation_mass_flux": "precip_rate",
