@@ -18,7 +18,8 @@
                         "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
                         "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
                         "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
-                        "land_surface_air__pressure": "PRES_surface",
+                        "land_surface_air__pressure": "PRES_surface"
+                    },
                     "uses_forcing_file": false
                 }
             }

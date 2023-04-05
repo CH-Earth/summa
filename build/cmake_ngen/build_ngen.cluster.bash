@@ -2,10 +2,8 @@
   
 # build nextgen on Copernicus, from ngen directory put this one directory up and run this as ../example_build_ngen.bash
 
-#module load gnu
 module load boost
 module load udunits/2.2.28
-#module load python/3.7.5
 module load StdEnv/2020
 module load gcc/9.3.0
 module load openblas/0.3.17

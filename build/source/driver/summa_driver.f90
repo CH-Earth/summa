@@ -722,8 +722,8 @@ module summa_driver
      integer :: bmi_status
 
      select case (name)
-     ! input
-     case('atmosphere_water__precipitation_mass_flux')              ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
+     ! input, note using the NGEN preferred unit definitions, equivalent to standard SUMMA definitions as noted
+     case('atmosphere_water__precipitation_mass_flux')              ; units = 'mm s-1';   ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('land_surface_air__temperature')                          ; units = 'K'         ; bmi_status = BMI_SUCCESS
      case('atmosphere_air_water~vapor__relative_saturation')        ; units = 'kg kg-1'   ; bmi_status = BMI_SUCCESS
 #ifdef NGEN_ACTIVE
@@ -739,15 +739,15 @@ module summa_driver
 #endif
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
-     case('land_surface_air__pressure')                             ; units = 'kg m−1 s−2'; bmi_status = BMI_SUCCESS
+     case('land_surface_air__pressure')                             ; units = 'kg m-1 s-2'; bmi_status = BMI_SUCCESS
 
      ! output
      case('land_surface_water__runoff_volume_flux')        ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
-     case('land_surface_water__evaporation_mass_flux')     ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
-     case('land_vegetation_water__evaporation_mass_flux')  ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
-     case('land_vegetation_water__transpiration_mass_flux'); units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
-     case('snowpack__sublimation_mass_flux')               ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
-     case('land_vegetation_water__sublimation_mass_flux')  ; units = 'kg m-2 s-1'; bmi_status = BMI_SUCCESS
+     case('land_surface_water__evaporation_mass_flux')     ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
+     case('land_vegetation_water__evaporation_mass_flux')  ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
+     case('land_vegetation_water__transpiration_mass_flux'); units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
+     case('snowpack__sublimation_mass_flux')               ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
+     case('land_vegetation_water__sublimation_mass_flux')  ; units = 'mm s-1'    ; bmi_status = BMI_SUCCESS !equivalent kg m-2 s-1
      case('snowpack_mass')                                 ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('soil_water__mass')                              ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
      case('land_vegetation_water__mass')                   ; units = 'kg m-2'    ; bmi_status = BMI_SUCCESS
@@ -999,7 +999,7 @@ module summa_driver
      select case(name)
      case default
        rsrc = -999.0
-       call assign_basin_field(this, name, rsrc, src) ! See near bottom of file
+       call assign_basin_field(this, name, rsrc, src(1)) ! See near bottom of file
        bmi_status = BMI_SUCCESS
      end select
    end function summa_set_int
@@ -1219,8 +1219,6 @@ module summa_driver
               target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%airtemp)
             case('atmosphere_air_water~vapor__relative_saturation')
               target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%spechum)
-            case('land_surface_wind__speed')
-              target_arr(i) = forcStruct%gru(iGRU)%hru(jHRU)%var(iLookFORCE%windspd)
             case('land_surface_wind__x_component_of_velocity')
               target_arr(i) = diagStruct%gru(iGRU)%hru(jHRU)%var(iLookDIAG%windspd_x)%dat(1)
             case('land_surface_wind__y_component_of_velocity')

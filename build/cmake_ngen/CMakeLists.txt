@@ -53,6 +53,13 @@ else()
 endif()
 
 
+# MKL needs BLA_VENDOR set with cmake
+if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
+    set(BLA_VENDOR OpenBLAS)
+else()
+    set(BLA_VENDOR OpenBLAS)
+endif()
+
 # Packages that are required
 find_package(netCDF REQUIRED)
 find_package(LAPACK REQUIRED)
