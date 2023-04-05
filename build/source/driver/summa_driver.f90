@@ -260,7 +260,7 @@ module summa_driver
    ! ****************************************************************************
    function summa_update_until(this, time) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
-     double precision, intent(in) :: time   ! unit days (julian days, same as get_model_time)
+     double precision, intent(in) :: time   ! unit days (julian days, same as get_model__time)
      integer :: bmi_status, istat, n_steps, i
      double precision :: current
 
@@ -731,11 +731,11 @@ module summa_driver
      case('land_surface_wind__y_component_of_velocity')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
 #else
      case('land_surface_wind__speed')                               ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
-     case('model_time_year')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model_time_month')                                       ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model_time_day')                                         ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model_time_hour')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model_time_min')                                         ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model__time_year')                                       ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model__time_month')                                      ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model__time_day')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model__time_hour')                                       ; units = ''          ; bmi_status = BMI_SUCCESS
+     case('model__time_min')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
 #endif
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
@@ -1131,15 +1131,15 @@ module summa_driver
       if(name(1:5)=='model')then
         select case (name)
         ! input
-        case('model_time_year')
+        case('model__time_year')
           timeStruct%var(iLookTIME%iyyy) = isrc_arr
-        case('model_time_month')
+        case('model__time_month')
           timeStruct%var(iLookTIME%im) = isrc_arr
-        case('model_time_day')
+        case('model__time_day')
           timeStruct%var(iLookTIME%id) = isrc_arr
-        case('model_time_hour')
+        case('model__time_hour')
           timeStruct%var(iLookTIME%ih) = isrc_arr
-        case('model_time_hour')
+        case('model__time_min')
           timeStruct%var(iLookTIME%imin) = isrc_arr
         end select
       else
@@ -1195,15 +1195,15 @@ module summa_driver
       if(name(1:5)=='model')then
         select case (name)
         ! input
-        case('model_time_year')
+        case('model__time_year')
           itarget_arr = timeStruct%var(iLookTIME%iyyy)
-        case('model_time_month')
+        case('model__time_month')
           itarget_arr = timeStruct%var(iLookTIME%im)
-        case('model_time_day')
+        case('model__time_day')
           itarget_arr = timeStruct%var(iLookTIME%id)
-        case('model_time_hour')
+        case('model__time_hour')
           itarget_arr = timeStruct%var(iLookTIME%ih)
-        case('model_time_hour')
+        case('model__time_min')
           itarget_arr = timeStruct%var(iLookTIME%imin)
         end select
       else
