@@ -384,7 +384,7 @@ module summa_driver
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = dJulianStart*secprday - 2440587.5*3600*24  ! unit seconds epoch time
+     time = (dJulianStart - 2440588.0)*secprday  ! unit seconds epoch time
      bmi_status = BMI_SUCCESS
    end function summa_start_time
 
@@ -394,7 +394,7 @@ module summa_driver
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = dJulianFinsh*secprday - 2440587.5*3600*24  ! unit seconds epoch time
+     time = (dJulianFinsh - 2440588.0)*secprday  ! unit seconds epoch time
      bmi_status = BMI_SUCCESS
    end function summa_end_time
 
@@ -405,9 +405,9 @@ module summa_driver
      integer :: bmi_status
 
      if(this%model%timeStep==1)then
-       time = dJulianStart*secprday - 2440587.5*3600*24 ! unit seconds epoch time
+       time = (dJulianStart - 2440588.0)*secprday ! unit seconds epoch time
      else
-       time = dJulianStart*secprday- 2440587.5*3600*24 + (data_step*real(this%model%timeStep-1,dp))  ! unit seconds epoch time
+       time = dJulianStart - 2440588.0)*secprday + (data_step*real(this%model%timeStep-1,dp))  ! unit seconds epoch time
      end if
      bmi_status = BMI_SUCCESS
    end function summa_current_time
