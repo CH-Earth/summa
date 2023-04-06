@@ -47,6 +47,7 @@ program summa_run
 
   ! loop through time where numtim has been already computed as
   ! numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+  ! SUMMA runs the ending step (so start=end would still run a step)
   do modelTimeStep=1,numtim
     istat = model%update()
   end do  ! (looping through time)

@@ -33,6 +33,6 @@
     "time": {
         "start_time": "2000-01-01 00:30:00",
         "end_time": "2000-01-03 12:00:00",
-        "output_interval": 1800
+        "output_interval": 5400
     }
 }

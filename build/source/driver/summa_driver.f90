@@ -260,17 +260,18 @@ module summa_driver
    ! ****************************************************************************
    function summa_update_until(this, time) result (bmi_status)
      class (summa_bmi), intent(inout) :: this
-     double precision, intent(in) :: time   ! unit seconds (julian_days*secprday, same as get_model__time)
+     double precision, intent(in) :: time
      integer :: bmi_status, istat, n_steps, i
      double precision :: current
 
-     istat = this%get_current_time(current)
+     istat = this%get_current_time(current) ! unit seconds
      if (time < current) then
        bmi_status = BMI_FAILURE
        return
      end if
 
      n_steps = nint( (time - current)/data_step ) + 1 ! model can only do a full data_step
+     ! SUMMA runs the ending step (so start=end would still run a step)
      do i = 1, n_steps
        istat = this%update()
      end do
@@ -384,8 +385,7 @@ module summa_driver
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = (dJulianStart - 2440588.0)*secprday  ! unit seconds epoch time
-print*,time,'s', dJulianStart
+     time = 0.0 ! unit seconds
      bmi_status = BMI_SUCCESS
    end function summa_start_time
 
@@ -395,8 +395,7 @@ print*,time,'s', dJulianStart
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     time = (dJulianFinsh - 2440588.0)*secprday  ! unit seconds epoch time
-print*,time,'e',dJulianFinsh
+     time = (dJulianFinsh - dJulianStart)*secprday ! unit seconds
      bmi_status = BMI_SUCCESS
    end function summa_end_time
 
@@ -406,12 +405,11 @@ print*,time,'e',dJulianFinsh
      double precision, intent(out) :: time
      integer :: bmi_status
 
-     if(this%model%timeStep==1)then
-       time = (dJulianStart - 2440588.0)*secprday ! unit seconds epoch time
+     if(this%model%timeStep==0)then
+       time = 0.0 ! unit seconds
      else
-       time = (dJulianStart - 2440588.0)*secprday + (data_step*real(this%model%timeStep-1,dp))  ! unit seconds epoch time
+       time = (data_step*real(this%model%timeStep-1,dp)) ! unit seconds
      end if
-print*,time,this%model%timeStep BMI starts at time step 0!??
      bmi_status = BMI_SUCCESS
    end function summa_current_time
 
