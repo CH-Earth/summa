@@ -1131,6 +1131,8 @@ subroutine coupled_em(&
 
     ! associate local variables with information in the data structures
     associate(&
+      ! model decisions
+      ixNumericalMethod          => model_decisions(iLookDECISIONS%num_method)%iDecision                          ,& ! choice of numerical method, backward Euler or SUNDIALS/IDA
       ! model forcing
       scalarSnowfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowfall)           )%dat(1)     ,&  ! computed snowfall rate (kg m-2 s-1)
       scalarRainfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarRainfall)           )%dat(1)     ,&  ! computed rainfall rate (kg m-2 s-1)
@@ -1164,10 +1166,16 @@ subroutine coupled_em(&
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
       ) ! (association of local variables with information in the data structures
 
+      ! identify the need to check the mass balance
+      select case(ixNumericalMethod)
+        case(sundials); checkMassBalance = .false. ! currently only for bEuler because of how store variables
+        case(bEuler); checkMassBalance = .true.
+        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+      end select
+
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
-      checkMassBalance = .true.
 
       ! if computing the vegetation flux
       if(computeVegFlux)then

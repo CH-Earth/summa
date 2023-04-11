@@ -453,9 +453,9 @@ subroutine varSubstep(&
         return
       endif
 
-      ! identify the need to check the mass balance, only for bEuler because of how store variables
+      ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(sundials); checkMassBalance = .false.
+        case(sundials); checkMassBalance = .false. ! currently only for bEuler because of how store variables
         case(bEuler); checkMassBalance = .true.  ! (.not.scalarSolution)
         case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
       end select
@@ -963,8 +963,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! -----------------------
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver
-    !   for sundials will not work since fluxes are averaged over data window for output but canopyBalance0 only off last step
-    !   so not currently checked in sundials, could cause problems if should modify nrgFlux
+    !   if do not check could cause problems if should modify nrgFlux
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
