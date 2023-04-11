@@ -211,6 +211,7 @@ subroutine systemSolvSundials(&
   real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
+  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! derivative value for total water matric potential (m s-1)
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
   real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
   ! enthalpy derivatives
@@ -308,8 +309,9 @@ subroutine systemSolvSundials(&
     call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
-    ! allocate space for mLayerCmpress_sum at the start of the time step
+    ! allocate space for mLayerCmpress_sum and mLayerMatricHeadPrime at the start of the time step
     allocate( mLayerCmpress_sum(nSoil) )
+    allocate( mLayerMatricHeadPrime(nSoil) )
 
     ! allocate space for the baseflow derivatives
     ! NOTE: needs allocation because only used when baseflow sinks are active
@@ -459,6 +461,7 @@ subroutine systemSolvSundials(&
                     scalarAquiferStorage,    & ! intent(in):    value of storage of water in the aquifer (m)
                     mLayerEnthalpy,          & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                     mLayerEnthalpy,          & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
+                    mLayerMatricHeadPrime,   & ! intent(out):   derivative value for total water matric potential (m s-1)
                     ! input-output: baseflow
                     ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                     dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -581,6 +584,8 @@ subroutine systemSolvSundials(&
     stateVecTrial = stateVecNew
 
     ! free memory
+    deallocate( mLayerCmpress_sum)
+    deallocate( mLayerMatricHeadPrime)
     deallocate(dBaseflow_dMatric)
 
   ! end associate statements
