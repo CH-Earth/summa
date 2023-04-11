@@ -79,7 +79,7 @@ contains
 ! **********************************************************************************************************
 subroutine eval8summaSundials(&
                       ! input: model control
-                      dt_cur,                  & ! intent(in):    current stepsize
+                      dt_cur,                  & ! intent(in):    current stepsize (difference from last ending time)
                       dt,                      & ! intent(in):    entire time step for drainage pond rate
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
@@ -584,7 +584,7 @@ subroutine eval8summaSundials(&
                             ! output: error control
                             err,cmessage)                    ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        ! Below commented out because it seems more correct for Sundials to use the analytical form
+        ! Below commented out because it seems more correct for Sundials to use the analytical form,
         ! to conserve energy compute finite difference approximation of (theta_ice)'
         !if(dt_cur > 1e-14_rkind) then
         !  scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur

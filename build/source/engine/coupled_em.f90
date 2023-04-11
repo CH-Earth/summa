@@ -1025,7 +1025,7 @@ subroutine coupled_em(&
         flux_inner%var(iVar)%dat(:)    = flux_inner%var(iVar)%dat(:) + flux_data%var(averageFlux_meta(iVar)%ixParent)%dat(:)*dt_wght
       end do
       innerSoilCompress = innerSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)*dt_wght
-      if (nSnow>0)innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
+      if (nSnow>0) innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
       ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub
@@ -1219,7 +1219,7 @@ subroutine coupled_em(&
       ! check SWE
       if(nSnow>0)then
         effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
-        !effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow
+        ! effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow
         newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
         delSWE      = newSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step

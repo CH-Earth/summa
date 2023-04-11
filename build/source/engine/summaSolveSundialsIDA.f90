@@ -212,12 +212,14 @@ subroutine summaSolveSundialsIDA(                         &
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time
   real(qp)                          :: dt_last(1)           ! last time step
+  real(qp)                          :: dt_diff              ! difference from previous timestep
   integer(kind = 8)                 :: mu, lu               ! in banded matrix mode in Sundials type
   integer(c_long)                   :: nState               ! total number of state variables in Sundials type
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   integer(i4b)                      :: nRoot                ! total number of roots (events) to find
   real(qp)                          :: tret(1)              ! time in data window
+  real(qp)                          :: tretPrev             ! previous time in data window
   integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
   integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep             ! if step goes below small size
@@ -443,6 +445,7 @@ subroutine summaSolveSundialsIDA(                         &
   tret(1) = t0           ! initial time
   do while(tret(1) < dt)
 
+    tretPrev = tret(1)
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)
     if(detect_events .and. .not.tinystep)then
       call find_rootdir(eqns_data, rootdir)
@@ -467,13 +470,14 @@ subroutine summaSolveSundialsIDA(                         &
     enddo
     if(tooMuchMelt)exit
 
-    ! get the last stepsize
+    ! get the last stepsize and difference from previous end time, not necessarily the same
     retval = FIDAGetLastStep(ida_mem, dt_last)
+    dt_diff = tret(1) - tretPrev
 
     ! compute the flux and the residual vector for a given state vector
     call eval8summaSundials(&
                   ! input: model control
-                  dt_last(1),                         & ! intent(in):    current stepsize
+                  dt_diff,                            & ! intent(in):    current stepsize
                   eqns_data%dt,                       & ! intent(in):    total data step
                   eqns_data%nSnow,                    & ! intent(in):    number of snow layers
                   eqns_data%nSoil,                    & ! intent(in):    number of soil layers
@@ -537,14 +541,15 @@ subroutine summaSolveSundialsIDA(                         &
                   rVec,                               & ! intent(out):   residual vector
                   eqns_data%err,eqns_data%message)      ! intent(out):   error control
 
-    ! sum of fluxes
+    ! sum of fluxes smoothed over timestep
     do iVar=1,size(flux_meta)
-      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * dt_last(1)
+      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * dt_diff
     end do
 
-    ! sum of mLayerCmpress over the time step, since using prev value not * dt_last(1)
+    ! sum of mLayerCmpress over the time step, since using prev value
+    ! Note: correct for difference between dt_diff and dt_last(1), e.g. if dt_last is longer than dt_diff should be adding less than the whole
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadTrial(:) - eqns_data%mLayerMatricHeadPrev(:) )
+                                    * ( eqns_data%mLayerMatricHeadTrial(:) - eqns_data%mLayerMatricHeadPrev(:) )*dt_diff/dt_last(1)
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
