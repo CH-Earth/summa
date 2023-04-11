@@ -550,7 +550,7 @@ subroutine summaSolveSundialsIDA(                         &
     ! Note: correct for difference between dt_diff and dt_last(1), e.g. if dt_last is longer than dt_diff should be adding less than the whole
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
                                     * ( eqns_data%mLayerMatricHeadTrial(:) - eqns_data%mLayerMatricHeadPrev(:) )*dt_diff/dt_last(1)
-
+print*,dt_diff,dt_last(1),tret(1),tretPrev
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
     eqns_data%scalarCanopyIcePrev      = eqns_data%scalarCanopyIceTrial
