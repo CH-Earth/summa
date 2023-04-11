@@ -327,7 +327,7 @@ subroutine varSubstep(&
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      whole_step,        & ! intent(in):   entire time step (s), right now same as dtSubstep but might change with operator splitting
+                      whole_step,        & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call

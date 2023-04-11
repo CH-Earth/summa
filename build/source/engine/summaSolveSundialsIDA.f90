@@ -456,7 +456,6 @@ subroutine summaSolveSundialsIDA(                         &
   tretPrev = tret(1)
   do while(tret(1) < dt)
 
-
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)
     if(detect_events .and. .not.tinystep)then
       call find_rootdir(eqns_data, rootdir)
@@ -555,13 +554,18 @@ subroutine summaSolveSundialsIDA(                         &
 
     ! sum of fluxes smoothed over the time step
     do iVar=1,size(flux_meta)
-      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * (dt_diff*3. - dt_last(1))/2. &
-                                                                      - flux_prev%var(iVar)%dat(:) * (dt_diff    - dt_last(1))/2.
+!      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * (dt_diff*3. - dt_last(1))/2. &
+!                                                                      - flux_prev%var(iVar)%dat(:) * (dt_diff    - dt_last(1))/2.
+      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + ( eqns_data%flux_data%var(iVar)%dat(:) &
+                                                                + flux_prev%var(iVar)%dat(:) ) *dt_diff/2._rkind
     end do
 
     ! sum of mLayerCmpress smoothed over the time step
-    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) * (dt_diff*3. - dt_last(1))/2. &
-                                                                                    - dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:)       * (dt_diff    - dt_last(1))/2.
+!    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) * (dt_diff*3. - dt_last(1))/2. &
+!                                                                                    - dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:)       * (dt_diff    - dt_last(1))/2.
+    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + ( eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) &
+                                                    + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
+
 
 print*,dt_diff,dt_last(1),tret(1)
 
