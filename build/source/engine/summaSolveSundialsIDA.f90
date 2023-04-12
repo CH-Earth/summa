@@ -276,7 +276,7 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%flux_data               = flux_data
   call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,message)
   if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
-  flux_prev                         = flux_data
+  flux_prev                         = eqns_data%flux_data
 
   ! allocate space for the derivative structure
   call allocLocal(deriv_meta(:),eqns_data%deriv_data,nSnow,nSoil,err,message)
@@ -579,8 +579,8 @@ print*,( eqns_data%flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) + flu
     eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
     mLayerMatricHeadPrimePrev(:)       = eqns_data%mLayerMatricHeadPrime(:)
     dCompress_dPsiPrev(:)              = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
-    tretPrev = tret(1)
-    flux_prev = flux_data
+    tretPrev                           = tret(1)
+    flux_prev                          = eqns_data%flux_data
 
     ! Restart for where vegetation and layers cross freezing point
     if(detect_events)then
