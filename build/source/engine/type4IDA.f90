@@ -52,6 +52,8 @@ type eqnsData
   real(qp), allocatable       :: resSink(:)                   ! additional (sink) terms on the RHS of the state equation
   real(rkind), allocatable    :: atol(:)                      ! vector of absolute tolerances
   real(rkind), allocatable    :: rtol(:)                      ! vector of relative tolerances
+  real(rkind), allocatable    :: mLayerTempTrial(:)           ! trial vector of layer temperature (K)
+  real(rkind), allocatable    :: mLayerTempPrev(:)            ! vector of layer temperature (K) at previous step
   real(rkind), allocatable    :: mLayerMatricHeadLiqTrial(:)  ! trial value for liquid water matric potential (m)
   real(rkind), allocatable    :: mLayerMatricHeadTrial(:)     ! trial vector of total water matric potential (m)
   real(rkind), allocatable    :: mLayerMatricHeadPrev(:)      ! vector of total water matric potential (m) at previous step
@@ -61,12 +63,11 @@ type eqnsData
   real(rkind), allocatable    :: mLayerVolFracIcePrev(:)      ! value for volumetric fraction of ice (-) at previous step
   real(rkind), allocatable    :: mLayerVolFracLiqTrial(:)     ! trial value for volumetric fraction of liquid water (-)
   real(rkind), allocatable    :: mLayerVolFracLiqPrev(:)      ! value for volumetric fraction of liquid water (-) at previous step
-  real(rkind)                 :: scalarAquiferStoragePrev
-  real(rkind)                 :: scalarAquiferStorageTrial
+  real(rkind)                 :: scalarAquiferStorageTrial    ! trial value of storage of water in the aquifer (m)
+  real(rkind)                 :: scalarAquiferStoragePrev     ! value of storage of water in the aquifer (m) at previous step
   real(rkind), allocatable    :: mLayerEnthalpyTrial(:)       ! trial enthalpy of snow and soil (J m-3)
   real(rkind), allocatable    :: mLayerEnthalpyPrev(:)        ! enthalpy of snow and soil (J m-3) at previous step
-  real(rkind), allocatable    :: mLayerTempTrial(:)           ! trial vector of layer temperature (K)
-  real(rkind), allocatable    :: mLayerTempPrev(:)            ! vector of layer temperature (K) at previous step
+  real(rkind), allocatable    :: mLayerMatricHeadPrime(:)     ! derivative value for total water matric potential (m s-1)
   real(rkind), allocatable    :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                :: ixSaturation
   integer(i4b)                :: err                          ! error code
