@@ -79,7 +79,7 @@ contains
 ! **********************************************************************************************************
 subroutine eval8summaSundials(&
                       ! input: model control
-                      dt_cur,                  & ! intent(in):    current stepsize
+                      dt_cur,                  & ! intent(in):    step size to last time solution
                       dt,                      & ! intent(in):    entire time step for drainage pond rate
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
@@ -133,6 +133,7 @@ subroutine eval8summaSundials(&
                       scalarAquiferStoragePrev,& ! intent(in):    value of storage of water in the aquifer (m)
                       mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                       mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
+                      mLayerMatricHeadPrime,   & ! intent(out):   trial value for prime total water matric potential (m s-1)
                       ! input-output: baseflow
                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -159,7 +160,7 @@ subroutine eval8summaSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)          :: dt_cur                 ! current stepsize
+  real(rkind),intent(in)          :: dt_cur                 ! step size to last time solution
   real(rkind),intent(in)          :: dt                     ! entire time step for drainage pond rate
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
@@ -213,6 +214,7 @@ subroutine eval8summaSundials(&
   real(rkind),intent(in)          :: scalarAquiferStoragePrev    ! previous value of storage of water in the aquifer (m)
   real(rkind),intent(in)          :: mLayerEnthalpyPrev(:)       ! previous vector of enthalpy for snow+soil layers (J m-3)
   real(rkind),intent(out)         :: mLayerEnthalpyTrial(:)      ! trial vector of enthalpy for snow+soil layers (J m-3)
+  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! deriviative value for prime total water matric potential (m s-1)
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(out)         :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
@@ -237,7 +239,6 @@ subroutine eval8summaSundials(&
   real(rkind)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
   real(rkind),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
   real(rkind),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)       :: mLayerMatricHeadPrime     ! derivative value for total water matric potential (m)
   real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
   real(rkind)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
   ! derivative of diagnostic variables
@@ -397,7 +398,9 @@ subroutine eval8summaSundials(&
     endif
 
     ! initialize to state variable from the last update
+    scalarCanairTempTrial     = realMissing ! should be set to previous values if splits, but for now operator splitting is not hooked up
     scalarCanopyTempTrial     = scalarCanopyTempPrev
+    scalarCanopyWatTrial      = scalarCanopyLiqPrev + scalarCanopyIcePrev
     scalarCanopyLiqTrial      = scalarCanopyLiqPrev
     scalarCanopyIceTrial      = scalarCanopyIcePrev
     mLayerTempTrial           = mLayerTempPrev
@@ -567,31 +570,23 @@ subroutine eval8summaSundials(&
                             mLayerTempPrev,            & ! intent(in): previous temperature
                             mLayerEnthalpyTrial,       & ! intent(in): trial enthalpy for snow and soil
                             mLayerEnthalpyPrev,        & ! intent(in): previous enthalpy for snow and soil
-                            mLayerMatricHeadTrial,     & ! intent(in):   trial total water matric potential (m)
+                            mLayerMatricHeadTrial,     & ! intent(in): trial total water matric potential (m)
                             ! input: pre-computed derivatives
                             dTheta_dTkCanopy,          & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
                             scalarFracLiqVeg,          & ! intent(in): fraction of canopy liquid water (-)
                             mLayerdTheta_dTk,          & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
                             mLayerFracLiqSnow,         & ! intent(in): fraction of liquid water (-)
                             dVolTot_dPsi0,             & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
-                            dCanEnthalpy_dTk,          & ! intent(in):  derivatives in canopy enthalpy w.r.t. temperature
-                            dCanEnthalpy_dWat,         & ! intent(in):  derivatives in canopy enthalpy w.r.t. water state
-                            dEnthalpy_dTk,             & ! intent(in):  derivatives in layer enthalpy w.r.t. temperature
-                            dEnthalpy_dWat,            & ! intent(in):  derivatives in layer enthalpy w.r.t. water state
+                            dCanEnthalpy_dTk,          & ! intent(in): derivatives in canopy enthalpy w.r.t. temperature
+                            dCanEnthalpy_dWat,         & ! intent(in): derivatives in canopy enthalpy w.r.t. water state
+                            dEnthalpy_dTk,             & ! intent(in): derivatives in layer enthalpy w.r.t. temperature
+                            dEnthalpy_dWat,            & ! intent(in): derivatives in layer enthalpy w.r.t. water state
                             ! output
                             heatCapVegTrial,           & ! intent(out): volumetric heat capacity of vegetation canopy
                             mLayerHeatCapTrial,        & ! intent(out): heat capacity for snow and soil
                             ! output: error control
                             err,cmessage)                    ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        ! Below commented out because it seems more correct for Sundials to use the analytical form
-        ! to conserve energy compute finite difference approximation of (theta_ice)'
-        !if(dt_cur > 1e-14_rkind) then
-        !  scalarCanopyIcePrime = ( scalarCanopyIceTrial - scalarCanopyIcePrev ) / dt_cur
-        !  do concurrent (iLayer=1:nLayers)
-        !    mLayerVolFracIcePrime(iLayer) = ( mLayerVolFracIceTrial(iLayer) - mLayerVolFracIcePrev(iLayer) ) / dt_cur
-        !  end do
-        !endif ! if dt_cur is not too small
       else if(ixHowHeatCap == closedForm)then
         call computHeatCapAnalytic(&
                           ! input: control variables
@@ -884,7 +879,7 @@ integer(c_int) function eval8summa4IDA(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%bvar_data,               & ! intent(in):    average model variables for the entire basin
                 eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                 ! input-output: data structures
-                eqns_data%indx_data,               & ! intent(inou):  index data
+                eqns_data%indx_data,               & ! intent(inout): index data
                 eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                 eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                 eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -912,6 +907,7 @@ integer(c_int) function eval8summa4IDA(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)
                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
+                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):   derivative value for total water matric potential (m s-1)
                 ! input-output: baseflow
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)

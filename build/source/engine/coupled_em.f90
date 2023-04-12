@@ -1164,10 +1164,16 @@ subroutine coupled_em(&
       scalarTotalSoilLiq         => diag_data%var(iLookDIAG%scalarTotalSoilLiq)%dat(1)                             &  ! total liquid water in the soil column (kg m-2)
       ) ! (association of local variables with information in the data structures
 
+      ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
+      select case(ixNumericalMethod)
+        case(sundials); checkMassBalance = .true. ! sundials gives instantaneous fluxes and were summed for an average flux for checks
+        case(bEuler); checkMassBalance = .true.   ! bEuler gives finite difference dt_sub fluxes and were summed for an average flux for checks
+        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+      end select
+
       ! -----
       ! * balance checks for the canopy...
       ! ----------------------------------
-      checkMassBalance = .true.
 
       ! if computing the vegetation flux
       if(computeVegFlux)then
@@ -1179,7 +1185,6 @@ subroutine coupled_em(&
         scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
         if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
-          print*, '** canopy water balance error:'
           write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
           write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
@@ -1291,7 +1296,6 @@ subroutine coupled_em(&
         write(*,'(a,1x,f20.10)') 'balanceSoilDrainage       = ', balanceSoilDrainage
         write(*,'(a,1x,f20.10)') 'balanceSoilET             = ', balanceSoilET
         write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
-        ! error control
         message=trim(message)//'soil hydrology does not balance'
         err=20; return
       end if

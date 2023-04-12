@@ -221,9 +221,12 @@ subroutine summaSolveSundialsIDA(                         &
   integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
   integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep             ! if step goes below small size
-  logical(lgt),parameter            :: offErrWarnMessage = .true. ! flag to turn IDA warnings off, default true
-  logical(lgt),parameter            :: detect_events = .true.     ! flag to do event detection and restarting, default true
-  logical(lgt),parameter            :: use_fdJac = .false.        ! flag to use finite difference Jacobian, default false
+  type(var_dlength)                 :: flux_prev            ! previous model fluxes for a local HRU
+  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
+  real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
+  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
+  logical(lgt),parameter            :: detect_events = .true.       ! flag to do event detection and restarting, default true
+  logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
 
   ! -----------------------------------------------------------------------------------------------------
 
@@ -265,10 +268,13 @@ subroutine summaSolveSundialsIDA(                         &
   if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
   eqns_data%diag_data               = diag_data
 
-  ! allocate space for the temporary flux variable structure
+  ! allocate space for the temporary and previousflux variable structure
   call allocLocal(flux_meta(:),eqns_data%flux_data,nSnow,nSoil,err,message)
   if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
   eqns_data%flux_data               = flux_data
+  call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,message)
+  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
+  flux_prev                         = eqns_data%flux_data
 
   ! allocate space for the derivative structure
   call allocLocal(deriv_meta(:),eqns_data%deriv_data,nSnow,nSoil,err,message)
@@ -302,6 +308,9 @@ subroutine summaSolveSundialsIDA(                         &
   allocate( eqns_data%mLayerVolFracLiqPrev(nLayers) )
   allocate( eqns_data%mLayerEnthalpyTrial(nLayers) )
   allocate( eqns_data%mLayerEnthalpyPrev(nLayers) )
+  allocate( eqns_data%mLayerMatricHeadPrime(nSoil) )
+  allocate( mLayerMatricHeadPrimePrev(nSoil) )
+  allocate( dCompress_dPsiPrev(nSoil) )
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
 
@@ -431,8 +440,9 @@ subroutine summaSolveSundialsIDA(                         &
   eqns_data%mLayerVolFracLiqPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
   eqns_data%mLayerEnthalpyPrev(:)    = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
   eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
+  mLayerMatricHeadPrimePrev(:)       = 0._rkind
+  dCompress_dPsiPrev(:)              = 0._rkind
   eqns_data%ixSaturation             = ixSaturation
-
   tinystep = .false.
 
   !**********************************************************************************
@@ -441,6 +451,7 @@ subroutine summaSolveSundialsIDA(                         &
   !**********************************************************************************
 
   tret(1) = t0           ! initial time
+  tretPrev = tret(1)
   do while(tret(1) < dt)
 
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)
@@ -473,7 +484,7 @@ subroutine summaSolveSundialsIDA(                         &
     ! compute the flux and the residual vector for a given state vector
     call eval8summaSundials(&
                   ! input: model control
-                  dt_last(1),                         & ! intent(in):    current stepsize
+                  dt_diff,                            & ! intent(in):    step size to last time solution
                   eqns_data%dt,                       & ! intent(in):    total data step
                   eqns_data%nSnow,                    & ! intent(in):    number of snow layers
                   eqns_data%nSoil,                    & ! intent(in):    number of soil layers
@@ -503,7 +514,7 @@ subroutine summaSolveSundialsIDA(                         &
                   eqns_data%diag_data,                & ! intent(inout): model diagnostic variables for a local HRU
                   eqns_data%flux_data,                & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                   eqns_data%deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+                 ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops (without operator splitting could cut prev values)
                   eqns_data%scalarCanopyTempTrial,    & ! intent(in):    trial value of canopy temperature (K)
                   eqns_data%scalarCanopyTempPrev,     & ! intent(in):    previous value of canopy temperature (K)
                   eqns_data%scalarCanopyIceTrial,     & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -527,6 +538,7 @@ subroutine summaSolveSundialsIDA(                         &
                   eqns_data%scalarAquiferStoragePrev, & ! intent(in):    value of storage of water in the aquifer (m)
                   eqns_data%mLayerEnthalpyPrev,       & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                   eqns_data%mLayerEnthalpyTrial,      & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
+                  eqns_data%mLayerMatricHeadPrime,    & ! intent(out):   derivative value for total water matric potential (m s-1)
                   ! input-output: baseflow
                   eqns_data%ixSaturation,             & ! intent(inout): index of the lowest saturated layer
                   eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -537,14 +549,13 @@ subroutine summaSolveSundialsIDA(                         &
                   rVec,                               & ! intent(out):   residual vector
                   eqns_data%err,eqns_data%message)      ! intent(out):   error control
 
-    ! sum of fluxes
+    ! sum of fluxes smoothed over the time step, average from instantaneous values
     do iVar=1,size(flux_meta)
-      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + eqns_data%flux_data%var(iVar)%dat(:) * dt_last(1)
+      flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + ( eqns_data%flux_data%var(iVar)%dat(:) &
+                                                                + flux_prev%var(iVar)%dat(:) ) *dt_diff/2._rkind
     end do
-
-    ! sum of mLayerCmpress over the time step, since using prev value not * dt_last(1)
-    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) &
-                                    * ( eqns_data%mLayerMatricHeadTrial(:) - eqns_data%mLayerMatricHeadPrev(:) )
+    mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + ( eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) &
+                                                    + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
@@ -558,6 +569,10 @@ subroutine summaSolveSundialsIDA(                         &
     eqns_data%mLayerVolFracLiqPrev(:)  = eqns_data%mLayerVolFracLiqTrial(:)
     eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
     eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
+    mLayerMatricHeadPrimePrev(:)       = eqns_data%mLayerMatricHeadPrime(:)
+    dCompress_dPsiPrev(:)              = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
+    tretPrev                           = tret(1)
+    flux_prev                          = eqns_data%flux_data
 
     ! Restart for where vegetation and layers cross freezing point
     if(detect_events)then
@@ -613,6 +628,9 @@ subroutine summaSolveSundialsIDA(                         &
   deallocate( eqns_data%mLayerVolFracLiqPrev )
   deallocate( eqns_data%mLayerEnthalpyTrial )
   deallocate( eqns_data%mLayerEnthalpyPrev )
+  deallocate( eqns_data%mLayerMatricHeadPrime)
+  deallocate( mLayerMatricHeadPrimePrev )
+  deallocate( dCompress_dPsiPrev )
   deallocate( eqns_data%fluxVec )
   deallocate( eqns_data%resSink )
   deallocate( rootsfound )

@@ -327,7 +327,7 @@ subroutine varSubstep(&
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      whole_step,        & ! intent(in):   entire time step (s), right now same as dtSubstep but might change with operator splitting
+                      whole_step,        & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -455,7 +455,7 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance, only for bEuler because of how store variables
       select case(ixNumericalMethod)
-        case(sundials); checkMassBalance = .false.
+        case(sundials); checkMassBalance = .false. ! only for bEuler because sundials has instantaneous fluxes only
         case(bEuler); checkMassBalance = .true.  ! (.not.scalarSolution)
         case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
       end select
@@ -962,9 +962,8 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! * check mass balance...
     ! -----------------------
 
-    ! NOTE: should not need to do this, since mass balance is checked in the solver
-    !   for sundials will not work since fluxes are averaged over data window for output but canopyBalance0 only off last step
-    !   so not currently checked in sundials, could cause problems if should modify nrgFlux
+    ! NOTE: should not need to do this, since mass balance is checked in the solver, and cannot do for Sundials
+    !   if do not check could cause problems if should modify nrgFlux
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
