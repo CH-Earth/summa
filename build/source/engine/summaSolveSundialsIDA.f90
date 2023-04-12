@@ -557,12 +557,13 @@ subroutine summaSolveSundialsIDA(                         &
       flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + ( eqns_data%flux_data%var(iVar)%dat(:) &
                                                                 + flux_prev%var(iVar)%dat(:) ) *dt_diff/2._rkind
     end do
-
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + ( eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) &
                                                     + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
 
 
 print*,dt_diff,dt_last(1),tret(1)
+print*,( eqns_data%flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) + flux_prev%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ) *dt_diff/2._rkind, &
+     eqns_data%flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1) ,flux_prev%var(iLookFLUX%scalarCanopyEvaporation)%dat(1),flux_sum%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)/tret(1)
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
