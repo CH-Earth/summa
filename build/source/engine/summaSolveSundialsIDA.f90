@@ -552,7 +552,7 @@ subroutine summaSolveSundialsIDA(                         &
                   rVec,                               & ! intent(out):   residual vector
                   eqns_data%err,eqns_data%message)      ! intent(out):   error control
 
-    ! sum of fluxes smoothed over the time step
+    ! sum of fluxes smoothed over the time step, average from instantaneous values
     do iVar=1,size(flux_meta)
       flux_sum%var(iVar)%dat(:) = flux_sum%var(iVar)%dat(:) + ( eqns_data%flux_data%var(iVar)%dat(:) &
                                                                 + flux_prev%var(iVar)%dat(:) ) *dt_diff/2._rkind
