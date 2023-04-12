@@ -265,8 +265,6 @@ subroutine eval8summaSundials(&
   real(rkind),dimension(nLayers)     :: mLayerCmTrial             ! trial vector of Cm for snow+soil
   logical(lgt),parameter             :: updateCp=.true.           ! flag to indicate if we update Cp at each step
   logical(lgt),parameter             :: needCm=.false.            ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
-  real(rkind)                     :: liqError                       ! water balance error
-  real(rkind)                     :: fluxNet                        ! net water fluxes (kg m-2 s-1)
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -793,19 +791,6 @@ subroutine eval8summaSundials(&
     else !currently not using residuals outside Sundials!
       dt1 = 1._qp
     endif
-
-        fluxNet = flux_data%var(iLookFLUX%scalarRainfall)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)  &
-                   - flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) - flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)
-        liqError = (scalarCanopyLiqPrev + scalarCanopyIcePrev + fluxNet*dt_cur) - scalarCanopyWatTrial
-          write(*,'(a,1x,f20.10)') 'dt = ', dt_cur
-          write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
-          write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', scalarCanopyLiqPrev + scalarCanopyIcePrev
-          write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', scalarCanopyLiqPrev + scalarCanopyIcePrev + fluxNet*dt_cur
-          write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', flux_data%var(iLookFLUX%scalarRainfall)%dat(1)*dt_cur
-          write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)*dt_cur
-          write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1)*dt_cur
-          write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)*dt_cur
-          write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
 
   ! end association with the information in the data structures
   end associate
