@@ -103,4 +103,8 @@ program summa_driver
 
   ! successful end
   call stop_program(0, 'finished simulation successfully.')
+
+  ! to prevent exiting before HDF5 has closed
+  call sleep(2)
+
 end program summa_driver
