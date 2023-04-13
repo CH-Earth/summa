@@ -286,8 +286,6 @@ module summa_driver
      integer :: bmi_status
 
      call stop_program(0, 'finished simulation successfully.')
-     ! to prevent exiting before HDF5 has closed
-     call sleep(2)
      bmi_status = BMI_SUCCESS
    end function summa_finalize
 
