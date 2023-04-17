@@ -114,7 +114,7 @@ subroutine varSubstep(&
                       indx_data,         & ! intent(inout) : index data
                       prog_data,         & ! intent(inout) : model prognostic variables for a local HRU
                       diag_data,         & ! intent(inout) : model diagnostic variables for a local HRU
-                      flux_data,         & ! intent(inout)    : model fluxes for a local HRU
+                      flux_data,         & ! intent(inout) : model fluxes for a local HRU
                       flux_mean,         & ! intent(inout) : mean model fluxes for a local HRU
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
@@ -453,7 +453,7 @@ subroutine varSubstep(&
         return
       endif
 
-      ! identify the need to check the mass balance, only for bEuler because of how store variables
+      ! identify the need to check the mass balance
       select case(ixNumericalMethod)
         case(sundials); checkMassBalance = .false. ! only for bEuler because sundials has instantaneous fluxes only
         case(bEuler); checkMassBalance = .true.  ! (.not.scalarSolution)
