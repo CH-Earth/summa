@@ -212,12 +212,14 @@ subroutine summaSolveSundialsIDA(                         &
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! staring time
   real(qp)                          :: dt_last(1)           ! last time step
+  real(qp)                          :: dt_diff              ! difference from previous timestep
   integer(kind = 8)                 :: mu, lu               ! in banded matrix mode in Sundials type
   integer(c_long)                   :: nState               ! total number of state variables in Sundials type
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   integer(i4b)                      :: nRoot                ! total number of roots (events) to find
   real(qp)                          :: tret(1)              ! time in data window
+  real(qp)                          :: tretPrev             ! previous time in data window
   integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
   integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep             ! if step goes below small size
@@ -478,8 +480,9 @@ subroutine summaSolveSundialsIDA(                         &
     enddo
     if(tooMuchMelt)exit
 
-    ! get the last stepsize
+    ! get the last stepsize and difference from previous end time, not necessarily the same
     retval = FIDAGetLastStep(ida_mem, dt_last)
+    dt_diff = tret(1) - tretPrev
 
     ! compute the flux and the residual vector for a given state vector
     call eval8summaSundials(&
@@ -584,7 +587,7 @@ subroutine summaSolveSundialsIDA(                         &
         ! Reininitialize solver for running after discontinuity and restart
         retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
         if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
-        if(dt_last(1) < 0.01_rkind)then ! don't keep calling if step is small
+        if(dt_last(1) < 0.1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)
           retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4IDA))
           tinystep = .true.
         else
