@@ -9,7 +9,7 @@ module load netcdf-fortran/4.5.2
 #### parent directory of the 'build' directory ####
 export ROOT_DIR=/globalhome/gwu479/HPC/SummaSundials
 
-export INCLUDES=-"I${EBROOTNETCDFMINFORTRAN}/include"
+export INCLUDES="-I${EBROOTNETCDFMINFORTRAN}/include"
 export LDFLAGS="-L${EBROOTNETCDFMINFORTRAN}/lib64 -L${EBROOTOPENBLAS}/lib"
 export LIBRARIES="${LDFLAGS} -lnetcdff -lopenblas"
 
