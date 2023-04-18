@@ -52,22 +52,18 @@ else()
     set(FLAGS_ALL -O3 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
 endif()
 
-
-# MKL needs BLA_VENDOR set with cmake
-if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
-    set(BLA_VENDOR OpenBLAS)
-else()
-    set(BLA_VENDOR OpenBLAS)
-endif()
-
-# Packages that are required
-find_package(netCDF REQUIRED)
-find_package(LAPACK REQUIRED)
-
 set(DIR_SUNDIALS ${ROOT_DIR}/sundials/instdir)
 
-# Set include directories
 if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
+
+    # MKL needs BLA_VENDOR set with cmake
+    set(BLA_VENDOR OpenBLAS)
+
+    # Packages that are required
+    find_package(NetCDF REQUIRED)
+    find_package(LAPACK REQUIRED)
+
+    # Set include directories
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
     set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
 
@@ -79,8 +75,12 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
     set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
 
 else()
-    set(INCLUDES /opt/local/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
-    set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -llapack -lgfortran -lnetcdff -lnetcdf)
+
+    set(SDKROOT "$(xcrun --show-sdk-path)")
+
+    link_directories(/opt/local/lib)
+    set(INCLUDES /opt/local/include /opt/local/lib)
+    set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
 
     message("\nBuilding IDA\n")
 
