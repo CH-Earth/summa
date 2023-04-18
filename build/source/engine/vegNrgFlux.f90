@@ -3188,7 +3188,7 @@ contains
   ! ("standard" stability correction, a la Anderson 1976)
   case(standard)
    ! compute surface-atmosphere exchange coefficient (-)
-   if(RiBulk <  critRichNumber) stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**2._rkind
+   if(RiBulk <  critRichNumber) stabilityCorrection = (1._rkind - 5._rkind*RiBulk)**(-1._rkind)
    if(RiBulk >= critRichNumber) stabilityCorrection = verySmall
    ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
    if(computeDerivative)then
