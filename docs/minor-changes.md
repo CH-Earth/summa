@@ -11,4 +11,4 @@ Documented here are minor changes that do not affect science outputs or are like
 
 ## Version 3.0.4 (pre-release)
 
-- [placeholder]
+- Formula correction of `stabalityCorrection` calculation for `standard` method
