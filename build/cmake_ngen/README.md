@@ -51,7 +51,7 @@ First, cd into the outer directory containing the submodule:
 
     cd extern/summa
 
-Before summa can be built, Sundials needs to be installed. 
+If you want to use Sundials, set -DSUNDIALS_ACTIVE:BOOL=ON in the build script.  Then, before summa can be built, Sundials needs to be installed. 
 Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
 
     wget "https://github.com/LLNL/sundials/releases/download/v6.3.0/sundials-6.3.0.tar.gz"
@@ -81,7 +81,7 @@ After there is build system directory, the shared library can be built using the
 
 This will build a `cmake_build/libsummabmi.<version>.<ext>` file, where the version is configured within the CMake config, and the extension depends on the local machine's operating system.    
 
-There is an example of a bash script to build the ngen libraries at ngen/extern/summa/summa/build/cmake_ngen/build_ngen.[system_type].bash. These need to be run in the main ngen directory.
+There is an example of a bash script to build the ngen libraries at ngen/extern/summa/summa/build/cmake_ngen/build_ngen.[system_type].bash. Sundials is turned off here. These need to be run in the main ngen directory.
 
 To run a test basin, in the main ngen directory, run
 

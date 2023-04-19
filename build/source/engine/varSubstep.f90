@@ -132,7 +132,9 @@ subroutine varSubstep(&
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
+#ifdef NGEN_SUNDIALS_ACTIVE
   USE systemSolvSundials_module,only:systemSolvSundials ! solve the system of equations for one time step
+#endif
   USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
   ! identify name of variable type (for error message)
   USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
@@ -324,6 +326,7 @@ subroutine varSubstep(&
       ! solve the system of equations for a given state subset
       select case(ixNumericalMethod)
         case(sundials)
+#ifdef NGEN_SUNDIALS_ACTIVE
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
@@ -357,6 +360,9 @@ subroutine varSubstep(&
                       err,cmessage)        ! intent(out):   error code and error message
           untappedMelt(:) = 0._rkind ! set untapped melt energy to zero
           niter = 0  ! will not use
+#else
+        err=20; message=trim(message)//'cannot use num_method as sundials if did not compile with -DSUNDIALS_ACTIVE:BOOL=ON'; return
+#endif
         case(bEuler)
           call systemSolv(&
                       ! input: model control

@@ -8,7 +8,7 @@ cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 cmake -B extern/noah-owp-modular/cmake_build -S extern/noah-owp-modular
 cmake --build extern/noah-owp-modular/cmake_build --target all
 
-cmake -B extern/summa/cmake_build -S extern/summa -DCMAKE_BUILD_TYPE=Release
+cmake -B extern/summa/cmake_build -S extern/summa -DCMAKE_BUILD_TYPE=Release -DSUNDIALS_ACTIVE:BOOL=OFF
 cmake --build extern/summa/cmake_build --target all
 
 cmake -B cmake_build -S . -DMPI_ACTIVE:BOOL=OFF -DNGEN_ACTIVATE_PYTHON:BOOL=OFF -DBMI_C_LIB_ACTIVE:BOOL=ON -DBMI_FORTRAN_ACTIVE:BOOL=ON

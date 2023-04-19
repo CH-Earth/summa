@@ -153,10 +153,10 @@ message("\nBuilding SUMMA\n")
         ${ENGINE_DIR}/mDecisions.f90
         ${ENGINE_DIR}/snow_utils.f90
         ${ENGINE_DIR}/soil_utils.f90
-        ${ENGINE_DIR}/soil_utilsAddSundials.f90
         ${ENGINE_DIR}/updatState.f90
-        ${ENGINE_DIR}/updatStateSundials.f90
-        ${ENGINE_DIR}/matrixOper.f90)
+        ${ENGINE_DIR}/matrixOper.f90
+        ${ENGINE_DIR}/soil_utilsAddSundials.f90
+        ${ENGINE_DIR}/updatStateSundials.f90)
 
 # Solver
     set(SOLVER
@@ -172,8 +172,6 @@ message("\nBuilding SUMMA\n")
         ${ENGINE_DIR}/soilLiqFlx.f90
         ${ENGINE_DIR}/bigAquifer.f90
         ${ENGINE_DIR}/computFlux.f90
-        ${ENGINE_DIR}/type4IDA.f90
-        ${ENGINE_DIR}/tol4IDA.f90
         ${ENGINE_DIR}/computEnthalpy.f90
         ${ENGINE_DIR}/computHeatCap.f90
         ${ENGINE_DIR}/computThermConduct.f90
@@ -182,17 +180,21 @@ message("\nBuilding SUMMA\n")
         ${ENGINE_DIR}/eval8summa.f90
         ${ENGINE_DIR}/summaSolve.f90
         ${ENGINE_DIR}/systemSolv.f90
-        ${ENGINE_DIR}/computResidSundials.f90
-        ${ENGINE_DIR}/eval8summaSundials.f90
-        ${ENGINE_DIR}/computJacobSundials.f90
         ${ENGINE_DIR}/computSnowDepth.f90
-        ${ENGINE_DIR}/summaSolveSundialsIDA.f90
-        ${ENGINE_DIR}/systemSolvSundials.f90
         ${ENGINE_DIR}/varSubstep.f90
         ${ENGINE_DIR}/opSplittin.f90
         ${ENGINE_DIR}/coupled_em.f90
         ${ENGINE_DIR}/run_oneHRU.f90
         ${ENGINE_DIR}/run_oneGRU.f90)
+    set(SOLVER_SUN
+        ${ENGINE_DIR}/type4IDA.f90
+        ${ENGINE_DIR}/tol4IDA.f90
+        ${ENGINE_DIR}/computResidSundials.f90
+        ${ENGINE_DIR}/eval8summaSundials.f90
+        ${ENGINE_DIR}/computJacobSundials.f90
+        ${ENGINE_DIR}/summaSolveSundialsIDA.f90
+        ${ENGINE_DIR}/systemSolvSundials.f90)
+
 
 # Define routines for SUMMA preliminaries
     set(PRELIM
@@ -222,7 +224,6 @@ message("\nBuilding SUMMA\n")
         ${ENGINE_DIR}/getVectorz.f90
         ${ENGINE_DIR}/t2enthalpy.f90
         ${ENGINE_DIR}/updateVars.f90
-        ${ENGINE_DIR}/updateVarsSundials.f90
         ${ENGINE_DIR}/var_derive.f90
         ${ENGINE_DIR}/read_force.f90
         ${ENGINE_DIR}/derivforce.f90
@@ -233,7 +234,9 @@ message("\nBuilding SUMMA\n")
         ${ENGINE_DIR}/layerMerge.f90
         ${ENGINE_DIR}/layerDivide.f90
         ${ENGINE_DIR}/volicePack.f90
-        ${ENGINE_DIR}/qTimeDelay.f90)
+        ${ENGINE_DIR}/qTimeDelay.f90
+        ${ENGINE_DIR}/updateVarsSundials.f90)
+
 
 # Define NetCDF routines
     set(NETCDF
@@ -274,12 +277,23 @@ message("\nBuilding SUMMA\n")
         ${DATAMS}
         ${UTILMS})
 
-    set(SUMMA_ALL
-        ${NETCDF}
-        ${PRELIM}
-        ${MODRUN}
-        ${SOLVER}
-        ${DRIVER})
+    if(SUNDIALS_ACTIVE)
+        add_compile_definitions(NGEN_SUNDIALS_ACTIVE)
+        set(SUMMA_ALL
+            ${NETCDF}
+            ${PRELIM}
+            ${MODRUN}
+            ${SOLVER}
+            ${DRIVER}
+            ${SOLVER_SUN})
+    else()
+        set(SUMMA_ALL
+            ${NETCDF}
+            ${PRELIM}
+            ${MODRUN}
+            ${SOLVER}
+            ${DRIVER})
+    endif()
 
 #========================================================================
 # PART 4: compilation
@@ -292,22 +306,27 @@ message("\nBuilding SUMMA\n")
     file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
     add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
-        target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
-
+    target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
     add_library(SUMMA_COMM OBJECT ${COMM_ALL})
-        target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-        target_include_directories(SUMMA_COMM PRIVATE ${INCLUDES})
-        target_link_libraries(SUMMA_COMM PUBLIC ${LIBRARIES})
+    target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
+    target_include_directories(SUMMA_COMM PRIVATE ${INCLUDES})
+    target_link_libraries(SUMMA_COMM PUBLIC ${LIBRARIES})
 
-    # Build SUMMA Shared Library, add BMI libraries outside this function
+# Build SUMMA Shared Library, add BMI libraries outside this function
     if(WIN32)
         add_library(summabmi ${SUMMA_ALL})
     else()
         add_library(summabmi SHARED ${SUMMA_ALL})
     endif()
-        target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
+    target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
+
+    if(SUNDIALS_ACTIVE)
         target_include_directories(summabmi PUBLIC ${INCLUDES} ${INC_SUNDIALS})
         target_link_libraries(summabmi PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
+    else()
+        target_include_directories(summabmi PUBLIC ${INCLUDES})
+        target_link_libraries(summabmi PUBLIC ${LIBRARIES} SUMMA_COMM)
+    endif()
 
 #endfunction()
 
