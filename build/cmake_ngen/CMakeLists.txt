@@ -67,12 +67,14 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster OR CMAKE_BUILD_TYPE MATCHES Cluster_Debug)
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
     set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
 
-    message("\nBuilding IDA\n")
+    if(SUNDIALS_ACTIVE)
+        message("\nBuilding IDA\n")
 
-    link_directories(${DIR_SUNDIALS}/lib64)
-    set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
-    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
-    set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+        link_directories(${DIR_SUNDIALS}/lib64)
+        set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
+        set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
+        set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+    endif()
 
 else()
 
@@ -82,13 +84,14 @@ else()
     set(INCLUDES /opt/local/include /opt/local/lib)
     set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
 
-    message("\nBuilding IDA\n")
+    if(SUNDIALS_ACTIVE)
+        message("\nBuilding IDA\n")
 
-    link_directories(${DIR_SUNDIALS}/lib)
-    set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib")
-    set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
-    set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
-
+        link_directories(${DIR_SUNDIALS}/lib)
+        set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib")
+        set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
+        set(LIB_SUNDIALS -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+    endif()
 
 endif()
 
