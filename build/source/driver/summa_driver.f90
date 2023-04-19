@@ -162,7 +162,7 @@ module summa_driver
 #else
   integer, parameter :: input_item_count = 12
 #endif
-  integer, parameter :: output_item_count = 15
+  integer, parameter :: output_item_count = 16
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
   character (len=BMI_MAX_VAR_NAME), target,dimension(output_item_count) :: output_items
   ! ---------------------------------------------------------------------------------------
@@ -377,6 +377,7 @@ module summa_driver
      output_items(13)= 'atmosphere_energy~net~total__energy_flux'
      output_items(14)= 'land_vegetation_energy~net~total__energy_flux'
      output_items(15)= 'land_surface_energy~net~total__energy_flux'
+     output_items(16)= 'land_surface_water__baseflow_volume_flux'
      names => output_items
      bmi_status = BMI_SUCCESS
    end function summa_output_var_names
@@ -761,6 +762,7 @@ module summa_driver
      case('atmosphere_energy~net~total__energy_flux')      ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_vegetation_energy~net~total__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_energy~net~total__energy_flux')    ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
+     case('land_surface_water__baseflow_volume_flux')      ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
      case default; units = "-"; bmi_status = BMI_FAILURE
      end select
    end function summa_var_units
@@ -1238,7 +1240,7 @@ module summa_driver
 
             ! output
             case('land_surface_water__runoff_volume_flux')
-              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarTotalRunoff)%dat(1)
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)
             case('land_surface_water__evaporation_mass_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundEvaporation)%dat(1)
             case('land_vegetation_water__evaporation_mass_flux')
@@ -1267,6 +1269,8 @@ module summa_driver
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)
             case('land_surface_energy~net~total__energy_flux')
               target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1)
+            case('land_surface_water__baseflow_volume_flux')
+              target_arr(i) = fluxStruct%gru(iGRU)%hru(jHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)
             end select
           end do
         end do
