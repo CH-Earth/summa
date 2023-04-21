@@ -9,24 +9,8 @@ module load gcc/9.3.0
 module load openblas/0.3.17
 module load netcdf-fortran/4.5.2
 
-
-cmake -B extern/cfe/cmake_build -S extern/cfe
-cmake --build extern/cfe/cmake_build --target all
-
-cmake -B extern/topmodel/cmake_build -S extern/topmodel
-cmake --build extern/topmodel/cmake_build --target all
-
-cmake -B extern/sloth/cmake_build -S extern/sloth
-cmake --build extern/sloth/cmake_build --target all
-
-cmake -B extern/noah-owp-modular/cmake_build -S extern/noah-owp-modular
-cmake --build extern/noah-owp-modular/cmake_build --target all
-
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
-
-cmake -B extern/snow17/cmake_build -S extern/snow17
-cmake --build extern/snow17/cmake_build --target all
 
 cmake -B extern/summa/cmake_build -S extern/summa -DCMAKE_BUILD_TYPE=Cluster -DSUNDIALS_ACTIVE:BOOL=OFF
 cmake --build extern/summa/cmake_build --target all
