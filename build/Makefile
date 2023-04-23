@@ -1,8 +1,8 @@
 #========================================================================
 # Makefile to compile SUMMA
 #========================================================================
-#
-# Recommended use: Copy this file to Makefile.local, edit it to your
+#sfddafsdasfasdfasdf
+# Recommended use: Copy this file to Makefasdfsadffile.local, edit it to your
 # heart's content, and then run `make -f build/Makefile.local` from
 # your top level SUMMA directory. Don't include the Makefile.local in
 # any pull requests you make.
