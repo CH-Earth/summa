@@ -111,6 +111,15 @@ contains
   currentJulDay = dJulianStart + (data_step*real(iStep-1,dp))/secprday
  end if
 
+#ifdef NGEN_FORCING_ACTIVE
+ ! **********************************************************************************************
+ ! ***** part 0-1: if using NGEN forcing will be using forcing read with BMI and only need time
+ ! **********************************************************************************************
+ ! get forcing time data
+  call createForcingTimeData(currentJulday,time_data,err,message)
+  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+#else
  ! **********************************************************************************************
  ! ***** part 0: if initial step, then open first file and find initial model time step
  ! *****         loop through as many forcing files as necessary to find the initial model step
@@ -166,6 +175,8 @@ contains
   message=trim(message)//'expect the file to be open'
   err=20; return
  end if  ! end ncid open check
+
+#endif
 
  ! **********************************************************************************************
  ! ***** part 2: compute time
@@ -385,7 +396,7 @@ contains
 
 
  ! convert the reference time to days since the beginning of time
- call compjulday(iyyy,im,id,ih,imin,dsec,                & ! output = year, month, day, hour, minute, second
+ call compjulday(iyyy,im,id,ih,imin,dsec,                & ! input = year, month, day, hour, minute, second
                  refJulday_data,err,cmessage)              ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
@@ -409,7 +420,7 @@ contains
  USE time_utils_module,only:compJulday                 ! convert calendar date to julian day
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
  ! dummy variables
- real(rkind),intent(in)               :: currentJulday    ! Julian day of current time step
+ real(rkind),intent(in)            :: currentJulday    ! Julian day of current time step
  integer(i4b) ,intent(in)          :: ncId             ! NetCDF ID
  integer(i4b) ,intent(in)          :: iFile            ! index of forcing file
  integer(i4b) ,intent(in)          :: iRead            ! index in data file
@@ -422,7 +433,7 @@ contains
  character(len=256)                :: cmessage         ! error message for downwind routine
  integer(i4b)                      :: varId            ! variable identifier
  character(len = nf90_max_name)    :: varName          ! dimenison name
- real(rkind)                          :: varTime(1)       ! time variable of current forcing data step being read
+ real(rkind)                       :: varTime(1)       ! time variable of current forcing data step being read
  ! other local variables
  integer(i4b)                      :: iGRU,iHRU        ! index of GRU and HRU
  integer(i4b)                      :: iHRU_global      ! index of HRU in the NetCDF file
@@ -430,12 +441,11 @@ contains
  integer(i4b)                      :: iline            ! loop through lines in the file
  integer(i4b)                      :: iNC              ! loop through variables in forcing file
  integer(i4b)                      :: iVar             ! index of forcing variable in forcing data vector
- logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
- real(rkind)                          :: dsec             ! double precision seconds (not used)
- real(rkind)                          :: dataJulDay       ! julian day of current forcing data step being read
- real(rkind),dimension(nHRUlocal)     :: dataVec          ! vector of data
- real(rkind),dimension(1)             :: dataVal          ! single data value
- real(rkind),parameter                :: dataMin=-1._rkind   ! minimum allowable data value (all forcing variables should be positive)
+ real(rkind)                       :: dsec             ! double precision seconds (not used)
+ real(rkind)                       :: dataJulDay       ! julian day of current forcing data step being read
+ real(rkind),dimension(nHRUlocal)  :: dataVec          ! vector of data
+ real(rkind),dimension(1)          :: dataVal          ! single data value
+ real(rkind),parameter             :: dataMin=-1._rkind   ! minimum allowable data value (all forcing variables should be positive)
  logical(lgt),dimension(size(forc_meta)) :: checkForce ! flags to check forcing data variables exist
  logical(lgt),parameter            :: simultaneousRead=.true. ! flag to denote reading all HRUs at once
  ! Start procedure here
@@ -486,7 +496,7 @@ contains
   ! get index in forcing structure
   iVar = forcFileInfo(iFile)%var_ix(iNC)
   checkForce(iVar) = .true.
-  
+
   ! get variable name for error reporting
   err=nf90_inquire_variable(ncid,iNC,name=varName)
   if(err/=nf90_noerr)then; message=trim(message)//'problem reading forcing variable name from netCDF: '//trim(nf90_strerror(err)); return; endif
@@ -547,6 +557,40 @@ contains
  end if   ! if any variables are missing
 
  end subroutine readForcingData
+
+ ! *************************************************************************
+ ! * create forcing time data if using NGEN (uses BMI)
+ ! *************************************************************************
+ subroutine createForcingTimeData(currentJulday,time_data,err,message)
+ USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
+ ! dummy variables
+ real(rkind),intent(in)            :: currentJulday    ! Julian day of current time step
+ integer(i4b),intent(out)          :: time_data(:)     ! vector of time data for a given time step
+ integer(i4b) ,intent(out)         :: err              ! error code
+ character(*) ,intent(out)         :: message          ! error message
+ ! local variables
+ character(len=256)                :: cmessage         ! error message for downwind routine
+ ! other local variables
+ real(rkind)                       :: dsec             ! double precision seconds (not used)
+
+ ! Start procedure here
+ err=0; message="createForcingTimeData/"
+
+ ! initialize time and forcing data structures
+ time_data(:) = integerMissing
+
+ ! convert julian day to time vector
+ ! NOTE: use small offset to force ih=0 at the start of the day
+ call compcalday(currentJulday+smallOffset,      & ! input  = julian day
+                 time_data(iLookTIME%iyyy),      & ! output = year
+                 time_data(iLookTIME%im),        & ! output = month
+                 time_data(iLookTIME%id),        & ! output = day
+                 time_data(iLookTIME%ih),        & ! output = hour
+                 time_data(iLookTIME%imin),dsec, & ! output = minute/second
+                 err,cmessage)                     ! output = error control
+ if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+
+ end subroutine createForcingTimeData
 
 
 end module read_force_module

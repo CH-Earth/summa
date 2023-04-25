@@ -1,5 +1,5 @@
 controlVersion       'SUMMA_FILE_MANAGER_V3.0.0'
-simStartTime         '2000-01-01 00:30'
+simStartTime         '2000-01-01 01:00'
 simEndTime           '2000-01-03 12:00' 
 tmZoneInfo           'localTime'
 settingsPath         './extern/summa/summa/test_ngen/celia_test/settings/'

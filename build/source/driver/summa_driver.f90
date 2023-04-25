@@ -160,7 +160,7 @@ module summa_driver
 #ifdef NGEN_ACTIVE
   integer, parameter :: input_item_count = 8
 #else
-  integer, parameter :: input_item_count = 12
+  integer, parameter :: input_item_count = 7
 #endif
   integer, parameter :: output_item_count = 16
   character (len=BMI_MAX_VAR_NAME), target,dimension(input_item_count)  :: input_items
@@ -220,6 +220,7 @@ module summa_driver
      call handle_err(err, message)
 
      ! done with initialization
+     this%model%timeStep = 1
      bmi_status = BMI_SUCCESS
    end function summa_bmi_initialize
 
@@ -233,8 +234,6 @@ module summa_driver
      character(len=1024)                :: message=''                 ! error message
      integer :: bmi_status
 
-     ! start, advance time, as model uses this time step throughout
-     this%model%timeStep = this%model%timeStep + 1
 
      ! read model forcing data
      call summa_readForcing(this%model%timeStep, this%model%summa1_struc(n), err, message)
@@ -250,6 +249,9 @@ module summa_driver
      ! write the model output
      call summa_writeOutputFiles(this%model%timeStep, this%model%summa1_struc(n), err, message)
      call handle_err(err, message)
+
+     ! start, advance time, as model uses this time step throughout
+     this%model%timeStep = this%model%timeStep + 1
 
      ! done with step
      bmi_status = BMI_SUCCESS
@@ -342,11 +344,6 @@ module summa_driver
      input_items(8) = 'land_surface_wind__y_component_of_velocity'
 #else
      input_items(4) = 'land_surface_wind__speed'
-     input_items(8) = 'model__time_year'
-     input_items(9) = 'model__time_month'
-     input_items(10)= 'model__time_day'
-     input_items(11)= 'model__time_hour'
-     input_items(12)= 'model__time_min'
 #endif
      input_items(5) = 'land_surface_radiation~incoming~shortwave__energy_flux'
      input_items(6) = 'land_surface_radiation~incoming~longwave__energy_flux'
@@ -711,7 +708,7 @@ module summa_driver
      character (len=*), intent(out) :: type
      integer :: bmi_status
 
-     if(name(1:5)=='model')then
+     if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
        type = "integer"
      else
        type = "real"
@@ -736,11 +733,6 @@ module summa_driver
      case('land_surface_wind__y_component_of_velocity')             ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
 #else
      case('land_surface_wind__speed')                               ; units = 'm s-1'     ; bmi_status = BMI_SUCCESS
-     case('model__time_year')                                       ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model__time_month')                                      ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model__time_day')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model__time_hour')                                       ; units = ''          ; bmi_status = BMI_SUCCESS
-     case('model__time_min')                                        ; units = ''          ; bmi_status = BMI_SUCCESS
 #endif
      case('land_surface_radiation~incoming~shortwave__energy_flux') ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
      case('land_surface_radiation~incoming~longwave__energy_flux')  ; units = 'W m-2'     ; bmi_status = BMI_SUCCESS
@@ -778,7 +770,7 @@ module summa_driver
 
      call get_basin_field(this, name, 1, target_arr, itarget_arr) ! See near bottom of file
      ! use the real or integer target
-     if(name(1:5)=='model')then
+     if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
        size = sizeof(itarget_arr) ! 'sizeof' in gcc & ifort
      else
        size = sizeof(target_arr(1)) ! 'sizeof' in gcc & ifort
@@ -1134,19 +1126,11 @@ module summa_driver
       diagStruct           => this%model%summa1_struc(n)%diagStruct    & ! x%gru(:)%hru(:)%var(:)%dat -- model diagnostic variables
       )
 
-      if(name(1:5)=='model')then
+      if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
         select case (name)
         ! input
         case('model__time_year')
           timeStruct%var(iLookTIME%iyyy) = isrc_arr
-        case('model__time_month')
-          timeStruct%var(iLookTIME%im) = isrc_arr
-        case('model__time_day')
-          timeStruct%var(iLookTIME%id) = isrc_arr
-        case('model__time_hour')
-          timeStruct%var(iLookTIME%ih) = isrc_arr
-        case('model__time_min')
-          timeStruct%var(iLookTIME%imin) = isrc_arr
         end select
       else
         do iGRU = 1, this%model%summa1_struc(n)%nGRU
@@ -1198,19 +1182,11 @@ module summa_driver
       )
       target_arr = -999.0
       itarget_arr = -999
-      if(name(1:5)=='model')then
+      if(name(1:5)=='model')then ! not currently used, left in for future integer type needs
         select case (name)
         ! input
         case('model__time_year')
           itarget_arr = timeStruct%var(iLookTIME%iyyy)
-        case('model__time_month')
-          itarget_arr = timeStruct%var(iLookTIME%im)
-        case('model__time_day')
-          itarget_arr = timeStruct%var(iLookTIME%id)
-        case('model__time_hour')
-          itarget_arr = timeStruct%var(iLookTIME%ih)
-        case('model__time_min')
-          itarget_arr = timeStruct%var(iLookTIME%imin)
         end select
       else
         do iGRU = 1, this%model%summa1_struc(n)%nGRU

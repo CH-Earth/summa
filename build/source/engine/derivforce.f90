@@ -181,7 +181,7 @@ contains
  err=0; message="derivforce/"
 
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
-#ifndef NGEN_FORCING_ACTIVE
+#ifdef NGEN_FORCING_ACTIVE
  windspd = sqrt(windspd_x**2._rkind + windspd_y**2._rkind)
 #else
  windspd_x = windspd

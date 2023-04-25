@@ -328,7 +328,7 @@ contains
  integer(i4b), intent(out)     :: id           ! day
  integer(i4b), intent(out)     :: ih           ! hour
  integer(i4b), intent(out)     :: imin         ! minute
- real(rkind),     intent(out)     :: dsec         ! seconds
+ real(rkind),  intent(out)     :: dsec         ! seconds
  integer(i4b), intent(out)     :: err          ! error code
  character(*), intent(out)     :: message      ! error message
 

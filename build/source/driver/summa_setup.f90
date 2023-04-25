@@ -22,36 +22,39 @@ module summa_setup
 ! initializes parameter data structures (e.g. vegetation and soil parameters).
 
 ! access missing values
-USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:integerMissing      ! missing integer
+USE globalData,only:realMissing         ! missing double precision number
+
+! global data on the forcing file
+USE globalData,only:data_step           ! length of the data step (s)
 
 ! named variables
-USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
-USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
-USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
-USE var_lookup,only:iLookINDEX                              ! look-up values for local column model indices
-USE var_lookup,only:iLookLOOKUP                             ! look-up values for local column lookup tables
-USE var_lookup,only:iLookID                                 ! look-up values for local column model ids
-USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
-USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
-USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
+USE var_lookup,only:iLookATTR           ! look-up values for local attributes
+USE var_lookup,only:iLookTYPE           ! look-up values for classification of veg, soils etc.
+USE var_lookup,only:iLookPARAM          ! look-up values for local column model parameters
+USE var_lookup,only:iLookINDEX          ! look-up values for local column model indices
+USE var_lookup,only:iLookLOOKUP         ! look-up values for local column lookup tables
+USE var_lookup,only:iLookID             ! look-up values for local column model ids
+USE var_lookup,only:iLookBVAR           ! look-up values for basin-average model variables
+USE var_lookup,only:iLookDECISIONS      ! look-up values for model decisions
+USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 
 ! metadata structures
-USE globalData,only:mpar_meta,bpar_meta                     ! parameter metadata structures
+USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
 ! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:  &
- enthalpyFD                    ! heat capacity using enthalpy
+ enthalpyFD                             ! heat capacity using enthalpy
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
-  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
-  rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+  sameRulesAllLayers, &                 ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
 
 ! named variables to define LAI decisions
 USE mDecisions_module,only:&
- monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
- specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+ monthlyTable,&                         ! LAI/SAI taken directly from a monthly table for different vegetation classes
+ specified                              ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -150,11 +153,18 @@ contains
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
 
+#ifdef NGEN_FORCING_ACTIVE
+ ! *****************************************************************************
+ ! if using NGEN forcing only need to set the hourly data_step (fixed)
+ ! *****************************************************************************
+ data_step = 3600._rkind
+#else
  ! *****************************************************************************
  ! *** read description of model forcing datafile used in each HRU
  ! *****************************************************************************
  call ffile_info(nGRU,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+#endif
 
  ! *****************************************************************************
  ! *** read model decisions
