@@ -10,7 +10,7 @@
 # Note that Makefile configurations that we commonly use can be found on
 # the SUMMA wiki at:
 # https://github.com/NCAR/summa/wiki/SUMMA-Makefile-Part-0-configuration
-# feel free to add yours to that page.
+# feel free to add yours to that page.dasdasdasdasdas
 #
 # To troubleshoot your paths and setup, type 'make check'
 #
