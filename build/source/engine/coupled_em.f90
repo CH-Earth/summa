@@ -223,12 +223,14 @@ subroutine coupled_em(&
   type(var_dlength)                    :: flux_inner             ! inner step average model fluxes for a local HRU
   real(rkind)                          :: meanSoilCompress       ! timestep-average soil compression
   real(rkind)                          :: innerSoilCompress      ! inner step average soil compression
-
   ! sublimation sums over substep and means over data_step
   real(rkind)                          :: sumCanopySublimation   ! sum of sublimation from the vegetation canopy (kg m-2 s-1) over substep
   real(rkind)                          :: sumSnowSublimation     ! sum of sublimation from the snow surface (kg m-2 s-1) over substep
   real(rkind)                          :: sumLatHeatCanopyEvap   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2) over substep
   real(rkind)                          :: sumSenHeatCanopy       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2) over substep
+  real(rkind)                          :: meanCanopySublimation  ! timestep-average sublimation from the vegetation canopy (kg m-2 s-1)
+  real(rkind)                          :: meanLatHeatCanopyEvap  ! timestep-average latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind)                          :: meanSenHeatCanopy      ! timestep-average sensible heat flux from the canopy to the canopy air space (W m-2)
   ! balance checks
   integer(i4b)                         :: iVar                   ! loop through model variables
   real(rkind)                          :: balanceSoilCompress    ! total soil compression (kg m-2)
@@ -340,7 +342,11 @@ subroutine coupled_em(&
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
     meanSoilCompress = 0._rkind ! mean total soil compression
+    meanCanopySublimation = 0._rkind ! mean canopy sublimation
+    meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
+    meanSenHeatCanopy = 0._rkind ! mean sensible heat flux from the canopy
     effRainfall      = 0._rkind ! mean total effective rainfall over snow
+
 
     ! associate local variables with information in the data structures
     associate(&
@@ -1043,11 +1049,14 @@ subroutine coupled_em(&
           flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(iVar)%dat(:)*dt_wght
         end do
         meanSoilCompress = meanSoilCompress + innerSoilCompress*dt_wght
+        meanCanopySublimation = meanCanopySublimation + sumCanopySublimation/data_step
+        meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/data_step
+        meanSenHeatCanopy     = meanSenHeatCanopy     + sumSenHeatCanopy/data_step
         effRainfall = effRainfall + innerEffRainfall*dt_wght
         flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) + sumCanopySublimation/data_step
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) + sumLatHeatCanopyEvap/data_step
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     + sumSenHeatCanopy/data_step
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = meanCanopySublimation
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy
       endif
 
       ! save the time step to initialize the subsequent step
