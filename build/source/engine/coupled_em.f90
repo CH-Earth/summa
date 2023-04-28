@@ -804,6 +804,7 @@ subroutine coupled_em(&
         ! correct increments (if need to redo inner step) and reset increment
         dt_solv = dt_solv - dt_solvInner
         dt_solvInner = 0._rkind
+        lastInnerStep = .false.
 
         ! initialize sublimation sums to average over whole_step
         sumCanopySublimation = 0._rkind
@@ -1044,9 +1045,9 @@ subroutine coupled_em(&
         meanSoilCompress = meanSoilCompress + innerSoilCompress*dt_wght
         effRainfall = effRainfall + innerEffRainfall*dt_wght
         flux_mean%var(childFLUX_MEAN(iLookDIAG%scalarSoilCompress))%dat(1) = meanSoilCompress
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = sumCanopySublimation/data_step ! these two will be equal unless insufficient canopy water for sublim
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = sumLatHeatCanopyEvap/data_step ! these two will be equal unless insufficient canopy water for sublim
-        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = sumSenHeatCanopy/data_step     ! these two will be equal unless insufficient canopy water for sublim
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) + sumCanopySublimation/data_step
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) + sumLatHeatCanopyEvap/data_step
+        flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     + sumSenHeatCanopy/data_step
       endif
 
       ! save the time step to initialize the subsequent step
