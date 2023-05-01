@@ -227,7 +227,7 @@ subroutine summaSolveSundialsIDA(                         &
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
-  logical(lgt),parameter            :: detect_events = .true.       ! flag to do event detection and restarting, default true
+  logical(lgt),parameter            :: detect_events = .false.       ! flag to do event detection and restarting, default true
   logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
 
   ! -----------------------------------------------------------------------------------------------------
