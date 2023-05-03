@@ -20,6 +20,9 @@
 
 MODULE var_lookup
  ! defines named variables used to index array elements
+#ifdef ACTORS_ACTIVE
+ USE, intrinsic :: iso_c_binding
+#endif
  USE nrtype, integerMissing=>nr_integerMissing
  implicit none
  private
@@ -389,8 +392,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarNewSnowDensity            = integerMissing ! density of fresh snow (kg m-3)
   integer(i4b)    :: scalarO2air                     = integerMissing ! atmospheric o2 concentration (Pa)
   integer(i4b)    :: scalarCO2air                    = integerMissing ! atmospheric co2 concentration (Pa)
-  integer(i4b)    :: windspd_x                       = integerMissing ! wind speed at 10 meter height in x-direction (m s-1)
-  integer(i4b)    :: windspd_y                       = integerMissing ! wind speed at 10 meter height in y-direction (m s-1)
   ! shortwave radiation
   integer(i4b)    :: scalarCosZenith                 = integerMissing ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: scalarFractionDirect            = integerMissing ! fraction of direct radiation (0-1)
@@ -452,7 +453,7 @@ MODULE var_lookup
   integer(i4b)    :: scalarVGn_m                     = integerMissing ! van Genuchten "m" parameter (-)
   integer(i4b)    :: scalarKappa                     = integerMissing ! constant in the freezing curve function (m K-1)
   integer(i4b)    :: scalarVolLatHt_fus              = integerMissing ! volumetric latent heat of fusion     (J m-3)
-  ! timing information
+  ! number of function evaluations
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
   integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
  endtype iLook_diag
@@ -765,7 +766,11 @@ MODULE var_lookup
  ! (13) structure for looking up the type of a model variable (this is only needed for backward
  ! compatability, and should be removed eventually)
  ! ***********************************************************************************************************
+#ifdef ACTORS_ACTIVE
+ type, public, bind(C) :: iLook_varType
+#else
  type, public :: iLook_varType
+#endif
   integer(i4b)    :: scalarv   = integerMissing ! scalar variables
   integer(i4b)    :: wLength   = integerMissing ! # spectral bands
   integer(i4b)    :: midSnow   = integerMissing ! mid-layer snow variables

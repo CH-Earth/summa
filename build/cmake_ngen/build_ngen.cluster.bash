@@ -1,6 +1,6 @@
 #!/bin/bash
   
-# build nextgen on Copernicus, from ngen directory put this one directory up and run this as ../example_build_ngen.bash
+# build nextgen on Copernicus, from ngen directory put this one directory up and run this as ../build_ngen.cluster.bash
 
 module load boost
 module load udunits/2.2.28

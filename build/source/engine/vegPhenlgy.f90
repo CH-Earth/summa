@@ -25,8 +25,6 @@ USE nrtype
 
 ! global variables
 USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
-USE globalData,only:fracJulday          ! fractional julian days since the start of year
-USE globalData,only:yearLength          ! number of days in the current year
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -67,6 +65,9 @@ contains
  ! public subroutine vegPhenlgy: compute vegetation phenology
  ! ************************************************************************************************
  subroutine vegPhenlgy(&
+                       ! model control
+                       fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
+                       yearLength,                  & ! intent(in):    number of days in the current year
                        ! input/output: data structures
                        model_decisions,             & ! intent(in):    model decisions
                        type_data,                   & ! intent(in):    type of vegetation and soil
@@ -79,6 +80,7 @@ contains
                        canopyDepth,                 & ! intent(out): canopy depth (m)
                        exposedVAI,                  & ! intent(out): exposed vegetation area index (LAI + SAI)
                        err,message)                   ! intent(out): error control
+
  ! -------------------------------------------------------------------------------------------------
  ! modules
  USE NOAHMP_ROUTINES,only:phenology         ! determine vegetation phenology
@@ -93,14 +95,16 @@ contains
  type(var_dlength),intent(inout) :: diag_data           ! diagnostic variables for a local HRU
  ! output
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
- real(rkind),intent(out)            :: canopyDepth         ! canopy depth (m)
- real(rkind),intent(out)            :: exposedVAI          ! exposed vegetation area index (LAI + SAI)
+ real(rkind),intent(out)         :: canopyDepth         ! canopy depth (m)
+ real(rkind),intent(out)         :: exposedVAI          ! exposed vegetation area index (LAI + SAI)
+ real(rkind),intent(in)          :: fracJulday          ! fractional julian days since the start of year
+ integer(i4b),intent(in)         :: yearLength          ! number of days in the current year
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
  ! -------------------------------------------------------------------------------------------------
  ! local
- real(rkind)                 :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
- real(rkind)                 :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
+ real(rkind)                     :: notUsed_heightCanopyTop    ! height of the top of the canopy layer (m)
+ real(rkind)                     :: heightAboveSnow            ! height top of canopy is above the snow surface (m)
  ! initialize error control
  err=0; message="vegPhenlgy/"
  ! ----------------------------------------------------------------------------------------------------------------------------------

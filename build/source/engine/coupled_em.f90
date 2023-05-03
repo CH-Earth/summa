@@ -104,7 +104,10 @@ subroutine coupled_em(&
                       ! model control
                       hruId,             & ! intent(in):    hruId
                       dt_init,           & ! intent(inout): used to initialize the size of the sub-step
+                      dt_init_factor,    & ! intent(in):    Used to adjust the length of the timestep in the event of a failure
                       computeVegFlux,    & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+                      fracJulDay,        & ! intent(in):    fractional julian days since the start of year
+                      yearLength,        & ! intent(in):    number of days in the current year
                       ! data structures (input)
                       type_data,         & ! intent(in):    local classification of soil veg etc. for each HRU
                       attr_data,         & ! intent(in):    local attributes for each HRU
@@ -144,8 +147,13 @@ subroutine coupled_em(&
 
   implicit none
   ! model control
+#ifdef ACTORS_ACTIVE
+  integer(4),intent(in)                :: hruId                  ! hruId
+#else
   integer(8),intent(in)                :: hruId                  ! hruId
+#endif
   real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
+  integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in the event of a failure
   logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   ! data structures (input)
   type(var_i),intent(in)               :: type_data              ! type of vegetation and soil
@@ -159,6 +167,8 @@ subroutine coupled_em(&
   type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
+  real(rkind),intent(in)               :: fracJulday             ! fractional julian days since the start of year
+  integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
   ! error control
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
@@ -424,6 +434,9 @@ subroutine coupled_em(&
 
     ! compute the exposed LAI and SAI and whether veg is buried by snow
     call vegPhenlgy(&
+                    ! model control
+                    fracJulDay,                  & ! intent(in):    fractional julian days since the start of year
+                    yearLength,                  & ! intent(in):    number of days in the current year
                     ! input/output: data structures
                     model_decisions,             & ! intent(in):    model decisions
                     type_data,                   & ! intent(in):    type of vegetation and soil
@@ -586,7 +599,7 @@ subroutine coupled_em(&
     whole_step = maxstep
     dt_solv       = 0._rkind   ! length of time step that has been completed (s)
     dt_solvInner  = 0._rkind   ! length of time step that has been completed (s) in whole_step subStep
-    dt_init = min(data_step,whole_step,maxstep_op)  ! initial substep length (s)
+    dt_init = min(data_step,whole_step,maxstep_op) / dt_init_factor  ! initial substep length (s)
     dt_sub = dt_init
     dtSave  = whole_step       ! length of whole substep
 
@@ -875,6 +888,7 @@ subroutine coupled_em(&
 
       ! handle special case of the step failure
       ! NOTE: need to revert back to the previous state vector that we were happy with and reduce the time step
+    ! TODO: ask isn't this what the actors program does without the code block below
       if(stepFailure)then
         ! halve whole_step, for more frequent outer loop updates
         whole_step = dtSave/2._rkind
@@ -1332,7 +1346,7 @@ subroutine coupled_em(&
 
   iLayer = nSnow+1
   if(nsub>50000)then
-    write(message,'(a,i0)') trim(cmessage)//'number of sub-steps > 50000 for HRU ', hruID
+    write(message,'(a,i0)') trim(cmessage)//'number of sub-steps > 50000 for HRU ', hruId
     err=20; return
   end if
 

@@ -1,6 +1,6 @@
 #!/bin/bash
   
-# build nextgen on Mac, from ngen directory put this one directory up and run this as ../example_build_ngen.mac.bash
+# build nextgen on Mac, from ngen directory put this one directory up and run this as ../build_ngen.mac.bash
 
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
