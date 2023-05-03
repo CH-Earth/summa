@@ -132,7 +132,7 @@ subroutine varSubstep(&
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
-#ifdef NGEN_SUNDIALS_ACTIVE
+#ifdef SUNDIALS_ACTIVE
   USE systemSolvSundials_module,only:systemSolvSundials ! solve the system of equations for one time step
 #endif
   USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
