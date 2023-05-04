@@ -326,7 +326,7 @@ subroutine varSubstep(&
       ! solve the system of equations for a given state subset
       select case(ixNumericalMethod)
         case(sundials)
-#ifdef NGEN_SUNDIALS_ACTIVE
+#ifdef SUNDIALS_ACTIVE
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)

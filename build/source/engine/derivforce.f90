@@ -71,7 +71,7 @@ contains
  USE summaFileManager,only: NC_TIME_ZONE                       ! time zone option from control file
  ! compute derived forcing data variables
  implicit none
- ! input variable
+ ! input variables
  integer(i4b),intent(in)         :: time_data(:)               ! vector of time data for a given time step
  real(rkind),intent(inout)       :: forc_data(:)               ! vector of forcing data for a given time step
  real(rkind),intent(in)          :: attr_data(:)               ! vector of model attributes
@@ -92,8 +92,8 @@ contains
  ! cosine of the solar zenith angle
  real(rkind)                     :: ahour                      ! hour at start of time step
  real(rkind)                     :: dataStep                   ! data step (hours)
- real(rkind),parameter           :: slope                      ! terrain slope (assume flat)
- real(rkind),parameter           :: azimuth                    ! terrain azimuth (assume zero)
+ real(rkind)                     :: slope                      ! terrain slope (assume flat)
+ real(rkind)                     :: azimuth                    ! terrain azimuth (assume zero)
  real(rkind)                     :: hri                        ! average radiation index over time step DT
  ! general local variables
  character(len=256)              :: cmessage                   ! error message for downwind routine
@@ -162,6 +162,8 @@ contains
  ! derived model forcing data
  scalarO2air             => diag_data%var(iLookDIAG%scalarO2air)%dat(1)           , & ! atmospheric o2 concentration (Pa)
  scalarCO2air            => diag_data%var(iLookDIAG%scalarCO2air)%dat(1)          , & ! atmospheric co2 concentration (Pa)
+ windspd_x               => diag_data%var(iLookDIAG%windspd_x)%dat(1)             , & ! wind speed at 10 meter height in x-direction (m s-1)
+ windspd_y               => diag_data%var(iLookDIAG%windspd_y)%dat(1)             , & ! wind speed at 10 meter height in y-direction (m s-1)
  ! radiation variables
  scalarFractionDirect    => diag_data%var(iLookDIAG%scalarFractionDirect)%dat(1)  , & ! fraction of direct radiation (0-1)
  spectralIncomingDirect  => flux_data%var(iLookFLUX%spectralIncomingDirect)%dat   , & ! downwelling direct shortwave radiation for each waveband (W m-2)
@@ -244,6 +246,10 @@ contains
  dataStep = data_step/secprhour  ! time step (hours)
  ahour    = real(jh,kind(rkind)) + real(jmin,kind(rkind))/minprhour - data_step/secprhour  ! decimal hour (start of the step)
 
+#ifdef ACTORS_ACTIVE
+  azimuth = 0._rkind              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
+  slope   = 0._rkind              ! Actors doesn't look for this attribute for some reason, should probably FIX
+#else
  ! check slope/aspect intent for radiation calculation
  if(aspect == nr_realMissing)then
   azimuth = 0._rkind              ! if aspect is not an input attribute, slope & azimuth = zero (flat Earth)
@@ -252,6 +258,7 @@ contains
   azimuth = aspect                                  ! in degrees
   slope   = atan(abs(tan_slope))*180._rkind/PI_D    ! convert from m/m to degrees
  endif
+#endif
 
  ! compute the cosine of the solar zenith angle
  call clrsky_rad(jm,jd,ahour,dataStep,   &  ! intent(in): time variables
