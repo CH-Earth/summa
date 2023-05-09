@@ -18,14 +18,14 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-program summa_run
+program summa_driverBmi
   ! driver program for summa simulations
   ! *****************************************************************************
   ! * use desired modules
   ! *****************************************************************************
   USE nrtype                                                  ! variable types, etc.
   ! subroutines and functions: model simulation
-  USE summa_driver
+  USE summa_bmi
   ! global data
   USE globalData,only:numtim                                  ! number of time steps
 
@@ -53,4 +53,4 @@ program summa_run
   end do  ! (looping through time)
   istat = model%finalize()
 
-end program summa_run
+end program summa_driverBmi

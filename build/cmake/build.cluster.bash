@@ -1,6 +1,6 @@
 #!/bin/bash
   
-# build on Copernicus or Graham, from summa directory put this one directory up and run this as ../build.cluster.bash
+# build on Copernicus or Graham, from cmake directory run this as ./build.cluster.bash ./build.cluster.bash
 
 module load StdEnv/2020
 module load gcc/9.3.0
@@ -14,9 +14,6 @@ module load udunits/2.2.28
 # for Actors
 module load caf
 
-
 cmake -B ../cmake_build -S ../../ -DCMAKE_BUILD_TYPE=IDA_Cluster
-cmake --build ../cmake_build --target all
-
-make -C cmake_build
+cmake -j ../cmake_build --target all
 
