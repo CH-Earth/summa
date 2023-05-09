@@ -30,13 +30,18 @@ set(CMAKE_CONFIGURATION_TYPES BE BE_Debug BE_Cluster BE_Cluster_Debug
                               IDA_Actors IDA_Actors_Debug IDA_Actors_Cluster IDA_Actors_Cluster_Debug)
 message("\nSelected Bulid Type: ${CMAKE_BUILD_TYPE}\n")
 
+# Give executable names to be backwards compatible with old versions
 if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
     add_compile_definitions(SUNDIALS_ACTIVE)
     if(CMAKE_BUILD_TYPE MATCHES Kinsol)
         add_compile_definitions(KINSOL_ACTIVE)
+        set(EXEC_NAME summa_kinsol.exe)
     elseif(CMAKE_BUILD_TYPE MATCHES IDA)
         add_compile_definitions(IDA_ACTIVE)
+        set(EXEC_NAME summa_sundials.exe)
     endif()
+else()
+    set(EXEC_NAME summa.exe)
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES NexGen)
@@ -497,9 +502,6 @@ set(MAIN_ACTOR ${ACTORS_DIR}/main.cpp)
 set(MAIN_BMI   ${DRIVER_DIR}/summa_driverBMI.f90) # do not need a driver in NexGen so do not use
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
-# Define the executable
-set(EXEC_NAME summa_sundials)
-
 # Define version number, not working correctly
 set(VERSIONFILE     ${DRIVER_DIR}/summaversion.inc)
 execute_process(COMMAND "    ${GIT_EXECUTABLE} tag | tail -n 1" OUTPUT_VARIABLE VERSION)
@@ -547,7 +549,6 @@ if(CMAKE_BUILD_TYPE MATCHES NexGen)
         target_link_libraries(summabmi PUBLIC ${LIBRARIES} SUMMA_COMM)
     endif()
     target_link_libraries(summabmi PUBLIC iso_c_bmi)
-    target_compile_options(summabmi PUBLIC -cpp -DNGEN_ACTIVE)
     set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
     include(GNUInstallDirs)
 
@@ -598,4 +599,5 @@ else()
 
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
+    target_link_libraries(${EXEC_NAME} summa)
 endif()
