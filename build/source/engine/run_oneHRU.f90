@@ -201,7 +201,7 @@ contains
                  progData,           & ! data structure of model prognostic variables
                  diagData,           & ! data structure of model diagnostic variables
                  fluxData,           & ! data structure of model fluxes
-                 tmZoneOffsetFracDay & ! time zone offset in fractional days
+                 tmZoneOffsetFracDay,& ! time zone offset in fractional days
                  err,cmessage)         ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
@@ -215,7 +215,7 @@ contains
                  ! model control
                  hruId,            & ! intent(in):    hruId
                  dt_init,          & ! intent(inout): initial time step
-                 1._rkind,         & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
+                 1,                & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
                  computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
                  fracJulDay,       & ! intent(in):    fractional julian days since the start of year
                  yearLength,       & ! intent(in):    number of days in the current year

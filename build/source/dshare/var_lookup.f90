@@ -392,6 +392,8 @@ MODULE var_lookup
   integer(i4b)    :: scalarNewSnowDensity            = integerMissing ! density of fresh snow (kg m-3)
   integer(i4b)    :: scalarO2air                     = integerMissing ! atmospheric o2 concentration (Pa)
   integer(i4b)    :: scalarCO2air                    = integerMissing ! atmospheric co2 concentration (Pa)
+  integer(i4b)    :: windspd_x                       = integerMissing ! wind speed at 10 meter height in x-direction (m s-1)
+  integer(i4b)    :: windspd_y                       = integerMissing ! wind speed at 10 meter height in y-direction (m s-1)
   ! shortwave radiation
   integer(i4b)    :: scalarCosZenith                 = integerMissing ! cosine of the solar zenith angle (0-1)
   integer(i4b)    :: scalarFractionDirect            = integerMissing ! fraction of direct radiation (0-1)
