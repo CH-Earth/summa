@@ -273,10 +273,10 @@ contains
  else
   scalarFractionDirect = 0._rkind
  end if
- ! compute direct shortwave radiation, in the visible and near-infra-red part of the spectrum
- spectralIncomingDirect(1) = SWRadAtm*scalarFractionDirect*Frad_vis                         ! (direct vis)
- spectralIncomingDirect(2) = SWRadAtm*scalarFractionDirect*(1._rkind - Frad_vis)               ! (direct nir)
- ! compute diffuse shortwave radiation, in the visible and near-infra-red part of the spectrum
+
+ ! compute direct shortwave and diffuse radiation, in the visible and near-infra-red part of the spectrum
+ spectralIncomingDirect(1)  = SWRadAtm*scalarFractionDirect*Frad_vis                         ! (direct vis)
+ spectralIncomingDirect(2)  = SWRadAtm*scalarFractionDirect*(1._rkind - Frad_vis)               ! (direct nir)
  spectralIncomingDiffuse(1) = SWRadAtm*(1._rkind - scalarFractionDirect)*Frad_vis              ! (diffuse vis)
  spectralIncomingDiffuse(2) = SWRadAtm*(1._rkind - scalarFractionDirect)*(1._rkind - Frad_vis)    ! (diffuse nir)
 
@@ -292,7 +292,6 @@ contains
 
  ! compute vapor pressure of the air above the vegetation canopy (Pa)
  VPair = vapPress(spechum,airpres)
- !print*, 'VPair = ', VPair
 
  ! compute wet bulb temperature (K)
  twetbulb = WETBULBTMP(airtemp, relhum, airpres)
