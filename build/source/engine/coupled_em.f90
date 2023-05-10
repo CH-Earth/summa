@@ -82,8 +82,9 @@ USE mDecisions_module,only:         &
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:         &
-                      sundials     ,&      ! SUNDIALS/IDA solution
-                      bEuler               ! home-grown backward Euler solution with long time step
+                      be_numrec    ,&      ! home-grown backward Euler solution using free versions of Numerical recipes
+                      be_kinsol    ,&      ! SUNDIALS backward Euler solution using Kinsol
+                      sundials             ! SUNDIALS solution using IDA
 
 ! privacy
 implicit none
@@ -1192,9 +1193,9 @@ subroutine coupled_em(&
 
       ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
       select case(ixNumericalMethod)
-        case(sundials); checkMassBalance = .true. ! sundials gives instantaneous fluxes and were summed for an average flux for checks
-        case(bEuler); checkMassBalance = .true.   ! bEuler gives finite difference dt_sub fluxes and were summed for an average flux for checks
-        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+        case(sundials);  checkMassBalance = .true.  ! sundials gives instantaneous fluxes and were summed for an average flux for checks
+        case(be_numrec); checkMassBalance = .true.  ! be_numrec gives finite difference dt_sub fluxes and were summed for an average flux for checks
+        case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
       end select
 
       ! -----

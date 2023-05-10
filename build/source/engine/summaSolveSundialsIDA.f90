@@ -145,7 +145,7 @@ subroutine summaSolveSundialsIDA(                         &
   USE eval8summaSundials_module,only:eval8summa4IDA         ! DAE/ODE functions
   USE eval8summaSundials_module,only:eval8summaSundials     ! residual of DAE
   USE computJacobSundials_module,only:computJacob4IDA       ! system Jacobian
-  USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
+  USE tol4IDA_module,only:computWeight4IDA        ! weight required for tolerances
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
 
   !======= Declarations =========

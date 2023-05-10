@@ -14,6 +14,6 @@ module load udunits/2.2.28
 # for Actors
 module load caf
 
-cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=IDA_Cluster
+cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials_Cluster
 cmake --build ../cmake_build --target all
 

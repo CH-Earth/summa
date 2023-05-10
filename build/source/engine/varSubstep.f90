@@ -71,9 +71,10 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! look-up values for the numerical method
-USE mDecisions_module,only:      &
- sundials,                       & ! SUNDIALS/IDA solution
- bEuler                            ! home-grown backward Euler solution with long time step
+USE mDecisions_module,only:       &
+                    be_numrec    ,&  ! home-grown backward Euler solution using free versions of Numerical recipes
+                    be_kinsol    ,&  ! SUNDIALS backward Euler solution using Kinsol
+                    sundials         ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -132,7 +133,7 @@ subroutine varSubstep(&
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
-#ifdef IDA_ACTIVE
+#ifdef SUNDIALS_ACTIVE
   USE systemSolvSundials_module,only:systemSolvSundials ! solve the system of equations for one time step
 #endif
   USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
@@ -266,7 +267,7 @@ subroutine varSubstep(&
     ! initialize the length of the substep
     dtSubstep = dtInit
 
-    ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently for num_method = bEuler or sundials
+    ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently
     !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
 
@@ -326,7 +327,7 @@ subroutine varSubstep(&
       ! solve the system of equations for a given state subset
       select case(ixNumericalMethod)
         case(sundials)
-#ifdef IDA_ACTIVE
+#ifdef SUNDIALS_ACTIVE
           call systemSolvSundials(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
@@ -363,7 +364,7 @@ subroutine varSubstep(&
 #else
         err=20; message=trim(message)//'cannot use num_method as sundials if did not compile with -DCMAKE_BUILD_TYPE=IDA'; return
 #endif
-        case(bEuler)
+        case(be_numrec)
           call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
@@ -397,7 +398,7 @@ subroutine varSubstep(&
                       niter,             & ! intent(out):   number of iterations taken
                       err,cmessage)        ! intent(out):   error code and error message
           stateVecPrime = stateVecTrial ! will not use, dummy
-        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+        case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
       end select
 
       if(err/=0)then
@@ -461,9 +462,9 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(sundials); checkMassBalance = .false. ! only for bEuler because sundials has instantaneous fluxes only
-        case(bEuler); checkMassBalance = .true.  ! (.not.scalarSolution)
-        case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+        case(sundials); checkMassBalance = .false. ! only for be_numrec because sundials has instantaneous fluxes only
+        case(be_numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
+        case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
       end select
       ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
       checkNrgBalance = .false.
@@ -618,7 +619,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                       model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                      & ! input-output: data structures
                       waterBalanceError,nrgFluxModified,err,message)                                                                                   ! output: flags and error control
   USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
+#ifdef SUNDIALS_ACTIVE
   USE updateVarsSundials_module,only:updateVarsSundials             ! update prognostic variables
+#endif
   USE updateVars_module,only:updateVars                             ! update prognostic variables
   USE t2enthalpy_module, only:t2enthalpy                            ! compute enthalpy
   implicit none
@@ -835,6 +838,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
 
     select case(ixNumericalMethod)
       case(sundials)
+#ifdef SUNDIALS_ACTIVE
         call varExtract(&
                   ! input
                   stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
@@ -892,7 +896,10 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                     mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
                     ! output: error control
                     err,cmessage)                                ! intent(out):   error control
-      case(bEuler)
+#else
+      err=20; message=trim(message)//'cannot use num_method as sundials if did not compile with -DCMAKE_BUILD_TYPE=IDA'; return
+#endif
+      case(be_numrec)
         ! update diagnostic variables
         call updateVars(&
                  ! input
@@ -917,7 +924,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                  mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
-      case default; err=20; message=trim(message)//'expect num_method to be sundials or bEuler (or itertive, which is bEuler)'; return
+      case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
     end select
 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

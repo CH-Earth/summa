@@ -6,11 +6,17 @@ SET (CMAKE_Fortran_COMPILER gfortran)
 #=========================================================================================
 # When compiling Summa each configuration can be compiled in a Cluster or Debug mode,
 # which is set by the CMAKE_BUILD_TYPES variables. The default is BE, release mode no
-# cluster no Sundials no Actors no NexGen.
-# Other options include how to drive the code, NexGen (with BMI) or Actors (without BMI)
-# framework or no extra framework (without BMI).
+# cluster no Sundials no Actors no NexGen which runs the code with BE based off Numerical
+# Recipes only.
 # Note, Sundials, NexGen, and Actors will all require extra libraries to be downloaded
 # and compiled. Currently, NexGen cannot work with Actors.
+# If you install Sundials, you can compile Summa with Sundials, which allows you to run 
+# Summa with a solver of BE based off Numerical Recipes, Kinsol, or IDA. The solver choice
+# is then set in the code decisions file.
+# Other options include how to drive the code, NexGen (with BMI) or Actors (without BMI)
+# framework or no extra framework (without BMI).
+# If you change the build type, you will need to delete the CMakeCache.txt file and
+# rerun cmake.
 #=========================================================================================
 
 # Set default configuration type to Release
@@ -22,25 +28,16 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES BE BE_Debug BE_Cluster BE_Cluster_Debug
                               BE_NexGen BE_NexGen_Debug BE_NexGen_Cluster BE_NexGen_Cluster_Debug
                               BE_Actors BE_Actors_Debug BE_Actors_Cluster BE_Actors_Cluster_Debug
-                              Kinsol Kinsol_Debug Kinsol_Cluster Kinsol_Cluster_Debug
-                              Kinsol_NexGen Kinsol_NexGen_Debug Kinsol_NexGen_Cluster Kinsol_NexGen_Cluster_Debug
-                              Kinsol_Actors Kinsol_Actors_Debug Kinsol_Actors_Cluster Kinsol_Actors_Cluster_Debug
-                              IDA IDA_Debug IDA_Cluster IDA_Cluster_Debug
-                              IDA_NexGen IDA_NexGen_Debug IDA_NexGen_Cluster IDA_NexGen_Cluster_Debug
-                              IDA_Actors IDA_Actors_Debug IDA_Actors_Cluster IDA_Actors_Cluster_Debug)
+                              Sundials Sundials_Debug Sundials_Cluster Sundials_Cluster_Debug
+                              Sundials_NexGen Sundials_NexGen_Debug Sundials_NexGen_Cluster Sundials_NexGen_Cluster_Debug
+                              Sundials_Actors Sundials_Actors_Debug Sundials_Actors_Cluster Sundials_Actors_Cluster_Debug)
 message("\nSelected Bulid Type: ${CMAKE_BUILD_TYPE}\n")
 
 # Give executable names to be backwards compatible with old versions
-if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+if(CMAKE_BUILD_TYPE MATCHES Sundials)
     add_compile_definitions(SUNDIALS_ACTIVE)
-    if(CMAKE_BUILD_TYPE MATCHES Kinsol)
-        add_compile_definitions(KINSOL_ACTIVE)
-        set(EXEC_NAME summa_kinsol.exe)
-    elseif(CMAKE_BUILD_TYPE MATCHES IDA)
-        add_compile_definitions(IDA_ACTIVE)
-        set(EXEC_NAME summa_sundials.exe)
-    endif()
-else()
+    set(EXEC_NAME summa_sundials.exe)
+elseif(CMAKE_BUILD_TYPE MATCHES BE)
     set(EXEC_NAME summa.exe)
 endif()
 
@@ -114,7 +111,7 @@ else()
 endif()
 
 # Find Sundials if exists, add path here if FATAL_ERROR "Did not find Sundials directory"
-if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+if(CMAKE_BUILD_TYPE MATCHES Sundials)
     set(DIR_SUNDIALS "")
     foreach(dir IN ITEMS
         "${F_MASTER}../sundials/instdir"
@@ -144,7 +141,7 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
     set(LIBRARIES SUMMA_NOAHMP ${netCDF_LIBRARIES} ${LAPACK_LIBRARIES} -lnetcdff -lopenblas)
 
-    if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+    if(CMAKE_BUILD_TYPE MATCHES Sundials)
         link_directories(${DIR_SUNDIALS}/lib64)
         set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib64")
         set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
@@ -166,7 +163,7 @@ else()
     set(INCLUDES /opt/local/include /opt/local/lib)
     set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
 
-    if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+    if(CMAKE_BUILD_TYPE MATCHES Sundials)
         link_directories(${DIR_SUNDIALS}/lib)
         set(CMAKE_BUILD_RPATH "${DIR_SUNDIALS}/lib")
         set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
@@ -183,18 +180,11 @@ else()
 endif()
 
 
-if(CMAKE_BUILD_TYPE MATCHES IDA)
-    message("\nUsing SUNDIALS IDA libraries, should have been installed previously")
-
-    set(LIB_SUNDIALS -lsundials_fida_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
-
-elseif(CMAKE_BUILD_TYPE MATCHES Kinsol)
-    message("\nUsing SUNDIALS Kinsol libraries, should have been installed previously")
-
-    set(LIB_SUNDIALS -lsundials_fkinsol_mod -lsundials_fnvecserial_mod -lsundials_fsunnonlinsolnewton_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod)
+if(CMAKE_BUILD_TYPE MATCHES Sundials)
+    message("\nUsing SUNDIALS libraries for IDA and Kinsol, should have been installed previously")
+    set(LIB_SUNDIALS -lsundials_fida_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod -lsundials_fkinsol_mod -lsundials_fsunnonlinsolnewton_mod)
 elseif(CMAKE_BUILD_TYPE MATCHES BE)
-    message("\nUsing Home-grown Backward Euler")
-
+    message("\nUsing Backward Euler based off free versions of Numerical Recipes only")
 else()
     message("\nValid build types are: ${CMAKE_CONFIGURATION_TYPES}")
     message(FATAL_ERROR "\nUnknown build type: ${CMAKE_BUILD_TYPE}")
@@ -267,9 +257,10 @@ set(DATAMS
     ${DSHARE_DIR}/outpt_stat.f90
     ${DSHARE_DIR}/popMetadat.f90
     ${DSHARE_DIR}/var_lookup.f90)
-set(DATAMS_KINSOL
-    ${DSHARE_DIR}/csv_file.f90
-    ${SUMMA_DSHARE_DIR}/kinsol_user_data_type.f90)
+set(DATAMS_SUNDIALS
+    ${DSHARE_DIR}/tol4IDA.f90
+    ${DSHARE_DIR}/type4IDA.f90
+    ${DSHARE_DIR}/type4kinsol.f90)
 
 # Utility modules
 set(UTILMS
@@ -279,7 +270,7 @@ set(UTILMS
     ${ENGINE_DIR}/soil_utils.f90
     ${ENGINE_DIR}/time_utils.f90
     ${ENGINE_DIR}/updatState.f90)
-set(UTILMS_IDA
+set(UTILMS_SUNDIALS
     ${ENGINE_DIR}/soil_utilsAddSundials.f90
     ${ENGINE_DIR}/updatStateSundials.f90)
 
@@ -320,22 +311,24 @@ set(MODRUN
     ${ENGINE_DIR}/read_force.f90
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
+    ${ENGINE_DIR}/t2enthalpy.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updateVars.f90
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90)
-# Note, eventually these should be added to Kinsol
-set(MODRUN_NOT_KINSOL
-    ${ENGINE_DIR}/t2enthalpy.f90)
-set(MODRUN_IDA
+set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/updateVarsSundials.f90)
 
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
+    ${ENGINE_DIR}/computEnthalpy.f90
     ${ENGINE_DIR}/computFlux.f90
+    ${ENGINE_DIR}/computHeatCap.f90
     ${ENGINE_DIR}/computJacob.f90
     ${ENGINE_DIR}/computResid.f90
+    ${ENGINE_DIR}/computSnowDepth.f90
+    ${ENGINE_DIR}/computThermConduct.f90
     ${ENGINE_DIR}/coupled_em.f90
     ${ENGINE_DIR}/diagn_evar.f90
     ${ENGINE_DIR}/eval8summa.f90
@@ -352,21 +345,13 @@ set(SOLVER
     ${ENGINE_DIR}/vegNrgFlux.f90
     ${ENGINE_DIR}/vegPhenlgy.f90
     ${ENGINE_DIR}/vegSWavRad.f90)
-# Note, eventually these should be added to Kinsol
-set(SOLVER_NOT_KINSOL
-    ${ENGINE_DIR}/computSnowDepth.f90
-    ${ENGINE_DIR}/computEnthalpy.f90
-    ${ENGINE_DIR}/computHeatCap.f90
-    ${ENGINE_DIR}/computThermConduct.f90)
-set(SOLVER_IDA
+set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobSundials.f90
     ${ENGINE_DIR}/computResidSundials.f90
     ${ENGINE_DIR}/eval8summaSundials.f90
     ${ENGINE_DIR}/summaSolveSundialsIDA.f90
-    ${ENGINE_DIR}/systemSolvSundials.f90
-    ${ENGINE_DIR}/tol4IDA.f90
-    ${ENGINE_DIR}/type4IDA.f90)
-set(SOLVER_NOT_ACTOR
+    ${ENGINE_DIR}/systemSolvSundials.f90)
+set(SOLVER_NOT_ACTORS
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90)
 
@@ -376,7 +361,7 @@ set(DRIVER
     ${SUB_DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_alarms.f90
     ${SUB_DRIVER_DIR}/summa_globalData.f90)
-set(DRIVER_NOT_ACTOR
+set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_setup.f90
@@ -454,13 +439,10 @@ if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(COMM_ALL ${COMM_ALL}
         ${INTERFACE})
 endif()
-if(CMAKE_BUILD_TYPE MATCHES Kinsol)
+if(CMAKE_BUILD_TYPE MATCHES Sundials)
     set(COMM_ALL ${COMM_ALL}
-        ${DATAMS_KINSOL})
-endif()
-if(CMAKE_BUILD_TYPE MATCHES IDA)
-    set(COMM_ALL ${COMM_ALL}
-        ${UTILMS_IDA})
+        ${DATAMS_SUNDIALS}
+        ${UTILMS_SUNDIALS})
 endif()
 
 set(SUMMA_ALL
@@ -486,20 +468,15 @@ if(CMAKE_BUILD_TYPE MATCHES NexGen)
     set(SUMMA_ALL ${SUMMA_ALL}
         ${DRIVER_NEXGEN})
 endif()
-if(CMAKE_BUILD_TYPE MATCHES IDA)
+if(CMAKE_BUILD_TYPE MATCHES Sundials)
     set(SUMMA_ALL ${SUMMA_ALL}
-        ${MODRUN_IDA}
-        ${SOLVER_IDA})
-endif()
-if(NOT CMAKE_BUILD_TYPE MATCHES Kinsol)
-    set(SUMMA_ALL ${SUMMA_ALL}
-        ${MODRUN_NOT_KINSOL}
-        ${SOLVER_NOT_KINSOL})
+        ${MODRUN_SUNDIALS}
+        ${SOLVER_SUNDIALS})
 endif()
 
 # Run program files
 set(MAIN_ACTOR ${ACTORS_DIR}/main.cpp)
-set(MAIN_BMI   ${DRIVER_DIR}/summa_driverBMI.f90) # do not need a driver in NexGen so do not use
+#set(MAIN_BMI  ${DRIVER_DIR}/summa_driver4BMI.f90) # do not need a driver in NexGen so do not use
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Define version number, not working correctly
@@ -563,7 +540,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
     add_library(summaactors SHARED ${SUMMA_ALL})
     target_compile_options(summaactors PRIVATE ${FLAGS_ALL})
 
-    if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+    if(CMAKE_BUILD_TYPE MATCHES Sundials)
         target_include_directories(summaactors PUBLIC ${INCLUDES} ${INC_SUNDIALS})
         target_link_libraries(summaactors PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
     else()
@@ -589,7 +566,7 @@ else()
     add_library(summa SHARED ${SUMMA_ALL})
     target_compile_options(summa PRIVATE ${FLAGS_ALL})
 
-    if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+    if(CMAKE_BUILD_TYPE MATCHES Sundials)
         target_include_directories(summa PUBLIC ${INCLUDES} ${INC_SUNDIALS})
         target_link_libraries(summa PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
     else()

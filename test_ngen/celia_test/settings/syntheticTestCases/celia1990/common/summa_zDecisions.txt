@@ -13,7 +13,7 @@ vegeParTbl                      USGS            ! (04) vegetation category datas
 soilStress                      NoahType        ! (05) choice of function for the soil moisture control on stomatal resistance
 stomResist                      BallBerry       ! (06) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
-num_method                      bEuler          ! (07) choice of numerical method
+num_method                      be_numrec       ! (07) choice of numerical method
 fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives
 LAI_method                      monTable        ! (09) method used to determine LAI and SAI
 f_Richards                      mixdform        ! (10) form of Richard's equation
@@ -63,8 +63,9 @@ howHeatCap                      closedForm      ! (30)
 ! Jarvis    ! Jarvis
 ! -----------------------------------------------------------------------------------------------
 ! (07) choice of numerical method
-! bEuler    ! home-grown backward Euler
-! sundials  ! SUNDIALS solver
+! be_numrec ! home-grown backward Euler
+! be_kinsol ! SUNDIALS backward Euler solution using Kinsol
+! sundials  ! SUNDIALS solution using IDA
 ! -----------------------------------------------------------------------------------------------
 ! (08) method used to calculate flux derivatives
 ! numericl  ! numerical derivatives
