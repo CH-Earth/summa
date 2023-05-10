@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-program summa_driver4BMI
+program summa_driver4bmi
   ! driver program for summa simulations
   ! *****************************************************************************
   ! * use desired modules
@@ -53,4 +53,4 @@ program summa_driver4BMI
   end do  ! (looping through time)
   istat = model%finalize()
 
-end program summa_driver4BMI
+end program summa_driver4bmi

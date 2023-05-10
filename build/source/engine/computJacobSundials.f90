@@ -107,7 +107,7 @@ real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 private
 public::computJacobSundials
 public::computJacobSetup
-public::computJacob4IDA
+public::computJacob4ida
 
 contains
 
@@ -1367,16 +1367,16 @@ end subroutine computJacobSetup
 
 
 ! **********************************************************************************************************
-! public function computJacob4IDA: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
+! public function computJacob4ida: the interface to compute the Jacobian matrix dF/dy + c dF/dy' for IDA solver
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------
-integer(c_int) function computJacob4IDA(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
+integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                     sunmat_J, user_data, sunvec_temp1, sunvec_temp2, sunvec_temp3) &
-                    result(ierr) bind(C,name='computJacob4IDA')
+                    result(ierr) bind(C,name='computJacob4ida')
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
@@ -1385,7 +1385,7 @@ integer(c_int) function computJacob4IDA(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   use fnvector_serial_mod
   use fsunmatrix_band_mod
   use fsunmatrix_dense_mod
-  use type4IDA
+  use type4ida
 
   !======= Declarations =========
   implicit none
@@ -1458,7 +1458,7 @@ integer(c_int) function computJacob4IDA(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   ierr = 0
   return
 
-end function computJacob4IDA
+end function computJacob4ida
 
 
 ! **********************************************************************************************************

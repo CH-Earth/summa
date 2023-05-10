@@ -258,8 +258,7 @@ set(DATAMS
     ${DSHARE_DIR}/popMetadat.f90
     ${DSHARE_DIR}/var_lookup.f90)
 set(DATAMS_SUNDIALS
-    ${DSHARE_DIR}/tol4IDA.f90
-    ${DSHARE_DIR}/type4IDA.f90
+    ${DSHARE_DIR}/type4ida.f90
     ${DSHARE_DIR}/type4kinsol.f90)
 
 # Utility modules
@@ -317,6 +316,7 @@ set(MODRUN
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90)
 set(MODRUN_SUNDIALS
+    ${ENGINE_DIR}/tol4ida.f90
     ${ENGINE_DIR}/updateVarsSundials.f90)
 
 # Solver main modules
@@ -349,7 +349,7 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobSundials.f90
     ${ENGINE_DIR}/computResidSundials.f90
     ${ENGINE_DIR}/eval8summaSundials.f90
-    ${ENGINE_DIR}/summaSolveSundialsIDA.f90
+    ${ENGINE_DIR}/summaSolveSundials4ida.f90
     ${ENGINE_DIR}/systemSolvSundials.f90)
 set(SOLVER_NOT_ACTORS
     ${ENGINE_DIR}/run_oneGRU.f90
@@ -461,8 +461,8 @@ if(CMAKE_BUILD_TYPE MATCHES Actors)
         ${GRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
-        ${SOLVER_NOT_ACTOR}
-        ${DRIVER_NOT_ACTOR})
+        ${SOLVER_NOT_ACTORS}
+        ${DRIVER_NOT_ACTORS})
 endif()
 if(CMAKE_BUILD_TYPE MATCHES NexGen)
     set(SUMMA_ALL ${SUMMA_ALL}
@@ -476,7 +476,7 @@ endif()
 
 # Run program files
 set(MAIN_ACTOR ${ACTORS_DIR}/main.cpp)
-#set(MAIN_BMI  ${DRIVER_DIR}/summa_driver4BMI.f90) # do not need a driver in NexGen so do not use
+#set(MAIN_BMI  ${DRIVER_DIR}/summa_driver4bmi.f90) # do not need a driver in NexGen so do not use
 set(MAIN_SUMMA ${DRIVER_DIR}/summa_driver.f90)
 
 # Define version number, not working correctly

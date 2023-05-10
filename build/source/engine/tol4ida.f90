@@ -1,9 +1,9 @@
-module tol4IDA_module
+module tol4ida_module
 
 !======= Inclusions ===========
 use, intrinsic :: iso_c_binding
 use nrtype
-use type4IDA
+use type4ida
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -61,28 +61,28 @@ USE var_lookup,only:iLookINDEX            ! named variables for structure elemen
 ! privacy
 implicit none
 private
-public::computWeight4IDA
-public::popTol4IDA
+public::computWeight4ida
+public::popTol4ida
 
 
 contains
 
 ! **********************************************************************************************************
-! public function computWeight4IDA: compute w_i = 1 / ( rtol_i * y_i + atol_i )
+! public function computWeight4ida: compute w_i = 1 / ( rtol_i * y_i + atol_i )
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
 !   -1 = non-recoverable error, NaN or negative values
 ! ----------------------------------------------------------------
-integer(c_int) function computWeight4IDA(sunvec_y, sunvec_ewt, user_data) &
-  result(ierr) bind(C,name='computWeight4IDA')
+integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
+  result(ierr) bind(C,name='computWeight4ida')
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use fsundials_nvector_mod
   use fnvector_serial_mod
   use nrtype
-  use type4IDA
+  use type4ida
 
   !======= Declarations =========
   implicit none
@@ -118,13 +118,13 @@ integer(c_int) function computWeight4IDA(sunvec_y, sunvec_ewt, user_data) &
   ierr = 0
   return
 
-end function computWeight4IDA
+end function computWeight4ida
 
 
 ! **********************************************************************************************************
-! public subroutine popTol4IDA: populate tolerances for state vectors
+! public subroutine popTol4ida: populate tolerances for state vectors
 ! **********************************************************************************************************
-subroutine popTol4IDA(&
+subroutine popTol4ida(&
                       ! input: data structures
                       nState,                  & ! intent(in):    number of desired state variables
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
@@ -206,7 +206,7 @@ subroutine popTol4IDA(&
     )  ! end association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message='popTol4IDA/'
+    err=0; message='popTol4ida/'
 
     ! -----
     ! * initialize state vectors...
@@ -280,7 +280,7 @@ subroutine popTol4IDA(&
     endif
 
   end associate fixedLength      ! end association to variables in the data structure where vector length does not change
-end subroutine popTol4IDA
+end subroutine popTol4ida
 
 
-end module tol4IDA_module
+end module tol4ida_module
