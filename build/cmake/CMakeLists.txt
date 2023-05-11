@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 enable_language(C Fortran)
-SET (CMAKE_Fortran_COMPILER gfortran)
+set (CMAKE_Fortran_COMPILER $ENV{FC}) #NexGen
+#set (CMAKE_Fortran_COMPILER gfortran) #others
 
 
 #=========================================================================================
@@ -10,7 +11,7 @@ SET (CMAKE_Fortran_COMPILER gfortran)
 # Recipes only.
 # Note, Sundials, NexGen, and Actors will all require extra libraries to be downloaded
 # and compiled. Currently, NexGen cannot work with Actors.
-# If you install Sundials, you can compile Summa with Sundials, which allows you to run 
+# If you install Sundials, you can compile Summa with Sundials, which allows you to run
 # Summa with a solver of BE based off Numerical Recipes, Kinsol, or IDA. The solver choice
 # is then set in the code decisions file.
 # Other options include how to drive the code, NexGen (with BMI) or Actors (without BMI)
