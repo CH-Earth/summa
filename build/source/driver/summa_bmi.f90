@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summa_bmi
+module summabmi
   ! provides functions needed for summa driver routines adding BMI functions
   ! *****************************************************************************
   ! * use desired modules
@@ -1254,4 +1254,4 @@ module summa_bmi
      end associate summaVars
    end subroutine get_basin_field
 
-end module summa_bmi
+end module summabmi
