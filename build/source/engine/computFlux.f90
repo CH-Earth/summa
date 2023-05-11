@@ -99,7 +99,6 @@ public::computFlux
 public::soilCmpres
 public::soilCmpresPrime
 contains
-
 ! *********************************************************************************************************
 ! public subroutine computFlux: compute model fluxes
 ! *********************************************************************************************************

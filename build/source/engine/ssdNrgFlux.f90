@@ -31,7 +31,6 @@ USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
 ! physical constants
 USE multiconst,only:&
                     iden_water,  &  ! intrinsic density of water    (kg m-3)
-                    ! specific heat
                     Cp_water        ! specific heat of liquid water (J kg-1 K-1)
 
 ! missing values
@@ -39,8 +38,8 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing real number
 
 ! named variables for snow and soil
-USE globalData,only:iname_snow     ! named variables for snow
-USE globalData,only:iname_soil     ! named variables for soil
+USE globalData,only:iname_snow      ! named variables for snow
+USE globalData,only:iname_soil      ! named variables for soil
 
 ! named variables
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -50,27 +49,25 @@ USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 
 ! model decisions
-USE globalData,only:model_decisions                         ! model decision structure
-USE var_lookup,only:iLookDECISIONS                          ! named variables for elements of the decision structure
+USE globalData,only:model_decisions ! model decision structure
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 
 ! provide access to look-up values for model decisions
 USE mDecisions_module,only:      &
  ! look-up values for method used to compute derivative
- numerical,                      & ! numerical solution
- analytical,                     & ! analytical solution
+ numerical,                      &  ! numerical solution
+ analytical,                     &  ! analytical solution
  ! look-up values for choice of boundary conditions for thermodynamics
- prescribedTemp,                 & ! prescribed temperature
- energyFlux,                     & ! energy flux
- zeroFlux                         ! zero flux
-
+ prescribedTemp,                 &  ! prescribed temperature
+ energyFlux,                     &  ! energy flux
+ zeroFlux                           ! zero flux
 ! -------------------------------------------------------------------------------------------------
 implicit none
 private
-public::ssdNrgFlux
+public :: ssdNrgFlux
 ! global parameters
 real(rkind),parameter            :: dx=1.e-10_rkind             ! finite difference increment (K)
 contains
-
 ! **********************************************************************************************************
 ! public subroutine ssdNrgFlux: compute energy fluxes and derivatives at layer interfaces
 ! **********************************************************************************************************
@@ -104,7 +101,6 @@ subroutine ssdNrgFlux(&
                       dFlux_dWatBelow,                    & ! intent(out):   derivatives in the flux w.r.t. water state in the layer below (W m-2 K-1)
                       ! output: error control
                       err,message)                          ! intent(out):   error control
-
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
@@ -176,49 +172,46 @@ subroutine ssdNrgFlux(&
     iLayerAdvectiveFlux(0)  = realMissing  !included in the ground heat flux
 
     ! get the indices for the snow+soil layers
-    if(scalarSolution)then
+    if (scalarSolution) then
       ixLayerDesired = pack(ixLayerState, ixSnowSoilNrg/=integerMissing)
       ixTop = ixLayerDesired(1)
       ixBot = ixLayerDesired(1)
     else
       ixTop = 1
       ixBot = nLayers
-    endif
+    end if
 
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
-      if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)
+      if (iLayer==nLayers) then ! lower boundary fluxes -- positive downwards
       ! flux depends on the type of lower boundary condition
-        select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
+        select case(ix_bcLowrTdyn) ! identify the lower boundary condition for thermodynamics
           case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
           case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
-        end select  ! (identifying the lower boundary condition for thermodynamics)
-      else ! (domain boundary fluxes -- positive downwards)
+        end select  ! identifying the lower boundary condition for thermodynamics
+      else ! domain boundary fluxes -- positive downwards
         iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                         (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-      end if ! (the type of layer)
-    end do  ! looping through layers
+      end if ! the type of layer
+    end do  ! end looping through layers
 
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the advective fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
-      ! get the liquid flux at layer interfaces
-      select case(layerType(iLayer))
+      select case(layerType(iLayer)) ! get the liquid flux at layer interfaces
         case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
         case(iname_soil); qFlux = iLayerLiqFluxSoil(iLayer-nSnow)
         case default; err=20; message=trim(message)//'unable to identify layer type'; return
       end select
-      ! compute fluxes at the lower boundary -- positive downwards
-      if(iLayer==nLayers)then
+      if (iLayer==nLayers) then ! compute fluxes at the lower boundary -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(lowerBoundTemp - mLayerTempTrial(iLayer))
-      ! compute fluxes within the domain -- positive downwards
-      else
+      else ! compute fluxes within the domain -- positive downwards
         iLayerAdvectiveFlux(iLayer) = -Cp_water*iden_water*qFlux*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer))
       end if
-    end do  ! looping through layers
+    end do  ! end looping through layers
 
     ! -------------------------------------------------------------------------------------------------------------------------
     ! ***** compute the total fluxes at layer interfaces *****
@@ -261,17 +254,16 @@ subroutine ssdNrgFlux(&
 
   	  case default; err=20; message=trim(message)//'unable to identify upper boundary condition for thermodynamics'; return
 
-  	end select  ! (identifying the upper boundary condition for thermodynamics)
+  	end select  ! end identifying the upper boundary condition for thermodynamics
   	!dGroundNetFlux_dGroundWat  = dFlux_dWatBelow(0) ! this is true, but since not used in vegNrgFlux do not define
   	dGroundNetFlux_dGroundTemp = dFlux_dTempBelow(0) ! need this in vegNrgFlux
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
       ! ***** the lower boundary
-      if(iLayer==nLayers)then  ! (lower boundary)
-
+      if (iLayer==nLayers) then  ! if lower boundary
         ! identify the lower boundary condition
-        select case(ix_bcLowrTdyn) !prescribed temperature at the lower boundary
+        select case(ix_bcLowrTdyn) ! prescribed temperature at the lower boundary
           case(prescribedTemp)
             dz = mLayerDepth(iLayer)*0.5_rkind
             dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
@@ -280,8 +272,7 @@ subroutine ssdNrgFlux(&
             dFlux_dWatAbove(iLayer) = 0._rkind
             dFlux_dTempAbove(iLayer) = 0._rkind
           case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
-        end select  ! (identifying the lower boundary condition for thermodynamics)
-
+        end select  ! end identifying the lower boundary condition for thermodynamics
       ! ***** internal layers
       else
         dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
@@ -290,14 +281,11 @@ subroutine ssdNrgFlux(&
         dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
         dFlux_dTempBelow(iLayer) = -dThermalC_dTempBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
       end if  ! type of layer (upper, internal, or lower)
+    end do  ! end looping through layers
 
-    end do  ! (looping through layers)
-
-  ! end association of local variables with information in the data structures
-  end associate
+  end associate ! end association of local variables with information in the data structures
 
 end subroutine ssdNrgFlux
-
 
 end module ssdNrgFlux_module
 
