@@ -1283,7 +1283,7 @@ subroutine computJacobSetup(&
 
     call updateVarsSundials(&
                   ! input
-                  .true.,                                    & ! intent(in):    logical flag if computing Jacobian for sundials solver
+                  .true.,                                    & ! intent(in):    logical flag if computing Jacobian for Sundials solver
                   .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                   mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                   indx_data,                                 & ! intent(in):    indices defining model states and layers

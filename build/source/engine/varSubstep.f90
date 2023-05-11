@@ -74,7 +74,7 @@ USE multiconst,only:&
 USE mDecisions_module,only:       &
                     be_numrec    ,&  ! home-grown backward Euler solution using free versions of Numerical recipes
                     be_kinsol    ,&  ! SUNDIALS backward Euler solution using Kinsol
-                    sundials         ! SUNDIALS solution using IDA
+                    ida              ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -326,7 +326,7 @@ subroutine varSubstep(&
       ! -----------------------
       ! solve the system of equations for a given state subset
       select case(ixNumericalMethod)
-        case(sundials)
+        case(ida)
 #ifdef SUNDIALS_ACTIVE
           call systemSolvSundials(&
                       ! input: model control
@@ -362,7 +362,7 @@ subroutine varSubstep(&
           untappedMelt(:) = 0._rkind ! set untapped melt energy to zero
           niter = 0  ! will not use
 #else
-        err=20; message=trim(message)//'cannot use num_method as sundials if did not compile with -DCMAKE_BUILD_TYPE=IDA'; return
+        err=20; message=trim(message)//'cannot use num_method as uda if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
 #endif
         case(be_numrec)
           call systemSolv(&
@@ -398,7 +398,7 @@ subroutine varSubstep(&
                       niter,             & ! intent(out):   number of iterations taken
                       err,cmessage)        ! intent(out):   error code and error message
           stateVecPrime = stateVecTrial ! will not use, dummy
-        case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+        case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
       end select
 
       if(err/=0)then
@@ -462,9 +462,9 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(sundials); checkMassBalance = .false. ! only for be_numrec because sundials has instantaneous fluxes only
+        case(ida);       checkMassBalance = .false. ! only for be_numrec because sundials has instantaneous fluxes only
         case(be_numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
-        case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+        case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
       end select
       ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
       checkNrgBalance = .false.
@@ -837,7 +837,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     scalarAquiferStoragePrime = realMissing
 
     select case(ixNumericalMethod)
-      case(sundials)
+      case(ida)
 #ifdef SUNDIALS_ACTIVE
         call varExtract(&
                   ! input
@@ -897,7 +897,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                     ! output: error control
                     err,cmessage)                                ! intent(out):   error control
 #else
-      err=20; message=trim(message)//'cannot use num_method as sundials if did not compile with -DCMAKE_BUILD_TYPE=IDA'; return
+      err=20; message=trim(message)//'cannot use num_method as ida if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
 #endif
       case(be_numrec)
         ! update diagnostic variables
@@ -924,7 +924,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                  mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
-      case default; err=20; message=trim(message)//'expect num_method to be sundials, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+      case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
     end select
 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
