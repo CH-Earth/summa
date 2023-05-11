@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 enable_language(C Fortran)
-set (CMAKE_Fortran_COMPILER $ENV{FC}) #NexGen
-#set (CMAKE_Fortran_COMPILER gfortran) #others
+set (CMAKE_Fortran_COMPILER $ENV{FC})  #for NexGen need, works for others
+#set (CMAKE_Fortran_COMPILER gfortran) # for others may work
 
 
 #=========================================================================================
