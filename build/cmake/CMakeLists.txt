@@ -412,27 +412,27 @@ set(HRU_INTERFACE
     ${HRU_ACTOR_DIR}/fortran_code/hru_actor.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_init.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_modelRun.f90
+    ${HRU_ACTOR_DIR}/fortran_code/hru_modelwrite.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_restart.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_setup.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_modelwrite.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_writeOutput.f90)
 
 # Actors actual actor modules
 set(ACTORS_GLOBAL
+    ${ACTORS_DIR}/global/auxiliary.cpp
     ${ACTORS_DIR}/global/global.cpp
-    ${ACTORS_DIR}/global/timing_info.cpp
     ${ACTORS_DIR}/global/message_atoms.cpp
     ${ACTORS_DIR}/global/settings_functions.cpp
-    ${ACTORS_DIR}/global/auxiliary.cpp)
+    ${ACTORS_DIR}/global/timing_info.cpp)
 set(SUMMA_ACTOR
-    ${ACTORS_DIR}/summa_actor/summa_actor.cpp
-    ${ACTORS_DIR}/summa_actor/summa_client.cpp
-    ${ACTORS_DIR}/summa_actor/summa_server.cpp
-    ${ACTORS_DIR}/summa_actor/summa_backup_server.cpp
     ${ACTORS_DIR}/summa_actor/batch/batch.cpp
     ${ACTORS_DIR}/summa_actor/batch/batch_container.cpp
     ${ACTORS_DIR}/summa_actor/client/client.cpp
-    ${ACTORS_DIR}/summa_actor/client/client_container.cpp)
+    ${ACTORS_DIR}/summa_actor/client/client_container.cpp
+    ${ACTORS_DIR}/summa_actor/summa_actor.cpp
+    ${ACTORS_DIR}/summa_actor/summa_backup_server.cpp
+    ${ACTORS_DIR}/summa_actor/summa_client.cpp
+    ${ACTORS_DIR}/summa_actor/summa_server.cpp)
 set(HRU_ACTOR
     ${ACTORS_DIR}/hru_actor/cpp_code/hru_actor.cpp)
 set(GRU_ACTOR
@@ -442,8 +442,8 @@ set(FILE_ACCESS_ACTOR
     ${ACTORS_DIR}/file_access_actor/cpp_code/forcing_file_info.cpp
     ${ACTORS_DIR}/file_access_actor/cpp_code/output_container.cpp)
 set(JOB_ACTOR
-    ${ACTORS_DIR}/job_actor/job_actor.cpp
-    ${ACTORS_DIR}/job_actor/GRU.cpp)
+    ${ACTORS_DIR}/job_actor/GRU.cpp
+    ${ACTORS_DIR}/job_actor/job_actor.cpp)
 
 
 #=========================================================================================
