@@ -120,8 +120,8 @@ SUMMA_SOLVER= \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \
 		computFlux.f90 \
-      type4IDA.f90 \
-      tol4IDA.f90 \
+      type4ida.f90 \
+      tol4ida.f90 \
       computEnthalpy.f90 \
       computHeatCap.f90 \
       computThermConduct.f90 \
@@ -134,7 +134,7 @@ SUMMA_SOLVER= \
       eval8summaSundials.f90 \
       computJacobSundials.f90 \
 		computSnowDepth.f90 \
-      summaSolveSundialsIDA.f90 \
+      summaSolveSundials4ida.f90 \
       systemSolvSundials.f90 \
       varSubstep.f90 \
 		opSplittin.f90 \

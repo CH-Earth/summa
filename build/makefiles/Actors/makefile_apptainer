@@ -133,8 +133,8 @@ SUMMA_SOLVER= \
 		eval8summa.f90 \
 		summaSolve.f90 \
 		systemSolv.f90 \
-		sundials/type4IDA.f90 \
-		sundials/tol4IDA.f90 \
+		sundials/type4ida.f90 \
+		sundials/tol4ida.f90 \
 		sundials/computEnthalpy.f90 \
 		sundials/computHeatCap.f90 \
 		sundials/computThermConduct.f90 \
@@ -142,7 +142,7 @@ SUMMA_SOLVER= \
 		sundials/eval8summaSundials.f90 \
 		sundials/computJacobSundials.f90 \
 		sundials/computSnowDepth.f90 \
-		sundials/summaSolveSundialsIDA.f90 \
+		sundials/summaSolveSundials4ida.f90 \
 		sundials/systemSolvSundials.f90 \
 		varSubstep.f90 \
 		sundials/varSubstepSundials.f90 \
@@ -162,8 +162,8 @@ INTERFACE = $(patsubst %, $(ACTORS_DIR)/global/%, $(SUMMA_INTERFACE))
 
 SUMMA_FILEACCESS_INTERFACE = \
 		cppwrap_fileAccess.f90 \
-		read_attribute.f90 \
-		read_forcing.f90 \
+		read_attrb.f90 \
+		read_force.f90 \
 		read_param.f90 \
 		write_to_netcdf.f90
 

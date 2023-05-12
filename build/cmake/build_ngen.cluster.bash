@@ -1,13 +1,15 @@
 #!/bin/bash
   
 # build nextgen on Copernicus, from ngen directory put this one directory up and run this as ../build_ngen.cluster.bash
-
-module load boost
-module load udunits/2.2.28
+# for Summa
 module load StdEnv/2020
 module load gcc/9.3.0
 module load openblas/0.3.17
 module load netcdf-fortran/4.5.2
+
+# for NexGen
+module load boost
+module load udunits/2.2.28
 
 cmake -B extern/iso_c_fortran_bmi/cmake_build -S extern/iso_c_fortran_bmi
 cmake --build extern/iso_c_fortran_bmi/cmake_build --target all

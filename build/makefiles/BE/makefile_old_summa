@@ -162,8 +162,8 @@ INTERFACE = $(patsubst %, $(ACTORS_DIR)/global/%, $(SUMMA_INTERFACE))
 SUMMA_FILEACCESS_INTERFACE = \
 		output_structure.f90 \
 		cppwrap_fileAccess.f90 \
-		read_attribute.f90 \
-		read_forcing.f90 \
+		read_attrb.f90 \
+		read_force.f90 \
 		read_param.f90 \
 		read_initcond.f90 \
 		writeOutputFromOutputStructure.f90 \

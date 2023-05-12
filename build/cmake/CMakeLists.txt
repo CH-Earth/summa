@@ -177,6 +177,22 @@ else()
 
     # Actors is on Cluster, if using on personal computer might need to link directory-- not working on Mac right now
     if(CMAKE_BUILD_TYPE MATCHES Actors)
+        set(DIR_ACTORS "")
+        foreach(dir IN ITEMS
+            "${F_MASTER}../actor-framework/install"
+            "${PARENT_DIR}../actor-framework/install"
+            "${F_MASTER}../../SummaActors/actor-framework/install"
+            "${PARENT_DIR}../../SummaActors/actor-framework/install"
+            "../../../../SummaActors/actor-framework/install") #look in same head directory as summa or up to another installation
+            if(EXISTS ${dir})
+                set(DIR_SUNDIALS ${dir})
+                message("\nFound Actors directory at ${DIR_ACTORS}")
+                break()
+            endif()
+            message(FATAL_ERROR "\nDid not find Actors directory, edit CMakeLists.txt to include path")
+        endforeach()
+
+
         #link_directories(${DIR_ACTORS}/lib)
         find_package(CAF REQUIRED)
         set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/gru_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
@@ -295,13 +311,14 @@ set(PRELIM
     ${ENGINE_DIR}/conv_funcs.f90
     ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
-    ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
-    ${ENGINE_DIR}/read_param.f90
     ${ENGINE_DIR}/sunGeomtry.f90)
-set(PRELIM_ACTOR
+set(PRELIM_NOT_ACTORS
+    ${ENGINE_DIR}/read_attrb.f90
+    ${ENGINE_DIR}/read_param.f90)
+set(PRELIM_ACTORS
     ${SUB_ENGINE_DIR}/alloc_fileAccess.f90)
 
 # Model run support modules
@@ -313,7 +330,6 @@ set(MODRUN
     ${ENGINE_DIR}/layerMerge.f90
     ${ENGINE_DIR}/layerDivide.f90
     ${ENGINE_DIR}/qTimeDelay.f90
-    ${ENGINE_DIR}/read_force.f90
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
     ${ENGINE_DIR}/t2enthalpy.f90
@@ -321,6 +337,8 @@ set(MODRUN
     ${ENGINE_DIR}/updateVars.f90
     ${ENGINE_DIR}/var_derive.f90
     ${ENGINE_DIR}/volicePack.f90)
+set(MODRUN_NOT_ACTORS
+    ${ENGINE_DIR}/read_force.f90)
 set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/tol4ida.f90
     ${ENGINE_DIR}/updateVarsSundials.f90)
@@ -351,15 +369,15 @@ set(SOLVER
     ${ENGINE_DIR}/vegNrgFlux.f90
     ${ENGINE_DIR}/vegPhenlgy.f90
     ${ENGINE_DIR}/vegSWavRad.f90)
+set(SOLVER_NOT_ACTORS
+    ${ENGINE_DIR}/run_oneGRU.f90
+    ${ENGINE_DIR}/run_oneHRU.f90)
 set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computJacobSundials.f90
     ${ENGINE_DIR}/computResidSundials.f90
     ${ENGINE_DIR}/eval8summaSundials.f90
     ${ENGINE_DIR}/summaSolveSundials4ida.f90
     ${ENGINE_DIR}/systemSolvSundials.f90)
-set(SOLVER_NOT_ACTORS
-    ${ENGINE_DIR}/run_oneGRU.f90
-    ${ENGINE_DIR}/run_oneHRU.f90)
 
 # Driver support modules
 set(DRIVER
@@ -386,8 +404,8 @@ set(INTERFACE
 set(FILE_ACCESS_INTERFACE
     ${FILE_ACCESS_DIR}/fortran_code/output_structure.f90
     ${FILE_ACCESS_DIR}/fortran_code/cppwrap_fileAccess.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_attribute.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_forcing.f90
+    ${FILE_ACCESS_DIR}/fortran_code/read_attrb.f90
+    ${FILE_ACCESS_DIR}/fortran_code/read_force.f90
     ${FILE_ACCESS_DIR}/fortran_code/read_param.f90
     ${FILE_ACCESS_DIR}/fortran_code/read_initcond.f90
     ${FILE_ACCESS_DIR}/fortran_code/writeOutputFromOutputStructure.f90
@@ -460,13 +478,15 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
-        ${PRELIM_ACTOR}
+        ${PRELIM_ACTORS}
         ${JOB_INTERFACE}
         ${FILE_ACCESS_INTERFACE}
         ${HRU_INTERFACE}
         ${GRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
+        ${PRELIM_NOT_ACTORS}
+        ${MODRUN_NOT_ACTORS}
         ${SOLVER_NOT_ACTORS}
         ${DRIVER_NOT_ACTORS})
 endif()
