@@ -163,8 +163,7 @@ contains
   iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat      & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
  )  ! end associate statement of local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message='ssdNrgFlux/'
+ err=0; message='ssdNrgFlux/' ! initialize error control
 
  ! set conductive and advective fluxes to missing in the upper boundary
  ! NOTE: advective flux at the upper boundary is included in the ground heat flux

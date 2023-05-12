@@ -128,7 +128,7 @@ contains
  end if
 
  ! check the meltwater exponent is >=1
- if (mw_exp<1_i4b) then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if ! mw_exp is an i4b integer
+ if (mw_exp<1._rkind) then; err=20; message=trim(message)//'meltwater exponent < 1'; return; end if
 
  ! get the indices for the snow+soil layers
  ixTop = integerMissing
@@ -177,7 +177,7 @@ contains
    availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
    relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation
    iLayerLiqFluxSnow(iLayer)      = k_snow*relSaturn**mw_exp
-   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1_i4b) ! mw_exp is an i4b integer
+   iLayerLiqFluxSnowDeriv(iLayer) = ( (k_snow*mw_exp)/availCap ) * relSaturn**(mw_exp - 1._rkind)
    if (mLayerVolFracIce(iLayer) > maxVolIceContent) then ! NOTE: use start-of-step ice content, to avoid convergence problems
      ! ** allow liquid water to pass through under very high ice density
      iLayerLiqFluxSnow(iLayer) = iLayerLiqFluxSnow(iLayer) + iLayerLiqFluxSnow(iLayer-1) !NOTE: derivative may need to be updated in future.

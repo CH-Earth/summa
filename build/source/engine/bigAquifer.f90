@@ -108,7 +108,7 @@ contains
  scalarAquiferBaseflow = aquiferBaseflowRate*(xTemp**aquiferBaseflowExp)
 
  ! compute the derivative in the net aquifer flux
- dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1_i4b)))/aquiferScaleFactor ! aquiferBaseflowExp is integer valued
+ dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1._rkind)))/aquiferScaleFactor
 
  end associate ! end association to data in structures
 
