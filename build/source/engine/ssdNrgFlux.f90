@@ -217,7 +217,7 @@ subroutine ssdNrgFlux(&
     ! ***** compute the total fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     ! NOTE: ignore advective fluxes for now
-    iLayerNrgFlux(0)           = groundNetFlux !from vegNrgFlux module
+    iLayerNrgFlux(0)           = groundNetFlux ! from vegNrgFlux module
     iLayerNrgFlux(ixTop:ixBot) = iLayerConductiveFlux(ixTop:ixBot)
 
     ! -------------------------------------------------------------------------------------------------------------------

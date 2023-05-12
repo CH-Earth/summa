@@ -161,7 +161,7 @@ subroutine snowLiqFlx(&
     end if  ! end if the first flux call
      
     ! compute fluxes
-    do iLayer=ixTop,ixBot  ! (loop through snow layers)
+    do iLayer=ixTop,ixBot  ! loop through snow layers
       if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
         ! compute the relative saturation (-)
         availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
@@ -176,7 +176,7 @@ subroutine snowLiqFlx(&
         iLayerLiqFluxSnow(iLayer)      = 0._rkind
         iLayerLiqFluxSnowDeriv(iLayer) = 0._rkind
       end if  ! storage above residual content
-    end do  ! loop through snow layers
+    end do  ! end loop through snow layers
 
   end associate ! end association of local variables with information in the data structures
 
