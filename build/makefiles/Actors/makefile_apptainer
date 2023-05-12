@@ -1,0 +1,420 @@
+#### parent directory of the 'build' directory ####
+ROOT_DIR = /Summa-Actors
+
+#### Compilers ####
+FC = gfortran # Fortran
+CC = g++	  # C++
+
+DIR_SUNDIALS=/usr/local/sundials
+INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod 
+ 
+
+#### Includes AND Libraries ####
+INCLUDES = -I/usr/include -I/usr/local/include $(INC_SUNDIALS)
+LIBRARIES = -L/usr/lib -L/usr/local/lib -lnetcdff -lopenblas $(LIB_SUNDIALS)
+
+ACTORS_INCLUDES = -I/usr/include -I/usr/local/include $(INC_SUNDIALS)
+ACTORS_LIBRARIES = -L/usr/lib -L/usr/local/lib -L/Summa-Actors/bin -lcaf_core -lcaf_io -lsumma -lopenblas -lnetcdff $(LIB_SUNDIALS)
+
+
+# Production runs
+FLAGS_NOAH = -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors
+FLAGS_COMM = -g -O0 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors
+FLAGS_SUMMA = -g -O0 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors
+FLAGS_ACTORS = -g -O0 -Wfatal-errors -std=c++17
+
+# Debug runs
+# FLAGS_NOAH = -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fbacktrace -Wno-unused -Wno-unused-dummy-argument -fPIC
+# FLAGS_COMM = -g -O0 -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds -fPIC
+# FLAGS_SUMMA = -g -O0 -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds -fPIC
+# FLAGS_ACTORS = -g -O0 -Wall -std=c++17
+
+
+
+#========================================================================
+# PART 1: Define directory paths
+#========================================================================
+
+# Core directory that contains source code
+F_KORE_DIR = $(ROOT_DIR)/build/source
+
+# Location of the compiled modules
+MOD_PATH = $(ROOT_DIR)/build
+
+# Define the directory for the executables
+EXE_PATH = $(ROOT_DIR)/bin
+
+####################################################################################################
+###################################### Assemble Fortran Files ######################################
+####################################################################################################
+# Define directories
+DRIVER_DIR = $(F_KORE_DIR)/driver
+HOOKUP_DIR = $(F_KORE_DIR)/hookup
+NETCDF_DIR = $(F_KORE_DIR)/netcdf
+DSHARE_DIR = $(F_KORE_DIR)/dshare
+NUMREC_DIR = $(F_KORE_DIR)/numrec
+NOAHMP_DIR = $(F_KORE_DIR)/noah-mp
+ENGINE_DIR = $(F_KORE_DIR)/engine
+ACTORS_DIR = $(F_KORE_DIR)/actors
+JOB_ACTOR_DIR = $(ACTORS_DIR)/job_actor
+FILE_ACCESS_DIR = $(ACTORS_DIR)/file_access_actor/fortran_code
+HRU_ACTOR_DIR = $(ACTORS_DIR)/hru_actor/fortran_code
+GRU_ACTOR_DIR = $(ACTORS_DIR)/gru_actor
+
+#  utilities
+SUMMA_NRUTIL= \
+		nrtype.f90 \
+		f2008funcs.f90 \
+		nr_utility.f90 \
+
+NRUTIL = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRUTIL))
+
+# Numerical recipes procedures
+# NOTE: all numerical recipes procedures are now replaced with free versions
+SUMMA_NRPROC= \
+		expIntegral.f90 \
+		spline_int.f90
+NRPROC = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_NRPROC))
+
+# Hook-up modules (set files and directory paths)
+SUMMA_HOOKUP= \
+		ascii_util.f90 \
+		summaActors_FileManager.f90
+HOOKUP = $(patsubst %, $(HOOKUP_DIR)/%, $(SUMMA_HOOKUP))
+
+# Data modules
+SUMMA_DATAMS= \
+		multiconst.f90 \
+		var_lookup.f90 \
+		data_types.f90 \
+		globalData.f90 \
+		flxMapping.f90 \
+		get_ixname.f90
+DATAMS = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DATAMS))
+
+SUMMA_DEPEND_ON_FILEMANAGER= \
+		popMetadat.f90 \
+		outpt_stat.f90
+DEPEND_ON_FILEMANAGER = $(patsubst %, $(DSHARE_DIR)/%, $(SUMMA_DEPEND_ON_FILEMANAGER))
+
+# utility modules
+SUMMA_UTILMS= \
+		time_utils.f90 \
+		mDecisions.f90 \
+		snow_utils.f90 \
+		soil_utils.f90 \
+		sundials/soil_utilsAddSundials.f90 \
+		updatState.f90 \
+		sundials/updatStateSundials.f90 \
+		matrixOper.f90
+UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
+
+# Model guts
+SUMMA_MODGUT= \
+		MODGUT = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODGUT))
+
+# Solver
+SUMMA_SOLVER= \
+		vegPhenlgy.f90 \
+		diagn_evar.f90 \
+		stomResist.f90 \
+		groundwatr.f90 \
+		vegSWavRad.f90 \
+		vegNrgFlux.f90 \
+		ssdNrgFlux.f90 \
+		vegLiqFlux.f90 \
+		snowLiqFlx.f90 \
+		soilLiqFlx.f90 \
+		bigAquifer.f90 \
+		computFlux.f90 \
+		computResid.f90 \
+		computJacob.f90 \
+		eval8summa.f90 \
+		summaSolve.f90 \
+		systemSolv.f90 \
+		sundials/type4IDA.f90 \
+		sundials/tol4IDA.f90 \
+		sundials/computEnthalpy.f90 \
+		sundials/computHeatCap.f90 \
+		sundials/computThermConduct.f90 \
+		sundials/computResidSundials.f90 \
+		sundials/eval8summaSundials.f90 \
+		sundials/computJacobSundials.f90 \
+		sundials/computSnowDepth.f90 \
+		sundials/summaSolveSundialsIDA.f90 \
+		sundials/systemSolvSundials.f90 \
+		varSubstep.f90 \
+		sundials/varSubstepSundials.f90 \
+		opSplittin.f90 \
+		coupled_em.f90
+		
+SOLVER = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_SOLVER))
+
+# Interface code for Fortran-C++
+SUMMA_INTERFACE= \
+		cppwrap_datatypes.f90 \
+		cppwrap_auxiliary.f90 \
+		cppwrap_metadata.f90 \
+
+INTERFACE = $(patsubst %, $(ACTORS_DIR)/global/%, $(SUMMA_INTERFACE))
+
+
+SUMMA_FILEACCESS_INTERFACE = \
+		cppwrap_fileAccess.f90 \
+		read_attribute.f90 \
+		read_forcing.f90 \
+		read_param.f90 \
+		write_to_netcdf.f90
+
+FILEACCESS_INTERFACE = $(patsubst %, $(FILE_ACCESS_DIR)/%, $(SUMMA_FILEACCESS_INTERFACE))
+
+SUMMA_JOB_INTERFACE = \
+		job_actor.f90
+
+JOB_INTERFACE =  $(patsubst %, $(JOB_ACTOR_DIR)/%, $(SUMMA_JOB_INTERFACE))
+
+SUMMA_HRU_INTERFACE = \
+		cppwrap_hru.f90 \
+		hru_actor.f90 \
+		init_hru_actor.f90 \
+
+
+HRU_INTERFACE = $(patsubst %, $(HRU_ACTOR_DIR)/%, $(SUMMA_HRU_INTERFACE))
+
+SUMMA_GRU_INTERFACE = \
+		gru_actor.f90 \
+
+GRU_INTERFACE = $(patsubst %, $(GRU_ACTOR_DIR)/%, $(SUMMA_GRU_INTERFACE))
+
+		
+
+# Define routines for SUMMA preliminaries
+SUMMA_PRELIM= \
+		conv_funcs.f90 \
+		sunGeomtry.f90 \
+		convE2Temp.f90 \
+		allocspaceActors.f90 \
+		checkStruc.f90 \
+		childStruc.f90 \
+		ffile_info.f90 \
+		read_dimension.f90 \
+		read_pinit.f90 \
+		pOverwrite.f90 \
+		paramCheck.f90 \
+		check_icondActors.f90 \
+		# allocspace.f90
+PRELIM = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_PRELIM))
+
+SUMMA_NOAHMP= \
+		module_model_constants.F \
+		module_sf_noahutl.F \
+		module_sf_noahlsm.F \
+		module_sf_noahmplsm.F
+
+NOAHMP = $(patsubst %, $(NOAHMP_DIR)/%, $(SUMMA_NOAHMP))
+
+# Define routines for the SUMMA model runs
+# sundials - t2enthalpy.f90
+SUMMA_MODRUN = \
+		indexState.f90 \
+		getVectorz.f90 \
+		sundials/t2enthalpy.f90 \
+		updateVars.f90 \
+		sundials/updateVarsSundials.f90 \
+		var_derive.f90 \
+		derivforce.f90 \
+		snowAlbedo.f90 \
+		canopySnow.f90 \
+		tempAdjust.f90 \
+		snwCompact.f90 \
+		layerMerge.f90 \
+		layerDivide.f90 \
+		volicePack.f90 \
+		qTimeDelay.f90
+MODRUN = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_MODRUN))
+
+# Define NetCDF routines
+# OutputStrucWrite is not a netcdf subroutine and should be
+# moved
+SUMMA_NETCDF = \
+		netcdf_util.f90 \
+		def_output.f90 \
+		writeOutput.f90	\
+		read_icondActors.f90
+NETCDF = $(patsubst %, $(NETCDF_DIR)/%, $(SUMMA_NETCDF))
+
+# ... stitch together common programs
+COMM_ALL = $(NRUTIL) $(NRPROC) $(DATAMS) $(INTERFACE) $(HOOKUP) $(DEPEND_ON_FILEMANAGER) $(UTILMS)
+
+# ... stitch together SUMMA programs
+SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER) 
+
+# Define the driver routine
+SUMMA_DRIVER= \
+		summaActors_type.f90 \
+		summaActors_util.f90 \
+		summaActors_globalData.f90 \
+		SummaActors_setup.f90 \
+		summaActors_restart.f90 \
+		SummaActors_modelRun.f90 \
+		summaActors_alarms.f90
+		
+		
+DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
+
+####################################################################################################
+###################################### Assemble Fortran Files ######################################
+####################################################################################################
+
+####################################################################################################
+######################################## Assemble C++ Files ########################################
+####################################################################################################
+
+INCLUDE_DIR = /Summa-Actors/build/includes
+SOURCE_DIR = /Summa-Actors/build/source/actors
+
+
+GLOBAL_INCLUDES = -I$(INCLUDE_DIR)/global
+GLOBAL = $(SOURCE_DIR)/global/global.cpp
+TIMEINFO = $(SOURCE_DIR)/global/timing_info.cpp
+SETTINGS_FILES = $(SOURCE_DIR)/global/settings_functions.cpp
+AUXILARY = $(SOURCE_DIR)/global/auxiliary.cpp
+
+SUMMA_ACTOR_INCLUDES = -I$(INCLUDE_DIR)/summa_actor
+SUMMA_ACTOR = $(SOURCE_DIR)/summa_actor/summa_actor.cpp
+SUMMA_CLIENT = $(SOURCE_DIR)/summa_actor/summa_client.cpp
+SUMMA_SERVER = $(SOURCE_DIR)/summa_actor/summa_server.cpp
+SUMMA_BACKUP_SERVER = $(SOURCE_DIR)/summa_actor/summa_backup_server.cpp
+
+BATCH = $(SOURCE_DIR)/summa_actor/batch/batch.cpp
+BATCH_CONTAINER = $(SOURCE_DIR)/summa_actor/batch/batch_container.cpp
+
+CLIENT = $(SOURCE_DIR)/summa_actor/client/client.cpp
+CLIENT_CONTAINER = $(SOURCE_DIR)/summa_actor/client/client_container.cpp
+
+CLIENT_BATCH = $(SOURCE_DIR)/summa_actor/batch_client.cpp
+CLIENT_BATCH_CONTAINERS = $(SOURCE_DIR)/summa_actor/batch_client_containers.cpp
+
+GRU_ACTOR_INCLUDES = -I$(INCLUDE_DIR)/gru_actor
+GRU_ACTOR = $(SOURCE_DIR)/gru_actor/gru_actor.cpp
+
+JOB_ACTOR_INCLUDES = -I$(INCLUDE_DIR)/job_actor
+JOB_ACTOR = $(SOURCE_DIR)/job_actor/job_actor.cpp
+GRUinfo = $(SOURCE_DIR)/job_actor/GRUinfo.cpp
+
+FILE_ACCESS_ACTOR_INCLUDES = -I$(INCLUDE_DIR)/file_access_actor
+FILE_ACCESS_ACTOR = $(SOURCE_DIR)/file_access_actor/cpp_code/file_access_actor.cpp
+FORCING_FILE_INFO = $(SOURCE_DIR)/file_access_actor/cpp_code/forcing_file_info.cpp
+OUTPUT_MANAGER = $(SOURCE_DIR)/file_access_actor/cpp_code/output_manager.cpp
+
+HRU_ACTOR_INCLUDES = -I$(INCLUDE_DIR)/hru_actor
+HRU_ACTOR = $(SOURCE_DIR)/hru_actor/cpp_code/hru_actor.cpp
+
+MAIN = $(F_KORE_DIR)/actors/main.cpp
+
+ACTOR_TEST = $(F_KORE_DIR)/testing/testing_main.cc
+####################################################################################################
+######################################## Assemble C++ Files ########################################
+####################################################################################################
+
+
+#========================================================================
+# PART 3: compilation
+#======================================================================
+all: fortran cpp
+
+fortran: compile_noah compile_comm compile_summa link clean_fortran
+
+cpp: compile_globals compile_hru_actor compile_gru_actor compile_file_access_actor compile_job_actor compile_summa_actor \
+	compile_summa_client compile_summa_server compile_main link_cpp clean_cpp
+
+test: actors_test actors_testLink actorsClean
+	
+###################################################################################################################
+############################################## COMPILE SUMMA-Fortran ##############################################
+###################################################################################################################
+compile_noah:
+	$(FC) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
+
+# compile common routines
+compile_comm:
+	$(FC) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
+
+# compile SUMMA routines
+compile_summa: 
+	$(FC) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(JOB_INTERFACE) $(FILEACCESS_INTERFACE) $(HRU_INTERFACE) $(GRU_INTERFACE) $(INCLUDES)
+
+# generate library
+link:   
+	$(FC) -shared *.o -o libsumma.so  
+	mv libsumma.so $(ROOT_DIR)/bin
+
+# Remove object files
+clean_fortran:
+	rm -f *.o *.mod soil_veg_gen_parm__genmod.f90
+###################################################################################################################
+############################################## COMPILE SUMMA-Fortran ##############################################
+###################################################################################################################
+
+
+###################################################################################################################
+################################################ COMPILE SUMMA-C++ ################################################
+###################################################################################################################
+compile_globals:
+	$(CC) $(FLAGS_ACTORS) -c $(GLOBAL) $(TIMEINFO) $(AUXILARY) $(SETTINGS_FILES) $(GLOBAL_INCLUDES) $(SUMMA_ACTOR_INCLUDES)
+
+compile_gru_actor:
+	$(CC) $(FLAGS_ACTORS) -c $(GRU_ACTOR) $(HRU_ACTOR_INCLUDES) $(GRU_ACTOR_INCLUDES) $(GLOBAL_INCLUDES) $(ACTORS_INCLUDES) $(SUMMA_ACTOR_INCLUDES)
+
+compile_hru_actor:
+	$(CC) $(FLAGS_ACTORS) -c $(HRU_ACTOR) $(HRU_ACTOR_INCLUDES) $(GLOBAL_INCLUDES) $(ACTORS_INCLUDES) $(SUMMA_ACTOR_INCLUDES)
+
+compile_file_access_actor:
+	$(CC) $(FLAGS_ACTORS) -c $(FILE_ACCESS_ACTOR) $(FORCING_FILE_INFO) $(OUTPUT_MANAGER) \
+	$(FILE_ACCESS_ACTOR_INCLUDES) $(GLOBAL_INCLUDES) $(ACTORS_INCLUDES) $(SUMMA_ACTOR_INCLUDES) 
+
+compile_job_actor:
+	$(CC) $(FLAGS_ACTORS) -c $(JOB_ACTOR) $(GRUinfo) $(JOB_ACTOR_INCLUDES) $(GLOBAL_INCLUDES) $(ACTORS_INCLUDES) \
+	$(FILE_ACCESS_ACTOR_INCLUDES) $(HRU_ACTOR_INCLUDES) $(GRU_ACTOR_INCLUDES) $(SUMMA_ACTOR_INCLUDES) 
+
+compile_summa_actor:
+	$(CC) $(FLAGS_ACTORS) -c $(SUMMA_ACTOR) $(SUMMA_ACTOR_INCLUDES) $(GLOBAL_INCLUDES) $(ACTORS_INCLUDES) \
+	$(JOB_ACTOR_INCLUDES) $(SUMMA_ACTOR_INCLUDES) 
+
+compile_summa_client:
+	$(CC) $(FLAGS_ACTORS) -c $(SUMMA_CLIENT) $(SUMMA_ACTOR_INCLUDES) $(GLOBAL_INCLUDES)
+
+compile_summa_server:
+	$(CC) $(FLAGS_ACTORS) -c $(SUMMA_SERVER) $(SUMMA_BACKUP_SERVER) $(BATCH) $(CLIENT) $(BATCH_CONTAINER) $(CLIENT_CONTAINER) \
+	$(SUMMA_ACTOR_INCLUDES) $(GLOBAL_INCLUDES)
+
+compile_main:
+	$(CC) $(FLAGS_ACTORS) -c $(MAIN) $(GLOBAL_INCLUDES) $(SUMMA_ACTOR_INCLUDES) $(JOB_ACTOR_INCLUDES)
+
+link_cpp:
+	$(CC) $(FLAGS_ACTORS) -Wl,-rpath='/Summa-Actors/bin:/usr/local/lib:/code/sundials/instdir/lib' -o summaMain *.o $(ACTORS_LIBRARIES)
+	mv summaMain $(ROOT_DIR)/bin
+
+clean_cpp:
+	rm *.o
+###################################################################################################################
+################################################ COMPILE SUMMA-C++ ################################################
+###################################################################################################################
+
+
+###################################################################################################################
+################################################## COMPILE TESTS ##################################################
+###################################################################################################################
+actors_test:
+	$(CC) $(FLAGS_ACTORS) -c $(ACTOR_TEST) -std=c++17 $(ACTORS_INCLUDES)
+
+actors_testLink:
+	$(CC) -o summaTest *.o $(ACTORS_LIBRARIES)
+
+clean_lib:
+	rm *.so
+
+
+
+
