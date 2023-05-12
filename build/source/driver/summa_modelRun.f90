@@ -33,7 +33,7 @@ USE var_lookup,only:iLookINDEX       ! look-up values for local column index var
 USE summa_util,only:handle_err
 
 ! these are needed because we cannot access them in modules locally if we might use those modules with Actors
-USE globalData,only:fracJulday       ! fractional julian days since the start of year
+USE globalData,only:fracJulDay       ! fractional julian days since the start of year
 USE globalData,only:yearLength       ! number of days in the current year
 
 ! safety: set private unless specified otherwise

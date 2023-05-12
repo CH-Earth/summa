@@ -31,7 +31,7 @@ USE multiconst,only:secprhour                               ! number of seconds 
 USE multiconst,only:minprhour                               ! number of minutes in an hour
 
 ! global time information
-USE globalData,only:refJulday                               ! reference time (fractional julian days)
+USE globalData,only:refJulDay                               ! reference time (fractional julian days)
 USE globalData,only:data_step                               ! length of the data step (s)
 
 ! model decisions
@@ -234,7 +234,7 @@ contains
  endif
 
  ! compute the local time
- julianTime = secondsSinceRefTime/secprday + refJulday ! julian time (days)
+ julianTime = secondsSinceRefTime/secprday + refJulDay ! julian time (days)
 
  ! convert julian day to year/month/day/hour/minute
  call compcalday(julianTime+timeOffset,          & ! input  = julian day

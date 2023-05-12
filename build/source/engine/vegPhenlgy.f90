@@ -97,7 +97,7 @@ contains
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(rkind),intent(out)         :: canopyDepth         ! canopy depth (m)
  real(rkind),intent(out)         :: exposedVAI          ! exposed vegetation area index (LAI + SAI)
- real(rkind),intent(in)          :: fracJulday          ! fractional julian days since the start of year
+ real(rkind),intent(in)          :: fracJulDay          ! fractional julian days since the start of year
  integer(i4b),intent(in)         :: yearLength          ! number of days in the current year
  integer(i4b),intent(out)        :: err                 ! error code
  character(*),intent(out)        :: message             ! error message
@@ -169,7 +169,7 @@ contains
                  scalarCanopyTemp,            & ! intent(in): temperature of the vegetation canopy at the start of the sub-step (K)
                  latitude,                    & ! intent(in): latitude
                  yearLength,                  & ! intent(in): number of days in the current year
-                 fracJulday,                  & ! intent(in): fractional julian days since the start of year
+                 fracJulDay,                  & ! intent(in): fractional julian days since the start of year
                  scalarLAI,                   & ! intent(inout): one-sided leaf area index (m2 m-2)
                  scalarSAI,                   & ! intent(inout): one-sided stem area index (m2 m-2)
                  scalarRootZoneTemp,          & ! intent(in): root zone temperature (K)

@@ -168,7 +168,7 @@ subroutine mDecisions(err,message)
   ! model time structures
   USE multiconst,only:secprday               ! number of seconds in a day
   USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
-  USE globalData,only:refTime,refJulday      ! reference time
+  USE globalData,only:refTime,refJulDay      ! reference time
   USE globalData,only:oldTime                ! time from the previous time step
   USE globalData,only:startTime,finshTime    ! start/end time of simulation
   USE globalData,only:dJulianStart           ! julian day of start time of simulation
@@ -196,7 +196,7 @@ subroutine mDecisions(err,message)
 #ifdef ACTORS_ACTIVE
   integer(c_int),intent(out)           :: num_steps      ! number of time steps in the simulation
   integer(c_int),intent(out)           :: err            ! error code
-  character(*)                         :: message        ! error message
+  character(256)                       :: message        ! error message
 #else
   integer(i4b)                         :: num_steps      ! number of time steps in the simulation
   integer(i4b),intent(out)             :: err            ! error code
@@ -235,7 +235,7 @@ subroutine mDecisions(err,message)
                   refTime%var(iLookTIME%ih),                              & ! hour
                   refTime%var(iLookTIME%imin),                            & ! minute
                   0._rkind,                                               & ! second
-                  refJulday,                                              & ! julian date for the start of the simulation
+                  refJulDay,                                              & ! julian date for the start of the simulation
                   err, cmessage)                                            ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 

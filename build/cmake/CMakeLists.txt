@@ -120,7 +120,9 @@ if(CMAKE_BUILD_TYPE MATCHES Sundials)
     foreach(dir IN ITEMS
         "${F_MASTER}../sundials/instdir"
         "${PARENT_DIR}../sundials/instdir"
-        "../../../../SummaSundials/sundials/instdir")
+        "${F_MASTER}../../SummaSundials/sundials/instdir"
+        "${PARENT_DIR}../../SummaSundials/sundials/instdir"
+        "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})
             message("\nFound Sundials directory at ${DIR_SUNDIALS}")
@@ -138,8 +140,8 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     set(BLA_VENDOR OpenBLAS)
 
     # Packages that are required
-    find_package(NetCDF REQUIRED)
-    #find_package(LAPACK REQUIRED)
+    #find_package(NetCDF REQUIRED)
+    find_package(LAPACK REQUIRED)
 
     # Set include directories
     set(INCLUDES $ENV{EBROOTNETCDFMINFORTRAN}/include ${netCDF_INCLUDES} ${LAPACK_INCLUDES})
@@ -508,6 +510,7 @@ target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
+target_link_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
 target_include_directories(SUMMA_COMM PRIVATE ${INCLUDES})
 
 # For NexGen, build SUMMA Shared Library and add the outside BMI libraries
@@ -561,7 +564,7 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
     target_compile_options(${EXEC_NAME} PUBLIC ${FLAGS_CXX})
     target_include_directories(${EXEC_NAME} PUBLIC ${INC_ACTORS})
-    target_link_libraries( ${EXEC_NAME} ${LIB_ACTORS})
+    target_link_libraries( ${EXEC_NAME} ${LIB_ACTORS} summaactors)
 
 # For other cases, build SUMMA Shared Library and add the executable
 else()

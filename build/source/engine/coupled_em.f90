@@ -168,7 +168,7 @@ subroutine coupled_em(&
   type(var_dlength),intent(inout)      :: prog_data              ! prognostic variables for a local HRU
   type(var_dlength),intent(inout)      :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout)      :: flux_data              ! model fluxes for a local HRU
-  real(rkind),intent(in)               :: fracJulday             ! fractional julian days since the start of year
+  real(rkind),intent(in)               :: fracJulDay             ! fractional julian days since the start of year
   integer(i4b),intent(in)              :: yearLength             ! number of days in the current year
   ! error control
   integer(i4b),intent(out)             :: err                    ! error code

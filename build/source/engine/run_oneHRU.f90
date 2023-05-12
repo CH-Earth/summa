@@ -54,7 +54,7 @@ USE globalData,only:model_decisions        ! model decision structure
 USE var_lookup,only:iLookDECISIONS         ! look-up values for model decisions
 
 ! these are needed because we cannot access them in modules locally if we might use those modules with Actors
-USE globalData,only:fracJulday             ! fractional julian days since the start of year
+USE globalData,only:fracJulDay             ! fractional julian days since the start of year
 USE globalData,only:yearLength             ! number of days in the current year
 USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
 

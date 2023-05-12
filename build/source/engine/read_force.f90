@@ -43,8 +43,8 @@ USE globalData,only:ixHRUfile_min,ixHRUfile_max
 USE globalData,only:data_step                 ! length of the data step (s)
 USE globalData,only:forcFileInfo              ! forcing file info
 USE globalData,only:dJulianStart              ! julian day of start time of simulation
-USE globalData,only:refJulday                 ! reference time (fractional julian days)
-USE globalData,only:refJulday_data            ! reference time for data files (fractional julian days)
+USE globalData,only:refJulDay                 ! reference time (fractional julian days)
+USE globalData,only:refJulDay_data            ! reference time for data files (fractional julian days)
 USE globalData,only:fracJulDay                ! fractional julian days since the start of year
 USE globalData,only:yearLength                ! number of days in the current year
 USE globalData,only:nHRUfile                  ! number of days in the data file
@@ -75,7 +75,7 @@ contains
  subroutine read_force(istep,iFile,iRead,ncid,time_data,forcStruct,err,message)
  ! provide access to subroutines
  USE netcdf                                            ! netcdf capability
- USE time_utils_module,only:compJulday                 ! convert calendar date to julian day
+ USE time_utils_module,only:compJulDay                 ! convert calendar date to julian day
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  USE time_utils_module,only:elapsedSec                 ! calculate the elapsed time
  implicit none
@@ -96,7 +96,7 @@ contains
  character(len=256),save           :: infile           ! filename
  character(len=256)                :: cmessage         ! error message for downwind routine
  real(rkind)                          :: startJulDay      ! julian day at the start of the year
- real(rkind)                          :: currentJulday    ! Julian day of current time step
+ real(rkind)                          :: currentJulDay    ! Julian day of current time step
  logical(lgt),parameter            :: checkTime=.false.  ! flag to check the time
  ! Start procedure here
  err=0; message="read_force/"
@@ -116,7 +116,7 @@ contains
  ! ***** part 0-1: if using NGEN forcing will be using forcing read with BMI and only need time
  ! **********************************************************************************************
  ! get forcing time data
-  call createForcingTimeData(currentJulday,time_data,err,message)
+  call createForcingTimeData(currentJulDay,time_data,err,message)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
 #else
@@ -128,7 +128,7 @@ contains
  if(ncid==integerMissing)then ! file is closed if ncid==integerMissing
 
   ! identify the first time step
-  call getFirstTimestep(currentJulday,iFile,iRead,ncid,err,cmessage)
+  call getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end if  ! if the file is not yet open
@@ -167,7 +167,7 @@ contains
   end if  ! if we've passed the end of the NetCDF file
 
   ! read forcing data
-  call readForcingData(currentJulday,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
+  call readForcingData(currentJulDay,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! check that the file was in fact open
@@ -194,15 +194,15 @@ contains
                  time_data(iLookTIME%id),             & ! input  = day
                  time_data(iLookTIME%ih),             & ! input  = hour
                  time_data(iLookTIME%imin),0._rkind,     & ! input  = minute/second
-                 currentJulday,err,cmessage)            ! output = julian day (fraction of day) + error control
+                 currentJulDay,err,cmessage)            ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
  ! compute the time since the start of the year (in fractional days)
- fracJulday = currentJulday - startJulDay
+ fracJulDay = currentJulDay - startJulDay
  ! set timing of current forcing vector (in seconds since reference day)
  ! NOTE: It is a bit silly to have time information for each HRU and GRU
  do iGRU=1,size(gru_struc)
   do iHRU=1,gru_struc(iGRU)%hruCount
-   forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%time) = (currentJulday-refJulday)*secprday
+   forcStruct%gru(iGRU)%hru(iHRU)%var(iLookFORCE%time) = (currentJulDay-refJulDay)*secprday
   end do  ! looping through HRUs
  end do  ! looping through GRUs
 
@@ -225,7 +225,7 @@ contains
                                          time_data(iLookTIME%id),             & ! day
                                          time_data(iLookTIME%ih),             & ! hour
                                          time_data(iLookTIME%imin),           & ! minute
-                                         fracJulday,                          & ! fractional julian day for the current time step
+                                         fracJulDay,                          & ! fractional julian day for the current time step
                                          yearLength                             ! number of days in the current year
   !pause ' checking time'
  end if
@@ -241,12 +241,12 @@ contains
  ! *************************************************************************
  ! * private subroutine: find first timestep in any of the forcing files...
  ! *************************************************************************
- subroutine getFirstTimestep(currentJulday,iFile,iRead,ncid,err,message)
+ subroutine getFirstTimestep(currentJulDay,iFile,iRead,ncid,err,message)
  USE netcdf                                            ! netcdf capability
  USE nr_utility_module,only:arth                       ! get a sequence of numbers
  implicit none
  ! define input
- real(rkind),intent(in)               :: currentJulday    ! Julian day of current time step
+ real(rkind),intent(in)               :: currentJulDay    ! Julian day of current time step
  ! define input-output variables
  integer(i4b),intent(inout)        :: iFile            ! index of current forcing file in forcing file list
  integer(i4b),intent(inout)        :: iRead            ! index of read position in time dimension in current netcdf file
@@ -308,11 +308,11 @@ contains
   if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time vector/'//trim(nf90_strerror(err)); return; endif
 
   ! get time vector & convert units based on offset and data step
-  fileTime = arth(0,1,dimLen) * data_step/secprday + refJulday_data &
+  fileTime = arth(0,1,dimLen) * data_step/secprday + refJulDay_data &
              + timeVal(1)/forcFileInfo(iFile)%convTime2Days
 
-  ! find difference of fileTime from currentJulday
-  diffTime=abs(fileTime-currentJulday)
+  ! find difference of fileTime from currentJulDay
+  diffTime=abs(fileTime-currentJulDay)
 
   ! start time is in the current file
   if(any(diffTime < verySmall))then
@@ -343,7 +343,7 @@ contains
  USE netcdf_util_module,only:nc_file_open                ! open netcdf file
  USE time_utils_module,only:fracDay                      ! compute fractional day
  USE time_utils_module,only:extractTime                  ! extract time info from units string
- USE time_utils_module,only:compJulday                   ! convert calendar date to julian day
+ USE time_utils_module,only:compJulDay                   ! convert calendar date to julian day
  USE globalData,only:tmZoneOffsetFracDay                 ! time zone offset in fractional days
  USE globalData,only:ncTime                              ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
  USE globalData,only:utcTime                             ! all times in UTC (timeOffset = longitude/15. hours)
@@ -397,7 +397,7 @@ contains
 
  ! convert the reference time to days since the beginning of time
  call compjulday(iyyy,im,id,ih,imin,dsec,                & ! input = year, month, day, hour, minute, second
-                 refJulday_data,err,cmessage)              ! output = julian day (fraction of day) + error control
+                 refJulDay_data,err,cmessage)              ! output = julian day (fraction of day) + error control
  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  ! get the time multiplier needed to convert time to units of days
@@ -414,13 +414,13 @@ contains
  ! *************************************************************************
  ! * read the NetCDF forcing data
  ! *************************************************************************
- subroutine readForcingData(currentJulday,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
+ subroutine readForcingData(currentJulDay,ncId,iFile,iRead,nHRUlocal,time_data,forcStruct,err,message)
  USE netcdf                                            ! netcdf capability
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
- USE time_utils_module,only:compJulday                 ! convert calendar date to julian day
+ USE time_utils_module,only:compJulDay                 ! convert calendar date to julian day
  USE get_ixname_module,only:get_ixforce                ! identify index of named variable
  ! dummy variables
- real(rkind),intent(in)            :: currentJulday    ! Julian day of current time step
+ real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
  integer(i4b) ,intent(in)          :: ncId             ! NetCDF ID
  integer(i4b) ,intent(in)          :: iFile            ! index of forcing file
  integer(i4b) ,intent(in)          :: iRead            ! index in data file
@@ -459,8 +459,8 @@ contains
  err = nf90_get_var(ncid,varId,varTime,start=(/iRead/));    if(err/=nf90_noerr)then; message=trim(message)//'trouble reading time variable/'//trim(nf90_strerror(err)); return; endif
 
  ! check that the computed julian day matches the time information in the NetCDF file
- dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulday_data
- if(abs(currentJulday - dataJulDay) > verySmall)then
+ dataJulDay = varTime(1)/forcFileInfo(iFile)%convTime2Days + refJulDay_data
+ if(abs(currentJulDay - dataJulDay) > verySmall)then
   write(message,'(a,f18.8,a,f18.8)') trim(message)//'date for time step: ',dataJulDay,' differs from the expected date: ',currentJulDay
   err=40; return
  end if
@@ -561,10 +561,10 @@ contains
  ! *************************************************************************
  ! * create forcing time data if using NGEN (uses BMI)
  ! *************************************************************************
- subroutine createForcingTimeData(currentJulday,time_data,err,message)
+ subroutine createForcingTimeData(currentJulDay,time_data,err,message)
  USE time_utils_module,only:compcalday                 ! convert julian day to calendar date
  ! dummy variables
- real(rkind),intent(in)            :: currentJulday    ! Julian day of current time step
+ real(rkind),intent(in)            :: currentJulDay    ! Julian day of current time step
  integer(i4b),intent(out)          :: time_data(:)     ! vector of time data for a given time step
  integer(i4b) ,intent(out)         :: err              ! error code
  character(*) ,intent(out)         :: message          ! error message
@@ -581,7 +581,7 @@ contains
 
  ! convert julian day to time vector
  ! NOTE: use small offset to force ih=0 at the start of the day
- call compcalday(currentJulday+smallOffset,      & ! input  = julian day
+ call compcalday(currentJulDay+smallOffset,      & ! input  = julian day
                  time_data(iLookTIME%iyyy),      & ! output = year
                  time_data(iLookTIME%im),        & ! output = month
                  time_data(iLookTIME%id),        & ! output = day

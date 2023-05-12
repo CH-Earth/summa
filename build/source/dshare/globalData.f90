@@ -252,8 +252,8 @@ MODULE globalData
   integer(i4b),save,public                       :: nHRUrun                     ! number of HRUs in the run domain
   integer(i4b),save,public                       :: nGRUrun                     ! number of GRUs in the run domain
   real(rkind),save,public                        :: data_step                   ! length of the time_step
-  real(rkind),save,public                        :: refJulday                   ! reference time in fractional julian days
-  real(rkind),save,public                        :: refJulday_data              ! reference time in fractional julian days (data files)
+  real(rkind),save,public                        :: refJulDay                   ! reference time in fractional julian days
+  real(rkind),save,public                        :: refJulDay_data              ! reference time in fractional julian days (data files)
   real(rkind),save,public                        :: dJulianStart                ! julian day of start time of simulation
   real(rkind),save,public                        :: dJulianFinsh                ! julian day of end time of simulation
   integer(i4b),save,public                       :: nHRUfile                    ! number of HRUs in the file
@@ -320,7 +320,7 @@ MODULE globalData
   logical(lgt),dimension(maxvarFreq),save,public :: resetStats=.true.       ! flags to reset statistics
 
   ! define common variables non-Actors
-  real(rkind),save,public                        :: fracJulday              ! fractional julian days since the start of year
+  real(rkind),save,public                        :: fracJulDay              ! fractional julian days since the start of year
   real(rkind),save,public                        :: tmZoneOffsetFracDay     ! time zone offset in fractional days
   integer(i4b),save,public                       :: yearLength              ! number of days in the current year
 #endif
