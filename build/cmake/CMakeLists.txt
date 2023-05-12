@@ -159,7 +159,6 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
         set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io)
     endif()
 
-
 else()
     message("\nBuilding for personal computer")
 
@@ -191,10 +190,7 @@ else()
             endif()
             message(FATAL_ERROR "\nDid not find Actors directory, edit CMakeLists.txt to include path")
         endforeach()
-
-
-        #link_directories(${DIR_ACTORS}/lib)
-        find_package(CAF REQUIRED)
+        link_directories(${DIR_ACTORS}/lib)
         set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/gru_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io)
     endif()
@@ -381,44 +377,44 @@ set(SOLVER_SUNDIALS
 
 # Driver support modules
 set(DRIVER
-    ${SUB_DRIVER_DIR}/summa_type.f90
-    ${SUB_DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_alarms.f90
     ${SUB_DRIVER_DIR}/summa_globalData.f90)
+    ${SUB_DRIVER_DIR}/summa_type.f90
+    ${SUB_DRIVER_DIR}/summa_util.f90
 set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
-    ${DRIVER_DIR}/summa_setup.f90
-    ${DRIVER_DIR}/summa_restart.f90
     ${DRIVER_DIR}/summa_forcing.f90
     ${DRIVER_DIR}/summa_modelRun.f90
+    ${DRIVER_DIR}/summa_restart.f90
+    ${DRIVER_DIR}/summa_setup.f90
     ${DRIVER_DIR}/summa_writeOutput.f90)
 set(DRIVER_NEXGEN
     ${DRIVER_DIR}/summa_bmi.f90)
 
 # Actors interface modules
 set(INTERFACE
-    ${ACTORS_DIR}/global/cppwrap_datatypes.f90
     ${ACTORS_DIR}/global/cppwrap_auxiliary.f90
+    ${ACTORS_DIR}/global/cppwrap_datatypes.f90
     ${ACTORS_DIR}/global/cppwrap_metadata.f90)
 set(FILE_ACCESS_INTERFACE
-    ${FILE_ACCESS_DIR}/fortran_code/output_structure.f90
     ${FILE_ACCESS_DIR}/fortran_code/cppwrap_fileAccess.f90
+    ${FILE_ACCESS_DIR}/fortran_code/output_structure.f90
     ${FILE_ACCESS_DIR}/fortran_code/read_attrb.f90
     ${FILE_ACCESS_DIR}/fortran_code/read_force.f90
+    ${FILE_ACCESS_DIR}/fortran_code/read_icondFromStructure.f90
     ${FILE_ACCESS_DIR}/fortran_code/read_param.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_initcond.f90
-    ${FILE_ACCESS_DIR}/fortran_code/writeOutputFromOutputStructure.f90
-    ${FILE_ACCESS_DIR}/fortran_code/write_to_netcdf.f90)
+    ${FILE_ACCESS_DIR}/fortran_code/write_to_netcdf.f90
+    ${FILE_ACCESS_DIR}/fortran_code/writeOutputFromOutputStructure.f90)
 set(JOB_INTERFACE
     ${JOB_ACTOR_DIR}/job_actor.f90)
 set(HRU_INTERFACE
-    ${HRU_ACTOR_DIR}/fortran_code/model_run.f90
-    ${HRU_ACTOR_DIR}/fortran_code/setup_hru.f90
-    ${HRU_ACTOR_DIR}/fortran_code/restart.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_actor.f90
-    ${HRU_ACTOR_DIR}/fortran_code/init_hru_actor.f90
-    ${HRU_ACTOR_DIR}/fortran_code/outputStrucWrite.f90
+    ${HRU_ACTOR_DIR}/fortran_code/hru_init.f90
+    ${HRU_ACTOR_DIR}/fortran_code/hru_modelRun.f90
+    ${HRU_ACTOR_DIR}/fortran_code/hru_restart.f90
+    ${HRU_ACTOR_DIR}/fortran_code/hru_setup.f90
+    ${HRU_ACTOR_DIR}/fortran_code/hru_modelwrite.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_writeOutput.f90)
 
 # Actors actual actor modules

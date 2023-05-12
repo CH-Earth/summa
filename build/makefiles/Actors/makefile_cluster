@@ -164,7 +164,7 @@ SUMMA_FILEACCESS_INTERFACE = \
 		read_attrb.f90 \
 		read_force.f90 \
 		read_param.f90 \
-		read_initcond.f90 \
+		read_icondFromStructure.f90 \
 		writeOutputFromOutputStructure.f90 \
 		write_to_netcdf.f90
 
@@ -178,8 +178,8 @@ JOB_INTERFACE =  $(patsubst %, $(JOB_ACTOR_DIR)/%, $(SUMMA_JOB_INTERFACE))
 SUMMA_HRU_INTERFACE = \
 		cppwrap_hru.f90 \
 		hru_actor.f90 \
-		init_hru_actor.f90 \
-		outputStrucWrite.f90 \
+		hru_init.f90 \
+		hru_modelwrite.f90 \
 		hru_writeOutput.f90
 
 

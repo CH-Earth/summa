@@ -177,7 +177,7 @@ JOB_INTERFACE =  $(patsubst %, $(JOB_ACTOR_DIR)/%, $(SUMMA_JOB_INTERFACE))
 SUMMA_HRU_INTERFACE = \
 		cppwrap_hru.f90 \
 		hru_actor.f90 \
-		init_hru_actor.f90 \
+		hru_init.f90 \
 
 
 HRU_INTERFACE = $(patsubst %, $(HRU_ACTOR_DIR)/%, $(SUMMA_HRU_INTERFACE))
