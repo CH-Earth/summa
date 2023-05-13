@@ -308,7 +308,7 @@ set(PRELIM
     ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
-    ${ENGINE_DIR}/read_attrb.f90
+    ${SUB_ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
     ${ENGINE_DIR}/sunGeomtry.f90)
