@@ -32,6 +32,10 @@ USE var_lookup,only:iLookDIAG        ! look-up values for local column model dia
 USE var_lookup,only:iLookINDEX       ! look-up values for local column index variables
 USE summa_util,only:handle_err
 
+! these are needed because we cannot access them in modules locally if we might use those modules with Actors
+USE globalData,only:fracJulDay       ! fractional julian days since the start of year
+USE globalData,only:yearLength       ! number of days in the current year
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -127,6 +131,9 @@ contains
     ! get vegetation phenology
     ! (compute the exposed LAI and SAI and whether veg is buried by snow)
     call vegPhenlgy(&
+                    ! model control
+                    fracJulDay,                     & ! intent(in):    fractional julian days since the start of year
+                    yearLength,                     & ! intent(in):    number of days in the current year
                     ! input/output: data structures
                     model_decisions,                & ! intent(in):    model decisions
                     typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    type of vegetation and soil
@@ -221,7 +228,7 @@ contains
 
   ! lookup table structure
   lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
-  
+
   ! run time variables
   greenVegFrac_monthly => summa1_struc%greenVegFrac_monthly, & ! fraction of green vegetation in each month (0-1)
   computeVegFlux       => summa1_struc%computeVegFlux      , & ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)

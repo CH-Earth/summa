@@ -16,6 +16,10 @@ DIR_SUNDIALS= $(ROOT_DIR)/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
 LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
 
+DIR_BMI= $(ROOT_DIR)/bmi/instdir
+INC_BMI=-I$(DIR_BMI)/include
+LIB_BMI=-L$(DIR_BMI)/lib -lbmif -Xlinker -rpath -Xlinker $(DIR_BMI)/lib
+
 # Production runs
 FLAGS_NOAH = -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors
 FLAGS_COMM = -O3 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors
@@ -116,8 +120,8 @@ SUMMA_SOLVER= \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \
 		computFlux.f90 \
-      type4IDA.f90 \
-      tol4IDA.f90 \
+      type4ida.f90 \
+      tol4ida.f90 \
       computEnthalpy.f90 \
       computHeatCap.f90 \
       computThermConduct.f90 \
@@ -130,9 +134,9 @@ SUMMA_SOLVER= \
       eval8summaSundials.f90 \
       computJacobSundials.f90 \
 		computSnowDepth.f90 \
-      summaSolveSundialsIDA.f90 \
+      summaSolveSundials4ida.f90 \
       systemSolvSundials.f90 \
-                varSubstep.f90 \
+      varSubstep.f90 \
 		opSplittin.f90 \
 		coupled_em.f90 \
 		run_oneHRU.f90 \
@@ -200,7 +204,7 @@ COMM_ALL = $(NRUTIL) $(NRPROC) $(HOOKUP) $(DATAMS) $(UTILMS)
 # ... stitch together SUMMA programs
 SUMMA_ALL = $(NETCDF) $(PRELIM) $(MODRUN) $(SOLVER)
 
-# Define the driver routine
+# Define the driver routines
 SUMMA_DRIVER= \
 		summa_type.f90 \
 		summa_util.f90 \
@@ -213,11 +217,22 @@ SUMMA_DRIVER= \
 		summa_forcing.f90 \
 		summa_modelRun.f90 \
 		summa_writeOutput.f90 \
-		summa_driver.f90
+        summa_driver.f90
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_DRIVER))
+
+# Define SUMMA running infrastructure
+SUMMA_RUN = \
+		summa_run.f90
+SUMMA = $(patsubst %, $(DRIVER_DIR)/%, $(SUMMA_RUN))
+
+# Define BMI testing infrastructure
+BMI_TEST = \
+		summa_runBMI.f90
+BMI = $(patsubst %, $(DRIVER_DIR)/%, $(BMI_TEST))
 
 # Define the executable
 DRIVER__EX = summa_sundials.exe
+BMI__EX = summa_bmi.exe
 
 # Define version number
 VERSIONFILE = $(DRIVER_DIR)/summaversion.inc
@@ -254,8 +269,11 @@ endif
 #======================================================================
 
 # Compile
-all: compile_noah compile_comm compile_summa link clean install
-part: compile_noah compile_comm compile_summa
+all: compile_noah compile_comm compile_rout compile_test link_test clean_test compile_summa link clean install install_test
+part: compile_noah compile_comm compile_rout
+summa: compile_noah compile_comm compile_rout compile_summa link clean install
+bmi: compile_noah compile_comm compile_rout compile_test link_test clean install_test
+
 
 check:
 	$(info)
@@ -271,6 +289,9 @@ check:
 	$(info   SUNDIALSDIR: $(DIR_SUNDIALS))
 	$(info   INC_SUNDIALS: $(INC_SUNDIALS))
 	$(info   LIB_SUNDIALS: $(LIB_SUNDIALS))
+	$(info   BMIDIR: $(DIR_BMI))
+	$(info   INC_BMI: $(INC_BMI))
+	$(info   LIB_BMI: $(LIB_BMI))
 	$(info)
 
 # update version information
@@ -280,22 +301,37 @@ update_version:
 	echo "character(len=64), parameter     :: gitBranch = '${GITBRCH}'" >> $(VERSIONFILE)
 	echo "character(len=64), parameter     :: gitHash = '${GITHASH}'" >> $(VERSIONFILE)
 
-# compile Noah-MP routines
-compile_noah:
-	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
-
 # compile common routines
 compile_comm:
 	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 
-# compile SUMMA routines
-compile_summa: update_version
-	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) \
-	$(INCLUDES) $(INC_SUNDIALS)
+# compile Noah-MP routines
+compile_noah:
+	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
-# link routines
+# compile SUMMA routines
+compile_rout: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA_ALL) $(DRIVER) $(INCLUDES) $(INC_SUNDIALS) $(INC_BMI)
+
+# compile run scripts
+compile_summa: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(SUMMA)
+
+# compile test scripts
+compile_test: update_version
+	$(FC_EXE) $(FLAGS_SUMMA) -c $(BMI)
+
+# link run routines
 link:
-	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) -o $(DRIVER__EX)
+	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(DRIVER__EX)
+
+# link test routines
+link_test:
+	$(FC_EXE) -g *.o $(LIBRARIES) $(LIB_SUNDIALS) $(LIB_BMI) -o $(BMI__EX)
+
+# remove test script objects
+clean_test:
+	rm -f summa_runBMI.o
 
 # Remove object files
 clean:
@@ -308,3 +344,9 @@ install:
 	@mkdir -p $(EXE_PATH)
 	@mv $(DRIVER__EX) $(EXE_PATH)
 	$(info $(DRIVER__EX) successfully installed in $(EXE_PATH))
+
+# Copy the executable to the bin directory
+install_test:
+	@mkdir -p $(EXE_PATH)
+	@mv $(BMI__EX) $(EXE_PATH)
+	$(info $(BMI__EX) successfully installed in $(EXE_PATH))

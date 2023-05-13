@@ -53,16 +53,17 @@ USE var_lookup,only:iLookINDEX             ! look-up values for local column ind
 USE globalData,only:model_decisions        ! model decision structure
 USE var_lookup,only:iLookDECISIONS         ! look-up values for model decisions
 
-! provide access to the named variables that describe model decisions
-USE mDecisions_module,only:&               ! look-up values for LAI decisions
- monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
- specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+! these are needed because we cannot access them in modules locally if we might use those modules with Actors
+USE globalData,only:fracJulDay             ! fractional julian days since the start of year
+USE globalData,only:yearLength             ! number of days in the current year
+USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
 
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
+! provide access to the named variables that describe model decisions
+USE mDecisions_module,only:        &       ! look-up values for LAI decisions
+                      monthlyTable,&       ! LAI/SAI taken directly from a monthly table for different vegetation classes
+                      specified            ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+
 ! ----- global variables that are modified ------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
 
 ! Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
@@ -193,14 +194,15 @@ contains
  ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
  ! compute derived forcing variables
- call derivforce(timeVec,          & ! vector of time information
-                 forcData%var,     & ! vector of model forcing data
-                 attrData%var,     & ! vector of model attributes
-                 mparData,         & ! data structure of model parameters
-                 progData,         & ! data structure of model prognostic variables
-                 diagData,         & ! data structure of model diagnostic variables
-                 fluxData,         & ! data structure of model fluxes
-                 err,cmessage)       ! error control
+ call derivforce(timeVec,            & ! vector of time information
+                 forcData%var,       & ! vector of model forcing data
+                 attrData%var,       & ! vector of model attributes
+                 mparData,           & ! data structure of model parameters
+                 progData,           & ! data structure of model prognostic variables
+                 diagData,           & ! data structure of model diagnostic variables
+                 fluxData,           & ! data structure of model fluxes
+                 tmZoneOffsetFracDay,& ! time zone offset in fractional days
+                 err,cmessage)         ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! ----- run the model --------------------------------------------------------------------------------------------------
@@ -213,7 +215,10 @@ contains
                  ! model control
                  hruId,            & ! intent(in):    hruId
                  dt_init,          & ! intent(inout): initial time step
+                 1,                & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
                  computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
+                 fracJulDay,       & ! intent(in):    fractional julian days since the start of year
+                 yearLength,       & ! intent(in):    number of days in the current year
                  ! data structures (input)
                  typeData,         & ! intent(in):    local classification of soil veg etc. for each HRU
                  attrData,         & ! intent(in):    local attributes for each HRU
@@ -227,7 +232,7 @@ contains
                  diagData,         & ! intent(inout): model diagnostic variables for a local HRU
                  fluxData,         & ! intent(inout): model fluxes for a local HRU
                  ! error control
-                 err,cmessage)       ! intent(out): error control
+                 err,cmessage)       ! intent(out):   error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! update the number of layers

@@ -135,8 +135,8 @@ subroutine systemSolvSundials(&
   USE eval8summaSundials_module,only:eval8summaSundials ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:getScaling                ! get the scaling vectors
   USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
-  USE tol4IDA_module,only:popTol4IDA                   ! pop tolerances
-  USE summaSolveSundialsIDA_module,only:summaSolveSundialsIDA                ! solve DAE by IDA
+  USE tol4ida_module,only:popTol4ida                   ! pop tolerances
+  USE summaSolveSundials4ida_module,only:summaSolveSundials4ida                ! solve DAE by IDA
   USE t2enthalpy_module, only:t2enthalpy               ! compute enthalpy
   use, intrinsic :: iso_c_binding
   implicit none
@@ -497,7 +497,7 @@ subroutine systemSolvSundials(&
     endif
 
     ! get tolerance vectors
-    call popTol4IDA(&
+    call popTol4ida(&
                       ! input
                       nState,                           & ! intent(in):    number of desired state variables
                       prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
@@ -521,7 +521,7 @@ subroutine systemSolvSundials(&
     ! initialize sum of compression of the soil matrix
     mLayerCmpress_sum(:) = 0._rkind
 
-    call summaSolveSundialsIDA(&
+    call summaSolveSundials4ida(&
                   dt_cur,                  & ! intent(in):    data time step
                   atol,                    & ! intent(in):    absolute tolerance
                   rtol,                    & ! intent(in):    relative tolerance

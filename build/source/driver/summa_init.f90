@@ -34,7 +34,7 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,id_meta   ! metadata structure
 USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
 USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
-USE globalData,only:lookup_meta 
+USE globalData,only:lookup_meta
 
 ! statistics metadata structures
 USE globalData,only:statForc_meta                           ! child metadata for stats

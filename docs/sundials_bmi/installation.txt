@@ -1,0 +1,74 @@
+
+1. First install BMI. Download the latest release of BMI from https://github.com/csdms/bmi-fortran.git
+% git clone https://github.com/csdms/bmi-fortran.git
+
+2. Make a directory outside the bmi-fortran folder and enter it, and make the install and build dirs, enter the build dir.
+% export BMIF_VERSION=2.0
+% mkdir bmi
+% cd bmi
+% mkdir instdir
+% mkdir buildir
+% cd /buildir
+NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
+
+3. The install directory needs to be set while running the cmake inside the builddir, using home directory as $(YOUR_HOME)
+% cmake ../../bmi-fortran/ -DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/bmi/instdir
+
+4. The default compiler is gfortran. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
+   -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
+
+You can do 3 and 4 by running from inside buildir:
+cp ../../summa/build/makefiles/build_cmakeBMI build_cmake
+./build_cmake
+
+
+5. If the above went well, staying in the buildir directory run:
+% make
+% make install
+
+6. If you are using Sundials, now install that. Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
+% wget "https://github.com/LLNL/sundials/releases/download/v6.3.0/sundials-6.3.0.tar.gz"
+
+7. Extract the corresponding compressed file
+% tar -xzf sundials-6.3.0.tar.gz
+
+8. Read INSTALL_GUIDE.pdf and follow the installation instructions. Roughly, do the following:
+Make a directory outside the sundials-6.3.0 folder and enter it, and make the install and build dirs, enter the build dir.
+% mkdir sundials
+% cd sundials
+% mkdir instdir
+% mkdir buildir
+% cd /buildir
+NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
+
+9. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled, as well as the setting the install directory, while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
+% cmake ../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
+
+10. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
+   -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
+
+You can do 9 and 10 by running from inside buildir:
+cp ../../summa/build/makefiles/build_cmakeSundials build_cmake
+./build_cmake
+
+11. If the above went well, staying in the buildir directory run
+% make
+% make install
+
+12. Enter summa directory and build summa as in /docs/SUMMA_installation.md. You will have to edit the SUMMA Makefile as below additionally (as well as install required libraries and link them as directed in the Makefile). You need to clone summa before you can change the makefile
+	git clone https://git.cs.usask.ca/numerical_simulations_lab/summa.git
+
+13. In SUMMA Makefile, define the FC_EXE to be the same compiler as you used for BMI and netcdf
+   
+14. In SUMMA Makefile, define the SUNDIALS installation directory (and all the folders as required in the SUMMA instructions.
+	DIR_SUNDIALS=$(YOUR_HOME)/sundials/instdir
+
+15. Inside the /summa/build/ directory run
+% make
+or % source build_summa_* if you are using a specific * compiler
+
+16. On linux installations you may need to add to your .bashrc file (and run source $(YOUR_HOME)/.bashrc)
+export LD_LIBRARY_PATH=$(YOUR_HOME)/sundials/instdir/lib64
+export LD_LIBRARY_PATH=$(YOUR_HOME)/bmi/instdir/lib64
+
+

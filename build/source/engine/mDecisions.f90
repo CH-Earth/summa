@@ -19,6 +19,9 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module mDecisions_module
+#ifdef ACTORS_ACTIVE
+USE, intrinsic :: iso_c_binding
+#endif
 USE nrtype
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
@@ -57,8 +60,9 @@ integer(i4b),parameter,public :: minFunc              =  62    ! do not enable c
 integer(i4b),parameter,public :: constantScaling      =  71    ! constant scaling factor
 integer(i4b),parameter,public :: laiScaling           =  72    ! exponential function of LAI (Leuning, Plant Cell Env 1995: "Scaling from..." [eq 9])
 ! look-up values for the choice of numerical method
-integer(i4b),parameter,public :: bEuler               =  81    ! home-grown backward Euler solution with long time steps
-integer(i4b),parameter,public :: sundials             =  82    ! SUNDIALS/IDA solution
+integer(i4b),parameter,public :: be_numrec            =  81    ! home-grown backward Euler solution using free versions of Numerical recipes
+integer(i4b),parameter,public :: be_kinsol            =  82    ! SUNDIALS backward Euler solution using Kinsol
+integer(i4b),parameter,public :: ida                  =  83    ! SUNDIALS solution using IDA
 ! look-up values for method used to compute derivative
 integer(i4b),parameter,public :: numerical            =  91    ! numerical solution
 integer(i4b),parameter,public :: analytical           =  92    ! analytical solution
@@ -147,8 +151,8 @@ integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wi
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
 ! look-up values for the choice of energy equation
-integer(i4b),parameter,public :: enthalpyFD           =  323    ! enthalpyFD
-integer(i4b),parameter,public :: closedForm           =  324    ! closedForm
+integer(i4b),parameter,public :: enthalpyFD           = 323    ! enthalpyFD
+integer(i4b),parameter,public :: closedForm           = 324    ! closedForm
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -156,11 +160,15 @@ contains
 ! ************************************************************************************************
 ! public subroutine mDecisions: save model decisions as named integers
 ! ************************************************************************************************
+#ifdef ACTORS_ACTIVE
+subroutine mDecisions(num_steps,err) bind(C, name='mDecisions')
+#else
 subroutine mDecisions(err,message)
+#endif
   ! model time structures
   USE multiconst,only:secprday               ! number of seconds in a day
   USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
-  USE globalData,only:refTime,refJulday      ! reference time
+  USE globalData,only:refTime,refJulDay      ! reference time
   USE globalData,only:oldTime                ! time from the previous time step
   USE globalData,only:startTime,finshTime    ! start/end time of simulation
   USE globalData,only:dJulianStart           ! julian day of start time of simulation
@@ -184,12 +192,19 @@ subroutine mDecisions(err,message)
   USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
 
   implicit none
-  ! define output
+  ! define output, depends on if using Actors
+#ifdef ACTORS_ACTIVE
+  integer(c_int),intent(out)           :: num_steps      ! number of time steps in the simulation
+  integer(c_int),intent(out)           :: err            ! error code
+  character(256)                       :: message        ! error message
+#else
+  integer(i4b)                         :: num_steps      ! number of time steps in the simulation
   integer(i4b),intent(out)             :: err            ! error code
   character(*),intent(out)             :: message        ! error message
+#endif
   ! define local variables
   character(len=256)                   :: cmessage       ! error message for downwind routine
-  real(rkind)                             :: dsec,dsec_tz   ! second
+  real(rkind)                          :: dsec,dsec_tz   ! second
   ! initialize error control
   err=0; message='mDecisions/'
 
@@ -220,7 +235,7 @@ subroutine mDecisions(err,message)
                   refTime%var(iLookTIME%ih),                              & ! hour
                   refTime%var(iLookTIME%imin),                            & ! minute
                   0._rkind,                                               & ! second
-                  refJulday,                                              & ! julian date for the start of the simulation
+                  refJulDay,                                              & ! julian date for the start of the simulation
                   err, cmessage)                                            ! error control
   if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
@@ -287,9 +302,11 @@ subroutine mDecisions(err,message)
   oldTime%var(:) = startTime%var(:)
 
   ! compute the number of time steps
-  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+  num_steps = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+  numtim = num_steps
+#ifndef ACTORS_ACTIVE
   write(*,'(a,1x,i10)') 'number of time steps = ', numtim
-
+#endif
 
   ! set Noah-MP options
   DVEG=3      ! option for dynamic vegetation
@@ -394,9 +411,11 @@ subroutine mDecisions(err,message)
 
   ! identify the numerical method
   select case(trim(model_decisions(iLookDECISIONS%num_method)%cDecision))
-    case('bEuler'   ); model_decisions(iLookDECISIONS%num_method)%iDecision = bEuler             ! home-grown backward Euler solution with long time steps
-    case('itertive' ); model_decisions(iLookDECISIONS%num_method)%iDecision = bEuler             ! home-grown backward Euler solution (included for backwards compatibility)
-    case('sundials' ); model_decisions(iLookDECISIONS%num_method)%iDecision = sundials           ! SUNDIALS/IDA solution
+    case('be_numrec'); model_decisions(iLookDECISIONS%num_method)%iDecision = be_numrec          ! home-grown backward Euler solution using free versions of Numerical recipes
+    case('itertive' ); model_decisions(iLookDECISIONS%num_method)%iDecision = be_numrec          ! home-grown backward Euler solution (included for backwards compatibility)
+    case('be_kinsol'); model_decisions(iLookDECISIONS%num_method)%iDecision = be_kinsol          ! SUNDIALS backward Euler solution using Kinsol
+    case('sundials' ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida                ! SUNDIALS solution using IDA
+    case('ida     ' ); model_decisions(iLookDECISIONS%num_method)%iDecision = ida                ! SUNDIALS solution using IDA
     case default
       err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
   end select

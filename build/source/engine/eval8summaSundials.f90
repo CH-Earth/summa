@@ -69,7 +69,7 @@ USE mDecisions_module,only:  &
 implicit none
 private
 public::eval8summaSundials
-public::eval8summa4IDA
+public::eval8summa4ida
 
 
 contains
@@ -799,22 +799,22 @@ end subroutine eval8summaSundials
 
 
 ! **********************************************************************************************************
-! public function eval8summa4IDA: compute the residual vector F(t,y,y') required for IDA solver
+! public function eval8summa4ida: compute the residual vector F(t,y,y') required for IDA solver
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------
-integer(c_int) function eval8summa4IDA(tres, sunvec_y, sunvec_yp, sunvec_r, user_data) &
-      result(ierr) bind(C,name='eval8summa4IDA')
+integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user_data) &
+      result(ierr) bind(C,name='eval8summa4ida')
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
   use fida_mod
   use fsundials_nvector_mod
   use fnvector_serial_mod
-  use type4IDA
+  use type4ida
 
   !======= Declarations =========
   implicit none
@@ -926,7 +926,7 @@ integer(c_int) function eval8summa4IDA(tres, sunvec_y, sunvec_yp, sunvec_r, user
   ierr = 0
   return
 
-end function eval8summa4IDA
+end function eval8summa4ida
 
 
 end module eval8summaSundials_module

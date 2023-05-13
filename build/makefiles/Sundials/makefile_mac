@@ -5,7 +5,7 @@ F_MASTER = $(ROOT_DIR)/summa
 
 #### Compilers ####
 FC = gfortran
-FC_EXE = gfortran
+FC_EXE =/opt/local/bin/gfortran
 
 #### Includes AND Libraries ####
 # INCLUDES =
@@ -14,7 +14,7 @@ FC_EXE = gfortran
 
 DIR_SUNDIALS= $(ROOT_DIR)/sundials/instdir
 INC_SUNDIALS=-I$(DIR_SUNDIALS)/include -I$(DIR_SUNDIALS)/fortran
-LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib64 -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
+LIB_SUNDIALS=-L$(DIR_SUNDIALS)/lib -lsundials_fnvecmanyvector_mod -lsundials_fida_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod
 
 # Production runs
 FLAGS_NOAH = -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors
@@ -116,8 +116,8 @@ SUMMA_SOLVER= \
 		soilLiqFlx.f90 \
 		bigAquifer.f90 \
 		computFlux.f90 \
-      type4IDA.f90 \
-      tol4IDA.f90 \
+      type4ida.f90 \
+      tol4ida.f90 \
       computEnthalpy.f90 \
       computHeatCap.f90 \
       computThermConduct.f90 \
@@ -130,7 +130,7 @@ SUMMA_SOLVER= \
       eval8summaSundials.f90 \
       computJacobSundials.f90 \
 		computSnowDepth.f90 \
-      summaSolveSundialsIDA.f90 \
+      summaSolveSundials4ida.f90 \
       systemSolvSundials.f90 \
                 varSubstep.f90 \
 		opSplittin.f90 \
@@ -285,7 +285,6 @@ compile_noah:
 	$(FC_EXE) $(FLAGS_NOAH) -c $(NRUTIL) $(NOAHMP)
 
 # compile common routines
-
 compile_comm:
 	$(FC_EXE) $(FLAGS_COMM) -c $(COMM_ALL) $(INCLUDES)
 

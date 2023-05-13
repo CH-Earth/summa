@@ -1,4 +1,4 @@
-module type4IDA
+module type4ida
 
 ! data types
 USE nrtype
@@ -75,7 +75,7 @@ type eqnsData
 end type eqnsData
 
 
-end module type4IDA
+end module type4ida
 
 
 
