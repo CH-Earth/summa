@@ -79,13 +79,8 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
  private::setInitialCondition
  private::setSolverParams
  private::find_rootdir
-<<<<<<< HEAD:build/source/engine/summaSolveSundialsIDA.f90
- public::layerDisCont4IDA
- public::summaSolveSundialsIDA
-=======
  public::layerDisCont4ida
  public::summaSolveSundials4ida
->>>>>>> actors_ngen:build/source/engine/summaSolveSundials4ida.f90
 
 contains
 
@@ -149,13 +144,8 @@ subroutine summaSolveSundials4ida(                         &
   USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE eval8summaSundials_module,only:eval8summa4ida         ! DAE/ODE functions
   USE eval8summaSundials_module,only:eval8summaSundials     ! residual of DAE
-<<<<<<< HEAD:build/source/engine/summaSolveSundialsIDA.f90
-  USE computJacobSundials_module,only:computJacob4IDA       ! system Jacobian
-  USE tol4IDA_module,only:computWeight4IDA        ! weigth required for tolerances
-=======
   USE computJacobSundials_module,only:computJacob4ida       ! system Jacobian
   USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
->>>>>>> actors_ngen:build/source/engine/summaSolveSundials4ida.f90
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
 
   !======= Declarations =========
@@ -400,7 +390,7 @@ subroutine summaSolveSundials4ida(                         &
     allocate( rootsfound(nRoot) )
     allocate( rootdir(nRoot) )
     rootdir = 0
-    retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
+    retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
     if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
   else ! will not use, allocate at something
     nRoot = 1
@@ -440,13 +430,8 @@ subroutine summaSolveSundials4ida(                         &
 
   ! Set the user-supplied Jacobian routine
   if(.not.use_fdJac)then
-<<<<<<< HEAD:build/source/engine/summaSolveSundialsIDA.f90
-    retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4IDA))
-    if (retval /= 0) then; err=20; message='summaSolveSundialsIDA: error in FIDASetJacFn'; return; endif
-=======
     retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4ida))
     if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDASetJacFn'; return; endif
->>>>>>> actors_ngen:build/source/engine/summaSolveSundials4ida.f90
   endif
 
   ! Create Newton SUNNonlinearSolver object
@@ -629,17 +614,10 @@ subroutine summaSolveSundials4ida(                         &
         retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
         if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
         if(dt_last(1) < 0.1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)
-<<<<<<< HEAD:build/source/engine/summaSolveSundialsIDA.f90
-          retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4IDA))
-          tinystep = .true.
-        else
-          retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4IDA))
-=======
           retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))
           tinystep = .true.
         else
           retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
->>>>>>> actors_ngen:build/source/engine/summaSolveSundials4ida.f90
           tinystep = .false.
         endif
         if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
@@ -808,7 +786,6 @@ end subroutine setSolverParams
  use globalData,only:integerMissing     ! missing integer
  use var_lookup,only:iLookINDEX         ! named variables for structure elements
  use multiconst,only:Tfreeze            ! freezing point of pure water (K)
-<<<<<<< HEAD:build/source/engine/summaSolveSundialsIDA.f90
 
  !======= Declarations =========
  implicit none
@@ -874,7 +851,7 @@ end subroutine setSolverParams
 
 
 ! ----------------------------------------------------------------------------------------
-! layerDisCont4IDA: The root function routine to find soil matrix potential = 0,
+! layerDisCont4ida: The root function routine to find soil matrix potential = 0,
 !  soil temp = critical frozen point, and snow and veg temp = Tfreeze
 ! ----------------------------------------------------------------------------------------
 ! Return values:
@@ -882,8 +859,8 @@ end subroutine setSolverParams
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------------------------------
- integer(c_int) function layerDisCont4IDA(t, sunvec_u, sunvec_up, gout, user_data) &
-      result(ierr) bind(C,name='layerDisCont4IDA')
+ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data) &
+      result(ierr) bind(C,name='layerDisCont4ida')
 
  !======= Inclusions ===========
  use, intrinsic :: iso_c_binding
@@ -968,9 +945,7 @@ end subroutine setSolverParams
  ierr = 0
  return
 
- end function layerDisCont4IDA
-=======
->>>>>>> actors_ngen:build/source/engine/summaSolveSundials4ida.f90
+ end function layerDisCont4ida
 
  !======= Declarations =========
  implicit none
