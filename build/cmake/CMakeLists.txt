@@ -308,11 +308,11 @@ set(PRELIM
     ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
+    ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
     ${ENGINE_DIR}/sunGeomtry.f90)
 set(PRELIM_NOT_ACTORS
-    ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/read_param.f90)
 set(PRELIM_ACTORS
     ${SUB_ENGINE_DIR}/alloc_fileAccess.f90)
@@ -378,9 +378,9 @@ set(SOLVER_SUNDIALS
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_alarms.f90
-    ${SUB_DRIVER_DIR}/summa_globalData.f90)
+    ${SUB_DRIVER_DIR}/summa_globalData.f90
     ${SUB_DRIVER_DIR}/summa_type.f90
-    ${SUB_DRIVER_DIR}/summa_util.f90
+    ${SUB_DRIVER_DIR}/summa_util.f90)
 set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
@@ -408,6 +408,8 @@ set(FILE_ACCESS_INTERFACE
     ${FILE_ACCESS_DIR}/fortran_code/writeOutputFromOutputStructure.f90)
 set(JOB_INTERFACE
     ${JOB_ACTOR_DIR}/job_actor.f90)
+set(GRU_INTERFACE
+    ${GRU_ACTOR_DIR}/gru_actor.f90)
 set(HRU_INTERFACE
     ${HRU_ACTOR_DIR}/fortran_code/hru_actor.f90
     ${HRU_ACTOR_DIR}/fortran_code/hru_init.f90
@@ -433,10 +435,6 @@ set(SUMMA_ACTOR
     ${ACTORS_DIR}/summa_actor/summa_backup_server.cpp
     ${ACTORS_DIR}/summa_actor/summa_client.cpp
     ${ACTORS_DIR}/summa_actor/summa_server.cpp)
-set(HRU_ACTOR
-    ${ACTORS_DIR}/hru_actor/cpp_code/hru_actor.cpp)
-set(GRU_ACTOR
-    ${ACTORS_DIR}/gru_actor/gru_actor.cpp)
 set(FILE_ACCESS_ACTOR
     ${ACTORS_DIR}/file_access_actor/cpp_code/file_access_actor.cpp
     ${ACTORS_DIR}/file_access_actor/cpp_code/forcing_file_info.cpp
@@ -444,6 +442,10 @@ set(FILE_ACCESS_ACTOR
 set(JOB_ACTOR
     ${ACTORS_DIR}/job_actor/GRU.cpp
     ${ACTORS_DIR}/job_actor/job_actor.cpp)
+set(GRU_ACTOR
+    ${ACTORS_DIR}/gru_actor/gru_actor.cpp)
+set(HRU_ACTOR
+    ${ACTORS_DIR}/hru_actor/cpp_code/hru_actor.cpp)
 
 
 #=========================================================================================
@@ -475,10 +477,10 @@ set(SUMMA_ALL
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
         ${PRELIM_ACTORS}
-        ${JOB_INTERFACE}
         ${FILE_ACCESS_INTERFACE}
-        ${HRU_INTERFACE}
-        ${GRU_INTERFACE})
+        ${JOB_INTERFACE}
+        ${GRU_INTERFACE}
+        ${HRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
         ${PRELIM_NOT_ACTORS}
@@ -570,10 +572,10 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
 
     add_executable(${EXEC_NAME} ${MAIN_ACTOR}
         ${ACTORS_GLOBAL}
-        ${HRU_ACTOR}
-        ${GRU_ACTOR}
         ${FILE_ACCESS_ACTOR}
         ${JOB_ACTOR}
+        ${GRU_ACTOR}
+        ${HRU_ACTOR}
         ${SUMMA_ACTOR}
         ${SUMMA_CLIENT}
         ${SUMMA_SERVER})
