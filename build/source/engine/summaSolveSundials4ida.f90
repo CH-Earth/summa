@@ -372,32 +372,6 @@ subroutine summaSolveSundials4ida(                         &
     allocate( rootdir(nRoot) )
   endif
 
-  ! initialize rootfinding problem and allocate space, counting roots
-  if(detect_events)then
-    nRoot = 0
-    if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing) nRoot = nRoot+1
-    if(nSnow>0)then
-      do i = 1,nSnow
-        if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
-      enddo
-    endif
-    if(nSoil>0)then
-      do i = 1,nSoil
-        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing) nRoot = nRoot+1
-        if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing) nRoot = nRoot+1
-      enddo
-    endif
-    allocate( rootsfound(nRoot) )
-    allocate( rootdir(nRoot) )
-    rootdir = 0
-    retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
-    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
-  else ! will not use, allocate at something
-    nRoot = 1
-    allocate( rootsfound(nRoot) )
-    allocate( rootdir(nRoot) )
-  endif
-
   ! define the form of the matrix
   select case(ixMatrix)
     case(ixBandMatrix)
