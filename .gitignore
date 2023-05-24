@@ -35,5 +35,3 @@ Makefile-*
 *.backup
 # site directory from mkdocs
 site/
-# script for quickly searching source code for variables and other terms
-build/source/search_all.sh
