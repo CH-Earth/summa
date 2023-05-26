@@ -1559,7 +1559,6 @@ subroutine aeroResist(&
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! * compute vegetation poperties (could be done at the same time as phenology.. does not have to be in the flux routine!)
   if (computeVegFlux) then ! if vegetation is exposed
-
     ! ***** identify zero plane displacement, roughness length, and surface temperature for the canopy (m)
     ! First, calculate new coordinate system above snow - use these to scale wind profiles and resistances
     ! NOTE: the new coordinate system makes zeroPlaneDisplacement and z0Canopy consistent
@@ -1721,7 +1720,6 @@ subroutine aeroResist(&
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! * compute resistance for the case without a canopy (bare ground, or canopy completely buried with snow)
   else
-
     ! no canopy, so set huge resistances (not used)
     canopyResistance = 1.e12_rkind   ! not used: huge resistance, so conductance is essentially zero
     leafResistance   = 1.e12_rkind   ! not used: huge resistance, so conductance is essentially zero
@@ -1782,7 +1780,6 @@ subroutine aeroResist(&
     frictionVelocity           = missingValue   ! friction velocity (m s-1)
     windspdCanopyTop           = missingValue   ! windspeed at the top of the canopy (m s-1)
     windspdCanopyBottom        = missingValue   ! windspeed at the height of the bottom of the canopy (m s-1)
-
   end if  ! end if no canopy
   
   ! derivatives for the vegetation canopy
