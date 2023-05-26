@@ -80,7 +80,7 @@ else()
 
         # CMakeLists in ${summa-actors GIT directory}/build/summa/build/cmake
         set(PARENT_DIR ${F_MASTER}../../) # directory of summa actors source code
-        set(EXEC_DIR ${PARENT_DIR}../bin)
+        set(EXEC_DIR ${PARENT_DIR}/bin)
 
     else()
         project(summa DESCRIPTION "Summa-Sundials-BE")
