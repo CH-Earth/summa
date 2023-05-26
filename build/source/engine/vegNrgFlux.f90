@@ -655,15 +655,15 @@ contains
     end select
    end if
 
-   if(.not.computeVegFlux) scalarCanopyEmissivity=0._rkind ! ensure canopy longwave fluxes are zero when not computing canopy fluxes
+   if (.not.computeVegFlux) scalarCanopyEmissivity=0._rkind ! ensure canopy longwave fluxes are zero when not computing canopy fluxes
    groundEmissivity = scalarGroundSnowFraction*snowEmissivity + (1._rkind - scalarGroundSnowFraction)*soilEmissivity  ! compute emissivity of the ground surface (-)
 
    ! compute the fraction of canopy that is wet
    ! NOTE: we either sublimate or evaporate over the entire substep
-   if(computeVegFlux)then
+   if (computeVegFlux) then
     ! compute the fraction of liquid water in the canopy (-)
     totalCanopyWater = canopyLiqTrial + canopyIceTrial
-    if(totalCanopyWater > tiny(1.0_rkind))then
+    if (totalCanopyWater > tiny(1.0_rkind)) then
      fracLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
     else
      fracLiquidCanopy = 0._rkind
@@ -687,7 +687,7 @@ contains
                     dCanopyWetFraction_dWat,                        & ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
                     dCanopyWetFraction_dT,                          & ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
                     err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
    else
     scalarCanopyWetFraction = 0._rkind  ! canopy wetted fraction (-)
     dCanopyWetFraction_dWat = 0._rkind  ! derivative in wetted fraction w.r.t. canopy liquid water (kg-1 m2)
@@ -795,7 +795,7 @@ contains
                     mLayerTranspireLim(1:nSoil),       & ! intent(out): transpiration limiting factor in each layer (-)
                     scalarTranspireLimAqfr,            & ! intent(out): transpiration limiting factor for the aquifer (-)
                     err,cmessage                       ) ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
     ! compute stomatal resistance
     call stomResist(&
@@ -813,7 +813,7 @@ contains
                     flux_data,                         & ! intent(inout): model fluxes for a local HRU
                     ! output: error control
                     err,cmessage                       ) ! intent(out): error control
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
    end if  ! end if the first flux call in a given sub-step
    ! *******************************************************************************************************************************************************************
    ! *******************************************************************************************************************************************************************
@@ -1008,7 +1008,7 @@ contains
       soilRelHumidity_noSnow = exp((mLayerMatricHead(1)*gravity)/(groundTemp*R_wv))
      else
       soilRelHumidity_noSnow = 0._rkind
-     end if ! if matric head is very low
+     end if ! end if matric head is very low
      scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! removed factor of unity
     end if  ! end if the first flux call
 
@@ -1833,7 +1833,7 @@ contains
    case(CM_QJRMS1988)
     funcLAI =  cd_CM*exposedVAI
     zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + sqrt(sqrt(funcLAI))) ! using sqrt intrinsic for speed
-    if(funcLAI < 0.2_rkind)then
+    if (funcLAI < 0.2_rkind) then
      z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI) ! using sqrt intrinsic for speed
     else
      z0Canopy = 0.3_rkind*heightCanopyTopAboveSnow*(1._rkind - zeroPlaneDisplacement/heightCanopyTopAboveSnow)
@@ -1883,7 +1883,7 @@ contains
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
   ! compute turbulent exchange coefficient (-)
-  canopyExNeut = (vkc**2_i4b) / ( log((mHeight - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
+  canopyExNeut = (vkc**2_i4b) / (log((mHeight - zeroPlaneDisplacement)/z0Canopy))**2_i4b     ! coefficient under conditions of neutral stability
   sfc2AtmExchangeCoeff_canopy = canopyExNeut*canopyStabilityCorrection                        ! after stability corrections
 
   ! compute the friction velocity (m s-1)
@@ -1926,7 +1926,7 @@ contains
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
 
   ! switch between exponential profile and log-below-canopy
-  if(ixWindProfile==exponential .or. heightCanopyBottomAboveSnow<z0Ground+xTolerance)then ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
+  if (ixWindProfile==exponential .or. heightCanopyBottomAboveSnow<z0Ground+xTolerance) then ! case 1: assume exponential profile extends from the snow depth plus surface roughness length to the displacement height plus vegetation roughness
    ! compute the neutral ground resistance
    tmp1 = exp(-windReductionFactor* z0Ground/heightCanopyTopAboveSnow)
    tmp2 = exp(-windReductionFactor*(z0Canopy+zeroPlaneDisplacement)/heightCanopyTopAboveSnow)
@@ -1939,7 +1939,7 @@ contains
    groundResistanceNeutral = ( heightCanopyTopAboveSnow*exp(windReductionFactor) / (windReductionFactor*eddyDiffusCanopyTop) ) * (tmp1 - tmp2)
    ! add log-below-canopy component
    groundResistanceNeutral = groundResistanceNeutral + (1._rkind/(max(0.1_rkind,windspdCanopyBottom)*vkc**2_i4b))*(log(heightCanopyBottomAboveSnow/z0Ground))**2_i4b
-  endif  ! end switch between exponential profile and log-below-canopy
+  end if  ! end switch between exponential profile and log-below-canopy
 
   ! compute the stability correction for resistance from the ground to the canopy air space (-)
   ! NOTE: here we are interested in the windspeed at height z0Canopy+zeroPlaneDisplacement
@@ -1978,7 +1978,7 @@ contains
   if (mHeight < snowDepth+z0Ground) then; err=20; message=trim(message)//'measurement height < snow depth + roughness length'; return; end if
   
   ! compute the resistance between the surface and canopy air UNDER NEUTRAL CONDITIONS (s m-1)
-  groundExNeut = (vkc**2_i4b) / ( log((mHeight - snowDepth)/z0Ground)**2_i4b) ! turbulent transfer coefficient under conditions of neutral stability (-)
+  groundExNeut = (vkc**2_i4b) / (log((mHeight - snowDepth)/z0Ground)**2_i4b) ! turbulent transfer coefficient under conditions of neutral stability (-)
   groundResistanceNeutral = 1._rkind / (groundExNeut*windspd)
 
   ! define height above the snow surface
