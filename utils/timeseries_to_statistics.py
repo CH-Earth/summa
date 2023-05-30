@@ -161,11 +161,13 @@ def merge_subsets_into_one(src,pattern,des,name):
 
     '''Merges all files in {src} that match {pattern} into one file stored in /{des}/{name.nc}'''
 
+    # this runs out of memory sometimes
     # Find all files
-    src_files = glob.glob(str( src / pattern ))
-
+    #src_files = glob.glob(str( src / pattern ))
     # Merge into one
-    out = xr.merge([xr.open_dataset(file) for file in src_files])
+    #out = xr.merge([xr.open_dataset(file) for file in src_files])
+
+    out = xr.open_mfdataset(str( src / pattern ))
 
     # save to file
     out.to_netcdf(des / name)

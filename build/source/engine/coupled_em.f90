@@ -405,11 +405,11 @@ subroutine coupled_em(&
 
     ! short-cut to the algorithmic control parameters
     ! NOTE - temporary assignment of minstep to foce something reasonable
-    ! change maxstep with hard code here to make the outer and inner loop computations here in coupled_em happen more frequently
-    ! change maxstep_op with hard code here to make the inner loop computations in opSplittin happen more frequently
+    ! changing the maxstep parameter will make the outer and inner loop computations here in coupled_em happen more frequently
+    ! changing the be_steps parameter will make the inner loop computations in opSplittin happen more frequently (e.g. be_steps = 32.0 give BE32)
     minstep = 10._rkind  ! mpar_data%var(iLookPARAM%minstep)%dat(1)  ! minimum time step (s)
     maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
-    maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s) to run opSplittin over
+    maxstep_op = mpar_data%var(iLookPARAM%maxstep)%dat(1)/NINT(mpar_data%var(iLookPARAM%be_steps)%dat(1))  ! maximum time step (s) to run opSplittin over
 
     ! compute the number of layers with roots
     nLayersRoots = count(prog_data%var(iLookPROG%iLayerHeight)%dat(nSnow:nLayers-1) < mpar_data%var(iLookPARAM%rootingDepth)%dat(1)-verySmall)

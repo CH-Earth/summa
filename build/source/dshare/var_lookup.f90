@@ -283,6 +283,7 @@ MODULE var_lookup
   integer(i4b)    :: minwind               = integerMissing    ! minimum wind speed (m s-1)
   integer(i4b)    :: minstep               = integerMissing    ! minimum length of the time step
   integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
+  integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep be_numrec
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
   integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iteration
   integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
@@ -293,6 +294,8 @@ MODULE var_lookup
   integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
   integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
   integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
+  integer(i4b)    :: relConvTol_ida        = integerMissing    ! relative convergence tolerance for sundials ida'
+  integer(i4b)    :: absConvTol_ida        = integerMissing    ! absolute convergence tolerance for sundials ida'
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -859,7 +862,8 @@ MODULE var_lookup
                                                                         121,122,123,124,125,126,127,128,129,130,&
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
-                                                                        151,152,153,154,155,156,157,158,159)
+                                                                        151,152,153,154,155,156,157,158,159,160,&
+                                                                        161,162)
 
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&

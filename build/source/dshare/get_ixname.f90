@@ -379,6 +379,7 @@ contains
   case('minwind'                  ); get_ixparam = iLookPARAM%minwind                ! minimum wind speed (m s-1)
   case('minstep'                  ); get_ixparam = iLookPARAM%minstep                ! minimum length of the time step be_numrec, not currently used
   case('maxstep'                  ); get_ixparam = iLookPARAM%maxstep                ! maximum length of the time step be_numrec
+  case('be_steps'                 ); get_ixparam = iLookPARAM%be_steps               ! minimum number of substeps to take in a maxstep be_numrec
   case('wimplicit'                ); get_ixparam = iLookPARAM%wimplicit              ! weight assigned to start-of-step fluxes be_numrec, not currently used
   case('maxiter'                  ); get_ixparam = iLookPARAM%maxiter                ! maximum number of iterations be_numrec or nonlinear iterations Sundials
   case('relConvTol_liquid'        ); get_ixparam = iLookPARAM%relConvTol_liquid      ! relative convergence tolerance for vol frac liq water (-) be_numrec
@@ -389,6 +390,8 @@ contains
   case('absConvTol_energy'        ); get_ixparam = iLookPARAM%absConvTol_energy      ! absolute convergence tolerance for energy (J m-3) be_numrec
   case('relConvTol_aquifr'        ); get_ixparam = iLookPARAM%relConvTol_aquifr      ! relative convergence tolerance for aquifer storage (-) be_numrec
   case('absConvTol_aquifr'        ); get_ixparam = iLookPARAM%absConvTol_aquifr      ! absolute convergence tolerance for aquifer storage (m) be_numrec
+  case('relConvTol_ida'           ); get_ixparam = iLookPARAM%relConvTol_ida         ! relative convergence tolerance for sundials ida
+  case('absConvTol_ida'           ); get_ixparam = iLookPARAM%absConvTol_ida         ! absolute convergence tolerance for sundials ida
   case('zmin'                     ); get_ixparam = iLookPARAM%zmin                   ! minimum layer depth (m)
   case('zmax'                     ); get_ixparam = iLookPARAM%zmax                   ! maximum layer depth (m)
   case('zminLayer1'               ); get_ixparam = iLookPARAM%zminLayer1             ! minimum layer depth for the 1st (top) layer (m)
