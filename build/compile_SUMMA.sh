@@ -1,6 +1,8 @@
-## Compile SUMMA -- assumes that this script is in the build directory -- Designed for Linux
-#How to use: 1) manually set FC, FC_EXE, INCLUDES, and LIBRARIES
-#            2) save file and enter `source compile_SUMMA.sh` in the terminal
+## Compile SUMMA -- Not fully automatic -- some variables must be manually set (see below)
+#Prerequisites: 1) Linux terminal (tested on Ubuntu 22.04 LTS but may work on other Linux platforms)
+#               2) This script must be in the build directory (e.g. ~/summa/build)
+#How to use:    1) Manually set FC, FC_EXE, INCLUDES, and LIBRARIES
+#               2) Save file and enter `source compile_SUMMA.sh` in the terminal
 
 ## manually set environment variables
 export FC=gfortran                                                                  # Fortran compiler family
