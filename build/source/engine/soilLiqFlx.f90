@@ -647,12 +647,16 @@ contains
   end do  ! end looping through different flux calculations -- one or multiple calls depending if desire for numerical or analytical derivatives
 
   ! compute numerical derivatives
-  if(deriv_desired .and. ixDerivMethod==numerical)then
+  if (deriv_desired .and. ixDerivMethod==numerical) then
    dq_dHydStateAbove(iLayer) = (scalarFlux_dStateAbove - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
    dq_dHydStateBelow(iLayer) = (scalarFlux_dStateBelow - scalarFlux)/dx    ! change in drainage flux w.r.t. change in the state in the layer below (m s-1 or s-1)
   end if
 
  end do  ! end looping through soil layers
+
+ ! add infiltration to the upper-most unfrozen layer
+ ! NOTE: this is done here rather than in surface runoff
+ ! iLayerLiqFluxSoil(ixIce) = iLayerLiqFluxSoil(ixIce) + scalarSurfaceInfiltration
 
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  ! * compute drainage flux from the bottom of the soil profile, and its derivative
@@ -1216,12 +1220,14 @@ contains
    scalarSurfaceRunoff = scalarRainPlusMelt - scalarSurfaceInfiltration ! compute surface runoff (m s-1)
 
    ! set surface hydraulic conductivity and diffusivity to missing (not used for flux condition)
-   surfaceHydCond = realMissing; surfaceDiffuse = realMissing
+   surfaceHydCond = realMissing
+   surfaceDiffuse = realMissing
 
    ! set numerical derivative to zero
    ! NOTE 1: Depends on multiple soil layers and does not jive with the current tridiagonal matrix
    ! NOTE 2: Need to define the derivative at every call, because intent(out)
-   dq_dHydState = 0._rkind; dq_dNrgState = 0._rkind
+   dq_dHydState = 0._rkind
+   dq_dNrgState = 0._rkind
   case default; err=20; message=trim(message)//'unknown upper boundary condition for soil hydrology'; return ! ***** error check
  end select  ! end select type of upper boundary condition
 

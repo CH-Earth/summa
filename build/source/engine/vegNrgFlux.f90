@@ -112,8 +112,6 @@ real(rkind),parameter         :: verySmall=1.e-6_rkind       ! used as an additi
 real(rkind),parameter         :: tinyVal=epsilon(1._rkind)   ! used as an additive constant to check if substantial difference among real numbers
 real(rkind),parameter         :: mpe=1.e-6_rkind             ! prevents overflow error if division by zero
 real(rkind),parameter         :: dx=1.e-11_rkind             ! finite difference increment
-! control
-logical(lgt)                  :: printflag                   ! flag to turn on printing
 contains
  ! *******************************************************************************************************
  ! public subroutine vegNrgFlux: muster program to compute energy fluxes at vegetation and ground surfaces
@@ -539,8 +537,6 @@ contains
  ) ! end associate statement
  ! ---------------------------------------------------------------------------------------
  err=0; message="vegNrgFlux/" ! initialize error control
-
- printflag = .false. ! initialize printflag
 
  select case(ix_bcUpprTdyn) ! identify the type of boundary condition for thermodynamics
   ! *****
@@ -1002,14 +998,14 @@ contains
     if (firstFluxCall) then
      soilEvapFactor = mLayerVolFracLiq(nSnow+1)/(theta_sat - theta_res) ! soil water evaporation factor [0-1]
      ! resistance from the soil [s m-1] -- Sellers (1992)
-     scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 4.225_rkind*soilEvapFactor) ! removed factor of unity
+     scalarSoilResistance = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*exp(8.25_rkind - 4.225_rkind*soilEvapFactor) ! Full equation (removed factor of unity for speed): scalarSoilResistance = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*EXP(8.25_rkind - 4.225_rkind*soilEvapFactor)
      ! relative humidity in the soil pores [0-1]
      if (mLayerMatricHead(1) > -1.e+6_rkind) then  ! avoid problems with numerical precision when soil is very dry
       soilRelHumidity_noSnow = exp((mLayerMatricHead(1)*gravity)/(groundTemp*R_wv))
      else
       soilRelHumidity_noSnow = 0._rkind
      end if ! end if matric head is very low
-     scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! removed factor of unity
+     scalarSoilRelHumidity  = scalarGroundSnowFraction + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow ! Full equation (removed factor of unity for speed) scalarSoilRelHumidity  = scalarGroundSnowFraction*1._rkind + (1._rkind - scalarGroundSnowFraction)*soilRelHumidity_noSnow
     end if  ! end if the first flux call
 
     ! compute turbulent heat fluxes
@@ -1832,9 +1828,9 @@ contains
    ! Choudhury and Monteith (QJRMS 1988) "A four layer model for the heat budget..."
    case(CM_QJRMS1988)
     funcLAI =  cd_CM*exposedVAI
-    zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + sqrt(sqrt(funcLAI))) ! using sqrt intrinsic for speed
+    zeroPlaneDisplacement = 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + sqrt(sqrt(funcLAI))) ! using sqrt() intrinsic for speed (original equation: 1.1_rkind*heightCanopyTopAboveSnow*log(1._rkind + funcLAI**0.25_rkind))
     if (funcLAI < 0.2_rkind) then
-     z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI) ! using sqrt intrinsic for speed
+     z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*sqrt(funcLAI) ! using sqrt() intrinsic for speed (original equation: z0Canopy = z0Ground + 0.3_rkind*heightCanopyTopAboveSnow*funcLAI**0.5_rkind)
     else
      z0Canopy = 0.3_rkind*heightCanopyTopAboveSnow*(1._rkind - zeroPlaneDisplacement/heightCanopyTopAboveSnow)
     end if
@@ -2749,7 +2745,7 @@ contains
  ! ***** process unstable cases
  if (RiBulk<0._rkind) then
   ! compute surface-atmosphere exchange coefficient (-)
-  stabilityCorrection = sqrt(1._rkind - 16._rkind*RiBulk) ! use sqrt intrinsic for speed 
+  stabilityCorrection = sqrt(1._rkind - 16._rkind*RiBulk) ! use sqrt() intrinsic for speed (original equation: stabilityCorrection = (1._rkind - 16._rkind*RiBulk)**0.5_rkind) 
   ! compute derivative in surface-atmosphere exchange coefficient w.r.t. temperature (K-1)
   if (computeDerivative) then
    dStabilityCorrection_dRich    = -8._rkind/sqrt(1._rkind - 16._rkind*RiBulk) ! use sqrt intrinsic for speed
