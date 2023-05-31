@@ -208,20 +208,20 @@ subroutine popTol4ida(&
     ! initialize error control
     err=0; message='popTol4ida/'
 
-    absTolTempCas = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolTempCas = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
-    absTolTempVeg = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolTempVeg = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
-    absTolWatVeg = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolWatVeg = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
-    absTolTempSoilSnow = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolTempSoilSnow = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
-    absTolWatSnow = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolWatSnow = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
-    absTolMatric = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolMatric = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
-    absTolAquifr = mpar_data%var(iLookPARAM%absConvTol_ida)%dat(1)
-    relTolAquifr = mpar_data%var(iLookPARAM%relConvTol_ida)%dat(1)
+    absTolTempCas = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolTempCas = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolTempVeg = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolTempVeg = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolWatVeg = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolWatVeg = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolTempSoilSnow = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolTempSoilSnow = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolWatSnow = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolWatSnow = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolMatric = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolMatric = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolAquifr = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    relTolAquifr = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
  
     ! -----
     ! * initialize state vectors...

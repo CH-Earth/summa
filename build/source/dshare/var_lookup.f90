@@ -294,8 +294,8 @@ MODULE var_lookup
   integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
   integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
   integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: relConvTol_ida        = integerMissing    ! relative convergence tolerance for sundials ida'
-  integer(i4b)    :: absConvTol_ida        = integerMissing    ! absolute convergence tolerance for sundials ida'
+  integer(i4b)    :: relErrTol_ida         = integerMissing    ! relative error tolerance for sundials ida'
+  integer(i4b)    :: absErrTol_ida         = integerMissing    ! absolute error tolerance for sundials ida'
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
