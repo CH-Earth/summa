@@ -37,9 +37,9 @@ private
 public :: bigAquifer
 contains
 
- ! ***************************************************************************************************************
- ! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
- ! ***************************************************************************************************************
+ ! ************************************************************************************************************************
+ ! public subroutine bigAquifer: compute aquifer transpiration, recharge, baseflow, and derivative in the net aquifer flux  
+ ! ************************************************************************************************************************
  subroutine bigAquifer(&
                        ! input: state variables and fluxes
                        scalarAquiferStorageTrial,    & ! intent(in):  trial value of aquifer storage (m)
