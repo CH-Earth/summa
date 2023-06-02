@@ -93,7 +93,6 @@ contains
                        nSoil,                        & ! intent(in): number of soil layers
                        doInfiltrate,                 & ! intent(in): flag to compute infiltration
                        scalarSolution,               & ! intent(in):    flag to indicate the scalar solution
-                       deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                        ! input: trial state variables
                        mLayerTempTrial,              & ! intent(in): temperature (K)
                        mLayerMatricHeadTrial,        & ! intent(in): matric head (m)
@@ -148,7 +147,6 @@ contains
  integer(i4b),intent(in)             :: nSoil                         ! number of soil layers
  logical(lgt),intent(in)             :: doInfiltrate                  ! flag to compute infiltration
  logical(lgt),intent(in)             :: scalarSolution                ! flag to denote if implementing the scalar solution
- logical(lgt),intent(in)             :: deriv_desired                 ! flag indicating if derivatives are desired
  ! input: trial model state variables
  real(rkind),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
  real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
@@ -194,6 +192,7 @@ contains
  ! local variables: general
  character(LEN=256)                  :: cmessage                     ! error message of downwind routine
  integer(i4b)                        :: ibeg,iend                    ! start and end indices of the soil layers in concatanated snow-soil vector
+ logical(lgt),parameter              :: deriv_desired=.true.         ! flag indicating if derivatives are desired
  logical(lgt)                        :: desireAnal                   ! flag to identify if analytical derivatives are desired
  integer(i4b)                        :: iLayer,iSoil                 ! index of soil layer
  integer(i4b)                        :: ixLayerDesired(1)            ! layer desired (scalar solution)

@@ -567,7 +567,6 @@ contains
                   nSoil,                                     & ! intent(in):    number of soil layers
                   firstSplitOper,                            & ! intent(in):    flag indicating first flux call in a splitting operation
                   (scalarSolution .and. .not.firstFluxCall), & ! intent(in):    flag to indicate the scalar solution
-                  .true.,                                    & ! intent(in):    flag indicating if derivatives are desired
                   ! input: trial state variables
                   mLayerTempTrial(nSnow+1:nLayers),          & ! intent(in):    trial temperature at the current iteration (K)
                   mLayerMatricHeadLiqTrial(1:nSoil),         & ! intent(in):    liquid water matric potential (m)
