@@ -571,7 +571,6 @@ contains
                   err,cmessage)                    ! intent(out):   error control
   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-  !print*, err,trim(cmessage)
 
   ! update function evaluation, residual vector, and states
   ! NOTE 1: The derivatives computed in summaSolve are used to calculate the Jacobian matrix at the next iteration
