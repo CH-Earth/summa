@@ -586,11 +586,10 @@ subroutine coupled_em(&
     ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
     if(.not.computeVegFlux)then
       flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
-      flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind
     else
       flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._rkind
-      flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind
     end if
+    flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind
 
     ! ****************************************************************************************************
     ! *** MAIN SOLVER ************************************************************************************
@@ -854,7 +853,7 @@ subroutine coupled_em(&
                       nState,                                 & ! intent(in):    total number of layers
                       dt_sub,                                 & ! intent(in):    length of the model sub-step
                       whole_step,                             & ! intent(in):    length of whole step for surface drainage and average flux
-                      (nsub==1),                              & ! intent(in):    logical flag to denote the first substep
+                      (dt_solv<whole_step),                   & ! intent(in):    logical flag to denote the first loop of the whole_step in a data_step
                       firstInnerStep,                         & ! intent(in):    flag to denote if the first time step in maxstep subStep
                       computeVegFlux,                         & ! intent(in):    logical flag to compute fluxes within the vegetation canopy
                       ! input/output: data structures

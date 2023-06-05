@@ -134,11 +134,11 @@ contains
  if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
   parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
  end if
- if (parFallback(iLookPARAM%relConvTol_ida)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%relConvTol_ida)%default_val = 1.e-6_rkind
+ if (parFallback(iLookPARAM%relErrTol_ida)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relErrTol_ida)%default_val = 1.e-6_rkind
  end if
- if (parFallback(iLookPARAM%absConvTol_ida)%default_val < 0.99_rkind*realMissing) then
-    parFallback(iLookPARAM%absConvTol_ida)%default_val = 1.e-6_rkind
+ if (parFallback(iLookPARAM%absErrTol_ida)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absErrTol_ida)%default_val = 1.e-6_rkind
  end if
 
  ! check we have populated all variables

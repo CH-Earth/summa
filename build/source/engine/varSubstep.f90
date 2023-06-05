@@ -368,7 +368,7 @@ subroutine varSubstep(&
           call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      whole_step,        & ! intent(in):   entire time step (s)
+                      whole_step,        & ! intent(in):    entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
