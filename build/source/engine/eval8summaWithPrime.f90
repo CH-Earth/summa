@@ -1,5 +1,5 @@
 
-module eval8summaSundials_module
+module eval8summaWithPrime_module
 
 ! data types
 USE nrtype
@@ -68,16 +68,16 @@ USE mDecisions_module,only:  &
 
 implicit none
 private
-public::eval8summaSundials
+public::eval8summaWithPrime
 public::eval8summa4ida
 
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine eval8summaSundials: compute the residual vector
+! public subroutine eval8summaWithPrime: compute the residual vector
 ! **********************************************************************************************************
-subroutine eval8summaSundials(&
+subroutine eval8summaWithPrime(&
                       ! input: model control
                       dt_cur,                  & ! intent(in):    step size to last time solution
                       dt,                      & ! intent(in):    entire time step for drainage pond rate
@@ -146,7 +146,7 @@ subroutine eval8summaSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
   USE getVectorz_module, only:varExtract                  ! extract variables from the state vector
-  USE updateVarsSundials_module, only:updateVarsSundials  ! update variables
+  USE updateVarsWithPrime_module, only:updateVarsWithPrime  ! update variables
   USE t2enthalpy_module, only:t2enthalpy                  ! compute enthalpy
   USE computFlux_module, only:soilCmpresSundials          ! compute soil compression
   USE computFlux_module, only:computFlux                  ! compute fluxes given a state vector
@@ -154,7 +154,7 @@ subroutine eval8summaSundials(&
   USE computHeatCap_module,only:computHeatCapAnalytic     ! recompute heat capacity and derivatives
   USE computHeatCap_module,only:computCm
   USE computHeatCap_module, only:computStatMult           ! recompute state multiplier
-  USE computResidSundials_module,only:computResidSundials ! compute residuals given a state vector
+  USE computResidWithPrime_module,only:computResidWithPrime ! compute residuals given a state vector
   USE computThermConduct_module,only:computThermConduct   ! recompute thermal conductivity and derivatives
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -313,7 +313,7 @@ subroutine eval8summaSundials(&
     ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="eval8summaSundials/"
+    err=0; message="eval8summaWithPrime/"
     feasible=.true.
 
     ! check the feasibility of the solution only if not inside Sundials solver
@@ -473,7 +473,7 @@ subroutine eval8summaSundials(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! update diagnostic variables and derivatives
-    call updateVarsSundials(&
+    call updateVarsWithPrime(&
                     ! input
                     .false.,                                   & ! intent(in):    logical flag if computing for Jacobian update
                     .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy
@@ -720,7 +720,7 @@ subroutine eval8summaSundials(&
                     deriv_data,                & ! intent(out):   derivatives in model fluxes w.r.t. relevant state variables
                     ! input-output: flux vector and baseflow derivatives
                     ixSaturation,              & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                    dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later in computJacobSundials
+                    dBaseflow_dMatric,         & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1), we will use it later in computJacobWithPrime
                     fluxVec,                   & ! intent(out):   flux vector (mixed units)
                     ! output: error control
                     err,cmessage)                ! intent(out):   error code and error message
@@ -752,7 +752,7 @@ subroutine eval8summaSundials(&
     if (insideIDA)then
       dt1 = 1._qp ! always 1 for sundials since using Prime derivatives
 
-      call computResidSundials(&
+      call computResidWithPrime(&
                       ! input: model control
                       dt1,                       & ! intent(in):    length of the residual time step (seconds)
                       nSnow,                     & ! intent(in):    number of snow layers
@@ -795,7 +795,7 @@ subroutine eval8summaSundials(&
   ! end association with the information in the data structures
   end associate
 
-end subroutine eval8summaSundials
+end subroutine eval8summaWithPrime
 
 
 ! **********************************************************************************************************
@@ -851,7 +851,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   end if
 
   ! compute the flux and the residual vector for a given state vector
-  call eval8summaSundials(&
+  call eval8summaWithPrime(&
                 ! input: model control
                 stepsize_next(1),                  & ! intent(in):    current stepsize
                 eqns_data%dt,                      & ! intent(in):    data step
@@ -929,4 +929,4 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
 end function eval8summa4ida
 
 
-end module eval8summaSundials_module
+end module eval8summaWithPrime_module

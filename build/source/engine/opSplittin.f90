@@ -99,8 +99,8 @@ USE data_types,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
-                    be_numrec    ,& ! home-grown backward Euler solution using free versions of Numerical recipes
-                    be_kinsol    ,& ! SUNDIALS backward Euler solution using Kinsol
+                    numrec    ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
@@ -319,8 +319,8 @@ subroutine opSplittin(&
     ! we just solve the fully coupled problem by with Sundials for now
     select case(ixNumericalMethod)
       case(ida);       nCoupling = 1
-      case(be_numrec); nCoupling = 2
-      case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+      case(numrec); nCoupling = 2
+      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol   , or numrec (or itertive, which is numrec)'; return
     end select
 
     ! -----

@@ -104,9 +104,9 @@ SUMMA_UTILMS= \
 		mDecisions.f90 \
 		snow_utils.f90 \
 		soil_utils.f90 \
-		sundials/soil_utilsAddSundials.f90 \
+		sundials/soil_utilsAddPrime.f90 \
 		updatState.f90 \
-		sundials/updatStateSundials.f90 \
+		sundials/updatStateWithPrime.f90 \
 		matrixOper.f90
 UTILMS = $(patsubst %, $(ENGINE_DIR)/%, $(SUMMA_UTILMS))
 
@@ -131,21 +131,19 @@ SUMMA_SOLVER= \
 		computResid.f90 \
 		computJacob.f90 \
 		eval8summa.f90 \
-		summaSolve.f90 \
+		summaSolve4numrec.f90 \
 		systemSolv.f90 \
 		sundials/type4ida.f90 \
 		sundials/tol4ida.f90 \
 		sundials/computEnthalpy.f90 \
 		sundials/computHeatCap.f90 \
 		sundials/computThermConduct.f90 \
-		sundials/computResidSundials.f90 \
-		sundials/eval8summaSundials.f90 \
-		sundials/computJacobSundials.f90 \
+		sundials/computResidWithPrime.f90 \
+		sundials/eval8summaWithPrime.f90 \
+		sundials/computJacobWithPrime.f90 \
 		sundials/computSnowDepth.f90 \
-		sundials/summaSolveSundials4ida.f90 \
-		sundials/systemSolvSundials.f90 \
+		sundials/summaSolve4ida.f90 \
 		varSubstep.f90 \
-		sundials/varSubstepSundials.f90 \
 		opSplittin.f90 \
 		coupled_em.f90
 		
@@ -221,7 +219,7 @@ SUMMA_MODRUN = \
 		getVectorz.f90 \
 		sundials/t2enthalpy.f90 \
 		updateVars.f90 \
-		sundials/updateVarsSundials.f90 \
+		sundials/updateVarsWithPrime.f90 \
 		var_derive.f90 \
 		derivforce.f90 \
 		snowAlbedo.f90 \

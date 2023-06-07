@@ -1,7 +1,7 @@
 
 
 
-module summaSolveSundials4ida_module
+module summaSolve4ida_module
 
 
 !======= Inclusions ===========
@@ -80,14 +80,14 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
  private::setSolverParams
  private::find_rootdir
  public::layerDisCont4ida
- public::summaSolveSundials4ida
+ public::summaSolve4ida
 
 contains
 
 !-------------------
-! * public subroutine summaSolveSundials4ida: solve F(y,y') = 0 by IDA (y is the state vector)
+! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
 ! ------------------
-subroutine summaSolveSundials4ida(                         &
+subroutine summaSolve4ida(                         &
                       dt,                      & ! intent(in):    data time step
                       atol,                    & ! intent(in):    absolute telerance
                       rtol,                    & ! intent(in):    relative tolerance
@@ -142,9 +142,9 @@ subroutine summaSolveSundials4ida(                         &
   USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
   USE fsundials_nonlinearsolver_mod               ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
-  USE eval8summaSundials_module,only:eval8summa4ida         ! DAE/ODE functions
-  USE eval8summaSundials_module,only:eval8summaSundials     ! residual of DAE
-  USE computJacobSundials_module,only:computJacob4ida       ! system Jacobian
+  USE eval8summaWithPrime_module,only:eval8summa4ida         ! DAE/ODE functions
+  USE eval8summaWithPrime_module,only:eval8summaWithPrime     ! residual of DAE
+  USE computJacobWithPrime_module,only:computJacob4ida       ! system Jacobian
   USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
   USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
 
@@ -233,11 +233,11 @@ subroutine summaSolveSundials4ida(                         &
   ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
-  err=0; message="summaSolveSundials4ida/"
+  err=0; message="summaSolve4ida/"
 
   nState = nStat
   idaSucceeds = .true.
-  ! fill eqns_data which will be required later to call eval8summaSundials
+  ! fill eqns_data which will be required later to call eval8summaWithPrime
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow
   eqns_data%nSoil                   = nSoil
@@ -320,31 +320,31 @@ subroutine summaSolveSundials4ida(                         &
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
-  if (.not. associated(sunvec_y)) then; err=20; message='summaSolveSundials4ida: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_y)) then; err=20; message='summaSolve4ida: sunvec = NULL'; return; endif
 
   sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
-  if (.not. associated(sunvec_yp)) then; err=20; message='summaSolveSundials4ida: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_yp)) then; err=20; message='summaSolve4ida: sunvec = NULL'; return; endif
 
   ! Initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
   ! Create memory
   ida_mem = FIDACreate(sunctx)
-  if (.not. c_associated(ida_mem)) then; err=20; message='summaSolveSundials4ida: ida_mem = NULL'; return; endif
+  if (.not. c_associated(ida_mem)) then; err=20; message='summaSolve4ida: ida_mem = NULL'; return; endif
 
   ! Attach user data to memory
   eqns_data%ida_mem = ida_mem
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDASetUserData'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetUserData'; return; endif
 
   ! Initialize memory
   t0 = 0._rkind
   retval = FIDAInit(ida_mem, c_funloc(eval8summa4ida), t0, sunvec_y, sunvec_yp)
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDAInit'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAInit'; return; endif
 
   ! set tolerances
   retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4ida))
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDAWFtolerances'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAWFtolerances'; return; endif
 
   ! initialize rootfinding problem and allocate space, counting roots
   if(detect_events)then
@@ -378,51 +378,51 @@ subroutine summaSolveSundials4ida(                         &
       mu = ku; lu = kl;
       ! Create banded SUNMatrix for use in linear solves
       sunmat_A => FSUNBandMatrix(nState, mu, lu, sunctx)
-      if (.not. associated(sunmat_A)) then; err=20; message='summaSolveSundials4ida: sunmat = NULL'; return; endif
+      if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4ida: sunmat = NULL'; return; endif
 
       ! Create banded SUNLinearSolver object
       sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A, sunctx)
-      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolveSundials4ida: sunlinsol = NULL'; return; endif
+      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4ida: sunlinsol = NULL'; return; endif
 
     case(ixFullMatrix)
       ! Create dense SUNMatrix for use in linear solves
       sunmat_A => FSUNDenseMatrix(nState, nState, sunctx)
-      if (.not. associated(sunmat_A)) then; err=20; message='summaSolveSundials4ida: sunmat = NULL'; return; endif
+      if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4ida: sunmat = NULL'; return; endif
 
       ! Create dense SUNLinearSolver object
       sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
-      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolveSundials4ida: sunlinsol = NULL'; return; endif
+      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4ida: sunlinsol = NULL'; return; endif
 
       ! check
-    case default;  err=20; message='summaSolveSundials4ida: error in type of matrix'; return
+    case default;  err=20; message='summaSolve4ida: error in type of matrix'; return
 
   end select  ! form of matrix
 
   ! Attach the matrix and linear solver
   retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDASetLinearSolver'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetLinearSolver'; return; endif
 
   ! Set the user-supplied Jacobian routine
   if(.not.use_fdJac)then
     retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4ida))
-    if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDASetJacFn'; return; endif
+    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetJacFn'; return; endif
   endif
 
   ! Create Newton SUNNonlinearSolver object
   sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y, sunctx)
-  if (.not. associated(sunnonlin_NLS)) then; err=20; message='summaSolveSundials4ida: sunnonlinsol = NULL'; return; endif
+  if (.not. associated(sunnonlin_NLS)) then; err=20; message='summaSolve4ida: sunnonlinsol = NULL'; return; endif
 
   ! Attach the nonlinear solver
   retval = FIDASetNonlinearSolver(ida_mem, sunnonlin_NLS)
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDASetNonlinearSolver'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetNonlinearSolver'; return; endif
 
   ! Enforce the solver to stop at end of the time step
   retval = FIDASetStopTime(ida_mem, dt)
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in FIDASetStopTime'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetStopTime'; return; endif
 
   ! Set solver parameters such as maximum order, number of iterations, ...
   call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
-  if (retval /= 0) then; err=20; message='summaSolveSundials4ida: error in setSolverParams'; return; endif
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
 
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
@@ -485,7 +485,7 @@ subroutine summaSolveSundials4ida(                         &
     dt_diff = tret(1) - tretPrev
 
     ! compute the flux and the residual vector for a given state vector
-    call eval8summaSundials(&
+    call eval8summaWithPrime(&
                   ! input: model control
                   dt_diff,                            & ! intent(in):    step size to last time solution
                   eqns_data%dt,                       & ! intent(in):    total data step
@@ -647,7 +647,7 @@ subroutine summaSolveSundials4ida(                         &
   call FN_VDestroy(sunvec_yp)
   retval = FSUNContext_Free(sunctx)
 
-end subroutine summaSolveSundials4ida
+end subroutine summaSolve4ida
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u and up vectors.
@@ -921,4 +921,4 @@ end subroutine setSolverParams
 
  end function layerDisCont4ida
 
-end module summaSolveSundials4ida_module
+end module summaSolve4ida_module

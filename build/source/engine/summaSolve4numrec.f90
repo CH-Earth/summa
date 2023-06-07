@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module summaSolve_module
+module summaSolve4numrec_module
 
 ! data types
 USE nrtype
@@ -78,13 +78,13 @@ USE mDecisions_module,only:       &
 
 implicit none
 private
-public::summaSolve
+public::summaSolve4numrec
 contains
 
  ! *********************************************************************************************************
- ! public subroutine summaSolve: calculate the iteration increment, evaluate the new state, and refine if necessary
+ ! public subroutine summaSolve4numrec: calculate the iteration increment, evaluate the new state, and refine if necessary
  ! *********************************************************************************************************
- subroutine summaSolve(&
+ subroutine summaSolve4numrec(&
                        ! input: model control
                        dt_cur,                  & ! intent(in):    current stepsize
                        dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
@@ -217,7 +217,7 @@ contains
  associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
- err=0; message='summaSolve/'
+ err=0; message='summaSolve4numrec/'
 
  ! get the number of soil layers in the solution vector
  mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
@@ -1353,9 +1353,9 @@ contains
 
   end subroutine imposeConstraints
 
- end subroutine summaSolve
+ end subroutine summaSolve4numrec
 
 
 
 
-end module summaSolve_module
+end module summaSolve4numrec_module

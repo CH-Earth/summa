@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module computJacobSundials_module
+module computJacobWithPrime_module
 
 ! data types
 USE nrtype
@@ -105,16 +105,16 @@ implicit none
 real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 
 private
-public::computJacobSundials
+public::computJacobWithPrime
 public::computJacob4idaSetup
 public::computJacob4ida
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine computJacobSundials: compute the Jacobian matrix
+! public subroutine computJacobWithPrime: compute the Jacobian matrix
 ! **********************************************************************************************************
-subroutine computJacobSundials(&
+subroutine computJacobWithPrime(&
                       ! input: model control
                       cj,                         & ! intent(in):    this scalar changes whenever the step size or method order changes
                       dt,                         & ! intent(in):    length of the time step (seconds)
@@ -313,7 +313,7 @@ subroutine computJacobSundials(&
     ) ! making association with data in structures
     ! --------------------------------------------------------------
     ! initialize error control
-    err=0; message='computJacobSundials/'
+    err=0; message='computJacobWithPrime/'
 
     ! *********************************************************************************************************************************************************
     ! *********************************************************************************************************************************************************
@@ -1077,7 +1077,7 @@ subroutine computJacobSundials(&
   ! end association to variables in the data structures
   end associate
 
-end subroutine computJacobSundials
+end subroutine computJacobWithPrime
 
 
 ! **********************************************************************************************************
@@ -1113,7 +1113,7 @@ subroutine computJacob4idaSetup(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
   USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
-  USE updateVarsSundials_module, only:updateVarsSundials    ! update prognostic variables
+  USE updateVarsWithPrime_module, only:updateVarsWithPrime    ! update prognostic variables
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -1278,7 +1278,7 @@ subroutine computJacob4idaSetup(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! update diagnostic variables and derivatives
-    call updateVarsSundials(&
+    call updateVarsWithPrime(&
                     ! input
                     .true.,                                    & ! intent(in):    logical flag if computing for Jacobian update
                     .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
@@ -1319,10 +1319,10 @@ subroutine computJacob4idaSetup(&
 
     ! compute the analytical Jacobian matrix
     ! NOTE: The derivatives were computed in the previous call to computFlux
-    !       This occurred either at the call to eval8summaSundials at the start of sysSolveSundials
-    !        or in the call to eval8summaSundials in the previous iteration
+    !       This occurred either at the call to eval8summaWithPrime at the start of sysSolveSundials
+    !        or in the call to eval8summaWithPrime in the previous iteration
     dt1 = 1._qp
-    call computJacobSundials(&
+    call computJacobWithPrime(&
                     ! input: model control
                     cj,                             & ! intent(in):    this scalar changes whenever the step size or method order changes
                     dt1,                            & ! intent(in):    length of the time step (seconds)
@@ -1465,4 +1465,4 @@ function ixOffDiag(jState,iState)
   ixOffDiag = ixDiag + jState - iState
 end function ixOffDiag
 
-end module computJacobSundials_module
+end module computJacobWithPrime_module

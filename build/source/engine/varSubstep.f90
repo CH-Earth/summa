@@ -72,8 +72,8 @@ USE multiconst,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
-                    be_numrec    ,&  ! home-grown backward Euler solution using free versions of Numerical recipes
-                    be_kinsol    ,&  ! SUNDIALS backward Euler solution using Kinsol
+                    numrec       ,&  ! home-grown backward Euler solution using free versions of Numerical recipes
+                    kinsol       ,&  ! SUNDIALS backward Euler solution using Kinsol
                     ida              ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
@@ -133,9 +133,6 @@ subroutine varSubstep(&
   ! simulation of fluxes and residuals given a trial state vector
   USE getVectorz_module,only:popStateVec                ! populate the state vector
   USE getVectorz_module,only:varExtract                 ! extract variables from the state vector
-#ifdef SUNDIALS_ACTIVE
-  USE systemSolvSundials_module,only:systemSolvSundials ! solve the system of equations for one time step
-#endif
   USE systemSolv_module,only:systemSolv                 ! solve the system of equations for one time step
   ! identify name of variable type (for error message)
   USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
@@ -325,10 +322,7 @@ subroutine varSubstep(&
       ! * iterative solution...
       ! -----------------------
       ! solve the system of equations for a given state subset
-      select case(ixNumericalMethod)
-        case(ida)
-#ifdef SUNDIALS_ACTIVE
-          call systemSolvSundials(&
+      call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
                       whole_step,        & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
@@ -355,56 +349,12 @@ subroutine varSubstep(&
                       deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       stateVecTrial,     & ! intent(out):   updated state vector
-                      stateVecPrime,     & ! intent(out):   updated state vector
+                      stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
+                      niter,             & ! intent(out):   number of iterations taken (numrec)
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                       err,cmessage)        ! intent(out):   error code and error message
-          untappedMelt(:) = 0._rkind ! set untapped melt energy to zero
-          niter = 0  ! will not use
-#else
-        err=20; message=trim(message)//'cannot use num_method as uda if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
-#endif
-        case(be_numrec)
-          call systemSolv(&
-                      ! input: model control
-                      dtSubstep,         & ! intent(in):    time step (s)
-                      whole_step,        & ! intent(in):    entire time step (s)
-                      nState,            & ! intent(in):    total number of state variables
-                      firstSubStep,      & ! intent(in):    flag to denote first sub-step
-                      firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
-                      firstSplitOper,    & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
-                      computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
-                      scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
-                      ! input/output: data structures
-                      lookup_data,       & ! intent(in):    lookup tables
-                      type_data,         & ! intent(in):    type of vegetation and soil
-                      attr_data,         & ! intent(in):    spatial attributes
-                      forc_data,         & ! intent(in):    model forcing data
-                      mpar_data,         & ! intent(in):    model parameters
-                      indx_data,         & ! intent(inout): index data
-                      prog_data,         & ! intent(inout): model prognostic variables for a local HRU
-                      diag_data,         & ! intent(inout): model diagnostic variables for a local HRU
-                      flux_temp,         & ! intent(inout): model fluxes for a local HRU
-                      bvar_data,         & ! intent(in):    model variables for the local basin
-                      model_decisions,   & ! intent(in):    model decisions
-                      stateVecInit,      & ! intent(in):    initial state vector
-                      ! output: model control
-                      deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                      ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
-                      stateVecTrial,     & ! intent(out):   updated state vector
-                      reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
-                      tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
-                      niter,             & ! intent(out):   number of iterations taken
-                      err,cmessage)        ! intent(out):   error code and error message
-          stateVecPrime = stateVecTrial ! will not use, dummy
-        case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
-      end select
-
-      if(err/=0)then
-        message=trim(message)//trim(cmessage)
-        if(err>0) return
-      endif
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
 
       ! if too much melt or need to reduce length of the coupled step then return
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
@@ -462,9 +412,9 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(ida);       checkMassBalance = .false. ! only for be_numrec because sundials has instantaneous fluxes only
-        case(be_numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
-        case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+        case(ida);       checkMassBalance = .false. ! only for numrec because sundials has instantaneous fluxes only
+        case(numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
+        case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select
       ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
       checkNrgBalance = .false.
@@ -620,7 +570,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                       waterBalanceError,nrgFluxModified,err,message)                                                                                   ! output: flags and error control
   USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
-  USE updateVarsSundials_module,only:updateVarsSundials             ! update prognostic variables
+  USE updateVarsWithPrime_module,only:updateVarsWithPrime             ! update prognostic variables
 #endif
   USE updateVars_module,only:updateVars                             ! update prognostic variables
   USE t2enthalpy_module, only:t2enthalpy                            ! compute enthalpy
@@ -863,7 +813,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
         ! update diagnostic variables
-        call updateVarsSundials(&
+        call updateVarsWithPrime(&
                     ! input
                     .false.,                                   & ! intent(in):    logical flag if computing for Jacobian update
                     doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
@@ -899,7 +849,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
 #else
       err=20; message=trim(message)//'cannot use num_method as ida if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
 #endif
-      case(be_numrec)
+      case(numrec)
          ! update diagnostic variables
         call updateVars(&
                  ! input
@@ -923,7 +873,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                  mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
-      case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
     end select
 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

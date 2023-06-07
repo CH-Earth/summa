@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module updateVarsSundials_module
+module updateVarsWithPrime_module
 
 ! data types
 USE nrtype
@@ -73,8 +73,8 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatStateSundials_module,only:updateSnowSundials     ! update snow states
-USE updatStateSundials_module,only:updateSoilSundials     ! update soil states
+USE updatStateWithPrime_module,only:updateSnowSundials     ! update snow states
+USE updatStateWithPrime_module,only:updateSoilSundials     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
@@ -85,23 +85,23 @@ USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water charact
 USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-USE soil_utilsAddSundials_module,only:liquidHeadSundials     ! compute the liquid water matric potential
-USE soil_utilsAddSundials_module,only:d2Theta_dPsi2
-USE soil_utilsAddSundials_module,only:d2Theta_dTk2
+USE soil_utilsAddPrime_module,only:liquidHeadSundials     ! compute the liquid water matric potential
+USE soil_utilsAddPrime_module,only:d2Theta_dPsi2
+USE soil_utilsAddPrime_module,only:d2Theta_dTk2
 
 ! IEEE checks
 USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
 
 implicit none
 private
-public::updateVarsSundials
+public::updateVarsWithPrime
 
 contains
 
 ! **********************************************************************************************************
-! public subroutine updateVarsSundials: compute diagnostic variables and derivatives for Sundials Jacobian
+! public subroutine updateVarsWithPrime: compute diagnostic variables and derivatives for Sundials Jacobian
 ! **********************************************************************************************************
-subroutine updateVarsSundials(&
+subroutine updateVarsWithPrime(&
                      ! input
                      computJac,                                 & ! intent(in):    logical flag if computing for Jacobian update
                      do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
@@ -270,7 +270,7 @@ subroutine updateVarsSundials(&
     ! --------------------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message='updateVarsSundials/'
+    err=0; message='updateVarsWithPrime/'
 
     ! allocate space and assign values to the flag vector
     allocate(computedCoupling(size(ixMapSubset2Full)),stat=err)        ! .true. if computed the coupling for a given state variable
@@ -744,7 +744,7 @@ subroutine updateVarsSundials(&
     ! end association to the variables in the data structures
 end associate
 
-end subroutine updateVarsSundials
+end subroutine updateVarsWithPrime
 
 
 ! **********************************************************************************************************
@@ -781,4 +781,4 @@ subroutine xTempSolve(&
   derivative = heatCap + LH_fus*iden_water*dLiq_dT  ! J m-3 K-1
 end subroutine xTempSolve
 
-end module updateVarsSundials_module
+end module updateVarsWithPrime_module

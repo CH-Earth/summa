@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module soil_utilsAddSundials_module
+module soil_utilsAddPrime_module
 
 ! data types
 USE nrtype
@@ -223,4 +223,4 @@ function d2Theta_dTk2(Tk,theta_res,theta_sat,alpha,n,m)
                                                                           + n*(-m-1)*xtemp**(2*n - 2._rkind) * (1._rkind + xtemp**n)**(-m - 2._rkind) )
 end function d2Theta_dTk2
 
-end module soil_utilsAddSundials_module
+end module soil_utilsAddPrime_module
