@@ -68,8 +68,8 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
 ! constants
 USE multiconst,only:&
-				    LH_fus,       & ! latent heat of fusion                (J kg-1)
-				    iden_water      ! intrinsic density of liquid water    (kg m-3)
+                    LH_fus,       & ! latent heat of fusion                (J kg-1)
+                    iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 implicit none
 ! define constants
@@ -83,7 +83,7 @@ contains
 ! public subroutine computJacob: compute the Jacobian matrix
 ! **********************************************************************************************************
 subroutine computJacob(&
-                      ! input: model control
+             ! input: model control
 					   dt,                         & ! intent(in):    length of the time step (seconds)
 					   nSnow,                      & ! intent(in):    number of snow layers
 					   nSoil,                      & ! intent(in):    number of soil layers
@@ -117,10 +117,10 @@ subroutine computJacob(&
   type(var_dlength),intent(in)      :: prog_data       ! prognostic variables for a local HRU
   type(var_dlength),intent(in)      :: diag_data       ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)      :: deriv_data      ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind),intent(in)               :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
+  real(rkind),intent(in)            :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
   ! input-output: Jacobian and its diagonal
-  real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
-  real(rkind),intent(out)              :: aJac(:,:)       ! Jacobian matrix
+  real(rkind),intent(inout)         :: dMat(:)         ! diagonal of the Jacobian matrix
+  real(rkind),intent(out)           :: aJac(:,:)       ! Jacobian matrix
   ! output variables
   integer(i4b),intent(out)          :: err             ! error code
   character(*),intent(out)          :: message         ! error message

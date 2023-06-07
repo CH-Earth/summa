@@ -174,7 +174,6 @@ subroutine systemSolvSundials(&
   logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
   integer(i4b),intent(out)        :: err                           ! error code
   character(*),intent(out)        :: message                       ! error message
-
   ! ---------------------------------------------------------------------------------------
   ! * general local variables
   ! ---------------------------------------------------------------------------------------
@@ -184,10 +183,7 @@ subroutine systemSolvSundials(&
   integer(i4b)                    :: local_ixGroundwater           ! local index for groundwater representation
   real(rkind)                     :: bulkDensity                   ! bulk density of a given layer (kg m-3)
   real(rkind)                     :: volEnthalpy                   ! volumetric enthalpy of a given layer (J m-3)
-  real(rkind),parameter           :: tempAccelerate=0.00_rkind     ! factor to force initial canopy temperatures to be close to air temperature
-  real(rkind),parameter           :: xMinCanopyWater=0.0001_rkind  ! minimum value to initialize canopy water (kg m-2)
   real(rkind),parameter           :: tinyStep=0.000001_rkind       ! stupidly small time step (s)
-
   ! ------------------------------------------------------------------------------------------------------
   ! * model solver
   ! ------------------------------------------------------------------------------------------------------
@@ -207,19 +203,15 @@ subroutine systemSolvSundials(&
   real(rkind)                     :: atol(nState)                  ! absolute telerance
   real(rkind)                     :: rtol(nState)                  ! relative tolerance
   integer(i4b)                    :: iLayer                        ! index of model layer in the snow+soil domain
-  real(rkind)                     :: xMin,xMax                     ! minimum and maximum values for water content
-  real(rkind),parameter           :: canopyTempMax=500._rkind      ! expected maximum value for the canopy temperature (K)
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! derivative value for total water matric potential (m s-1)
   logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
-  real(rkind)                     :: fOld                          ! function values (-); NOTE: dimensionless because scaled
-  ! enthalpy derivatives
+   ! enthalpy derivatives
   real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
   real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
   real(rkind)                     :: dEnthalpy_dTk(nState)         ! derivatives in layer enthalpy w.r.t. temperature
   real(rkind)                     :: dEnthalpy_dWat(nState)        ! derivatives in layer enthalpy w.r.t. water state
-
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -297,7 +289,6 @@ subroutine systemSolvSundials(&
     tooMuchMelt        = .false.   ! too much melt
     reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
 
-
     ! modify the groundwater representation for this single-column implementation
     select case(ixSpatialGroundwater)
       case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
@@ -356,15 +347,7 @@ subroutine systemSolvSundials(&
     ! initialize the trial state vectors
     stateVecTrial = stateVecInit
 
-    ! Changing in read_icond, not here
-    ! need to intialize canopy water at a positive value
-    !if(ixVegHyd/=integerMissing)then
-    !  if(stateVecTrial(ixVegHyd) < xMinCanopyWater) stateVecTrial(ixVegHyd) = stateVecTrial(ixVegHyd) + xMinCanopyWater
-    !endif
-    ! try to accelerate solution for energy
-    !if(ixCasNrg/=integerMissing) stateVecTrial(ixCasNrg) = stateVecInit(ixCasNrg) + (airtemp - stateVecInit(ixCasNrg))*tempAccelerate
-    !if(ixVegNrg/=integerMissing) stateVecTrial(ixVegNrg) = stateVecInit(ixVegNrg) + (airtemp - stateVecInit(ixVegNrg))*tempAccelerate
-
+    ! compute the initial function evaluation
     if(ixHowHeatCap == enthalpyFD)then
       ! compute H_T at the beginning of the data step without phase change
       call t2enthalpy(&
@@ -510,9 +493,9 @@ subroutine systemSolvSundials(&
                       err,cmessage)                       ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
-    !-------------------
+    ! **************************
     ! * solving F(y,y') = 0 by IDA. Here, y is the state vector
-    ! ------------------
+    ! **************************
 
     ! initialize flux_sum
     do concurrent ( iVar=1:size(flux_meta) )
@@ -571,6 +554,10 @@ subroutine systemSolvSundials(&
       if (tooMuchMelt) return !exit to start same step over after merge
     endif
 
+    ! -----
+    ! * update states...
+    ! ------------------
+
     ! compute average flux
     do iVar=1,size(flux_meta)
       flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
@@ -584,8 +571,8 @@ subroutine systemSolvSundials(&
     stateVecTrial = stateVecNew
 
     ! free memory
-    deallocate( mLayerCmpress_sum)
-    deallocate( mLayerMatricHeadPrime)
+    deallocate(mLayerCmpress_sum)
+    deallocate(mLayerMatricHeadPrime)
     deallocate(dBaseflow_dMatric)
 
   ! end associate statements

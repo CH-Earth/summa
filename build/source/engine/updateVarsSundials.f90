@@ -103,7 +103,7 @@ contains
 ! **********************************************************************************************************
 subroutine updateVarsSundials(&
                      ! input
-                     computJac,                                 & ! intent(in): logical flag if computing Jacobian for Sundials solve
+                     computJac,                                 & ! intent(in):    logical flag if computing for Jacobian update
                      do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                      mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                      indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -138,7 +138,7 @@ subroutine updateVarsSundials(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input
-  logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing Jacobian for Sundials solver
+  logical(lgt)     ,intent(in)       :: computJac                       ! flag if computing for Jacobian update
   logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
   type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
@@ -246,19 +246,11 @@ subroutine updateVarsSundials(&
     ! model diagnostic variables (fraction of liquid water)
     scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out): [dp]    fraction of liquid water on vegetation (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out): [dp(:)] fraction of liquid water in each snow layer (-)
-    ! model states for the vegetation canopy
-    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in):  [dp] temperature of the canopy air space (K)
+    ! model states from a previous solution
     scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):  [dp] temperature of the vegetation canopy (K)
-    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in):  [dp] mass of total water on the vegetation canopy (kg m-2)
-    ! model state variable vectors for the snow-soil layers
     mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):  [dp(:)] temperature of each snow/soil layer (K)
-    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in):  [dp(:)] volumetric fraction of total water (-)
-    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in):  [dp(:)] total water matric potential (m)
-    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)] liquid water matric potential (m)
     ! model diagnostic variables from a previous solution
-    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)] mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)] mass of ice on the vegetation canopy (kg m-2)
-    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)] volumetric fraction of ice (-)
     ! derivatives
     dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0   )%dat        ,& ! intent(out): [dp(:)] derivative in total water content w.r.t. total water matric potential
@@ -339,17 +331,8 @@ subroutine updateVarsSundials(&
         print*, 'isNrgState     = ', isNrgState
       endif
 
-      ! =======================================================================================================================================
-      ! =======================================================================================================================================
-      ! =======================================================================================================================================
-      ! =======================================================================================================================================
-      ! =======================================================================================================================================
-      ! =======================================================================================================================================
-
       ! update hydrology state variables for the uncoupled solution
       if(.not.isNrgState .and. .not.isCoupled)then
-
-        if(.not.computJac) stop 1 ! this does not work yet? FIX
 
         ! update the total water from volumetric liquid water
         if(ixStateType(ixFullVector)==iname_liqCanopy .or. ixStateType(ixFullVector)==iname_liqLayer)then
@@ -596,8 +579,8 @@ subroutine updateVarsSundials(&
         ! ------------------------
 
         ! check the need to adjust temperature (will always be false if inside solver)
-        !  can be true if inside varSubstep, outside solver, but currently will not work so turn off always and not sure should ever do this
-        if(do_adjustTemp .and. computJac)then
+        !  can be true if inside varSubstep, outside solver, if in a splitting case
+        if(do_adjustTemp)then
 
           ! get the melt energy
           meltNrg = merge(LH_fus*iden_ice, LH_fus*iden_water, ixDomainType==iname_snow)

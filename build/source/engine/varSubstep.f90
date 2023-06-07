@@ -865,7 +865,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         ! update diagnostic variables
         call updateVarsSundials(&
                     ! input
-                    .false.,                                   & ! intent(in):    logical flag if computing Jacobian for Sundials solver
+                    .false.,                                   & ! intent(in):    logical flag if computing for Jacobian update
                     doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                     mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                     indx_data,                                 & ! intent(in):    indices defining model states and layers
@@ -900,11 +900,10 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
       err=20; message=trim(message)//'cannot use num_method as ida if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
 #endif
       case(be_numrec)
-        ! update diagnostic variables
+         ! update diagnostic variables
         call updateVars(&
                  ! input
                  doAdjustTemp,             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                 lookup_data,              & ! intent(in):    lookup tables for a local HRU
                  mpar_data,                & ! intent(in):    model parameters for a local HRU
                  indx_data,                & ! intent(in):    indices defining model states and layers
                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU

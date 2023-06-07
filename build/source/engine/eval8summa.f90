@@ -108,7 +108,7 @@ subroutine eval8summa(&
                       computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                       ! input: state vectors
-                      stateVecTrial,           & ! intent(in):    model state vector
+                      stateVec,                & ! intent(in):    model state vector
                       fScale,                  & ! intent(in):    function scaling vector
                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
@@ -164,9 +164,9 @@ subroutine eval8summa(&
   logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
   ! input: state vectors
-  real(rkind),intent(in)          :: stateVecTrial(:)       ! model state vector
+  real(rkind),intent(in)          :: stateVec(:)            ! model state vector
   real(rkind),intent(in)          :: fScale(:)              ! function scaling vector
-  real(rkind),intent(inout)       :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
+  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
@@ -188,7 +188,7 @@ subroutine eval8summa(&
   logical(lgt),intent(out)        :: feasible               ! flag to denote the feasibility of the solution
   real(rkind),intent(out)         :: fluxVec(:)             ! flux vector
   real(rkind),intent(out)         :: resSink(:)             ! sink terms on the RHS of the flux equation
-  real(rkind),intent(out)         :: resVec(:) ! NOTE: qp   ! residual vector
+  real(qp),intent(out)            :: resVec(:) ! NOTE: qp   ! residual vector
   real(rkind),intent(out)         :: fEval                  ! function evaluation
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
@@ -302,27 +302,28 @@ subroutine eval8summa(&
 
     ! check that the canopy air space temperature is reasonable
     if(ixCasNrg/=integerMissing)then
-      if(stateVecTrial(ixCasNrg) > canopyTempMax) feasible=.false.
-      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVecTrial( ixCasNrg )', feasible, canopyTempMax, stateVecTrial(ixCasNrg)
+      if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
+      if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
     endif
 
     ! check that the canopy air space temperature is reasonable
     if(ixVegNrg/=integerMissing)then
-      if(stateVecTrial(ixVegNrg) > canopyTempMax) feasible=.false.
-      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVecTrial( ixVegNrg )', feasible, canopyTempMax, stateVecTrial(ixVegNrg)
+      if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
     endif
 
     ! check canopy liquid water is not negative
     if(ixVegHyd/=integerMissing)then
-      if(stateVecTrial(ixVegHyd) < 0._rkind) feasible=.false.
-      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVecTrial( ixVegHyd )', feasible, 0._rkind, stateVecTrial(ixVegHyd)
+      if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
     end if
 
     ! check snow temperature is below freezing
     if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-      if(any(stateVecTrial( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
       !do iLayer=1,nSnow
-      !  if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVecTrial( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVecTrial( ixSnowOnlyNrg(iLayer) )
+      !  if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
       !enddo
     endif
 
@@ -346,8 +347,8 @@ subroutine eval8summa(&
         end select
 
         ! --> check
-        if(stateVecTrial( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVecTrial( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-        !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVecTrial( ixSnowSoilHyd(iLayer) ), xMin, xMax
+        if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
+        !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
 
       endif  ! if water states
 
@@ -389,7 +390,7 @@ subroutine eval8summa(&
     ! extract variables from the model state vector
     call varExtract(&
                     ! input
-                    stateVecTrial,            & ! intent(in):    model state vector (mixed units)
+                    stateVec,                 & ! intent(in):    model state vector (mixed units)
                     diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
                     prog_data,                & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                & ! intent(in):    indices defining model states and layers
@@ -414,7 +415,6 @@ subroutine eval8summa(&
     call updateVars(&
                     ! input
                     .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                    lookup_data,                               & ! intent(in):    lookup tables for a local HRU
                     mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                     indx_data,                                 & ! intent(in):    indices defining model states and layers
                     prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU

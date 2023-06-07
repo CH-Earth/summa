@@ -106,7 +106,7 @@ real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 
 private
 public::computJacobSundials
-public::computJacobSetup
+public::computJacob4idaSetup
 public::computJacob4ida
 
 contains
@@ -134,14 +134,12 @@ subroutine computJacobSundials(&
                       deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
                       dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
                       ! input: state variables
-                      mLayerTemp,                 & ! intent(in):    vector of layer temperature (K)
                       mLayerTempPrime,            & ! intent(in):    vector of derivative value for layer temperature (K)
-                      mLayerMatricHeadPrime,      & ! intent(in)
-                      mLayerMatricHeadLiqPrime,   & ! intent(in)
-                      mLayerVolFracWatPrime,      & ! intent(in)
-                      scalarCanopyTemp,           & ! intent(in):    temperature of the vegetation canopy (K)
+                      mLayerMatricHeadPrime,      & ! intent(in):    vector of derivative value for layer matric head
+                      mLayerMatricHeadLiqPrime,   & ! intent(in):    vector of derivative value for layer liquid matric head
+                      mLayerVolFracWatPrime,      & ! intent(in):    vector of derivative value for layer water volume fraction
                       scalarCanopyTempPrime,      & ! intent(in):    derivative value for temperature of the vegetation canopy (K)
-                      scalarCanopyWatPrime,       & ! intent(in)
+                      scalarCanopyWatPrime,       & ! intent(in):    derivative value for water content of the vegetation canopy
                       ! input-output: Jacobian and its diagonal
                       dMat,                       & ! intent(inout): diagonal of the Jacobian matrix
                       aJac,                       & ! intent(out):   Jacobian matrix
@@ -168,14 +166,14 @@ subroutine computJacobSundials(&
   type(var_dlength),intent(in)         :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
   ! input: state variables
-  real(rkind),intent(in)               :: mLayerTemp(:)
-  real(rkind),intent(in)               :: mLayerTempPrime(:)
-  real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)
-  real(rkind),intent(in)               :: mLayerMatricHeadLiqPrime(:)
-  real(rkind),intent(in)               :: mLayerVolFracWatPrime(:)
-  real(rkind),intent(in)               :: scalarCanopyTemp
-  real(rkind),intent(in)               :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
-  real(rkind),intent(in)               :: scalarCanopyWatPrime
+  real(rkind),intent(in)               :: mLayerTemp(:)              ! vector of layer temperature (K)
+  real(rkind),intent(in)               :: mLayerTempPrime(:)         ! vector of derivative value for layer temperature
+  real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)   ! vector of derivative value for layer matric head
+  real(rkind),intent(in)               :: mLayerMatricHeadLiqPrime(:)! vector of derivative value for layer liquid matric head
+  real(rkind),intent(in)               :: mLayerVolFracWatPrime(:)   ! vector of derivative value for layer water volume fraction
+  real(rkind),intent(in)               :: scalarCanopyTemp           ! temperature of the vegetation canopy (K)
+  real(rkind),intent(in)               :: scalarCanopyTempPrime      ! derivative value for temperature of the vegetation canopy (K)
+  real(rkind),intent(in)               :: scalarCanopyWatPrime       ! derivative value for water content of the vegetation canopy
   ! input-output: Jacobian and its diagonal
   real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
   real(rkind),intent(out)              :: aJac(:,:)       ! Jacobian matrix
@@ -1083,9 +1081,9 @@ end subroutine computJacobSundials
 
 
 ! **********************************************************************************************************
-! public subroutine computJacobSetup: compute the Jacobian matrix
+! public subroutine computJacob4idaSetup: compute the Jacobian matrix
 ! **********************************************************************************************************
-subroutine computJacobSetup(&
+subroutine computJacob4idaSetup(&
                       ! input: model control
                       cj,                      & ! intent(in):    this scalar changes whenever the step size or method order changes
                       dt,                      & ! intent(in):    time step
@@ -1094,8 +1092,7 @@ subroutine computJacobSetup(&
                       nLayers,                 & ! intent(in):    total number of layers
                       ixMatrix,                & ! intent(in):    form of the Jacobian matrix
                       computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                      scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                      ! input: state vectors
+                       ! input: state vectors
                       stateVec,                & ! intent(in):    model state vector
                       stateVecPrime,           & ! intent(in):    derivative of model state vector
                       sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
@@ -1116,7 +1113,7 @@ subroutine computJacobSetup(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! provide access to subroutines
   USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
-  USE updateVarsSundials_module, only:updateVarsSundials           ! update prognostic variables
+  USE updateVarsSundials_module, only:updateVarsSundials    ! update prognostic variables
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -1128,8 +1125,7 @@ subroutine computJacobSetup(&
   integer(i4b),intent(in)            :: nLayers                ! total number of layers
   integer(i4b)                       :: ixMatrix               ! form of matrix (band diagonal or full matrix)
   logical(lgt),intent(in)            :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
-  logical(lgt),intent(in)            :: scalarSolution         ! flag to denote if implementing the scalar solution
-  ! input: state vectors
+    ! input: state vectors
   real(rkind),intent(in)             :: stateVec(:)            ! model state vector
   real(rkind),intent(in)             :: stateVecPrime(:)       ! model state vector
   real(qp),intent(in)                :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
@@ -1181,7 +1177,7 @@ subroutine computJacobSetup(&
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
   ! other local variables
-  character(LEN=256)              :: cmessage                     ! error message of downwind routine
+  character(LEN=256)                 :: cmessage                  ! error message of downwind routine
   real(rkind)                        :: dt1
 
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -1201,7 +1197,7 @@ subroutine computJacobSetup(&
     ) ! association to variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
-    err=0; message="computJacobSetup/"
+    err=0; message="computJacob4idaSetup/"
 
     ! initialize to state variable from the last update
     ! should all be set to previous values if splits, but for now operator splitting is not hooked up
@@ -1281,39 +1277,40 @@ subroutine computJacobSetup(&
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
+    ! update diagnostic variables and derivatives
     call updateVarsSundials(&
-                  ! input
-                  .true.,                                    & ! intent(in):    logical flag if computing Jacobian for Sundials solver
-                  .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                  mpar_data,                                 & ! intent(in):    model parameters for a local HRU
-                  indx_data,                                 & ! intent(in):    indices defining model states and layers
-                  prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
-                  deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                  ! output: variables for the vegetation canopy
-                  scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
-                  scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
-                  scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                  scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
-                  scalarCanopyTempPrime,                     & ! intent(inout): trial value of canopy temperature (K)
-                  scalarCanopyWatPrime,                      & ! intent(inout): trial value of canopy total water (kg m-2)
-                  scalarCanopyLiqPrime,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
-                  scalarCanopyIcePrime,                      & ! intent(inout): trial value of canopy ice content (kg m-2
-                  ! output: variables for the snow-soil domain
-                  mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
-                  mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
-                  mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
-                  mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
-                  mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
-                  mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
-                  mLayerTempPrime,                           & !
-                  mLayerVolFracWatPrime,                     & ! intent(inout): Prime vector of volumetric total water content (-)
-                  mLayerVolFracLiqPrime,                     & ! intent(inout): Prime vector of volumetric liquid water content (-)
-                  mLayerVolFracIcePrime,                     & !
-                  mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
-                  mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
-                  ! output: error control
-                  err,cmessage)                                ! intent(out):   error control
+                    ! input
+                    .true.,                                    & ! intent(in):    logical flag if computing for Jacobian update
+                    .false.,                                   & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
+                    mpar_data,                                 & ! intent(in):    model parameters for a local HRU
+                    indx_data,                                 & ! intent(in):    indices defining model states and layers
+                    prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                    diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
+                    deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                    ! output: variables for the vegetation canopy
+                    scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
+                    scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIceTrial,                      & ! intent(inout): trial value of canopy ice content (kg m-2)
+                    scalarCanopyTempPrime,                     & ! intent(inout): trial value of canopy temperature (K)
+                    scalarCanopyWatPrime,                      & ! intent(inout): trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqPrime,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
+                    scalarCanopyIcePrime,                      & ! intent(inout): trial value of canopy ice content (kg m-2
+                    ! output: variables for the snow-soil domain
+                    mLayerTempTrial,                           & ! intent(inout): trial vector of layer temperature (K)
+                    mLayerVolFracWatTrial,                     & ! intent(inout): trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,                     & ! intent(inout): trial vector of volumetric liquid water content (-)
+                    mLayerVolFracIceTrial,                     & ! intent(inout): trial vector of volumetric ice water content (-)
+                    mLayerMatricHeadTrial,                     & ! intent(inout): trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial,                  & ! intent(inout): trial vector of liquid water matric potential (m)
+                    mLayerTempPrime,                           & !
+                    mLayerVolFracWatPrime,                     & ! intent(inout): Prime vector of volumetric total water content (-)
+                    mLayerVolFracLiqPrime,                     & ! intent(inout): Prime vector of volumetric liquid water content (-)
+                    mLayerVolFracIcePrime,                     & !
+                    mLayerMatricHeadPrime,                     & ! intent(inout): Prime vector of total water matric potential (m)
+                    mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
+                    ! output: error control
+                    err,cmessage)                                ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! -----
@@ -1326,39 +1323,37 @@ subroutine computJacobSetup(&
     !        or in the call to eval8summaSundials in the previous iteration
     dt1 = 1._qp
     call computJacobSundials(&
-                      ! input: model control
-                      cj,                             & ! intent(in):    this scalar changes whenever the step size or method order changes
-                      dt1,                            & ! intent(in):    length of the time step (seconds)
-                      nSnow,                          & ! intent(in):    number of snow layers
-                      nSoil,                          & ! intent(in):    number of soil layers
-                      nLayers,                        & ! intent(in):    total number of layers
-                      computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                      (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
-                      ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                      specificStorage,                & ! intent(in):    specific storage coefficient (m-1)
-                      theta_sat,                      & ! intent(in):    soil porosity (-)
-                      ixRichards,                     & ! intent(in):    choice of option for Richards' equation
-                      ! input: data structures
-                      indx_data,                      & ! intent(in):    index data
-                      prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
-                      deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                      dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
-                      ! input: state variables
-                      mLayerTempTrial,                & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                      mLayerTempPrime,                & ! intent(in)
-                      mLayerMatricHeadPrime,          & ! intent(in)
-                      mLayerMatricHeadLiqPrime,       & ! intent(in)
-                      mLayerVolFracWatPrime,          & ! intent(in)
-                      scalarCanopyTempTrial,          & ! intent(in)
-                      scalarCanopyTempPrime,          & ! intent(in) derivative value for temperature of the vegetation canopy (K)
-                      scalarCanopyWatPrime,           & ! intetn(in)
-                      ! input-output: Jacobian and its diagonal
-                      dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
-                      Jac,                            & ! intent(out):   Jacobian matrix
-                      ! output: error control
-                      err,cmessage)                     ! intent(out):   error code and error message
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+                    ! input: model control
+                    cj,                             & ! intent(in):    this scalar changes whenever the step size or method order changes
+                    dt1,                            & ! intent(in):    length of the time step (seconds)
+                    nSnow,                          & ! intent(in):    number of snow layers
+                    nSoil,                          & ! intent(in):    number of soil layers
+                    nLayers,                        & ! intent(in):    total number of layers
+                    computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                    (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
+                    ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
+                    specificStorage,                & ! intent(in):    specific storage coefficient (m-1)
+                    theta_sat,                      & ! intent(in):    soil porosity (-)
+                    ixRichards,                     & ! intent(in):    choice of option for Richards' equation
+                    ! input: data structures
+                    indx_data,                      & ! intent(in):    index data
+                    prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
+                    diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
+                    deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                    dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                    ! input: state variables
+                    mLayerTempPrime,                & ! intent(in):    derivative value for temperature of each snow and soil layer (K)
+                    mLayerMatricHeadPrime,          & ! intent(in):    derivative value for matric head of each snow and soil layer (m)
+                    mLayerMatricHeadLiqPrime,       & ! intent(in):    derivative value for liquid water matric head of each snow and soil layer (m)
+                    mLayerVolFracWatPrime,          & ! intent(in):    derivative value for volumetric total water content of each snow and soil layer (-)
+                    scalarCanopyTempPrime,          & ! intent(in):    derivative value for temperature of the vegetation canopy (K)
+                    scalarCanopyWatPrime,           & ! intent(in):    derivative value for total water content of the vegetation canopy (kg m-2)
+                    ! input-output: Jacobian and its diagonal
+                    dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
+                    Jac,                            & ! intent(out):   Jacobian matrix
+                    ! output: error control
+                    err,cmessage)                     ! intent(out):   error code and error message
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! end association with the information in the data structures
   end associate
@@ -1405,7 +1400,6 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   ! pointers to data in SUNDIALS vectors
   real(rkind), pointer          :: stateVec(:)    ! state vector
   real(rkind), pointer          :: stateVecPrime(:)! derivative of the state vector
-  real(rkind), pointer          :: rVec(:)        ! residual vector
   real(rkind), pointer          :: Jac(:,:)       ! Jacobian matrix
   type(eqnsData), pointer       :: eqns_data      ! equations data
 
@@ -1417,12 +1411,11 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   ! get data arrays from SUNDIALS vectors
   stateVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_y)
   stateVecPrime(1:eqns_data%nState) => FN_VGetArrayPointer(sunvec_yp)
-  rVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_r)
   if (eqns_data%ixMatrix==ixBandMatrix) Jac(1:nBands, 1:eqns_data%nState) => FSUNBandMatrix_Data(sunmat_J)
   if (eqns_data%ixMatrix==ixFullMatrix) Jac(1:eqns_data%nState, 1:eqns_data%nState) => FSUNDenseMatrix_Data(sunmat_J)
 
   ! compute Jacobian matrix
-  call computJacobSetup(&
+  call computJacob4idaSetup(&
                 ! input: model control
                 cj,                                & ! intent(in):    this scalar changes whenever the step size or method order changes
                 eqns_data%dt,                      & ! intent(in):    data step
@@ -1431,8 +1424,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%nLayers,                 & ! intent(in):    number of layers
                 eqns_data%ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
                 eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                ! input: state vectors
+                 ! input: state vectors
                 stateVec,                          & ! intent(in):    model state vector
                 stateVecPrime,                     & ! intent(in):    model state vector
                 eqns_data%sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)

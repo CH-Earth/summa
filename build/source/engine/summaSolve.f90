@@ -153,14 +153,14 @@ contains
  logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
  logical(lgt),intent(in)         :: scalarSolution           ! flag to denote if implementing the scalar solution
  ! input: state vectors
- real(rkind),intent(in)             :: stateVecTrial(:)         ! trial state vector
- real(rkind),intent(inout)          :: xMin,xMax                ! brackets of the root
- real(rkind),intent(in)             :: fScale(:)                ! function scaling vector
- real(rkind),intent(in)             :: xScale(:)                ! "variable" scaling vector, i.e., for state variables
- real(rkind),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
- real(rkind),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
- real(rkind),intent(inout)          :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
- real(rkind),intent(in)             :: fOld                     ! old function evaluation
+ real(rkind),intent(in)          :: stateVecTrial(:)         ! trial state vector
+ real(rkind),intent(inout)       :: xMin,xMax                ! brackets of the root
+ real(rkind),intent(in)          :: fScale(:)                ! function scaling vector
+ real(rkind),intent(in)          :: xScale(:)                ! "variable" scaling vector, i.e., for state variables
+ real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
+ real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
+ real(rkind),intent(inout)       :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
+ real(rkind),intent(in)          :: fOld                     ! old function evaluation
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
  type(zLookup),      intent(in)  :: lookup_data              ! lookup tables
@@ -177,13 +177,13 @@ contains
  type(var_dlength),intent(inout) :: deriv_data               ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
  integer(i4b),intent(inout)      :: ixSaturation             ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
- real(rkind),intent(inout)          :: dBaseflow_dMatric(:,:)   ! derivative in baseflow w.r.t. matric head (s-1)
+ real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)   ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
- real(rkind),intent(out)            :: stateVecNew(:)           ! new state vector
- real(rkind),intent(out)            :: fluxVecNew(:)            ! new flux vector
- real(rkind),intent(out)            :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
- real(rkind),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
- real(rkind),intent(out)            :: fNew                     ! new function evaluation
+ real(rkind),intent(out)         :: stateVecNew(:)           ! new state vector
+ real(rkind),intent(out)         :: fluxVecNew(:)            ! new flux vector
+ real(rkind),intent(out)         :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
+ real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
+ real(rkind),intent(out)         :: fNew                     ! new function evaluation
  logical(lgt),intent(out)        :: converged                ! convergence flag
  ! output: error control
  integer(i4b),intent(out)        :: err                      ! error code
@@ -194,13 +194,13 @@ contains
  ! Jacobian matrix
  logical(lgt),parameter          :: doNumJacobian=.false.    ! flag to compute the numerical Jacobian matrix
  logical(lgt),parameter          :: testBandDiagonal=.false. ! flag to test the band diagonal Jacobian matrix
- real(rkind)                        :: nJac(nState,nState)      ! numerical Jacobian matrix
- real(rkind)                        :: aJac(nLeadDim,nState)      ! Jacobian matrix
- real(rkind)                        :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
- real(rkind)                        :: aJacScaledTemp(nLeadDim,nState)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
+ real(rkind)                     :: nJac(nState,nState)      ! numerical Jacobian matrix
+ real(rkind)                     :: aJac(nLeadDim,nState)      ! Jacobian matrix
+ real(rkind)                     :: aJacScaled(nLeadDim,nState)      ! Jacobian matrix (scaled)
+ real(rkind)                     :: aJacScaledTemp(nLeadDim,nState)  ! Jacobian matrix (scaled) -- temporary copy since decomposed in lapack
  ! solution/step vectors
- real(rkind),dimension(nState)      :: rVecScaled               ! residual vector (scaled)
- real(rkind),dimension(nState)      :: newtStepScaled           ! full newton step (scaled)
+ real(rkind),dimension(nState)   :: rVecScaled               ! residual vector (scaled)
+ real(rkind),dimension(nState)   :: newtStepScaled           ! full newton step (scaled)
  ! step size refinement
  logical(lgt)                    :: doRefine                 ! flag for step refinement
  integer(i4b),parameter          :: ixLineSearch=1001        ! step refinement = line search
@@ -347,36 +347,36 @@ contains
   implicit none
   ! input
   logical(lgt),intent(in)        :: doLineSearch             ! flag to do the line search
-  real(rkind),intent(in)            :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(in)            :: newtStepScaled(:)        ! scaled newton step
-  real(rkind),intent(in)            :: aJacScaled(:,:)          ! scaled jacobian matrix
-  real(rkind),intent(in)            :: rVecScaled(:)            ! scaled residual vector
-  real(rkind),intent(in)            :: fOld                     ! old function value
+  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
+  real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
+  real(rkind),intent(in)         :: aJacScaled(:,:)          ! scaled jacobian matrix
+  real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
+  real(rkind),intent(in)         :: fOld                     ! old function value
   ! output
-  real(rkind),intent(out)           :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)           :: fluxVecNew(:)            ! new flux vector
-  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  real(rkind),intent(out)           :: fNew                     ! new function evaluation
+  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
+  real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(rkind),intent(out)        :: fNew                     ! new function evaluation
   logical(lgt),intent(out)       :: converged                ! convergence flag
   integer(i4b),intent(out)       :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message
   ! --------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                 ! error message of downwind routine
-  real(rkind)                       :: gradScaled(nState)       ! scaled gradient
-  real(rkind)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
+  real(rkind)                    :: gradScaled(nState)       ! scaled gradient
+  real(rkind)                    :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
   integer(i4b),parameter         :: maxLineSearch=5          ! maximum number of backtracks
-  real(rkind),parameter             :: alpha=1.e-4_rkind           ! check on gradient
-  real(rkind)                       :: xLambda                  ! backtrack magnitude
-  real(rkind)                       :: xLambdaTemp              ! temporary backtrack magnitude
-  real(rkind)                       :: slopeInit                ! initial slope
-  real(rkind)                       :: rhs1,rhs2                ! rhs used to compute the cubic
-  real(rkind)                       :: aCoef,bCoef              ! coefficients in the cubic
-  real(rkind)                       :: disc                     ! temporary variable used in cubic
-  real(rkind)                       :: xLambdaPrev              ! previous lambda value (used in the cubic)
-  real(rkind)                       :: fPrev                    ! previous function evaluation (used in the cubic)
+  real(rkind),parameter          :: alpha=1.e-4_rkind           ! check on gradient
+  real(rkind)                    :: xLambda                  ! backtrack magnitude
+  real(rkind)                    :: xLambdaTemp              ! temporary backtrack magnitude
+  real(rkind)                    :: slopeInit                ! initial slope
+  real(rkind)                    :: rhs1,rhs2                ! rhs used to compute the cubic
+  real(rkind)                    :: aCoef,bCoef              ! coefficients in the cubic
+  real(rkind)                    :: disc                     ! temporary variable used in cubic
+  real(rkind)                    :: xLambdaPrev              ! previous lambda value (used in the cubic)
+  real(rkind)                    :: fPrev                    ! previous function evaluation (used in the cubic)
   ! --------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='lineSearchRefinement/'
@@ -515,16 +515,16 @@ contains
   implicit none
   ! input
   logical(lgt),intent(in)        :: doTrustRefinement        ! flag to refine using trust regions
-  real(rkind),intent(in)            :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(in)            :: newtStepScaled(:)        ! scaled newton step
-  real(rkind),intent(in)            :: aJacScaled(:,:)          ! scaled jacobian matrix
-  real(rkind),intent(in)            :: rVecScaled(:)            ! scaled residual vector
-  real(rkind),intent(in)            :: fOld                     ! old function value
+  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
+  real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
+  real(rkind),intent(in)         :: aJacScaled(:,:)          ! scaled jacobian matrix
+  real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
+  real(rkind),intent(in)         :: fOld                     ! old function value
   ! output
-  real(rkind),intent(out)           :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)           :: fluxVecNew(:)            ! new flux vector
-  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  real(rkind),intent(out)           :: fNew                     ! new function evaluation
+  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
+  real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(rkind),intent(out)        :: fNew                     ! new function evaluation
   logical(lgt),intent(out)       :: converged                ! convergence flag
   integer(i4b),intent(out)       :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message
@@ -581,31 +581,31 @@ contains
   USE globalData,only:dNaN                                   ! double precision NaN
   implicit none
   ! input
-  real(rkind),intent(in)            :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(in)            :: rVecScaled(:)            ! scaled residual vector
-  real(rkind),intent(in)            :: newtStepScaled(:)        ! scaled newton step
+  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
+  real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
+  real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
   ! output
-  real(rkind),intent(out)           :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)           :: fluxVecNew(:)            ! new flux vector
-  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  real(rkind),intent(out)           :: fNew                     ! new function evaluation
+  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
+  real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
+  real(rkind),intent(out)        :: fNew                     ! new function evaluation
   logical(lgt),intent(out)       :: converged                ! convergence flag
   integer(i4b),intent(out)       :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
   character(len=256)             :: cmessage                 ! error message of downwind routine
-  real(rkind),parameter             :: relTolerance=0.005_rkind    ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
-  real(rkind)                       :: xTolerance               ! relTolerance*(xmax-xmin)
-  real(rkind)                       :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
-  real(rkind)                       :: rVec(nState)             ! residual vector (re-scaled to original units of the state equation)
+  real(rkind),parameter          :: relTolerance=0.005_rkind ! force bi-section if trial is slightly larger than (smaller than) xmin (xmax)
+  real(rkind)                    :: xTolerance               ! relTolerance*(xmax-xmin)
+  real(rkind)                    :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
+  real(rkind)                    :: rVec(nState)             ! residual vector (re-scaled to original units of the state equation)
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   logical(lgt)                   :: doBisection              ! flag to do the bi-section
   logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
   !integer(i4b)                  :: iCheck                   ! check the model state variables (not used)
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
-  real(rkind),parameter             :: delX=1._rkind               ! trial increment
-  !real(rkind)                      :: xIncrement(nState)       ! trial increment (not used)
+  real(rkind),parameter          :: delX=1._rkind            ! trial increment
+  !real(rkind)                   :: xIncrement(nState)       ! trial increment (not used)
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
 
@@ -759,20 +759,20 @@ contains
   subroutine numJacobian(stateVec,dMat,nJac,err,message)
   implicit none
   ! dummies
-  real(rkind),intent(in)            :: stateVec(:)                ! trial state vector
-  real(rkind),intent(in)            :: dMat(:)                    ! diagonal matrix
+  real(rkind),intent(in)         :: stateVec(:)                ! trial state vector
+  real(rkind),intent(in)         :: dMat(:)                    ! diagonal matrix
   ! output
-  real(rkind),intent(out)           :: nJac(:,:)                  ! numerical Jacobian
+  real(rkind),intent(out)        :: nJac(:,:)                  ! numerical Jacobian
   integer(i4b),intent(out)       :: err                        ! error code
   character(*),intent(out)       :: message                    ! error message
   ! ----------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                   ! error message of downwind routine
-  real(rkind),parameter             :: dx=1.e-8_rkind               ! finite difference increment
-  real(rkind),dimension(nState)     :: stateVecPerturbed          ! perturbed state vector
-  real(rkind),dimension(nState)     :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
-  real(rkind),dimension(nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
-  real(rkind)                       :: func                       ! function value
+  real(rkind),parameter          :: dx=1.e-8_rkind             ! finite difference increment
+  real(rkind),dimension(nState)  :: stateVecPerturbed          ! perturbed state vector
+  real(rkind),dimension(nState)  :: fluxVecInit,fluxVecJac     ! flux vector (mized units)
+  real(qp),dimension(nState)     :: resVecInit,resVecJac ! qp  ! residual vector (mixed units)
+  real(rkind)                    :: func                       ! function value
   logical(lgt)                   :: feasible                   ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iJac                       ! index of row of the Jacobian matrix
   integer(i4b),parameter         :: ixNumFlux=1001             ! named variable for the flux-based form of the numerical Jacobian
@@ -911,11 +911,11 @@ contains
   USE eval8summa_module,only:eval8summa                      ! simulation of fluxes and residuals given a trial state vector
   implicit none
   ! input
-  real(rkind),intent(in)            :: stateVecNew(:)           ! updated state vector
+  real(rkind),intent(in)         :: stateVecNew(:)           ! updated state vector
   ! output
-  real(rkind),intent(out)           :: fluxVecNew(:)            ! updated flux vector
-  real(rkind),intent(out)           :: resVecNew(:) ! NOTE: qp  ! updated residual vector
-  real(rkind),intent(out)           :: fNew                     ! new function value
+  real(rkind),intent(out)        :: fluxVecNew(:)            ! updated flux vector
+  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! updated residual vector
+  real(rkind),intent(out)        :: fNew                     ! new function value
   logical(lgt),intent(out)       :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b),intent(out)       :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message

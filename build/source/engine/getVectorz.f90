@@ -266,7 +266,7 @@ subroutine getScaling(&
   ! output: state vectors
   real(rkind),intent(out)            :: fScale(:)              ! function scaling vector (mixed units)
   real(rkind),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
-  real(rkind),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
+  real(qp),intent(out)               :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
   real(rkind),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
