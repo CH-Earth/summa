@@ -79,7 +79,6 @@ implicit none
 private
 public :: ssdNrgFlux
 ! global parameters
-real(rkind),parameter            :: dx=1.e-10_rkind             ! finite difference increment (K)
 real(rkind),parameter            :: valueMissing=-9999._rkind   ! missing value parameter
 contains
 
@@ -141,7 +140,6 @@ contains
  integer(i4b)                       :: ixBot                      ! bottom layer in subroutine call
  real(rkind)                        :: qFlux                      ! liquid flux at layer interfaces (m s-1)
  real(rkind)                        :: dz                         ! height difference (m)
- real(rkind)                        :: flux0,flux1,flux2          ! fluxes used to calculate derivatives (W m-2)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&
@@ -233,37 +231,25 @@ contains
  ! ***** the upper boundary
  dFlux_dTempBelow(0) = dGroundNetFlux_dGroundTemp
 
+ ! ***** validate method selected for derivative computations (only analytical allowed -- numerical no longer used)
+ if (ix_fDerivMeth/=analytical) then; err=20; message=trim(message)//'only analytical derivatives are allowed -- numerical derivatives no longer used'; return; end if
+
  ! loop through INTERFACES...
  do iLayer=ixTop,ixBot
-
   ! ***** the lower boundary
   if (iLayer==nLayers) then  ! if at lower boundary
    select case(ix_bcLowrTdyn) ! identify the lower boundary condition
     case(prescribedTemp) ! * prescribed temperature at the lower boundary
      dz = mLayerDepth(iLayer)*0.5_rkind
-     if (ix_fDerivMeth==analytical) then    ! ** analytical derivatives
-      dFlux_dTempAbove(iLayer) = iLayerThermalC(iLayer)/dz
-     else                                   ! ** numerical derivatives
-      flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
-      flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
-      dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-     end if
+     dFlux_dTempAbove(iLayer) = iLayerThermalC(iLayer)/dz ! ** analytical derivatives
     case(zeroFlux) ! * zero flux at the lower boundary
-      dFlux_dTempAbove(iLayer) = 0._rkind
+     dFlux_dTempAbove(iLayer) = 0._rkind
     case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
-   end select  ! (identifying the lower boundary condition for thermodynamics)
+   end select  ! end identifying the lower boundary condition for thermodynamics
   else ! ***** internal layers
    dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-   if (ix_fDerivMeth==analytical) then    ! ** analytical derivatives
-    dFlux_dTempAbove(iLayer) =  iLayerThermalC(iLayer)/dz
-    dFlux_dTempBelow(iLayer) = -iLayerThermalC(iLayer)/dz
-   else                                   ! ** numerical derivatives
-    flux0 = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1)     -  mLayerTempTrial(iLayer)    ) / dz
-    flux1 = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1)     - (mLayerTempTrial(iLayer)+dx)) / dz
-    flux2 = -iLayerThermalC(iLayer)*((mLayerTempTrial(iLayer+1)+dx) -  mLayerTempTrial(iLayer)    ) / dz
-    dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-    dFlux_dTempBelow(iLayer) = (flux2 - flux0)/dx
-   end if
+   dFlux_dTempAbove(iLayer) =  iLayerThermalC(iLayer)/dz ! ** analytical derivatives
+   dFlux_dTempBelow(iLayer) = -iLayerThermalC(iLayer)/dz
   end if  ! end if for type of layer (upper, internal, or lower)
  end do  ! end looping through layers
 
