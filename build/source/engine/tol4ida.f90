@@ -95,15 +95,14 @@ integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
 
   ! pointers to data in SUNDIALS vectors
   type(eqnsData), pointer    :: tol_data ! equations data
-  real(rkind), pointer          :: stateVec(:)
-  real(rkind), pointer          :: weightVec(:)
+  real(rkind), pointer       :: stateVec(:)
+  real(rkind), pointer       :: weightVec(:)
   integer(c_int)             :: iState
 
   !======= Internals ============
 
   ! get equations data from user-defined data
   call c_f_pointer(user_data, tol_data)
-
 
   ! get data arrays from SUNDIALS vectors
   stateVec(1:tol_data%nState)  => FN_VGetArrayPointer(sunvec_y)

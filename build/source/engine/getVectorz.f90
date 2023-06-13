@@ -93,6 +93,7 @@ private
 public::popStateVec
 public::getScaling
 public::varExtract
+public::checkFeas
 
 ! common variables
 real(rkind),parameter :: valueMissing=-9999._rkind ! missing value
@@ -394,6 +395,126 @@ subroutine getScaling(&
   end associate fixedLength      ! end association to variables in the data structure where vector length does not change
 end subroutine getScaling
 
+
+! **********************************************************************************************************
+! public subroutine checkFeas: check feasibility of the state vector
+! **********************************************************************************************************
+subroutine checkFeas(&
+                    ! input
+                    stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                    prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,                                 & ! intent(in):    indices defining model states and layers
+                    ! output: feasibility
+                    feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
+                   ! output: error control
+                    err,message)                                 ! intent(out):   error control
+! --------------------------------------------------------------------------------------------------------------------------------
+! --------------------------------------------------------------------------------------------------------------------------------
+implicit none
+! input
+real(rkind),intent(in)          :: stateVec(:)               ! model state vector (mixed units)
+type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
+type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
+! output: feasibility
+logical(lgt),intent(inout)      :: feasible                  ! flag to denote the feasibility of the solution
+! output: error control
+integer(i4b),intent(out)        :: err                       ! error code
+character(*),intent(out)        :: message                   ! error message
+! --------------------------------------------------------------------------------------------------------------------------------
+! local variables
+integer(i4b)                    :: iLayer                    ! index of layer within the snow+soil domain
+real(rkind)                     :: xMin,xMax                 ! minimum and maximum values for water content
+real(rkind),parameter           :: canopyTempMax=500._rkind  ! expected maximum value for the canopy temperature (K)
+! --------------------------------------------------------------------------------------------------------------------------------
+! make association with variables in the data structures
+associate(&
+  ! soil parameters
+  theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in):  [dp(:)] soil porosity (-)
+  theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,&  ! intent(in):  [dp(:)] residual volumetric water content (-)
+  ! model diagnostic variables from the previous solution
+  mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
+  ! number of model layers, and layer type
+  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
+  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
+  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
+  ! indices defining model states and layers
+  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy air space energy state variable
+  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy energy state variable
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):  [i4b]    index of canopy hydrology state variable (mass)
+  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,&  ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
+  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,&  ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+  ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+  ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
+  ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
+  layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+  )! association with variables in the data structures
+  ! --------------------------------------------------------------------------------------------------------------------------------
+  ! --------------------------------------------------------------------------------------------------------------------------------
+
+  ! initialize error control
+  err=0; message="checkFeas/"
+
+    ! check the feasibility of the solution always with BE numrec but not inside Sundials solver
+      !  NOTE: we will not print infeasibilities since it does not indicate a failure, just a need to iterate until maxiter
+  feasible=.true.
+  if (.not.insideSUN) then
+    ! check that the canopy air space temperature is reasonable
+    if(ixCasNrg/=integerMissing)then
+      if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
+      if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
+    endif
+
+    ! check that the canopy air space temperature is reasonable
+    if(ixVegNrg/=integerMissing)then
+      if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
+    endif
+
+    ! check canopy liquid water is not negative
+    if(ixVegHyd/=integerMissing)then
+      if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
+      !if(.not.feasible) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
+    end if
+
+    ! check snow temperature is below freezing
+    if(count(ixSnowOnlyNrg/=integerMissing)>0)then
+      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
+      !do iLayer=1,nSnow
+      !  if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
+      !enddo
+    endif
+
+    ! loop through non-missing hydrology state variables in the snow+soil domain
+    do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)
+
+      ! check the minimum and maximum water constraints
+      if(ixHydType(iLayer)==iname_watLayer .or. ixHydType(iLayer)==iname_liqLayer)then
+
+        ! --> minimum
+        if (layerType(iLayer) == iname_soil) then
+          xMin = theta_res(iLayer-nSnow)
+        else
+          xMin = 0._rkind
+        endif
+
+        ! --> maximum
+        select case( layerType(iLayer) )
+          case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+        end select
+
+        ! --> check
+        if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
+        !if(.not.feasible) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+
+      endif  ! if water states
+
+    end do  ! loop through non-missing hydrology state variables in the snow+soil domain
+
+  end associate    ! end association to variables in the data structure
+end subroutine checkFeas
+  
 
 ! **********************************************************************************************************
 ! public subroutine varExtract: extract variables from the state vector and compute diagnostic variables

@@ -440,7 +440,6 @@ subroutine systemSolv(&
 #ifdef SUNDIALS_ACTIVE
        call eval8summaWithPrime(&
                         ! input: model control
-                        dt_cur,                  & ! intent(in):    current stepsize
                         dt,                      & ! intent(in):    length of the time step (seconds)
                         nSnow,                   & ! intent(in):    number of snow layers
                         nSoil,                   & ! intent(in):    number of soil layers
@@ -518,6 +517,7 @@ subroutine systemSolv(&
                         nSoil,                   & ! intent(in):    number of soil layers
                         nLayers,                 & ! intent(in):    number of layers
                         nState,                  & ! intent(in):    number of state variables in the current subset
+                        .false.,                 & ! intent(in):    not inside Sundials solver
                         firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                         firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                         firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
@@ -536,8 +536,8 @@ subroutine systemSolv(&
                         forc_data,               & ! intent(in):    model forcing data
                         bvar_data,               & ! intent(in):    average model variables for the entire basin
                         prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                        indx_data,               & ! intent(in):    index data
                         ! input-output: data structures
+                        indx_data,               & ! intent(inout): index data
                         diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                         flux_init,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                         deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -570,7 +570,7 @@ subroutine systemSolv(&
       volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
       ! set flag and error codes for too much melt
       if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
-        tooMuchMelt=.true.
+        tooMuchMelt = .true.
         message=trim(message)//'net flux in the top snow layer can melt all the snow in the top layer'
         err=-20; return ! negative error code to denote a warning
       endif
@@ -659,7 +659,7 @@ subroutine systemSolv(&
         else
           if (tooMuchMelt) return !exit to start same step over after merge
         endif
-        niter = 0  ! iterations inside IDA solver
+        niter = 0  ! iterations are counted inside IDA solver
 
         ! -----
         ! * update states...

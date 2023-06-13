@@ -381,7 +381,7 @@ contains
   case('maxstep'                  ); get_ixparam = iLookPARAM%maxstep                ! maximum length of the time step numrec
   case('be_steps'                 ); get_ixparam = iLookPARAM%be_steps               ! minimum number of substeps to take in a maxstep numrec
   case('wimplicit'                ); get_ixparam = iLookPARAM%wimplicit              ! weight assigned to start-of-step fluxes numrec, not currently used
-  case('maxiter'                  ); get_ixparam = iLookPARAM%maxiter                ! maximum number of iterations numrec or nonlinear iterations Sundials
+  case('maxiter'                  ); get_ixparam = iLookPARAM%maxiter                ! maximum number of iterations numrec, kinsol, or nonlinear iterations Sundials
   case('relConvTol_liquid'        ); get_ixparam = iLookPARAM%relConvTol_liquid      ! relative convergence tolerance for vol frac liq water (-) numrec
   case('absConvTol_liquid'        ); get_ixparam = iLookPARAM%absConvTol_liquid      ! absolute convergence tolerance for vol frac liq water (-) numrec
   case('relConvTol_matric'        ); get_ixparam = iLookPARAM%relConvTol_matric      ! relative convergence tolerance for matric head (-) numrec

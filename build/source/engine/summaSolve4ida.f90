@@ -1,5 +1,22 @@
-
-
+! SUMMA - Structure for Unifying Multiple Modeling Alternatives
+! Copyright (C) 2014-2020 NCAR/RAL; University of Saskatchewan; University of Washington
+!
+! This file is part of SUMMA
+!
+! For more information see: http://www.ral.ucar.edu/projects/summa
+!
+! This program is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module summaSolve4ida_module
 
@@ -14,8 +31,6 @@ USE globalData,only:globalPrintFlag
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
-USE globalData,only:realMissing     ! missing double precision number
-USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access matrix information
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
@@ -23,36 +38,14 @@ USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matri
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
 
-! domain types
-USE globalData,only:iname_veg       ! named variables for vegetation
-USE globalData,only:iname_snow      ! named variables for snow
-USE globalData,only:iname_soil      ! named variables for soil
-
 ! state variable type
-USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
-USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
-USE globalData,only:iname_watCanopy ! named variable defining the mass of total water on the vegetation canopy
-USE globalData,only:iname_liqCanopy ! named variable defining the mass of liquid water on the vegetation canopy
-USE globalData,only:iname_nrgLayer  ! named variable defining the energy state variable for snow+soil layers
-USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
-USE globalData,only:iname_matLayer  ! named variable defining the matric head state variable for soil layers
-USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 USE globalData,only:model_decisions ! model decision structure
 
 ! global metadata
 USE globalData,only:flux_meta       ! metadata on the model fluxes
-USE globalData,only:diag_meta       ! metadata on the model diagnostic variables
-USE globalData,only:prog_meta       ! metadata on the model prognostic variables
-USE globalData,only:deriv_meta      ! metadata on the model derivatives
 
 ! constants
-USE multiconst,only:&
-                    LH_fus,       & ! latent heat of fusion                (J K-1)
-                    LH_sub,       & ! latent heat of sublimation           (J kg-1)
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+USE multiconst,only: Tfreeze        ! temperature at freezing              (K)
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -89,7 +82,7 @@ contains
 ! ------------------
 subroutine summaSolve4ida(                         &
                       dt,                      & ! intent(in):    data time step
-                      atol,                    & ! intent(in):    absolute telerance
+                      atol,                    & ! intent(in):    absolute tolerance
                       rtol,                    & ! intent(in):    relative tolerance
                       nSnow,                   & ! intent(in):    number of snow layers
                       nSoil,                   & ! intent(in):    number of soil layers
@@ -120,7 +113,7 @@ subroutine summaSolve4ida(                         &
                       mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                       ! output
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                      idaSucceeds,             & ! intent(out):   flag to indicate if IDA successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
                       dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                       stateVec,                & ! intent(out):   model state vector
@@ -136,18 +129,15 @@ subroutine summaSolve4ida(                         &
   USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
   USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
   USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE fsunnonlinsol_newton_mod                    ! Fortran interface to Newton SUNNonlinearSolver
   USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
   USE fsundials_nvector_mod                       ! Fortran interface to generic N_Vector
   USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
-  USE fsundials_nonlinearsolver_mod               ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE eval8summaWithPrime_module,only:eval8summa4ida         ! DAE/ODE functions
   USE eval8summaWithPrime_module,only:eval8summaWithPrime     ! residual of DAE
   USE computJacobWithPrime_module,only:computJacob4ida       ! system Jacobian
   USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
-  USE var_derive_module,only:calcHeight           ! height at layer interfaces and layer mid-point
-
+ 
   !======= Declarations =========
   implicit none
 
@@ -210,7 +200,7 @@ subroutine summaSolve4ida(                         &
   type(eqnsData),           target  :: eqns_data            ! IDA type
   integer(i4b)                      :: retval, retvalr      ! return value
   logical(lgt)                      :: feasible             ! feasibility flag
-  real(qp)                          :: t0                   ! staring time
+  real(qp)                          :: t0                   ! starting time
   real(qp)                          :: dt_last(1)           ! last time step
   real(qp)                          :: dt_diff              ! difference from previous timestep
   integer(kind = 8)                 :: mu, lu               ! in banded matrix mode in Sundials type
@@ -235,8 +225,9 @@ subroutine summaSolve4ida(                         &
   ! initialize error control
   err=0; message="summaSolve4ida/"
 
-  nState = nStat
+  nState = nStat ! total number of state variables in Sundials type
   idaSucceeds = .true.
+
   ! fill eqns_data which will be required later to call eval8summaWithPrime
   eqns_data%dt                      = dt
   eqns_data%nSnow                   = nSnow
@@ -247,51 +238,31 @@ subroutine summaSolve4ida(                         &
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
-
-  allocate( eqns_data%atol(nState) )
-  eqns_data%atol = atol
-
-  allocate( eqns_data%rtol(nState) )
-  eqns_data%rtol = rtol
-
-  allocate( eqns_data%sMul(nState) )
-  eqns_data%sMul                    = sMul
-
-  allocate( eqns_data%dMat(nState) )
-  eqns_data%dMat                    = dMat
-
-  ! allocate space for the temporary prognostic variable structure
-  call allocLocal(prog_meta(:),eqns_data%prog_data,nSnow,nSoil,err,message)
-  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
-  eqns_data%prog_data               = prog_data
-
-  ! allocate space for the temporary diagnostic variable structure
-  call allocLocal(diag_meta(:),eqns_data%diag_data,nSnow,nSoil,err,message)
-  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
-  eqns_data%diag_data               = diag_data
-
-  ! allocate space for the temporary and previousflux variable structure
-  call allocLocal(flux_meta(:),eqns_data%flux_data,nSnow,nSoil,err,message)
-  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
-  eqns_data%flux_data               = flux_data
-  call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,message)
-  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
-  flux_prev                         = eqns_data%flux_data
-
-  ! allocate space for the derivative structure
-  call allocLocal(deriv_meta(:),eqns_data%deriv_data,nSnow,nSoil,err,message)
-  if(err/=0)then; err=20; message=trim(message)//trim(message); return; end if
-  eqns_data%deriv_data              = deriv_data
-
   eqns_data%lookup_data             = lookup_data
   eqns_data%type_data               = type_data
   eqns_data%attr_data               = attr_data
   eqns_data%mpar_data               = mpar_data
   eqns_data%forc_data               = forc_data
   eqns_data%bvar_data               = bvar_data
+  eqns_data%prog_data               = prog_data
   eqns_data%indx_data               = indx_data
+  eqns_data%diag_data               = diag_data
+  eqns_data%flux_data               = flux_data
+  eqns_data%deriv_data              = deriv_data
+  eqns_data%ixSaturation            = ixSaturation
 
-  ! allocate space
+  ! allocate space and fill
+  allocate( eqns_data%atol(nState) ); eqns_data%atol = atol
+  allocate( eqns_data%rtol(nState) ); eqns_data%rtol = rtol
+  allocate( eqns_data%sMul(nState) ); eqns_data%sMul = sMul
+  allocate( eqns_data%dMat(nState) ); eqns_data%dMat = dMat
+
+  ! allocate space for the to save previous fluxes
+  call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,message)
+  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
+  flux_prev                         = eqns_data%flux_data
+
+  ! allocate space for other variables
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
     allocate(eqns_data%dBaseflow_dMatric(nSoil,nSoil),stat=err)
   else
@@ -316,28 +287,45 @@ subroutine summaSolve4ida(                         &
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
 
+  ! need the following values for the first substep
+  eqns_data%scalarCanopyTempPrev     = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
+  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
+  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
+  eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+  eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
+  eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
+  eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
+  eqns_data%mLayerVolFracLiqPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
+  eqns_data%mLayerEnthalpyPrev(:)    = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
+  eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
+  mLayerMatricHeadPrimePrev(:)       = 0._rkind
+  dCompress_dPsiPrev(:)              = 0._rkind
+
   retval = FSUNContext_Create(c_null_ptr, sunctx)
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
   if (.not. associated(sunvec_y)) then; err=20; message='summaSolve4ida: sunvec = NULL'; return; endif
-
   sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
   if (.not. associated(sunvec_yp)) then; err=20; message='summaSolve4ida: sunvec = NULL'; return; endif
 
-  ! Initialize solution vectors
+  ! initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
 
-  ! Create memory
+  ! create memory
   ida_mem = FIDACreate(sunctx)
   if (.not. c_associated(ida_mem)) then; err=20; message='summaSolve4ida: ida_mem = NULL'; return; endif
 
   ! Attach user data to memory
-  eqns_data%ida_mem = ida_mem
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetUserData'; return; endif
 
-  ! Initialize memory
+  ! Set solver parameters before calling FIDAInit
+  call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
+
+  ! Set the function IDA will use to advance the state
   t0 = 0._rkind
   retval = FIDAInit(ida_mem, c_funloc(eval8summa4ida), t0, sunvec_y, sunvec_yp)
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAInit'; return; endif
@@ -365,7 +353,7 @@ subroutine summaSolve4ida(                         &
     allocate( rootdir(nRoot) )
     rootdir = 0
     retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
-    if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
+    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDARootInit'; return; endif
   else ! will not use, allocate at something
     nRoot = 1
     allocate( rootsfound(nRoot) )
@@ -399,6 +387,7 @@ subroutine summaSolve4ida(                         &
   end select  ! form of matrix
 
   ! Attach the matrix and linear solver
+  ! For the nonlinear solver, IDA uses a Newton SUNNonlinearSolver-- it is not necessary to create and attach it
   retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetLinearSolver'; return; endif
 
@@ -408,21 +397,9 @@ subroutine summaSolve4ida(                         &
     if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetJacFn'; return; endif
   endif
 
-  ! Create Newton SUNNonlinearSolver object
-  sunnonlin_NLS => FSUNNonlinSol_Newton(sunvec_y, sunctx)
-  if (.not. associated(sunnonlin_NLS)) then; err=20; message='summaSolve4ida: sunnonlinsol = NULL'; return; endif
-
-  ! Attach the nonlinear solver
-  retval = FIDASetNonlinearSolver(ida_mem, sunnonlin_NLS)
-  if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetNonlinearSolver'; return; endif
-
   ! Enforce the solver to stop at end of the time step
   retval = FIDASetStopTime(ida_mem, dt)
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetStopTime'; return; endif
-
-  ! Set solver parameters such as maximum order, number of iterations, ...
-  call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
-  if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
 
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
@@ -430,28 +407,9 @@ subroutine summaSolve4ida(                         &
     retval = FIDASetNoInactiveRootWarn(ida_mem)
   endif
 
-  ! need the following values for the first substep
-  eqns_data%scalarCanopyTempPrev     = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
-  eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
-  eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
-  eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
-  eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-  eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
-  eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
-  eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
-  eqns_data%mLayerVolFracLiqPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
-  eqns_data%mLayerEnthalpyPrev(:)    = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
-  eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
-  mLayerMatricHeadPrimePrev(:)       = 0._rkind
-  dCompress_dPsiPrev(:)              = 0._rkind
-  eqns_data%ixSaturation             = ixSaturation
+  !*********************** Main Solver * loop on one_step mode *****************************
+
   tinystep = .false.
-
-  !**********************************************************************************
-  !****************************** Main Solver ***************************************
-  !************************* loop on one_step mode **********************************
-  !**********************************************************************************
-
   tret(1) = t0           ! initial time
   tretPrev = tret(1)
   do while(tret(1) < dt)
@@ -460,7 +418,7 @@ subroutine summaSolve4ida(                         &
     if(detect_events .and. .not.tinystep)then
       call find_rootdir(eqns_data, rootdir)
       retval = FIDASetRootDirection(ida_mem, rootdir)
-      if (retval /= 0) then; err=20; message='solveByIDA: error in FIDASetRootDirection'; return; endif
+      if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetRootDirection'; return; endif
     endif
 
     eqns_data%firstFluxCall = .false.
@@ -470,10 +428,9 @@ subroutine summaSolve4ida(                         &
     if( retvalr < 0 )then
       idaSucceeds = .false.
       exit
-    endif
+    end if
 
     tooMuchMelt = .false.
-    feasible = .true.
     ! loop through non-missing energy state variables in the snow domain to see if need to merge
     do concurrent (i=1:nSnow,indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)
       if (stateVec(indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) > Tfreeze) tooMuchMelt = .true. !need to merge
@@ -484,73 +441,24 @@ subroutine summaSolve4ida(                         &
     retval = FIDAGetLastStep(ida_mem, dt_last)
     dt_diff = tret(1) - tretPrev
 
-    ! compute the flux and the residual vector for a given state vector
-    call eval8summaWithPrime(&
-                  ! input: model control
-                  dt_diff,                            & ! intent(in):    step size to last time solution
-                  eqns_data%dt,                       & ! intent(in):    total data step
-                  eqns_data%nSnow,                    & ! intent(in):    number of snow layers
-                  eqns_data%nSoil,                    & ! intent(in):    number of soil layers
-                  eqns_data%nLayers,                  & ! intent(in):    number of layers
-                  eqns_data%nState,                   & ! intent(in):    number of state variables in the current subset
-                  .false.,                            & ! intent(in):    check for feasibility once outside Sundials loop
-                  eqns_data%firstSubStep,             & ! intent(in):    flag to indicate if we are processing the first sub-step
-                  eqns_data%firstFluxCall,            & ! intent(inout): flag to indicate if we are processing the first flux call
-                  eqns_data%firstSplitOper,           & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
-                  eqns_data%computeVegFlux,           & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  eqns_data%scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
-                  ! input: state vectors
-                  stateVec,                           & ! intent(in):    model state vector
-                  stateVecPrime,                      & ! intent(in):    model state vector
-                  eqns_data%sMul,                     & ! intent(inout): state vector multiplier (used in the residual calculations)
-                  ! input: data structures
-                  model_decisions,                    & ! intent(in):    model decisions
-                  eqns_data%lookup_data,              & ! intent(in):    lookup data
-                  eqns_data%type_data,                & ! intent(in):    type of vegetation and soil
-                  eqns_data%attr_data,                & ! intent(in):    spatial attributes
-                  eqns_data%mpar_data,                & ! intent(in):    model parameters
-                  eqns_data%forc_data,                & ! intent(in):    model forcing data
-                  eqns_data%bvar_data,                & ! intent(in):    average model variables for the entire basin
-                  eqns_data%prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                  ! input-output: data structures
-                  eqns_data%indx_data,                & ! intent(inout): index data
-                  eqns_data%diag_data,                & ! intent(inout): model diagnostic variables for a local HRU
-                  eqns_data%flux_data,                & ! intent(inout): model fluxes for a local HRU (initial flux structure)
-                  eqns_data%deriv_data,               & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops (without operator splitting could cut prev values)
-                  eqns_data%scalarCanopyTempTrial,    & ! intent(in):    trial value of canopy temperature (K)
-                  eqns_data%scalarCanopyTempPrev,     & ! intent(in):    previous value of canopy temperature (K)
-                  eqns_data%scalarCanopyIceTrial,     & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
-                  eqns_data%scalarCanopyIcePrev,      & ! intent(in):    value for mass of ice on the vegetation canopy (kg m-2)
-                  eqns_data%scalarCanopyLiqTrial,     & ! intent(out):   trial value of canopy liquid water (kg m-2)
-                  eqns_data%scalarCanopyLiqPrev,      & ! intent(in):    value of canopy liquid water (kg m-2)
-                  eqns_data%scalarCanopyEnthalpyTrial,& ! intent(out):   trial value for enthalpy of the vegetation canopy (J m-3)
-                  eqns_data%scalarCanopyEnthalpyPrev, & ! intent(in):    value for enthalpy of the vegetation canopy (J m-3)
-                  eqns_data%mLayerTempTrial,          & ! intent(out):   trial vector of layer temperature (K)
-                  eqns_data%mLayerTempPrev,           & ! intent(in):    vector of layer temperature (K)
-                  eqns_data%mLayerMatricHeadLiqTrial, & ! intent(out):   trial value for liquid water matric potential (m)
-                  eqns_data%mLayerMatricHeadTrial,    & ! intent(out):   trial value for total water matric potential (m)
-                  eqns_data%mLayerMatricHeadPrev,     & ! intent(in):    value for total water matric potential (m)
-                  eqns_data%mLayerVolFracWatTrial,    & ! intent(out):   trial vector of volumetric total water content (-)
-                  eqns_data%mLayerVolFracWatPrev,     & ! intent(in):    vector of volumetric total water content (-)
-                  eqns_data%mLayerVolFracIceTrial,    & ! intent(out):   trial vector of volumetric ice water content (-)
-                  eqns_data%mLayerVolFracIcePrev,     & ! intent(in):    vector of volumetric ice water content (-)
-                  eqns_data%mLayerVolFracLiqTrial,    & ! intent(out):   trial vector of volumetric liquid water content (-)
-                  eqns_data%mLayerVolFracLiqPrev,     & ! intent(in):    vector of volumetric liquid water content (-)
-                  eqns_data%scalarAquiferStorageTrial,& ! intent(out):   trial value of storage of water in the aquifer (m)
-                  eqns_data%scalarAquiferStoragePrev, & ! intent(in):    value of storage of water in the aquifer (m)
-                  eqns_data%mLayerEnthalpyPrev,       & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
-                  eqns_data%mLayerEnthalpyTrial,      & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                  eqns_data%mLayerMatricHeadPrime,    & ! intent(out):   derivative value for total water matric potential (m s-1)
-                  ! input-output: baseflow
-                  eqns_data%ixSaturation,             & ! intent(inout): index of the lowest saturated layer
-                  eqns_data%dBaseflow_dMatric,        & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-                  ! output: flux and residual vectors
-                  feasible,                           & ! intent(out):   flag to denote the feasibility of the solution
-                  eqns_data%fluxVec,                  & ! intent(out):   flux vector
-                  eqns_data%resSink,                  & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                  rVec,                               & ! intent(out):   residual vector
-                  eqns_data%err,eqns_data%message)      ! intent(out):   error control
+    ! check the feasibility of the solution
+    feasible=.true.
+    call checkFeas(&
+                    ! input
+                    stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                    eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
+                    eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
+                    ! output: feasibility
+                    feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
+                  ! output: error control
+                    err,cmessage)                                 ! intent(out):   error control
+
+    ! early return for non-feasible solutions, will fail in current Sundials formulation
+    if(.not.feasible)then
+      eqns_data%fluxVec(:) = realMissing
+      message=trim(message)//'non-feasible'
+      return
+    end if
 
     ! sum of fluxes smoothed over the time step, average from instantaneous values
     do iVar=1,size(flux_meta)
@@ -582,11 +490,11 @@ subroutine summaSolve4ida(                         &
       if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
         ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
         !retval = FIDAGetRootInfo(ida_mem, rootsfound)
-        !if (retval < 0) then; err=20; message='solveByIDA: error in FIDAGetRootInfo'; return; endif
+        !if (retval < 0) then; err=20; message='summaSolve4ida: error in FIDAGetRootInfo'; return; endif
         !print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
         ! Reininitialize solver for running after discontinuity and restart
         retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
-        if (retval /= 0) then; err=20; message='solveByIDA: error in FIDAReInit'; return; endif
+        if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAReInit'; return; endif
         if(dt_last(1) < 0.1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)
           retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))
           tinystep = .true.
@@ -594,7 +502,7 @@ subroutine summaSolve4ida(                         &
           retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
           tinystep = .false.
         endif
-        if (retval /= 0) then; err=20; message='solveByIDA: error in FIDARootInit'; return; endif
+        if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDARootInit'; return; endif
       endif
     endif
 
@@ -641,13 +549,17 @@ subroutine summaSolve4ida(                         &
 
   call FIDAFree(ida_mem)
   retval = FSUNNonlinSolFree(sunnonlin_NLS)
+  if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the nonlinear solver'; return; endif
   retval = FSUNLinSolFree(sunlinsol_LS)
+  if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the linear solver'; return; endif
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_yp)
   retval = FSUNContext_Free(sunctx)
+  if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the SUNDIALS context'; return; endif
 
 end subroutine summaSolve4ida
+
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u and up vectors.
@@ -666,7 +578,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
   type(N_Vector)  :: sunvec_u  ! solution N_Vector
   type(N_Vector)  :: sunvec_up ! derivative N_Vector
   integer(c_long) :: neq
-  real(rkind)        :: y(neq)
+  real(rkind)     :: y(neq)
 
   ! pointers to data in SUNDIALS vectors
   real(c_double), pointer :: uu(:)
@@ -682,7 +594,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 end subroutine setInitialCondition
 
 ! ----------------------------------------------------------------
-! setSolverParams: private routine to set parameters in ida solver
+! setSolverParams: private routine to set parameters in IDA solver
 ! ----------------------------------------------------------------
 subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
 
@@ -699,16 +611,15 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
   type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
   integer(i4b),intent(out)    :: retval             ! return value
 
-
   !======= Internals ============
-  real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
   integer,parameter           :: max_order = 5      ! maximum BDF order,  default = 5
+  real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
   integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
   integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
   integer(kind = 8),parameter :: max_step = 999999  ! maximum number of steps,  default = 500
-  real(qp),parameter          :: h_init = 0         ! initial stepsize
   real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
-
+  real(qp),parameter          :: h_init = 0         ! initial stepsize
+ 
   ! Set the maximum BDF order
   retval = FIDASetMaxOrd(ida_mem, max_order)
   if (retval /= 0) return

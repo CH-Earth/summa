@@ -533,7 +533,6 @@ contains
 
   ! .. needed ..
 
-
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='trustRegionRefinement/'
 
@@ -567,8 +566,6 @@ contains
 
   message=trim(message)//'routine not implemented yet'
   err=20; return
-
-
 
   end subroutine trustRegionRefinement
 
@@ -691,17 +688,17 @@ contains
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
   implicit none
   ! dummies
-  real(rkind),intent(in)            :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(out)           :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)           :: xMin,xMax                ! constraints
+  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
+  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
+  real(rkind),intent(out)        :: xMin,xMax                ! constraints
   integer(i4b),intent(inout)     :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message
   ! locals
   integer(i4b)                   :: iCheck                   ! check the model state variables
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   logical(lgt)                   :: feasible                 ! feasibility of the solution
-  real(rkind),parameter             :: delX=1._rkind               ! trial increment
-  real(rkind)                       :: xIncrement(nState)       ! trial increment
+  real(rkind),parameter          :: delX=1._rkind            ! trial increment
+  real(rkind)                    :: xIncrement(nState)       ! trial increment
   ! initialize
   err=0; message='getBrackets/'
 
@@ -901,7 +898,6 @@ contains
   end subroutine testBandMat
 
 
-
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
   ! *********************************************************************************************************
@@ -935,9 +931,10 @@ contains
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers
                   nState,                  & ! intent(in):    total number of state variables
+                  .false.,                 & ! intent(in):   not inside Sundials solver
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                  .false.,                 & ! intent(in):    flag to indicate if we are processing the first iteration in a splitting operation
+                  .false.,                 & ! intent(in):    not processing the first iteration in a splitting operation
                   computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                   scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                   ! input: state vectors
@@ -953,8 +950,8 @@ contains
                   forc_data,               & ! intent(in):    model forcing data
                   bvar_data,               & ! intent(in):    average model variables for the entire basin
                   prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                  indx_data,               & ! intent(in):    index data
                   ! input-output: data structures
+                  indx_data,               & ! intent(inout): index data
                   diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                   flux_data,               & ! intent(inout): model fluxes for a local HRU
                   deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -1106,25 +1103,25 @@ contains
   USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
   implicit none
   ! dummies
-  real(rkind),intent(in)             :: stateVecTrial(:)             ! trial state vector
-  real(rkind),intent(inout)          :: xInc(:)                      ! iteration increment
+  real(rkind),intent(in)          :: stateVecTrial(:)             ! trial state vector
+  real(rkind),intent(inout)       :: xInc(:)                      ! iteration increment
   integer(i4b),intent(out)        :: err                          ! error code
   character(*),intent(out)        :: message                      ! error message
   ! -----------------------------------------------------------------------------------------------------
   ! temporary variables for model constraints
-  real(rkind)                        :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
-  real(rkind)                        :: xIncFactor                   ! scaling factor for the iteration increment (-)
+  real(rkind)                     :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
+  real(rkind)                     :: xIncFactor                   ! scaling factor for the iteration increment (-)
   integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
-  real(rkind)                        :: scalarTemp                   ! temperature of an individual snow layer (K)
-  real(rkind)                        :: volFracLiq                   ! volumetric liquid water content of an individual snow layer (-)
+  real(rkind)                     :: scalarTemp                   ! temperature of an individual snow layer (K)
+  real(rkind)                     :: volFracLiq                   ! volumetric liquid water content of an individual snow layer (-)
   logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
   logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
   logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
-  real(rkind)                        :: xPsi00                       ! matric head after applying the iteration increment (m)
-  real(rkind)                        :: TcSoil                       ! critical point when soil begins to freeze (K)
-  real(rkind)                        :: critDiff                     ! temperature difference from critical (K)
-  real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical (K)
-  real(rkind),parameter              :: zMaxTempIncrement=1._rkind      ! maximum temperature increment (K)
+  real(rkind)                     :: xPsi00                       ! matric head after applying the iteration increment (m)
+  real(rkind)                     :: TcSoil                       ! critical point when soil begins to freeze (K)
+  real(rkind)                     :: critDiff                     ! temperature difference from critical (K)
+  real(rkind),parameter           :: epsT=1.e-7_rkind                ! small interval above/below critical (K)
+  real(rkind),parameter           :: zMaxTempIncrement=1._rkind      ! maximum temperature increment (K)
   ! indices of model state variables
   integer(i4b)                    :: iState                       ! index of state within a specific variable type
   integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector

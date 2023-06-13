@@ -13,6 +13,8 @@ USE data_types,only:&
 implicit none
 
 type eqnsData
+  type(c_ptr)                 :: kinsol_mem                   ! KINSOL memory
+  real(rkind)                 :: dt_cur                       ! current stepsize
   real(rkind)                 :: dt                           ! data step
   integer(i4b)                :: nSnow                        ! number of snow layers
   integer(i4b)                :: nSoil                        ! number of soil layers
@@ -40,14 +42,14 @@ type eqnsData
   real(rkind), allocatable    :: dMat(:)                      ! diagonal of the Jacobian matrix
   real(rkind), allocatable    :: fluxVec(:)                   ! flux vector
   real(qp), allocatable       :: resSink(:)                   ! additional (sink) terms on the RHS of the state equation
+  real(rkind),allocatable     :: fScale(:)                    ! function scaling vector
+  real(rkind),allocatable     :: xScale(:)                    ! state scaling vector
   real(rkind), allocatable    :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                :: ixSaturation                 ! index of the lowest saturated layer
   integer(i4b)                :: err                          ! error code
   character(len = 50)         :: message                      ! error message
-  logical(lgt)                         :: feasible               ! flag to denote the feasibility of the solution
   real(rkind)                          :: fEval                  ! function evaluation
-  real(rkind),allocatable              :: fScale(:)              ! function scaling vector
-  logical(lgt)                         :: firstStateiteration   ! flag to denote if we computed an iteration so we know to save the state
+   logical(lgt)                         :: firstStateiteration   ! flag to denote if we computed an iteration so we know to save the state
 end type eqnsData
 
 
