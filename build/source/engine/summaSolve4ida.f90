@@ -197,7 +197,7 @@ subroutine summaSolve4ida(                         &
   type(SUNNonLinearSolver), pointer :: sunnonlin_NLS        ! sundials nonlinear solver
   type(c_ptr)                       :: ida_mem              ! IDA memory
   type(c_ptr)                       :: sunctx               ! SUNDIALS simulation context
-  type(eqnsData),           target  :: eqns_data            ! IDA type
+  type(data4ida),           target  :: eqns_data            ! IDA type
   integer(i4b)                      :: retval, retvalr      ! return value
   logical(lgt)                      :: feasible             ! feasibility flag
   real(qp)                          :: t0                   ! starting time
@@ -676,7 +676,7 @@ end subroutine setSolverParams
  implicit none
 
  ! calling variables
- type(eqnsData),intent(in)  :: eqns_data  ! equations data
+ type(data4ida),intent(in)  :: eqns_data  ! equations data
  integer(i4b),intent(inout) :: rootdir(:) ! root function directions to search
 
  ! local variables
@@ -776,7 +776,7 @@ end subroutine setSolverParams
 
  ! pointers to data in SUNDIALS vectors
  real(c_double), pointer :: uu(:)
- type(eqnsData), pointer :: eqns_data      ! equations data
+ type(data4ida), pointer :: eqns_data      ! equations data
 
  !======= Internals ============
  ! get equations data from user-defined data

@@ -1380,7 +1380,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
   real(rkind), pointer          :: stateVec(:)    ! state vector
   real(rkind), pointer          :: stateVecPrime(:)! derivative of the state vector
   real(rkind), pointer          :: Jac(:,:)       ! Jacobian matrix
-  type(eqnsData), pointer       :: eqns_data      ! equations data
+  type(data4ida), pointer       :: eqns_data      ! equations data
 
   !======= Internals ============
 

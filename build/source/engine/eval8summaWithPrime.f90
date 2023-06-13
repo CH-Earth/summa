@@ -299,7 +299,6 @@ subroutine eval8summaWithPrime(&
         message=trim(message)//'non-feasible'
         return
       end if
-
     end if ! ( feasibility check )
 
     ! get the start and end indices for the soil compression calculations
@@ -741,7 +740,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   type(c_ptr), value          :: user_data ! user-defined data
 
   ! pointers to data in SUNDIALS vectors
-  type(eqnsData), pointer     :: eqns_data ! equations data
+  type(data4ida), pointer     :: eqns_data ! equations data
   real(rkind), pointer        :: stateVec(:)
   real(rkind), pointer        :: stateVecPrime(:)
   real(rkind), pointer        :: rVec(:)
