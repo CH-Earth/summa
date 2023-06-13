@@ -12,7 +12,7 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 implicit none
 
-type eqnsData
+type data4kinsol
   type(c_ptr)                 :: kinsol_mem                   ! KINSOL memory
   real(rkind)                 :: dt_cur                       ! current stepsize
   real(rkind)                 :: dt                           ! data step
@@ -37,7 +37,6 @@ type eqnsData
   type(var_dlength)           :: diag_data                    ! diagnostic variables for a local HRU
   type(var_dlength)           :: flux_data                    ! model fluxes for a local HRU
   type(var_dlength)           :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables
-  real(rkind), allocatable             :: stateVecPrev(:)        ! state vector from the previous iteration to help with infeasibility
   real(qp), allocatable       :: sMul(:)                      ! state vector multiplier (used in the residual calculations)
   real(rkind), allocatable    :: dMat(:)                      ! diagonal of the Jacobian matrix
   real(rkind), allocatable    :: fluxVec(:)                   ! flux vector
@@ -48,9 +47,7 @@ type eqnsData
   integer(i4b)                :: ixSaturation                 ! index of the lowest saturated layer
   integer(i4b)                :: err                          ! error code
   character(len = 50)         :: message                      ! error message
-  real(rkind)                          :: fEval                  ! function evaluation
-   logical(lgt)                         :: firstStateiteration   ! flag to denote if we computed an iteration so we know to save the state
-end type eqnsData
+end type data4kinsol
 
 
 end module type4kinsol

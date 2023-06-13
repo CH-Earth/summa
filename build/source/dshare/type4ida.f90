@@ -14,7 +14,7 @@ USE data_types,only:&
 
 implicit none
 
-type eqnsData
+type data4ida
   type(c_ptr)                 :: ida_mem                      ! IDA memory
   real(rkind)                 :: dt                           ! data step
   integer(i4b)                :: nSnow                        ! number of snow layers
@@ -69,10 +69,10 @@ type eqnsData
   real(rkind), allocatable    :: mLayerEnthalpyPrev(:)        ! enthalpy of snow and soil (J m-3) at previous step
   real(rkind), allocatable    :: mLayerMatricHeadPrime(:)     ! derivative value for total water matric potential (m s-1)
   real(rkind), allocatable    :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
-  integer(i4b)                :: ixSaturation                 ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  integer(i4b)                :: ixSaturation                 ! index of the lowest saturated layer
   integer(i4b)                :: err                          ! error code
   character(len = 50)         :: message                      ! error message
-end type eqnsData
+end type data4ida
 
 
 end module type4ida
