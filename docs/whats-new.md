@@ -25,3 +25,4 @@ This page provides simple, high-level documentation about what has changed in ea
 - Flux files have been refactored (code shortened by nearly 900 lines)
 - Fortran arithmetic in flux files has been updated to increase accuracy and reduce computational cost
 - Script added (summa/build/compile_SUMMA.sh) to simplify the compilation process
+- Several print statements previously used for debugging that are no longer needed have been removed from the flux source files 
