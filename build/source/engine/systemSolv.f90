@@ -230,7 +230,7 @@ subroutine systemSolv(&
   real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
   logical(lgt)                    :: feasible                      ! feasibility flag
   logical(lgt)                    :: sunSucceeds                   ! flag to indicate if SUNDIALS successfully solved the problem in current data step
-   ! ida variables
+  ! ida variables
   real(rkind)                     :: atol(nState)                  ! absolute tolerance ida
   real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
@@ -239,7 +239,7 @@ subroutine systemSolv(&
  ! kinsol variables
   real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
   real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
-  ! numrec variables
+   ! numrec variables
   real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled numrec
   real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units) numrec
   integer(i4b)                    :: maxiter                       ! maximum number of iterations numrec
@@ -590,10 +590,10 @@ subroutine systemSolv(&
                         prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
                         diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
                         indx_data,                        & ! intent(in):    indices defining model states and layers
-                        mpar_data,                        & ! intent(in):      model parameters
+                        mpar_data,                        & ! intent(in):    model parameters
                         ! output
                         atol,                             & ! intent(out):   absolute tolerances vector (mixed units)
-                        rtol,                             & ! intent(out):      relative tolerances vector (mixed units)
+                        rtol,                             & ! intent(out):   relative tolerances vector (mixed units)
                         err,cmessage)                       ! intent(out):   error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
@@ -636,8 +636,8 @@ subroutine systemSolv(&
                           forc_data,               & ! intent(in):    model forcing data
                           bvar_data,               & ! intent(in):    average model variables for the entire basin
                           prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                          indx_data,               & ! intent(in):    index data
                           ! input-output: data structures
+                          indx_data,               & ! intent(inout): index data
                           diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                           flux_temp,               & ! intent(inout): model fluxes for a local HRU
                           flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
@@ -674,8 +674,59 @@ subroutine systemSolv(&
         diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:) /  dt_out
         diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
 
+      case(kinsol)
+        !---------------------------
+        ! * solving F(y) = 0 by Backward Euler with KINSOL, y is the state vector 
+        !---------------------------
+        ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
+        call summaSolve4kinsol(&
+                          dt_cur,                  & ! intent(in):    data time step
+                          dt,                      & ! intent(in):    data time step
+                          fScale,                  & ! intent(in):    characteristic scale of the function evaluations
+                          xScale,                  & ! intent(in):    characteristic scale of the state vector
+                          nSnow,                   & ! intent(in):    number of snow layers
+                          nSoil,                   & ! intent(in):    number of soil layers
+                          nLayers,                 & ! intent(in):    number of snow+soil layers
+                          nState,                  & ! intent(in):    number of state variables in the current subset
+                          ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
+                          firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                          computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                          scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                          ! input: state vector
+                          stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
+                          sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
+                          dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
+                          ! input: data structures
+                          lookup_data,             & ! intent(in):    lookup tables
+                          type_data,               & ! intent(in):    type of vegetation and soil
+                          attr_data,               & ! intent(in):    spatial attributes
+                          mpar_data,               & ! intent(in):    model parameters
+                          forc_data,               & ! intent(in):    model forcing data
+                          bvar_data,               & ! intent(in):    average model variables for the entire basin
+                          prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                          ! input-output: data structures
+                          indx_data,               & ! intent(inout): index data
+                          diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                          flux_temp,               & ! intent(inout): model fluxes for a local HRU
+                          deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                          ! output
+                          ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                          sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                          stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
+                          err,cmessage)              ! intent(out):   error control
+        ! check if KINSOL is successful
+        if( .not.sunSucceeds )then
+          err = 20
+          message=trim(message)//trim(cmessage)
+        ! reduceCoupledStep  = .true.
+          return
+        endif
+        niter = 0  ! iterations are counted inside KINSOL solver
+
         ! save the computed solution
         stateVecTrial = stateVecNew
+        stateVecPrime = stateVecTrial ! prime values not used here, dummy
+
 #endif
       case(numrec)
         ! define maximum number of iterations
@@ -724,8 +775,8 @@ subroutine systemSolv(&
                           forc_data,                     & ! intent(in):    model forcing data
                           bvar_data,                     & ! intent(in):    average model variables for the entire basin
                           prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
-                          indx_data,                     & ! intent(in):    index data
                           ! input-output: data structures
+                          indx_data,                     & ! intent(inout): index data
                           diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
                           flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
                           deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -760,27 +811,31 @@ subroutine systemSolv(&
               
         end do  ! iterating
 
+        ! prime values not used here, dummy
+        stateVecPrime = stateVecTrial 
+
         ! -----
         ! * update states...
+        ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
+        ! Turn off for now to agree with SUNDIALS
         ! ------------------
-        stateVecPrime = stateVecTrial ! prime values not used here, dummy
-
+        ! 
         ! update temperatures (ensure new temperature is consistent with the fluxes)
-        if(nSnowSoilNrg>0)then
-          do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-          iState = ixSnowSoilNrg(iLayer)
-          stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
-          end do  ! looping through non-missing energy state variables in the snow+soil domain
-        endif
-
+        !if(nSnowSoilNrg>0)then
+        !  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+        !  iState = ixSnowSoilNrg(iLayer)
+        !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
+        !  end do  ! looping through non-missing energy state variables in the snow+soil domain
+        !endif
+        !
         ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
         ! NOTE: for soil water balance is constrained within the iteration loop
-        if(nSnowSoilHyd>0)then
-          do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-          iState = ixSnowSoilHyd(iLayer)
-          stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
-          end do  ! looping through non-missing water state variables in the soil domain
-        endif
+        !if(nSnowSoilHyd>0)then
+        !  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+        !  iState = ixSnowSoilHyd(iLayer)
+        !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
+        !  end do  ! looping through non-missing water state variables in the soil domain
+        !endif
               
     end select
 

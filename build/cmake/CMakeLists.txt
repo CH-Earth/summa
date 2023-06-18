@@ -377,6 +377,7 @@ set(SOLVER_SUNDIALS
     ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90
     ${ENGINE_DIR}/summaSolve4ida.f90
+    ${ENGINE_DIR}/summaSolve4kinsol.f90)
 
 # Driver support modules
 set(DRIVER

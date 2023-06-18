@@ -77,6 +77,7 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
 
 contains
 
+
 !-------------------
 ! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
 ! ------------------
@@ -105,7 +106,7 @@ subroutine summaSolve4ida(                         &
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                       ! input-output: data structures
-                      indx_data,               & ! intent(in):    index data
+                      indx_data,               & ! intent(inout): index data
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a dt
@@ -167,8 +168,8 @@ subroutine summaSolve4ida(                         &
   type(var_d),        intent(in)  :: forc_data              ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
   type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
-  type(var_ilength),  intent(in)  :: indx_data              ! indices defining model states and layers
-  ! input-output: data structures
+   ! input-output: data structures
+  type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt
@@ -515,6 +516,7 @@ subroutine summaSolve4ida(                         &
 
   if(idaSucceeds)then
     ! copy to output data
+    indx_data     = eqns_data%indx_data
     diag_data     = eqns_data%diag_data
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data

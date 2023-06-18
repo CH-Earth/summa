@@ -41,8 +41,8 @@ type data4kinsol
   real(rkind), allocatable    :: dMat(:)                      ! diagonal of the Jacobian matrix
   real(rkind), allocatable    :: fluxVec(:)                   ! flux vector
   real(qp), allocatable       :: resSink(:)                   ! additional (sink) terms on the RHS of the state equation
-  real(rkind),allocatable     :: fScale(:)                    ! function scaling vector
-  real(rkind),allocatable     :: xScale(:)                    ! state scaling vector
+  real(rkind),allocatable     :: fScale(:)                    ! characteristic scale of the function evaluations
+  real(rkind),allocatable     :: xScale(:)                    ! characteristic scale of the state vector
   real(rkind), allocatable    :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                :: ixSaturation                 ! index of the lowest saturated layer
   integer(i4b)                :: err                          ! error code

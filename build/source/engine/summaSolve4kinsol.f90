@@ -104,7 +104,7 @@ subroutine summaSolve4kinsol(&
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                       ! input-output: data structures
-                      indx_data,               & ! intent(in):    index data
+                      indx_data,               & ! intent(inout): index data                      diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
@@ -132,7 +132,7 @@ subroutine summaSolve4kinsol(&
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
   USE computJacob_module,only:computJacob4kinsol  ! system Jacobian
-  
+   
   !======= Declarations =========
   implicit none
 
@@ -164,12 +164,12 @@ subroutine summaSolve4kinsol(&
   type(var_d),        intent(in)  :: forc_data              ! model forcing data
   type(var_dlength),  intent(in)  :: bvar_data              ! model variables for the local basin
   type(var_dlength),  intent(in)  :: prog_data              ! prognostic variables for a local HRU
-  type(var_ilength),  intent(in)  :: indx_data              ! indices defining model states and layers
   ! input-output: data structures
+  type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-   ! output: state vectors
+  ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   logical(lgt),intent(out)        :: kinsolSucceeds         ! flag to indicate if KINSOL is successful
@@ -199,14 +199,7 @@ subroutine summaSolve4kinsol(&
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn KINSOL warnings off, default true
   logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
-
-    
-               
-    
-      ! local variables
-      integer(c_long)                            :: mset
-      integer(c_long)                            :: maxIter = 200
-    
+ 
   ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
@@ -388,6 +381,7 @@ subroutine summaSolve4kinsol(&
 
   if(kinsolSucceeds)then
     ! copy to output data
+    indx_data     = eqns_data%indx_data
     diag_data     = eqns_data%diag_data
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
