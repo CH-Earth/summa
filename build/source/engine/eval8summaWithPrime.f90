@@ -288,9 +288,9 @@ subroutine eval8summaWithPrime(&
                     prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                                 & ! intent(in):    indices defining model states and layers
                     ! output: feasibility
-                    feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
+                    feasible,                                  & ! intent(inout): flag to denote the feasibility of the solution
                   ! output: error control
-                    err,cmessage)                                 ! intent(out):   error control
+                    err,cmessage)                                 ! intent(out):  error control
 
       ! early return for non-feasible solutions
       if(.not.feasible)then
@@ -733,7 +733,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   implicit none
 
   ! calling variables
-  real(rkind), value          :: tres      ! current time                 t
+  real(rkind), value          :: tres      ! current time         t
   type(N_Vector)              :: sunvec_y  ! solution N_Vector    y
   type(N_Vector)              :: sunvec_yp ! derivative N_Vector  y'
   type(N_Vector)              :: sunvec_r  ! residual N_Vector    F(t,y,y')

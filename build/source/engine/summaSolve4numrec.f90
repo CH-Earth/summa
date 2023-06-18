@@ -102,8 +102,8 @@ contains
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
                        xMin,xMax,               & ! intent(inout): brackets of the root
-                       fScale,                  & ! intent(in):    function scaling vector
-                       xScale,                  & ! intent(in):    "variable" scaling vector, i.e., for state variables
+                       fScale,                  & ! intent(in):    characteristic scale of the function evaluations
+                       xScale,                  & ! intent(in):    characteristic scale of the state vector
                        rVec,                    & ! intent(in):    residual vector
                        sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal matrix (excludes flux derivatives)
@@ -155,8 +155,8 @@ contains
  ! input: state vectors
  real(rkind),intent(in)          :: stateVecTrial(:)         ! trial state vector
  real(rkind),intent(inout)       :: xMin,xMax                ! brackets of the root
- real(rkind),intent(in)          :: fScale(:)                ! function scaling vector
- real(rkind),intent(in)          :: xScale(:)                ! "variable" scaling vector, i.e., for state variables
+ real(rkind),intent(in)          :: fScale(:)                ! characteristic scale of the function evaluations
+ real(rkind),intent(in)          :: xScale(:)                ! characteristic scale of the state vector
  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
  real(rkind),intent(inout)       :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
@@ -939,7 +939,7 @@ contains
                   scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                   ! input: state vectors
                   stateVecNew,             & ! intent(in):    updated model state vector
-                  fScale,                  & ! intent(in):    function scaling vector
+                  fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                   sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                   ! input: data structures
                   model_decisions,         & ! intent(in):    model decisions

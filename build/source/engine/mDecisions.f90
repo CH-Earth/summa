@@ -420,6 +420,13 @@ subroutine mDecisions(err,message)
       err=10; message=trim(message)//"unknown numerical method [option="//trim(model_decisions(iLookDECISIONS%num_method)%cDecision)//"]"; return
   end select
 
+  ! make sure compiled with SUNDIALS if want to use it
+#ifndef SUNDIALS_ACTIVE
+  if(model_decisions(iLookDECISIONS%num_method)%iDecision==ida .or. model_decisions(iLookDECISIONS%num_method)%iDecision==kinsol)then
+    err=20; message=trim(message)//'cannot use num_method as ida or kinsol if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
+  endif
+#endif
+
   ! how to compute heat capacity in energy equation, choice enthalpyFD has better coincidence of energy conservation with sundials tolerance.
   select case(trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision))
     case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! heat capacity using enthalpy

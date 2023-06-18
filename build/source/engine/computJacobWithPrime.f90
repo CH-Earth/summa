@@ -93,6 +93,7 @@ public::computJacob4ida
 
 contains
 
+
 ! **********************************************************************************************************
 ! public subroutine computJacobWithPrime: compute the Jacobian matrix
 ! **********************************************************************************************************
@@ -1298,7 +1299,7 @@ subroutine computJacob4idaSetup(&
 
     ! compute the analytical Jacobian matrix
     ! NOTE: The derivatives were computed in the previous call to computFlux
-    !       This occurred either at the call to eval8summaWithPrime at the start of sysSolveSundials
+    !       This occurred either at the call to eval8summaWithPrime at the start of systemSolv
     !        or in the call to eval8summaWithPrime in the previous iteration
     dt1 = 1._qp
     call computJacobWithPrime(&

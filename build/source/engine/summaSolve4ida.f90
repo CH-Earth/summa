@@ -118,8 +118,7 @@ subroutine summaSolve4ida(                         &
                       dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
-                      err,message              & ! intent(out):   error control
-                    )
+                      err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
   USE fida_mod                                    ! Fortran interface to IDA

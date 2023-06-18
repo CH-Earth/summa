@@ -74,6 +74,7 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
 
 contains
 
+
 !-------------------
 ! * public subroutine summaSolve4kinsol: solve F(y) = 0 by KINSOL (y is the state vector)
 ! ------------------
@@ -110,10 +111,8 @@ subroutine summaSolve4kinsol(&
                       ! output
                       ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       kinsolSucceeds,          & ! intent(out):   flag to indicate if KINSOL successfully solved the problem in current data step
-                      tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
                       stateVec,                & ! intent(out):   model state vector
-                      err,message              & ! intent(out):   error control
-                    )
+                      err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
 
@@ -133,7 +132,6 @@ subroutine summaSolve4kinsol(&
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
   USE computJacob_module,only:computJacob4kinsol  ! system Jacobian
-  !USE tol4kinsol_module,only:computWeight4kinsol        ! weight required for tolerances
   
   !======= Declarations =========
   implicit none
@@ -175,7 +173,6 @@ subroutine summaSolve4kinsol(&
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   logical(lgt),intent(out)        :: kinsolSucceeds         ! flag to indicate if KINSOL is successful
-  logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -352,6 +349,9 @@ subroutine summaSolve4kinsol(&
   endif
 
   !*********************** Main Solver * loop on one_step mode *****************************
+
+  eqns_data%firstFluxCall = .false.
+  eqns_data%firstSplitOper = .true.
 
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
   !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)

@@ -412,10 +412,11 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(ida);       checkMassBalance = .false. ! only for numrec because sundials has instantaneous fluxes only
-        case(numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
+        case(ida);                checkMassBalance = .false. ! IDA has instantaneous fluxes only so average will not balance over data window
+        case(kinsol .or. numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
         case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select
+
       ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
       checkNrgBalance = .false.
 
@@ -846,10 +847,8 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                     mLayerMatricHeadLiqPrime,                  & ! intent(inout): Prime vector of liquid water matric potential (m)
                     ! output: error control
                     err,cmessage)                                ! intent(out):   error control
-#else
-      err=20; message=trim(message)//'cannot use num_method as ida if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
 #endif
-      case(numrec)
+      case(kinsol .or. numrec)
          ! update diagnostic variables
         call updateVars(&
                  ! input

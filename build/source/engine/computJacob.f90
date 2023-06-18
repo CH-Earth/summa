@@ -66,10 +66,13 @@ real(rkind),parameter     :: verySmall=tiny(1.0_rkind)     ! a very small number
 
 private
 public::computJacob
+#ifdef SUNDIALS_ACTIVE
 public::computJacob4kinsolSetup
 public::computJacob4kinsol
+#endif
 
 contains
+
 
 ! **********************************************************************************************************
 ! public subroutine computJacob: compute the Jacobian matrix
@@ -995,7 +998,7 @@ subroutine computJacob(&
 
 end subroutine computJacob
 
-
+#ifdef SUNDIALS_ACTIVE
 ! **********************************************************************************************************
 ! public subroutine computJacob4kinsolSetup: compute the Jacobian matrix
 ! **********************************************************************************************************
@@ -1076,7 +1079,6 @@ real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value fo
 real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
 ! other local variables
 character(LEN=256)                 :: cmessage                  ! error message of downwind routine
-real(rkind)                        :: dt1
 
 ! --------------------------------------------------------------------------------------------------------------------------------
 ! association to variables in the data structures
@@ -1159,12 +1161,11 @@ associate(&
 
   ! compute the analytical Jacobian matrix
   ! NOTE: The derivatives were computed in the previous call to computFlux
-  !       This occurred either at the call to eval8summaWithPrime at the start of sysSolveSundials
-  !        or in the call to eval8summaWithPrime in the previous iteration
-  dt1 = 1._qp
+  !       This occurred either at the call to eval8summa at the start of systemSolv
+  !        or in the call to eval8summa in the previous iteration
   call computJacob(&
                   ! input: model control
-                  dt1,                            & ! intent(in):    length of the time step (seconds)
+                  dt,                             & ! intent(in):    length of the time step (seconds)
                   nSnow,                          & ! intent(in):    number of snow layers
                   nSoil,                          & ! intent(in):    number of soil layers
                   nLayers,                        & ! intent(in):    total number of layers
@@ -1273,7 +1274,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
   return
             
 end function computJacob4kinsol
-
+#endif
 
 ! **********************************************************************************************************
 ! private function: get the off-diagonal index in the band-diagonal matrix

@@ -158,9 +158,10 @@ subroutine systemSolv(&
   USE tol4ida_module,only:popTol4ida                      ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime ! get the fluxes and residuals
   USE summaSolve4ida_module,only:summaSolve4ida           ! solve DAE by IDA
+  USE summaSolve4kinsol_module,only:summaSolve4kinsol     ! solve DAE by KINSOL
 #endif
   USE eval8summa_module,only:eval8summa                ! get the fluxes and residuals
-  USE summaSolve4numrec_module,only:summaSolve4numrec  ! solve by numerical recipes
+  USE summaSolve4numrec_module,only:summaSolve4numrec  ! solve DAE by numerical recipes
 
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -228,13 +229,16 @@ subroutine systemSolv(&
   real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
   real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
   logical(lgt)                    :: feasible                      ! feasibility flag
+  logical(lgt)                    :: sunSucceeds                   ! flag to indicate if SUNDIALS successfully solved the problem in current data step
    ! ida variables
   real(rkind)                     :: atol(nState)                  ! absolute tolerance ida
   real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! derivative value for total water matric potential (m s-1)
-  logical(lgt)                    :: idaSucceeds                   ! flag to indicate if ida successfully solved the problem in current data step
+ ! kinsol variables
+  real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
+  real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
   ! numrec variables
   real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled numrec
   real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units) numrec
@@ -382,7 +386,7 @@ subroutine systemSolv(&
                     diag_data,        & ! intent(in):    model diagnostic variables for a local HRU
                     indx_data,        & ! intent(in):    indices defining model states and layers
                     ! output
-                    fScale,           & ! intent(out):   function scaling vector (mixed units)
+                    fScale,           & ! intent(out):   characteristic scale of the function evaluations (mixed units)
                     xScale,           & ! intent(out):   variable scaling vector (mixed units)
                     sMul,             & ! intent(out):   multiplier for state vector (used in the residual calculations)
                     dMat,             & ! intent(out):   diagonal of the Jacobian matrix (excludes fluxes)
@@ -453,7 +457,7 @@ subroutine systemSolv(&
                         scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                         ! input: state vectors
                         stateVecTrial,           & ! intent(in):    model state vector
-                        fScale,                  & ! intent(in):    function scaling vector
+                        fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                         sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                         ! input: data structures
                         model_decisions,         & ! intent(in):    model decisions
@@ -504,11 +508,8 @@ subroutine systemSolv(&
                         rVec,                    & ! intent(out):   residual vector
                         err,cmessage)              ! intent(out):   error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-#else
-      err=20; message=trim(message)//'cannot use num_method as ida if did not compile with -DCMAKE_BUILD_TYPE=Sundials'; return
 #endif
-      case(numrec)
+      case(kinsol .or. numrec)
         call eval8summa(&
                         ! input: model control
                         dt_cur,                  & ! intent(in):    current stepsize
@@ -525,7 +526,7 @@ subroutine systemSolv(&
                         scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                         ! input: state vectors
                         stateVecTrial,           & ! intent(in):    model state vector
-                        fScale,                  & ! intent(in):    function scaling vector
+                        fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                         sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                         ! input: data structures
                         model_decisions,         & ! intent(in):    model decisions
@@ -580,8 +581,8 @@ subroutine systemSolv(&
     ! * Solving the System
     ! **************************
     select case(ixNumericalMethod)
-      case(ida)
 #ifdef SUNDIALS_ACTIVE
+      case(ida)
         ! get tolerance vectors
         call popTol4ida(&
                         ! input
@@ -644,14 +645,14 @@ subroutine systemSolv(&
                           mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                           ! output
                           ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                          idaSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                          sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
                           dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                           stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                           stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                           err,cmessage)              ! intent(out):   error control
         ! check if IDA is successful
-        if( .not.idaSucceeds )then
+        if( .not.sunSucceeds )then
           err = 20
           message=trim(message)//trim(cmessage)
         ! reduceCoupledStep  = .true.
@@ -661,9 +662,8 @@ subroutine systemSolv(&
         endif
         niter = 0  ! iterations are counted inside IDA solver
 
-        ! -----
-        ! * update states...
-        ! ------------------
+        ! save the computed solution
+        stateVecTrial = stateVecNew
 
         ! compute average flux
         do iVar=1,size(flux_meta)
@@ -709,8 +709,8 @@ subroutine systemSolv(&
                           ! input: state vectors
                           stateVecTrial,                 & ! intent(in):    trial state vector
                           xMin,xMax,                     & ! intent(inout): state maximum and minimum
-                          fScale,                        & ! intent(in):    function scaling vector
-                          xScale,                        & ! intent(in):    "variable" scaling vector, i.e., for state variables
+                          fScale,                        & ! intent(in):    characteristic scale of the function evaluations
+                          xScale,                        & ! intent(in):    characteristic scale of the state vector
                           rVec,                          & ! intent(in):    residual vector
                           sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                           dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)

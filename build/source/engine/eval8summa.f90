@@ -68,7 +68,9 @@ USE mDecisions_module,only:  &
 implicit none
 private
 public::eval8summa
+#ifdef SUNDIALS_ACTIVE
 public::eval8summa4kinsol
+#endif
 
 contains
 
@@ -91,7 +93,7 @@ subroutine eval8summa(&
                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                       ! input: state vectors
                       stateVec,                & ! intent(in):    model state vector
-                      fScale,                  & ! intent(in):    function scaling vector
+                      fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
@@ -149,7 +151,7 @@ subroutine eval8summa(&
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
   ! input: state vectors
   real(rkind),intent(in)          :: stateVec(:)            ! model state vector
-  real(rkind),intent(in)          :: fScale(:)              ! function scaling vector
+  real(rkind),intent(in)          :: fScale(:)              ! characteristic scale of the function evaluations
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
@@ -651,7 +653,7 @@ subroutine eval8summa(&
 
 end subroutine eval8summa
 
-
+#ifdef SUNDIALS_ACTIVE
 ! **********************************************************************************************************
 ! public function eval8summa4kinsol: compute the residual vector F(t,y) required for IDA solver
 ! **********************************************************************************************************
@@ -709,7 +711,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                 ! input: state vectors
                 stateVec,                          & ! intent(in):    model state vector
-                eqns_data%fScale,                  & ! intent(in):    function scaling vector
+                eqns_data%fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
                 model_decisions,                   & ! intent(in):    model decisions
@@ -745,6 +747,6 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
   return
 
 end function eval8summa4kinsol
-
+#endif
 
 end module eval8summa_module
