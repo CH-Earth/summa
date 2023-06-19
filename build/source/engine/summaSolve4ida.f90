@@ -62,7 +62,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup         ! data vector
+                    zLookup         ! lookup tables
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterization
@@ -446,6 +446,7 @@ subroutine summaSolve4ida(                         &
     call checkFeas(&
                     ! input
                     stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                    eqns_data%mpar_data,                       & ! intent(in):    model parameters
                     eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
                     eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
                     ! output: feasibility

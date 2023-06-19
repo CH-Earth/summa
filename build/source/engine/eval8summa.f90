@@ -31,10 +31,6 @@ USE globalData,only:quadMissing     ! missing quadruple precision number
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
-! define access to state variables to print
-USE globalData,only: iJac1          ! first layer of the Jacobian to print
-USE globalData,only: iJac2          ! last layer of the Jacobian to print
-
 
 ! constants
 USE multiconst,only:&
@@ -275,6 +271,7 @@ subroutine eval8summa(&
       call checkFeas(&
                     ! input
                     stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                    mpar_data,                                 & ! intent(in):    model parameters
                     prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                     indx_data,                                 & ! intent(in):    indices defining model states and layers
                     ! output: feasibility
@@ -731,7 +728,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                  ! output: flux and residual vectors
-                feasible,                          & ! intent(out):   flag to denote the feasibility of the solution
+                feasible,                          & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
                 eqns_data%fluxVec,                 & ! intent(out):   flux vector
                 eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                 rVec,                              & ! intent(out):   residual vector
@@ -740,8 +737,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
 
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
-  if(.not.feasible)then; eqns_data%message=trim(eqns_data%message)//'state vector not feasible'; ierr = 1; return; endif
-
+  
   ! return success
   ierr = 0
   return

@@ -402,6 +402,7 @@ end subroutine getScaling
 subroutine checkFeas(&
                       ! input
                       stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                      mpar_data,                                 & ! intent(in):    model parameters
                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                       indx_data,                                 & ! intent(in):    indices defining model states and layers
                       ! output: feasibility
@@ -413,6 +414,7 @@ subroutine checkFeas(&
   implicit none
   ! input
   real(rkind),intent(in)          :: stateVec(:)               ! model state vector (mixed units)
+  type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
   type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data                 ! indices defining model states and layers
   ! output: feasibility
@@ -446,7 +448,7 @@ subroutine checkFeas(&
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,&  ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,&  ! intent(in): [i4b(:)] index of the hydrology states in the canopy domain
     ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,&  ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat                ,&  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat                 &  ! intent(in): [i4b(:)] layer type (iname_soil or iname_snow)
     )! association with variables in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! --------------------------------------------------------------------------------------------------------------------------------
@@ -548,24 +550,24 @@ subroutine varExtract(&
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   ! output: variables for the vegetation canopy
-  real(rkind),intent(inout)            :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
-  real(rkind),intent(inout)            :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
-  real(rkind),intent(inout)            :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
-  real(rkind),intent(inout)            :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
+  real(rkind),intent(inout)          :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
+  real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+  real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
+  real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
   ! output: variables for the snow-soil domain
-  real(rkind),intent(inout)            :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
-  real(rkind),intent(inout)            :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
-  real(rkind),intent(inout)            :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
-  real(rkind),intent(inout)            :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
-  real(rkind),intent(inout)            :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
+  real(rkind),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+  real(rkind),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
+  real(rkind),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
+  real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
+  real(rkind),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
   ! output: variables for the aquifer
-  real(rkind),intent(inout)            :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
+  real(rkind),intent(inout)          :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
   ! output: error control
   integer(i4b),intent(out)           :: err                             ! error code
   character(*),intent(out)           :: message                         ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
+  integer(i4b)                       :: iLayer                          ! index of layer within the snow+soil domain
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -584,7 +586,7 @@ subroutine varExtract(&
     nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):  [i4b]    number of hydrology variables in the snow+soil domain
     ! indices defining type of model state variables
     ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):  [i4b(:)] [state subset] type of desired model state variables
-    ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                & ! intent(in):  [i4b(:)] index of the type of hydrology states in snow+soil domain
+    ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                 & ! intent(in):  [i4b(:)] index of the type of hydrology states in snow+soil domain
     )! association with variables in the data structures
 
     ! --------------------------------------------------------------------------------------------------------------------------------

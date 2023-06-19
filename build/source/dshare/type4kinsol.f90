@@ -9,7 +9,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (dp)
-                    model_options   ! defines the model decisions
+                    zLookup         ! data vector with variable length dimension (rkind)
 implicit none
 
 type data4kinsol
