@@ -222,8 +222,6 @@ subroutine systemSolv(&
   real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
   real(rkind)                     :: stateVecNew(nState)           ! new state vector (mixed units)
   real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
-  real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
-  real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
   real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
   real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
   real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
@@ -236,7 +234,7 @@ subroutine systemSolv(&
   type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   real(rkind), allocatable        :: mLayerMatricHeadPrime(:)      ! derivative value for total water matric potential (m s-1)
- ! kinsol variables
+  ! kinsol and numrec variables
   real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
   real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
    ! numrec variables
@@ -344,7 +342,7 @@ subroutine systemSolv(&
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
     ! allocate space for mLayerCmpress_sum and mLayerMatricHeadPrime at the start of the time step
-    if(num_method==ida)then
+    if(ixNumericalMethod==ida)then
       allocate( mLayerCmpress_sum(nSoil) )
       allocate( mLayerMatricHeadPrime(nSoil) )
     else
@@ -509,7 +507,7 @@ subroutine systemSolv(&
                         err,cmessage)              ! intent(out):   error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 #endif
-      case(kinsol .or. numrec)
+      case(kinsol, numrec)
         call eval8summa(&
                         ! input: model control
                         dt_cur,                  & ! intent(in):    current stepsize

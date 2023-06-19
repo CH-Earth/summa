@@ -30,6 +30,7 @@ USE globalData,only:globalPrintFlag
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
 
 ! access matrix information
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
@@ -118,16 +119,15 @@ subroutine summaSolve4kinsol(&
   USE fkinsol_mod                                 ! Fortran interface to KINSOL
   USE fsundials_context_mod                       ! Fortran interface to SUNContext
   USE fnvector_serial_mod                         ! Fortran interface to serial N_Vector
-  USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
-  USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
-  USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
-  USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE fsunnonlinsol_newton_mod                    ! Fortran interface to Newton SUNNonlinearSolver
-  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
   USE fsundials_nvector_mod                       ! Fortran interface to generic N_Vector
+  USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
+  USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
+  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
+  USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
+  USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
   USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
-  USE fsundials_nonlinearsolver_mod               ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
+  USE getVectorz_module, only:checkFeas           ! check feasibility of state vector
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
   USE computJacob_module,only:computJacob4kinsol  ! system Jacobian
@@ -141,8 +141,8 @@ subroutine summaSolve4kinsol(&
   ! input: model control
   real(rkind),intent(in)          :: dt_cur                 ! current stepsize
   real(rkind),intent(in)          :: dt                     ! data time step
-  real(rkind),intent(inout)       :: fScale(nState)         ! characteristic scale of the function evaluations (mixed units)
-  real(rkind),intent(inout)       :: xScale(nState)         ! characteristic scale of the state vector (mixed units)
+  real(rkind),intent(inout)       :: fScale(:)              ! characteristic scale of the function evaluations (mixed units)
+  real(rkind),intent(inout)       :: xScale(:)              ! characteristic scale of the state vector (mixed units)
   integer(i4b),intent(in)         :: nSnow                  ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                  ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                ! total number of layers
@@ -190,13 +190,11 @@ subroutine summaSolve4kinsol(&
   type(data4kinsol),        target  :: eqns_data            ! KINSOL type
   integer(i4b)                      :: retval, retvalr      ! return value
   logical(lgt)                      :: feasible             ! feasibility flag
-  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode in Sundials type
-  integer(c_long)                   :: nState               ! total number of state variables in Sundials type
+  integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
+  integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
-  type(var_dlength)                 :: flux_prev            ! previous model fluxes for a local HRU
-  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
-  real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
+  character(LEN=256)                :: cmessage             ! error message of downwind routine
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn KINSOL warnings off, default true
   logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
  
@@ -205,7 +203,7 @@ subroutine summaSolve4kinsol(&
   ! initialize error control
   err=0; message="summaSolve4kinsol/"
 
-  nState = nStat ! total number of state variables in Sundials type
+  nState = nStat ! total number of state variables in SUNDIALS type
   kinsolSucceeds = .true.
 
   ! fill eqns_data which will be required later to call eval8summa
@@ -240,33 +238,12 @@ subroutine summaSolve4kinsol(&
   allocate( eqns_data%sMul(nState) );   eqns_data%sMul   = sMul
   allocate( eqns_data%dMat(nState) );   eqns_data%dMat   = dMat
 
-  ! allocate space for the to save previous fluxes
-  call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,message)
-  if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
-  flux_prev                         = eqns_data%flux_data
-
   ! allocate space for other variables
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
     allocate(eqns_data%dBaseflow_dMatric(nSoil,nSoil),stat=err)
   else
     allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)
   end if
-  allocate( eqns_data%mLayerMatricHeadLiqTrial(nSoil) )
-  allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
-  allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
-  allocate( eqns_data%mLayerVolFracWatTrial(nLayers) )
-  allocate( eqns_data%mLayerVolFracWatPrev(nLayers) )
-  allocate( eqns_data%mLayerTempTrial(nLayers) )
-  allocate( eqns_data%mLayerTempPrev(nLayers) )
-  allocate( eqns_data%mLayerVolFracIceTrial(nLayers) )
-  allocate( eqns_data%mLayerVolFracIcePrev(nLayers) )
-  allocate( eqns_data%mLayerVolFracLiqTrial(nLayers) )
-  allocate( eqns_data%mLayerVolFracLiqPrev(nLayers) )
-  allocate( eqns_data%mLayerEnthalpyTrial(nLayers) )
-  allocate( eqns_data%mLayerEnthalpyPrev(nLayers) )
-  allocate( eqns_data%mLayerMatricHeadPrime(nSoil) )
-  allocate( mLayerMatricHeadPrimePrev(nSoil) )
-  allocate( dCompress_dPsiPrev(nSoil) )
   allocate( eqns_data%fluxVec(nState) )
   allocate( eqns_data%resSink(nState) )
   
@@ -343,17 +320,13 @@ subroutine summaSolve4kinsol(&
   endif
 
   !*********************** Main Solver * loop on one_step mode *****************************
-
   eqns_data%firstFluxCall = .false.
   eqns_data%firstSplitOper = .true.
 
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
   !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
   retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
-  if( retval < 0 )then
-    kinsolSucceeds = .false.
-    exit
-  end if
+  if( retval < 0 ) kinsolSucceeds = .false.
 
   ! check the feasibility of the solution
   feasible=.true.
@@ -371,10 +344,9 @@ subroutine summaSolve4kinsol(&
   ! early return for non-feasible solutions, will fail in current Sundials formulation
   if(.not.feasible)then
     eqns_data%fluxVec(:) = realMissing
-    message=trim(message)//'non-feasible'
+    message=trim(message)//trim(cmessage)//'non-feasible'
     return
   end if
-
   !****************************** End of Main Solver ***************************************
 
   err               = eqns_data%err
@@ -416,7 +388,7 @@ end subroutine summaSolve4kinsol
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u vector.
 ! ----------------------------------------------------------------
-  subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
+  subroutine setInitialCondition(neq, y, sunvec_u)
 
     !======= Inclusions ===========
     USE, intrinsic :: iso_c_binding
@@ -444,7 +416,7 @@ end subroutine summaSolve4kinsol
   ! ----------------------------------------------------------------
   ! setSolverParams: private routine to set parameters in KINSOL solver
   ! ----------------------------------------------------------------
-  subroutine setSolverParams(lin_iter,kinsol_mem,retval)
+  subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
   
     !======= Inclusions ===========
     USE, intrinsic :: iso_c_binding
@@ -459,10 +431,11 @@ end subroutine summaSolve4kinsol
     integer(i4b),intent(out)    :: retval             ! return value
   
     !======= Internals ============
-    integer,parameter           :: mset = 1           ! maximum number of times the solver is called without Jacobian update, pass 0 to give default of 10 times
-    integer,parameter           :: msubset = 1        ! maximum number of nonlinear iterations between checks by the residual monitoring algorithm, default=5
-    integer,parameter           :: maa = 0            ! maximum number of prior residuals to use acceleration, default = 0
-    integer,parameter           :: beta_fail = 50     ! maximum number of beta condition failures, default = 10
+    integer(c_long)             :: nonlin_itr         ! maximum number of nonlinear iterations in SUNDIALS type
+    integer(c_long),parameter   :: mset = 1           ! maximum number of times the solver is called without Jacobian update, pass 0 to give default of 10 times
+    integer(c_long),parameter   :: msubset = 1        ! maximum number of nonlinear iterations between checks by the residual monitoring algorithm, default=5
+    integer(c_long),parameter   :: maa = 0            ! maximum number of prior residuals to use acceleration, default = 0
+    integer(c_long),parameter   :: beta_fail = 50     ! maximum number of beta condition failures, default = 10
     real(qp),parameter          :: fnormtol = 0.0     ! stopping tolerance on the scaled maximum norm of the system function, pass 0 to give default of unit_roundoff**(1/3)
     real(qp),parameter          :: scsteptol = 0.0    ! stopping tolerance on the minimum scaled step length, pass 0 to give default of unit_roundoff**(2/3)
         
@@ -471,11 +444,12 @@ end subroutine summaSolve4kinsol
     if (retval /= 0) return
 
     ! Every msubset iterations, test if a Jacobian evaluation is necessary
-    ierr = FKINSetMaxSubSetupCalls(kinsol_mem, msubset)
+    retval = FKINSetMaxSubSetupCalls(kinsol_mem, msubset)
     if (retval /= 0) return
 
     ! Set maximum number of iterations   
-    retval = FKINSetNumMaxIters(kinsol_mem, nonlin_iter)
+    nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type
+    retval = FKINSetNumMaxIters(kinsol_mem, nonlin_itr)
     if (retval /= 0) return
 
     ! Set maximum number of prior residuals to use for Anderson acceleration 
@@ -491,11 +465,10 @@ end subroutine summaSolve4kinsol
     retval = FKINSetFuncNormTol(kinsol_mem, fnormtol)
     if (retval /= 0) return
 
-\   ! Set stopping tolerance on the scaled maximum norm of the system function
+    ! Set stopping tolerance on the scaled maximum norm of the system function
     retval = FKINSetScaledStepTol(kinsol_mem, scsteptol)
     if (retval /= 0) return
 
-  
   end subroutine setSolverParams
   
-  
+end module summaSolve4kinsol_module

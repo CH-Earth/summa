@@ -290,7 +290,7 @@ subroutine eval8summaWithPrime(&
       if(.not.feasible)then
         fluxVec(:) = realMissing
         resVec(:)  = quadMissing
-        message=trim(message)//'non-feasible'
+        message=trim(message)//trim(cmessage)//'non-feasible'
         return
       end if
     end if ! ( feasibility check )

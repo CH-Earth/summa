@@ -31,6 +31,7 @@ USE globalData,only:globalPrintFlag
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
+USE globalData,only:realMissing     ! missing double precision number
 
 ! access matrix information
 USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
@@ -124,19 +125,22 @@ subroutine summaSolve4ida(                         &
   USE fida_mod                                    ! Fortran interface to IDA
   USE fsundials_context_mod                       ! Fortran interface to SUNContext
   USE fnvector_serial_mod                         ! Fortran interface to serial N_Vector
-  USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
-  USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
-  USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
-  USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
   USE fsundials_nvector_mod                       ! Fortran interface to generic N_Vector
+  USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
+  USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
+  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
+  USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
+  USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
   USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
+  USE fsunnonlinsol_newton_mod                    ! Fortran interface to Newton SUNNonlinearSolver
+  USE fsundials_nonlinearsolver_mod               ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
-  USE eval8summaWithPrime_module,only:eval8summa4ida         ! DAE/ODE functions
-  USE eval8summaWithPrime_module,only:eval8summaWithPrime     ! residual of DAE
-  USE computJacobWithPrime_module,only:computJacob4ida       ! system Jacobian
+  USE getVectorz_module, only:checkFeas           ! check feasibility of state vector
+  USE eval8summaWithPrime_module,only:eval8summa4ida      ! DAE/ODE functions
+  USE eval8summaWithPrime_module,only:eval8summaWithPrime ! residual of DAE
+  USE computJacobWithPrime_module,only:computJacob4ida    ! system Jacobian
   USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
- 
+
   !======= Declarations =========
   implicit none
 
@@ -203,8 +207,8 @@ subroutine summaSolve4ida(                         &
   real(qp)                          :: t0                   ! starting time
   real(qp)                          :: dt_last(1)           ! last time step
   real(qp)                          :: dt_diff              ! difference from previous timestep
-  integer(kind = 8)                 :: mu, lu               ! in banded matrix mode in Sundials type
-  integer(c_long)                   :: nState               ! total number of state variables in Sundials type
+  integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
+  integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   integer(i4b)                      :: nRoot                ! total number of roots (events) to find
@@ -214,6 +218,7 @@ subroutine summaSolve4ida(                         &
   integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
   logical(lgt)                      :: tinystep             ! if step goes below small size
   type(var_dlength)                 :: flux_prev            ! previous model fluxes for a local HRU
+  character(LEN=256)                :: cmessage             ! error message of downwind routine
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
@@ -225,7 +230,7 @@ subroutine summaSolve4ida(                         &
   ! initialize error control
   err=0; message="summaSolve4ida/"
 
-  nState = nStat ! total number of state variables in Sundials type
+  nState = nStat ! total number of state variables in SUNDIALS type
   idaSucceeds = .true.
 
   ! fill eqns_data which will be required later to call eval8summaWithPrime
@@ -409,7 +414,6 @@ subroutine summaSolve4ida(                         &
   endif
 
   !*********************** Main Solver * loop on one_step mode *****************************
-
   tinystep = .false.
   tret(1) = t0           ! initial time
   tretPrev = tret(1)
@@ -458,7 +462,7 @@ subroutine summaSolve4ida(                         &
     ! early return for non-feasible solutions, will fail in current Sundials formulation
     if(.not.feasible)then
       eqns_data%fluxVec(:) = realMissing
-      message=trim(message)//'non-feasible'
+      message=trim(message)//trim(cmessage)//'non-feasible'
       return
     end if
 
@@ -509,7 +513,6 @@ subroutine summaSolve4ida(                         &
     endif
 
   enddo ! while loop on one_step mode until time dt
-
   !****************************** End of Main Solver ***************************************
 
   err               = eqns_data%err
@@ -620,7 +623,7 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
   real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
   integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
   integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
-  integer(kind = 8),parameter :: max_step = 999999  ! maximum number of steps,  default = 500
+  integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
   real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
   real(qp),parameter          :: h_init = 0         ! initial stepsize
  
@@ -633,7 +636,7 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
   if (retval /= 0) return
 
   ! Set maximun number of nonliear iterations
-  retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+   retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
   if (retval /= 0) return
 
   !  Set maximum number of convergence test failures

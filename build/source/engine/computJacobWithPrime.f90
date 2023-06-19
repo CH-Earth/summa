@@ -65,21 +65,16 @@ USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
-! look-up values for the choice of groundwater representation (local-column, or single-basin)
-USE mDecisions_module,only:  &
- localColumn,                & ! separate groundwater representation in each local soil column
- singleBasin                   ! single groundwater store over the entire basin
-
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  &
- qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
- bigBucket,                  & ! a big bucket (lumped aquifer model)
- noExplicit                    ! no explicit groundwater parameterization
+USE mDecisions_module,only:       &
+ qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                       & ! a big bucket (lumped aquifer model)
+ noExplicit                         ! no explicit groundwater parameterization
 
 ! look-up values for the form of Richards' equation
-USE mDecisions_module,only:  &
- moisture,                   & ! moisture-based form of Richards' equation
- mixdform                      ! mixed form of Richards' equation
+USE mDecisions_module,only:       &
+ moisture,                        & ! moisture-based form of Richards' equation
+ mixdform                           ! mixed form of Richards' equation
 
 implicit none
 ! define constants

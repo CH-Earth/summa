@@ -30,6 +30,7 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! named variables for structure elements
+USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookDIAG       ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
@@ -59,6 +60,12 @@ USE globalData,only: iJac2          ! last layer of the Jacobian to print
 USE multiconst,only:&
                     LH_fus,       & ! latent heat of fusion                (J kg-1)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
+
+! look-up values for the choice of groundwater parameterization
+USE mDecisions_module,only:       &
+ qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                       & ! a big bucket (lumped aquifer model)
+ noExplicit                         ! no explicit groundwater parameterization
 
 implicit none
 ! define constants
