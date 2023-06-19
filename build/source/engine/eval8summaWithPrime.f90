@@ -153,7 +153,7 @@ subroutine eval8summaWithPrime(&
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
+  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -742,7 +742,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   real(rkind), pointer        :: stateVecPrime(:)
   real(rkind), pointer        :: rVec(:)
   logical(lgt)                :: feasible
-  integer(i4b)                :: retval
   !======= Internals ============
 
   ! get equations data from user-defined data
@@ -761,10 +760,10 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                 eqns_data%nLayers,                 & ! intent(in):    number of layers
                 eqns_data%nState,                  & ! intent(in):    number of state variables in the current subset
-                .true.,                            & ! intent(in):    inside Sundials solver
-                eqns_data%firstSubStep,            & ! intent(in): flag to indicate if we are processing the first sub-step
+                .true.,                            & ! intent(in):    inside SUNDIALS solver
+                eqns_data%firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                 eqns_data%firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                eqns_data%firstSplitOper,          & ! intent(inout):    flag to indicate if we are processing the first flux call in a splitting operation
+                eqns_data%firstSplitOper,          & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                 eqns_data%computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                 eqns_data%scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                 ! input: state vectors
