@@ -94,7 +94,7 @@ integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
 
 
   ! pointers to data in SUNDIALS vectors
-  type(eqnsData), pointer :: tol_data ! equations data
+  type(data4ida), pointer :: tol_data ! equations data
   real(rkind), pointer    :: stateVec(:)
   real(rkind), pointer    :: weightVec(:)
   integer(c_int)          :: iState
