@@ -37,9 +37,6 @@ USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matri
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
 
-! state variable type
-USE globalData,only:model_decisions ! model decision structure
-
 ! global metadata
 USE globalData,only:flux_meta       ! metadata on the model fluxes
 
@@ -61,7 +58,8 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup         ! lookup tables
+                    zLookup,      & ! lookup tables
+                    model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterization
@@ -96,6 +94,7 @@ subroutine summaSolve4kinsol(&
                       sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
+                      model_decisions,         & ! intent(in):    model decisions
                       lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
@@ -157,7 +156,8 @@ subroutine summaSolve4kinsol(&
   real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
-  type(zLookup),intent(in)        :: lookup_data            ! lookup tables
+  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -219,6 +219,7 @@ subroutine summaSolve4kinsol(&
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
+  eqns_data%model_decisions         = model_decisions
   eqns_data%deriv_data              = deriv_data
   eqns_data%lookup_data             = lookup_data
   eqns_data%type_data               = type_data
@@ -390,6 +391,7 @@ subroutine summaSolve4kinsol(&
   endif
 
   ! free memory
+  deallocate( eqns_data%model_decisions)
   deallocate( eqns_data%fScale )
   deallocate( eqns_data%xScale )
   deallocate( eqns_data%sMul )
@@ -397,7 +399,6 @@ subroutine summaSolve4kinsol(&
   deallocate( eqns_data%dBaseflow_dMatric )
   deallocate( eqns_data%fluxVec )
   deallocate( eqns_data%resSink )
-
 
   call FKINFree(kinsol_mem)
   retval = FSUNLinSolFree(sunlinsol_LS)

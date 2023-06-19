@@ -28,9 +28,6 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
 
 ! constants
 USE multiconst,only:&
@@ -82,6 +79,7 @@ subroutine eval8summa(&
                       nSoil,                   & ! intent(in):    number of soil layers
                       nLayers,                 & ! intent(in):    total number of layers
                       nState,                  & ! intent(in):    total number of state variables
+                      insideSUN,               & ! intent(in):    flag to indicate if we are inside Sundials solver
                       firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                       firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                       firstSplitOper,          & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
@@ -711,7 +709,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
-                model_decisions,                   & ! intent(in):    model decisions
+                eqns_data%model_decisions,         & ! intent(in):    model decisions
                 eqns_data%lookup_data,             & ! intent(in):    lookup data
                 eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
                 eqns_data%attr_data,               & ! intent(in):    spatial attributes

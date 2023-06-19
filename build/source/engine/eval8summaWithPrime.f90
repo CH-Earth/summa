@@ -9,10 +9,6 @@ USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
-! access the global print flag
-USE globalData,only:globalPrintFlag
-
-
 ! constants
 USE multiconst,only:&
                     Tfreeze,      & ! temperature at freezing              (K)
@@ -771,7 +767,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 stateVecPrime,                     & ! intent(in):    model state vector
                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
-                model_decisions,                   & ! intent(in):    model decisions
+                eqns_data%model_decisions,         & ! intent(in):    model decisions
                 eqns_data%lookup_data,             & ! intent(in):    lookup data
                 eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
                 eqns_data%attr_data,               & ! intent(in):    spatial attributes

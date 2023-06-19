@@ -49,7 +49,6 @@ USE globalData,only:realMissing     ! missing real number
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:model_decisions ! model decision structure
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
@@ -111,6 +110,7 @@ subroutine computJacobWithPrime(&
                       theta_sat,                  & ! intent(in):    soil porosity (-)
                       ixRichards,                 & ! intent(in):    choice of option for Richards' equation
                       ! input: data structures
+                      model_decisions,            & ! intent(in):    model decisions
                       indx_data,                  & ! intent(in):    index data
                       prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
@@ -143,18 +143,17 @@ subroutine computJacobWithPrime(&
   real(rkind),intent(in)               :: theta_sat(:)               ! soil porosity (-)
   integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
   ! input: data structures
+  type(model_options),intent(in)       :: model_decisions(:)         ! model decisions
   type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
   type(var_dlength),intent(in)         :: prog_data                  ! prognostic variables for a local HRU
   type(var_dlength),intent(in)         :: diag_data                  ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)         :: deriv_data                 ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(in)               :: dBaseflow_dMatric(:,:)     ! derivative in baseflow w.r.t. matric head (s-1)
   ! input: state variables
-  real(rkind),intent(in)               :: mLayerTemp(:)              ! vector of layer temperature (K)
   real(rkind),intent(in)               :: mLayerTempPrime(:)         ! vector of derivative value for layer temperature
   real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)   ! vector of derivative value for layer matric head
   real(rkind),intent(in)               :: mLayerMatricHeadLiqPrime(:)! vector of derivative value for layer liquid matric head
   real(rkind),intent(in)               :: mLayerVolFracWatPrime(:)   ! vector of derivative value for layer water volume fraction
-  real(rkind),intent(in)               :: scalarCanopyTemp           ! temperature of the vegetation canopy (K)
   real(rkind),intent(in)               :: scalarCanopyTempPrime      ! derivative value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)               :: scalarCanopyWatPrime       ! derivative value for water content of the vegetation canopy
   ! input-output: Jacobian and its diagonal
@@ -1316,6 +1315,7 @@ subroutine computJacob4idaSetup(&
                     theta_sat,                      & ! intent(in):    soil porosity (-)
                     ixRichards,                     & ! intent(in):    choice of option for Richards' equation
                     ! input: data structures
+                    model_decisions,                & ! intent(in):    model decisions
                     indx_data,                      & ! intent(in):    index data
                     prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
@@ -1338,7 +1338,7 @@ subroutine computJacob4idaSetup(&
     ! end association with the information in the data structures
   end associate
 
-end subroutine computJacobSetup
+end subroutine computJacob4idaSetup
 
 
 ! **********************************************************************************************************
@@ -1409,7 +1409,7 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 stateVecPrime,                     & ! intent(in):    model state vector
                 eqns_data%sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                 ! input: data structures
-                model_decisions,                   & ! intent(in):    model decisions
+                eqns_data%model_decisions,         & ! intent(in):    model decisions
                 eqns_data%mpar_data,               & ! intent(in):    model parameters
                 eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                 ! input-output: data structures

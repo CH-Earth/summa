@@ -26,7 +26,8 @@ USE nrtype
 ! derived types to define the data structures
 USE data_types,only:&
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength     ! data vector with variable length dimension (rkind)
+                    var_dlength,  & ! data vector with variable length dimension (rkind)
+                    model_options   ! defines the model decisions
 
 ! named variables for structure elements
 USE var_lookup,only:iLookPROG       ! named variables for structure elements
@@ -43,7 +44,6 @@ USE globalData,only:realMissing     ! missing real number
 
 ! named variables to describe the state variable type
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
-USE globalData,only:model_decisions ! model decision structure
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
 USE globalData,only: ku             ! number of super-diagonal bands, assume ku>=3
@@ -1252,7 +1252,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
                 stateVec,                          & ! intent(in):    model state vector
                 eqns_data%sMul,                    & ! intent(in):    state vector multiplier (used in the residual calculations)
                 ! input: data structures
-                model_decisions,                   & ! intent(in):    model decisions
+                eqns_data%model_decisions,         & ! intent(in):    model decisions
                 eqns_data%mpar_data,               & ! intent(in):    model parameters
                 eqns_data%prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                 ! input-output: data structures

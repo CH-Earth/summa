@@ -55,7 +55,7 @@ USE globalData,only:iname_matLayer  ! named variable defining the matric head st
 USE globalData,only:iname_lmpLayer  ! named variable defining the liquid matric potential state variable for soil layers
 
 ! global metadata
-USE globalData,only:flux_meta                        ! metadata on the model fluxes
+USE globalData,only:flux_meta       ! metadata on the model fluxes
 
 ! constants
 USE multiconst,only:&
@@ -629,6 +629,7 @@ subroutine systemSolv(&
                           sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
+                          model_decisions,         & ! intent(in):    model decisions
                           lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
@@ -697,6 +698,7 @@ subroutine systemSolv(&
                           sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
+                          model_decisions,         & ! intent(in):    model decisions
                           lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes

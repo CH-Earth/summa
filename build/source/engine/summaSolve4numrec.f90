@@ -36,11 +36,11 @@ USE globalData,only:realMissing     ! missing double precision number
 USE globalData,only:quadMissing     ! missing quadruple precision number
 
 ! access named variables to describe the form and structure of the matrices used in the numerical solver
+USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
+USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: ku             ! number of super-diagonal bands
 USE globalData,only: kl             ! number of sub-diagonal bands
 USE globalData,only: nBands         ! length of the leading dimension of the band diagonal matrix
-USE globalData,only: ixFullMatrix   ! named variable for the full Jacobian matrix
-USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matrix
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
@@ -235,7 +235,7 @@ contains
  !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
  call computJacob(&
                   ! input: model control
-                  dt_cur,                             & ! intent(in):    length of the time step (seconds)
+                  dt_cur,                         & ! intent(in):    length of the time step (seconds)
                   nSnow,                          & ! intent(in):    number of snow layers
                   nSoil,                          & ! intent(in):    number of soil layers
                   nLayers,                        & ! intent(in):    total number of layers
@@ -931,7 +931,7 @@ contains
                   nSoil,                   & ! intent(in):    number of soil layers
                   nLayers,                 & ! intent(in):    total number of layers
                   nState,                  & ! intent(in):    total number of state variables
-                  .false.,                 & ! intent(in):   not inside Sundials solver
+                  .false.,                 & ! intent(in):    not inside Sundials solver
                   firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                   firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                   .false.,                 & ! intent(in):    not processing the first iteration in a splitting operation
