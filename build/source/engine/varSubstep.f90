@@ -412,7 +412,7 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(ida);                checkMassBalance = .false. ! IDA has instantaneous fluxes only so average will not balance over data window
+        case(ida);            checkMassBalance = .false. ! IDA has instantaneous fluxes only so average will not balance over data window
         case(kinsol, numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
         case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select

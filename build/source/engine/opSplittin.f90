@@ -316,11 +316,11 @@ subroutine opSplittin(&
     ! initialize error control
     err=0; message="opSplittin/"
 
-    ! we just solve the fully coupled problem by with Sundials for now
+    ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
     select case(ixNumericalMethod)
-      case(ida);       nCoupling = 1
-      case(numrec); nCoupling = 2
-      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol   , or numrec (or itertive, which is numrec)'; return
+      case(ida);            nCoupling = 1
+      case(kinsol, numrec); nCoupling = 2
+      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
     end select
 
     ! -----

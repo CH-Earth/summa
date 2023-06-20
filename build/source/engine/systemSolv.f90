@@ -664,12 +664,8 @@ subroutine systemSolv(&
         end do
 
         ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
-        ! need to recompute layer geometry because indx_data is part of the SUNDIALS memory
         layerVars: associate(&
-           ! layer geometry
-          nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! number of snow layers
-          nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! number of soil layers
-          nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! total number of layers
+          ! layer geometry
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! depth of each layer in the snow-soil sub-domain (m)
           mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! change in storage associated with compression of the soil matrix (-)
           scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)      & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
@@ -830,10 +826,6 @@ subroutine systemSolv(&
         !  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
         !  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
         !  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
-          ! layer geometry
-        !  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
-        !  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
-        !  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
         !  )
         ! 
         ! update temperatures (ensure new temperature is consistent with the fluxes)

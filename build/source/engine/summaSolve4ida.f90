@@ -521,12 +521,12 @@ subroutine summaSolve4ida(                         &
 
   if(idaSucceeds)then
     ! copy to output data
-    indx_data     = eqns_data%indx_data
     diag_data     = eqns_data%diag_data
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
     dt_out        = tret(1) ! should be dt, probably do not need to keep this
+    indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of Flux Calculations changes
   endif
 
   ! free memory

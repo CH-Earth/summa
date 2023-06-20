@@ -1192,9 +1192,9 @@ subroutine coupled_em(&
 
       ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
       select case(ixNumericalMethod)
-        case(ida);  checkMassBalance = .false.  ! Sundials gives instantaneous fluxes and were summed for an average flux, but if large time step, then average is not accurate enough to pass the check
-        case(numrec); checkMassBalance = .true.  ! numrec gives finite difference dt_sub fluxes and were summed for an average flux
-        case default; err=20; message=trim(message)//'expect num_method to be sundials, kinsol, or numrec (or itertive, which is numrec)'; return
+        case(ida);            checkMassBalance = .false. ! IDA gives instantaneous fluxes and were summed for an average flux, but if large time step, then average is not accurate enough to pass the check
+        case(kinsol, numrec); checkMassBalance = .true.  ! KINSOL or numrec give finite difference dt_sub fluxes and were summed for an average flux
+        case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select
 
       ! -----
