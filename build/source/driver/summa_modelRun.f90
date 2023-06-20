@@ -139,7 +139,7 @@ contains
                     typeStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    type of vegetation and soil
                     attrStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    spatial attributes
                     mparStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model parameters
-                    progStruct%gru(iGRU)%hru(iHRU), & ! intent(in):    model prognostic variables for a local HRU
+                    progStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model prognostic variables for a local HRU
                     diagStruct%gru(iGRU)%hru(iHRU), & ! intent(inout): model diagnostic variables for a local HRU
                     ! output
                     computeVegFluxFlag,             & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)

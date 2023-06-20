@@ -168,19 +168,19 @@ subroutine updateVarsWithPrime(&
   real(rkind),intent(inout)          :: mLayerMatricHeadPrime(:)        ! trial value of time derivative total water matric potential (m)
   real(rkind),intent(inout)          :: mLayerMatricHeadLiqPrime(:)     ! trial value of time derivative liquid water matric potential (m)
   ! output: error control
-  integer(i4b),intent(out)        :: err                             ! error code
-  character(*),intent(out)        :: message                         ! error message
+  integer(i4b),intent(out)           :: err                             ! error code
+  character(*),intent(out)           :: message                         ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! general local variables
-  integer(i4b)                    :: iState                          ! index of model state variable
-  integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
-  integer(i4b)                    :: ixFullVector                    ! index within full state vector
-  integer(i4b)                    :: ixDomainType                    ! name of a given model domain
-  integer(i4b)                    :: ixControlIndex                  ! index within a given model domain
-  integer(i4b)                    :: ixOther,ixOtherLocal            ! index of the coupled state variable within the (full, local) vector
-  logical(lgt)                    :: isCoupled                       ! .true. if a given variable shared another state variable in the same control volume
-  logical(lgt)                    :: isNrgState                      ! .true. if a given variable is an energy state
-  logical(lgt),allocatable        :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
+  integer(i4b)                       :: iState                          ! index of model state variable
+  integer(i4b)                       :: iLayer                          ! index of layer within the snow+soil domain
+  integer(i4b)                       :: ixFullVector                    ! index within full state vector
+  integer(i4b)                       :: ixDomainType                    ! name of a given model domain
+  integer(i4b)                       :: ixControlIndex                  ! index within a given model domain
+  integer(i4b)                       :: ixOther,ixOtherLocal            ! index of the coupled state variable within the (full, local) vector
+  logical(lgt)                       :: isCoupled                       ! .true. if a given variable shared another state variable in the same control volume
+  logical(lgt)                       :: isNrgState                      ! .true. if a given variable is an energy state
+  logical(lgt),allocatable           :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
   real(rkind)                        :: scalarVolFracLiq                ! volumetric fraction of liquid water (-)
   real(rkind)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
   real(rkind)                        :: scalarVolFracLiqPrime           ! time derivative volumetric fraction of liquid water (-)
@@ -190,23 +190,23 @@ subroutine updateVarsWithPrime(&
   real(rkind)                        :: fLiq                            ! fraction of liquid water (-)
   real(rkind)                        :: effSat                          ! effective saturation (-)
   real(rkind)                        :: avPore                          ! available pore space (-)
-  character(len=256)              :: cMessage                        ! error message of downwind routine
-  logical(lgt),parameter          :: printFlag=.false.               ! flag to turn on printing
+  character(len=256)                 :: cMessage                        ! error message of downwind routine
+  logical(lgt),parameter             :: printFlag=.false.               ! flag to turn on printing
   ! iterative solution for temperature
   real(rkind)                        :: meltNrg                         ! energy for melt+freeze (J m-3)
   real(rkind)                        :: residual                        ! residual in the energy equation (J m-3)
   real(rkind)                        :: derivative                      ! derivative in the energy equation (J m-3 K-1)
   real(rkind)                        :: tempInc                         ! iteration increment (K)
-  integer(i4b)                    :: iter                            ! iteration index
-  integer(i4b)                    :: niter                           ! number of iterations
-  integer(i4b),parameter          :: maxiter=100                     ! maximum number of iterations
-  real(rkind),parameter              :: nrgConvTol=1.e-4_rkind             ! convergence tolerance for energy (J m-3)
-  real(rkind),parameter              :: tempConvTol=1.e-6_rkind            ! convergence tolerance for temperature (K)
+  integer(i4b)                       :: iter                            ! iteration index
+  integer(i4b)                       :: niter                           ! number of iterations
+  integer(i4b),parameter             :: maxiter=100                     ! maximum number of iterations
+  real(rkind),parameter              :: nrgConvTol=1.e-4_rkind          ! convergence tolerance for energy (J m-3)
+  real(rkind),parameter              :: tempConvTol=1.e-6_rkind         ! convergence tolerance for temperature (K)
   real(rkind)                        :: critDiff                        ! temperature difference from critical (K)
   real(rkind)                        :: tempMin                         ! minimum bracket for temperature (K)
   real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
-  logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
-  real(rkind),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
+  logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
+  real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical temperature (K)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&

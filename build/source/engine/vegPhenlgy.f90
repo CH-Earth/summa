@@ -73,7 +73,7 @@ contains
                        type_data,                   & ! intent(in):    type of vegetation and soil
                        attr_data,                   & ! intent(in):    spatial attributes
                        mpar_data,                   & ! intent(in):    model parameters
-                       prog_data,                   & ! intent(in):    prognostic variables for a local HRU
+                       prog_data,                   & ! intent(inout): prognostic variables for a local HRU
                        diag_data,                   & ! intent(inout): diagnostic variables for a local HRU
                        ! output
                        computeVegFlux,              & ! intent(out): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -91,7 +91,7 @@ contains
  type(var_i),intent(in)          :: type_data           ! type of vegetation and soil
  type(var_d),intent(in)          :: attr_data           ! spatial attributes
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- type(var_dlength),intent(in)    :: prog_data           ! prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: prog_data           ! prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: diag_data           ! diagnostic variables for a local HRU
  ! output
  logical(lgt),intent(out)        :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
@@ -110,33 +110,27 @@ contains
  ! ----------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in the data structure
  associate(&
-
  ! input: model decisions
  ix_bcUpprTdyn                   => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,      & ! intent(in): [i4b] choice of upper boundary condition for thermodynamics
  ix_bcUpprSoiH                   => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,      & ! intent(in): [i4b] index of method used for the upper boundary condition for soil hydrology
-
  ! local attributes
  vegTypeIndex                    => type_data%var(iLookTYPE%vegTypeIndex),                     & ! intent(in): [i4b] vegetation type index
  latitude                        => attr_data%var(iLookATTR%latitude),                         & ! intent(in): [dp] latitude
-
  ! model state variables
  scalarSnowDepth                 => prog_data%var(iLookPROG%scalarSnowDepth)%dat(1),           & ! intent(in):    [dp] snow depth on the ground surface (m)
  scalarCanopyTemp                => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),          & ! intent(in):    [dp] temperature of the vegetation canopy at the start of the sub-step (K)
-
+ scalarCanopyLiq                 => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),           & ! intent(in):    [dp] liquid water in the vegetation canopy at the start of the sub-step
  ! diagnostic variables and parameters (input)
  heightCanopyTop                 => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),          & ! intent(in):    [dp] height of the top of the canopy layer (m)
  heightCanopyBottom              => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),       & ! intent(in):    [dp] height of the bottom of the canopy layer (m)
  scalarRootZoneTemp              => diag_data%var(iLookDIAG%scalarRootZoneTemp)%dat(1),        & ! intent(in):    [dp] root zone temperature (K)
-
  ! diagnostic variables and parameters (input/output)
  scalarLAI                       => diag_data%var(iLookDIAG%scalarLAI)%dat(1),                 & ! intent(inout): [dp] one-sided leaf area index (m2 m-2)
  scalarSAI                       => diag_data%var(iLookDIAG%scalarSAI)%dat(1),                 & ! intent(inout): [dp] one-sided stem area index (m2 m-2)
-
  ! diagnostic variables and parameters (output)
  scalarExposedLAI                => diag_data%var(iLookDIAG%scalarExposedLAI)%dat(1),          & ! intent(out): [dp] exposed leaf area index after burial by snow (m2 m-2)
  scalarExposedSAI                => diag_data%var(iLookDIAG%scalarExposedSAI)%dat(1),          & ! intent(out): [dp] exposed stem area index after burial by snow (m2 m-2)
  scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1)   & ! intent(out): [dp] growing season index (0=off, 1=on)
-
  ) ! associate variables in data structure
  ! ----------------------------------------------------------------------------------------------------------------------------------
 
@@ -186,8 +180,9 @@ contains
 
   ! determine if need to include vegetation in the energy flux routines
   computeVegFlux = (exposedVAI > 0.05_rkind .and. heightAboveSnow > 0.05_rkind)
-  !write(*,'(a,1x,i2,1x,L1,1x,10(f12.5,1x))') 'vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth = ', &
-  !                                            vegTypeIndex, computeVegFlux, heightCanopyTop, heightAboveSnow, scalarSnowDepth
+
+  ! if no vegetation ever, should not have initialized scalarCanopyLiq to 0.0001 in read_icond.f90
+  if((scalarLAI + scalarSAI) == 0.0_rkind) scalarCanopyLiq = 0.0_rkind
 
  end if  ! (check if the snow-soil column is isolated)
 
