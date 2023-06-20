@@ -426,8 +426,9 @@ subroutine summaSolve4ida(                         &
       if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetRootDirection'; return; endif
     endif
 
-    eqns_data%firstFluxCall = .false.
-    eqns_data%firstSplitOper = .true.
+    eqns_data%firstFluxCall = .false. ! already called for initial
+    eqns_data%firstSplitOper = .true. ! always true at start of dt since no splitting
+
     ! call IDASolve, advance solver just one internal step
     retvalr = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
     if( retvalr < 0 )then

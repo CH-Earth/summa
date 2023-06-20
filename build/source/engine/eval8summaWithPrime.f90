@@ -633,7 +633,7 @@ subroutine eval8summaWithPrime(&
                     err,cmessage)                ! intent(out):   error code and error message
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-    firstSplitOper = .true.
+    firstSplitOper = .false. ! after call computeFlux once in dt, no longer firstSplitOper
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations

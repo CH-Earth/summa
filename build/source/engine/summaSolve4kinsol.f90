@@ -214,6 +214,8 @@ subroutine summaSolve4kinsol(&
   eqns_data%nLayers                 = nLayers
   eqns_data%nState                  = nState
   eqns_data%ixMatrix                = ixMatrix
+  eqns_data%firstFluxCall           = .false. ! already called for initial
+  eqns_data%firstSplitOper          = .false. ! already called for initial and false inside solver ???
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
@@ -319,10 +321,7 @@ subroutine summaSolve4kinsol(&
     retval = FKINSetErrFile(kinsol_mem, c_null_ptr)
   endif
 
-  !*********************** Main Solver * loop on one_step mode *****************************
-  eqns_data%firstFluxCall = .false.
-  eqns_data%firstSplitOper = .true.
-
+  !****************************** Main Solver **********************************************
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
   !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
   retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
