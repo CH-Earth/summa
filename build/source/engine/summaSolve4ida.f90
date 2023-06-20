@@ -555,8 +555,6 @@ subroutine summaSolve4ida(                         &
   deallocate( rootdir )
 
   call FIDAFree(ida_mem)
-  retval = FSUNNonlinSolFree(sunnonlin_NLS)
-  if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the nonlinear solver'; return; endif
   retval = FSUNLinSolFree(sunlinsol_LS)
   if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the linear solver'; return; endif
   call FSUNMatDestroy(sunmat_A)
