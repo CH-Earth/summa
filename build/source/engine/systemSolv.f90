@@ -290,13 +290,7 @@ subroutine systemSolv(&
     ! model state variables (aquifer)
     scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in): [dp]     storage of water in the aquifer (m)
     ! check the need to merge snow layers
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):    [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
-    ! vector of energy and hydrology indices for the snow and soil domains
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
     ! mapping from full domain to the sub-domain
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
@@ -670,8 +664,19 @@ subroutine systemSolv(&
         end do
 
         ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
-        diag_data%var(iLookDIAG%mLayerCompress)%dat(:) = mLayerCmpress_sum(:) /  dt_out
-        diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) = sum(diag_data%var(iLookDIAG%mLayerCompress)%dat(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
+        ! need to recompute layer geometry because indx_data is part of the SUNDIALS memory
+        layerVars: associate(&
+           ! layer geometry
+          nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! number of snow layers
+          nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! number of soil layers
+          nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! total number of layers
+          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! depth of each layer in the snow-soil sub-domain (m)
+          mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! change in storage associated with compression of the soil matrix (-)
+          scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)      & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
+          )
+          mLayerCompress = mLayerCmpress_sum /  dt_out
+          scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
+        end associate layerVars
 
       case(kinsol)
         !---------------------------
@@ -819,23 +824,35 @@ subroutine systemSolv(&
         ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
         ! Turn off for now to agree with SUNDIALS
         ! ------------------
+        !layerVars: associate(&
+        ! vector of energy and hydrology indices for the snow and soil domains
+        !  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+        !  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+        !  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
+        !  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+          ! layer geometry
+        !  nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
+        !  nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
+        !  nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
+        !  )
         ! 
         ! update temperatures (ensure new temperature is consistent with the fluxes)
         !if(nSnowSoilNrg>0)then
-        !  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        !  iState = ixSnowSoilNrg(iLayer)
-        !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
-        !  end do  ! looping through non-missing energy state variables in the snow+soil domain
-        !endif
-        !
-        ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
-        ! NOTE: for soil water balance is constrained within the iteration loop
-        !if(nSnowSoilHyd>0)then
-        !  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-        !  iState = ixSnowSoilHyd(iLayer)
-        !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
-        !  end do  ! looping through non-missing water state variables in the soil domain
-        !endif
+          !  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+          !  iState = ixSnowSoilNrg(iLayer)
+          !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
+          !  end do  ! looping through non-missing energy state variables in the snow+soil domain
+          !endif
+          !
+          ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+          ! NOTE: for soil water balance is constrained within the iteration loop
+          !if(nSnowSoilHyd>0)then
+          !  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+          !  iState = ixSnowSoilHyd(iLayer)
+          !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
+          !  end do  ! looping through non-missing water state variables in the soil domain
+          !endif
+        !end associate layerVars
               
     end select
 
