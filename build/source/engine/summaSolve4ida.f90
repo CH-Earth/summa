@@ -327,10 +327,6 @@ subroutine summaSolve4ida(                         &
   retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetUserData'; return; endif
 
-  ! Set solver parameters before calling FIDAInit
-  call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
-  if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
-
   ! Set the function IDA will use to advance the state
   t0 = 0._rkind
   retval = FIDAInit(ida_mem, c_funloc(eval8summa4ida), t0, sunvec_y, sunvec_yp)
@@ -406,6 +402,10 @@ subroutine summaSolve4ida(                         &
   ! Enforce the solver to stop at end of the time step
   retval = FIDASetStopTime(ida_mem, dt)
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetStopTime'; return; endif
+
+  ! Set solver parameters at end of setup
+  call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
+  if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
 
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
