@@ -525,10 +525,10 @@ subroutine opSplittin(&
 
                 ! identify the type of state for the states in the subset
                 stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat ,& ! intent(in): [i4b(:)] indices of state types
-                                        ixMapFull2Subset    => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat   ,& ! intent(in): [i4b(:)] mapping of full state vector to the state subset
-                                        ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat    ,& ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
-                                        ixLayerActive       => indx_data%var(iLookINDEX%ixLayerActive)%dat      ,& ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerM
-                                        ixDomainType        => indx_data%var(iLookINDEX%ixDomainType)%dat       )  ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+                                        ixMapFull2Subset   => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat   ,& ! intent(in): [i4b(:)] mapping of full state vector to the state subset
+                                        ixControlVolume    => indx_data%var(iLookINDEX%ixControlVolume)%dat    ,& ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
+                                        ixLayerActive      => indx_data%var(iLookINDEX%ixLayerActive)%dat      ,& ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerM
+                                        ixDomainType       => indx_data%var(iLookINDEX%ixDomainType)%dat       )  ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
 
                   ! loop through flux variables
                   do iVar=1,size(flux_meta)
@@ -650,7 +650,7 @@ subroutine opSplittin(&
                 ! reset the flag for the first flux call
                 if(.not.firstSuccess) firstFluxCall=.true.
 
-                ! update variables, also updated inside Sundials (if fail a split will need these)
+                ! update variables, also updated inside SUNDIALS (if fail a split will need these)
                 ! save/recover copies of prognostic variables
                 do iVar=1,size(prog_data%var)
                   select case(failure)
@@ -828,6 +828,7 @@ subroutine opSplittin(&
 
     ! check that all state variables were updated
     if(any(stateCheck==0))then
+      print*,stateCheck
       message=trim(message)//'some state variables were not updated!'
       err=20; return
     endif
