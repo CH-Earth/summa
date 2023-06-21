@@ -247,6 +247,7 @@ subroutine systemSolv(&
   real(rkind)                     :: resSinkNew(nState)            ! additional terms in the residual vector numrec
   real(rkind)                     :: fluxVecNew(nState)            ! new flux vector numrec
   real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector numrec
+  logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
   ! enthalpy derivatives
   real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
   real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
@@ -664,7 +665,7 @@ subroutine systemSolv(&
         end do
 
         ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
-        layerVars: associate(&
+        soilVars: associate(&
           ! layer geometry
           mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! depth of each layer in the snow-soil sub-domain (m)
           mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! change in storage associated with compression of the soil matrix (-)
@@ -672,7 +673,7 @@ subroutine systemSolv(&
           )
           mLayerCompress = mLayerCmpress_sum /  dt_out
           scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
-        end associate layerVars
+        end associate soilVars
 
       case(kinsol)
         !---------------------------
@@ -818,33 +819,34 @@ subroutine systemSolv(&
         ! -----
         ! * update states...
         ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
-        ! Turn off for now to agree with SUNDIALS
         ! ------------------
-        !layerVars: associate(&
-        ! vector of energy and hydrology indices for the snow and soil domains
-        !  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-        !  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-        !  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
-        !  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
-        !  )
-        ! 
-        ! update temperatures (ensure new temperature is consistent with the fluxes)
-        !if(nSnowSoilNrg>0)then
-          !  do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-          !  iState = ixSnowSoilNrg(iLayer)
-          !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
-          !  end do  ! looping through non-missing energy state variables in the snow+soil domain
-          !endif
-          !
-          ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
-          ! NOTE: for soil water balance is constrained within the iteration loop
-          !if(nSnowSoilHyd>0)then
-          !  do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-          !  iState = ixSnowSoilHyd(iLayer)
-          !  stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
-          !  end do  ! looping through non-missing water state variables in the soil domain
-          !endif
-        !end associate layerVars
+        if (post_massCons)then
+          layerVars: associate(&
+          ! vector of energy and hydrology indices for the snow and soil domains
+            ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+            ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+            nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
+            nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)          & ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
+            )
+          
+            ! update temperatures (ensure new temperature is consistent with the fluxes)
+            if(nSnowSoilNrg>0)then
+              do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+              iState = ixSnowSoilNrg(iLayer)
+              stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
+              end do  ! looping through non-missing energy state variables in the snow+soil domain
+            endif
+            
+            ! update volumetric water content in the snow (ensure change in state is consistent with the fluxes)
+            ! NOTE: for soil water balance is constrained within the iteration loop
+            if(nSnowSoilHyd>0)then
+              do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
+              iState = ixSnowSoilHyd(iLayer)
+              stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
+              end do  ! looping through non-missing water state variables in the soil domain
+            endif
+          end associate layerVars
+        endif
               
     end select
 
