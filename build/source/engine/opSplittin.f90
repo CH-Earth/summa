@@ -828,7 +828,6 @@ subroutine opSplittin(&
 
     ! check that all state variables were updated
     if(any(stateCheck==0))then
-      print*,stateCheck
       message=trim(message)//'some state variables were not updated!'
       err=20; return
     endif

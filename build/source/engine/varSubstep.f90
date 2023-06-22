@@ -354,8 +354,11 @@ subroutine varSubstep(&
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                       err,cmessage)        ! intent(out):   error code and error message
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors) 
-
+      if(err/=0)then ! (check for errors, but do not fail yet)
+        message=trim(message)//trim(cmessage)
+        if(err>0) return
+      endif
+ 
       ! if too much melt or need to reduce length of the coupled step then return
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
       if(tooMuchMelt .or. reduceCoupledStep) return
