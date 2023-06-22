@@ -63,7 +63,6 @@ USE data_types,only:&
                     var_i,        & ! data vector (i4b)
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
-                    zLookup,      & ! data vector with variable length dimension (rkind)
                     var_dlength     ! data vector with variable length dimension (rkind)
 
 ! provide access to indices that define elements of the data structures
@@ -103,7 +102,6 @@ contains
 subroutine updateVars(&
                       ! input
                       do_adjustTemp,                             & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
-                      lookup_data,                               & ! intent(in):    lookup tables for a local HRU
                       mpar_data,                                 & ! intent(in):    model parameters for a local HRU
                       indx_data,                                 & ! intent(in):    indices defining model states and layers
                       prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
@@ -127,13 +125,12 @@ subroutine updateVars(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input
-  logical(lgt)     ,intent(in)    :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
-  type(zLookup),    intent(in)    :: lookup_data                     ! lookup tables for a local HRU
-  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters for a local HRU
-  type(var_ilength),intent(in)    :: indx_data                       ! indices defining model states and layers
-  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
-  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
+  logical(lgt)     ,intent(in)       :: do_adjustTemp                   ! flag to adjust temperature to account for the energy used in melt+freeze
+  type(var_dlength),intent(in)       :: mpar_data                       ! model parameters for a local HRU
+  type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
+  type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)    :: deriv_data                      ! derivatives in model fluxes w.r.t. relevant state variables
   ! output: variables for the vegetation canopy
   real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
   real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
@@ -147,19 +144,19 @@ subroutine updateVars(&
   real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
   real(rkind),intent(inout)          :: mLayerMatricHeadLiqTrial(:)     ! trial vector of liquid water matric potential (m)
   ! output: error control
-  integer(i4b),intent(out)        :: err                             ! error code
-  character(*),intent(out)        :: message                         ! error message
+  integer(i4b),intent(out)           :: err                             ! error code
+  character(*),intent(out)           :: message                         ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! general local variables
-  integer(i4b)                    :: iState                          ! index of model state variable
-  integer(i4b)                    :: iLayer                          ! index of layer within the snow+soil domain
-  integer(i4b)                    :: ixFullVector                    ! index within full state vector
-  integer(i4b)                    :: ixDomainType                    ! name of a given model domain
-  integer(i4b)                    :: ixControlIndex                  ! index within a given model domain
-  integer(i4b)                    :: ixOther,ixOtherLocal            ! index of the coupled state variable within the (full, local) vector
-  logical(lgt)                    :: isCoupled                       ! .true. if a given variable shared another state variable in the same control volume
-  logical(lgt)                    :: isNrgState                      ! .true. if a given variable is an energy state
-  logical(lgt),allocatable        :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
+  integer(i4b)                       :: iState                          ! index of model state variable
+  integer(i4b)                       :: iLayer                          ! index of layer within the snow+soil domain
+  integer(i4b)                       :: ixFullVector                    ! index within full state vector
+  integer(i4b)                       :: ixDomainType                    ! name of a given model domain
+  integer(i4b)                       :: ixControlIndex                  ! index within a given model domain
+  integer(i4b)                       :: ixOther,ixOtherLocal            ! index of the coupled state variable within the (full, local) vector
+  logical(lgt)                       :: isCoupled                       ! .true. if a given variable shared another state variable in the same control volume
+  logical(lgt)                       :: isNrgState                      ! .true. if a given variable is an energy state
+  logical(lgt),allocatable           :: computedCoupling(:)             ! .true. if computed the coupling for a given state variable
   real(rkind)                        :: scalarVolFracLiq                ! volumetric fraction of liquid water (-)
   real(rkind)                        :: scalarVolFracIce                ! volumetric fraction of ice (-)
   real(rkind)                        :: Tcrit                           ! critical soil temperature below which ice exists (K)
@@ -167,22 +164,22 @@ subroutine updateVars(&
   real(rkind)                        :: fLiq                            ! fraction of liquid water (-)
   real(rkind)                        :: effSat                          ! effective saturation (-)
   real(rkind)                        :: avPore                          ! available pore space (-)
-  character(len=256)              :: cMessage                        ! error message of downwind routine
-  logical(lgt),parameter          :: printFlag=.false.               ! flag to turn on printing
+  character(len=256)                 :: cMessage                        ! error message of downwind routine
+  logical(lgt),parameter             :: printFlag=.false.               ! flag to turn on printing
   ! iterative solution for temperature
   real(rkind)                        :: meltNrg                         ! energy for melt+freeze (J m-3)
   real(rkind)                        :: residual                        ! residual in the energy equation (J m-3)
   real(rkind)                        :: derivative                      ! derivative in the energy equation (J m-3 K-1)
   real(rkind)                        :: tempInc                         ! iteration increment (K)
-  integer(i4b)                    :: iter                            ! iteration index
-  integer(i4b)                    :: niter                           ! number of iterations
-  integer(i4b),parameter          :: maxiter=100                     ! maximum number of iterations
+  integer(i4b)                       :: iter                            ! iteration index
+  integer(i4b)                       :: niter                           ! number of iterations
+  integer(i4b),parameter             :: maxiter=100                     ! maximum number of iterations
   real(rkind),parameter              :: nrgConvTol=1.e-4_rkind             ! convergence tolerance for energy (J m-3)
   real(rkind),parameter              :: tempConvTol=1.e-6_rkind            ! convergence tolerance for temperature (K)
   real(rkind)                        :: critDiff                        ! temperature difference from critical (K)
   real(rkind)                        :: tempMin                         ! minimum bracket for temperature (K)
   real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
-  logical(lgt)                    :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
+  logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
   real(rkind),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
@@ -223,19 +220,11 @@ subroutine updateVars(&
     ! model diagnostic variables (fraction of liquid water)
     scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(out): [dp]    fraction of liquid water on vegetation (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(out): [dp(:)] fraction of liquid water in each snow layer (-)
-    ! model states for the vegetation canopy
-    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in):  [dp] temperature of the canopy air space (K)
+    ! model states from a previous solution
     scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):  [dp] temperature of the vegetation canopy (K)
-    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in):  [dp] mass of total water on the vegetation canopy (kg m-2)
-    ! model state variable vectors for the snow-soil layers
     mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):  [dp(:)] temperature of each snow/soil layer (K)
-    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in):  [dp(:)] volumetric fraction of total water (-)
-    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in):  [dp(:)] total water matric potential (m)
-    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(in):  [dp(:)] liquid water matric potential (m)
     ! model diagnostic variables from a previous solution
-    scalarCanopyLiq         => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)        ,& ! intent(in):  [dp(:)] mass of liquid water on the vegetation canopy (kg m-2)
     scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):  [dp(:)] mass of ice on the vegetation canopy (kg m-2)
-    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)] volumetric fraction of liquid water (-)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)] volumetric fraction of ice (-)
     ! derivatives
     dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0   )%dat        ,& ! intent(out): [dp(:)] derivative in total water content w.r.t. total water matric potential
@@ -406,7 +395,7 @@ subroutine updateVars(&
         ! --> partially frozen: dependence of liquid water on temperature
         if(xTemp<Tcrit)then
           select case(ixDomainType)
-            case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWat/(iden_water*canopyDepth)
+            case(iname_veg);  dTheta_dTkCanopy         = dFracLiq_dTk(xTemp,snowfrz_scale)*scalarCanopyWatTrial/(iden_water*canopyDepth)
             case(iname_snow); mLayerdTheta_dTk(iLayer) = dFracLiq_dTk(xTemp,snowfrz_scale)*mLayerVolFracWatTrial(iLayer)
             case(iname_soil); mLayerdTheta_dTk(iLayer) = dTheta_dTk(xTemp,theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return

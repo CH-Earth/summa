@@ -1,4 +1,4 @@
-module updatStateSundials_module
+module updatStateWithPrime_module
 USE nrtype
 ! physical constants
 USE multiconst,only:&
@@ -152,4 +152,4 @@ subroutine updateSoilSundials(&
 
 end subroutine updateSoilSundials
 
-end module updatStateSundials_module
+end module updatStateWithPrime_module

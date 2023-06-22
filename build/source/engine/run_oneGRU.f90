@@ -252,7 +252,7 @@ contains
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
 
-   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferRecharge)%dat(1)     * fracHRU
    bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
    bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  =  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  &
            +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU

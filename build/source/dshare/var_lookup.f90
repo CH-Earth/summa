@@ -283,7 +283,7 @@ MODULE var_lookup
   integer(i4b)    :: minwind               = integerMissing    ! minimum wind speed (m s-1)
   integer(i4b)    :: minstep               = integerMissing    ! minimum length of the time step
   integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
-  integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep be_numrec
+  integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep numrec
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
   integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iteration
   integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
@@ -294,8 +294,8 @@ MODULE var_lookup
   integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
   integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
   integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: relErrTol_ida         = integerMissing    ! relative error tolerance for sundials ida'
-  integer(i4b)    :: absErrTol_ida         = integerMissing    ! absolute error tolerance for sundials ida'
+  integer(i4b)    :: relErrTol_ida         = integerMissing    ! relative error tolerance for ida'
+  integer(i4b)    :: absErrTol_ida         = integerMissing    ! absolute error tolerance for ida'
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)

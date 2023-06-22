@@ -91,7 +91,7 @@ contains
 subroutine soilLiqFlx(&
                       ! input: model control
                       nSoil,                        & ! intent(in): number of soil layers
-                      doInfiltrate,                 & ! intent(in): flag to compute infiltration
+                      firstSplitOper,               & ! intent(in): flag to compute infiltration, if firstSplitOper
                       scalarSolution,               & ! intent(in): flag to indicate the scalar solution
                       deriv_desired,                & ! intent(in): flag indicating if derivatives are desired
                       ! input: trial state variables
@@ -161,7 +161,7 @@ subroutine soilLiqFlx(&
   implicit none
   ! input: model control
   integer(i4b),intent(in)          :: nSoil                         ! number of soil layers
-  logical(lgt),intent(in)          :: doInfiltrate                  ! flag to compute infiltration
+  logical(lgt),intent(in)          :: firstSplitOper                ! flag to compute infiltration
   logical(lgt),intent(in)          :: scalarSolution                ! flag to denote if implementing the scalar solution
   logical(lgt),intent(in)          :: deriv_desired                 ! flag indicating if derivatives are desired
   ! input: trial model state variables
@@ -508,7 +508,7 @@ subroutine soilLiqFlx(&
 
       call surfaceFlx(&
                       ! input: model control
-                      doInfiltrate,                       & ! intent(in): flag indicating if desire to compute infiltration
+                      firstSplitOper,                     & ! intent(in): flag indicating if desire to compute infiltration
                       desireAnal,                         & ! intent(in): flag indicating if derivatives are desired
                       ixRichards,                         & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                       ixBcUpperSoilHydrology,             & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
@@ -1097,7 +1097,7 @@ end subroutine diagv_node
 ! ***************************************************************************************************************
 subroutine surfaceFlx(&
                       ! input: model control
-                      doInfiltration,            & ! intent(in): flag indicating if desire to compute infiltration
+                      firstSplitOper,            & ! intent(in): flag indicating if desire to compute infiltration
                       deriv_desired,             & ! intent(in): flag indicating if derivatives are desired
                       ixRichards,                & ! intent(in): index defining the form of Richards' equation (moisture or mixdform)
                       bc_upper,                  & ! intent(in): index defining the type of boundary conditions (neumann or diriclet)
@@ -1166,7 +1166,7 @@ subroutine surfaceFlx(&
   implicit none
   ! -----------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  logical(lgt),intent(in)          :: doInfiltration            ! flag indicating if desire to compute infiltration
+  logical(lgt),intent(in)          :: firstSplitOper            ! flag indicating if desire to compute infiltration
   logical(lgt),intent(in)          :: deriv_desired             ! flag to indicate if derivatives are desired
   integer(i4b),intent(in)          :: bc_upper                  ! index defining the type of boundary conditions
   integer(i4b),intent(in)          :: ixRichards                ! index defining the option for Richards' equation (moisture or mixdform)
@@ -1265,8 +1265,8 @@ subroutine surfaceFlx(&
   real(rkind)                      :: dRootZoneIce_dTk(1:nSoil)        ! derivative in vol fraction of scalar root zone ice w.r.t. temperature in root layers
   real(rkind)                      :: dDepthWettingFront_dWat(1:nSoil) ! derivative in scalar depth of wetting front w.r.t. water state variable in root layers
   real(rkind)                      :: dDepthWettingFront_dTk(1:nSoil)  ! derivative in scalar depth of wetting front w.r.t. temperature in root layers
-  real(rkind)                      :: dXMaxInfilRate_dWat(1:nSoil)     ! derivative in scalar max infiltration rate w.r.t. water state variable in root layers
-  real(rkind)                      :: dXMaxInfilRate_dTk(1:nSoil)      ! derivative in scalar max infiltration rate w.r.t. temperature in root layers
+  real(rkind)                      :: dxMaxInfilRate_dWat(1:nSoil)     ! derivative in scalar max infiltration rate w.r.t. water state variable in root layers
+  real(rkind)                      :: dxMaxInfilRate_dTk(1:nSoil)      ! derivative in scalar max infiltration rate w.r.t. temperature in root layers
   real(rkind)                      :: dInfilArea_dWat(0:nSoil)         ! derivative in scalar infiltration rate w.r.t. water state variable in canopy or snow and root layers
   real(rkind)                      :: dInfilArea_dTk(0:nSoil)          ! derivative in scalar infiltration rate w.r.t. temperature in canopy or snow and root layers
   real(rkind)                      :: dFrozenArea_dWat(0:nSoil)        ! derivative in scalar frozen area w.r.t. water state variable in canopy or snow and root layers
@@ -1328,7 +1328,7 @@ subroutine surfaceFlx(&
     case(liquidFlux)
 
       ! force infiltration to be constant over the iterations
-      if(doInfiltration)then
+      if(firstSplitOper)then
 
         ! (process root layers only liquid and ice derivatives)
         dVolFracLiq_dWat(:) = 0._rkind
@@ -1405,10 +1405,10 @@ subroutine surfaceFlx(&
         fPart2    = (wettingFrontSuction + depthWettingFront)/depthWettingFront
         dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dWat(:))/sum(mLayerDepth)
         dPart2(:) = -dDepthWettingFront_dWat(:)*wettingFrontSuction / (depthWettingFront**2._rkind)
-        dXMaxInfilRate_dWat(:) = fPart1*dpart2(:) + fPart2*dPart1(:)
+        dxMaxInfilRate_dWat(:) = fPart1*dpart2(:) + fPart2*dPart1(:)
         dPart1(:) = surfaceSatHydCond*(zScale_TOPMODEL - 1._rkind) * ( (1._rkind - depthWettingFront/sum(mLayerDepth))**(zScale_TOPMODEL - 2._rkind) ) * (-dDepthWettingFront_dTk(:))/sum(mLayerDepth)
         dPart2(:) = -dDepthWettingFront_dTk(:)*wettingFrontSuction / (depthWettingFront**2._rkind)
-        dXMaxInfilRate_dTk(:)  = fPart1*dpart2(:) + fPart2*dPart1(:)
+        dxMaxInfilRate_dTk(:)  = fPart1*dpart2(:) + fPart2*dPart1(:)
 
         ! define the infiltrating area and derivatives for the non-frozen part of the cell/basin
         if(qSurfScale < qSurfScaleMax)then
@@ -1457,11 +1457,11 @@ subroutine surfaceFlx(&
         dFrozenArea_dTk(0)  = 0._rkind
 
 
-        if (xMaxInfilRate < scalarRainPlusMelt) then ! = dXMaxInfilRate_d, dependent on layers not at surface
+        if (xMaxInfilRate < scalarRainPlusMelt) then ! = dxMaxInfilRate_d, dependent on layers not at surface
           dInfilRate_dWat(0) = 0._rkind
           dInfilRate_dTk(0)  = 0._rkind
-          dInfilRate_dWat(1:nSoil) = dXMaxInfilRate_dWat(:)
-          dInfilRate_dTk(1:nSoil)  = dXMaxInfilRate_dTk(:)
+          dInfilRate_dWat(1:nSoil) = dxMaxInfilRate_dWat(:)
+          dInfilRate_dTk(1:nSoil)  = dxMaxInfilRate_dTk(:)
         else ! = dRainPlusMelt_d, dependent on above layer (canopy or snow) water and temp
           dInfilRate_dWat(0) = above_soilLiqFluxDeriv*above_soilFracLiq
           dInfilRate_dTk(0)  = above_soilLiqFluxDeriv*above_soildLiq_dTk

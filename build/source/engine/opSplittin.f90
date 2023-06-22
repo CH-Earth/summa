@@ -93,14 +93,14 @@ USE data_types,only:&
                     var_flagVec,  & ! data vector with variable length dimension (i4b)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
-                    be_numrec    ,& ! home-grown backward Euler solution using free versions of Numerical recipes
-                    be_kinsol    ,& ! SUNDIALS backward Euler solution using Kinsol
+                    numrec    ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
@@ -316,11 +316,11 @@ subroutine opSplittin(&
     ! initialize error control
     err=0; message="opSplittin/"
 
-    ! we just solve the fully coupled problem by with Sundials for now
+    ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
     select case(ixNumericalMethod)
-      case(ida);       nCoupling = 1
-      case(be_numrec); nCoupling = 2
-      case default; err=20; message=trim(message)//'expect num_method to be ida, be_kinsol, or be_numrec (or itertive, which is be_numrec)'; return
+      case(ida);            nCoupling = 1
+      case(kinsol, numrec); nCoupling = 2
+      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
     end select
 
     ! -----
@@ -524,11 +524,11 @@ subroutine opSplittin(&
                 ! ---------------------------------------
 
                 ! identify the type of state for the states in the subset
-                stateSubset: associate(ixStateType_subset  => indx_data%var(iLookINDEX%ixStateType_subset)%dat ,& ! intent(in): [i4b(:)] indices of state types
-                                        ixMapFull2Subset    => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat   ,& ! intent(in): [i4b(:)] mapping of full state vector to the state subset
-                                        ixControlVolume     => indx_data%var(iLookINDEX%ixControlVolume)%dat    ,& ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
-                                        ixLayerActive       => indx_data%var(iLookINDEX%ixLayerActive)%dat      ,& ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerM
-                                        ixDomainType        => indx_data%var(iLookINDEX%ixDomainType)%dat       )  ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
+                stateSubset: associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat ,& ! intent(in): [i4b(:)] indices of state types
+                                       ixMapFull2Subset   => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat   ,& ! intent(in): [i4b(:)] mapping of full state vector to the state subset
+                                       ixControlVolume    => indx_data%var(iLookINDEX%ixControlVolume)%dat    ,& ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
+                                       ixLayerActive      => indx_data%var(iLookINDEX%ixLayerActive)%dat      ,& ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerM
+                                       ixDomainType       => indx_data%var(iLookINDEX%ixDomainType)%dat       )  ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
 
                   ! loop through flux variables
                   do iVar=1,size(flux_meta)
@@ -650,7 +650,7 @@ subroutine opSplittin(&
                 ! reset the flag for the first flux call
                 if(.not.firstSuccess) firstFluxCall=.true.
 
-                ! update variables, also updated inside Sundials (if fail a split will need these)
+                ! update variables, also updated inside SUNDIALS (if fail a split will need these)
                 ! save/recover copies of prognostic variables
                 do iVar=1,size(prog_data%var)
                   select case(failure)
