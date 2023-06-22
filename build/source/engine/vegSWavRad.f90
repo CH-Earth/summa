@@ -23,7 +23,7 @@ module vegSWavRad_module
 ! data types
 USE nrtype
 USE data_types,only:var_i            ! x%var(:)       (i4b)
-USE data_types,only:var_dlength      ! x%var(:)%dat   (dp)
+USE data_types,only:var_dlength      ! x%var(:)%dat   (rkind)
 
 ! physical constants
 USE multiconst,only:Tfreeze          ! temperature at freezing              (K)

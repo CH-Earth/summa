@@ -25,9 +25,9 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (dp)
+                    var_dlength         ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
@@ -168,7 +168,17 @@ contains
  mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
  mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
  iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
- mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
+ mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
+ ! energy derivatives initialized as constant
+ dVolHtCapBulk_dPsi0     => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0)%dat,          & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
+ dVolHtCapBulk_dTheta    => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta)%dat,         & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dCanWat   => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat)%dat(1),     & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dTk       => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk)%dat,            & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+ dVolHtCapBulk_dTkCanopy => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy)%dat(1),   & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+ dThermalC_dWatAbove     => diag_data%var(iLookDIAG%dThermalC_dWatAbove)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
+ dThermalC_dWatBelow     => diag_data%var(iLookDIAG%dThermalC_dWatBelow)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
+ dThermalC_dTempAbove    => diag_data%var(iLookDIAG%dThermalC_dTempAbove)%dat,         & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
+ dThermalC_dTempBelow    => diag_data%var(iLookDIAG%dThermalC_dTempBelow)%dat          & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -185,7 +195,7 @@ contains
  else
   scalarBulkVolHeatCapVeg = valueMissing
  end if
- !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
+
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -217,7 +227,7 @@ contains
    ! * soil
    case(iname_soil)
     mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
-                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
    ! * snow
@@ -225,7 +235,7 @@ contains
     mLayerVolHtCapBulk(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
-   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
+   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric heat capacity'; return
   end select
 
   ! *****
@@ -292,7 +302,6 @@ contains
   !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
 
  end do  ! looping through layers
- !pause
 
  ! *****
  ! * compute the thermal conductivity of snow at the interface of each layer...
@@ -322,6 +331,17 @@ contains
 
  ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
  iLayerThermalC(nLayers) = mLayerThermalC(nLayers)
+
+ ! set derivatives to 0 for constant through step
+ dVolHtCapBulk_dPsi0     = 0._rkind
+ dVolHtCapBulk_dTheta    = 0._rkind
+ dVolHtCapBulk_dCanWat   = 0._rkind
+ dVolHtCapBulk_dTk       = 0._rkind
+ dVolHtCapBulk_dTkCanopy = 0._rkind
+ dThermalC_dWatAbove     = 0._rkind
+ dThermalC_dWatBelow     = 0._rkind
+ dThermalC_dTempAbove    = 0._rkind
+ dThermalC_dTempBelow    = 0._rkind
 
  ! end association to variables in the data structure
  end associate

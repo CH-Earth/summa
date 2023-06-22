@@ -129,6 +129,18 @@ contains
    err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
   end if
  end do  ! (looping through lines in the file)
+
+ ! add these defaults for backwards compatibility pre Sundials
+ if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
+  parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
+ end if
+ if (parFallback(iLookPARAM%relErrTol_ida)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relErrTol_ida)%default_val = 1.e-6_rkind
+ end if
+ if (parFallback(iLookPARAM%absErrTol_ida)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absErrTol_ida)%default_val = 1.e-6_rkind
+ end if
+
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
@@ -148,6 +160,7 @@ contains
    end if
   end if
  end if
+ 
  ! close file unit
  close(unt)
  end subroutine read_pinit

@@ -1,7 +1,0 @@
-! ****************************************************************************************************
-! List of forcing data files used
-!
-! This file includes one "word" per line:
-!  (1) The name of a forcing file
-! ****************************************************************************************************
-forcing_albedoDecayParametrization.nc

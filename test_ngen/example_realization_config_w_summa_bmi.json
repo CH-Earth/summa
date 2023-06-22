@@ -1,0 +1,38 @@
+{
+    "global": {
+      "formulations": [
+            {
+                "name": "bmi_fortran",
+                "params": {
+                    "model_type_name": "bmi_fortran_summa",
+                    "library_file": "./extern/summa/cmake_build/libsummabmi.so",
+                    "forcing_file": "",
+                    "init_config": "./extern/summa/summa/test_ngen/summa-init-celia.namelist.input",
+                    "allow_exceed_end_time": true,
+                    "main_output_variable": "land_surface_water__runoff_volume_flux",
+                    "variables_names_map": {
+                        "atmosphere_water__precipitation_mass_flux": "precip_rate",
+                        "land_surface_air__temperature": "TMP_2maboveground",
+                        "atmosphere_air_water~vapor__relative_saturation": "SPFH_2maboveground",
+                        "land_surface_wind__x_component_of_velocity": "UGRD_10maboveground",
+                        "land_surface_wind__y_component_of_velocity": "VGRD_10maboveground",
+                        "land_surface_radiation~incoming~shortwave__energy_flux": "DSWRF_surface",
+                        "land_surface_radiation~incoming~longwave__energy_flux": "DLWRF_surface",
+                        "land_surface_air__pressure": "PRES_surface"
+                    },
+                    "uses_forcing_file": false
+                }
+            }
+        ],
+        "forcing": {
+            "file_pattern": ".*celia.*..csv",
+            "path": "./extern/summa/summa/test_ngen/celia_test/input_data/celia1990/",
+            "provider": "CsvPerFeature"
+        }
+    },
+    "time": {
+        "start_time": "2000-01-01 01:00:00",
+        "end_time": "2000-01-03 12:00:00",
+        "output_interval": 3600
+    }
+}

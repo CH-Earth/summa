@@ -25,10 +25,11 @@ USE nrtype
 
 ! data types
 USE data_types,only:&
-               var_i,                    & ! x%var(:)            (i4b)
-               var_d,                    & ! x%var(:)            (dp)
-               var_ilength,              & ! x%var(:)%dat        (i4b)
-               var_dlength                 ! x%var(:)%dat        (dp)
+               var_i,                    & ! x%var(:)                (i4b)
+               var_d,                    & ! x%var(:)                (rkind)
+               var_ilength,              & ! x%var(:)%dat            (i4b)
+               var_dlength,              & ! x%var(:)%dat            (rkind)
+               zLookup                     ! x%z(:)%var(:)%lookup(:) (rkind)
 
 ! access vegetation data
 USE globalData,only:greenVegFrac_monthly   ! fraction of green vegetation in each month (0-1)
@@ -52,16 +53,17 @@ USE var_lookup,only:iLookINDEX             ! look-up values for local column ind
 USE globalData,only:model_decisions        ! model decision structure
 USE var_lookup,only:iLookDECISIONS         ! look-up values for model decisions
 
-! provide access to the named variables that describe model decisions
-USE mDecisions_module,only:&               ! look-up values for LAI decisions
- monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
- specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+! these are needed because we cannot access them in modules locally if we might use those modules with Actors
+USE globalData,only:fracJulDay             ! fractional julian days since the start of year
+USE globalData,only:yearLength             ! number of days in the current year
+USE globalData,only:tmZoneOffsetFracDay    ! time zone offset in fractional days
 
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
+! provide access to the named variables that describe model decisions
+USE mDecisions_module,only:        &       ! look-up values for LAI decisions
+                      monthlyTable,&       ! LAI/SAI taken directly from a monthly table for different vegetation classes
+                      specified            ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+
 ! ----- global variables that are modified ------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
 
 ! Noah-MP parameters
 USE NOAHMP_VEG_PARAMETERS,only:SAIM,LAIM   ! 2-d tables for stem area index and leaf area index (vegType,month)
@@ -84,6 +86,7 @@ contains
  ! simulation for a single HRU
  subroutine run_oneHRU(&
                        ! model control
+                       hru_nc,              & ! intent(in):    hru index in netcdf
                        hruId,               & ! intent(in):    hruId
                        dt_init,             & ! intent(inout): used to initialize the length of the sub-step for each HRU
                        computeVegFlux,      & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
@@ -92,6 +95,7 @@ contains
                        timeVec,             & ! intent(in):    model time data
                        typeData,            & ! intent(in):    local classification of soil veg etc. for each HRU
                        attrData,            & ! intent(in):    local attributes for each HRU
+                       lookupData,          & ! intent(in):    local lookup tables for each HRU
                        bvarData,            & ! intent(in):    basin-average variables
                        ! data structures (input-output)
                        mparData,            & ! intent(inout): local model parameters
@@ -111,16 +115,18 @@ contains
  implicit none
 
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
- 
+
  ! model control
+ integer(i4b)      , intent(in)    :: hru_nc              ! hru index in netcdf
  integer(8)        , intent(in)    :: hruId               ! hruId
  real(rkind)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers
  ! data structures (input)
- integer(i4b)      , intent(in)    :: timeVec(:)          ! int vector   -- model time data
- type(var_i)       , intent(in)    :: typeData            ! x%var(:)     -- local classification of soil veg etc. for each HRU
- type(var_d)       , intent(in)    :: attrData            ! x%var(:)     -- local attributes for each HRU
+ integer(i4b)      , intent(in)    :: timeVec(:)          ! int vector               -- model time data
+ type(var_i)       , intent(in)    :: typeData            ! x%var(:)                 -- local classification of soil veg etc. for each HRU
+ type(var_d)       , intent(in)    :: attrData            ! x%var(:)                 -- local attributes for each HRU
+ type(zLookup)     , intent(in)    :: lookupData          ! x%z(:)%var(:)%lookup(:)  -- local lookup tables for each HRU
  type(var_dlength) , intent(in)    :: bvarData            ! x%var(:)%dat -- basin-average variables
  ! data structures (input-output)
  type(var_dlength) , intent(inout) :: mparData            ! x%var(:)%dat -- local (HRU) model parameters
@@ -140,8 +146,8 @@ contains
  real(rkind)          , allocatable   :: zSoilReverseSign(:) ! height at bottom of each soil layer, negative downwards (m)
 
  ! initialize error control
- err=0; write(message, '(A20,I0,A2)' ) 'run_oneHRU (hruId = ',hruId,')/'
- 
+ err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneHRU (hru nc = ',hru_nc -1 ,', hruId = ',hruId,')/' !netcdf index starts with 0 if want to subset
+
  ! ----- hru initialization ---------------------------------------------------------------------------------------------
 
  ! water pixel: do nothing
@@ -188,14 +194,15 @@ contains
  ! ----- hru forcing ----------------------------------------------------------------------------------------------------
 
  ! compute derived forcing variables
- call derivforce(timeVec,          & ! vector of time information
-                 forcData%var,     & ! vector of model forcing data
-                 attrData%var,     & ! vector of model attributes
-                 mparData,         & ! data structure of model parameters
-                 progData,         & ! data structure of model prognostic variables
-                 diagData,         & ! data structure of model diagnostic variables
-                 fluxData,         & ! data structure of model fluxes
-                 err,cmessage)       ! error control
+ call derivforce(timeVec,            & ! vector of time information
+                 forcData%var,       & ! vector of model forcing data
+                 attrData%var,       & ! vector of model attributes
+                 mparData,           & ! data structure of model parameters
+                 progData,           & ! data structure of model prognostic variables
+                 diagData,           & ! data structure of model diagnostic variables
+                 fluxData,           & ! data structure of model fluxes
+                 tmZoneOffsetFracDay,& ! time zone offset in fractional days
+                 err,cmessage)         ! error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! ----- run the model --------------------------------------------------------------------------------------------------
@@ -208,20 +215,24 @@ contains
                  ! model control
                  hruId,            & ! intent(in):    hruId
                  dt_init,          & ! intent(inout): initial time step
+                 1,                & ! intent(in):    used to adjust the length of the timestep with failure in Actors (non-Actors here, always 1)
                  computeVegFlux,   & ! intent(inout): flag to indicate if we are computing fluxes over vegetation
+                 fracJulDay,       & ! intent(in):    fractional julian days since the start of year
+                 yearLength,       & ! intent(in):    number of days in the current year
                  ! data structures (input)
                  typeData,         & ! intent(in):    local classification of soil veg etc. for each HRU
                  attrData,         & ! intent(in):    local attributes for each HRU
                  forcData,         & ! intent(in):    model forcing data
                  mparData,         & ! intent(in):    model parameters
                  bvarData,         & ! intent(in):    basin-average model variables
+                 lookupData,       & ! intent(in):    lookup tables
                  ! data structures (input-output)
                  indxData,         & ! intent(inout): model indices
                  progData,         & ! intent(inout): model prognostic variables for a local HRU
                  diagData,         & ! intent(inout): model diagnostic variables for a local HRU
                  fluxData,         & ! intent(inout): model fluxes for a local HRU
                  ! error control
-                 err,cmessage)       ! intent(out): error control
+                 err,cmessage)       ! intent(out):   error control
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
 
  ! update the number of layers

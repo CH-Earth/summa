@@ -87,7 +87,7 @@ def fm_v2_parse(ifile):
     fm_values = []
     fm_comments = []
     for line in iter(fm_txt.splitlines()):
-        if line.startswith('!'):
+        if line.startswith('!') or not len(line.strip()):
             continue
         m = re.match('^([^\\{}]*)\\{}(.*)$'.format(comment_sep, comment_sep), line)
         if m and m.group(1):  # The line contains a hash / comment

@@ -57,19 +57,19 @@ contains
  END SUBROUTINE spline
 
  ! *************************************************************
- ! new subroutine: splint
+ ! new subroutine: splint and local derivative with x
  ! *************************************************************
- SUBROUTINE splint(xa,ya,y2a,x,y,err,message)
+ SUBROUTINE splint(xa,ya,y2a,x,y,dy,err,message)
  IMPLICIT NONE
  ! declare dummy variables
  real(rkind), DIMENSION(:), INTENT(IN)  :: xa,ya,y2a
  real(rkind), INTENT(IN)  :: x
- real(rkind), INTENT(OUT) :: y
- integer(i4b),intent(out)      :: err
- character(*),intent(out)      :: message
+ real(rkind), INTENT(OUT) :: y, dy
+ integer(i4b),intent(out) :: err
+ character(*),intent(out) :: message
  ! declare local variables
  INTEGER(I4B) :: khi,klo,n
- real(rkind) :: a,b,h
+ real(rkind)  :: a,b,h,da,db
  ! check size of input vectors
  if (size(xa)==size(ya) .and. size(ya)==size(y2a)) then
   n=size(xa)
@@ -83,7 +83,10 @@ contains
  if (h == 0.0_rkind) then; err=20; message="f-splint/badXinput"; return; end if
  a=(xa(khi)-x)/h
  b=(x-xa(klo))/h
+ da = -1.0_rkind/h
+ db =  1.0_rkind/h
  y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6.0_rkind
+ dy = da*ya(klo)+db*ya(khi)+((3.0_rkind*da*a**2-da)*y2a(klo)+(3.0_rkind*db*b**2-db)*y2a(khi))*(h**2)/6.0_rkind
  END SUBROUTINE splint
 
  ! *************************************************************

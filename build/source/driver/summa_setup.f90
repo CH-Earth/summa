@@ -22,30 +22,39 @@ module summa_setup
 ! initializes parameter data structures (e.g. vegetation and soil parameters).
 
 ! access missing values
-USE globalData,only:integerMissing   ! missing integer
-USE globalData,only:realMissing      ! missing double precision number
+USE globalData,only:integerMissing      ! missing integer
+USE globalData,only:realMissing         ! missing double precision number
+
+! global data on the forcing file
+USE globalData,only:data_step           ! length of the data step (s)
 
 ! named variables
-USE var_lookup,only:iLookATTR                               ! look-up values for local attributes
-USE var_lookup,only:iLookTYPE                               ! look-up values for classification of veg, soils etc.
-USE var_lookup,only:iLookPARAM                              ! look-up values for local column model parameters
-USE var_lookup,only:iLookID                              ! look-up values for local column model parameters
-USE var_lookup,only:iLookBVAR                               ! look-up values for basin-average model variables
-USE var_lookup,only:iLookDECISIONS                          ! look-up values for model decisions
-USE globalData,only:urbanVegCategory                        ! vegetation category for urban areas
+USE var_lookup,only:iLookATTR           ! look-up values for local attributes
+USE var_lookup,only:iLookTYPE           ! look-up values for classification of veg, soils etc.
+USE var_lookup,only:iLookPARAM          ! look-up values for local column model parameters
+USE var_lookup,only:iLookINDEX          ! look-up values for local column model indices
+USE var_lookup,only:iLookLOOKUP         ! look-up values for local column lookup tables
+USE var_lookup,only:iLookID             ! look-up values for local column model ids
+USE var_lookup,only:iLookBVAR           ! look-up values for basin-average model variables
+USE var_lookup,only:iLookDECISIONS      ! look-up values for model decisions
+USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 
 ! metadata structures
-USE globalData,only:mpar_meta,bpar_meta                     ! parameter metadata structures
+USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
+
+! look-up values for the choice of heat capacity computation
+USE mDecisions_module,only:  &
+ enthalpyFD                             ! heat capacity using enthalpy
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
-  sameRulesAllLayers, & ! SNTHERM option: same combination/sub-dividion rules applied to all layers
-  rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+  sameRulesAllLayers, &                 ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
 
 ! named variables to define LAI decisions
 USE mDecisions_module,only:&
- monthlyTable,& ! LAI/SAI taken directly from a monthly table for different vegetation classes
- specified      ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
+ monthlyTable,&                         ! LAI/SAI taken directly from a monthly table for different vegetation classes
+ specified                              ! LAI/SAI computed from green vegetation fraction and winterSAI and summerLAI parameters
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -69,7 +78,8 @@ contains
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
  USE read_param_module,only:read_param                       ! module to read model parameter sets
- USE ConvE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
+ USE convE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
+ USE t2enthalpy_module,only:T2E_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
  ! global data structures
@@ -127,6 +137,9 @@ contains
   bparStruct           => summa1_struc%bparStruct          , & ! x%gru(:)%var(:)            -- basin-average parameters
   bvarStruct           => summa1_struc%bvarStruct          , & ! x%gru(:)%var(:)%dat        -- basin-average variables
 
+  ! lookup table structure
+  lookupStruct         => summa1_struc%lookupStruct        , & ! x%gru(:)%hru(:)%z(:)%var(:)%lookup    -- lookup-tables
+
   ! miscellaneous variables
   upArea               => summa1_struc%upArea              , & ! area upslope of each HRU
   nGRU                 => summa1_struc%nGRU                , & ! number of grouped response units
@@ -140,11 +153,18 @@ contains
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
 
+#ifdef NGEN_FORCING_ACTIVE
+ ! *****************************************************************************
+ ! if using NGEN forcing only need to set the hourly data_step (fixed)
+ ! *****************************************************************************
+ data_step = 3600._rkind
+#else
  ! *****************************************************************************
  ! *** read description of model forcing datafile used in each HRU
  ! *****************************************************************************
  call ffile_info(nGRU,err,cmessage)
  if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+#endif
 
  ! *****************************************************************************
  ! *** read model decisions
@@ -280,9 +300,20 @@ contains
    call paramCheck(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a look-up table for the temperature-enthalpy conversion
+   ! calculate a look-up table for the temperature-enthalpy conversion: snow
+   ! NOTE1: this should eventually be replaced by the more general routine below
+   ! NOTE2: this does not actually need to be called for each HRU and GRU
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+   ! calculate a lookup table to compute enthalpy from temperature, only for enthalpyFD
+   if(model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD)then
+     call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
+                     mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
+                     lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
+                     err,cmessage)                              ! intent(out):   error control
+     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+   endif
 
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)

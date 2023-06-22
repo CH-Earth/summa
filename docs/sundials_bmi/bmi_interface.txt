@@ -1,0 +1,10 @@
+To run a BMI interface, run the executable /bin/summa_bmi.exe
+To run as previously, run the executable /bin/summa_sundials.exe with appropriate command line arguments.
+
+All BMI files are in build/source/driver. The important ones are as following:
+
+summa_bmi.f90: this contains the code that was in summa_driver.f90 and adds to it the BMI functions. It is now a module and uses the BMI library.
+
+summa_driver.f90: this is the main program called by summa_sundials.exe that will call all other modules similar to previous editions of the code.
+
+summa_driverBMI.f90: this is the main program called by summa_bmi.exe that will call all other modules in the BMI interface mode. 
