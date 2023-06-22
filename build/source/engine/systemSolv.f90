@@ -141,9 +141,9 @@ subroutine systemSolv(&
                       ! output
                       deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       stateVecTrial,     & ! intent(out):   updated state vector
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
+                      untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       niter,             & ! intent(out):   number of iterations taken (numrec)
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
