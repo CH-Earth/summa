@@ -350,6 +350,7 @@ subroutine varSubstep(&
                       ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       stateVecTrial,     & ! intent(out):   updated state vector
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
+                      untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       niter,             & ! intent(out):   number of iterations taken (numrec)
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt

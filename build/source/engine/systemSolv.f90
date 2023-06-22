@@ -141,6 +141,7 @@ subroutine systemSolv(&
                       ! output
                       deriv_data,        & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                      untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       stateVecTrial,     & ! intent(out):   updated state vector
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
                       niter,             & ! intent(out):   number of iterations taken (numrec)
@@ -192,6 +193,7 @@ subroutine systemSolv(&
   ! output: model control
   type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  real(rkind),intent(out)         :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
   real(rkind),intent(out)         :: stateVecTrial(:)              ! trial state vector (mixed units)
   real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
   logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
@@ -849,6 +851,9 @@ subroutine systemSolv(&
         endif
               
     end select
+
+    ! set untapped melt energy to zero
+    untappedMelt(:) = 0._rkind
 
     ! **************************
     ! free memory
