@@ -118,7 +118,7 @@ subroutine liquidHeadSundials(&
     ! - matric head associated with liquid water
     matricHeadLiq = matricHead(effSat,vGn_alpha,0._rkind,1._rkind,vGn_n,vGn_m)  ! argument is effective saturation, so theta_res=0 and theta_sat=1
     if (effSat < 1._rkind .and. effSat > 0._rkind)then
-      effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2._rkind
+      effSatPrime = (volFracLiqPrime * xDen + volFracIcePrime * xNum) / xDen**2_i4b
       matricHeadLiqPrime = -( 1._rkind/(vGn_alpha*vGn_n*vGn_m) ) * effSat**(-1._rkind-1._rkind/vGn_m) * ( effSat**(-1._rkind/vGn_m) - 1._rkind )**(-1._rkind+1._rkind/vGn_n) * effSatPrime
     else
       matricHeadLiqPrime = 0._rkind
@@ -143,7 +143,7 @@ subroutine liquidHeadSundials(&
       endif
 
       ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
-      dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2._rkind)
+      dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
 
     endif  ! if dPsiLiq_dTemp is desired
 
@@ -160,7 +160,7 @@ subroutine liquidHeadSundials(&
         err=20; return
       endif
       ! (compute the derivative in the liquid water matric potential w.r.t. temperature)
-      dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2._rkind) + dTheta_dT/xDen
+      dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
       dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
     endif  ! if dPsiLiq_dTemp is desired
 

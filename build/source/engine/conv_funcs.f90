@@ -92,7 +92,7 @@ if(X2 + TC < 0)then
  dSVP_dT = 0._rkind
 else
  SVP     = SATVPFRZ * EXP( (X1*TC)/(X2 + TC) ) ! Saturated Vapour Press (Pa)
- dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2._rkind)
+ dSVP_dT = SVP * (X1/(X2 + TC) - X1*TC/(X2 + TC)**2_i4b)
 end if
 if(testDeriv) print*, 'dSVP_dT check... ', SVP, dSVP_dT, (SATVPRESS(TC+dx) - SVP)/dx
 END SUBROUTINE satVapPress

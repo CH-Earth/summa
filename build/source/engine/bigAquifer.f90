@@ -140,7 +140,7 @@ subroutine bigAquifer(&
     ! compute the derivative in the net aquifer flux
     dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1._rkind)))/aquiferScaleFactor
 
-    ! end association to data in structures
+  ! end association to data in structures
   end associate
 
 end subroutine bigAquifer

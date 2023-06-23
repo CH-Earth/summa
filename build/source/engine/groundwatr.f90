@@ -62,11 +62,11 @@ contains
 ! Method
 ! ------
 !
-! Here we assume that water avaialble for shallow groundwater flow includes is all water above
+! Here we assume that water available for shallow groundwater flow includes is all water above
 ! "field capacity" below the depth zCrit, where zCrit is defined as the lowest point in the soil
 ! profile where the volumetric liquid water content is less than field capacity.
 !
-! We further assume that transmssivity (m2 s-1) for each layer is defined asuming that the water
+! We further assume that transmssivity (m2 s-1) for each layer is defined assuming that the water
 ! available for saturated flow is located at the bottom of the soil profile. Specifically:
 !  trTotal(iLayer) = tran0*(zActive(iLayer)/soilDepth)**zScale_TOPMODEL
 !  trSoil(iLayer)  = trTotal(iLayer) - trTotal(iLayer+1)
@@ -79,31 +79,26 @@ contains
 !
 ! ************************************************************************************************
 subroutine groundwatr(&
-
                     ! input: model control
                     nSnow,                                  & ! intent(in): number of snow layers
                     nSoil,                                  & ! intent(in): number of soil layers
                     nLayers,                                & ! intent(in): total number of layers
                     getSatDepth,                            & ! intent(in): logical flag to compute index of the lowest saturated layer
-
                     ! input: state and diagnostic variables
                     mLayerdTheta_dPsi,                      & ! intent(in): derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
                     mLayerMatricHeadLiq,                    & ! intent(in): liquid water matric potential (m)
                     mLayerVolFracLiq,                       & ! intent(in): volumetric fraction of liquid water (-)
                     mLayerVolFracIce,                       & ! intent(in): volumetric fraction of ice (-)
-
                     ! input/output: data structures
                     attr_data,                              & ! intent(in):    spatial attributes
                     mpar_data,                              & ! intent(in):    model parameters
                     prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,                              & ! intent(in):    model diagnostic variables for a local HRU
                     flux_data,                              & ! intent(inout): model fluxes for a local HRU
-
                     ! output: baseflow
                     ixSaturation,                           & ! intent(inout) index of lowest saturated layer (NOTE: only computed on the first iteration)
                     mLayerBaseflow,                         & ! intent(out): baseflow from each soil layer (m s-1)
                     dBaseflow_dMatric,                      & ! intent(out): derivative in baseflow w.r.t. matric head (s-1)
-
                     ! output: error control
                     err,message)                              ! intent(out): error control
   ! ---------------------------------------------------------------------------------------
@@ -143,12 +138,6 @@ subroutine groundwatr(&
   ! general local variables
   integer(i4b)                    :: iLayer                        ! index of soil layer
   real(rkind),dimension(nSoil,nSoil) :: dBaseflow_dVolLiq             ! derivative in the baseflow flux w.r.t. volumetric liquid water content (m s-1)
-  ! local variables to compute the numerical Jacobian
-  logical(lgt),parameter          :: doNumericalJacobian=.false.   ! flag to compute the numerical Jacobian
-  real(rkind),dimension(nSoil)       :: mLayerMatricHeadPerturbed     ! perturbed matric head (m)
-  real(rkind),dimension(nSoil)       :: mLayerVolFracLiqPerturbed     ! perturbed volumetric fraction of liquid water (-)
-  real(rkind),dimension(nSoil)       :: mLayerBaseflowPerturbed       ! perturbed baseflow (m s-1)
-  real(rkind),dimension(nSoil,nSoil) :: nJac                          ! numerical Jacobian (s-1)
   ! ***************************************************************************************
   ! ***************************************************************************************
   ! initialize error control
@@ -157,21 +146,17 @@ subroutine groundwatr(&
   ! ---------------------------------------------------------------------------------------
   ! associate variables in data structures
   associate(&
-
     ! input: baseflow parameters
     fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),         & ! intent(in): [dp] field capacity (-)
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                & ! intent(in): [dp] soil porosity (-)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                & ! intent(in): [dp] residual volumetric water content (-)
-
     ! input: van Genuchten soil parametrers
     vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                & ! intent(in): [dp] van Genutchen "alpha" parameter (m-1)
     vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                    & ! intent(in): [dp] van Genutchen "n" parameter (-)
     vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat,               & ! intent(in): [dp] van Genutchen "m" parameter (-)
-
     ! output: diagnostic variables
     scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),     & ! intent(out):[dp]    exfiltration from the soil profile (m s-1)
     mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat        & ! intent(out):[dp(:)] column outflow from each soil layer (m3 s-1)
-
     )  ! end association to variables in data structures
 
     ! ************************************************************************************************
@@ -224,68 +209,6 @@ subroutine groundwatr(&
       dBaseflow_dMatric(1:iLayer,iLayer) = dBaseflow_dVolLiq(1:iLayer,iLayer)*mLayerdTheta_dPsi(iLayer)
       if(iLayer<nSoil) dBaseflow_dMatric(iLayer+1:nSoil,iLayer) = 0._rkind
     end do
-
-    ! ************************************************************************************************
-    ! (4) compute the numerical Jacobian
-    ! ************************************************************************************************
-    if(doNumericalJacobian)then
-
-      ! first, print the analytical Jacobian
-      print*, '** analytical Jacobian:'
-      write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=1,nSoil)
-      do iLayer=1,nSoil; write(*,'(i4,1x,100(e12.5,1x))') iLayer, dBaseflow_dMatric(1:nSoil,iLayer); end do
-
-      ! get a copy of the state vector to perturb
-      mLayerMatricHeadPerturbed(:) = mLayerMatricHeadLiq(:)
-      mLayerVolFracLiqPerturbed(:) = mLayerVolFracLiq(:)
-
-      ! loop through the state variables
-      do iLayer=1,nSoil
-
-        ! perturb state vector
-        mLayerMatricHeadPerturbed(iLayer) = mLayerMatricHeadPerturbed(iLayer) + dx
-
-        ! compute the columetruc liquid water content
-        mLayerVolFracLiqPerturbed(iLayer) = volFracLiq(mLayerMatricHeadPerturbed(iLayer),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
-
-        ! compute baseflow flux
-        ! NOTE: This is an optional second call to computeBaseflow that is invoked when computing numerical derivatives.
-        !       Since the purpose here is to compute the numerical derivatives, we do not need to compute analytical derivatives also.
-        !       Hence, analytical derivatives are not desired
-        call computeBaseflow(&
-                              ! input: control and state variables
-                              nSnow,                     & ! intent(in): number of snow layers
-                              nSoil,                     & ! intent(in): number of soil layers
-                              nLayers,                   & ! intent(in): total number of layers
-                              .false.,                   & ! intent(in): .true. if analytical derivatives are desired
-                              ixSaturation,              & ! intent(in): index of upper-most "saturated" layer
-                              mLayerVolFracLiqPerturbed, & ! intent(in): volumetric fraction of liquid water in each soil layer (-)
-                              mLayerVolFracIce,          & ! intent(in): volumetric fraction of ice in each soil layer (-)
-                              ! input/output: data structures
-                              attr_data,                 & ! intent(in):    spatial attributes
-                              mpar_data,                 & ! intent(in):    model parameters
-                              prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
-                              flux_data,                 & ! intent(inout): model fluxes for a local HRU
-                              ! output: fluxes and derivatives
-                              mLayerBaseflowPerturbed,   & ! intent(out): baseflow flux in each soil layer (m s-1)
-                              dBaseflow_dVolLiq)           ! intent(out): ** NOT USED ** derivative in baseflow w.r.t. volumetric liquid water content (s-1)
-
-        ! compute the numerical Jacobian
-        nJac(:,iLayer) = (mLayerBaseflowPerturbed(:) - mLayerBaseflow(:))/dx    ! compute the Jacobian
-
-        ! set the state back to the input value
-        mLayerMatricHeadPerturbed(iLayer) = mLayerMatricHeadLiq(iLayer)
-        mLayerVolFracLiqPerturbed(iLayer) = mLayerVolFracLiq(iLayer)
-
-      end do  ! looping through state variables
-
-      ! print the numerical Jacobian
-      print*, '** numerical Jacobian:'
-      write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=1,nSoil)
-      do iLayer=1,nSoil; write(*,'(i4,1x,100(e12.5,1x))') iLayer, nJac(1:nSoil,iLayer); end do
-      !pause 'testing Jacobian'
-
-    end if  ! if desire to compute the Jacobian
 
   ! end association to variables in data structures
   end associate
@@ -441,7 +364,7 @@ subroutine computeBaseflow(&
       expF = exp((availStorage - xCenter)/xWidth)
       logF = 1._rkind / (1._rkind + expF)
       ! (compute the derivative in the logistic function w.r.t. volumetric liquid water content in each soil layer)
-      dLogFunc_dLiq(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2._rkind
+      dLogFunc_dLiq(1:nSoil) = mLayerDepth(1:nSoil)*(expF/xWidth)/(1._rkind + expF)**2_i4b
     else
       logF             = 0._rkind
       dLogFunc_dLiq(:) = 0._rkind

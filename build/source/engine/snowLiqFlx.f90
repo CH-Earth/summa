@@ -155,20 +155,16 @@ subroutine snowLiqFlx(&
     ! compute properties fixed over the time step
     if(firstFluxCall)then
       ! loop through snow layers
-      do iLayer=1,nSnow
-        ! compute the reduction in liquid water holding capacity at high snow density (-)
-        multResid = 1._rkind / ( 1._rkind + exp( (mLayerVolFracIce(iLayer)*iden_ice - residThrs) / residScal) )
-        ! compute the pore space (-)
-        mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer)
-        ! compute the residual volumetric liquid water content (-)
-        mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer) * multResid
-      end do  ! (looping through snow layers)
-    end if  ! (if the first flux call)
-
+      do iLayer=1,nSnow ! loop through snow layers
+        multResid = 1._rkind/(1._rkind + exp((mLayerVolFracIce(iLayer)*iden_ice - residThrs)/residScal)) ! compute the reduction in liquid water holding capacity at high snow density (-)
+        mLayerPoreSpace(iLayer)  = 1._rkind - mLayerVolFracIce(iLayer) ! compute the pore space (-)
+        mLayerThetaResid(iLayer) = Fcapil*mLayerPoreSpace(iLayer)*multResid ! compute the residual volumetric liquid water content (-)
+      end do  ! end looping through snow layers
+    endif  ! end if the first flux call
+     
     ! compute fluxes
     do iLayer=ixTop,ixBot  ! (loop through snow layers)
-      ! check that flow occurs
-      if(mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer))then
+      if (mLayerVolFracLiqTrial(iLayer) > mLayerThetaResid(iLayer)) then ! check that flow occurs
         ! compute the relative saturation (-)
         availCap  = mLayerPoreSpace(iLayer) - mLayerThetaResid(iLayer)                 ! available capacity
         relSaturn = (mLayerVolFracLiqTrial(iLayer) - mLayerThetaResid(iLayer)) / availCap    ! relative saturation

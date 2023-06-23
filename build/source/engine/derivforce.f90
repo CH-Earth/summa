@@ -182,7 +182,7 @@ contains
 
  ! NGEN wants the wind inputted as two components, if not inputting NGEN forcing let the y direction be 0
 #ifdef NGEN_FORCING_ACTIVE
- windspd = sqrt(windspd_x**2._rkind + windspd_y**2._rkind)
+ windspd = sqrt(windspd_x**2_i4b + windspd_y**2_i4b)
 #else
  windspd_x = windspd
  windspd_y = 0._rkind

@@ -330,11 +330,11 @@ subroutine computThermConduct(&
             if(err/=0)then; message=trim(message)//trim(cmessage); return; end if
             select case(ixThCondSnow)
               case(Yen1965)
-                dThermalC_dWat(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2._rkind * dVolFracIce_dWat
-                dThermalC_dNrg(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2._rkind * dVolFracIce_dTk
+                dThermalC_dWat(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dWat
+                dThermalC_dNrg(iLayer) = 2._rkind * 3.217d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dTk
               case(Mellor1977)
-                dThermalC_dWat(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2._rkind * dVolFracIce_dWat
-                dThermalC_dNrg(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2._rkind * dVolFracIce_dTk
+                dThermalC_dWat(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dWat
+                dThermalC_dNrg(iLayer) = 2._rkind * 2.576d-6 * mLayerVolFracIce(iLayer) * iden_ice**2_i4b * dVolFracIce_dTk
               case(Jordan1991)
                 dThermalC_dWat(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * mLayerVolFracIce(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * iden_ice * dVolFracIce_dWat
                 dThermalC_dNrg(iLayer) = ( 7.75d-5 + 2._rkind * 1.105d-6 * mLayerVolFracIce(iLayer) * iden_ice ) * (lambda_ice-lambda_air) * iden_ice * dVolFracIce_dTk

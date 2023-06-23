@@ -185,19 +185,15 @@ subroutine ssdNrgFlux(&
     ! ***** compute the conductive fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
-
       if(iLayer==nLayers)then ! (lower boundary fluxes -- positive downwards)
       ! flux depends on the type of lower boundary condition
         select case(ix_bcLowrTdyn) ! (identify the lower boundary condition for thermodynamics
           case(prescribedTemp); iLayerConductiveFlux(iLayer) = -iLayerThermalC(iLayer)*(lowerBoundTemp - mLayerTempTrial(iLayer))/(mLayerDepth(iLayer)*0.5_rkind)
           case(zeroFlux);       iLayerConductiveFlux(iLayer) = 0._rkind
         end select  ! (identifying the lower boundary condition for thermodynamics)
-
       else ! (domain boundary fluxes -- positive downwards)
         iLayerConductiveFlux(iLayer)  = -iLayerThermalC(iLayer)*(mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer)) / &
                                         (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
-
-        !write(*,'(a,i4,1x,2(f9.3,1x))') 'iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer) = ', iLayer, iLayerConductiveFlux(iLayer), iLayerThermalC(iLayer)
       end if ! (the type of layer)
     end do  ! looping through layers
 
@@ -205,7 +201,6 @@ subroutine ssdNrgFlux(&
     ! ***** compute the advective fluxes at layer interfaces *****
     ! -------------------------------------------------------------------------------------------------------------------------
     do iLayer=ixTop,ixBot
-
       ! get the liquid flux at layer interfaces
       select case(layerType(iLayer))
         case(iname_snow); qFlux = iLayerLiqFluxSnow(iLayer)
@@ -274,36 +269,28 @@ subroutine ssdNrgFlux(&
 
     ! loop through INTERFACES...
     do iLayer=ixTop,ixBot
-
       ! ***** the lower boundary
       if(iLayer==nLayers)then  ! (lower boundary)
 
         ! identify the lower boundary condition
-        select case(ix_bcLowrTdyn)
-
-          ! * prescribed temperature at the lower boundary
+        select case(ix_bcLowrTdyn) !prescribed temperature at the lower boundary
           case(prescribedTemp)
-          dz = mLayerDepth(iLayer)*0.5_rkind
-          dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
-          if(ixDerivMethod==analytical)then ! ** analytical derivatives
-            dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
-          else                              ! ** numerical derivatives for constant step iLayerThermalC
-            flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
-            flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
-            dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-          end if
-
-          ! * zero flux at the lower boundary
-          case(zeroFlux)
-          dFlux_dWatAbove(iLayer) = 0._rkind
-          dFlux_dTempAbove(iLayer) = 0._rkind
-
+            dz = mLayerDepth(iLayer)*0.5_rkind
+            dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
+            if(ixDerivMethod==analytical)then ! ** analytical derivatives
+              dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
+            else                              ! ** numerical derivatives for constant step iLayerThermalC
+              flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
+              flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
+              dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
+            end if
+          case(zeroFlux)  ! zero flux at the lower boundary
+            dFlux_dWatAbove(iLayer) = 0._rkind
+            dFlux_dTempAbove(iLayer) = 0._rkind
           case default; err=20; message=trim(message)//'unable to identify lower boundary condition for thermodynamics'; return
-
         end select  ! (identifying the lower boundary condition for thermodynamics)
 
-        ! ***** internal layers
-
+      ! ***** internal layers
       else
         dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
         dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz

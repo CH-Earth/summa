@@ -86,7 +86,7 @@ subroutine vegLiqFlux(&
     scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
     scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain)%dat(1),& ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
     scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1)  & ! intent(in): canopy drainage coefficient (s-1)
-    ) ! associating local variables with information in the data structures
+    )
     ! ------------------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message="vegLiqFlux/"
@@ -102,34 +102,27 @@ subroutine vegLiqFlux(&
 
     ! compute throughfall
     select case(ixCanopyInterception)
-
       ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
       ! NOTE: this could be done with scalarThroughfallScaleRain=0, though requires setting scalarThroughfallScaleRain in all test cases
       case(unDefined)
         scalarThroughfallRain      = 0._rkind
         scalarThroughfallRainDeriv = 0._rkind
-
       ! fraction of rainfall hits the ground without ever touching the canopy
       case(sparseCanopy)
         scalarThroughfallRain      = scalarThroughfallScaleRain*scalarRainfall
         scalarThroughfallRainDeriv = 0._rkind
-
       ! throughfall a function of canopy storage
       case(storageFunc)
-
         ! throughfall during wetting-up phase
         if(scalarCanopyLiqTrial < scalarCanopyLiqMax)then
           scalarThroughfallRain      = scalarRainfall*(scalarCanopyLiqTrial/scalarCanopyLiqMax)
           scalarThroughfallRainDeriv = scalarRainfall/scalarCanopyLiqMax
-
         ! all rain falls through the canopy when the canopy is at capacity
         else
           scalarThroughfallRain      = scalarRainfall
           scalarThroughfallRainDeriv = 0._rkind
         end if
-
       case default; err=20; message=trim(message)//'unable to identify option for canopy interception'; return
-
     end select ! (option for canopy interception)
 
     ! compute canopy drainage

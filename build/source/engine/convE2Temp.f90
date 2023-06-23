@@ -212,7 +212,7 @@ contains
  real(rkind)             :: enthMass      ! mass component of specific enthalpy (J kg-1)
  ! NOTE: this function assumes the freezing curve for snow ... it needs modification to use vanGenuchten functions for soil
  ! compute the fraction of liquid water in the given layer
- frac_liq     = 1._rkind / ( 1._rkind + ( fc_param*( Tfreeze - min(Tk,Tfreeze) ) )**2._rkind )
+ frac_liq     = 1._rkind / ( 1._rkind + ( fc_param*( Tfreeze - min(Tk,Tfreeze) ) )**2_i4b )
  ! compute the temperature component of enthalpy for the soil constituent (J kg-1)
  !enthTempSoil = Cp_soil*(Tk - Tfreeze)
  ! compute the temperature component of enthalpy for total water (J kg-1)

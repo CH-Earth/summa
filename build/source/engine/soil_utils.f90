@@ -172,7 +172,7 @@ subroutine liquidHead(&
     endif
 
     ! (compute derivative in the liquid water matric potential w.r.t. the total water matric potential)
-    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2._rkind)
+    dPsiLiq_dPsi0 = dVolTot_dPsi0*dPsiLiq_dEffSat*xNum/(xDen**2_i4b)
 
     endif  ! if dPsiLiq_dTemp is desired
 
@@ -190,7 +190,7 @@ subroutine liquidHead(&
     endif
 
     ! (compute the derivative in the liquid water matric potential w.r.t. temperature)
-    dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2._rkind) + dTheta_dT/xDen
+    dEffSat_dTemp = -dTheta_dT*xNum/(xDen**2_i4b) + dTheta_dT/xDen
     dPsiLiq_dTemp = dPsiLiq_dEffSat*dEffSat_dTemp
 
     endif  ! if dPsiLiq_dTemp is desired
@@ -245,7 +245,7 @@ function hydCond_psi(psi,k_sat,alpha,n,m)
   real(rkind)                :: hydCond_psi   ! hydraulic conductivity (m s-1)
   if(psi<0._rkind)then
   hydCond_psi = k_sat * &
-                ( ( (1._rkind - (psi*alpha)**(n-1._rkind) * (1._rkind + (psi*alpha)**n)**(-m))**2._rkind ) &
+                ( ( (1._rkind - (psi*alpha)**(n-1._rkind) * (1._rkind + (psi*alpha)**n)**(-m))**2_i4b ) &
                   / ( (1._rkind + (psi*alpha)**n)**(m/2._rkind) ) )
   else
   hydCond_psi = k_sat
@@ -270,7 +270,7 @@ function hydCond_liq(volFracLiq,k_sat,theta_res,theta_sat,m)
   real(rkind)            :: theta_e     ! effective soil moisture
   if(volFracLiq < theta_sat)then
   theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
-  hydCond_liq = k_sat*theta_e**(1._rkind/2._rkind) * (1._rkind - (1._rkind - theta_e**(1._rkind/m) )**m)**2._rkind
+  hydCond_liq = k_sat*theta_e**(1._rkind/2._rkind) * (1._rkind - (1._rkind - theta_e**(1._rkind/m) )**m)**2_i4b
   else
   hydCond_liq = k_sat
   end if
@@ -412,11 +412,11 @@ function dPsi_dTheta2(volFracLiq,alpha,theta_res,theta_sat,n,m,lTangent)
     theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
     ! get the first function and derivative
     y1 = (-1._rkind/m)*theta_e**(-1._rkind/m - 1._rkind) / (theta_sat - theta_res)
-    d1 = ( (m + 1._rkind) / (m**2._rkind * (theta_sat - theta_res)**2._rkind) ) * theta_e**(-1._rkind/m - 2._rkind)
+    d1 = ( (m + 1._rkind) / (m**2_i4b * (theta_sat - theta_res)**2_i4b) ) * theta_e**(-1._rkind/m - 2._rkind)
     ! get the second function and derivative
     xx = theta_e**(-1._rkind/m) - 1._rkind
     y2 = (1._rkind/n)*xx**(1._rkind/n - 1._rkind)
-    d2 = ( -(1._rkind - n)/((theta_sat - theta_res)*m*n**2._rkind) ) * xx**(1._rkind/n - 2._rkind) * theta_e**(-1._rkind/m - 1._rkind)
+    d2 = ( -(1._rkind - n)/((theta_sat - theta_res)*m*n**2_i4b) ) * xx**(1._rkind/n - 2._rkind) * theta_e**(-1._rkind/m - 1._rkind)
     ! return the derivative
     dPsi_dTheta2 = (d1*y2 + y1*d2)/alpha
   ! ***** compute numerical derivatives
@@ -468,13 +468,13 @@ function dHydCond_dPsi(psi,k_sat,alpha,n,m,lTangent)
     f_x2 = (1._rkind + (psi*alpha)**n)**(-m)
     d_x1 = alpha * (n - 1._rkind)*(psi*alpha)**(n - 2._rkind)
     d_x2 = alpha * n*(psi*alpha)**(n - 1._rkind) * (-m)*(1._rkind + (psi*alpha)**n)**(-m - 1._rkind)
-    f_nm = (1._rkind - f_x1*f_x2)**2._rkind
+    f_nm = (1._rkind - f_x1*f_x2)**2_i4b
     d_nm = (-d_x1*f_x2 - f_x1*d_x2) * 2._rkind*(1._rkind - f_x1*f_x2)
     ! compute the derivative for the denominator
     f_dm = (1._rkind + (psi*alpha)**n)**(m/2._rkind)
     d_dm = alpha * n*(psi*alpha)**(n - 1._rkind) * (m/2._rkind)*(1._rkind + (psi*alpha)**n)**(m/2._rkind - 1._rkind)
     ! and combine
-    dHydCond_dPsi = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2._rkind)
+    dHydCond_dPsi = k_sat*(d_nm*f_dm - d_dm*f_nm) / (f_dm**2_i4b)
   else
     ! ***** compute numerical derivatives
     hydcond0  = hydCond_psi(psi,   k_sat,alpha,n,m)
@@ -521,7 +521,7 @@ function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
     ! compute the effective saturation
     theta_e = (volFracLiq - theta_res) / (theta_sat - theta_res)
     ! compute the function and derivative of the first fuction
-    f1 = k_sat*theta_e**0.5_rkind
+    f1 = k_sat*sqrt(theta_e)
     d1 = k_sat*0.5_rkind*theta_e**(-0.5_rkind) / (theta_sat - theta_res)
     ! compute the function and derivative of the second function
     ! (first part)
@@ -531,7 +531,7 @@ function dHydCond_dLiq(volFracLiq,k_sat,theta_res,theta_sat,m,lTangent)
     x2 = x1**m
     p2 = m*x1**(m - 1._rkind)
     ! (final)
-    f2 = (1._rkind - x2)**2._rkind
+    f2 = (1._rkind - x2)**2_i4b
     p3 = -2._rkind*(1._rkind - x2)
     ! (combine)
     d2 = p1*p2*p3

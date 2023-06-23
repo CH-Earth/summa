@@ -111,7 +111,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
 
   ! get the values of temperature for the lookup table
   xIncr = 1._rkind/real(nLook-1, kind(rkind))
-  xTemp = T_lower + (Tfreeze - T_lower)*arth(0._rkind,xIncr,nLook)**0.25_rkind ! use **0.25 to give more values near freezing
+  xTemp = T_lower + (Tfreeze - T_lower)*sqrt(sqrt(arth(0._rkind,xIncr,nLook))) ! use sqrt(sqrt()) to give more values near freezing
 
   ! -----
   ! * allocate space for the lookup table...
@@ -459,7 +459,7 @@ subroutine t2enthalpy(&
                 enthIce = Cp_ice * scalarCanopyWatTrial * ( diffT - integral ) / canopyDepth
                 enthPhase = LH_fus * scalarCanopyIceTrial / canopyDepth
                 ! derivatives
-                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2._rkind)
+                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
                 ! enthalpy derivatives
                 dEnthLiq_dTk = Cp_water * scalarCanopyWatTrial * d_integral_dTk / canopyDepth
                 dEnthIce_dTk = Cp_ice * scalarCanopyWatTrial * ( 1._rkind - d_integral_dTk ) / canopyDepth
@@ -505,7 +505,7 @@ subroutine t2enthalpy(&
                 enthAir = iden_air * Cp_air * ( diffT - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
                 enthPhase = iden_ice * LH_fus * mLayerVolFracIceTrial(iLayer)
                 ! derivatives
-                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2._rkind)
+                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
                 ! enthalpy derivatives
                 dEnthLiq_dTk = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * d_integral_dTk
                 dEnthIce_dTk = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( 1._rkind - d_integral_dTk )

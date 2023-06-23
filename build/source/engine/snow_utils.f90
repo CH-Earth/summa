@@ -51,7 +51,7 @@ function fracliquid(Tk,fc_param)
   real(rkind),intent(in) :: fc_param   ! freezing curve parameter (K-1)
   real(rkind)            :: fracliquid ! fraction of liquid water (-)
   ! compute fraction of liquid water (-)
-  fracliquid = 1._rkind / ( 1._rkind + (fc_param*( Tfreeze - min(Tk,Tfreeze) ))**2._rkind )
+  fracliquid = 1._rkind / ( 1._rkind + (fc_param*( Tfreeze - min(Tk,Tfreeze) ))**2_i4b )
 end function fracliquid
 
 
@@ -64,7 +64,7 @@ function templiquid(fracliquid,fc_param)
   real(rkind),intent(in) :: fc_param   ! freezing curve parameter (K-1)
   real(rkind)            :: templiquid ! temperature (K)
   ! compute temperature based on the fraction of liquid water (K)
-  templiquid = Tfreeze - ((1._rkind/fracliquid - 1._rkind)/fc_param**2._rkind)**(0.5_rkind)
+  templiquid = Tfreeze - ((1._rkind/fracliquid - 1._rkind)/fc_param**2_i4b)**(0.5_rkind)
 end function templiquid
 
 
@@ -84,7 +84,7 @@ function dFracLiq_dTk(Tk,fc_param)
   Tdep = Tfreeze - min(Tk,Tfreeze)
   Tdim = fc_param*Tdep
   ! differentiate the freezing curve w.r.t temperature
-  dFracLiq_dTk = (fc_param*2._rkind*Tdim) / ( ( 1._rkind + Tdim**2._rkind)**2._rkind )
+  dFracLiq_dTk = (fc_param*2._rkind*Tdim) / ( ( 1._rkind + Tdim**2_i4b)**2_i4b )
 end function dFracLiq_dTk
 
 
@@ -101,9 +101,9 @@ subroutine tcond_snow(BulkDenIce,thermlcond,err,message)
   err=0; message="tcond_snow/"
   ! compute thermal conductivity of snow
   select case(model_decisions(iLookDECISIONS%thCondSnow)%iDecision)
-  case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2._rkind               ! Yen (1965)
-  case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2._rkind + 7.4d-2      ! Mellor (1977)
-  case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2._rkind)) &
+  case(Yen1965);      thermlcond = 3.217d-6 * BulkDenIce**2_i4b               ! Yen (1965)
+  case(Mellor1977);   thermlcond = 2.576d-6 * BulkDenIce**2_i4b + 7.4d-2      ! Mellor (1977)
+  case(Jordan1991);   thermlcond = lambda_air + (7.75d-5*BulkDenIce + 1.105d-6*(BulkDenIce**2_i4b)) &
                                     * (lambda_ice-lambda_air)                ! Jordan (1991)
   case default
     err=10; message=trim(message)//"unknownOption"; return
