@@ -955,5 +955,4 @@ MODULE var_lookup
 
  integer(i4b),allocatable,save,public   :: childFLUX_MEAN(:)  ! index of the child data structure: mean flux
 
-
 END MODULE var_lookup

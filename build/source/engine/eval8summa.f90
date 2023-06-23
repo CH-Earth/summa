@@ -583,7 +583,7 @@ subroutine eval8summa(&
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
-    ! use non-sundials version because sundials version needs mLayerMatricHeadPrime
+    ! use non-prime version
     call soilCmpres(&
                     ! input:
                     dt_cur,                                 & ! intent(in):    length of the time step (seconds)

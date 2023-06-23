@@ -927,7 +927,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! * check mass balance...
     ! -----------------------
 
-    ! NOTE: should not need to do this, since mass balance is checked in the solver, and cannot do for Sundials
+    ! NOTE: should not need to do this, since mass balance is checked in the solver, and cannot do for IDA
     !   if do not check could cause problems if should modify nrgFlux
     if(checkMassBalance)then
 
@@ -991,7 +991,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         endif  ! if there is a water balance error
       endif  ! if veg canopy
 
-      ! check mass balance for soil, again not checked for sundials
+      ! check mass balance for soil, again not checked for IDA
       ! NOTE: fatal errors, though possible to recover using negative error codes
       if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
         soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
