@@ -352,12 +352,11 @@ subroutine coupled_em(&
     do iVar=1,size(averageFlux_meta)
       flux_mean%var(iVar)%dat(:) = 0._rkind
     end do
-    allocate(meanSoilCompress(nSoil)); meanSoilCompress = 0._rkind ! mean total soil compression
     meanCanopySublimation = 0._rkind ! mean canopy sublimation
     meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
-    meanSenHeatCanopy = 0._rkind ! mean sensible heat flux from the canopy
-    effRainfall      = 0._rkind ! mean total effective rainfall over snow
-
+    meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy
+    effRainfall           = 0._rkind ! mean total effective rainfall over snow
+    allocate(meanSoilCompress(nSoil)); meanSoilCompress = 0._rkind ! mean total soil compression
 
     ! associate local variables with information in the data structures
     associate(&
@@ -585,9 +584,9 @@ subroutine coupled_em(&
     ! NOTE 1: this needs to be done before solving the energy and liquid water equations, to account for the heat advected with precipitation
     ! NOTE 2: this initialization needs to be done AFTER the call to canopySnow, since canopySnow uses canopy drip drom the previous time step
     if(.not.computeVegFlux)then
-      flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
+      flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) = flux_data%var(iLookFLUX%scalarRainfall)%dat(1)
     else
-      flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)   = 0._rkind
+      flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) = 0._rkind
     end if
     flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) = 0._rkind
 
@@ -874,7 +873,6 @@ subroutine coupled_em(&
                       stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed
                       ixSolution,                             & ! intent(out):   solution method used in this iteration
                       err,cmessage)                             ! intent(out):   error code and error message
-
       ! check for all errors (error recovery within opSplittin)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
@@ -1064,8 +1062,6 @@ subroutine coupled_em(&
         do iVar=1,size(averageFlux_meta)
           flux_mean%var(iVar)%dat(:)    = flux_mean%var(iVar)%dat(:) + flux_inner%var(iVar)%dat(:)*dt_wght
         end do
-        meanSoilCompress(:) = meanSoilCompress(:) + innerSoilCompress(:)*dt_wght ! not in flux structure so handle differently
-        deallocate(innerSoilCompress)
         meanCanopySublimation = meanCanopySublimation + sumCanopySublimation/data_step
         meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/data_step
         meanSenHeatCanopy     = meanSenHeatCanopy     + sumSenHeatCanopy/data_step
@@ -1073,6 +1069,10 @@ subroutine coupled_em(&
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = meanCanopySublimation
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy
+        ! Soil compression is not in flux structure so handle differently 
+        !  This will be a problem if nSoil changes (currently not possible)
+        meanSoilCompress(:) = meanSoilCompress(:) + innerSoilCompress(:)*dt_wght
+        deallocate(innerSoilCompress)
       endif
 
       ! save the time step to initialize the subsequent step
