@@ -525,15 +525,15 @@ file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: buildTime = ''\n
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitBranch = '${GITBRCH}'\n")
 file(APPEND ${VERSIONFILE} "character(len=64), parameter     :: gitHash = '${GITHASH}'")
 
-# Build NOAH_MP Object
+# Build SUMMA_NOAHMP Object
 add_library(SUMMA_NOAHMP OBJECT ${NOAHMP} ${NRUTIL})
 target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 
 # Build SUMMA_COMM Object
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
-target_link_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
 target_include_directories(SUMMA_COMM PRIVATE ${INCLUDES})
+target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP)
 
 # For NexGen, build SUMMA Shared Library and add the outside BMI libraries
 if(CMAKE_BUILD_TYPE MATCHES NexGen)
@@ -544,12 +544,12 @@ if(CMAKE_BUILD_TYPE MATCHES NexGen)
     endif()
     target_compile_options(summabmi PRIVATE ${FLAGS_ALL})
 
-    if(CMAKE_BUILD_TYPE MATCHES Kinsol OR CMAKE_BUILD_TYPE MATCHES IDA)
+    if(CMAKE_BUILD_TYPE MATCHES Sundials)
         target_include_directories(summabmi PUBLIC ${INCLUDES} ${INC_SUNDIALS})
-        target_link_libraries(summabmi PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
+        target_link_libraries(summabmi PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_NOAHMP SUMMA_COMM)
     else()
         target_include_directories(summabmi PUBLIC ${INCLUDES})
-        target_link_libraries(summabmi PUBLIC ${LIBRARIES} SUMMA_COMM)
+        target_link_libraries(summabmi PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM)
     endif()
     target_link_libraries(summabmi PUBLIC iso_c_bmi)
     set_target_properties(summabmi PROPERTIES VERSION ${PROJECT_VERSION})
@@ -568,10 +568,10 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
 
     if(CMAKE_BUILD_TYPE MATCHES Sundials)
         target_include_directories(summaactors PUBLIC ${INCLUDES} ${INC_SUNDIALS})
-        target_link_libraries(summaactors PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
+        target_link_libraries(summaactors PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_NOAHMP SUMMA_COMM)
     else()
         target_include_directories(summaactors PUBLIC ${INCLUDES})
-        target_link_libraries(summaactors PUBLIC ${LIBRARIES} SUMMA_COMM)
+        target_link_libraries(summaactors PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM)
     endif()
 
     add_executable(${EXEC_NAME} ${MAIN_ACTOR}
@@ -595,10 +595,10 @@ else()
 
     if(CMAKE_BUILD_TYPE MATCHES Sundials)
         target_include_directories(summa PUBLIC ${INCLUDES} ${INC_SUNDIALS})
-        target_link_libraries(summa PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_COMM)
+        target_link_libraries(summa PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_NOAHMP SUMMA_COMM)
     else()
         target_include_directories(summa PUBLIC ${INCLUDES})
-        target_link_libraries(summa PUBLIC ${LIBRARIES} SUMMA_COMM)
+        target_link_libraries(summa PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM)
     endif()
 
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
