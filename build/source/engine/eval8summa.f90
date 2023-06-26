@@ -59,10 +59,10 @@ USE mDecisions_module,only:  &
  enthalpyFD                    ! heat capacity using enthalpy
 
 ! look-up values for the numerical method
-USE mDecisions_module,only:         &
-numrec       ,&      ! home-grown backward Euler solution using free versions of Numerical recipes
-kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
-ida                  ! SUNDIALS solution using IDA
+USE mDecisions_module,only:  &
+ numrec,                     & ! home-grown backward Euler solution using free versions of Numerical recipes
+ kinsol,                     & ! SUNDIALS backward Euler solution using Kinsol
+ ida                           ! SUNDIALS solution using IDA
 
 implicit none
 private
