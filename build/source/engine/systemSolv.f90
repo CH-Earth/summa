@@ -439,7 +439,7 @@ subroutine systemSolv(&
 #ifdef SUNDIALS_ACTIVE
        call eval8summaWithPrime(&
                         ! input: model control
-                        dt,                      & ! intent(in):    length of the time step (seconds)
+                        dt,                      & ! intent(in):    entire time step for drainage pond rate
                         nSnow,                   & ! intent(in):    number of snow layers
                         nSoil,                   & ! intent(in):    number of soil layers
                         nLayers,                 & ! intent(in):    number of layers
@@ -608,7 +608,7 @@ subroutine systemSolv(&
         !---------------------------
         ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
         call summaSolve4ida(&
-                          dt_cur,                  & ! intent(in):    data time step
+                          dt,                      & ! intent(in):    entire time step for drainage pond rate
                           atol,                    & ! intent(in):    absolute tolerance
                           rtol,                    & ! intent(in):    relative tolerance
                           nSnow,                   & ! intent(in):    number of snow layers
@@ -684,7 +684,7 @@ subroutine systemSolv(&
         ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
         call summaSolve4kinsol(&
                           dt_cur,                  & ! intent(in):    data time step
-                          dt,                      & ! intent(in):    data time step
+                          dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
                           fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                           xScale,                  & ! intent(in):    characteristic scale of the state vector
                           nSnow,                   & ! intent(in):    number of snow layers
