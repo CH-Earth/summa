@@ -72,6 +72,7 @@ USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterizat
  private::setSolverParams
  private::find_rootdir
  public::layerDisCont4ida
+ private::getErrMessage
  public::summaSolve4ida
 
 contains
@@ -433,6 +434,8 @@ subroutine summaSolve4ida(                         &
     retvalr = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
     if( retvalr < 0 )then
       idaSucceeds = .false.
+      call getErrMessage(retvalr,cmessage)
+      message=trim(message)//trim(cmessage)
       exit
     end if
 
@@ -518,7 +521,10 @@ subroutine summaSolve4ida(                         &
 
   err               = eqns_data%err
   message           = eqns_data%message
-  if( .not. feasible) idaSucceeds = .false.
+  if( .not. feasible)then 
+    idaSucceeds = .false.
+    message=trim(message)//trim(cmessage)//'non-feasible'
+  endif
 
   if(idaSucceeds)then
     ! copy to output data
@@ -565,7 +571,6 @@ subroutine summaSolve4ida(                         &
   if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the SUNDIALS context'; return; endif
 
 end subroutine summaSolve4ida
-
 
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u and up vectors.
@@ -661,85 +666,83 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
 
 end subroutine setSolverParams
 
-
 ! ----------------------------------------------------------------------------------------
 ! find_rootdir: private routine to determine which direction to look for the root, by
 !  determining if the variable is greater or less than the root. Need to do this to prevent
 !  bouncing around solution
 ! ----------------------------------------------------------------------------------------
- subroutine find_rootdir(eqns_data,rootdir)
+subroutine find_rootdir(eqns_data,rootdir)
 
- !======= Inclusions ===========
- use, intrinsic :: iso_c_binding
- use fsundials_nvector_mod
- use fnvector_serial_mod
- use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
- use globalData,only:integerMissing     ! missing integer
- use var_lookup,only:iLookINDEX         ! named variables for structure elements
- use multiconst,only:Tfreeze            ! freezing point of pure water (K)
+  !======= Inclusions ===========
+  use, intrinsic :: iso_c_binding
+  use fsundials_nvector_mod
+  use fnvector_serial_mod
+  use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
+  use globalData,only:integerMissing     ! missing integer
+  use var_lookup,only:iLookINDEX         ! named variables for structure elements
+  use multiconst,only:Tfreeze            ! freezing point of pure water (K)
 
- !======= Declarations =========
- implicit none
+  !======= Declarations =========
+  implicit none
 
- ! calling variables
- type(data4ida),intent(in)  :: eqns_data  ! equations data
- integer(i4b),intent(inout) :: rootdir(:) ! root function directions to search
+  ! calling variables
+  type(data4ida),intent(in)  :: eqns_data  ! equations data
+  integer(i4b),intent(inout) :: rootdir(:) ! root function directions to search
 
- ! local variables
- integer(i4b)               :: i,ind     ! indices
- integer(i4b)               :: nState    ! number of states
- integer(i4b)               :: nSnow     ! number of snow layers
- integer(i4b)               :: nSoil     ! number of soil layers
- real(rkind)                :: xPsi      ! matric head at layer (m)
- real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
+  ! local variables
+  integer(i4b)               :: i,ind     ! indices
+  integer(i4b)               :: nState    ! number of states
+  integer(i4b)               :: nSnow     ! number of snow layers
+  integer(i4b)               :: nSoil     ! number of soil layers
+  real(rkind)                :: xPsi      ! matric head at layer (m)
+  real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
 
- ! get equations data variables
- nState = eqns_data%nState
- nSnow = eqns_data%nSnow
- nSoil = eqns_data%nSoil
+  ! get equations data variables
+  nState = eqns_data%nState
+  nSnow = eqns_data%nSnow
+  nSoil = eqns_data%nSoil
 
- ! initialize
- ind = 0
+  ! initialize
+  ind = 0
 
- ! identify the critical point when vegetation begins to freeze
- if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
-   ind = ind+1
-   rootdir(ind) = 1
-   if(eqns_data%scalarCanopyTempPrev > Tfreeze) rootdir(ind) = -1
- endif
+  ! identify the critical point when vegetation begins to freeze
+  if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+    ind = ind+1
+    rootdir(ind) = 1
+    if(eqns_data%scalarCanopyTempPrev > Tfreeze) rootdir(ind) = -1
+  endif
 
- if(nSnow>0)then
-   do i = 1,nSnow
-     ! identify the critical point when the snow layer begins to freeze
-     if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
-       ind = ind+1
-       rootdir(ind) = 1
-       if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
-     endif
-   end do
- endif
+  if(nSnow>0)then
+    do i = 1,nSnow
+      ! identify the critical point when the snow layer begins to freeze
+      if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+        ind = ind+1
+        rootdir(ind) = 1
+        if(eqns_data%mLayerTempPrev(i) > Tfreeze) rootdir(ind) = -1
+      endif
+    end do
+  endif
 
- if(nSoil>0)then
-   do i = 1,nSoil
-     xPsi = eqns_data%mLayerMatricHeadPrev(i)
-     ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
-     if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
-       ind = ind+1
-       rootdir(ind) = 1
-       if(xPsi > 0._rkind ) rootdir(ind) = -1
-     endif
-     ! identify the critical point when the soil layer begins to freeze
-     if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
-       ind = ind+1
-       TcSoil = crit_soilT(xPsi)
-       rootdir(ind) = 1
-       if(eqns_data%mLayerTempPrev(i+nSnow) > TcSoil) rootdir(ind) = -1
-     endif
-   end do
- endif
+  if(nSoil>0)then
+    do i = 1,nSoil
+      xPsi = eqns_data%mLayerMatricHeadPrev(i)
+      ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
+      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
+        ind = ind+1
+        rootdir(ind) = 1
+        if(xPsi > 0._rkind ) rootdir(ind) = -1
+      endif
+      ! identify the critical point when the soil layer begins to freeze
+      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
+        ind = ind+1
+        TcSoil = crit_soilT(xPsi)
+        rootdir(ind) = 1
+        if(eqns_data%mLayerTempPrev(i+nSnow) > TcSoil) rootdir(ind) = -1
+      endif
+    end do
+  endif
 
- end subroutine find_rootdir
-
+end subroutine find_rootdir
 
 ! ----------------------------------------------------------------------------------------
 ! layerDisCont4ida: The root function routine to find soil matrix potential = 0,
@@ -750,92 +753,133 @@ end subroutine setSolverParams
 !    1 = recoverable error,
 !   -1 = non-recoverable error
 ! ----------------------------------------------------------------------------------------
- integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data) &
+integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data) &
       result(ierr) bind(C,name='layerDisCont4ida')
 
- !======= Inclusions ===========
- use, intrinsic :: iso_c_binding
- use fsundials_nvector_mod
- use fnvector_serial_mod
- use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
- use globalData,only:integerMissing     ! missing integer
- use var_lookup,only:iLookINDEX         ! named variables for structure elements
- use multiconst,only:Tfreeze            ! freezing point of pure water (K)
+  !======= Inclusions ===========
+  use, intrinsic :: iso_c_binding
+  use fsundials_nvector_mod
+  use fnvector_serial_mod
+  use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
+  use globalData,only:integerMissing     ! missing integer
+  use var_lookup,only:iLookINDEX         ! named variables for structure elements
+  use multiconst,only:Tfreeze            ! freezing point of pure water (K)
 
- !======= Declarations =========
- implicit none
+  !======= Declarations =========
+  implicit none
 
- ! calling variables
- real(c_double), value      :: t         ! current time
- type(N_Vector)             :: sunvec_u  ! solution N_Vector
- type(N_Vector)             :: sunvec_up ! derivative N_Vector
- real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + 2*nSoil)>999, problem
- type(c_ptr),    value      :: user_data ! user-defined data
+  ! calling variables
+  real(c_double), value      :: t         ! current time
+  type(N_Vector)             :: sunvec_u  ! solution N_Vector
+  type(N_Vector)             :: sunvec_up ! derivative N_Vector
+  real(c_double)             :: gout(999) ! root function values, if (nVeg + nSnow + 2*nSoil)>999, problem
+  type(c_ptr),    value      :: user_data ! user-defined data
 
- ! local variables
- integer(i4b)               :: i,ind     ! indices
- integer(i4b)               :: nState    ! number of states
- integer(i4b)               :: nSnow     ! number of snow layers
- integer(i4b)               :: nSoil     ! number of soil layers
- real(rkind)                :: xPsi      ! matric head at layer (m)
- real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
+  ! local variables
+  integer(i4b)               :: i,ind     ! indices
+  integer(i4b)               :: nState    ! number of states
+  integer(i4b)               :: nSnow     ! number of snow layers
+  integer(i4b)               :: nSoil     ! number of soil layers
+  real(rkind)                :: xPsi      ! matric head at layer (m)
+  real(rkind)                :: TcSoil    ! critical point when soil begins to freeze (K)
 
- ! pointers to data in SUNDIALS vectors
- real(c_double), pointer :: uu(:)
- type(data4ida), pointer :: eqns_data      ! equations data
+  ! pointers to data in SUNDIALS vectors
+  real(c_double), pointer :: uu(:)
+  type(data4ida), pointer :: eqns_data      ! equations data
 
- !======= Internals ============
- ! get equations data from user-defined data
- call c_f_pointer(user_data, eqns_data)
- nState = eqns_data%nState
- nSnow = eqns_data%nSnow
- nSoil = eqns_data%nSoil
+  !======= Internals ============
+  ! get equations data from user-defined data
+  call c_f_pointer(user_data, eqns_data)
+  nState = eqns_data%nState
+  nSnow = eqns_data%nSnow
+  nSoil = eqns_data%nSoil
 
- ! get data array from SUNDIALS vector
- uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
+  ! get data array from SUNDIALS vector
+  uu(1:nState) => FN_VGetArrayPointer(sunvec_u)
 
- ! initialize
- ind = 0
+  ! initialize
+  ind = 0
 
- ! identify the critical point when vegetation begins to freeze
- if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
-   ind = ind+1
-   gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
- endif
+  ! identify the critical point when vegetation begins to freeze
+  if(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)/=integerMissing)then
+    ind = ind+1
+    gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixVegNrg)%dat(1)) - Tfreeze
+  endif
 
- if(nSnow>0)then
-   do i = 1,nSnow
-     ! identify the critical point when the snow layer begins to freeze
-     if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
-       ind = ind+1
-       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
-     endif
-   end do
- endif
+  if(nSnow>0)then
+    do i = 1,nSnow
+      ! identify the critical point when the snow layer begins to freeze
+      if(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)/=integerMissing)then
+        ind = ind+1
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat(i)) - Tfreeze
+      endif
+    end do
+  endif
 
- if(nSoil>0)then
-   do i = 1,nSoil
-     ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
-     if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
-       ind = ind+1
-       xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
-       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
-     else
-       xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
-     endif
-     ! identify the critical point when the soil layer begins to freeze
-     if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
-       ind = ind+1
-       TcSoil = crit_soilT(xPsi)
-       gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
-     endif
-   end do
- endif
+  if(nSoil>0)then
+    do i = 1,nSoil
+      ! identify the critical point when soil matrix potential goes below 0 and Tfreeze depends only on temp
+      if (eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i)/=integerMissing)then
+        ind = ind+1
+        xPsi = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat(i))
+      else
+        xPsi = eqns_data%prog_data%var(iLookPROG%mLayerMatricHead)%dat(i)
+      endif
+      ! identify the critical point when the soil layer begins to freeze
+      if(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)/=integerMissing)then
+        ind = ind+1
+        TcSoil = crit_soilT(xPsi)
+        gout(ind) = uu(eqns_data%indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat(i)) - TcSoil
+      endif
+    end do
+  endif
 
- ! return success
- ierr = 0
- return
+  ! return success
+  ierr = 0
+  return
 
- end function layerDisCont4ida
+end function layerDisCont4ida
+
+! ----------------------------------------------------------------
+! getErrMessage: private routine to get error message for IDA solver
+! ----------------------------------------------------------------
+subroutine getErrMessage(retval,message)
+
+  !======= Declarations =========
+  implicit none
+
+  ! calling variables
+  integer(i4b),intent(in)    :: retval              ! return value from IDA
+  character(*),intent(out)   :: message             ! error message
+
+  ! get message
+   if( retval==-1 ) message = 'IDA_TOO_MUCH_WORK'   ! The solver took mxstep internal steps but could not reach tout.
+   if( retval==-2 ) message = 'IDA_TOO_MUCH_ACC'    ! The solver could not satisfy the accuracy demanded by the user for some internal step.
+   if( retval==-3 ) message = 'IDA_ERR_FAIL'        ! Error test failures occurred too many times during one internal timestep or minimum step size was reached.
+   if( retval==-4 ) message = 'IDA_CONV_FAIL'       ! Convergence test failures occurred too many times during one internal time step or minimum step size was reached.
+   if( retval==-5 ) message = 'IDA_LINIT_FAIL'      ! The linear solver’s initialization function failed.
+   if( retval==-6 ) message = 'IDA_LSETUP_FAIL'     ! The linear solver’s setup function failed in an unrecoverable manner.
+   if( retval==-7 ) message = 'IDA_LSOLVE_FAIL'     ! The linear solver’s solve function failed in an unrecoverable manner.
+   if( retval==-8 ) message = 'IDA_RES_FAIL'        ! The user-provided residual function failed in an unrecoverable manner.
+   if( retval==-9 ) message = 'IDA_REP_RES_FAIL'    ! The user-provided residual function repeatedly returned a recoverable error flag, but the solver was unable to recover.
+   if( retval==-10) message = 'IDA_RTFUNC_FAIL'     ! The rootfinding function failed in an unrecoverable manner.
+   if( retval==-11) message = 'IDA_CONSTR_FAIL'     ! The inequality constraints were violated and the solver was unable to recover.
+   if( retval==-12) message = 'IDA_FIRST_RES_FAIL'  ! The user-provided residual function failed recoverably on the first call.
+   if( retval==-13) message = 'IDA_LINESEARCH_FAIL' ! The line search failed.
+   if( retval==-14) message = 'IDA_NO_RECOVERY'     ! The residual function, linear solver setup function, or linear solver solve function had a recoverable failure, but IDACalcIC could not recover.
+   if( retval==-15) message = 'IDA_NLS_INIT_FAIL'   ! The nonlinear solver’s init routine failed.
+   if( retval==-16) message = 'IDA_NLS_SETUP_FAIL'  ! The nonlinear solver’s setup routine failed.
+   if( retval==-20) message = 'IDA_MEM_NULL'        ! The ida_mem argument was NULL.
+   if( retval==-21) message = 'IDA_MEM_FAIL'        ! A memory allocation failed.
+   if( retval==-22) message = 'IDA_ILL_INPUT'       ! One of the function inputs is illegal.
+   if( retval==-23) message = 'IDA_NO_MALLOC'       ! The IDA memory was not allocated by a call to IDAInit.
+   if( retval==-24) message = 'IDA_BAD_EWT'         ! Zero value of some error weight component.
+   if( retval==-25) message = 'IDA_BAD_K'           ! The k-th derivative is not available.
+   if( retval==-26) message = 'IDA_BAD_T'           ! The time t is outside the last step taken.
+   if( retval==-27) message = 'IDA_BAD_DKY'         ! The vector argument where derivative should be stored is NULL.
+
+end subroutine getErrMessage
+
 
 end module summaSolve4ida_module

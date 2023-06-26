@@ -141,7 +141,7 @@ contains
  ! input: model control
  real(rkind),intent(in)          :: dt_cur                   ! current stepsize
  real(rkind),intent(in)          :: dt                       ! entire time step for drainage pond rate
- integer(i4b),intent(in)         :: iter                     ! interation index
+ integer(i4b),intent(in)         :: iter                     ! iteration index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                  ! total number of layers
