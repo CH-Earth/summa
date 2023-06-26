@@ -58,6 +58,12 @@ USE mDecisions_module,only:  &
  closedForm,                 & ! heat capacity using closed form, not using enthalpy
  enthalpyFD                    ! heat capacity using enthalpy
 
+! look-up values for the numerical method
+USE mDecisions_module,only:         &
+numrec       ,&      ! home-grown backward Euler solution using free versions of Numerical recipes
+kinsol       ,&      ! SUNDIALS backward Euler solution using Kinsol
+ida                  ! SUNDIALS solution using IDA
+
 implicit none
 private
 public::eval8summa
@@ -198,6 +204,7 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)     :: dEnthalpy_dTk             ! derivatives in layer enthalpy w.r.t. temperature
   real(rkind),dimension(nLayers)     :: dEnthalpy_dWat            ! derivatives in layer enthalpy w.r.t. water state
   ! other local variables
+  logical(lgt)                       :: checkLWBalance            ! flag to check longwave balance
   integer(i4b)                       :: iLayer                    ! index of model layer in the snow+soil domain
   integer(i4b)                       :: jState(1)                 ! index of model state for the scalar solution within the soil domain
   integer(i4b)                       :: ixBeg,ixEnd               ! index of indices for the soil compression routine
@@ -213,16 +220,17 @@ subroutine eval8summa(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   associate(&
     ! model decisions
-    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
-    ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,&  ! intent(in):  [i4b]   index of the form of Richards' equation
+    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in):  [i4b]    choice of numerical solver
+    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):  [i4b]    heat capacity computation, with or without enthalpy
+    ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision   ,& ! intent(in):  [i4b]    index of the form of Richards' equation
     ! snow parameters
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,&  ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
+    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):  [dp]     scaling parameter for the snow freezing curve (K-1)
     ! soil parameters
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in):  [dp(:)] soil porosity (-)
-    specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,&  ! intent(in):  [dp]    specific storage coefficient (m-1)
+    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in):  [dp(:)]  soil porosity (-)
+    specificStorage         => mpar_data%var(iLookPARAM%specificStorage)%dat(1)       ,& ! intent(in):  [dp]     specific storage coefficient (m-1)
     ! canopy and layer depth
-    canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,&  ! intent(in):  [dp   ] canopy depth (m)
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,&  ! intent(in):  [dp(:)] depth of each layer in the snow-soil sub-domain (m)
+    canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)      ,& ! intent(in):  [dp   ]  canopy depth (m)
+    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
     ! model state variables from the previous solution
     scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the canopy air space (K)
     scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):  [dp]     temperature of the vegetation canopy (K)
@@ -535,6 +543,10 @@ subroutine eval8summa(&
     ! save the number of flux calls per time step
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
 
+    ! only need to check longwave balance with numerical recipes solver 
+    checkLWBalance = .false.
+    if(ixNumericalMethod==numrec) checkLWBalance = .true.
+
     ! compute the fluxes for a given state vector
     call computFlux(&
                     ! input-output: model control
@@ -546,7 +558,7 @@ subroutine eval8summa(&
                     firstSplitOper,            & ! intent(in):    flag to indicate if we are processing the first flux call in a splitting operation
                     computeVegFlux,            & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                     scalarSolution,            & ! intent(in):    flag to indicate the scalar solution
-                    .true.,                    & ! intent(in):    check longwave balane
+                    checkLWBalance,            & ! intent(in):    flag to check longwave balance
                     scalarSfcMeltPond/dt,      & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
                     ! input: state variables
                     scalarCanairTempTrial,     & ! intent(in):    trial value for the temperature of the canopy air space (K)
@@ -650,7 +662,7 @@ end subroutine eval8summa
 
 #ifdef SUNDIALS_ACTIVE
 ! **********************************************************************************************************
-! public function eval8summa4kinsol: compute the residual vector F(t,y) required for IDA solver
+! public function eval8summa4kinsol: compute the residual vector F(t,y) required for KINSOL solver
 ! **********************************************************************************************************
 ! Return values:
 !    0 = success,

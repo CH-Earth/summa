@@ -289,7 +289,7 @@ subroutine opSplittin(&
 
   globalVars: associate(&
     ! model decisions
-    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical method, backward Euler or SUNDIALS/IDA
+    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical solver
     ! vector of energy and hydrology indices for the snow and soil domains
     ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
     ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
@@ -320,8 +320,7 @@ subroutine opSplittin(&
     select case(ixNumericalMethod)
       case(ida);            nCoupling = 1
       case(kinsol, numrec); nCoupling = 2
-      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
-    end select
+     end select
 
     ! -----
     ! * initialize...

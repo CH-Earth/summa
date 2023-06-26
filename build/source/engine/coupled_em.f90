@@ -1163,7 +1163,7 @@ subroutine coupled_em(&
     ! associate local variables with information in the data structures
     associate(&
       ! model decisions
-      ixNumericalMethod          => model_decisions(iLookDECISIONS%num_method)%iDecision                          ,& ! choice of numerical method, backward Euler or SUNDIALS/IDA
+      ixNumericalMethod          => model_decisions(iLookDECISIONS%num_method)%iDecision                          ,&  ! choice of numerical solver
       ! model forcing
       scalarSnowfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSnowfall)           )%dat(1)     ,&  ! computed snowfall rate (kg m-2 s-1)
       scalarRainfall             => flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarRainfall)           )%dat(1)     ,&  ! computed rainfall rate (kg m-2 s-1)
