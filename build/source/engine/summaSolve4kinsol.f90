@@ -435,7 +435,7 @@ subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
   integer(c_long),parameter   :: mset = 1           ! maximum number of times the solver is called without Jacobian update, pass 0 to give default of 10 times
   integer(c_long),parameter   :: msubset = 1        ! maximum number of nonlinear iterations between checks by the residual monitoring algorithm, default=5
   integer(c_long),parameter   :: maa = 0            ! maximum number of prior residuals to use acceleration, default = 0
-  integer(c_long),parameter   :: beta_fail = 50     ! maximum number of beta condition failures, default = 10
+  integer(c_long),parameter   :: beta_fail = 10     ! maximum number of beta condition failures, default = 10
   real(qp),parameter          :: fnormtol = 0.0     ! stopping tolerance on the scaled maximum norm of the system function, pass 0 to give default of unit_roundoff**(1/3)
   real(qp),parameter          :: scsteptol = 0.0    ! stopping tolerance on the minimum scaled step length, pass 0 to give default of unit_roundoff**(2/3)
       
