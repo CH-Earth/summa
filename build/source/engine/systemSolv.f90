@@ -204,7 +204,6 @@ subroutine systemSolv(&
   ! ---------------------------------------------------------------------------------------
   ! * general local variables
   ! ---------------------------------------------------------------------------------------
-  real(qp)                        :: dt_out                        ! time step sum for data window at termination of sundials
   character(LEN=256)              :: cmessage                      ! error message of downwind routine
   integer(i4b)                    :: iter                          ! iteration index
   integer(i4b)                    :: iVar                          ! index of variable
@@ -218,7 +217,7 @@ subroutine systemSolv(&
   ! ------------------------------------------------------------------------------------------------------
   ! * model solver
   ! ------------------------------------------------------------------------------------------------------
-  logical(lgt),parameter          :: forceFullMatrix=.false.       ! flag to force the use of the full Jacobian matrix
+  logical(lgt),parameter          :: forceFullMatrix=.true.       ! flag to force the use of the full Jacobian matrix
   integer(i4b)                    :: ixMatrix                      ! form of matrix (band diagonal or full matrix)
   type(var_dlength)               :: flux_init                     ! model fluxes at the start of the time step
   real(rkind),allocatable         :: dBaseflow_dMatric(:,:)        ! derivative in baseflow w.r.t. matric head (s-1)  ! NOTE: allocatable, since not always needed
@@ -233,7 +232,7 @@ subroutine systemSolv(&
   ! ida variables
   real(rkind)                     :: atol(nState)                  ! absolute tolerance ida
   real(rkind)                     :: rtol(nState)                  ! relative tolerance ida
-  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_out (=dt)
+  type(var_dlength)               :: flux_sum                      ! sum of fluxes model fluxes for a local HRU over a dt_cur
   real(rkind), allocatable        :: mLayerCmpress_sum(:)          ! sum of compression of the soil matrix
   ! kinsol and numrec variables
   real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
@@ -525,6 +524,7 @@ subroutine systemSolv(&
         !---------------------------
         ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
         call summaSolve4ida(&
+                          dt_cur,                  & ! intent(in):    current stepsize
                           dt,                      & ! intent(in):    entire time step for drainage pond rate
                           atol,                    & ! intent(in):    absolute tolerance
                           rtol,                    & ! intent(in):    relative tolerance
@@ -560,7 +560,6 @@ subroutine systemSolv(&
                           ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
-                          dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
                           stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                           stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                           err,cmessage)              ! intent(out):   error control
@@ -580,7 +579,7 @@ subroutine systemSolv(&
 
         ! compute average flux
         do iVar=1,size(flux_meta)
-          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_out
+          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_cur
         end do
 
         ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
@@ -590,7 +589,7 @@ subroutine systemSolv(&
           mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! change in storage associated with compression of the soil matrix (-)
           scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)      & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
           )
-          mLayerCompress = mLayerCmpress_sum /  dt_out
+          mLayerCompress = mLayerCmpress_sum /  dt_cur
           scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
         end associate soilVars
 

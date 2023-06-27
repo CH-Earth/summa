@@ -1055,7 +1055,7 @@ integer(c_int) function computJacob4kinsol(sunvec_y, sunvec_r, sunmat_J, &
   !        or in the call to eval8summa in the previous iteration
   call computJacob(&
                 ! input: model control
-	              eqns_data%dt,                      & ! intent(in):    data step
+	              eqns_data%dt_cur,                  & ! intent(in):    length of the time step (seconds)
                 eqns_data%nSnow,                   & ! intent(in):    number of snow layers
                 eqns_data%nSoil,                   & ! intent(in):    number of soil layers
                 eqns_data%nLayers,                 & ! intent(in):    number of layers

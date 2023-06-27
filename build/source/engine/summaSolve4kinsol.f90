@@ -216,7 +216,7 @@ subroutine summaSolve4kinsol(&
   eqns_data%nState                  = nState
   eqns_data%ixMatrix                = ixMatrix
   eqns_data%firstFluxCall           = .false. ! already called for initial
-  eqns_data%firstSplitOper          = .false. ! already called for initial and false inside solver ???
+  eqns_data%firstSplitOper          = .false. ! already called for initial and false inside solver
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
@@ -349,7 +349,7 @@ subroutine summaSolve4kinsol(&
 
   err               = eqns_data%err
   message           = eqns_data%message
-  if( .not. feasible) then 
+  if( .not. feasible)then 
     kinsolSucceeds = .false.
     message=trim(message)//trim(cmessage)//'non-feasible'
   endif

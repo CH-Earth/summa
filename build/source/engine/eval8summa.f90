@@ -744,7 +744,6 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 rVec,                              & ! intent(out):   residual vector
                 fNew,                              & ! intent(out):   new function evaluation
                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
-
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
   

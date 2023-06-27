@@ -82,6 +82,7 @@ contains
 ! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
 ! ------------------
 subroutine summaSolve4ida(                         &
+                      dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
                       atol,                    & ! intent(in):    absolute tolerance
                       rtol,                    & ! intent(in):    relative tolerance
@@ -110,14 +111,13 @@ subroutine summaSolve4ida(                         &
                       indx_data,               & ! intent(inout): index data
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
-                      flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a dt
+                      flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a dt_cur
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
                       ! output
-                      ixSaturation,            & ! intent(inout) index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                      ixSaturation,            & ! intent(inout)  index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if IDA successfully solved the problem in current data step
-                      tooMuchMelt,             & ! intent(inout):   flag to denote that there was too much melt
-                      dt_out,                  & ! intent(out):   time step sum for entire data window at termination of sundials
+                      tooMuchMelt,             & ! intent(inout): lag to denote that there was too much melt
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
                       err,message)               ! intent(out):   error control
@@ -149,6 +149,7 @@ subroutine summaSolve4ida(                         &
   ! calling variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
+  real(rkind),intent(in)          :: dt_cur                 ! current stepsize
   real(qp),intent(in)             :: dt                     ! data time step
   real(qp),intent(inout)          :: atol(:)                ! vector of absolute tolerances
   real(qp),intent(inout)          :: rtol(:)                ! vector of relative tolerances
@@ -177,7 +178,7 @@ subroutine summaSolve4ida(                         &
   type(var_ilength),intent(inout) :: indx_data              ! indices defining model states and layers
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
-  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt
+  type(var_dlength),intent(inout) :: flux_sum               ! sum of fluxes model fluxes for a local HRU over a dt_cur
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
   real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
@@ -186,7 +187,6 @@ subroutine summaSolve4ida(                         &
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                 ! time step sum for entire data window at termination of IDA loops
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -404,11 +404,11 @@ subroutine summaSolve4ida(                         &
   endif
 
   ! Enforce the solver to stop at end of the time step
-  retval = FIDASetStopTime(ida_mem, dt)
+  retval = FIDASetStopTime(ida_mem, dt_cur)
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetStopTime'; return; endif
 
   ! Set solver parameters at end of setup
-  call setSolverParams(dt, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
+  call setSolverParams(dt_cur, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
   if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
 
   ! Disable error messages and warnings
@@ -421,7 +421,7 @@ subroutine summaSolve4ida(                         &
   tinystep = .false.
   tret(1) = t0           ! initial time
   tretPrev = tret(1)
-  do while(tret(1) < dt)
+  do while(tret(1) < dt_cur)
 
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)
     if(detect_events .and. .not.tinystep)then
@@ -431,10 +431,10 @@ subroutine summaSolve4ida(                         &
     endif
 
     eqns_data%firstFluxCall = .false. ! already called for initial
-    eqns_data%firstSplitOper = .true. ! always true at start of dt since no splitting
+    eqns_data%firstSplitOper = .true. ! always true at start of dt_cur since no splitting
 
     ! call IDASolve, advance solver just one internal step
-    retvalr = FIDASolve(ida_mem, dt, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
+    retvalr = FIDASolve(ida_mem, dt_cur, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
     if( retvalr < 0 )then
       idaSucceeds = .false.
       call getErrMessage(retvalr,cmessage)
@@ -519,7 +519,7 @@ subroutine summaSolve4ida(                         &
       endif
     endif
 
-  enddo ! while loop on one_step mode until time dt
+  enddo ! while loop on one_step mode until time dt_cur
   !****************************** End of Main Solver ***************************************
 
   err               = eqns_data%err
@@ -535,7 +535,6 @@ subroutine summaSolve4ida(                         &
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
-    dt_out        = tret(1) ! should be dt, probably do not need to keep this
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of Flux Calculations changes
   endif
 
@@ -614,7 +613,7 @@ end subroutine setInitialCondition
 ! ----------------------------------------------------------------
 ! setSolverParams: private routine to set parameters in IDA solver
 ! ----------------------------------------------------------------
-subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
+subroutine setSolverParams(dt_cur,nonlin_iter,ida_mem,retval)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
@@ -624,7 +623,7 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
   implicit none
 
   ! calling variables
-  real(rkind),intent(in)      :: dt                 ! time step
+  real(rkind),intent(in)      :: dt_cur             ! current whole time step
   integer,intent(in)          :: nonlin_iter        ! maximum number of nonlinear iterations, default = 4, set in parameters
   type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
   integer(i4b),intent(out)    :: retval             ! return value
@@ -663,7 +662,7 @@ subroutine setSolverParams(dt,nonlin_iter,ida_mem,retval)
   if (retval /= 0) return
 
   ! Set maximum stepsize
-  h_max = dt
+  h_max = dt_cur
   retval = FIDASetMaxStep(ida_mem, h_max)
   if (retval /= 0) return
 
