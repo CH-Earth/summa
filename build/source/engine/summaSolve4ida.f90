@@ -186,7 +186,7 @@ subroutine summaSolve4ida(                         &
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
-  real(qp),intent(out)            :: dt_out                 ! time step sum for entire data window at termination of sundials
+  real(qp),intent(out)            :: dt_out                 ! time step sum for entire data window at termination of IDA loops
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -463,7 +463,7 @@ subroutine summaSolve4ida(                         &
                   ! output: error control
                     err,cmessage)                                 ! intent(out):   error control
 
-    ! early return for non-feasible solutions, will fail in current Sundials formulation
+    ! early return for non-feasible solutions, will fail in current IDA formulation
     if(.not.feasible)then
       eqns_data%fluxVec(:) = realMissing
       message=trim(message)//trim(cmessage)//'non-feasible'

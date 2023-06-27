@@ -364,7 +364,7 @@ subroutine varSubstep(&
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
       if(tooMuchMelt .or. reduceCoupledStep) return
 
-      ! identify failure, should not happen in sundials
+      ! identify failure, should not happen in SUNDIALS
       failedSubstep = (err<0)
 
       ! check

@@ -80,7 +80,7 @@ subroutine eval8summaWithPrime(&
                       diag_data,               & ! intent(inout)  model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                      ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+                      ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
                       scalarCanopyTempTrial,   & ! intent(out):   trial value of canopy temperature (K)
                       scalarCanopyTempPrev,    & ! intent(in):    value of canopy temperature (K)
                       scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -120,7 +120,7 @@ subroutine eval8summaWithPrime(&
   USE getVectorz_module, only:checkFeas                   ! check feasibility of state vector
   USE updateVarsWithPrime_module, only:updateVarsWithPrime  ! update variables
   USE t2enthalpy_module, only:t2enthalpy                  ! compute enthalpy
-  USE computFlux_module, only:soilCmpresSundials          ! compute soil compression
+  USE computFlux_module, only:soilCmpresPrime          ! compute soil compression
   USE computFlux_module, only:computFlux                  ! compute fluxes given a state vector
   USE computHeatCap_module,only:computHeatCap             ! recompute heat capacity and derivatives
   USE computHeatCap_module,only:computHeatCapAnalytic     ! recompute heat capacity and derivatives
@@ -161,7 +161,7 @@ subroutine eval8summaWithPrime(&
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-  ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+  ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
   real(rkind),intent(out)         :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)          :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
   real(rkind),intent(out)         :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -637,7 +637,7 @@ subroutine eval8summaWithPrime(&
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
-    call soilCmpresSundials(&
+    call soilCmpresPrime(&
                     ! input:
                     ixRichards,                             & ! intent(in): choice of option for Richards' equation
                     ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
@@ -657,7 +657,7 @@ subroutine eval8summaWithPrime(&
 
     ! compute the residual vector
     if (insideSUN)then
-      dt1 = 1._qp ! always 1 for sundials since using Prime derivatives
+      dt1 = 1._qp ! always 1 for IDA since using Prime derivatives
 
       call computResidWithPrime(&
                       ! input: model control
@@ -780,7 +780,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                 eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                 eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+                 ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):    trial value of canopy temperature (K)
                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):    previous value of canopy temperature (K)
                 eqns_data%scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)

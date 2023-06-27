@@ -92,7 +92,6 @@ integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
   type(N_Vector)          :: sunvec_ewt ! derivative N_Vector W
   type(c_ptr), value      :: user_data ! user-defined data
 
-
   ! pointers to data in SUNDIALS vectors
   type(data4ida), pointer :: tol_data ! equations data
   real(rkind), pointer    :: stateVec(:)
@@ -107,7 +106,6 @@ integer(c_int) function computWeight4ida(sunvec_y, sunvec_ewt, user_data) &
   ! get data arrays from SUNDIALS vectors
   stateVec(1:tol_data%nState)  => FN_VGetArrayPointer(sunvec_y)
   weightVec(1:tol_data%nState)  => FN_VGetArrayPointer(sunvec_ewt)
-
 
   do iState = 1,tol_data%nState
     weightVec(iState) = tol_data%rtol(iState) * abs( stateVec(iState) ) + tol_data%atol(iState)

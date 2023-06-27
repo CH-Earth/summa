@@ -99,7 +99,7 @@ USE data_types,only:&
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
-                    numrec    ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    numrec       ,& ! home-grown backward Euler solution using free versions of Numerical recipes
                     kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
                     ida             ! SUNDIALS solution using IDA
 
@@ -649,7 +649,6 @@ subroutine opSplittin(&
                 ! reset the flag for the first flux call
                 if(.not.firstSuccess) firstFluxCall=.true.
 
-                ! update variables, also updated inside SUNDIALS (if fail a split will need these)
                 ! save/recover copies of prognostic variables
                 do iVar=1,size(prog_data%var)
                   select case(failure)
