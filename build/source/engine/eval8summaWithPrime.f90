@@ -104,8 +104,13 @@ subroutine eval8summaWithPrime(&
                       scalarAquiferStoragePrev,& ! intent(in):    value of storage of water in the aquifer (m)
                       mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                       mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                      mLayerMatricHeadPrime,   & ! intent(out):   trial value for prime total water matric potential (m s-1)
-                      ! input-output: baseflow
+                      mLayerTempPrime,         & ! intent(out):    derivative value for temperature of each snow and soil layer (K)
+                      mLayerMatricHeadPrime,   & ! intent(out):    derivative value for matric head of each snow and soil layer (m)
+                      mLayerMatricHeadLiqPrime,& ! intent(out):    derivative value for liquid water matric head of each snow and soil layer (m)
+                      mLayerVolFracWatPrime,   & ! intent(out):    derivative value for volumetric total water content of each snow and soil layer (-)
+                      scalarCanopyTempPrime,   & ! intent(out):    derivative value for temperature of the vegetation canopy (K)
+                      scalarCanopyWatPrime,    & ! intent(out):    derivative value for total water content of the vegetation canopy (kg m-2)
+                        ! input-output: baseflow
                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                       ! output: flux and residual vectors
@@ -185,7 +190,12 @@ subroutine eval8summaWithPrime(&
   real(rkind),intent(in)          :: scalarAquiferStoragePrev    ! previous value of storage of water in the aquifer (m)
   real(rkind),intent(in)          :: mLayerEnthalpyPrev(:)       ! previous vector of enthalpy for snow+soil layers (J m-3)
   real(rkind),intent(out)         :: mLayerEnthalpyTrial(:)      ! trial vector of enthalpy for snow+soil layers (J m-3)
-  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! deriviative value for prime total water matric potential (m s-1)
+  real(rkind),intent(out)         :: mLayerTempPrime(:)          ! derivative value for temperature of each snow and soil layer (K)
+  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! derivative value for matric head of each snow and soil layer (m)
+  real(rkind),intent(out)         :: mLayerMatricHeadLiqPrime(:) ! derivative value for liquid water matric head of each snow and soil layer (m)
+  real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)    ! derivative value for volumetric total water content of each snow and soil layer (-)
+  real(rkind),intent(out)         :: scalarCanopyTempPrime       ! derivative value for temperature of the vegetation canopy (K)
+  real(rkind),intent(out)         :: scalarCanopyWatPrime        ! derivative value for total water content of the vegetation canopy (kg m-2)
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(out)         :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
@@ -206,11 +216,6 @@ subroutine eval8summaWithPrime(&
   real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
   ! derivative of state variables
   real(rkind)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
-  real(rkind)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
-  real(rkind)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
-  real(rkind),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
   real(rkind)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
   ! derivative of diagnostic variables
   real(rkind)                        :: scalarCanopyLiqPrime      ! derivative value for mass of liquid water on the vegetation canopy (kg m-2)
@@ -804,7 +809,12 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)
                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):   derivative value for total water matric potential (m s-1)
+                eqns_data%mLayerTempPrime,         & ! intent(out):    derivative value for temperature of each snow and soil layer (K)
+                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):    derivative value for matric head of each snow and soil layer (m)
+                eqns_data%mLayerMatricHeadLiqPrime,& ! intent(out):    derivative value for liquid water matric head of each snow and soil layer (m)
+                eqns_data%mLayerVolFracWatPrime,   & ! intent(out):    derivative value for volumetric total water content of each snow and soil layer (-)
+                eqns_data%scalarCanopyTempPrime,   & ! intent(out):    derivative value for temperature of the vegetation canopy (K)
+                eqns_data%scalarCanopyWatPrime,    & ! intent(out):    derivative value for total water content of the vegetation canopy (kg m-2)
                 ! input-output: baseflow
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)

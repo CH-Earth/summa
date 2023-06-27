@@ -69,7 +69,12 @@ type data4ida
   real(rkind)                     :: scalarAquiferStoragePrev     ! value of storage of water in the aquifer (m) at previous step
   real(rkind), allocatable        :: mLayerEnthalpyTrial(:)       ! trial enthalpy of snow and soil (J m-3)
   real(rkind), allocatable        :: mLayerEnthalpyPrev(:)        ! enthalpy of snow and soil (J m-3) at previous step
-  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)     ! derivative value for total water matric potential (m s-1)
+  real(rkind), allocatable        :: mLayerTempPrime(:)           ! derivative value for temperature of each snow and soil layer (K)
+  real(rkind), allocatable        :: mLayerMatricHeadPrime(:)     ! derivative value for matric head of each snow and soil layer (m)
+  real(rkind), allocatable        :: mLayerMatricHeadLiqPrime(:)  ! derivative value for liquid water matric head of each snow and soil layer (m)
+  real(rkind), allocatable        :: mLayerVolFracWatPrime(:)     ! derivative value for volumetric total water content of each snow and soil layer (-)
+  real(rkind)                     :: scalarCanopyTempPrime        ! derivative value for temperature of the vegetation canopy (K)
+  real(rkind)                     :: scalarCanopyWatPrime         ! derivative value for total water content of the vegetation canopy (kg m-2)
   real(rkind), allocatable        :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer
   integer(i4b)                    :: err                          ! error code
