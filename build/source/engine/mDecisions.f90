@@ -427,7 +427,7 @@ subroutine mDecisions(err,message)
   endif
 #endif
 
-  ! how to compute heat capacity in energy equation, choice enthalpyFD has better coincidence of energy conservation with sundials tolerance.
+  ! how to compute heat capacity in energy equation, choice enthalpyFD has better coincidence of energy conservation with IDA tolerance.
   select case(trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision))
     case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! heat capacity using enthalpy
     case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! heat capacity using closed form, not using enthalpy

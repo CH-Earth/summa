@@ -72,9 +72,14 @@ USE data_types,only:&
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
-                    qbaseTopmodel,& ! TOPMODEL-ish baseflow parameterization
-                    bigBucket,    & ! a big bucket (lumped aquifer model)
-                    noExplicit      ! no explicit groundwater parameterization
+  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
+  bigBucket,                      & ! a big bucket (lumped aquifer model)
+  noExplicit                        ! no explicit groundwater parameterization
+
+! look-up values for method used to compute derivative
+USE mDecisions_module,only:       &
+  numerical,                      & ! numerical solution
+  analytical                        ! analytical solution
 
 implicit none
 private
@@ -141,7 +146,7 @@ contains
  ! input: model control
  real(rkind),intent(in)          :: dt_cur                   ! current stepsize
  real(rkind),intent(in)          :: dt                       ! entire time step for drainage pond rate
- integer(i4b),intent(in)         :: iter                     ! interation index
+ integer(i4b),intent(in)         :: iter                     ! iteration index
  integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
  integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
  integer(i4b),intent(in)         :: nLayers                  ! total number of layers
@@ -218,6 +223,13 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summaSolve4numrec/'
+
+! choose Jacobian type
+ select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
+   case(numerical); err=20; message=trim(message)//'numerical derivatives are not implemented for BE numerical Recipes solver'; return
+   case(analytical); ! this is fine
+   case default; err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian'; return
+ end select
 
  ! get the number of soil layers in the solution vector
  mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
@@ -854,7 +866,7 @@ contains
   ! compute the full Jacobian matrix
   call computJacob(&
                    ! input: model control
-                   dt_cur,                             & ! intent(in):    length of the time step (seconds)
+                   dt_cur,                         & ! intent(in):    length of the time step (seconds)
                    nSnow,                          & ! intent(in):    number of snow layers
                    nSoil,                          & ! intent(in):    number of soil layers
                    nLayers,                        & ! intent(in):    total number of layers

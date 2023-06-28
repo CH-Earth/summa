@@ -226,7 +226,7 @@ subroutine varSubstep(&
   ! ---------------------------------------------------------------------------------------
   globalVars: associate(&
     ! model decisions
-    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical method, backward Euler or SUNDIALS/IDA
+    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in):    [i4b]    choice of numerical solver
     ! number of layers
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -325,7 +325,7 @@ subroutine varSubstep(&
       call systemSolv(&
                       ! input: model control
                       dtSubstep,         & ! intent(in):    time step (s)
-                      whole_step,        & ! intent(in):    entire time step (s), right now same as dtSubstep but might change with operator splitting
+                      whole_step,        & ! intent(in):    entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
@@ -364,7 +364,7 @@ subroutine varSubstep(&
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
       if(tooMuchMelt .or. reduceCoupledStep) return
 
-      ! identify failure, should not happen in sundials
+      ! identify failure, should not happen in SUNDIALS
       failedSubstep = (err<0)
 
       ! check
@@ -418,7 +418,6 @@ subroutine varSubstep(&
       select case(ixNumericalMethod)
         case(ida);            checkMassBalance = .false. ! IDA has instantaneous fluxes only so average will not balance over data window
         case(kinsol, numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
-        case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select
 
       ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
@@ -666,7 +665,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   ! point to flux variables in the data structure
   associate(&
     ! model decisions
-    ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in): [i4b] choice of numerical method, backward Euler or SUNDIALS/IDA
+    ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in): [i4b] choice of numerical solver
     ! get indices for mass balance
     ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)    : [i4b]    index of canopy hydrology state variable (mass)
     ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)    : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
@@ -876,7 +875,6 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                  mLayerMatricHeadLiqTrial, & ! intent(inout): trial vector of liquid water matric potential (m)
                  ! output: error control
                  err,cmessage)               ! intent(out):   error control
-      case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
     end select
 
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

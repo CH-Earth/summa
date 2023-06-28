@@ -63,12 +63,21 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterization
+USE mDecisions_module,only:       &
+  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
+  bigBucket,                      & ! a big bucket (lumped aquifer model)
+  noExplicit                         ! no explicit groundwater parameterization
+                  
+! look-up values for method used to compute derivative
+USE mDecisions_module,only:       &
+  numerical,                      & ! numerical solution
+  analytical                        ! analytical solution
 
 ! privacy
  implicit none
  private::setInitialCondition
  private::setSolverParams
+ private::getErrMessage
  public::summaSolve4kinsol
 
 contains
@@ -195,13 +204,19 @@ subroutine summaSolve4kinsol(&
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   character(LEN=256)                :: cmessage             ! error message of downwind routine
-  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn KINSOL warnings off, default true
-  logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
- 
-  ! -----------------------------------------------------------------------------------------------------
+  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, default false
+  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
+ ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
   err=0; message="summaSolve4kinsol/"
+
+  ! choose Jacobian type
+  select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
+    case(numerical);  use_fdJac =.true.
+    case(analytical); use_fdJac =.false.
+    case default; err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian'; return
+  end select
 
   nState = nStat ! total number of state variables in SUNDIALS type
   kinsolSucceeds = .true.
@@ -215,7 +230,7 @@ subroutine summaSolve4kinsol(&
   eqns_data%nState                  = nState
   eqns_data%ixMatrix                = ixMatrix
   eqns_data%firstFluxCall           = .false. ! already called for initial
-  eqns_data%firstSplitOper          = .false. ! already called for initial and false inside solver ???
+  eqns_data%firstSplitOper          = .false. ! already called for initial and false inside solver
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
@@ -323,34 +338,35 @@ subroutine summaSolve4kinsol(&
 
   !****************************** Main Solver **********************************************
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
-  !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
-  retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
-  if( retval < 0 ) kinsolSucceeds = .false.
+  retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  !retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
 
-  ! check the feasibility of the solution
-  feasible=.true.
-  call checkFeas(&
-                  ! input
-                  stateVec,                                  & ! intent(in):    model state vector (mixed units)
-                  eqns_data%mpar_data,                       & ! intent(in):    model parameters
-                  eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
-                  eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
-                  ! output: feasibility
-                  feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
-                  ! output: error control
-                  err,cmessage)                                 ! intent(out):   error control
-
-  ! early return for non-feasible solutions, will fail in current Sundials formulation
-  if(.not.feasible)then
-    eqns_data%fluxVec(:) = realMissing
-    message=trim(message)//trim(cmessage)//'non-feasible'
-    return
-  end if
+  if( retvalr < 0 )then
+    kinsolSucceeds = .false.
+    call getErrMessage(retval,cmessage)
+    message=trim(message)//trim(cmessage)
+  else
+    ! check the feasibility of the solution
+    feasible=.true.
+    call checkFeas(&
+                    ! input
+                    stateVec,                                  & ! intent(in):    model state vector (mixed units)
+                    eqns_data%mpar_data,                       & ! intent(in):    model parameters
+                    eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
+                    eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
+                    ! output: feasibility
+                    feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
+                    ! output: error control
+                    err,cmessage)                                 ! intent(out):   error control
+  endif 
   !****************************** End of Main Solver ***************************************
 
   err               = eqns_data%err
   message           = eqns_data%message
-  if( .not. feasible) kinsolSucceeds = .false.
+  if( .not. feasible)then 
+    kinsolSucceeds = .false.
+    message=trim(message)//trim(cmessage)//'non-feasible'
+  endif
 
   if(kinsolSucceeds)then
     ! copy to output data
@@ -383,91 +399,122 @@ subroutine summaSolve4kinsol(&
 
 end subroutine summaSolve4kinsol
 
-
 ! ----------------------------------------------------------------
 ! SetInitialCondition: routine to initialize u vector.
 ! ----------------------------------------------------------------
-  subroutine setInitialCondition(neq, y, sunvec_u)
+subroutine setInitialCondition(neq, y, sunvec_u)
 
-    !======= Inclusions ===========
-    USE, intrinsic :: iso_c_binding
-    USE fsundials_nvector_mod
-    USE fnvector_serial_mod
-  
-    !======= Declarations =========
-    implicit none
-  
-    ! calling variables
-    type(N_Vector)  :: sunvec_u  ! solution N_Vector
-    integer(c_long) :: neq
-    real(rkind)     :: y(neq)
-  
-    ! pointers to data in SUNDIALS vectors
-    real(c_double), pointer :: uu(:)
-  
-    ! get data arrays from SUNDIALS vectors
-    uu(1:neq) => FN_VGetArrayPointer(sunvec_u)
-  
-    uu = y
-  
-  end subroutine setInitialCondition
-  
-  ! ----------------------------------------------------------------
-  ! setSolverParams: private routine to set parameters in KINSOL solver
-  ! ----------------------------------------------------------------
-  subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
-  
-    !======= Inclusions ===========
-    USE, intrinsic :: iso_c_binding
-    USE fkinsol_mod   ! Fortran interface to KINSOL
-  
-    !======= Declarations =========
-    implicit none
-  
-    ! calling variables
-    integer,intent(in)          :: nonlin_iter        ! maximum number of nonlinear iterations, default = 200, set in parameters
-    type(c_ptr),intent(inout)   :: kinsol_mem         ! KINSOL memory
-    integer(i4b),intent(out)    :: retval             ! return value
-  
-    !======= Internals ============
-    integer(c_long)             :: nonlin_itr         ! maximum number of nonlinear iterations in SUNDIALS type
-    integer(c_long),parameter   :: mset = 1           ! maximum number of times the solver is called without Jacobian update, pass 0 to give default of 10 times
-    integer(c_long),parameter   :: msubset = 1        ! maximum number of nonlinear iterations between checks by the residual monitoring algorithm, default=5
-    integer(c_long),parameter   :: maa = 0            ! maximum number of prior residuals to use acceleration, default = 0
-    integer(c_long),parameter   :: beta_fail = 50     ! maximum number of beta condition failures, default = 10
-    real(qp),parameter          :: fnormtol = 0.0     ! stopping tolerance on the scaled maximum norm of the system function, pass 0 to give default of unit_roundoff**(1/3)
-    real(qp),parameter          :: scsteptol = 0.0    ! stopping tolerance on the minimum scaled step length, pass 0 to give default of unit_roundoff**(2/3)
-        
-    ! Set maximum number of times the linear solver is called without a Jacobian update
-    retval = FKINSetMaxSetupCalls(kinsol_mem, mset)
-    if (retval /= 0) return
+  !======= Inclusions ===========
+  USE, intrinsic :: iso_c_binding
+  USE fsundials_nvector_mod
+  USE fnvector_serial_mod
 
-    ! Every msubset iterations, test if a Jacobian evaluation is necessary
-    retval = FKINSetMaxSubSetupCalls(kinsol_mem, msubset)
-    if (retval /= 0) return
+  !======= Declarations =========
+  implicit none
 
-    ! Set maximum number of iterations   
-    nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type
-    retval = FKINSetNumMaxIters(kinsol_mem, nonlin_itr)
-    if (retval /= 0) return
+  ! calling variables
+  type(N_Vector)  :: sunvec_u  ! solution N_Vector
+  integer(c_long) :: neq
+  real(rkind)     :: y(neq)
 
-    ! Set maximum number of prior residuals to use for Anderson acceleration 
-    ! ONLY in conjunction with Picard or fixed-point iteration
-    retval = FKINSetMAA(kinsol_mem, maa);
-    if (retval /= 0) return
+  ! pointers to data in SUNDIALS vectors
+  real(c_double), pointer :: uu(:)
 
-    ! Set maximum number of beta condition failures in the linesearch
-    retval = FKINSetMaxBetaFails(kinsol_mem, beta_fail)
-    if (retval /= 0) return
+  ! get data arrays from SUNDIALS vectors
+  uu(1:neq) => FN_VGetArrayPointer(sunvec_u)
 
-    ! Set tolerances for stopping criteria: scaled maximum norm of the system function
-    retval = FKINSetFuncNormTol(kinsol_mem, fnormtol)
-    if (retval /= 0) return
+  uu = y
 
-    ! Set stopping tolerance on the scaled maximum norm of the system function
-    retval = FKINSetScaledStepTol(kinsol_mem, scsteptol)
-    if (retval /= 0) return
+end subroutine setInitialCondition
 
-  end subroutine setSolverParams
-  
+! ----------------------------------------------------------------
+! setSolverParams: private routine to set parameters in KINSOL solver
+! ----------------------------------------------------------------
+subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
+
+  !======= Inclusions ===========
+  USE, intrinsic :: iso_c_binding
+  USE fkinsol_mod   ! Fortran interface to KINSOL
+
+  !======= Declarations =========
+  implicit none
+
+  ! calling variables
+  integer,intent(in)          :: nonlin_iter        ! maximum number of nonlinear iterations, default = 200, set in parameters
+  type(c_ptr),intent(inout)   :: kinsol_mem         ! KINSOL memory
+  integer(i4b),intent(out)    :: retval             ! return value
+
+  !======= Internals ============
+  integer(c_long)             :: nonlin_itr         ! maximum number of nonlinear iterations in SUNDIALS type
+  integer(c_long),parameter   :: mset = 1           ! maximum number of times the solver is called without Jacobian update, pass 0 to give default of 10 times
+  integer(c_long),parameter   :: msubset = 1        ! maximum number of nonlinear iterations between checks by the residual monitoring algorithm, default=5
+  integer(c_long),parameter   :: maa = 0            ! maximum number of prior residuals to use acceleration, default = 0
+  integer(c_long),parameter   :: beta_fail = 10     ! maximum number of beta condition failures, default = 10
+  real(qp),parameter          :: fnormtol = 0.0     ! stopping tolerance on the scaled maximum norm of the system function, pass 0 to give default of unit_roundoff**(1/3)
+  real(qp),parameter          :: scsteptol = 0.0    ! stopping tolerance on the minimum scaled step length, pass 0 to give default of unit_roundoff**(2/3)
+      
+  ! Set maximum number of times the linear solver is called without a Jacobian update
+  retval = FKINSetMaxSetupCalls(kinsol_mem, mset)
+  if (retval /= 0) return
+
+  ! Every msubset iterations, test if a Jacobian evaluation is necessary
+  retval = FKINSetMaxSubSetupCalls(kinsol_mem, msubset)
+  if (retval /= 0) return
+
+  ! Set maximum number of iterations   
+  nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type
+  retval = FKINSetNumMaxIters(kinsol_mem, nonlin_itr)
+  if (retval /= 0) return
+
+  ! Set maximum number of prior residuals to use for Anderson acceleration 
+  ! ONLY in conjunction with Picard or fixed-point iteration
+  retval = FKINSetMAA(kinsol_mem, maa);
+  if (retval /= 0) return
+
+  ! Set maximum number of beta condition failures in the linesearch
+  retval = FKINSetMaxBetaFails(kinsol_mem, beta_fail)
+  if (retval /= 0) return
+
+  ! Set tolerances for stopping criteria: scaled maximum norm of the system function
+  retval = FKINSetFuncNormTol(kinsol_mem, fnormtol)
+  if (retval /= 0) return
+
+  ! Set stopping tolerance on the scaled maximum norm of the system function
+  retval = FKINSetScaledStepTol(kinsol_mem, scsteptol)
+  if (retval /= 0) return
+
+end subroutine setSolverParams
+
+! ----------------------------------------------------------------
+! getErrMessage: private routine to get error message for KINSOL solver
+! ----------------------------------------------------------------
+subroutine getErrMessage(retval,message)
+
+  !======= Declarations =========
+  implicit none
+
+  ! calling variables
+  integer(i4b),intent(in)    :: retval                 ! return value from KINSOL
+  character(*),intent(out)   :: message                ! error message
+
+  ! get message
+  if( retval==-1 ) message = 'KIN_MEM_NULL'            ! The kin_mem argument was NULL.
+  if( retval==-2 ) message = 'KIN_ILL_INPUT'           ! One of the function inputs is illegal.
+  if( retval==-3 ) message = 'KIN_NO_MALLOC'           ! The KINSOL memory was not allocated by a call to KINMalloc.
+  if( retval==-4 ) message = 'KIN_MEM_FAIL'            ! A memory allocation failed.
+  if( retval==-5 ) message = 'KIN_LINESEARCH_NONCONV ' ! The linesearch algorithm was unable to find an iterate sufficiently distinct from the current iterate.
+  if( retval==-6 ) message = 'KIN_MAXITER_REACHED'     ! The maximum number of nonlinear iterations has been reached.
+  if( retval==-7 ) message = 'KIN_MXNEWT_5X_EXCEEDED'  ! Five consecutive steps have been taken that satisfy a scaled step length test.
+  if( retval==-8 ) message = 'KIN_LINESEARCH_BCFAIL'   ! The linesearch algorithm was unable to satisfy the 𝛽-condition for nbcfails iterations.
+  if( retval==-9 ) message = 'KIN_LINSOLV_NO_RECOVERY' ! The user-supplied routine preconditioner slve function failed recoverably, but the preconditioner is already current.
+  if( retval==-10) message = 'KIN_LINIT_FAIL'          ! The linear solver’s initialization function failed.
+  if( retval==-11) message = 'KIN_LSETUP_FAIL'         ! The linear solver’s setup function failed in an unrecoverable manner.
+  if( retval==-12) message = 'KIN_LSOLVE_FAIL'         ! The linear solver’s solve function failed in an unrecoverable manner.
+  if( retval==-13) message = 'KIN_SYSFUNC_FAIL'        ! The system function failed in an unrecoverable manner.
+  if( retval==-14) message = 'KIN_FIRST_SYSFUNC_ERR'   ! The system function failed with a recoverable error at the first call.
+  if( retval==-15) message = 'KIN_REPTD_SYSFUNC_ERR'   ! The system function had repeated recoverable errors.
+ 
+end subroutine getErrMessage
+
+
 end module summaSolve4kinsol_module

@@ -265,10 +265,10 @@ subroutine getScaling(&
   type(var_dlength),intent(in)    :: diag_data              ! diagnostic variables for a local HRU
   type(var_ilength),intent(in)    :: indx_data              ! indices defining model states and layers
   ! output: state vectors
-  real(rkind),intent(out)            :: fScale(:)              ! characteristic scale of the function evaluations (mixed units)
-  real(rkind),intent(out)            :: xScale(:)              ! variable scaling vector (mixed units)
-  real(qp),intent(out)               :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
-  real(rkind),intent(out)            :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
+  real(rkind),intent(out)         :: fScale(:)              ! characteristic scale of the function evaluations (mixed units)
+  real(rkind),intent(out)         :: xScale(:)              ! variable scaling vector (mixed units)
+  real(qp),intent(out)            :: sMul(:)    ! NOTE: qp  ! multiplier for state vector (used in the residual calculations)
+  real(rkind),intent(out)         :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message

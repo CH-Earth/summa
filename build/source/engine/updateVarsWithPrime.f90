@@ -73,8 +73,8 @@ USE var_lookup,only:iLookPARAM            ! named variables for structure elemen
 USE var_lookup,only:iLookINDEX            ! named variables for structure elements
 
 ! provide access to routines to update states
-USE updatStateWithPrime_module,only:updateSnowSundials     ! update snow states
-USE updatStateWithPrime_module,only:updateSoilSundials     ! update soil states
+USE updatStateWithPrime_module,only:updateSnowPrime     ! update snow states
+USE updatStateWithPrime_module,only:updateSoilPrime     ! update soil states
 
 ! provide access to functions for the constitutive functions and derivatives
 USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water (snow)
@@ -85,7 +85,7 @@ USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water charact
 USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-USE soil_utilsAddPrime_module,only:liquidHeadSundials     ! compute the liquid water matric potential
+USE soil_utilsAddPrime_module,only:liquidHeadPrime     ! compute the liquid water matric potential
 USE soil_utilsAddPrime_module,only:d2Theta_dPsi2
 USE soil_utilsAddPrime_module,only:d2Theta_dTk2
 
@@ -99,7 +99,7 @@ public::updateVarsWithPrime
 contains
 
 ! **********************************************************************************************************
-! public subroutine updateVarsWithPrime: compute diagnostic variables and derivatives for Sundials Jacobian
+! public subroutine updateVarsWithPrime: compute diagnostic variables and derivatives for Prime Jacobian
 ! **********************************************************************************************************
 subroutine updateVarsWithPrime(&
                      ! input
@@ -494,7 +494,7 @@ subroutine updateVarsWithPrime(&
             case(iname_veg)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnowSundials(&
+              call updateSnowPrime(&
                               xTemp,                                        & ! intent(in)   : temperature (K)
                               scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in)   : volumetric fraction of total water (-)
                               snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
@@ -519,7 +519,7 @@ subroutine updateVarsWithPrime(&
             case(iname_snow)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnowSundials(&
+              call updateSnowPrime(&
                               xTemp,                                        & ! intent(in)   : temperature (K)
                               mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
                               snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
@@ -537,7 +537,7 @@ subroutine updateVarsWithPrime(&
             case(iname_soil)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSoilSundials(&
+              call updateSoilPrime(&
                               xTemp,                                             & ! intent(in) : temperature (K)
                               mLayerMatricHeadTrial(ixControlIndex),             & ! intent(in) : total water matric potential (m)
                               mLayerTempPrime(iLayer),                           & ! intent(in) : temperature time derivative (K/s)
@@ -711,7 +711,7 @@ subroutine updateVarsWithPrime(&
         ! case of energy state or coupled solution
         else
           ! compute the liquid matric potential (and the derivatives w.r.t. total matric potential and temperature)
-          call liquidHeadSundials(&
+          call liquidHeadPrime(&
                           ! input
                           mLayerMatricHeadTrial(ixControlIndex)                                                                                     ,& ! intent(in) : total water matric potential (m)
                           mLayerMatricHeadPrime(ixControlIndex)                                                                                     ,& !

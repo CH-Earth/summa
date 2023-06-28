@@ -80,7 +80,7 @@ subroutine eval8summaWithPrime(&
                       diag_data,               & ! intent(inout)  model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                      ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+                      ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
                       scalarCanopyTempTrial,   & ! intent(out):   trial value of canopy temperature (K)
                       scalarCanopyTempPrev,    & ! intent(in):    value of canopy temperature (K)
                       scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -104,8 +104,13 @@ subroutine eval8summaWithPrime(&
                       scalarAquiferStoragePrev,& ! intent(in):    value of storage of water in the aquifer (m)
                       mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                       mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                      mLayerMatricHeadPrime,   & ! intent(out):   trial value for prime total water matric potential (m s-1)
-                      ! input-output: baseflow
+                      mLayerTempPrime,         & ! intent(out):    derivative value for temperature of each snow and soil layer (K)
+                      mLayerMatricHeadPrime,   & ! intent(out):    derivative value for matric head of each snow and soil layer (m)
+                      mLayerMatricHeadLiqPrime,& ! intent(out):    derivative value for liquid water matric head of each snow and soil layer (m)
+                      mLayerVolFracWatPrime,   & ! intent(out):    derivative value for volumetric total water content of each snow and soil layer (-)
+                      scalarCanopyTempPrime,   & ! intent(out):    derivative value for temperature of the vegetation canopy (K)
+                      scalarCanopyWatPrime,    & ! intent(out):    derivative value for total water content of the vegetation canopy (kg m-2)
+                        ! input-output: baseflow
                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                       dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                       ! output: flux and residual vectors
@@ -120,7 +125,7 @@ subroutine eval8summaWithPrime(&
   USE getVectorz_module, only:checkFeas                   ! check feasibility of state vector
   USE updateVarsWithPrime_module, only:updateVarsWithPrime  ! update variables
   USE t2enthalpy_module, only:t2enthalpy                  ! compute enthalpy
-  USE computFlux_module, only:soilCmpresSundials          ! compute soil compression
+  USE computFlux_module, only:soilCmpresPrime          ! compute soil compression
   USE computFlux_module, only:computFlux                  ! compute fluxes given a state vector
   USE computHeatCap_module,only:computHeatCap             ! recompute heat capacity and derivatives
   USE computHeatCap_module,only:computHeatCapAnalytic     ! recompute heat capacity and derivatives
@@ -161,7 +166,7 @@ subroutine eval8summaWithPrime(&
   type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data              ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data             ! derivatives in model fluxes w.r.t. relevant state variables
-  ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+  ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
   real(rkind),intent(out)         :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)          :: scalarCanopyTempPrev      ! previous value for temperature of the vegetation canopy (K)
   real(rkind),intent(out)         :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -185,7 +190,12 @@ subroutine eval8summaWithPrime(&
   real(rkind),intent(in)          :: scalarAquiferStoragePrev    ! previous value of storage of water in the aquifer (m)
   real(rkind),intent(in)          :: mLayerEnthalpyPrev(:)       ! previous vector of enthalpy for snow+soil layers (J m-3)
   real(rkind),intent(out)         :: mLayerEnthalpyTrial(:)      ! trial vector of enthalpy for snow+soil layers (J m-3)
-  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! deriviative value for prime total water matric potential (m s-1)
+  real(rkind),intent(out)         :: mLayerTempPrime(:)          ! derivative value for temperature of each snow and soil layer (K)
+  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)    ! derivative value for matric head of each snow and soil layer (m)
+  real(rkind),intent(out)         :: mLayerMatricHeadLiqPrime(:) ! derivative value for liquid water matric head of each snow and soil layer (m)
+  real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)    ! derivative value for volumetric total water content of each snow and soil layer (-)
+  real(rkind),intent(out)         :: scalarCanopyTempPrime       ! derivative value for temperature of the vegetation canopy (K)
+  real(rkind),intent(out)         :: scalarCanopyWatPrime        ! derivative value for total water content of the vegetation canopy (kg m-2)
   ! input-output: baseflow
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(out)         :: dBaseflow_dMatric(:,:) ! derivative in baseflow w.r.t. matric head (s-1)
@@ -206,11 +216,6 @@ subroutine eval8summaWithPrime(&
   real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
   ! derivative of state variables
   real(rkind)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
-  real(rkind)                        :: scalarCanopyTempPrime     ! derivative value for temperature of the vegetation canopy (K)
-  real(rkind)                        :: scalarCanopyWatPrime      ! derivative value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)     :: mLayerTempPrime           ! derivative value for temperature of layers in the snow and soil domains (K)
-  real(rkind),dimension(nLayers)     :: mLayerVolFracWatPrime     ! derivative value for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqPrime  ! derivative value for liquid water matric potential (m)
   real(rkind)                        :: scalarAquiferStoragePrime ! derivative value of storage of water in the aquifer (m)
   ! derivative of diagnostic variables
   real(rkind)                        :: scalarCanopyLiqPrime      ! derivative value for mass of liquid water on the vegetation canopy (kg m-2)
@@ -637,7 +642,7 @@ subroutine eval8summaWithPrime(&
 
     ! compute soil compressibility (-) and its derivative w.r.t. matric head (m)
     ! NOTE: we already extracted trial matrix head and volumetric liquid water as part of the flux calculations
-    call soilCmpresSundials(&
+    call soilCmpresPrime(&
                     ! input:
                     ixRichards,                             & ! intent(in): choice of option for Richards' equation
                     ixBeg,ixEnd,                            & ! intent(in): start and end indices defining desired layers
@@ -657,7 +662,7 @@ subroutine eval8summaWithPrime(&
 
     ! compute the residual vector
     if (insideSUN)then
-      dt1 = 1._qp ! always 1 for sundials since using Prime derivatives
+      dt1 = 1._qp ! always 1 for IDA since using Prime derivatives
 
       call computResidWithPrime(&
                       ! input: model control
@@ -780,7 +785,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                 eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                 eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: here we need to pass some extra variables that do not get updated in in the Sundials loops
+                 ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):    trial value of canopy temperature (K)
                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):    previous value of canopy temperature (K)
                 eqns_data%scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -804,7 +809,12 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)
                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):   derivative value for total water matric potential (m s-1)
+                eqns_data%mLayerTempPrime,         & ! intent(out):    derivative value for temperature of each snow and soil layer (K)
+                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):    derivative value for matric head of each snow and soil layer (m)
+                eqns_data%mLayerMatricHeadLiqPrime,& ! intent(out):    derivative value for liquid water matric head of each snow and soil layer (m)
+                eqns_data%mLayerVolFracWatPrime,   & ! intent(out):    derivative value for volumetric total water content of each snow and soil layer (-)
+                eqns_data%scalarCanopyTempPrime,   & ! intent(out):    derivative value for temperature of the vegetation canopy (K)
+                eqns_data%scalarCanopyWatPrime,    & ! intent(out):    derivative value for total water content of the vegetation canopy (kg m-2)
                 ! input-output: baseflow
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -814,7 +824,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                 rVec,                              & ! intent(out):   residual vector
                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
-
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
   

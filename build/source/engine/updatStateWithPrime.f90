@@ -10,8 +10,8 @@ USE multiconst,only:&
                     LH_fus         ! latent heat of fusion         (J kg-1)
 implicit none
 private
-public::updateSnowSundials
-public::updateSoilSundials
+public::updateSnowPrime
+public::updateSoilPrime
 
 real(rkind),parameter     :: verySmall=1e-14_rkind ! a very small number (used to avoid divide by zero)
 
@@ -19,9 +19,9 @@ contains
 
 
 ! *************************************************************************************************************
-! public subroutine updateSnowSundials: compute phase change impacts on volumetric liquid water and ice
+! public subroutine updateSnowPrime: compute phase change impacts on volumetric liquid water and ice
 ! *************************************************************************************************************
-subroutine updateSnowSundials(&
+subroutine updateSnowPrime(&
                       ! input
                       mLayerTemp            ,& ! intent(in): temperature (K)
                       mLayerTheta           ,& ! intent(in): volume fraction of total water (-)
@@ -55,7 +55,7 @@ subroutine updateSnowSundials(&
   integer(i4b),intent(out)      :: err                  ! error code
   character(*),intent(out)      :: message              ! error message
   ! initialize error control
-  err=0; message="updateSnowSundials/"
+  err=0; message="updateSnowPrime/"
 
   ! compute the volumetric fraction of liquid water and ice (-)
   fLiq = fracliquid(mLayerTemp,snowfrz_scale)
@@ -64,12 +64,12 @@ subroutine updateSnowSundials(&
   mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale) * mLayerTheta * mLayerTempPrime
   mLayerVolFracIcePrime = ( mLayerThetaPrime - mLayerVolFracLiqPrime ) * (iden_water/iden_ice)
 
-end subroutine updateSnowSundials
+end subroutine updateSnowPrime
 
 ! ***********************************************************************************************************************************
-! public subroutine updateSoilSundials: compute phase change impacts on matric head and volumetric liquid water and ice (veg or soil)
+! public subroutine updateSoilPrime: compute phase change impacts on matric head and volumetric liquid water and ice (veg or soil)
 ! ***********************************************************************************************************************************
-subroutine updateSoilSundials(&
+subroutine updateSoilPrime(&
                       ! input
                       mLayerTemp            ,& ! intent(in): temperature (K)
                       mLayerMatricHead      ,& ! intent(in): total water matric potential (m)
@@ -118,7 +118,7 @@ subroutine updateSoilSundials(&
   real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
   real(rkind),parameter            :: tinyVal=epsilon(1._rkind) ! used in balance check
   ! initialize error control
-  err=0; message="updateSoilSundials/"
+  err=0; message="updateSoilPrime/"
 
   ! compute fractional **volume** of total water (liquid plus ice)
   mLayerVolFracWat = volFracLiq(mLayerMatricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
@@ -150,6 +150,6 @@ subroutine updateSoilSundials(&
   mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
   mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime
 
-end subroutine updateSoilSundials
+end subroutine updateSoilPrime
 
 end module updatStateWithPrime_module
