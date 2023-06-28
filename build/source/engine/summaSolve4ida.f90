@@ -64,7 +64,15 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterization
+USE mDecisions_module,only:       &
+  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
+  bigBucket,                      & ! a big bucket (lumped aquifer model)
+  noExplicit                         ! no explicit groundwater parameterization
+
+! look-up values for method used to compute derivative
+USE mDecisions_module,only:       &
+  numerical,                      & ! numerical solution
+  analytical                        ! analytical solution
 
 ! privacy
  implicit none
@@ -222,14 +230,21 @@ subroutine summaSolve4ida(                         &
   character(LEN=256)                :: cmessage             ! error message of downwind routine
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
+  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, default false
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
   logical(lgt),parameter            :: detect_events = .true.       ! flag to do event detection and restarting, default true
-  logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
 
   ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
   err=0; message="summaSolve4ida/"
+
+  ! choose Jacobian type
+  select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
+    case(numerical);  use_fdJac =.true.
+    case(analytical); use_fdJac =.false.
+    case default; err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian'; return
+  end select
 
   nState = nStat ! total number of state variables in SUNDIALS type
   idaSucceeds = .true.

@@ -63,7 +63,15 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:  qbaseTopmodel ! TOPMODEL-ish baseflow parameterization
+USE mDecisions_module,only:       &
+  qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
+  bigBucket,                      & ! a big bucket (lumped aquifer model)
+  noExplicit                         ! no explicit groundwater parameterization
+                  
+! look-up values for method used to compute derivative
+USE mDecisions_module,only:       &
+  numerical,                      & ! numerical solution
+  analytical                        ! analytical solution
 
 ! privacy
  implicit none
@@ -196,13 +204,19 @@ subroutine summaSolve4kinsol(&
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   character(LEN=256)                :: cmessage             ! error message of downwind routine
-  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn KINSOL warnings off, default true
-  logical(lgt),parameter            :: use_fdJac = .false.          ! flag to use finite difference Jacobian, default false
- 
-  ! -----------------------------------------------------------------------------------------------------
+  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, default false
+  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
+ ! -----------------------------------------------------------------------------------------------------
 
   ! initialize error control
   err=0; message="summaSolve4kinsol/"
+
+  ! choose Jacobian type
+  select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
+    case(numerical);  use_fdJac =.true.
+    case(analytical); use_fdJac =.false.
+    case default; err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian'; return
+  end select
 
   nState = nStat ! total number of state variables in SUNDIALS type
   kinsolSucceeds = .true.

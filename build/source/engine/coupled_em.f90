@@ -491,7 +491,6 @@ subroutine coupled_em(&
       call wettedFrac(&
                       ! input
                       .false.,                                                      & ! flag to denote if derivatives are required
-                      .false.,                                                      & ! flag to denote if derivatives are calculated numerically
                       (prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1) < Tfreeze), & ! flag to denote if the canopy is frozen
                       varNotUsed1,                                                  & ! derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
                       varNotUsed2,                                                  & ! fraction of liquid water on the canopy

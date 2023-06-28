@@ -136,11 +136,9 @@ subroutine ssdNrgFlux(&
   integer(i4b)                     :: ixBot                        ! bottom layer in subroutine call
   real(rkind)                      :: qFlux                        ! liquid flux at layer interfaces (m s-1)
   real(rkind)                      :: dz                           ! height difference (m)
-  real(rkind)                      :: flux0,flux1,flux2            ! fluxes used to calculate derivatives (W m-2)
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   associate(&
-    ixDerivMethod           => model_decisions(iLookDECISIONS%fDerivMeth)%iDecision, & ! intent(in): method used to calculate flux derivatives
     ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in): method used to calculate the upper boundary condition for thermodynamics
     ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
     ! input: coordinate variables
@@ -243,13 +241,7 @@ subroutine ssdNrgFlux(&
   	  case(prescribedTemp)
   		dz = mLayerHeight(1)*0.5_rkind
   		dFlux_dWatBelow(0)  = -dThermalC_dWatBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz
-  		if(ixDerivMethod==analytical)then ! ** analytical derivatives for temperature
-  		  dFlux_dTempBelow(0) = -dThermalC_dTempBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz - iLayerThermalC(0)/dz
-  		else                              ! ** numerical derivatives for constant step iLayerThermalC
-  		  flux0 = -iLayerThermalC(0) * ( mLayerTempTrial(1)     - upperBoundTemp ) / dz
-  		  flux2 = -iLayerThermalC(0) * ((mLayerTempTrial(1)+dx) - upperBoundTemp ) / dz
-  		  dFlux_dTempBelow(0) = (flux2 - flux0)/dx
-  		end if
+   		dFlux_dTempBelow(0) = -dThermalC_dTempBelow(0) * ( mLayerTempTrial(1) - upperBoundTemp )/dz - iLayerThermalC(0)/dz
 
   	  ! * zero flux at the upper boundary
   	  case(zeroFlux)
@@ -277,13 +269,7 @@ subroutine ssdNrgFlux(&
           case(prescribedTemp)
             dz = mLayerDepth(iLayer)*0.5_rkind
             dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz
-            if(ixDerivMethod==analytical)then ! ** analytical derivatives
-              dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
-            else                              ! ** numerical derivatives for constant step iLayerThermalC
-              flux0 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)   ))/dz
-              flux1 = -iLayerThermalC(iLayer)*(lowerBoundTemp - (mLayerTempTrial(iLayer)+dx))/dz
-              dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-            end if
+            dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( lowerBoundTemp - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
           case(zeroFlux)  ! zero flux at the lower boundary
             dFlux_dWatAbove(iLayer) = 0._rkind
             dFlux_dTempAbove(iLayer) = 0._rkind
@@ -295,17 +281,8 @@ subroutine ssdNrgFlux(&
         dz = (mLayerHeight(iLayer+1) - mLayerHeight(iLayer))
         dFlux_dWatAbove(iLayer)  = -dThermalC_dWatAbove(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
         dFlux_dWatBelow(iLayer)  = -dThermalC_dWatBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz
-        if(ixDerivMethod==analytical)then ! ** analytical derivatives
-          dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
-          dFlux_dTempBelow(iLayer) = -dThermalC_dTempBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
-        else                              ! ** numerical derivatives for constant step iLayerThermalC
-          flux0 = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1)     -  mLayerTempTrial(iLayer)    ) / dz
-          flux1 = -iLayerThermalC(iLayer)*( mLayerTempTrial(iLayer+1)     - (mLayerTempTrial(iLayer)+dx)) / dz
-          flux2 = -iLayerThermalC(iLayer)*((mLayerTempTrial(iLayer+1)+dx) -  mLayerTempTrial(iLayer)    ) / dz
-          dFlux_dTempAbove(iLayer) = (flux1 - flux0)/dx
-          dFlux_dTempBelow(iLayer) = (flux2 - flux0)/dx
-        end if
-
+        dFlux_dTempAbove(iLayer) = -dThermalC_dTempAbove(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz + iLayerThermalC(iLayer)/dz
+        dFlux_dTempBelow(iLayer) = -dThermalC_dTempBelow(iLayer) * ( mLayerTempTrial(iLayer+1) - mLayerTempTrial(iLayer) )/dz - iLayerThermalC(iLayer)/dz
       end if  ! type of layer (upper, internal, or lower)
 
     end do  ! (looping through layers)
