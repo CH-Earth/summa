@@ -276,12 +276,12 @@ subroutine getScaling(&
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! scaling parameters
-  real(rkind),parameter              :: fScaleLiq=0.01_rkind      ! func eval: characteristic scale for volumetric liquid water content (-)
-  real(rkind),parameter              :: fScaleMat=10._rkind       ! func eval: characteristic scale for matric head (m)
-  real(rkind),parameter              :: fScaleNrg=1000000._rkind  ! func eval: characteristic scale for energy (J m-3)
-  real(rkind),parameter              :: xScaleLiq=0.1_rkind       ! state var: characteristic scale for volumetric liquid water content (-)
-  real(rkind),parameter              :: xScaleMat=10._rkind       ! state var: characteristic scale for matric head (m)
-  real(rkind),parameter              :: xScaleTemp=1._rkind       ! state var: characteristic scale for temperature (K)
+  real(rkind),parameter           :: fScaleLiq=0.01_rkind      ! func eval: characteristic scale for volumetric liquid water content (-)
+  real(rkind),parameter           :: fScaleMat=10._rkind       ! func eval: characteristic scale for matric head (m)
+  real(rkind),parameter           :: fScaleNrg=1000000._rkind  ! func eval: characteristic scale for energy (J m-3)
+  real(rkind),parameter           :: xScaleLiq=0.1_rkind       ! state var: characteristic scale for volumetric liquid water content (-)
+  real(rkind),parameter           :: xScaleMat=10._rkind       ! state var: characteristic scale for matric head (m)
+  real(rkind),parameter           :: xScaleTemp=1._rkind       ! state var: characteristic scale for temperature (K)
   ! state subsets
   integer(i4b)                    :: iLayer                 ! index of layer within the snow+soil domain
   integer(i4b)                    :: ixStateSubset          ! index within the state subset
@@ -356,8 +356,8 @@ subroutine getScaling(&
 
     where(ixStateType_subset==iname_nrgCanair) sMul = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
     where(ixStateType_subset==iname_nrgCanopy) sMul = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
-    where(ixStateType_subset==iname_watCanopy) sMul = 1._rkind             ! nothing else on the left hand side
-    where(ixStateType_subset==iname_liqCanopy) sMul = 1._rkind             ! nothing else on the left hand side
+    where(ixStateType_subset==iname_watCanopy) sMul = 1._rkind          ! nothing else on the left hand side
+    where(ixStateType_subset==iname_liqCanopy) sMul = 1._rkind          ! nothing else on the left hand side
 
     ! compute terms in the Jacobian for vegetation (excluding fluxes)
     ! NOTE: This is computed outside the iteration loop because it does not depend on state variables
@@ -365,8 +365,8 @@ subroutine getScaling(&
     ! NOTE: Use the "where" statement to generalize to multiple canopy layers (currently one canopy layer)
     where(ixStateType_subset==iname_nrgCanair) dMat = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
     where(ixStateType_subset==iname_nrgCanopy) dMat = realMissing       ! populated within the iteration loop
-    where(ixStateType_subset==iname_watCanopy) dMat = 1._rkind             ! nothing else on the left hand side
-    where(ixStateType_subset==iname_liqCanopy) dMat = 1._rkind             ! nothing else on the left hand side
+    where(ixStateType_subset==iname_watCanopy) dMat = 1._rkind          ! nothing else on the left hand side
+    where(ixStateType_subset==iname_liqCanopy) dMat = 1._rkind          ! nothing else on the left hand side
 
     ! define the energy multiplier and diagonal elements for the state vector for residual calculations (snow-soil domain)
     if(nSnowSoilNrg>0)then
@@ -381,8 +381,8 @@ subroutine getScaling(&
     if(nSnowSoilHyd>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
         ixStateSubset        = ixSnowSoilHyd(iLayer)      ! index within the state vector
-        sMul(ixStateSubset)  = 1._rkind                      ! state multiplier = 1 (nothing else on the left-hand-side)
-        dMat(ixStateSubset)  = 1._rkind                      ! diagonal element = 1 (nothing else on the left-hand-side)
+        sMul(ixStateSubset)  = 1._rkind                   ! state multiplier = 1 (nothing else on the left-hand-side)
+        dMat(ixStateSubset)  = 1._rkind                   ! diagonal element = 1 (nothing else on the left-hand-side)
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 

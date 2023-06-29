@@ -309,7 +309,6 @@ contains
 
  if(globalPrintFlag)&
  write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
- !print*, 'PAUSE'; read(*,*)
 
  ! -----
  ! * update, evaluate, and refine the state vector...

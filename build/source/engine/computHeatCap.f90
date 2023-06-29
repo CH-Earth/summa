@@ -466,9 +466,9 @@ subroutine computHeatCapAnalytic(&
 
     ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
     if(computeVegFlux)then
-      heatCapVeg =  specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
-                    Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
-                    Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+      heatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
+                   Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
+                   Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
 
       ! derivatives
       fLiq = scalarFracLiqVeg
