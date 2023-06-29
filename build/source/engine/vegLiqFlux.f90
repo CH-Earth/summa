@@ -67,16 +67,16 @@ subroutine vegLiqFlux(&
   implicit none
   ! input
   logical(lgt),intent(in)         :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  real(rkind),intent(in)             :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-  real(rkind),intent(in)             :: scalarRainfall               ! rainfall (kg m-2 s-1)
+  real(rkind),intent(in)          :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+  real(rkind),intent(in)          :: scalarRainfall               ! rainfall (kg m-2 s-1)
   ! input-output: data structures
   type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
   type(var_dlength),intent(inout) :: diag_data                    ! model diagnostic variables for the local basin
   ! output
-  real(rkind),intent(out)            :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  real(rkind),intent(out)            :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  real(rkind),intent(out)            :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
-  real(rkind),intent(out)            :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+  real(rkind),intent(out)         :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+  real(rkind),intent(out)         :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+  real(rkind),intent(out)         :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
+  real(rkind),intent(out)         :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
   integer(i4b),intent(out)        :: err                          ! error code
   character(*),intent(out)        :: message                      ! error message
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------

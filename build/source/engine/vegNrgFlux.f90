@@ -1179,7 +1179,6 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
   real(rkind)                :: smoothFuncDeriv        ! derivative in the smoothing function w.r.t.canopy storage (kg-1 m2)
   real(rkind)                :: verySmall=epsilon(1._rkind) ! a very small number
   ! --------------------------------------------------------------------------------------------------------------
-
   ! compute relative canopy water
   relativeCanopyWater = canopyLiq/canopyMax
 
@@ -1192,7 +1191,6 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
     else
       rawWetFractionDeriv = 0._rkind
     end if
-
   ! - canopy is at capacity (canopyWettingFactor)
   else
     rawCanopyWetFraction = canopyWettingFactor
@@ -1204,13 +1202,16 @@ subroutine wetFraction(derDesire,smoothing,canopyLiq,canopyMax,canopyWettingFact
     call logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
     canopyWetFraction = rawCanopyWetFraction*smoothFunc  ! logistic smoother
   else
-    canopyWetFraction      = rawCanopyWetFraction
-    canopyWetFractionDeriv = rawWetFractionDeriv
+    canopyWetFraction = rawCanopyWetFraction
   end if
 
   ! compute derivative (product rule)
-  if(derDesire .and. smoothing)then  ! NOTE: raw derivative is used if not smoothing
-    canopyWetFractionDeriv = rawWetFractionDeriv*smoothFunc + rawCanopyWetFraction*smoothFuncDeriv
+  if(derDesire)then
+    if(smoothing)then
+      canopyWetFractionDeriv = rawWetFractionDeriv*smoothFunc + rawCanopyWetFraction*smoothFuncDeriv
+    else ! raw derivative is used if not smoothing
+      canopyWetFractionDeriv = rawWetFractionDeriv
+    endif
   else
     canopyWetFractionDeriv = 0._rkind
   end if
@@ -1223,7 +1224,7 @@ end subroutine wetFraction
 subroutine logisticSmoother(derDesire,canopyLiq,smoothFunc,smoothFuncDeriv)
   implicit none
   ! dummy variables
-  logical(lgt),intent(in) :: derDesire              ! flag to denote if analytical derivatives are desired
+  logical(lgt),intent(in)    :: derDesire              ! flag to denote if analytical derivatives are desired
   real(rkind),intent(in)     :: canopyLiq              ! liquid water content (kg m-2)
   real(rkind),intent(out)    :: smoothFunc             ! smoothing function (-)
   real(rkind),intent(out)    :: smoothFuncDeriv        ! derivative in smoothing function (kg-1 m-2)
@@ -2209,8 +2210,6 @@ subroutine turbFluxes(&
   if(computeVegFlux)then
     evapConductance    = canopyWetFraction*leafConductance
     transConductance   = (1._rkind - canopyWetFraction) * leafConductanceTr
-    !write(*,'(a,10(f14.8,1x))') 'canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction = ', &
-    !                             canopySunlitLAI, canopyShadedLAI, stomResistSunlit, stomResistShaded, leafResistance, canopyWetFraction
   else
     evapConductance    = 0._rkind
     transConductance   = 0._rkind
@@ -2439,7 +2438,7 @@ subroutine turbFluxes(&
   ! (liquid water derivatives)
   dLatHeatCanopyEvap_dCanWat = dLatHeatCanopyEvap_dWetFrac*dCanopyWetFraction_dWat                                 ! derivative in latent heat of canopy evaporation w.r.t. canopy total water (W kg-1)
   dLatHeatGroundEvap_dCanWat = latHeatSubVapGround*latentHeatConstant*groundConductanceLH*dVPCanopyAir_dCanWat     ! derivative in latent heat of ground evaporation w.r.t. canopy total water (J kg-1 s-1)
-  ! (cross deriavtives)
+  ! (cross derivatives)
   dTurbFluxCanair_dCanWat  = 0._rkind                                                                                 ! derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
   dTurbFluxCanopy_dCanWat  = dLatHeatCanopyEvap_dCanWat + dLatHeatCanopyTrans_dCanWat                              ! derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
   dTurbFluxGround_dCanWat  = dLatHeatGroundEvap_dCanWat                                                            ! derivative in net ground turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
