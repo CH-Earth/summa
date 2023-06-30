@@ -416,7 +416,7 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(ida);            checkMassBalance = .false. ! IDA has instantaneous fluxes only so average will not balance over data window
+        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances
         case(kinsol, numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
       end select
 

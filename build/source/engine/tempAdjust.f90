@@ -65,7 +65,7 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: derived parameters
- real(rkind),intent(in)             :: canopyDepth         ! depth of the vegetation canopy (m)
+ real(rkind),intent(in)          :: canopyDepth         ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data           ! model parameters
  type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
@@ -75,37 +75,36 @@ contains
  character(*),intent(out)        :: message             ! error message
  ! ------------------------------------------------------------------------------------------------
  ! local variables for canopy thermodynamics
- integer(i4b)                  :: iTry                       ! trial index
- integer(i4b)                  :: iter                       ! iteration index
- integer(i4b),parameter        :: maxiter=100                ! maximum number of iterations
- real(rkind)                      :: fLiq                       ! fraction of liquid water (-)
- real(rkind)                      :: tempMin,tempMax            ! solution constraints for temperature (K)
- real(rkind)                      :: nrgMeltFreeze              ! energy required to melt-freeze the water to the current canopy temperature (J m-3)
- real(rkind)                      :: scalarCanopyWat            ! total canopy water (kg m-2)
- real(rkind)                      :: scalarCanopyIceOld         ! canopy ice content after melt-freeze to the initial temperature (kg m-2)
- real(rkind),parameter            :: resNrgToler=0.1_rkind         ! tolerance for the energy residual (J m-3)
- real(rkind)                      :: f1,f2,x1,x2,fTry,xTry,fDer,xInc ! iteration variables
- logical(lgt)                  :: fBis                       ! .true. if bisection
+ integer(i4b)                    :: iTry                       ! trial index
+ integer(i4b)                    :: iter                       ! iteration index
+ integer(i4b),parameter          :: maxiter=100                ! maximum number of iterations
+ real(rkind)                     :: fLiq                       ! fraction of liquid water (-)
+ real(rkind)                     :: tempMin,tempMax            ! solution constraints for temperature (K)
+ real(rkind)                     :: nrgMeltFreeze              ! energy required to melt-freeze the water to the current canopy temperature (J m-3)
+ real(rkind)                     :: scalarCanopyWat            ! total canopy water (kg m-2)
+ real(rkind)                     :: scalarCanopyIceOld         ! canopy ice content after melt-freeze to the initial temperature (kg m-2)
+ real(rkind),parameter           :: resNrgToler=0.1_rkind         ! tolerance for the energy residual (J m-3)
+ real(rkind)                     :: f1,f2,x1,x2,fTry,xTry,fDer,xInc ! iteration variables
+ logical(lgt)                    :: fBis                       ! .true. if bisection
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='tempAdjust/'
  ! ------------------------------------------------------------------------------------------------
  ! associate variables in the data structure
  associate(&
-
  ! model parameters for canopy thermodynamics (input)
- snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),              & ! intent(in): [dp] scaling factor for snow freezing curve (K)
- specificHeatVeg           => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),            & ! intent(in): [dp] specific heat of vegetation mass (J kg-1 K-1)
- maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),          & ! intent(in): [dp] maximum mass of vegetation (full foliage) (kg m-2)
-
+ snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),              & ! intent(in):    [dp] scaling factor for snow freezing curve (K)
+ specificHeatVeg           => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),            & ! intent(in):    [dp] specific heat of vegetation mass (J kg-1 K-1)
+ maxMassVegetation         => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),          & ! intent(in):    [dp] maximum mass of vegetation (full foliage) (kg m-2)
  ! state variables (input/output)
  scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),             & ! intent(inout): [dp] mass of liquid water on the vegetation canopy (kg m-2)
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
  scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
-
  ! diagnostic variables (output)
- scalarBulkVolHeatCapVeg   => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)      & ! intent(out): [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
-
+ scalarBulkVolHeatCapVeg   => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(out):    [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
+ ! output: derivatives
+ dVolHtCapBulk_dCanWat     => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat)%dat(1),       & ! intent(out):    [dp] derivative in bulk heat capacity w.r.t. volumetric water content
+ dVolHtCapBulk_dTkCanopy   => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy)%dat(1)      & ! intent(out):    [dp] derivative in bulk heat capacity w.r.t. temperature
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -127,6 +126,14 @@ contains
                            Cp_water*scalarCanopyLiq/canopyDepth          + & ! liquid water component
                            Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
 
+ ! derivatives, off starting values since do not recompute scalarBulkVolHeatCapVeg
+ dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
+ if(scalarCanopyTemp < Tfreeze)then !use dTheta_dTkCanopy = fLiq * scalarCanopyWatTrial/(iden_water*canopyDepth)
+   dVolHtCapBulk_dTkCanopy = (-Cp_ice + Cp_water) * scalarCanopyLiq/canopyDepth
+ else
+   dVolHtCapBulk_dTkCanopy = 0._rkind
+ endif
+
  ! compute the energy required to melt-freeze the water to the current canopy temperature (J m-3)
  nrgMeltFreeze = LH_fus*(scalarCanopyIceOld - scalarCanopyIce)/canopyDepth
 
@@ -142,8 +149,6 @@ contains
  ! compute new function based on newton step from the first function
  x2 = x1 + f1 / fDer
  f2 = resNrgFunc(x2,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
- !print*, 'x1, x2 = ', x1, x2
- !print*, 'f1, f2 = ', f1, f2
 
  ! ensure that we bracket the root
  if(f1*f2 > 0._rkind)then
@@ -154,16 +159,13 @@ contains
    x2 = x1 + sign(x2,xInc)*2._rkind
    f2 = resNrgFunc(x2,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
    if(f1*f2 < 0._rkind)exit
-   ! check that we bracketed the root
-   ! (should get here in just a couple of expansions)
+   ! check that we bracketed the root (should get here in just a couple of expansions)
    if(iter==maxiter)then
     message=trim(message)//'unable to bracket the root'
     err=20; return
    end if
   end do ! trying to bracket the root
  end if  ! first check that we bracketed the root
- !print*, 'x1, x2 = ', x1, x2
- !print*, 'f1, f2 = ', f1, f2
 
  ! define initial constraints
  if(x1 < x2)then
@@ -180,14 +182,10 @@ contains
  xTry = 0.5_rkind*(x1 + x2)
  fTry = resNrgFunc(xTry,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
  fDer = resNrgDer(xTry,scalarBulkVolHeatCapVeg,snowfrz_scale)
- !print*, 'xTry = ', xTry
- !print*, 'fTry = ', fTry
 
  ! check the functions at the limits (should be of opposing sign)
  !f1 = resNrgFunc(tempMax,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
  !f2 = resNrgFunc(tempMin,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
- !print*, 'f1, f2 = ', f1, f2
-
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
  ! iterate
  do iter=1,maxiter
@@ -196,19 +194,16 @@ contains
   if(xTry <= tempMin .or. xTry >= tempMax)then
    xTry = 0.5_rkind*(tempMin + tempMax)  ! new value
    fBis = .true.
-
   ! value in range; use the newton step
   else
    xInc = fTry/fDer
    xTry = xTry + xInc
    fBis = .false.
-
   end if  ! (switch between bi-section and newton)
 
   ! compute new function and derivative
   fTry = resNrgFunc(xTry,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
   fDer = resNrgDer(xTry,scalarBulkVolHeatCapVeg,snowfrz_scale)
-  !print*, 'tempMin, tempMax = ', tempMin, tempMax
 
   ! update limits
   if(fTry < 0._rkind)then
@@ -220,11 +215,7 @@ contains
   ! check the functions at the limits (should be of opposing sign)
   !f1 = resNrgFunc(tempMax,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
   !f2 = resNrgFunc(tempMin,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
-  !print*, 'f1, f2 = ', f1, f2
-
-  ! print progress
-  !write(*,'(a,1x,i4,1x,l1,1x,e20.10,1x,4(f20.10,1x))') 'iter, fBis, fTry, xTry, xInc, tempMin, tempMax = ', iter, fBis, fTry, xTry, xInc, tempMin, tempMax
-
+ 
   ! check convergence
   if(abs(fTry) < resNrgToler) exit
 
@@ -240,7 +231,6 @@ contains
    message=trim(message)//'unable to converge'
    err=20; return
   end if
-
  end do  ! iterating
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
