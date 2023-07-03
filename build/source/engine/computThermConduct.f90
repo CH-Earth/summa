@@ -89,6 +89,11 @@ subroutine computThermConduct(&
                     indx_data,               & ! intent(in):    model layer indices
                     prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                    ! output: derivatives
+                    dThermalC_dWatAbove,     & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dWatBelow,     & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dTempAbove,    & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
+                    dThermalC_dTempBelow,    & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
                     ! output: error control
                     err,message)               ! intent(out): error control
 
@@ -119,6 +124,11 @@ subroutine computThermConduct(&
   type(var_ilength),intent(in)         :: indx_data              ! model layer indices
   type(var_dlength),intent(in)         :: prog_data              ! model prognostic variables for a local HRU
   type(var_dlength),intent(inout)      :: diag_data              ! model diagnostic variables for a local HRU
+  ! output: derivatives
+  real(rkind),intent(out)              :: dThermalC_dWatAbove(:) ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(out)              :: dThermalC_dWatBelow(:) ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(out)              :: dThermalC_dTempAbove(:)! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(out)              :: dThermalC_dTempBelow(:)! derivative in the thermal conductivity w.r.t. energy state in the layer above
   ! output: error control
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
@@ -192,11 +202,7 @@ subroutine computThermConduct(&
     ! output: diagnostic variables and derivatives (diagnostic as may be treated as constant)
     mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
-    mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
-    dThermalC_dWatAbove     => diag_data%var(iLookDIAG%dThermalC_dWatAbove)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dWatBelow     => diag_data%var(iLookDIAG%dThermalC_dWatBelow)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dTempAbove    => diag_data%var(iLookDIAG%dThermalC_dTempAbove)%dat,         & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
-    dThermalC_dTempBelow    => diag_data%var(iLookDIAG%dThermalC_dTempBelow)%dat          & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
+    mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
     )  ! association of local variables with information in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
