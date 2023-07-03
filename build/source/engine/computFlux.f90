@@ -116,7 +116,7 @@ subroutine computFlux(&
                       scalarSolution,           & ! intent(in):    flag to indicate the scalar solution
                       checkLWBalance,           & ! intent(in):    flag to check longwave balance
                       drainageMeltPond,         & ! intent(in):    drainage from the surface melt pond (kg m-2 s-1)
-                      ! input: state variables
+                     ! input: state variables
                       scalarCanairTempTrial,    & ! intent(in):    trial value for the temperature of the canopy air space (K)
                       scalarCanopyTempTrial,    & ! intent(in):    trial value for the temperature of the vegetation canopy (K)
                       mLayerTempTrial,          & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
@@ -339,9 +339,13 @@ subroutine computFlux(&
     ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
     dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove         )%dat     ,&  ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer above
     dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow         )%dat     ,&  ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer below
+    dThermalC_dWatAbove          => deriv_data%var(iLookDERIV%dThermalC_dWatAbove         )%dat     ,&  ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dWatBelow          => deriv_data%var(iLookDERIV%dThermalC_dWatBelow         )%dat     ,&  ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
     ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
-    dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove          )%dat     ,& ! intent(out): [dp(:)]  derivatives in the flux w.r.t. water state in the layer above
-    dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow          )%dat     ,& ! intent(out): [dp(:)]  derivatives in the flux w.r.t. water state in the layer below
+    dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove          )%dat     ,&  ! intent(out):  [dp(:)] derivatives in the flux w.r.t. water state in the layer above
+    dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow          )%dat     ,&  ! intent(out): [dp(:)] derivatives in the flux w.r.t. water state in the layer below
+    dThermalC_dTempAbove         => deriv_data%var(iLookDERIV%dThermalC_dTempAbove        )%dat     ,&  ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dThermalC_dTempBelow         => deriv_data%var(iLookDERIV%dThermalC_dTempBelow        )%dat     ,&  ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
     ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
     iLayerLiqFluxSnowDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnowDeriv      )%dat     ,&  ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
     ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
@@ -353,7 +357,7 @@ subroutine computFlux(&
     mLayerdPsi_dTheta            => deriv_data%var(iLookDERIV%mLayerdPsi_dTheta           )%dat     ,&  ! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. theta
     dCompress_dPsi               => deriv_data%var(iLookDERIV%dCompress_dPsi              )%dat     ,&  ! intent(out): [dp(:)] derivative in compressibility w.r.t matric head
     ! derivative in baseflow flux w.r.t. aquifer storage
-    dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer          )%dat(1)  ,&  ! intent(out): [dp(:)] erivative in baseflow flux w.r.t. aquifer storage (s-1)
+    dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer          )%dat(1)  ,&  ! intent(out): [dp(:)] derivative in baseflow flux w.r.t. aquifer storage (s-1)
     ! derivative in liquid water fluxes for the soil domain w.r.t energy state variables
     dq_dNrgStateAbove            => deriv_data%var(iLookDERIV%dq_dNrgStateAbove           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
     dq_dNrgStateBelow            => deriv_data%var(iLookDERIV%dq_dNrgStateBelow           )%dat     ,&  ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
@@ -496,13 +500,18 @@ subroutine computFlux(&
                       ! input: model control
                       (scalarSolution .and. .not.firstFluxCall), & ! intent(in): flag to indicate the scalar solution
                       ! input: fluxes and derivatives at the upper boundary
-                      scalarGroundNetNrgFlux,                    & ! intent(in): total flux at the ground surface (W m-2)
-                      dGroundNetFlux_dGroundTemp,                & ! intent(in): derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
+                      scalarGroundNetNrgFlux,                    & ! intent(in):    total flux at the ground surface (W m-2)
+                      dGroundNetFlux_dGroundTemp,                & ! intent(in):    derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
                       ! input: liquid water fluxes throughout the snow and soil domains
-                      iLayerLiqFluxSnow,                         & ! intent(in): liquid flux at the interface of each snow layer (m s-1)
-                      iLayerLiqFluxSoil,                         & ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+                      iLayerLiqFluxSnow,                         & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
+                      iLayerLiqFluxSoil,                         & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
                       ! input: trial value of model state variables
-                      mLayerTempTrial,                           & ! intent(in): trial temperature at the current iteration (K)
+                      mLayerTempTrial,                           & ! intent(in):    trial temperature at the current iteration (K)
+                      ! input: derivatives
+                      dThermalC_dWatAbove,                       & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
+                      dThermalC_dWatBelow,                       & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
+                      dThermalC_dTempAbove,                      & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
+                      dThermalC_dTempBelow,                      & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
                       ! input-output: data structures
                       mpar_data,                                 & ! intent(in):    model parameters
                       indx_data,                                 & ! intent(in):    model indices
@@ -510,11 +519,11 @@ subroutine computFlux(&
                       diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
                       flux_data,                                 & ! intent(inout): model fluxes for a local HRU
                       ! output: fluxes and derivatives at all layer interfaces
-                      iLayerNrgFlux,                             & ! intent(out): energy flux at the layer interfaces (W m-2)
-                      dNrgFlux_dTempAbove,                       & ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
-                      dNrgFlux_dTempBelow,                       & ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
-                      dNrgFlux_dWatAbove,                        & ! intent(out): derivatives in the flux w.r.t. water state in the layer above
-                      dNrgFlux_dWatBelow,                        & ! intent(out): derivatives in the flux w.r.t. water state in the layer below
+                      iLayerNrgFlux,                             & ! intent(out): 　energy flux at the layer interfaces (W m-2)
+                      dNrgFlux_dTempAbove,                       & ! intent(out): 　derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
+                      dNrgFlux_dTempBelow,                       & ! intent(out): 　derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
+                      dNrgFlux_dWatAbove,                        & ! intent(out): 　derivatives in the flux w.r.t. water state in the layer above
+                      dNrgFlux_dWatBelow,                        & ! intent(out): 　derivatives in the flux w.r.t. water state in the layer below
                       ! output: error control
                       err,cmessage)                                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

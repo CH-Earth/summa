@@ -85,6 +85,11 @@ subroutine ssdNrgFlux(&
                       iLayerLiqFluxSoil,                  & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
                       ! input: trial value of model state variables
                       mLayerTempTrial,                    & ! intent(in):    trial temperature at the current iteration (K)
+                      ! input: derivatives
+                      dThermalC_dWatAbove,                & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
+                      dThermalC_dWatBelow,                & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
+                      dThermalC_dTempAbove,               & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
+                      dThermalC_dTempBelow,               & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
                       ! input-output: data structures
                       mpar_data,                          & ! intent(in):    model parameters
                       indx_data,                          & ! intent(in):    model indices
@@ -97,21 +102,26 @@ subroutine ssdNrgFlux(&
                       dFlux_dTempBelow,                   & ! intent(out):   derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
                       dFlux_dWatAbove,                    & ! intent(out):   derivatives in the flux w.r.t. water state in the layer above (W m-2 K-1)
                       dFlux_dWatBelow,                    & ! intent(out):   derivatives in the flux w.r.t. water state in the layer below (W m-2 K-1)
-                    ! output: error control
-                      err,message)                          ! intent(out): error control
+                      ! output: error control
+                      err,message)                          ! intent(out):   error control
 
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  logical(lgt),intent(in)            :: scalarSolution              ! flag to denote if implementing the scalar solution
+  logical(lgt),intent(in)             :: scalarSolution             ! flag to denote if implementing the scalar solution
   ! input: fluxes and derivatives at the upper boundary
-  real(rkind),intent(in)             :: groundNetFlux               ! net energy flux for the ground surface (W m-2)
-  real(rkind),intent(inout)          :: dGroundNetFlux_dGroundTemp  ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+  real(rkind),intent(in)              :: groundNetFlux              ! net energy flux for the ground surface (W m-2)
+  real(rkind),intent(inout)           :: dGroundNetFlux_dGroundTemp ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
   ! input: liquid water fluxes
-  real(rkind),intent(in)             :: iLayerLiqFluxSnow(0:)       ! liquid flux at the interface of each snow layer (m s-1)
-  real(rkind),intent(in)             :: iLayerLiqFluxSoil(0:)       ! liquid flux at the interface of each soil layer (m s-1)
+  real(rkind),intent(in)              :: iLayerLiqFluxSnow(0:)      ! liquid flux at the interface of each snow layer (m s-1)
+  real(rkind),intent(in)              :: iLayerLiqFluxSoil(0:)      ! liquid flux at the interface of each soil layer (m s-1)
   ! input: trial model state variables
   real(rkind),intent(in)              :: mLayerTempTrial(:)         ! temperature in each layer at the current iteration (m)
+  ! input: derivatives
+  real(rkind),intent(in)              :: dThermalC_dWatAbove(:)     ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dWatBelow(:)     ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dTempAbove(:)    ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dTempBelow(:)    ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   ! input-output: data structures
   type(var_dlength),intent(in)        :: mpar_data                  ! model parameters
   type(var_ilength),intent(in)        :: indx_data                  ! state vector geometry
@@ -124,18 +134,18 @@ subroutine ssdNrgFlux(&
   real(rkind),intent(out)             :: dFlux_dTempBelow(0:)       ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
   real(rkind),intent(out)             :: dFlux_dWatAbove(0:)        ! derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
   real(rkind),intent(out)             :: dFlux_dWatBelow(0:)        ! derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
-  ! output: error control
+   ! output: error control
   integer(i4b),intent(out)            :: err                        ! error code
   character(*),intent(out)            :: message                    ! error message
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  character(LEN=256)               :: cmessage                     ! error message of downwind routine
-  integer(i4b)                     :: iLayer                       ! index of model layers
-  integer(i4b)                     :: ixLayerDesired(1)            ! layer desired (scalar solution)
-  integer(i4b)                     :: ixTop                        ! top layer in subroutine call
-  integer(i4b)                     :: ixBot                        ! bottom layer in subroutine call
-  real(rkind)                      :: qFlux                        ! liquid flux at layer interfaces (m s-1)
-  real(rkind)                      :: dz                           ! height difference (m)
+  character(LEN=256)                  :: cmessage                   ! error message of downwind routine
+  integer(i4b)                        :: iLayer                     ! index of model layers
+  integer(i4b)                        :: ixLayerDesired(1)          ! layer desired (scalar solution)
+  integer(i4b)                        :: ixTop                      ! top layer in subroutine call
+  integer(i4b)                        :: ixBot                      ! bottom layer in subroutine call
+  real(rkind)                         :: qFlux                      ! liquid flux at layer interfaces (m s-1)
+  real(rkind)                         :: dz                         ! height difference (m)
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   associate(&
@@ -153,11 +163,7 @@ subroutine ssdNrgFlux(&
     upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in): temperature of the upper boundary (K)
     lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in): temperature of the lower boundary (K)
     iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
-    dThermalC_dWatAbove     => diag_data%var(iLookDIAG%dThermalC_dWatAbove)%dat,     & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dWatBelow     => diag_data%var(iLookDIAG%dThermalC_dWatBelow)%dat,     & ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dTempAbove    => diag_data%var(iLookDIAG%dThermalC_dTempAbove)%dat,    & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
-    dThermalC_dTempBelow    => diag_data%var(iLookDIAG%dThermalC_dTempBelow)%dat,    & ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
-    ! output: diagnostic fluxes
+     ! output: diagnostic fluxes
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
     iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat         & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
     )  ! association of local variables with information in the data structures

@@ -266,6 +266,15 @@ subroutine eval8summaWithPrime(&
     dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,&  ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
     dCompress_dPsi          => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat          ,&  ! intent(in): [dp(:)] derivative in compressibility w.r.t. matric head (m-1)
     mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,&  ! intent(out): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+    dVolHtCapBulk_dPsi0     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat     ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. matric potential
+    dVolHtCapBulk_dTheta    => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta)%dat    ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dCanWat   => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1),& ! intent(out): [dp]    derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dTk       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk)%dat       ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dTkCanopy => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1),& !intent(out):[dp]    derivative in bulk heat capacity w.r.t. temperature
+    dThermalC_dWatAbove     => deriv_data%var(iLookDERIV%dThermalC_dWatAbove)%dat     ,&  ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dWatBelow     => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat     ,&  ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
+    dThermalC_dTempAbove    => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat    ,&  ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
+    dThermalC_dTempBelow    => deriv_data%var(iLookDERIV%dThermalC_dTempBelow)%dat    ,&  ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
     ! mapping
     ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,&  ! intent(in): [i4b(:)] mapping of full state vector to the state subset
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,&  ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
@@ -497,6 +506,11 @@ subroutine eval8summaWithPrime(&
                             ! output
                             heatCapVegTrial,           & ! intent(out): volumetric heat capacity of vegetation canopy
                             mLayerHeatCapTrial,        & ! intent(out): heat capacity for snow and soil
+                            dVolHtCapBulk_dPsi0,       & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
+                            dVolHtCapBulk_dTheta,      & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                            dVolHtCapBulk_dCanWat,     & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                            dVolHtCapBulk_dTk,         & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+                            dVolHtCapBulk_dTkCanopy,   & ! intent(out): derivative in bulk heat capacity w.r.t. temperature                  
                             ! output: error control
                             err,cmessage)                    ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -526,9 +540,14 @@ subroutine eval8summaWithPrime(&
                           ! output
                           heatCapVegTrial,             & ! intent(out):  volumetric heat capacity of vegetation canopy
                           mLayerHeatCapTrial,          & ! intent(out):  volumetric heat capacity of soil and snow
+                          dVolHtCapBulk_dPsi0,         & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
+                          dVolHtCapBulk_dTheta,        & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                          dVolHtCapBulk_dCanWat,       & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                          dVolHtCapBulk_dTk,           & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+                          dVolHtCapBulk_dTkCanopy,     & ! intent(out): derivative in bulk heat capacity w.r.t. temperature                  
                           ! output: error control
                           err,cmessage)                     ! intent(out):  error control
-      endif
+      endif !(choice of how compute heat capacity)
 
       ! compute multiplier of state vector
       call computStatMult(&
@@ -563,9 +582,26 @@ subroutine eval8summaWithPrime(&
                           indx_data,                    & ! intent(in):    model layer indices
                           prog_data,                    & ! intent(in):    model prognostic variables for a local HRU
                           diag_data,                    & ! intent(inout): model diagnostic variables for a local HRU
+                          ! output: derivatives
+                          dThermalC_dWatAbove,          & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
+                          dThermalC_dWatBelow,          & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
+                          dThermalC_dTempAbove,         & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
+                          dThermalC_dTempBelow,         & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
+                          ! output: error control
+                          ! output: error control
                           err,cmessage)                   ! intent(out): error control
       if(err/=0)then; err=55; message=trim(message)//trim(cmessage); return; end if
-
+    else
+      ! set heat capacity derivatives to 0 for constant through step
+      dVolHtCapBulk_dPsi0     = 0._rkind
+      dVolHtCapBulk_dTheta    = 0._rkind
+      dVolHtCapBulk_dCanWat   = 0._rkind
+      dVolHtCapBulk_dTk       = 0._rkind
+      dVolHtCapBulk_dTkCanopy = 0._rkind
+      dThermalC_dWatAbove     = 0._rkind
+      dThermalC_dWatBelow     = 0._rkind
+      dThermalC_dTempAbove    = 0._rkind
+      dThermalC_dTempBelow    = 0._rkind  
     endif ! updateCp
 
     if(needCm)then

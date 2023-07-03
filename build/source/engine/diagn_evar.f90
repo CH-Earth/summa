@@ -85,14 +85,14 @@ contains
  ! **********************************************************************************************************
  subroutine diagn_evar(&
                        ! input: control variables
-                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in): canopy depth (m)
+                       computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                       canopyDepth,             & ! intent(in):    canopy depth (m)
                        ! input/output: data structures
                        mpar_data,               & ! intent(in):    model parameters
                        indx_data,               & ! intent(in):    model layer indices
                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       ! output: error control
+                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to external subroutines
@@ -100,7 +100,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(rkind),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(rkind),intent(in)          :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
@@ -111,29 +111,29 @@ contains
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)                :: cmessage               ! error message of downwind routine
- integer(i4b)                      :: iLayer                 ! index of model layer
- integer(i4b)                      :: iSoil                  ! index of soil layer
- real(rkind)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
- real(rkind)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
- real(rkind)                          :: zdn                    ! height difference between interface and lower value (m)
- real(rkind)                          :: zdp                    ! height difference between interface and upper value (m)
- real(rkind)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
- real(rkind)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
- real(rkind)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
- real(rkind)                          :: lambda_wet             ! thermal conductivity of the wet material
- real(rkind)                          :: relativeSat            ! relative saturation (-)
- real(rkind)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
- real(rkind)                          :: den                    ! denominator in the thermal conductivity calculations
+ character(LEN=256)              :: cmessage               ! error message of downwind routine
+ integer(i4b)                    :: iLayer                 ! index of model layer
+ integer(i4b)                    :: iSoil                  ! index of soil layer
+ real(rkind)                     :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
+ real(rkind)                     :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
+ real(rkind)                     :: zdn                    ! height difference between interface and lower value (m)
+ real(rkind)                     :: zdp                    ! height difference between interface and upper value (m)
+ real(rkind)                     :: bulkden_soil           ! bulk density of soil (kg m-3)
+ real(rkind)                     :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
+ real(rkind)                     :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ real(rkind)                     :: lambda_wet             ! thermal conductivity of the wet material
+ real(rkind)                     :: relativeSat            ! relative saturation (-)
+ real(rkind)                     :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+ real(rkind)                     :: den                    ! denominator in the thermal conductivity calculations
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
- real(rkind),parameter                :: c1=0.55_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(rkind),parameter                :: c2=0.8_rkind              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(rkind),parameter                :: c3=3.07_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind),parameter                :: c4=0.13_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(rkind),parameter                :: c5=4._rkind               ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind),parameter                :: f1=13.05_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind),parameter                :: f2=1.06_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
+ real(rkind),parameter           :: c1=0.55_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter           :: c2=0.8_rkind           ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter           :: c3=3.07_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter           :: c4=0.13_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter           :: c5=4._rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter           :: f1=13.05_rkind         ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter           :: f2=1.06_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind)                     :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
@@ -169,16 +169,6 @@ contains
  mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
  iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
  mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
- ! energy derivatives initialized as constant
- dVolHtCapBulk_dPsi0     => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0)%dat,          & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
- dVolHtCapBulk_dTheta    => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta)%dat,         & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
- dVolHtCapBulk_dCanWat   => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat)%dat(1),     & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
- dVolHtCapBulk_dTk       => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk)%dat,            & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
- dVolHtCapBulk_dTkCanopy => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy)%dat(1),   & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
- dThermalC_dWatAbove     => diag_data%var(iLookDIAG%dThermalC_dWatAbove)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
- dThermalC_dWatBelow     => diag_data%var(iLookDIAG%dThermalC_dWatBelow)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
- dThermalC_dTempAbove    => diag_data%var(iLookDIAG%dThermalC_dTempAbove)%dat,         & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
- dThermalC_dTempBelow    => diag_data%var(iLookDIAG%dThermalC_dTempBelow)%dat          & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -331,17 +321,6 @@ contains
 
  ! assume the thermal conductivity at the domain boundaries is equal to the thermal conductivity of the layer
  iLayerThermalC(nLayers) = mLayerThermalC(nLayers)
-
- ! set derivatives to 0 for constant through step
- dVolHtCapBulk_dPsi0     = 0._rkind
- dVolHtCapBulk_dTheta    = 0._rkind
- dVolHtCapBulk_dCanWat   = 0._rkind
- dVolHtCapBulk_dTk       = 0._rkind
- dVolHtCapBulk_dTkCanopy = 0._rkind
- dThermalC_dWatAbove     = 0._rkind
- dThermalC_dWatBelow     = 0._rkind
- dThermalC_dTempAbove    = 0._rkind
- dThermalC_dTempBelow    = 0._rkind
 
  ! end association to variables in the data structure
  end associate

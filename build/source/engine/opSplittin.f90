@@ -164,7 +164,7 @@ subroutine opSplittin(&
                       firstSubStep,         & ! intent(in):    flag to denote first sub-step
                       firstInnerStep,       & ! intent(in):    flag to denote if the last time step in maxstep subStep
                       computeVegFlux,       & ! intent(in):    flag to denote if computing energy flux over vegetation
-                      ! input/output: data structures
+                       ! input/output: data structures
                       type_data,            & ! intent(in):    type of vegetation and soil
                       attr_data,            & ! intent(in):    spatial attributes
                       forc_data,            & ! intent(in):    model forcing data

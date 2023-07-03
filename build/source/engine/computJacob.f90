@@ -232,11 +232,11 @@ subroutine computJacob(&
     ! derivative in liquid water fluxes for the soil and snow domain w.r.t temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     ! derivative in bulk heat capacity w.r.t. relevant state variables
-    dVolHtCapBulk_dPsi0          => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta         => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta          )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dCanWat        => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat         )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk            => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk             )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy      => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0         )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
+    dVolHtCapBulk_dTheta         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta        )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat       )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
     ! derivatives in time
     mLayerdTemp_dt               => deriv_data%var(iLookDERIV%mLayerdTemp_dt              )%dat     ,& ! intent(in): [dp(:)] timestep change in layer temperature
     scalarCanopydTemp_dt         => deriv_data%var(iLookDERIV%scalarCanopydTemp_dt        )%dat(1)  ,& ! intent(in): [dp   ] timestep change in canopy temperature
@@ -636,14 +636,6 @@ subroutine computJacob(&
 
         endif   ! (if there are state variables for both water and energy in the soil domain)
 
-        if(globalPrintFlag)then
-          print*, '** banded analytical Jacobian:'
-          write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
-          do iLayer=kl+1,nBands
-            write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
-          end do
-        endif
-
       ! *********************************************************************************************************************************************************
       ! * PART 2: FULL MATRIX
       ! *********************************************************************************************************************************************************
@@ -971,19 +963,28 @@ subroutine computJacob(&
 
          endif   ! (if there are state variables for both water and energy in the soil domain)
 
-        ! print the Jacobian
-        if(globalPrintFlag)then
-          print*, '** analytical Jacobian (full):'
-          write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
-          do iLayer=min(iJac1,nState),min(iJac2,nState)
-            write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
-          end do
-        endif
-
       ! check
       case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'; return
 
     end select  ! type of matrix
+    ! *********************************************************************************************************************************************************
+        ! print the Jacobian
+        if(globalPrintFlag)then
+      select case(ixMatrix)
+        case(ixBandMatrix)
+          print*, '** banded analytical Jacobian:'
+          write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+          do iLayer=kl+1,nBands
+            write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
+          end do
+        case(ixFullMatrix)
+          print*, '** full analytical Jacobian:'
+          write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+          do iLayer=min(iJac1,nState),min(iJac2,nState)
+            write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
+          end do
+      end select
+        endif
 
     if(any(isNan(aJac)))then
       print *, '******************************* WE FOUND NAN IN JACOBIAN ************************************'

@@ -87,6 +87,7 @@ subroutine computHeatCap(&
                      mpar_data,                   & ! intent(in):    model parameters
                      indx_data,                   & ! intent(in):    model layer indices
                      diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
+                     deriv_data,                  & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                      ! input: state variables
                      scalarCanopyIce,             & ! intent(in): trial value for mass of ice on the vegetation canopy (kg m-2)
                      scalarCanopyLiquid,          & ! intent(in): trial value for the liquid water on the vegetation canopy (kg m-2)
@@ -114,6 +115,11 @@ subroutine computHeatCap(&
                      ! output
                      heatCapVeg,                  & ! intent(out): heat capacity for canopy
                      mLayerHeatCap,               & ! intent(out): heat capacity for snow and soil
+                     dVolHtCapBulk_dPsi0,         & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
+                     dVolHtCapBulk_dTheta,        & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                     dVolHtCapBulk_dCanWat,       & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                     dVolHtCapBulk_dTk,           & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+                     dVolHtCapBulk_dTkCanopy,     & ! intent(out): derivative in bulk heat capacity w.r.t. temperature                  
                      ! output: error control
                      err,message)                   ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -128,6 +134,7 @@ subroutine computHeatCap(&
   type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
   type(var_ilength),intent(in)    :: indx_data                 ! model layer indices
   type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout) :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
   ! input: state variables
   real(rkind),intent(in)          :: scalarCanopyIce           ! trial value of canopy ice content (kg m-2)
   real(rkind),intent(in)          :: scalarCanopyLiquid        ! trial value for the liquid water on the vegetation canopy (kg m-2)
@@ -155,16 +162,22 @@ subroutine computHeatCap(&
   ! output:
   real(qp),intent(out)            :: heatCapVeg                ! heat capacity for canopy
   real(qp),intent(out)            :: mLayerHeatCap(:)          ! heat capacity for snow and soil
+  real(rkind),intent(out)         :: dVolHtCapBulk_dPsi0       ! derivative in bulk heat capacity w.r.t. matric potential
+  real(rkind),intent(out)         :: dVolHtCapBulk_dTheta      ! derivative in bulk heat capacity w.r.t. volumetric water content
+  real(rkind),intent(out)         :: dVolHtCapBulk_dCanWat     ! derivative in bulk heat capacity w.r.t. volumetric water content
+  real(rkind),intent(out)         :: dVolHtCapBulk_dTk         ! derivative in bulk heat capacity w.r.t. temperature
+  real(rkind),intent(out)         :: dVolHtCapBulk_dTkCanopy   ! derivative in bulk heat capacity w.r.t. temperature
+   ! output: error control
   integer(i4b),intent(out)        :: err                       ! error code
   character(*),intent(out)        :: message                   ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  integer(i4b)                    :: iLayer                 ! index of model layer
-  integer(i4b)                    :: iSoil                  ! index of soil layer
+  integer(i4b)                    :: iLayer                    ! index of model layer
+  integer(i4b)                    :: iSoil                     ! index of soil layer
   real(rkind)                     :: delT
   real(rkind)                     :: delEnt
-  real(rkind)                     :: fLiq                   ! fraction of liquid water
-  real(rkind)                     :: Tcrit                  ! temperature where all water is unfrozen (K)
+  real(rkind)                     :: fLiq                      ! fraction of liquid water
+  real(rkind)                     :: Tcrit                     ! temperature where all water is unfrozen (K)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! associate variables in data structure
   associate(&
@@ -176,13 +189,7 @@ subroutine computHeatCap(&
     maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
     ! input: depth varying soil parameters
     iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in): soil porosity (-)
-    ! output: derivatives
-    dVolHtCapBulk_dPsi0     => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0)%dat,          & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta    => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta)%dat,         & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dCanWat   => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat)%dat(1),     & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk       => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk)%dat,            & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy)%dat(1)    & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                    & ! intent(in): soil porosity (-)
     )  ! end associate statemen
     ! initialize error control
     err=0; message="computHeatCap/"
@@ -399,6 +406,11 @@ subroutine computHeatCapAnalytic(&
                       ! output
                       heatCapVeg,              & ! intent(out): heat capacity for canopy
                       mLayerHeatCap,           & ! intent(out): heat capacity for snow and soil
+                      dVolHtCapBulk_dPsi0,     & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
+                      dVolHtCapBulk_dTheta,    & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                      dVolHtCapBulk_dCanWat,   & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
+                      dVolHtCapBulk_dTk,       & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+                      dVolHtCapBulk_dTkCanopy, & ! intent(out): derivative in bulk heat capacity w.r.t. temperature                  
                       ! output: error control
                       err,message)               ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -406,37 +418,43 @@ subroutine computHeatCapAnalytic(&
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
-  real(rkind),intent(in)          :: canopyDepth            ! depth of the vegetation canopy (m)
-  real(rkind),intent(in)          :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
-  real(rkind),intent(in)          :: scalarCanopyLiquid
-  real(rkind),intent(in)          :: scalarCanopyTemp       ! value of canopy temperature (kg m-2)
-  real(rkind),intent(in)          :: mLayerVolFracLiq(:)    ! trial vector of volumetric liquid water content (-)
-  real(rkind),intent(in)          :: mLayerVolFracIce(:)    ! trial vector of volumetric ice water content (-)
-  real(rkind),intent(in)          :: mLayerTemp(:)          ! vector of temperature (-)
-  real(rkind),intent(in)          :: mLayerMatricHead(:)    ! vector of total water matric potential (m)
-  ! input: pre-computed derivatives
-  real(rkind),intent(in)          :: dTheta_dTkCanopy       ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)          :: scalarFracLiqVeg       ! fraction of canopy liquid water (-)
-  real(rkind),intent(in)          :: mLayerdTheta_dTk(:)    ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)          :: mLayerFracLiqSnow(:)   ! fraction of liquid water (-)
-  real(rkind),intent(in)          :: dVolTot_dPsi0(:)       ! derivative in total water content w.r.t. total water matric potential (m-1)
-  ! input/output: data structures
-  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
-  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
-  type(var_dlength),intent(inout) :: diag_data              ! diagnostic variables for a local HRU
-  ! output: error control
-  real(qp),intent(out)            :: heatCapVeg             ! heat capacity for canopy
-  real(qp),intent(out)            :: mLayerHeatCap(:)       ! heat capacity for snow and soil
-  integer(i4b),intent(out)        :: err                    ! error code
-  character(*),intent(out)        :: message                ! error message
-  ! --------------------------------------------------------------------------------------------------------------------------------
-  ! local variables
-  character(LEN=256)              :: cmessage               ! error message of downwind routine
-  integer(i4b)                    :: iLayer                 ! index of model layer
-  integer(i4b)                    :: iSoil                  ! index of soil layer
-  real(rkind)                     :: fLiq                   ! fraction of liquid water
-  real(rkind)                     :: Tcrit                  ! temperature where all water is unfrozen (K)
+  logical(lgt),intent(in)         :: computeVegFlux          ! logical flag to denote if computing the vegetation flux
+  real(rkind),intent(in)          :: canopyDepth             ! depth of the vegetation canopy (m)
+  real(rkind),intent(in)          :: scalarCanopyIce         ! trial value of canopy ice content (kg m-2)
+  real(rkind),intent(in)          :: scalarCanopyLiquid 
+  real(rkind),intent(in)          :: scalarCanopyTemp        ! value of canopy temperature (kg m-2)
+  real(rkind),intent(in)          :: mLayerVolFracLiq(:)     ! trial vector of volumetric liquid water content (-)
+  real(rkind),intent(in)          :: mLayerVolFracIce(:)     ! trial vector of volumetric ice water content (-)
+  real(rkind),intent(in)          :: mLayerTemp(:)           ! vector of temperature (-)
+  real(rkind),intent(in)          :: mLayerMatricHead(:)     ! vector of total water matric potential (m)
+  ! input: pre-computed derivatives 
+  real(rkind),intent(in)          :: dTheta_dTkCanopy        ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)          :: scalarFracLiqVeg        ! fraction of canopy liquid water (-)
+  real(rkind),intent(in)          :: mLayerdTheta_dTk(:)     ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)          :: mLayerFracLiqSnow(:)    ! fraction of liquid water (-)
+  real(rkind),intent(in)          :: dVolTot_dPsi0(:)        ! derivative in total water content w.r.t. total water matric potential (m-1)
+  ! input/output: data structures 
+  type(var_dlength),intent(in)    :: mpar_data               ! model parameters
+  type(var_ilength),intent(in)    :: indx_data               ! model layer indices
+  type(var_dlength),intent(inout) :: diag_data               ! diagnostic variables for a local HRU
+  ! output 
+  real(qp),intent(out)            :: heatCapVeg              ! heat capacity for canopy
+  real(qp),intent(out)            :: mLayerHeatCap(:)        ! heat capacity for snow and soil
+  real(rkind),intent(out)         :: dVolHtCapBulk_dPsi0     ! derivative in bulk heat capacity w.r.t. matric potential
+  real(rkind),intent(out)         :: dVolHtCapBulk_dTheta    ! derivative in bulk heat capacity w.r.t. volumetric water content
+  real(rkind),intent(out)         :: dVolHtCapBulk_dCanWat   ! derivative in bulk heat capacity w.r.t. volumetric water content
+  real(rkind),intent(out)         :: dVolHtCapBulk_dTk       ! derivative in bulk heat capacity w.r.t. temperature
+  real(rkind),intent(out)         :: dVolHtCapBulk_dTkCanopy ! derivative in bulk heat capacity w.r.t. temperature
+   ! output: error control 
+  integer(i4b),intent(out)        :: err                     ! error code
+  character(*),intent(out)        :: message                 ! error message
+  ! -------------------------------------------------------- ------------------------------------------------------------------------
+  ! local variables 
+  character(LEN=256)              :: cmessage                ! error message of downwind routine
+  integer(i4b)                    :: iLayer                  ! index of model layer
+  integer(i4b)                    :: iSoil                   ! index of soil layer
+  real(rkind)                     :: fLiq                    ! fraction of liquid water
+  real(rkind)                     :: Tcrit                   ! temperature where all water is unfrozen (K)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! associate variables in data structure
   associate(&
@@ -449,13 +467,7 @@ subroutine computHeatCapAnalytic(&
     maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
     ! input: depth varying soil parameters
     iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in): soil porosity (-)
-    ! output: derivatives
-    dVolHtCapBulk_dPsi0     => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0)%dat,          & ! intent(out): derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta    => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta)%dat,         & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dCanWat   => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat)%dat(1),     & ! intent(out): derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk       => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk)%dat,            & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy)%dat(1)    & ! intent(out): derivative in bulk heat capacity w.r.t. temperature
+    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                    & ! intent(in): soil porosity (-)
     )  ! end associate statement
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
