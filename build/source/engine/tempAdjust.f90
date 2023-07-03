@@ -55,7 +55,7 @@ contains
                        ! input/output: data structures
                        mpar_data,                   & ! intent(in):    model parameters
                        prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                       diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
+                       diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
@@ -65,27 +65,35 @@ contains
  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: derived parameters
- real(rkind),intent(in)          :: canopyDepth         ! depth of the vegetation canopy (m)
- ! input/output: data structures
- type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
- ! output: error control
- integer(i4b),intent(out)        :: err                 ! error code
- character(*),intent(out)        :: message             ! error message
+ real(rkind),intent(in)          :: canopyDepth              ! depth of the vegetation canopy (m)
+ ! input/output: data structures  
+ type(var_dlength),intent(in)    :: mpar_data                ! model parameters
+ type(var_dlength),intent(inout) :: prog_data                ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data                ! model diagnostic variables for a local HRU
+ ! output: error control  
+ integer(i4b),intent(out)        :: err                      ! error code
+ character(*),intent(out)        :: message                  ! error message
  ! ------------------------------------------------------------------------------------------------
  ! local variables for canopy thermodynamics
- integer(i4b)                    :: iTry                       ! trial index
- integer(i4b)                    :: iter                       ! iteration index
- integer(i4b),parameter          :: maxiter=100                ! maximum number of iterations
- real(rkind)                     :: fLiq                       ! fraction of liquid water (-)
- real(rkind)                     :: tempMin,tempMax            ! solution constraints for temperature (K)
- real(rkind)                     :: nrgMeltFreeze              ! energy required to melt-freeze the water to the current canopy temperature (J m-3)
- real(rkind)                     :: scalarCanopyWat            ! total canopy water (kg m-2)
- real(rkind)                     :: scalarCanopyIceOld         ! canopy ice content after melt-freeze to the initial temperature (kg m-2)
- real(rkind),parameter           :: resNrgToler=0.1_rkind         ! tolerance for the energy residual (J m-3)
+ integer(i4b)                    :: iTry                     ! trial index
+ integer(i4b)                    :: iter                     ! iteration index
+ integer(i4b),parameter          :: maxiter=100              ! maximum number of iterations
+ real(rkind)                     :: fLiq                     ! fraction of liquid water (-)
+ real(rkind)                     :: tempMin,tempMax          ! solution constraints for temperature (K)
+ real(rkind)                     :: nrgMeltFreeze            ! energy required to melt-freeze the water to the current canopy temperature (J m-3)
+ real(rkind)                     :: scalarCanopyWat          ! total canopy water (kg m-2)
+ real(rkind)                     :: scalarCanopyIceOld       ! canopy ice content after melt-freeze to the initial temperature (kg m-2)
+ real(rkind),parameter           :: resNrgToler=0.1_rkind    ! tolerance for the energy residual (J m-3)
  real(rkind)                     :: f1,f2,x1,x2,fTry,xTry,fDer,xInc ! iteration variables
- logical(lgt)                    :: fBis                       ! .true. if bisection
+ logical(lgt)                    :: fBis                     ! .true. if bisection
+ ! local variables for computing derivatives
+ real(rkind)                     :: dCp_dWat                 ! derivative of heat capacity with canopy water    
+ real(rkind)                     :: dCp_dTk                  ! derivative of heat capacity with canopy temperature  
+ real(rkind)                     :: dIceOld_dWat             ! derivative of canopy ice content after melt-freeze to the initial temp with canopy water   
+ real(rkind)                     :: dIceOld_dTk              ! derivative of canopy ice content after melt-freeze to the initial temp canopy temperature
+ real(rkind)                     :: dfTry_dWat, dfDer_dWat   ! derivative of iteration variables with canopy water
+ real(rkind)                     :: dfTry_dTk, dfDer_dTk     ! derivative of iteration variables with canopy temperature
+
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='tempAdjust/'
@@ -102,18 +110,17 @@ contains
  scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),            & ! intent(inout): [dp] temperature of the vegetation canopy (K)
  ! diagnostic variables (output)
  scalarBulkVolHeatCapVeg   => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1),     & ! intent(out):    [dp] volumetric heat capacity of the vegetation (J m-3 K-1)
+ ! canopy derivatives from adjusting the canopy temperature
+ dTkCanopyAdj_dTkCanopy    => diag_data%var(iLookDIAG%dTkCanopyAdj_dTkCanopy)%dat(1),      & ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. original temperature
+ dTkCanopyAdj_dCanWat      => diag_data%var(iLookDIAG%dTkCanopyAdj_dCanWat)%dat(1)         & ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. canopy water
  ! output: derivatives
- dVolHtCapBulk_dCanWat     => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat)%dat(1),       & ! intent(out):    [dp] derivative in bulk heat capacity w.r.t. volumetric water content
- dVolHtCapBulk_dTkCanopy   => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy)%dat(1)      & ! intent(out):    [dp] derivative in bulk heat capacity w.r.t. temperature
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
-
  ! ** preliminaries
 
  ! compute the total canopy water (state variable: will not change)
  scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
- !write(*,'(a,1x,3(f20.10,1x))') 'scalarCanopyWat, scalarCanopyLiq, scalarCanopyIce = ', scalarCanopyWat, scalarCanopyLiq, scalarCanopyIce
-
+ 
  ! compute the fraction of liquid water associated with the canopy temperature
  fLiq = fracliquid(scalarCanopyTemp,snowfrz_scale)
 
@@ -125,14 +132,6 @@ contains
  scalarBulkVolHeatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
                            Cp_water*scalarCanopyLiq/canopyDepth          + & ! liquid water component
                            Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
-
- ! derivatives, off starting values since do not recompute scalarBulkVolHeatCapVeg
- dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
- if(scalarCanopyTemp < Tfreeze)then !use dTheta_dTkCanopy = fLiq * scalarCanopyWatTrial/(iden_water*canopyDepth)
-   dVolHtCapBulk_dTkCanopy = (-Cp_ice + Cp_water) * scalarCanopyLiq/canopyDepth
- else
-   dVolHtCapBulk_dTkCanopy = 0._rkind
- endif
 
  ! compute the energy required to melt-freeze the water to the current canopy temperature (J m-3)
  nrgMeltFreeze = LH_fus*(scalarCanopyIceOld - scalarCanopyIce)/canopyDepth
@@ -234,10 +233,43 @@ contains
  end do  ! iterating
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
- ! update state variables
+ ! using a one iteration simplication, compute derivatives of tNew = xTry + fTry/fDer with respect to original Tk and Wat
+ xIce = (1._rkind - fracliquid(xTry,snowfrz_scale))*scalarCanopyWat
+ fTry = -bulkVolHeatCapVeg*(xTry - scalarCanopyTemp) + LH_fus*(xIce - scalarCanopyIceOld)/canopyDepth + nrgMeltFreeze
+ fDer = bulkVolHeatCapVeg + scalarCanopyWat*dFracLiq_dTk(xTry,snowfrz_scale)*LH_fus/canopyDepth
+
+ ! heat capacity derivatives
+ dCp_dWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth 
+ if(scalarCanopyTemp < Tfreeze)then
+    dCp_dTk = (-Cp_ice + Cp_water) * fLiq * scalarCanopyLiq/canopyDepth ! no derivative in air
+ else
+    dCp_dTk = 0._rkind
+ endif
+ ! canopy ice content after melt-freeze to the initial temp derivatives
+ dIceOld_dWat = 1._rkind - fracliquid(scalarCanopyTemp,snowfrz_scale)
+ dIceOld_dTk = -scalarCanopyWat*dFracLiq_dTk(scalarCanopyTemp,snowfrz_scale)
+ ! iteration variable derivatives
+ dfTry_dWat = -dCp_dWat*(xTry - scalarCanopyTemp)  &
+             - LH_fus*(1._rkind - fracliquid(xTry,snowfrz_scale) - dIceOld_dWat)/canopyDepth &
+             + LH_fus*(dIceOld_dWat)/canopyDepth !maybe (dIceOld_dWat - 1)
+ dfTry_dTk  = -dCp_dTk*(xTry - scalarCanopyTemp) + dCp_dTk &
+             - LH_fus*dIceOld_dTk/canopyDepth + LH_fus*dIceOld_dTk/canopyDepth
+ dfDer_dWat = dCp_dWat + dFracLiq_dTk(xTry,snowfrz_scale)*LH_fus/canopyDepth
+ dfDer_dTk  = dCp_dTk
+
+ dTkCanopyAdj_dCanWat   = dfTry_dWat/fDer - fTry/(dfDer_dWat**2_i4b)
+ dTkCanopyAdj_dTkCanopy = dfTry_dTk/fDer - fTry/(dfDer_dTk**2_i4b)
+ 
+! update state variables
  scalarCanopyTemp = xTry
  scalarCanopyIce  = (1._rkind - fracliquid(xTry,snowfrz_scale))*scalarCanopyWat
  scalarCanopyLiq  = scalarCanopyWat - scalarCanopyIce
+
+ ! update bulk heat capacity
+ scalarBulkVolHeatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
+                           Cp_water*scalarCanopyLiq/canopyDepth          + & ! liquid water component
+                           Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
+
 
  ! end association to variables in the data structure
  end associate

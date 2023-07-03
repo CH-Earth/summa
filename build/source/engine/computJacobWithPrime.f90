@@ -273,6 +273,9 @@ subroutine computJacobWithPrime(&
     dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat       )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
     dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
+    ! canopy derivatives from adjusting the canopy temperature to account for new snow
+    dTkCanopyAdj_dTkCanopy       => deriv_data%var(iLookDERIV%dTkCanopyAdj_dTkCanopy      )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. original temperature
+    dTkCanopyAdj_dCanWat         => deriv_data%var(iLookDERIV%dTkCanopyAdj_dCanWat        )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. canopy water
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg              )%dat(1)  ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -1016,8 +1019,19 @@ subroutine computJacobWithPrime(&
 
     end select  ! type of matrix
     ! *********************************************************************************************************************************************************
-        ! print the Jacobian
-        if(globalPrintFlag)then
+
+    ! Add in the new-snow adjusted canopy temperature derivatives (for either type of matrix)
+    if(computeVegFlux)then
+      if(ixVegNrg/=integerMissing)then
+        if(ixVegHyd/=integerMissing)then
+          aJac(:,ixVegHyd) = aJac(:,ixVegHyd)+aJac(:,ixVegNrg)*dTkCanopyAdj_dCanWat
+        endif
+        aJac(:,ixVegNrg) = aJac(:,ixVegNrg)*dTkCanopyAdj_dTkCanopy
+      endif
+    endif
+
+    ! print the Jacobian
+    if(globalPrintFlag)then
       select case(ixMatrix)
         case(ixBandMatrix)
           print*, '** banded analytical Jacobian:'
@@ -1032,7 +1046,7 @@ subroutine computJacobWithPrime(&
             write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
           end do
       end select
-        endif
+    endif
 
     if(any(isNan(aJac)))then
       print *, '******************************* WE FOUND NAN IN JACOBIAN ************************************'

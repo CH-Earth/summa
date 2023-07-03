@@ -421,6 +421,9 @@ MODULE var_lookup
   ! canopy hydrology
   integer(i4b)    :: scalarFracLiqVeg                = integerMissing ! fraction of liquid water on vegetation (-)
   integer(i4b)    :: scalarCanopyWetFraction         = integerMissing ! fraction of canopy that is wet
+  ! canopy derivatives from adjusting the canopy temperature to account for new snow
+  integer(i4b)    :: dTkCanopyAdj_dTkCanopy          = integerMissing ! derivative in the adjusted temperature w.r.t. original temperature
+  integer(i4b)    :: dTkCanopyAdj_dCanWat            = integerMissing ! derivative in the adjusted temperature w.r.t. volumetric water content
   ! snow hydrology
   integer(i4b)    :: scalarSnowAge                   = integerMissing ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction        = integerMissing ! fraction of ground that is covered with snow (-)

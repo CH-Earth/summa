@@ -237,18 +237,21 @@ subroutine computJacob(&
     dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat       )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
     dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
+    ! canopy derivatives from adjusting the canopy temperature to account for new snow
+    dTkCanopyAdj_dTkCanopy       => diag_data%var(iLookDIAG%dTkCanopyAdj_dTkCanopy        )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. original temperature
+    dTkCanopyAdj_dCanWat         => diag_data%var(iLookDIAG%dTkCanopyAdj_dCanWat          )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. canopy water
     ! derivatives in time
     mLayerdTemp_dt               => deriv_data%var(iLookDERIV%mLayerdTemp_dt              )%dat     ,& ! intent(in): [dp(:)] timestep change in layer temperature
     scalarCanopydTemp_dt         => deriv_data%var(iLookDERIV%scalarCanopydTemp_dt        )%dat(1)  ,& ! intent(in): [dp   ] timestep change in canopy temperature
     ! diagnostic variables
-    scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)                ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
-    scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg)%dat(1)         ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
-    mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat                  ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow layer (-)
-    mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat                 ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
-    scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl)%dat(1)               ,& ! intent(in): [dp]     soil control on infiltration, zero or one
+    scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg              )%dat(1)                ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
+    scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
+    mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow             )%dat     ,& ! intent(in): [dp(:)]  fraction of liquid water in each snow layer (-)
+    mLayerVolHtCapBulk           => diag_data%var(iLookDIAG%mLayerVolHtCapBulk            )%dat     ,& ! intent(in): [dp(:)]  bulk volumetric heat capacity in each snow and soil layer (J m-3 K-1)
+    scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl             )%dat(1)  ,& ! intent(in): [dp]     soil control on infiltration, zero or one
     ! canopy and layer depth
-    canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)               ,& ! intent(in): [dp   ]  canopy depth (m)
-    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat                         & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+    canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth             )%dat(1)  ,& ! intent(in): [dp   ]  canopy depth (m)
+    mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth                   )%dat      & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
     ) ! making association with data in structures
     ! --------------------------------------------------------------
     ! initialize error control
@@ -961,15 +964,26 @@ subroutine computJacob(&
             if(ixVegNrg/=integerMissing .and. ixTopHyd/=integerMissing) aJac(ixTopHyd,ixVegNrg) = -(dt/mLayerDepth(1+nSnow))*dq_dNrgStateLayerSurfVec(0) + aJac(ixTopHyd,ixVegNrg)
           endif
 
-         endif   ! (if there are state variables for both water and energy in the soil domain)
+        endif   ! (if there are state variables for both water and energy in the soil domain)
 
       ! check
       case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'; return
 
     end select  ! type of matrix
     ! *********************************************************************************************************************************************************
-        ! print the Jacobian
-        if(globalPrintFlag)then
+
+    ! Add in the new-snow adjusted canopy temperature derivatives (for either type of matrix)
+    if(computeVegFlux)then
+      if(ixVegNrg/=integerMissing)then
+        if(ixVegHyd/=integerMissing)then
+          aJac(:,ixVegHyd) = aJac(:,ixVegHyd)+aJac(:,ixVegNrg)*dTkCanopyAdj_dCanWat
+        endif
+        aJac(:,ixVegNrg) = aJac(:,ixVegNrg)*dTkCanopyAdj_dTkCanopy
+      endif
+    endif
+
+    ! print the Jacobian
+    if(globalPrintFlag)then
       select case(ixMatrix)
         case(ixBandMatrix)
           print*, '** banded analytical Jacobian:'
@@ -984,7 +998,7 @@ subroutine computJacob(&
             write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
           end do
       end select
-        endif
+    endif
 
     if(any(isNan(aJac)))then
       print *, '******************************* WE FOUND NAN IN JACOBIAN ************************************'

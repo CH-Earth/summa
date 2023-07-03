@@ -105,7 +105,7 @@ subroutine varSubstep(&
                       iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
                       fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
                       fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
-                      ! input/output: data structures
+                       ! input/output: data structures
                       model_decisions,   & ! intent(in)    : model decisions
                       lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
@@ -252,9 +252,7 @@ subroutine varSubstep(&
     mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(inout): [dp(:)]  matric potential of liquid water (m)
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
-    ! *********************************************************************************************************************************************************
-    ! Procedure starts here
-
+   
     ! initialize error control
     err=0; message='varSubstep/'
 
@@ -974,7 +972,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         ! check the mass balance
         fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
         liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
-        if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
+          if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
           !write(*,'(a,1x,f20.10)') 'dt = ', dt
           !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
           !write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0

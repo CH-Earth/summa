@@ -541,6 +541,9 @@ contains
   ! canopy hydrology
   case('scalarFracLiqVeg'               ); get_ixdiag = iLookDIAG%scalarFracLiqVeg                 ! fraction of liquid water on vegetation (-)
   case('scalarCanopyWetFraction'        ); get_ixdiag = iLookDIAG%scalarCanopyWetFraction          ! fraction of canopy that is wet
+  ! canopy derivatives from adjusting the canopy temperature to account for new snow
+  case('dTkCanopyAdj_dTkCanopy'         ); get_ixdiag = iLookDIAG%dTkCanopyAdj_dTkCanopy           ! derivative in the adjusted temperature w.r.t. original temperature
+  case('dTkCanopyAdj_dCanWat'           ); get_ixdiag = iLookDIAG%dTkCanopyAdj_dCanWat             ! derivative in the adjusted temperature w.r.t. volumetric water content  
   ! snow hydrology
   case('scalarSnowAge'                  ); get_ixdiag = iLookDIAG%scalarSnowAge                    ! non-dimensional snow age (-)
   case('scalarGroundSnowFraction'       ); get_ixdiag = iLookDIAG%scalarGroundSnowFraction         ! fraction of ground that is covered with snow (-)

@@ -578,10 +578,14 @@ subroutine coupled_em(&
                       ! input/output: data structures
                       mpar_data,                   & ! intent(in):    model parameters
                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                      diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
+                      diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
                       ! output: error control
                       err,cmessage)                  ! intent(out): error control
                       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
+    else
+      ! no dependency of adjusted temperature since did not adjust temperature
+      diag_data%var(iLookDIAG%dTkCanopyAdj_dTkCanopy)%dat(1) = 1._rkind
+      diag_data%var(iLookDIAG%dTkCanopyAdj_dCanWat)%dat(1)   = 0._rkind   
     endif ! if computing fluxes over vegetation
 
     ! initialize drainage and throughfall
