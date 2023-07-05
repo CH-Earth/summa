@@ -22,4 +22,5 @@ This page provides simple, high-level documentation about what has changed in ea
 - Fixes a bug that incorrectly writes scalarRainPlusMelt to output in cases where snow layers do not exist
 - Changed part "(a,1x,i0)" to "(a,1x,i0,a,f5.3,a,f5.3)" in check_icond.f90 line 277 to print out error correctly.
 - Fixes a bug where restart files are not read correctly in cases where the parallelization argument `-g` for setups that have >1 HRU per GRU
+- Changes the logic for creating the first snow layer: instead of creating the layer when snow-without-a-layer exceeds the maximum depth of the 1st layer, the first layer is now created if snow-without-a-layer exceeds the average of specified 1st layer minimum and maximum depth (zminLayer1 and zmaxLayer1_lower in localParamInfo.txt)
 - Adds scalarSnowDrainage variable when melting of the snow without a layer
