@@ -550,8 +550,9 @@ contains
   ! define forcing for the soil domain for the case of no snow layers
   ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
   if (nSnow==0) then
+   scalarSnowDrainage = drainageMeltPond/iden_water ! melt of the snow without a layer (m s-1)
    scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
-                         + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
+                         + scalarSnowDrainage
   end if  ! if no snow layers
  end if
 
@@ -671,7 +672,7 @@ contains
                    dBaseflow_dMatric,                       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
                    err,cmessage)                              ! intent(out):   error control
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-  end if  ! end if the topmodel baseflow routine is not used 
+  end if  ! end if the topmodel baseflow routine is not used
   scalarSoilBaseflow = sum(mLayerBaseflow) ! compute total baseflow from the soil zone (needed for mass balance checks)
   ! compute total runoff
   ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
@@ -702,7 +703,7 @@ contains
                    ! output: error control
                    err,cmessage)                   ! intent(out): error control
    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-   ! compute total runoff (overwrite previously calculated value before considering aquifer).  
+   ! compute total runoff (overwrite previously calculated value before considering aquifer).
    !   (Note:  SoilDrainage goes into aquifer, not runoff)
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
   else ! if no aquifer, then fluxes are zero

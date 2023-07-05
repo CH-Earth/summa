@@ -22,7 +22,4 @@ This page provides simple, high-level documentation about what has changed in ea
 - Fixes a bug that incorrectly writes scalarRainPlusMelt to output in cases where snow layers do not exist
 - Changed part "(a,1x,i0)" to "(a,1x,i0,a,f5.3,a,f5.3)" in check_icond.f90 line 277 to print out error correctly.
 - Fixes a bug where restart files are not read correctly in cases where the parallelization argument `-g` for setups that have >1 HRU per GRU
-- Flux files have been refactored (code shortened by nearly 900 lines)
-- Fortran arithmetic in flux files has been updated to increase accuracy and reduce computational cost
-- Script added (summa/build/compile_SUMMA.sh) to simplify the compilation process
-- Several print statements previously used for debugging that are no longer needed have been removed from the flux source files 
+- Adds scalarSnowDrainage variable when melting of the snow without a layer
