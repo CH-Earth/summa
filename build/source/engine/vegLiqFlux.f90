@@ -24,8 +24,8 @@ module vegLiqFlux_module
 USE nrtype
 
 ! data types
-USE data_types,only:var_d           ! x%var(:)       (dp)
-USE data_types,only:var_dlength     ! x%var(:)%dat   (dp)
+USE data_types,only:var_d                ! x%var(:)       (dp)
+USE data_types,only:var_dlength          ! x%var(:)%dat   (dp)
 
 ! named variables
 USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
@@ -36,16 +36,15 @@ USE var_lookup,only:iLookDECISIONS       ! named variables for elements of the d
 
 ! decisions on canopy interception parameterization 
 USE mDecisions_module,only:         &
-                      unDefined,    & ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
-                      sparseCanopy, & ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
-                      storageFunc     ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
+                      unDefined,    &    ! original model (no flexibility in canopy interception): 100% of rainfall is intercepted by the vegetation canopy
+                      sparseCanopy, &    ! fraction of rainfall that never hits the canopy (throughfall); drainage above threshold
+                      storageFunc        ! throughfall a function of canopy storage; 100% throughfall when canopy is at capacity
 
 ! privacy
 implicit none
 private
-public::vegLiqFlux
+public :: vegLiqFlux
 contains
-
 
  ! ************************************************************************************************
  ! public subroutine vegLiqFlux: compute water balance for the vegetation canopy
@@ -66,19 +65,19 @@ contains
                        err,message)                    ! intent(out): error control
  implicit none
  ! input
- logical(lgt),intent(in)         :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+ logical(lgt),intent(in)            :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
  real(rkind),intent(in)             :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
  real(rkind),intent(in)             :: scalarRainfall               ! rainfall (kg m-2 s-1)
  ! input-output: data structures
- type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
- type(var_dlength),intent(inout) :: diag_data                    ! model diagnostic variables for the local basin
+ type(var_dlength),intent(in)       :: mpar_data                    ! model parameters
+ type(var_dlength),intent(inout)    :: diag_data                    ! model diagnostic variables for the local basin
  ! output
  real(rkind),intent(out)            :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
  real(rkind),intent(out)            :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
  real(rkind),intent(out)            :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
  real(rkind),intent(out)            :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
- integer(i4b),intent(out)        :: err                          ! error code
- character(*),intent(out)        :: message                      ! error message
+ integer(i4b),intent(out)           :: err                          ! error code
+ character(*),intent(out)           :: message                      ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! make association of local variables with information in the data structures
  associate(&
@@ -86,13 +85,13 @@ contains
   scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
   scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain)%dat(1),& ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
   scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1)  & ! intent(in): canopy drainage coefficient (s-1)
- ) ! associating local variables with information in the data structures
+ ) ! end associating local variables with information in the data structures
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="vegLiqFlux/"
 
  ! set throughfall to inputs if vegetation is completely buried with snow
- if(.not.computeVegFlux)then
+ if (.not.computeVegFlux) then
   scalarThroughfallRain        = scalarRainfall
   scalarCanopyLiqDrainage      = 0._rkind
   scalarThroughfallRainDeriv   = 0._rkind
@@ -118,7 +117,7 @@ contains
   case(storageFunc)
 
    ! throughfall during wetting-up phase
-   if(scalarCanopyLiqTrial < scalarCanopyLiqMax)then
+   if (scalarCanopyLiqTrial < scalarCanopyLiqMax) then
     scalarThroughfallRain      = scalarRainfall*(scalarCanopyLiqTrial/scalarCanopyLiqMax)
     scalarThroughfallRainDeriv = scalarRainfall/scalarCanopyLiqMax
 
@@ -133,7 +132,7 @@ contains
  end select ! (option for canopy interception)
 
  ! compute canopy drainage
- if(scalarCanopyLiqTrial > scalarCanopyLiqMax)then
+ if (scalarCanopyLiqTrial > scalarCanopyLiqMax) then
   scalarCanopyLiqDrainage       = scalarCanopyDrainageCoeff*(scalarCanopyLiqTrial - scalarCanopyLiqMax)
   scalarCanopyLiqDrainageDeriv  = scalarCanopyDrainageCoeff
  else
@@ -141,12 +140,8 @@ contains
   scalarCanopyLiqDrainageDeriv  = 0._rkind
  end if
 
- !write(*,'(a,1x,f25.15)') 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
-
- ! end association of local variables with information in the data structures
- end associate
+ end associate ! end association of local variables with information in the data structures
 
  end subroutine vegLiqFlux
-
 
 end module vegLiqFlux_module
