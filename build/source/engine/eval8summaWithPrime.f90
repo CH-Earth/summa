@@ -236,7 +236,7 @@ subroutine eval8summaWithPrime(&
   character(LEN=256)                 :: cmessage                  ! error message of downwind routine
   real(rkind)                        :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
   real(rkind),dimension(nLayers)     :: mLayerCmTrial             ! trial vector of Cm for snow+soil
-  logical(lgt),parameter             :: updateCp=.true.           ! flag to indicate if we update Cp at each step
+  logical(lgt),parameter             :: updateCp=.false.          ! flag to indicate if we update Cp at each step
   logical(lgt),parameter             :: needCm=.false.            ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
