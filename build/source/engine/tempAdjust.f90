@@ -168,7 +168,8 @@ contains
  f2 = resNrgFunc(x2,scalarCanopyTemp,scalarBulkVolHeatCapVeg,snowfrz_scale)
  ! compute derivatives
  dx2_dWat = df1_dWat/fDer - f1/(dfDer_dWat**2_i4b)
- dx2_dTk  = 1._rkind + df1_dTk/fDer - f1/(dfDer_dTk**2_i4b)
+ dx2_dTk  = 1._rkind + df1_dTk/fDer
+ if(dfDer_dTk.ne.0._rkind) dx2_dTk  = dx2_dTk - f1/(dfDer_dTk**2_i4b) !if dCp_dTk = scalarCanopyWat = 0 will be 0
 
  ! ensure that we bracket the root and recompute x2 and derivatives if not
  if(f1*f2 > 0._rkind)then
