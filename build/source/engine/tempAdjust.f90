@@ -214,7 +214,7 @@ contains
  end do  ! iterating
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
- ! update state variables
+ ! update state variables, but not heat capacity since used heat capacity to get these values
  scalarCanopyTemp = xTry
  scalarCanopyIce  = (1._rkind - fracliquid(xTry,snowfrz_scale))*scalarCanopyWat
  scalarCanopyLiq  = scalarCanopyWat - scalarCanopyIce

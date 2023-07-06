@@ -577,11 +577,11 @@ subroutine computJacob(&
               ! - include derivatives w.r.t. ground evaporation
               if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer, assume here that kl>=4
                 if(computeVegFlux)then
-                  if(ixCasNrg/=integerMissing) aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
-                  if(ixVegNrg/=integerMissing) aJac(ixOffDiag(watState,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
-                  if(ixVegHyd/=integerMissing) aJac(ixOffDiag(watState,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  ! dVol/dLiq (kg m-2)-1
+                  if(ixCasNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
+                  if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) ! dVol/dT (K-1)
+                  if(ixVegHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(watState,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(watState,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
+                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
               endif
 
               ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure
@@ -635,7 +635,7 @@ subroutine computJacob(&
           endif
 
         endif   ! (if there are state variables for both water and energy in the soil domain)
-
+ 
       ! *********************************************************************************************************************************************************
       ! * PART 2: FULL MATRIX
       ! *********************************************************************************************************************************************************
@@ -913,11 +913,11 @@ subroutine computJacob(&
               ! - include derivatives of energy w.r.t. ground evaporation
               if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
                 if(computeVegFlux)then
-                  if(ixCasNrg/=integerMissing) aJac(watState,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
-                  if(ixVegNrg/=integerMissing) aJac(watState,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
-                  if(ixVegHyd/=integerMissing) aJac(watState,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  ! dVol/dLiq (kg m-2)-1
+                  if(ixCasNrg/=integerMissing) aJac(ixTopHyd,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
+                  if(ixVegNrg/=integerMissing) aJac(ixTopHyd,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixTopHyd,ixVegNrg) ! dVol/dT (K-1)
+                  if(ixVegHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixTopHyd,ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-                if(ixTopNrg/=integerMissing) aJac(watState,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(watState,ixTopNrg) ! dVol/dT (K-1)
+                if(ixTopNrg/=integerMissing) aJac(ixTopHyd,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixTopHyd,ixTopNrg) ! dVol/dT (K-1)
               endif
 
               ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
@@ -1086,7 +1086,7 @@ function ixOffDiag(jState,iState)
   integer(i4b),intent(in)  :: jState    ! off-diagonal state
   integer(i4b),intent(in)  :: iState    ! diagonal state
   integer(i4b),parameter   :: ixDiag=kl+ku+1   ! index for the diagonal, the offset in the band Jacobian matrix
-  integer(i4b)             :: ixOffDiag ! off-diagonal index in gthe band-diagonal matrix
+  integer(i4b)             :: ixOffDiag ! off-diagonal index in the band-diagonal matrix
 
   ixOffDiag = ixDiag + jState - iState
 end function ixOffDiag
