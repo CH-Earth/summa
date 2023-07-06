@@ -219,6 +219,9 @@ subroutine coupled_em(&
   type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
   type(var_dlength)                    :: diag_temp              ! temporary model diagnostic variables
   real(rkind),allocatable              :: mLayerVolFracIceInit(:)! initial vector for volumetric fraction of ice (-)
+  ! canopy ice derivatives for canopy temperature adjustment
+  real(rkind)                          :: dCanopyIce_dWat        ! derivative of canopy ice with canopy water    
+  real(rkind)                          :: dCanopyIce_dTk         ! derivative of canopy ice with canopy temperature 
   ! check SWE
   real(rkind)                          :: oldSWE                 ! SWE at the start of the substep
   real(rkind)                          :: newSWE                 ! SWE at the end of the substep
@@ -566,6 +569,9 @@ subroutine coupled_em(&
                     diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
                     prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
                     flux_data,                   & ! intent(inout): model flux variables
+                    ! output: derivatives
+                    dCanopyIce_dWat,             & ! intent(out):   derivative of canopy ice with canopy water    
+                    dCanopyIce_dTk,              & ! intent(out):   derivative of canopy ice with canopy temperature                     
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -574,7 +580,10 @@ subroutine coupled_em(&
     if(computeVegFlux)then ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
       call tempAdjust(&
                       ! input: derived parameters
-                      canopyDepth,                 & ! intent(in): canopy depth (m)
+                      canopyDepth,                 & ! intent(in):    canopy depth (m)
+                      ! input: derivatives
+                      dCanopyIce_dWat,             & ! intent(in):    derivative of canopy ice with canopy water    
+                      dCanopyIce_dTk,              & ! intent(in):    derivative of canopy ice with canopy temperature    
                       ! input/output: data structures
                       mpar_data,                   & ! intent(in):    model parameters
                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU

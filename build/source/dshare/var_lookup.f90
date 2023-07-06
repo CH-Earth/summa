@@ -651,7 +651,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerdTheta_dTk                = integerMissing ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   integer(i4b)    :: mLayerd2Theta_dTk2              = integerMissing ! second derivative of volumetric liquid water content w.r.t. temperature
  ! derivatives in time
-  integer(i4b)    :  mLayerdTemp_dt                  = integerMissing ! timestep change in layer temperature
+  integer(i4b)    :: mLayerdTemp_dt                  = integerMissing ! timestep change in layer temperature
   integer(i4b)    :: scalarCanopydTemp_dt            = integerMissing ! timestep change in canopy temperature
 
  endtype iLook_deriv

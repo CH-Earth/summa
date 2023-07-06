@@ -406,7 +406,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarCanopyWetFraction)         = var_info('scalarCanopyWetFraction'        , 'fraction canopy that is wet'                                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! canopy derivatives from adjusting the canopy temperature to account for new snow
   diag_meta(iLookDIAG%dTkCanopyAdj_dTkCanopy)          = var_info('dTkCanopyAdj_dTkCanopy'         , 'derivative in the adjusted temperature w.r.t. original temperature'    , '-'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%dTkCanopyAdj_dCanWat)            = var_info('dTkCanopyAdj_dCanWat',          , 'derivative in the adjusted temperature w.r.t. volumetric water content', '-'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%dTkCanopyAdj_dCanWat)            = var_info('dTkCanopyAdj_dCanWat'           , 'derivative in the adjusted temperature w.r.t. volumetric water content', '-'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! snow hydrology
   diag_meta(iLookDIAG%scalarSnowAge)                   = var_info('scalarSnowAge'                  , 'non-dimensional snow age'                                         , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarGroundSnowFraction)        = var_info('scalarGroundSnowFraction'       , 'fraction ground that is covered with snow'                        , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)

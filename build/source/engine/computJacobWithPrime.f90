@@ -274,8 +274,8 @@ subroutine computJacobWithPrime(&
     dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
     dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
     ! canopy derivatives from adjusting the canopy temperature to account for new snow
-    dTkCanopyAdj_dTkCanopy       => deriv_data%var(iLookDERIV%dTkCanopyAdj_dTkCanopy      )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. original temperature
-    dTkCanopyAdj_dCanWat         => deriv_data%var(iLookDERIV%dTkCanopyAdj_dCanWat        )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. canopy water
+    dTkCanopyAdj_dTkCanopy       => diag_data%var(iLookDIAG%dTkCanopyAdj_dTkCanopy        )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. original temperature
+    dTkCanopyAdj_dCanWat         => diag_data%var(iLookDIAG%dTkCanopyAdj_dCanWat          )%dat(1)  ,& ! intent(in): [dp   ] derivative in the adjusted temperature w.r.t. canopy water
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg              )%dat(1)  ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)

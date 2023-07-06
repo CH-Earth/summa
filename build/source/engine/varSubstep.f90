@@ -972,16 +972,16 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         ! check the mass balance
         fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
         liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
+          write(*,'(a,1x,f20.10)') 'dt = ', dt
+          write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
+          write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
+          write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
+          write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
+          write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
+          write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
+          write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
+          write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
           if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
-          !write(*,'(a,1x,f20.10)') 'dt = ', dt
-          !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
-          !write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
-          !write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
-          !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
-          !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
-          !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
-          !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
-          !write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
           waterBalanceError = .true.
           return
         endif  ! if there is a water balance error

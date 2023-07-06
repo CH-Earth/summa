@@ -38,6 +38,7 @@ private
 public::fracliquid
 public::templiquid
 public::dFracLiq_dTk
+public::d2FracLiq_dTk2
 public::tcond_snow
 contains
 
@@ -54,7 +55,6 @@ function fracliquid(Tk,fc_param)
   fracliquid = 1._rkind / ( 1._rkind + (fc_param*( Tfreeze - min(Tk,Tfreeze) ))**2_i4b )
 end function fracliquid
 
-
 ! ***********************************************************************************************************
 ! public function templiquid: invert the fraction of liquid water function
 ! ***********************************************************************************************************
@@ -66,7 +66,6 @@ function templiquid(fracliquid,fc_param)
   ! compute temperature based on the fraction of liquid water (K)
   templiquid = Tfreeze - ((1._rkind/fracliquid - 1._rkind)/fc_param**2_i4b)**(0.5_rkind)
 end function templiquid
-
 
 ! ***********************************************************************************************************
 ! public function dFracLiq_dTk: differentiate the freezing curve
@@ -87,6 +86,30 @@ function dFracLiq_dTk(Tk,fc_param)
   dFracLiq_dTk = (fc_param*2._rkind*Tdim) / ( ( 1._rkind + Tdim**2_i4b)**2_i4b )
 end function dFracLiq_dTk
 
+! ***********************************************************************************************************
+! public function d2FracLiq2_dTk2: differentiate the freezing curve twice
+! ***********************************************************************************************************
+function d2FracLiq_dTk2(Tk,fc_param)
+  implicit none
+  ! dummies
+  real(rkind),intent(in) :: Tk           ! temperature (K)
+  real(rkind),intent(in) :: fc_param     ! freezing curve parameter (K-1)
+  real(rkind)            :: d2FracLiq_dTk2 ! differentiate the freezing curve twice (K-2)
+  ! locals
+  real(rkind)            :: Tdep         ! temperature depression (K)
+  real(rkind)            :: Tdim         ! dimensionless temperature (-)
+  real(rkind)            :: fPart1,fPart2 ! different parts of a function
+  real(rkind)            :: dPart1,dPart2 ! derivatives for different parts of a function
+  ! compute local variables (just to make things more efficient)
+  Tdep = Tfreeze - min(Tk,Tfreeze)
+  Tdim = fc_param*Tdep
+  fPart1 = fc_param*2._rkind*Tdim
+  fPart2 = 1._rkind/( ( 1._rkind + Tdim**2_i4b)**2_i4b )
+  ! differentiate the freezing curve w.r.t temperature twice
+  dPart1 = fc_param*2._rkind*Tdim/Tk
+  dPart2 = (fc_param*4._rkind*Tdim) / ( ( 1._rkind + Tdim**2_i4b)**2_i4b )
+  d2FracLiq_dTk2 = fPart1*dPart2 + dPart1*fPart2
+end function d2FracLiq_dTk2
 
 ! ***********************************************************************************************************
 ! public subroutine tcond_snow: compute thermal conductivity of snow

@@ -168,7 +168,7 @@ contains
  mLayerVolHtCapBulk      => diag_data%var(iLookDIAG%mLayerVolHtCapBulk)%dat,           & ! intent(out): volumetric heat capacity in each layer (J m-3 K-1)
  mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
  iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
- mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
+ mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(out): volumetric fraction of air in each layer (-)
  )  ! end associate statement
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control

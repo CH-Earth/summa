@@ -2138,12 +2138,12 @@ subroutine turbFluxes(&
   real(rkind),intent(out)          :: dTurbFluxCanopy_dCanWat      ! derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
   real(rkind),intent(out)          :: dTurbFluxGround_dCanWat      ! derivative in net ground turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
   ! output: error control
-  integer(i4b),intent(out)      :: err                          ! error code
-  character(*),intent(out)      :: message                      ! error message
+  integer(i4b),intent(out)         :: err                          ! error code
+  character(*),intent(out)         :: message                      ! error message
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   ! local variables -- general
-  real(rkind)                      :: fpart1,fpart2         ! different parts of a function
-  real(rkind)                      :: dPart0,dpart1,dpart2         ! derivatives for different parts of a function
+  real(rkind)                      :: fPart1,fPart2                ! different parts of a function
+  real(rkind)                      :: dPart0,dPart1,dPart2         ! derivatives for different parts of a function
   ! local variables -- "constants"
   real(rkind)                      :: volHeatCapacityAir           ! volumetric heat capacity of air (J m-3)
   real(rkind)                      :: latentHeatConstant           ! latent heat constant (kg m-3 K-1)
