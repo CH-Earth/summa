@@ -67,16 +67,10 @@ contains
                        diag_data,                   & ! intent(in):    model diagnostic variables for a local HRU
                        prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
                        flux_data,                   & ! intent(inout): model flux variables
-                       ! output: derivatives
-                       dCanopyIce_dWat,             & ! intent(out):   derivative of canopy ice with canopy water    
-                       dCanopyIce_dTk,              & ! intent(out):   derivative of canopy ice with canopy temperature 
                        ! output: error control
                        err,message)                   ! intent(out): error control
  ! ------------------------------------------------------------------------------------------------
- ! utility routines
- USE snow_utils_module,only:fracliquid     ! compute fraction of liquid water
- USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
- implicit none
+  implicit none
  ! ------------------------------------------------------------------------------------------------
  ! input: model control
  real(rkind),intent(in)          :: dt                         ! time step (seconds)
@@ -89,9 +83,6 @@ contains
  type(var_dlength),intent(in)    :: diag_data                  ! model diagnostic variables for a local HRU
  type(var_dlength),intent(inout) :: prog_data                  ! model prognostic variables for a local HRU
  type(var_dlength),intent(inout) :: flux_data                  ! model flux variables
- ! output: derivatives
- real(rkind),intent(out)         :: dCanopyIce_dWat            ! derivative of canopy ice with canopy water    
- real(rkind),intent(out)         :: dCanopyIce_dTk             ! derivative of canopy ice with canopy temperature 
  ! output: error control
  integer(i4b),intent(out)        :: err                        ! error code
  character(*),intent(out)        :: message                    ! error message
@@ -99,7 +90,6 @@ contains
  real(rkind),parameter           :: valueMissing=-9999._rkind  ! missing value
  integer(i4b)                    :: iter                       ! iteration index
  integer(i4b),parameter          :: maxiter=50                 ! maximum number of iterations
- logical                         :: use_drip                   ! branch decision used in computing for first canopy ice derivative (code shortcut)
  real(rkind)                     :: scalarCanopyWat            ! total canopy water (kg m-2)
  real(rkind)                     :: unloading_melt             ! unloading associated with canopy drip (kg m-2 s-1)
  real(rkind)                     :: airtemp_degC               ! value of air temperature in degrees Celcius
@@ -110,15 +100,12 @@ contains
  real(rkind)                     :: unloadingDeriv             ! derivative in unloading flux w.r.t. canopy storage (s-1)
  real(rkind)                     :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
  real(rkind)                     :: fLiq                       ! fraction of liquid water (-)
- real(rkind)                     :: canopyLiqDrainageDeriv     ! derivative in canopy drainage w.r.t. canopy liquid water (s-1) (recomputed from vegLiqFlus)
- real(rkind)                     :: dCanopyIceIter_dWat,dCanopyIceIter_dTk ! derivates of canopy ice iteration w.r.t canopy water and canopy temperature
  real(rkind)                     :: flux                       ! net flux (kg m-2 s-1)
  real(rkind)                     :: delS                       ! change in storage (kg m-2)
  real(rkind)                     :: resMass                    ! residual in mass equation (kg m-2)
  real(rkind)                     :: tempUnloadingFun           ! temperature unloading functions, Eq. 14 in Roesch et al. 2001
  real(rkind)                     :: windUnloadingFun           ! temperature unloading functions, Eq. 15 in Roesch et al. 2001
  real(rkind),parameter           :: convTolerMass=0.0001_rkind ! convergence tolerance for mass (kg m-2)
- real(rkind)                     :: ddelS_dWat, ddelS_dTk      ! derivates of iteration increment w.r.t canopy water and canopy temperature
  ! -------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='canopySnow/'
@@ -139,18 +126,14 @@ contains
  minWindUnloading          => mpar_data%var(iLookPARAM%minWindUnloading)%dat(1),           & ! intent(in):    [dp] constant describing the minimum temperature for snow unloading in windySnow parameterization (K)
  rateTempUnloading         => mpar_data%var(iLookPARAM%rateTempUnloading)%dat(1),          & ! intent(in):    [dp] constant describing how quickly snow will unload due to temperature in windySnow parameterization (K s)
  rateWindUnloading         => mpar_data%var(iLookPARAM%rateWindUnloading)%dat(1),          & ! intent(in):    [dp] constant describing how quickly snow will unload due to wind in windySnow parameterization (K s)
- scalarCanopyLiqMax        => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),          & ! intent(in):    [dp] maximum storage before canopy drainage begins (kg m-2 s-1)
- scalarCanopyDrainageCoeff => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1),        & ! intent(in):    [dp] canopy drainage coefficient (s-1)
  ! model diagnostic variables
  scalarNewSnowDensity      => diag_data%var(iLookDIAG%scalarNewSnowDensity)%dat(1),        & ! intent(in):    [dp] density of new snow (kg m-3)
  ! model prognostic variables (input/output)
- scalarCanopyLiq           => prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1),             & ! intent(in):    [dp] mass of liquid water on the vegetation canopy (kg m-2)
  scalarCanopyIce           => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1),             & ! intent(inout): [dp] mass of ice on the vegetation canopy (kg m-2)
- scalarCanopyTemp          => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1),            & ! intent(in):    [dp] temperature of the vegetation canopy (K)
  ! model fluxes (input)
  scalarCanairTemp          => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1),            & ! intent(in):    [dp] temperature of the canopy air space (k)
  scalarSnowfall            => flux_data%var(iLookFLUX%scalarSnowfall)%dat(1),              & ! intent(in):    [dp] computed snowfall rate (kg m-2 s-1)
- scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in):    [dp] liquid drainage from the vegetation canopy (kg m-2 s-1)
+ scalarCanopyLiqDrainage   => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),     & ! intent(in):    [dp] liquid drainage from the vegetation canopy (kg m-2 s-1) 
  scalarWindspdCanopyTop    => flux_data%var(iLookFLUX%scalarWindspdCanopyTop)%dat(1),      & ! intent(in):    [dp] windspeed at the top of the canopy (m s-1)
  ! model variables (output)
  scalarThroughfallSnow     => flux_data%var(iLookFLUX%scalarThroughfallSnow)%dat(1),       & ! intent(out):   [dp] snow that reaches the ground without ever touching the canopy (kg m-2 s-1)
@@ -158,44 +141,16 @@ contains
  )  ! associate variables in the data structures
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
 
- ! compute the total canopy water (state variable: will not change)
- scalarCanopyWat = scalarCanopyLiq + scalarCanopyIce
- 
- ! compute the initial derivatives
- fLiq = fracliquid(scalarCanopyTemp,snowfrz_scale)
- dCanopyIce_dWat = 1._rkind - fLiq
- dCanopyIce_dTk = -dFracLiq_dTk(scalarCanopyTemp,snowfrz_scale)*scalarCanopyWat
-
  ! compute unloading due to melt drip...
  ! *************************************
 
  if(computeVegFlux)then
    unloading_melt = min(ratioDrip2Unloading*scalarCanopyLiqDrainage, scalarCanopyIce/dt)  ! kg m-2 s-1
-   if(scalarCanopyIce/dt < ratioDrip2Unloading*scalarCanopyLiqDrainage)then
-     unloadingDeriv = 1._rkind/dt
-   else ! unloadingDeriv = ratioDrip2Unloading*canopyLiqDrainageDeriv*(fLiq*scalarCanopyWat)
-     if(scalarCanopyLiq > scalarCanopyLiqMax)then !from vegLiqFlux last step
-       canopyLiqDrainageDeriv  = scalarCanopyDrainageCoeff
-     else 
-       canopyLiqDrainageDeriv = 0._rkind
-     endif
-     unloadingDeriv = -ratioDrip2Unloading*canopyLiqDrainageDeriv
-     dCanopyIce_dWat = dCanopyIce_dWat - ratioDrip2Unloading*canopyLiqDrainageDeriv*fLiq*dt
-     use_drip = .true.
-   endif
  else
    unloading_melt = 0._rkind
-   unloadingDeriv = 0._rkind
  end if
  scalarCanopyIce = scalarCanopyIce - unloading_melt*dt
- if(.not.use_drip) dCanopyIce_dWat = (1._rkind - unloadingDeriv*dt)*dCanopyIce_dWat
- dCanopyIce_dTk  = (1._rkind - unloadingDeriv*dt)*dCanopyIce_dTk
 
- ! initialize
- dCanopyIceIter_dWat = dCanopyIce_dWat
- dCanopyIceIter_dTk  = dCanopyIce_dTk
-
- ! *****
  ! compute the ice balance due to snowfall and unloading...
  ! ********************************************************
  ! check for early returns
@@ -260,11 +215,7 @@ contains
    ! ** compute iteration increment
    flux = scalarSnowfall - scalarThroughfallSnow - scalarCanopySnowUnloading  ! net flux (kg m-2 s-1)
    delS = (flux*dt - (scalarCanopyIceIter - scalarCanopyIce))/(1._rkind + (throughfallDeriv + unloadingDeriv)*dt)
-   ! ** compute derivatives of delS
-   ddelS_dWat = (((-throughfallDeriv - unloadingDeriv)*dt - 1._rkind)*dCanopyIceIter_dWat + dCanopyIce_dWat) &
-               /(1._rkind + (throughfallDeriv + unloadingDeriv)*dt)
-   ddelS_dTk =  (((-throughfallDeriv - unloadingDeriv)*dt - 1._rkind)*dCanopyIceIter_dTk + dCanopyIce_dTk) &
-               /(1._rkind + (throughfallDeriv + unloadingDeriv)*dt)
+
    ! ** check for convergence
    resMass = scalarCanopyIceIter - (scalarCanopyIce + flux*dt)
    if(abs(resMass) < convTolerMass)exit
@@ -272,18 +223,14 @@ contains
    if(iter==maxiter)then; err=20; message=trim(message)//'failed to converge [mass]'; return; end if
    ! ** update value
    scalarCanopyIceIter = scalarCanopyIceIter + delS
-   dCanopyIceIter_dWat = dCanopyIceIter_dWat + ddelS_dWat
-   dCanopyIceIter_dTk  = dCanopyIceIter_dTk  + ddelS_dTk
  end do  ! iterating
 
  ! add the unloading associated with melt drip (kg m-2 s-1)
  scalarCanopySnowUnloading = scalarCanopySnowUnloading + unloading_melt
 
- ! *****
- ! update mass of ice on the canopy (kg m-2) and derivatives
+ ! update mass of ice on the canopy (kg m-2)
  scalarCanopyIce = scalarCanopyIceIter
- dCanopyIce_dWat = dCanopyIceIter_dWat
- dCanopyIce_dTk  = dCanopyIceIter_dTk
+
  ! end association to variables in the data structure
  end associate
 

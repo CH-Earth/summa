@@ -421,9 +421,6 @@ MODULE var_lookup
   ! canopy hydrology
   integer(i4b)    :: scalarFracLiqVeg                = integerMissing ! fraction of liquid water on vegetation (-)
   integer(i4b)    :: scalarCanopyWetFraction         = integerMissing ! fraction of canopy that is wet
-  ! canopy derivatives from adjusting the canopy temperature to account for new snow
-  integer(i4b)    :: dTkCanopyAdj_dTkCanopy          = integerMissing ! derivative in the adjusted temperature w.r.t. original temperature
-  integer(i4b)    :: dTkCanopyAdj_dCanWat            = integerMissing ! derivative in the adjusted temperature w.r.t. volumetric water content
   ! snow hydrology
   integer(i4b)    :: scalarSnowAge                   = integerMissing ! non-dimensional snow age (-)
   integer(i4b)    :: scalarGroundSnowFraction        = integerMissing ! fraction of ground that is covered with snow (-)
@@ -875,8 +872,7 @@ MODULE var_lookup
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
-                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91)
+                                                                         81, 82, 83, 84, 85, 86, 87, 88, 89)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
