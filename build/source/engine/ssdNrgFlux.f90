@@ -118,10 +118,10 @@ subroutine ssdNrgFlux(&
   ! input: trial model state variables
   real(rkind),intent(in)              :: mLayerTempTrial(:)         ! temperature in each layer at the current iteration (m)
   ! input: derivatives
-  real(rkind),intent(in)              :: dThermalC_dWatAbove(:)     ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind),intent(in)              :: dThermalC_dWatBelow(:)     ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind),intent(in)              :: dThermalC_dTempAbove(:)    ! derivative in the thermal conductivity w.r.t. energy state in the layer above
-  real(rkind),intent(in)              :: dThermalC_dTempBelow(:)    ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dWatAbove(0:)    ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dWatBelow(0:)    ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dTempAbove(0:)   ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(in)              :: dThermalC_dTempBelow(0:)   ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   ! input-output: data structures
   type(var_dlength),intent(in)        :: mpar_data                  ! model parameters
   type(var_ilength),intent(in)        :: indx_data                  ! state vector geometry

@@ -90,10 +90,10 @@ subroutine computThermConduct(&
                     prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                     ! output: derivatives
-                    dThermalC_dWatAbove,     & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
-                    dThermalC_dWatBelow,     & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
-                    dThermalC_dTempAbove,    & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
-                    dThermalC_dTempBelow,    & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
+                    dThermalC_dWatAbove,     & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dWatBelow,     & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dTempAbove,    & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
+                    dThermalC_dTempBelow,    & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
                     ! output: error control
                     err,message)               ! intent(out):   error control
 
