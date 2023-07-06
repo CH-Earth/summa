@@ -90,7 +90,6 @@ contains
  real(rkind),parameter           :: valueMissing=-9999._rkind  ! missing value
  integer(i4b)                    :: iter                       ! iteration index
  integer(i4b),parameter          :: maxiter=50                 ! maximum number of iterations
- real(rkind)                     :: scalarCanopyWat            ! total canopy water (kg m-2)
  real(rkind)                     :: unloading_melt             ! unloading associated with canopy drip (kg m-2 s-1)
  real(rkind)                     :: airtemp_degC               ! value of air temperature in degrees Celcius
  real(rkind)                     :: leafScaleFactor            ! scaling factor for interception based on temperature (-)
@@ -99,7 +98,6 @@ contains
  real(rkind)                     :: throughfallDeriv           ! derivative in throughfall flux w.r.t. canopy storage (s-1)
  real(rkind)                     :: unloadingDeriv             ! derivative in unloading flux w.r.t. canopy storage (s-1)
  real(rkind)                     :: scalarCanopyIceIter        ! trial value for mass of ice on the vegetation canopy (kg m-2) (kg m-2)
- real(rkind)                     :: fLiq                       ! fraction of liquid water (-)
  real(rkind)                     :: flux                       ! net flux (kg m-2 s-1)
  real(rkind)                     :: delS                       ! change in storage (kg m-2)
  real(rkind)                     :: resMass                    ! residual in mass equation (kg m-2)
@@ -118,7 +116,6 @@ contains
  ! model forcing data
  scalarAirtemp             => forc_data%var(iLookFORCE%airtemp),                           & ! intent(in):    [dp] air temperature (K)
  ! model parameters
- snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),              & ! intent(in):    [dp] scaling factor for snow freezing curve (K)
  refInterceptCapSnow       => mpar_data%var(iLookPARAM%refInterceptCapSnow)%dat(1),        & ! intent(in):    [dp] reference canopy interception capacity for snow per unit leaf area (kg m-2)
  ratioDrip2Unloading       => mpar_data%var(iLookPARAM%ratioDrip2Unloading)%dat(1),        & ! intent(in):    [dp] ratio of canopy drip to snow unloading (-)
  snowUnloadingCoeff        => mpar_data%var(iLookPARAM%snowUnloadingCoeff)%dat(1),         & ! intent(in):    [dp] time constant for unloading of snow from the forest canopy (s-1)
