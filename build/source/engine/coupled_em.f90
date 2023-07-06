@@ -574,11 +574,11 @@ subroutine coupled_em(&
     if(computeVegFlux)then ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
       call tempAdjust(&
                       ! input: derived parameters
-                      canopyDepth,                 & ! intent(in): canopy depth (m)
+                      canopyDepth,                 & ! intent(in):    canopy depth (m)
                       ! input/output: data structures
                       mpar_data,                   & ! intent(in):    model parameters
                       prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                      diag_data,                   & ! intent(out):   model diagnostic variables for a local HRU
+                      diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
                       ! output: error control
                       err,cmessage)                  ! intent(out): error control
                       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -1198,7 +1198,7 @@ subroutine coupled_em(&
 
       ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
       select case(ixNumericalMethod)
-        case(ida);            checkMassBalance = .false. ! IDA gives instantaneous fluxes and were summed for an average flux, but if large time step, then average is not accurate enough to pass the check
+        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances
         case(kinsol, numrec); checkMassBalance = .true.  ! KINSOL or numrec give finite difference dt_sub fluxes and were summed for an average flux
         case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select

@@ -267,12 +267,12 @@ subroutine computJacobWithPrime(&
     dFracLiqSnow_dTk             => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in fraction of liquid snow w.r.t. temperature
     mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk            )%dat     ,& ! intent(in): [dp(:)]  derivative in volumetric liquid water content w.r.t. temperature
     mLayerd2Theta_dTk2           => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2          )%dat     ,& ! intent(in): [dp(:)]  second derivative of volumetric liquid water content w.r.t. temperature
-    ! derivate in bulk heat capacity w.r.t. relevant state variables
-    dVolHtCapBulk_dPsi0          => diag_data%var(iLookDIAG%dVolHtCapBulk_dPsi0           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
-    dVolHtCapBulk_dTheta         => diag_data%var(iLookDIAG%dVolHtCapBulk_dTheta          )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dCanWat        => diag_data%var(iLookDIAG%dVolHtCapBulk_dCanWat         )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
-    dVolHtCapBulk_dTk            => diag_data%var(iLookDIAG%dVolHtCapBulk_dTk             )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy      => diag_data%var(iLookDIAG%dVolHtCapBulk_dTkCanopy       )%dat(1)  ,& ! intent(in): [dp]     derivative in bulk heat capacity w.r.t. temperature
+    ! derivative in bulk heat capacity w.r.t. relevant state variables
+    dVolHtCapBulk_dPsi0          => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0         )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
+    dVolHtCapBulk_dTheta         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta        )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dCanWat        => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat       )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. volumetric water content
+    dVolHtCapBulk_dTk            => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk           )%dat     ,& ! intent(in): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dTkCanopy      => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy     )%dat(1)  ,& ! intent(in): [dp   ]  derivative in bulk heat capacity w.r.t. temperature
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg              )%dat(1)  ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)
@@ -289,9 +289,7 @@ subroutine computJacobWithPrime(&
     err=0; message='computJacobWithPrime/'
 
     ! *********************************************************************************************************************************************************
-    ! *********************************************************************************************************************************************************
     ! * PART 0: PRELIMINARIES (INITIALIZE JACOBIAN AND COMPUTE TIME-VARIABLE DIAGONAL TERMS)
-    ! *********************************************************************************************************************************************************
     ! *********************************************************************************************************************************************************
 
     ! get the number of state variables
@@ -335,11 +333,8 @@ subroutine computJacobWithPrime(&
 
     ! define the form of the matrix
     select case(ixMatrix)
-
-      ! *********************************************************************************************************************************************************
       ! *********************************************************************************************************************************************************
       ! * PART 1: BAND MATRIX
-      ! *********************************************************************************************************************************************************
       ! *********************************************************************************************************************************************************
       case(ixBandMatrix)
         ! check
@@ -626,11 +621,11 @@ subroutine computJacobWithPrime(&
               ! - include derivatives w.r.t. ground evaporation
               if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer, assume here that kl>=4
                 if(computeVegFlux)then
-                  if(ixCasNrg/=integerMissing) aJac(ixOffDiag(watState,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
-                  if(ixVegNrg/=integerMissing) aJac(ixOffDiag(watState,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
-                  if(ixVegHyd/=integerMissing) aJac(ixOffDiag(watState,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  ! dVol/dLiq (kg m-2)-1
+                  if(ixCasNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixCasNrg),ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
+                  if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixOffDiag(ixTopHyd,ixVegNrg),ixVegNrg) ! dVol/dT (K-1)
+                  if(ixVegHyd/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixOffDiag(ixTopHyd,ixVegHyd),ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(watState,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(watState,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
+                if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixOffDiag(ixTopHyd,ixTopNrg),ixTopNrg) ! dVol/dT (K-1)
               endif
 
               ! - only include banded terms for derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration) in banded structure
@@ -686,18 +681,8 @@ subroutine computJacobWithPrime(&
 
         endif   ! (if there are state variables for both water and energy in the soil domain)
 
-        if(globalPrintFlag)then
-          print*, '** banded analytical Jacobian:'
-          write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
-          do iLayer=kl+1,nBands
-            write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
-          end do
-        endif
-
-      ! *********************************************************************************************************************************************************
       ! *********************************************************************************************************************************************************
       ! * PART 2: FULL MATRIX
-      ! *********************************************************************************************************************************************************
       ! *********************************************************************************************************************************************************
       case(ixFullMatrix)
 
@@ -975,11 +960,11 @@ subroutine computJacobWithPrime(&
               ! - include derivatives of energy w.r.t. ground evaporation
               if(nSnow==0 .and. iLayer==1)then  ! upper-most soil layer
                 if(computeVegFlux)then
-                  if(ixCasNrg/=integerMissing) aJac(watState,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
-                  if(ixVegNrg/=integerMissing) aJac(watState,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) ! dVol/dT (K-1)
-                  if(ixVegHyd/=integerMissing) aJac(watState,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  ! dVol/dLiq (kg m-2)-1
+                  if(ixCasNrg/=integerMissing) aJac(ixTopHyd,ixCasNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanair/iden_water) ! dVol/dT (K-1)
+                  if(ixVegNrg/=integerMissing) aJac(ixTopHyd,ixVegNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTCanopy/iden_water) + aJac(ixTopHyd,ixVegNrg) ! dVol/dT (K-1)
+                  if(ixVegHyd/=integerMissing) aJac(ixTopHyd,ixVegHyd) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dCanWat/iden_water)  + aJac(ixTopHyd,ixVegHyd) ! dVol/dLiq (kg m-2)-1
                 endif
-                if(ixTopNrg/=integerMissing) aJac(watState,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(watState,ixTopNrg) ! dVol/dT (K-1)
+                if(ixTopNrg/=integerMissing) aJac(ixTopHyd,ixTopNrg) = (dt/mLayerDepth(jLayer))*(-dGroundEvaporation_dTGround/iden_water) + aJac(ixTopHyd,ixTopNrg) ! dVol/dT (K-1)
               endif
 
               ! - include derivatives of energy and water w.r.t soil transpiration (dependent on canopy transpiration)
@@ -1026,19 +1011,29 @@ subroutine computJacobWithPrime(&
 
         endif   ! (if there are state variables for both water and energy in the soil domain)
 
-        ! print the Jacobian
-        if(globalPrintFlag)then
-          print*, '** analytical Jacobian (full):'
-          write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
-          do iLayer=min(iJac1,nState),min(iJac2,nState)
-            write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
-          end do
-        endif
-
       ! check
       case default; err=20; message=trim(message)//'unable to identify option for the type of matrix'; return
 
     end select  ! type of matrix
+    ! *********************************************************************************************************************************************************
+
+    ! print the Jacobian
+    if(globalPrintFlag)then
+      select case(ixMatrix)
+        case(ixBandMatrix)
+          print*, '** banded analytical Jacobian:'
+          write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+          do iLayer=kl+1,nBands
+            write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJac(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
+          end do
+        case(ixFullMatrix)
+          print*, '** full analytical Jacobian:'
+          write(*,'(a4,1x,100(i12,1x))') 'xCol', (iLayer, iLayer=min(iJac1,nState),min(iJac2,nState))
+          do iLayer=min(iJac1,nState),min(iJac2,nState)
+            write(*,'(i4,1x,100(e12.5,1x))') iLayer, aJac(min(iJac1,nState):min(iJac2,nState),iLayer)
+          end do
+      end select
+    endif
 
     if(any(isNan(aJac)))then
       print *, '******************************* WE FOUND NAN IN JACOBIAN ************************************'

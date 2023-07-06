@@ -71,16 +71,16 @@ contains
 ! **********************************************************************************************************
 subroutine computThermConduct(&
                     ! input: control variables
-                    computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
+                    computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
                     nLayers,                 & ! intent(in):    total number of layers
-                    canopyDepth,             & ! intent(in): canopy depth (m)
+                    canopyDepth,             & ! intent(in):    canopy depth (m)
                     ! input: state variables
-                    scalarCanopyIce,         & ! intent(in): canopy ice content (kg m-2)
-                    scalarCanopyLiquid,      & ! intent(in): canopy liquid water content (kg m-2)
-                    mLayerTemp,              & ! intent(in): temperature at the current iteration (K)
-                    mLayerMatricHead,        & ! intent(in): matric head at the current iteration(m)
-                    mLayerVolFracIce,        & ! intent(in): volumetric fraction of ice at the start of the sub-step (-)
-                    mLayerVolFracLiq,        & ! intent(in): volumetric fraction of liquid water at the start of the sub-step (-)
+                    scalarCanopyIce,         & ! intent(in):    canopy ice content (kg m-2)
+                    scalarCanopyLiquid,      & ! intent(in):    canopy liquid water content (kg m-2)
+                    mLayerTemp,              & ! intent(in):    temperature at the current iteration (K)
+                    mLayerMatricHead,        & ! intent(in):    matric head at the current iteration(m)
+                    mLayerVolFracIce,        & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
+                    mLayerVolFracLiq,        & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
                     ! input: pre-computed derivatives
                     mLayerdTheta_dTk,        & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
                     mLayerFracLiqSnow,       & ! intent(in):    fraction of liquid water (-)
@@ -89,8 +89,13 @@ subroutine computThermConduct(&
                     indx_data,               & ! intent(in):    model layer indices
                     prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                    ! output: derivatives
+                    dThermalC_dWatAbove,     & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dWatBelow,     & ! intent(out):   derivative in the thermal conductivity w.r.t. water state in the layer above
+                    dThermalC_dTempAbove,    & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
+                    dThermalC_dTempBelow,    & ! intent(out):   derivative in the thermal conductivity w.r.t. energy state in the layer above
                     ! output: error control
-                    err,message)               ! intent(out): error control
+                    err,message)               ! intent(out):   error control
 
   ! utility modules
   USE snow_utils_module,only:tcond_snow     ! compute thermal conductivity of snow
@@ -101,102 +106,103 @@ subroutine computThermConduct(&
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
-  logical(lgt),intent(in)              :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
-  integer(i4b),intent(in)              :: nLayers                ! total number of layers in the snow+soil domain
-  real(rkind),intent(in)               :: canopyDepth            ! depth of the vegetation canopy (m)
+  logical(lgt),intent(in)              :: computeVegFlux           ! logical flag to denote if computing the vegetation flux
+  integer(i4b),intent(in)              :: nLayers                  ! total number of layers in the snow+soil domain
+  real(rkind),intent(in)               :: canopyDepth              ! depth of the vegetation canopy (m)
   ! input: trial model state variables
-  real(rkind),intent(in)               :: scalarCanopyIce        ! trial value of canopy ice content (kg m-2)
+  real(rkind),intent(in)               :: scalarCanopyIce          ! trial value of canopy ice content (kg m-2)
   real(rkind),intent(in)               :: scalarCanopyLiquid
-  real(rkind),intent(in)               :: mLayerTemp(:)          ! temperature in each layer at the current iteration (m)
-  real(rkind),intent(in)               :: mLayerMatricHead(:)    ! matric head in each layer at the current iteration (m)
-  real(rkind),intent(in)               :: mLayerVolFracIce(:)    ! volumetric fraction of ice at the current iteration (-)
-  real(rkind),intent(in)               :: mLayerVolFracLiq(:)    ! volumetric fraction of liquid at the current iteration (-)
+  real(rkind),intent(in)               :: mLayerTemp(:)            ! temperature in each layer at the current iteration (m)
+  real(rkind),intent(in)               :: mLayerMatricHead(:)      ! matric head in each layer at the current iteration (m)
+  real(rkind),intent(in)               :: mLayerVolFracIce(:)      ! volumetric fraction of ice at the current iteration (-)
+  real(rkind),intent(in)               :: mLayerVolFracLiq(:)      ! volumetric fraction of liquid at the current iteration (-)
   ! input: pre-computed derivatives
-  real(rkind),intent(in)               :: mLayerdTheta_dTk(:)    ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)               :: mLayerFracLiqSnow(:)   ! fraction of liquid water (-)
+  real(rkind),intent(in)               :: mLayerdTheta_dTk(:)      ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)               :: mLayerFracLiqSnow(:)     ! fraction of liquid water (-)
   ! input/output: data structures
-  type(var_dlength),intent(in)         :: mpar_data              ! model parameters
-  type(var_ilength),intent(in)         :: indx_data              ! model layer indices
-  type(var_dlength),intent(in)         :: prog_data              ! model prognostic variables for a local HRU
-  type(var_dlength),intent(inout)      :: diag_data              ! model diagnostic variables for a local HRU
+  type(var_dlength),intent(in)         :: mpar_data                ! model parameters
+  type(var_ilength),intent(in)         :: indx_data                ! model layer indices
+  type(var_dlength),intent(in)         :: prog_data                ! model prognostic variables for a local HRU
+  type(var_dlength),intent(inout)      :: diag_data                ! model diagnostic variables for a local HRU
+  ! output: derivatives
+  real(rkind),intent(out)              :: dThermalC_dWatAbove(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(out)              :: dThermalC_dWatBelow(0:)  ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind),intent(out)              :: dThermalC_dTempAbove(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind),intent(out)              :: dThermalC_dTempBelow(0:) ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   ! output: error control
-  integer(i4b),intent(out)             :: err                    ! error code
-  character(*),intent(out)             :: message                ! error message
+  integer(i4b),intent(out)             :: err                      ! error code
+  character(*),intent(out)             :: message                  ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
-  character(LEN=256)                   :: cmessage               ! error message of downwind routine
-  integer(i4b)                         :: iLayer                 ! index of model layer
-  integer(i4b)                         :: iSoil                  ! index of soil layer
-  real(rkind)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
-  real(rkind)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
-  real(rkind)                          :: zdn                    ! height difference between interface and lower value (m)
-  real(rkind)                          :: zdp                    ! height difference between interface and upper value (m)
-  real(rkind)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
-  real(rkind)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
-  real(rkind)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
-  real(rkind)                          :: lambda_wet             ! thermal conductivity of the wet material
-  real(rkind)                          :: relativeSat            ! relative saturation (-)
-  real(rkind)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
-  real(rkind)                          :: den                    ! denominator in the thermal conductivity calculations
-  real(rkind)                          :: Tcrit                  ! temperature where all water is unfrozen (K)
-  real(rkind),dimension(nLayers)       :: dThermalC_dWat         ! derivative in thermal conductivity w.r.t. matric head or volumetric liquid water
-  real(rkind),dimension(nLayers)       :: dThermalC_dNrg         ! derivative in thermal conductivity w.r.t. temperature
-  real(rkind)                          :: dlambda_wet_dWat       ! derivative in thermal conductivity of wet material w.r.t.soil water state variable
-  real(rkind)                          :: dlambda_wet_dTk        ! derivative in thermal conductivity of wet material w.r.t. temperature
-  real(rkind)                          :: dkerstenNum_dWat       ! derivative in Kersten number w.r.t. soil water state variable
-  real(rkind)                          :: dVolFracLiq_dWat       ! derivative in vol fraction of liquid w.r.t. water state variable
-  real(rkind)                          :: dVolFracIce_dWat       ! derivative in vol fraction of ice w.r.t. water state variable
-  real(rkind)                          :: dVolFracLiq_dTk        ! derivative in vol fraction of liquid w.r.t. temperature
-  real(rkind)                          :: dVolFracIce_dTk        ! derivative in vol fraction of ice w.r.t. temperature
+  character(LEN=256)                   :: cmessage                 ! error message of downwind routine
+  integer(i4b)                         :: iLayer                   ! index of model layer
+  integer(i4b)                         :: iSoil                    ! index of soil layer
+  real(rkind)                          :: TCn                      ! thermal conductivity below the layer interface (W m-1 K-1)
+  real(rkind)                          :: TCp                      ! thermal conductivity above the layer interface (W m-1 K-1)
+  real(rkind)                          :: zdn                      ! height difference between interface and lower value (m)
+  real(rkind)                          :: zdp                      ! height difference between interface and upper value (m)
+  real(rkind)                          :: bulkden_soil             ! bulk density of soil (kg m-3)
+  real(rkind)                          :: lambda_drysoil           ! thermal conductivity of dry soil (W m-1)
+  real(rkind)                          :: lambda_wetsoil           ! thermal conductivity of wet soil (W m-1)
+  real(rkind)                          :: lambda_wet               ! thermal conductivity of the wet material
+  real(rkind)                          :: relativeSat              ! relative saturation (-)
+  real(rkind)                          :: kerstenNum               ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+  real(rkind)                          :: den                      ! denominator in the thermal conductivity calculations
+  real(rkind)                          :: Tcrit                    ! temperature where all water is unfrozen (K)
+  real(rkind),dimension(nLayers)       :: dThermalC_dWat           ! derivative in thermal conductivity w.r.t. matric head or volumetric liquid water
+  real(rkind),dimension(nLayers)       :: dThermalC_dNrg           ! derivative in thermal conductivity w.r.t. temperature
+  real(rkind)                          :: dlambda_wet_dWat         ! derivative in thermal conductivity of wet material w.r.t.soil water state variable
+  real(rkind)                          :: dlambda_wet_dTk          ! derivative in thermal conductivity of wet material w.r.t. temperature
+  real(rkind)                          :: dkerstenNum_dWat         ! derivative in Kersten number w.r.t. soil water state variable
+  real(rkind)                          :: dVolFracLiq_dWat         ! derivative in vol fraction of liquid w.r.t. water state variable
+  real(rkind)                          :: dVolFracIce_dWat         ! derivative in vol fraction of ice w.r.t. water state variable
+  real(rkind)                          :: dVolFracLiq_dTk          ! derivative in vol fraction of liquid w.r.t. temperature
+  real(rkind)                          :: dVolFracIce_dTk          ! derivative in vol fraction of ice w.r.t. temperature
   ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
-  real(rkind),parameter                :: c1=0.55_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
-  real(rkind),parameter                :: c2=0.8_rkind           ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
-  real(rkind),parameter                :: c3=3.07_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (-)
-  real(rkind),parameter                :: c4=0.13_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
-  real(rkind),parameter                :: c5=4._rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
-  real(rkind),parameter                :: f1=13.05_rkind         ! optimized parameter from Hansson et al. VZJ 2005 (-)
-  real(rkind),parameter                :: f2=1.06_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (-)
-  real(rkind)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
-  real(rkind)                          :: dxArg_dWat,dxArg_dTk   ! derivates of the temporary variables with respect to soil water state variable and temperature
+  real(rkind),parameter                :: c1=0.55_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+  real(rkind),parameter                :: c2=0.8_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+  real(rkind),parameter                :: c3=3.07_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+  real(rkind),parameter                :: c4=0.13_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+  real(rkind),parameter                :: c5=4._rkind              ! optimized parameter from Hansson et al. VZJ 2005 (-)
+  real(rkind),parameter                :: f1=13.05_rkind           ! optimized parameter from Hansson et al. VZJ 2005 (-)
+  real(rkind),parameter                :: f2=1.06_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+  real(rkind)                          :: fArg,xArg                ! temporary variables (see Hansson et al. VZJ 2005 for details)
+  real(rkind)                          :: dxArg_dWat,dxArg_dTk     ! derivates of the temporary variables with respect to soil water state variable and temperature
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! associate variables in data structure
   associate(&
     ! input: model decisions
-    ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision,      & ! intent(in): index of the form of Richards' equation
-    ixThCondSnow            => model_decisions(iLookDECISIONS%thCondSnow)%iDecision,      & ! intent(in): choice of method for thermal conductivity of snow
-    ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in): choice of method for thermal conductivity of soil
+    ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision,      & ! intent(in):  [i4b]   index of the form of Richards' equation
+    ixThCondSnow            => model_decisions(iLookDECISIONS%thCondSnow)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of snow
+    ixThCondSoil            => model_decisions(iLookDECISIONS%thCondSoil)%iDecision,      & ! intent(in):  [i4b]   choice of method for thermal conductivity of soil
     ! input: coordinate variables
-    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in): number of snow layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in): number of soil layers
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in): layer type (iname_soil or iname_snow)
-    mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in): height at the mid-point of each layer (m)
-    iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in): height at the interface of each layer (m)
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),                    & ! intent(in):  [dp]    number of snow layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1),                    & ! intent(in):  [dp]    number of soil layers
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat,                   & ! intent(in):  [dp(:)] layer type (iname_soil or iname_snow)
+    mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the mid-point of each layer (m)
+    iLayerHeight            => prog_data%var(iLookPROG%iLayerHeight)%dat,                 & ! intent(in):  [dp(:)] height at the interface of each layer (m)
     ! input: heat capacity and thermal conductivity
-    specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-    maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
-    fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in): temporally constant thermal conductivity of snow (W m-1 K-1)
+    specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in):  [dp]    specific heat of vegetation (J kg-1 K-1)
+    maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in):  [dp]    maximum mass of vegetation (kg m-2)
+    fixedThermalCond_snow   => mpar_data%var(iLookPARAM%fixedThermalCond_snow)%dat(1),    & ! intent(in):  [dp]    temporally constant thermal conductivity of snow (W m-1 K-1)
     ! input: depth varying soil parameters
-    iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in): intrinsic density of soil (kg m-3)
-    thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in): thermal conductivity of soil (W m-1 K-1)
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in): soil porosity (-)
-    frac_sand               => mpar_data%var(iLookPARAM%frac_sand)%dat,                   & ! intent(in): fraction of sand (-)
-    frac_silt               => mpar_data%var(iLookPARAM%frac_silt)%dat,                   & ! intent(in): fraction of silt (-)
-    frac_clay               => mpar_data%var(iLookPARAM%frac_clay)%dat,                   & ! intent(in): fraction of clay (-)
+    iden_soil               => mpar_data%var(iLookPARAM%soil_dens_intr)%dat,              & ! intent(in):  [dp(:)] intrinsic density of soil (kg m-3)
+    thCond_soil             => mpar_data%var(iLookPARAM%thCond_soil)%dat,                 & ! intent(in):  [dp(:)] thermal conductivity of soil (W m-1 K-1)
+    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                   & ! intent(in):  [dp(:)] soil porosity (-)
+    frac_sand               => mpar_data%var(iLookPARAM%frac_sand)%dat,                   & ! intent(in):  [dp(:)] fraction of sand (-)
+    frac_silt               => mpar_data%var(iLookPARAM%frac_silt)%dat,                   & ! intent(in):  [dp(:)] fraction of silt (-)
+    frac_clay               => mpar_data%var(iLookPARAM%frac_clay)%dat,                   & ! intent(in):  [dp(:)] fraction of clay (-)
     vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat,                  & ! intent(in):  [dp(:)] van Genutchen "m" parameter (-)
     vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                       & ! intent(in):  [dp(:)] van Genutchen "n" parameter (-)
     vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                   & ! intent(in):  [dp(:)] van Genutchen "alpha" parameter (m-1)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                   & ! intent(in):  [dp(:)] soil residual volumetric water content (-)
     ! input: snow parameters
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),            & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
+    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1),            & ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
     ! output: diagnostic variables and derivatives (diagnostic as may be treated as constant)
-    mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the mid-point of each layer (W m-1 K-1)
-    iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): thermal conductivity at the interface of each layer (W m-1 K-1)
-    mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat,             & ! intent(out): volumetric fraction of air in each layer (-)
-    dThermalC_dWatAbove     => diag_data%var(iLookDIAG%dThermalC_dWatAbove)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dWatBelow     => diag_data%var(iLookDIAG%dThermalC_dWatBelow)%dat,          & ! intent(out): derivative in the thermal conductivity w.r.t. water state in the layer above
-    dThermalC_dTempAbove    => diag_data%var(iLookDIAG%dThermalC_dTempAbove)%dat,         & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
-    dThermalC_dTempBelow    => diag_data%var(iLookDIAG%dThermalC_dTempBelow)%dat          & ! intent(out): derivative in the thermal conductivity w.r.t. energy state in the layer above
+    mLayerThermalC          => diag_data%var(iLookDIAG%mLayerThermalC)%dat,               & ! intent(out): [dp(:)] thermal conductivity at the mid-point of each layer (W m-1 K-1)
+    iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,               & ! intent(out): [dp(:)] thermal conductivity at the interface of each layer (W m-1 K-1)
+    mLayerVolFracAir        => diag_data%var(iLookDIAG%mLayerVolFracAir)%dat              & ! intent(out): [dp(:)] volumetric fraction of air in each layer (-)
     )  ! association of local variables with information in the data structures
     ! --------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control

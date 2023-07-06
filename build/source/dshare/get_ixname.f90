@@ -493,16 +493,6 @@ contains
   case('scalarLambda_wetsoil'           ); get_ixdiag = iLookDIAG%scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1)
   case('mLayerThermalC'                 ); get_ixdiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('iLayerThermalC'                 ); get_ixdiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
-  ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
-  case('dVolHtCapBulk_dPsi0'            ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dPsi0              ! derivative in bulk heat capacity w.r.t. matric potential
-  case('dVolHtCapBulk_dTheta'           ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dTheta             ! derivative in bulk heat capacity w.r.t. volumetric water content
-  case('dVolHtCapBulk_dCanWat'          ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dCanWat            ! derivative in bulk heat capacity w.r.t. volumetric water content
-  case('dVolHtCapBulk_dTk'              ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dTk                ! derivative in bulk heat capacity w.r.t. temperature
-  case('dVolHtCapBulk_dTkCanopy'        ); get_ixdiag = iLookDIAG%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
-  case('dThermalC_dTempAbove'           ); get_ixdiag = iLookDIAG%dThermalC_dTempAbove             ! derivative in the thermal conductivity w.r.t. energy state in the layer above
-  case('dThermalC_dTempBelow'           ); get_ixdiag = iLookDIAG%dThermalC_dTempBelow             ! derivative in the thermal conductivity w.r.t. energy state in the layer above
-  case('dThermalC_dWatAbove'            ); get_ixdiag = iLookDIAG%dThermalC_dWatAbove              ! derivative in the thermal conductivity w.r.t. water state in the layer above
-  case('dThermalC_dWatBelow'            ); get_ixdiag = iLookDIAG%dThermalC_dWatBelow              ! derivative in the thermal conductivity w.r.t. water state in the layer above
   ! enthalpy
   case('scalarCanairEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
   case('scalarCanopyEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
@@ -752,7 +742,16 @@ contains
   case('scalarCanopyLiqDeriv'           ); get_ixderiv = iLookDERIV%scalarCanopyLiqDeriv           ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
   case('scalarThroughfallRainDeriv'     ); get_ixderiv = iLookDERIV%scalarThroughfallRainDeriv     ! derivative in throughfall w.r.t. canopy liquid water (s-1)
   case('scalarCanopyLiqDrainageDeriv'   ); get_ixderiv = iLookDERIV%scalarCanopyLiqDrainageDeriv   ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-  ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
+ ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
+  case('dVolHtCapBulk_dPsi0'            ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dPsi0            ! derivative in bulk heat capacity w.r.t. matric potential
+  case('dVolHtCapBulk_dTheta'           ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTheta           ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dCanWat'          ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWat          ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dTk'              ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTk              ! derivative in bulk heat capacity w.r.t. temperature
+  case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
+  case('dThermalC_dTempAbove'           ); get_ixderiv = iLookDERIV%dThermalC_dTempAbove           ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  case('dThermalC_dTempBelow'           ); get_ixderiv = iLookDERIV%dThermalC_dTempBelow           ! derivative in the thermal conductivity w.r.t. energy state in the layer above
+  case('dThermalC_dWatAbove'            ); get_ixderiv = iLookDERIV%dThermalC_dWatAbove            ! derivative in the thermal conductivity w.r.t. water state in the layer above
+  case('dThermalC_dWatBelow'            ); get_ixderiv = iLookDERIV%dThermalC_dWatBelow            ! derivative in the thermal conductivity w.r.t. water state in the layer above
   case('dNrgFlux_dTempAbove'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempAbove            ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   case('dNrgFlux_dTempBelow'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
@@ -868,23 +867,23 @@ contains
   case('ixNrgCanair'          ); get_ixINDEX = iLookINDEX%ixNrgCanair           ! indices IN THE FULL VECTOR for energy states in canopy air space domain (-)
   case('ixNrgCanopy'          ); get_ixINDEX = iLookINDEX%ixNrgCanopy           ! indices IN THE FULL VECTOR for energy states in the canopy domain       (-)
   case('ixHydCanopy'          ); get_ixINDEX = iLookINDEX%ixHydCanopy           ! indices IN THE FULL VECTOR for hydrology states in the canopy domain    (-)
-  case('ixNrgLayer'           ); get_ixINDEX = iLookINDEX%ixNrgLayer            ! indices IN THE FULL VECTOR for energy states in the snow+soil domain     (-)
-  case('ixHydLayer'           ); get_ixINDEX = iLookINDEX%ixHydLayer            ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain  (-)
-  case('ixWatAquifer'         ); get_ixINDEX = iLookINDEX%ixWatAquifer          ! indices IN THE FULL VECTOR for storage of water in the aquifer           (-)
+  case('ixNrgLayer'           ); get_ixINDEX = iLookINDEX%ixNrgLayer            ! indices IN THE FULL VECTOR for energy states in the snow+soil domain    (-)
+  case('ixHydLayer'           ); get_ixINDEX = iLookINDEX%ixHydLayer            ! indices IN THE FULL VECTOR for hydrology states in the snow+soil domain (-)
+  case('ixWatAquifer'         ); get_ixINDEX = iLookINDEX%ixWatAquifer          ! indices IN THE FULL VECTOR for storage of water in the aquifer          (-)
   ! vectors of indices for specific state types IN SPECIFIC SUB-DOMAINS
-  case('ixVolFracWat'         ); get_ixINDEX = iLookINDEX%ixVolFracWat          ! indices IN THE SNOW+SOIL VECTOR for hyd states                           (-)
-  case('ixMatricHead'         ); get_ixINDEX = iLookINDEX%ixMatricHead          ! indices IN THE SOIL VECTOR for hyd states                                (-)
+  case('ixVolFracWat'         ); get_ixINDEX = iLookINDEX%ixVolFracWat          ! indices IN THE SNOW+SOIL VECTOR for hyd states                          (-)
+  case('ixMatricHead'         ); get_ixINDEX = iLookINDEX%ixMatricHead          ! indices IN THE SOIL VECTOR for hyd states                               (-)
   ! indices within state vectors
-  case('ixAllState'           ); get_ixINDEX = iLookINDEX%ixAllState            ! list of indices for all model state variables                            (-)
-  case('ixSoilState'          ); get_ixINDEX = iLookINDEX%ixSoilState           ! list of indices for all soil layers                                      (-)
-  case('ixLayerState'         ); get_ixINDEX = iLookINDEX%ixLayerState          ! list of indices for all model layers                                     (-)
-  case('ixLayerActive'        ); get_ixINDEX = iLookINDEX%ixLayerActive         ! list of indices for all active model layers                              (-)
+  case('ixAllState'           ); get_ixINDEX = iLookINDEX%ixAllState            ! list of indices for all model state variables                           (-)
+  case('ixSoilState'          ); get_ixINDEX = iLookINDEX%ixSoilState           ! list of indices for all soil layers                                     (-)
+  case('ixLayerState'         ); get_ixINDEX = iLookINDEX%ixLayerState          ! list of indices for all model layers                                    (-)
+  case('ixLayerActive'        ); get_ixINDEX = iLookINDEX%ixLayerActive         ! list of indices for all active model layers                             (-)
   ! number of trials
-  case('numberFluxCalc'       ); get_ixINDEX = iLookINDEX%numberFluxCalc        ! number of flux calculations                                              (-)
-  case('numberStateSplit'     ); get_ixINDEX = iLookINDEX%numberStateSplit      ! number of state splitting solutions                                      (-)
-  case('numberDomainSplitNrg' ); get_ixINDEX = iLookINDEX%numberDomainSplitNrg  ! number of domain splitting solutions for energy                          (-)
-  case('numberDomainSplitMass'); get_ixINDEX = iLookINDEX%numberDomainSplitMass ! number of domain splitting solutions for mass                            (-)
-  case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                               (-)
+  case('numberFluxCalc'       ); get_ixINDEX = iLookINDEX%numberFluxCalc        ! number of flux calculations                                             (-)
+  case('numberStateSplit'     ); get_ixINDEX = iLookINDEX%numberStateSplit      ! number of state splitting solutions                                     (-)
+  case('numberDomainSplitNrg' ); get_ixINDEX = iLookINDEX%numberDomainSplitNrg  ! number of domain splitting solutions for energy                         (-)
+  case('numberDomainSplitMass'); get_ixINDEX = iLookINDEX%numberDomainSplitMass ! number of domain splitting solutions for mass                           (-)
+  case('numberScalarSolutions'); get_ixINDEX = iLookINDEX%numberScalarSolutions ! number of scalar solutions                                              (-)
   ! default
   case default
    get_ixindex = integerMissing

@@ -105,7 +105,7 @@ subroutine varSubstep(&
                       iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
                       fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
                       fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
-                      ! input/output: data structures
+                       ! input/output: data structures
                       model_decisions,   & ! intent(in)    : model decisions
                       lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
@@ -252,9 +252,7 @@ subroutine varSubstep(&
     mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(inout): [dp(:)]  matric potential of liquid water (m)
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
-    ! *********************************************************************************************************************************************************
-    ! Procedure starts here
-
+   
     ! initialize error control
     err=0; message='varSubstep/'
 
@@ -416,7 +414,7 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(ida);            checkMassBalance = .false. ! IDA has instantaneous fluxes only so average will not balance over data window
+        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances
         case(kinsol, numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
       end select
 
