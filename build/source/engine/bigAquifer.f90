@@ -20,6 +20,7 @@
 
 module bigAquifer_module
 ! -----------------------------------------------------------------------------------------------------------
+
 ! numerical recipes data types
 USE nrtype
 
@@ -29,13 +30,15 @@ USE globalData,only:realMissing     ! missing real number
 
 ! physical constants
 USE multiconst,only:&
-                    LH_vap,  &      ! latent heat of vaporization   (J kg-1)
-                    iden_water      ! intrinsic density of water    (kg m-3)
+                    LH_vap,  & ! latent heat of vaporization   (J kg-1)
+                    iden_water ! intrinsic density of water    (kg m-3)
+
 ! -----------------------------------------------------------------------------------------------------------
 implicit none
 private
-public :: bigAquifer
+public::bigAquifer
 contains
+
 
  ! ***************************************************************************************************************
  ! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
@@ -56,10 +59,10 @@ contains
                        ! output: error control
                        err,message)                    ! intent(out): error control
  ! named variables
- USE var_lookup,only:iLookDIAG                         ! named variables for structure elements
- USE var_lookup,only:iLookPARAM                        ! named variables for structure elements
+ USE var_lookup,only:iLookDIAG              ! named variables for structure elements
+ USE var_lookup,only:iLookPARAM             ! named variables for structure elements
  ! data types
- USE data_types,only:var_dlength                       ! x%var(:)%dat   (dp)
+ USE data_types,only:var_dlength            ! x%var(:)%dat   (dp)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
  implicit none
  ! input: state variables, fluxes, and parameters
@@ -67,22 +70,23 @@ contains
  real(rkind),intent(in)              :: scalarCanopyTranspiration    ! canopy transpiration (kg m-2 s-1)
  real(rkind),intent(in)              :: scalarSoilDrainage           ! soil drainage (m s-1)
  ! input: diagnostic variables and parameters
- type(var_dlength),intent(in)        :: mpar_data                    ! model parameters
- type(var_dlength),intent(in)        :: diag_data                    ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)     :: mpar_data                    ! model parameters
+ type(var_dlength),intent(in)     :: diag_data                    ! diagnostic variables for a local HRU
  ! output: fluxes
  real(rkind),intent(out)             :: scalarAquiferTranspire       ! transpiration loss from the aquifer (m s-1)
  real(rkind),intent(out)             :: scalarAquiferRecharge        ! recharge to the aquifer (m s-1)
  real(rkind),intent(out)             :: scalarAquiferBaseflow        ! total baseflow from the aquifer (m s-1)
  real(rkind),intent(out)             :: dBaseflow_dAquifer           ! change in baseflow flux w.r.t. aquifer storage (s-1)
  ! output: error control
- integer(i4b),intent(out)            :: err                          ! error code
- character(*),intent(out)            :: message                      ! error message
+ integer(i4b),intent(out)         :: err                          ! error code
+ character(*),intent(out)         :: message                      ! error message
  ! -----------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  real(rkind)                         :: aquiferTranspireFrac         ! fraction of total transpiration that comes from the aquifer (-)
  real(rkind)                         :: xTemp                        ! temporary variable (-)
  ! -------------------------------------------------------------------------------------------------------------------------------------------------
- err=0; message='bigAquifer/' ! initialize error control
+ ! initialize error control
+ err=0; message='bigAquifer/'
 
  ! make association between local variables and the information in the data structures
  associate(&
@@ -94,7 +98,7 @@ contains
  aquiferBaseflowRate    => mpar_data%var(iLookPARAM%aquiferBaseflowRate)%dat(1),   & ! intent(in): [dp] tbaseflow rate when aquiferStorage = aquiferScaleFactor (m s-1)
  aquiferScaleFactor     => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1),    & ! intent(in): [dp] scaling factor for aquifer storage in the big bucket (m)
  aquiferBaseflowExp     => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1)     & ! intent(in): [dp] baseflow exponent (-)
- )  ! end associating local variables with the information in the data structures
+ )  ! associating local variables with the information in the data structures
 
  ! compute aquifer transpiration (m s-1)
  aquiferTranspireFrac   = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim   ! fraction of total transpiration that comes from the aquifer (-)
@@ -110,8 +114,14 @@ contains
  ! compute the derivative in the net aquifer flux
  dBaseflow_dAquifer    = -(aquiferBaseflowExp*aquiferBaseflowRate*(xTemp**(aquiferBaseflowExp - 1._rkind)))/aquiferScaleFactor
 
- end associate ! end association to data in structures
+ ! end association to data in structures
+ end associate
 
  end subroutine bigAquifer
+
+
+ ! *******************************************************************************************************************************************************************************
+ ! *******************************************************************************************************************************************************************************
+
 
 end module bigAquifer_module
