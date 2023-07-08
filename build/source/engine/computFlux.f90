@@ -612,12 +612,12 @@ contains
 
   ! define forcing for the soil domain for the case of no snow layers
   ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
-  if(nSnow==0)then
+  if (nSnow==0) then
+   scalarSnowDrainage = drainageMeltPond/iden_water ! melt of the snow without a layer (m s-1)
    scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
-                         + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
-  endif  ! if no snow layers
-
- endif
+                         + scalarSnowDrainage
+  end if  ! if no snow layers
+ end if
 
  ! *****
  ! * CALCULATE THE LIQUID FLUX THROUGH SOIL...
@@ -795,7 +795,7 @@ contains
                    err,cmessage)                   ! intent(out): error control
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! compute total runoff (overwrite previously calculated value before considering aquifer).  
+   ! compute total runoff (overwrite previously calculated value before considering aquifer).
    !   (Note:  SoilDrainage goes into aquifer, not runoff)
    scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
 
