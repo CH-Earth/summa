@@ -732,12 +732,10 @@ subroutine read_output_file(err,message)
   ! to get name of output control file from user
   USE summaFileManager,only:SETTINGS_PATH       ! path for metadata files
   USE summaFileManager,only:OUTPUT_CONTROL      ! file with output controls
-
   ! some dimensional parameters
   USE globalData, only:outFreq                  ! output frequencies
   USE var_lookup, only:maxvarFreq               ! maximum # of output files
   USE var_lookup, only:maxvarStat               ! maximum # of statistics
-
   ! metadata structures
   USE globalData, only: time_meta               ! data structure for time metadata
   USE globalData, only: forc_meta               ! data structure for forcing metadata
@@ -753,7 +751,6 @@ subroutine read_output_file(err,message)
   USE globalData, only: deriv_meta              ! data structure for local flux derivatives
   USE globalData, only: outputPrecision         ! data structure for output precision
   USE globalData, only: outputCompressionLevel  ! data structure for output netcdf deflate level
-
   ! structures of named variables
   USE var_lookup, only: iLookTYPE               ! named variables for categorical data
   USE var_lookup, only: iLookID                 ! named variables for hru and gru ID metadata
@@ -761,13 +758,11 @@ subroutine read_output_file(err,message)
   USE var_lookup, only: iLookINDEX              ! named variables for index variable data structure
   USE var_lookup, only: iLookSTAT               ! named variables for statitics variable data structure
   USE var_lookup, only: iLookFREQ               ! named variables for model output frequencies
-
   ! identify indices within structures
   USE get_ixName_module,only:get_ixUnknown      ! identify index in any structure
   USE get_ixname_module,only:get_ixFreq         ! identify index of model output frequency
   USE get_ixname_module,only:get_ixStat         ! identify index in ststistics structure
   USE get_ixname_module,only:get_statName       ! identify statistics name from the index
-
   ! modules to read ASCII data
   USE ascii_util_module,only:file_open          ! open file
   USE ascii_util_module,only:linewidth          ! match character number for one line
@@ -778,22 +773,18 @@ subroutine read_output_file(err,message)
   ! dummy variables
   integer(i4b),intent(out)             :: err          ! error code
   character(*),intent(out)             :: message      ! error message
-
   ! define file format
   integer(i4b),parameter               :: noStatsDesired=1001   ! no statistic desired (temporally constant variables)
   integer(i4b),parameter               :: provideStatName=1002  ! provide the name of the desired statistic
   integer(i4b),parameter               :: provideStatFlags=1003 ! provide flags defining the desired statistic
   integer(i4b)                         :: fileFormat   ! the file format
-
   ! define statistics flags
   logical(lgt),dimension(maxvarStat)   :: statFlag     ! vector of statistics flags
   character(len=32)                    :: statName     ! name of desired statistic
   integer(i4b)                         :: iStat        ! index of statistics vector
-
   ! define frequency of model output
   character(len=64)                    :: freqName     ! name of desired output frequency
   integer(i4b)                         :: iFreq        ! index of frequency vector
-
   ! general local variables
   character(LEN=256)                   :: cmessage     ! error message of downwind routine
   character(LEN=256)                   :: outfile      ! full path of model output file

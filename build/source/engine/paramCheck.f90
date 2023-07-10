@@ -49,9 +49,9 @@ contains
  character(*),intent(out)        :: message              ! error message
  ! local variables
  integer(i4b)                    :: iLayer               ! index of model layers
- real(rkind),dimension(5)           :: zminLayer            ! minimum layer depth in each layer (m)
- real(rkind),dimension(4)           :: zmaxLayer_lower      ! lower value of maximum layer depth
- real(rkind),dimension(4)           :: zmaxLayer_upper      ! upper value of maximum layer depth
+ real(rkind),dimension(5)        :: zminLayer            ! minimum layer depth in each layer (m)
+ real(rkind),dimension(4)        :: zmaxLayer_lower      ! lower value of maximum layer depth
+ real(rkind),dimension(4)        :: zmaxLayer_upper      ! upper value of maximum layer depth
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -109,7 +109,6 @@ contains
  ! *****
  ! * check soil parameter dependencies...
  ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacit < theta_sat
- ! k_macropore < k_soil
  ! *********************************
 
  ! associations
@@ -118,14 +117,12 @@ contains
  heightCanopyTop        => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),   & ! intent(in): [dp] height at the top of the vegetation canopy (m)
  heightCanopyBottom     => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),& ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
  ! transpiration
- critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),   & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
- critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1), & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
+ critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting)%dat,      & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
+ critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire)%dat,    & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
  ! soil properties
  fieldCapacity          => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in): [dp]    field capacity (-)
  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp(:)] soil porosity (-)
- theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat,            & ! intent(in): [dp(:)] soil residual volumetric water content (-)
- k_soil                 => mpar_data%var(iLookPARAM%k_soil)%dat,               & ! intent(in): [dp(:)] saturated hydraulic conductivity at the compacted depth (m s-1)
- k_macropore            => mpar_data%var(iLookPARAM%k_macropore)%dat           & ! intent(in): [dp(:)] saturated hydraulic conductivity at the compacted depth for macropores (m s-1)
+ theta_res              => mpar_data%var(iLookPARAM%theta_res)%dat             & ! intent(in): [dp(:)] soil residual volumetric water content (-)
  ) ! associations to parameters
 
  ! check canopy geometry
@@ -165,7 +162,7 @@ contains
  end if
 
  ! check transpiration
- if(critSoilTranspire < critSoilWilting)then
+ if( any(critSoilTranspire < critSoilWilting) )then
   write(message,'(a,i0,a)') trim(message)//'critical point for transpiration is less than the wilting point'
   err=20; return
  endif
@@ -175,14 +172,6 @@ contains
   print*, 'theta_res     = ', theta_res
   print*, 'theta_sat     = ', theta_sat
   write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
-  err=20; return
- endif
-
- ! - check macropore and micropore conductivity
- if( any(k_macropore < k_soil) )then
-  print*, 'k_macropore = ', k_macropore
-  print*, 'k_soil      = ', k_soil
-  write(message,'(a,i0,a)') trim(message)//"hydraulic conductivity for macropores is less than the hydraulic conductivity for micropores"
   err=20; return
  endif
 

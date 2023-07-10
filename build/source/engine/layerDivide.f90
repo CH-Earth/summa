@@ -82,57 +82,57 @@ contains
  ! ***********************************************************************************************************
  subroutine layerDivide(&
                         ! input/output: model data structures
-                        model_decisions,             & ! intent(in):    model decisions
-                        mpar_data,                   & ! intent(in):    model parameters
-                        indx_data,                   & ! intent(inout): type of each layer
-                        prog_data,                   & ! intent(inout): model prognostic variables for a local HRU
-                        diag_data,                   & ! intent(inout): model diagnostic variables for a local HRU
-                        flux_data,                   & ! intent(inout): model fluxes for a local HRU
+                        model_decisions,                 & ! intent(in):    model decisions
+                        mpar_data,                       & ! intent(in):    model parameters
+                        indx_data,                       & ! intent(inout): type of each layer
+                        prog_data,                       & ! intent(inout): model prognostic variables for a local HRU
+                        diag_data,                       & ! intent(inout): model diagnostic variables for a local HRU
+                        flux_data,                       & ! intent(inout): model fluxes for a local HRU
                         ! output
-                        divideLayer,                 & ! intent(out): flag to denote that a layer was divided
-                        err,message)                   ! intent(out): error control
+                        divideLayer,                     & ! intent(out): flag to denote that a layer was divided
+                        err,message)                       ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------
  ! computational modules
- USE snow_utils_module,only:fracliquid,templiquid              ! functions to compute temperature/liquid water
- USE globalData,only:maxSnowLayers, &    ! maximum number of snow layers
+ USE snow_utils_module,only:fracliquid,templiquid          ! functions to compute temperature/liquid water
+ USE globalData,only:maxSnowLayers, &                      ! maximum number of snow layers
                      veryBig
  implicit none
  ! --------------------------------------------------------------------------------------------------------
  ! input/output: model data structures
- type(model_options),intent(in)  :: model_decisions(:)  ! model decisions
- type(var_dlength),intent(in)    :: mpar_data           ! model parameters
- type(var_ilength),intent(inout) :: indx_data           ! type of each layer
- type(var_dlength),intent(inout) :: prog_data           ! model prognostic variables for a local HRU
- type(var_dlength),intent(inout) :: diag_data           ! model diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data           ! model flux variables
+ type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
+ type(var_dlength),intent(in)    :: mpar_data              ! model parameters
+ type(var_ilength),intent(inout) :: indx_data              ! type of each layer
+ type(var_dlength),intent(inout) :: prog_data              ! model prognostic variables for a local HRU
+ type(var_dlength),intent(inout) :: diag_data              ! model diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data              ! model flux variables
  ! output
- logical(lgt),intent(out)        :: divideLayer         ! flag to denote that a layer was divided
- integer(i4b),intent(out)        :: err                 ! error code
- character(*),intent(out)        :: message             ! error message
+ logical(lgt),intent(out)        :: divideLayer            ! flag to denote that a layer was divided
+ integer(i4b),intent(out)        :: err                    ! error code
+ character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------
  ! define local variables
- character(LEN=256)              :: cmessage            ! error message of downwind routine
- integer(i4b)                    :: nSnow               ! number of snow layers
- integer(i4b)                    :: nSoil               ! number of soil layers
- integer(i4b)                    :: nLayers             ! total number of layers
- integer(i4b)                    :: iLayer              ! layer index
- integer(i4b)                    :: jLayer              ! layer index
- real(rkind),dimension(4)           :: zmax_lower          ! lower value of maximum layer depth
- real(rkind),dimension(4)           :: zmax_upper          ! upper value of maximum layer depth
- real(rkind)                        :: zmaxCheck           ! value of zmax for a given snow layer
- integer(i4b)                    :: nCheck              ! number of layers to check to divide
- logical(lgt)                    :: createLayer         ! flag to indicate we are creating a new snow layer
- real(rkind)                        :: depthOriginal       ! original layer depth before sub-division (m)
- real(rkind),parameter              :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
- real(rkind)                        :: surfaceLayerSoilTemp  ! temperature of the top soil layer (K)
- real(rkind)                        :: maxFrozenSnowTemp   ! maximum temperature when effectively all water is frozen (K)
- real(rkind),parameter              :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
- real(rkind)                        :: volFracWater        ! volumetric fraction of total water, liquid and ice (-)
- real(rkind)                        :: fracLiq             ! fraction of liquid water (-)
- integer(i4b),parameter          :: ixVisible=1         ! named variable to define index in array of visible part of the spectrum
- integer(i4b),parameter          :: ixNearIR=2          ! named variable to define index in array of near IR part of the spectrum
- real(rkind),parameter              :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
+ character(LEN=256)              :: cmessage               ! error message of downwind routine
+ integer(i4b)                    :: nSnow                  ! number of snow layers
+ integer(i4b)                    :: nSoil                  ! number of soil layers
+ integer(i4b)                    :: nLayers                ! total number of layers
+ integer(i4b)                    :: iLayer                 ! layer index
+ integer(i4b)                    :: jLayer                 ! layer index
+ real(rkind),dimension(4)        :: zmax_lower             ! lower value of maximum layer depth
+ real(rkind),dimension(4)        :: zmax_upper             ! upper value of maximum layer depth
+ real(rkind)                     :: zmaxCheck              ! value of zmax for a given snow layer
+ integer(i4b)                    :: nCheck                 ! number of layers to check to divide
+ logical(lgt)                    :: createLayer            ! flag to indicate we are creating a new snow layer
+ real(rkind)                     :: depthOriginal          ! original layer depth before sub-division (m)
+ real(rkind),parameter           :: fracTop=0.5_rkind      ! fraction of old layer used for the top layer
+ real(rkind)                     :: surfaceLayerSoilTemp   ! temperature of the top soil layer (K)
+ real(rkind)                     :: maxFrozenSnowTemp      ! maximum temperature when effectively all water is frozen (K)
+ real(rkind),parameter           :: unfrozenLiq=0.01_rkind ! unfrozen liquid water used to compute maxFrozenSnowTemp (-)
+ real(rkind)                     :: volFracWater           ! volumetric fraction of total water, liquid and ice (-)
+ real(rkind)                     :: fracLiq                ! fraction of liquid water (-)
+ integer(i4b),parameter          :: ixVisible=1            ! named variable to define index in array of visible part of the spectrum
+ integer(i4b),parameter          :: ixNearIR=2             ! named variable to define index in array of near IR part of the spectrum
+ real(rkind),parameter           :: verySmall=1.e-10_rkind ! a very small number (used for error checking)
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="layerDivide/"
@@ -149,6 +149,7 @@ contains
  newSnowDenScal         => mpar_data%var(iLookPARAM%newSnowDenScal)%dat(1),      & ! scaling factor for new snow density (K)
  ! model parameters (control the depth of snow layers)
  zmax                   => mpar_data%var(iLookPARAM%zmax)%dat(1),                & ! maximum layer depth (m)
+ zminLayer1             => mpar_data%var(iLookPARAM%zminLayer1)%dat(1),          & ! minimum layer depth for the 1st (top) layer (m)
  zmaxLayer1_lower       => mpar_data%var(iLookPARAM%zmaxLayer1_lower)%dat(1),    & ! maximum layer depth for the 1st (top) layer when only 1 layer (m)
  zmaxLayer2_lower       => mpar_data%var(iLookPARAM%zmaxLayer2_lower)%dat(1),    & ! maximum layer depth for the 2nd layer when only 2 layers (m)
  zmaxLayer3_lower       => mpar_data%var(iLookPARAM%zmaxLayer3_lower)%dat(1),    & ! maximum layer depth for the 3rd layer when only 3 layers (m)
@@ -184,7 +185,7 @@ contains
   ! check if create the first snow layer
   select case(ix_snowLayers)
    case(sameRulesAllLayers);    createLayer = (scalarSnowDepth > zmax)
-   case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > zmaxLayer1_lower)
+   case(rulesDependLayerIndex); createLayer = (scalarSnowDepth > (zminLayer1 + zmaxLayer1_lower)/2._rkind) ! Initialize the first layer if we're halfway between the minimum and maximum depth for this layer. This gives some room for the layer to change depth in either direction and avoids excessive layer creation/deletion
    case default; err=20; message=trim(message)//'unable to identify option to combine/sub-divide snow layers'; return
   end select ! (option to combine/sub-divide snow layers)
 
@@ -367,31 +368,31 @@ contains
  ! private subroutine addModelLayer: add an additional layer to all model vectors
  ! ************************************************************************************************
  subroutine addModelLayer(dataStruct,metaStruct,ix_divide,nSnow,nLayers,err,message)
- USE var_lookup,only:iLookVarType                  ! look up structure for variable typed
- USE get_ixName_module,only:get_varTypeName        ! to access type strings for error messages
- USE f2008funcs_module,only:cloneStruc             ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
- USE data_types,only:var_ilength,var_dlength       ! data vectors with variable length dimension
- USE data_types,only:var_info                      ! metadata structure
+ USE var_lookup,only:iLookVarType                     ! look up structure for variable typed
+ USE get_ixName_module,only:get_varTypeName           ! to access type strings for error messages
+ USE f2008funcs_module,only:cloneStruc                ! used to "clone" data structures -- temporary replacement of the intrinsic allocate(a, source=b)
+ USE data_types,only:var_ilength,var_dlength          ! data vectors with variable length dimension
+ USE data_types,only:var_info                         ! metadata structure
  implicit none
  ! ---------------------------------------------------------------------------------------------
  ! input/output: data structures
- class(*),intent(inout)          :: dataStruct     ! data structure
- type(var_info),intent(in)       :: metaStruct(:)  ! metadata structure
+ class(*),intent(inout)          :: dataStruct        ! data structure
+ type(var_info),intent(in)       :: metaStruct(:)     ! metadata structure
  ! input: snow layer indices
- integer(i4b),intent(in)         :: ix_divide      ! index of the layer to divide
- integer(i4b),intent(in)         :: nSnow,nLayers  ! number of snow layers, total number of layers
+ integer(i4b),intent(in)         :: ix_divide         ! index of the layer to divide
+ integer(i4b),intent(in)         :: nSnow,nLayers     ! number of snow layers, total number of layers
  ! output: error control
- integer(i4b),intent(out)        :: err            ! error code
- character(*),intent(out)        :: message        ! error message
+ integer(i4b),intent(out)        :: err               ! error code
+ character(*),intent(out)        :: message           ! error message
  ! ---------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: ivar           ! index of model variable
- integer(i4b)                    :: ix_lower       ! lower bound of the vector
- integer(i4b)                    :: ix_upper       ! upper bound of the vector
- logical(lgt)                    :: stateVariable  ! .true. if variable is a state variable
- real(rkind),allocatable            :: tempVec_rkind(:)  ! temporary vector (double precision)
- integer(i4b),allocatable        :: tempVec_i4b(:) ! temporary vector (integer)
- character(LEN=256)              :: cmessage       ! error message of downwind routine
+ integer(i4b)                    :: ivar              ! index of model variable
+ integer(i4b)                    :: ix_lower          ! lower bound of the vector
+ integer(i4b)                    :: ix_upper          ! upper bound of the vector
+ logical(lgt)                    :: stateVariable     ! .true. if variable is a state variable
+ real(rkind),allocatable         :: tempVec_rkind(:)  ! temporary vector (double precision)
+ integer(i4b),allocatable        :: tempVec_i4b(:)    ! temporary vector (integer)
+ character(LEN=256)              :: cmessage          ! error message of downwind routine
  ! ---------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='addModelLayer/'
