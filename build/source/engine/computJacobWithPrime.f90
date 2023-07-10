@@ -377,7 +377,7 @@ subroutine computJacobWithPrime(&
 
           ! * energy fluxes with the canopy air space (J m-3 K-1)
           if(ixCasNrg/=integerMissing)then
-            aJac(ixDiag, ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg) * cj
+                                         aJac(ixDiag,                      ixCasNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanairTemp) + dMat(ixCasNrg) * cj
             if(ixVegNrg/=integerMissing) aJac(ixOffDiag(ixCasNrg,ixVegNrg),ixVegNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dCanopyTemp)
             if(ixTopNrg/=integerMissing) aJac(ixOffDiag(ixCasNrg,ixTopNrg),ixTopNrg) = (dt/canopyDepth)*(-dCanairNetFlux_dGroundTemp)
           endif
