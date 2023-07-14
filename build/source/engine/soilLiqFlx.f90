@@ -335,14 +335,13 @@ subroutine soilLiqFlx(&
 
     ! check the need to compute transpiration (NOTE: intent=inout)
     if( .not. (scalarSolution .and. ixTop>1) )then
-
+      
       ! compute the fraction of transpiration loss from each soil layer
       if(scalarTranspireLim > tiny(scalarTranspireLim))then ! (transpiration may be non-zero even if the soil moisture limiting factor is zero)
         mLayerTranspireFrac(:) = mLayerRootDensity(:)*mLayerTranspireLim(:)/scalarTranspireLim
       else ! (possible for there to be non-zero conductance and therefore transpiration in this case)
         mLayerTranspireFrac(:) = mLayerRootDensity(:) / sum(mLayerRootDensity)
       end if
-
       ! check fractions sum to one
       if(abs(sum(mLayerTranspireFrac) - 1._rkind) > verySmall)then
         message=trim(message)//'fraction transpiration in soil layers does not sum to one'

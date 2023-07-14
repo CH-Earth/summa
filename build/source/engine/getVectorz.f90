@@ -353,7 +353,6 @@ subroutine getScaling(&
 
     ! define the multiplier for the state vector for residual calculations (vegetation canopy)
     ! NOTE: Use the "where" statement to generalize to multiple canopy layers (currently one canopy layer)
-
     where(ixStateType_subset==iname_nrgCanair) sMul = Cp_air*iden_air   ! volumetric heat capacity of air (J m-3 K-1)
     where(ixStateType_subset==iname_nrgCanopy) sMul = volHeatCapVeg     ! volumetric heat capacity of the vegetation (J m-3 K-1)
     where(ixStateType_subset==iname_watCanopy) sMul = 1._rkind          ! nothing else on the left hand side
