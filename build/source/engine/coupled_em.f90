@@ -306,9 +306,10 @@ contains
  call allocLocal(averageFlux_meta(:)%var_info,flux_mean,nSnow,nSoil,err,cmessage)
  if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
- ! initialize compression and surface melt pond
+ ! initialize compression, surface melt pond, and effective Rainfall
  sfcMeltPond       = 0._rkind  ! change in storage associated with the surface melt pond (kg m-2)
  totalSoilCompress = 0._rkind  ! change in soil storage associated with compression of the matrix (kg m-2)
+ effRainfall       = 0._rkind ! mean total effective rainfall over snow
 
  ! initialize mean fluxes
  do iVar=1,size(averageFlux_meta)
@@ -926,6 +927,9 @@ contains
   ! increment soil compression (kg m-2)
   totalSoilCompress = totalSoilCompress + diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) ! total soil compression over whole layer (kg m-2)
 
+  ! increment effective rainfall
+  if (nSnow>0) effRainfall = effRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
+
   ! ****************************************************************************************************
   ! *** END MAIN SOLVER ********************************************************************************
   ! ****************************************************************************************************
@@ -1116,7 +1120,7 @@ contains
  ! check SWE
  if(nSnow>0)then
   effSnowfall = averageThroughfallSnow + averageCanopySnowUnloading
-  effRainfall = averageThroughfallRain + averageCanopyLiqDrainage
+  ! effRainfall is averageThroughfallRain + averageCanopyLiqDrainage only over snow
   newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
   delSWE      = newSWE - (oldSWE - sfcMeltPond)
   massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
