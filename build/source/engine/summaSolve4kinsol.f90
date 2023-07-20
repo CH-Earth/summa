@@ -83,9 +83,9 @@ USE mDecisions_module,only:       &
 contains
 
 
-!-------------------
+! ***************************************************************************************
 ! * public subroutine summaSolve4kinsol: solve F(y) = 0 by KINSOL (y is the state vector)
-! ------------------
+! ***************************************************************************************
 subroutine summaSolve4kinsol(&
                       dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
@@ -204,7 +204,7 @@ subroutine summaSolve4kinsol(&
   real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   character(LEN=256)                :: cmessage             ! error message of downwind routine
-  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, default false
+  logical(lgt)                      :: use_fdJac            ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
  ! -----------------------------------------------------------------------------------------------------
 
@@ -427,9 +427,9 @@ subroutine setInitialCondition(neq, y, sunvec_u)
 
 end subroutine setInitialCondition
 
-! ----------------------------------------------------------------
+! -------------------------------------------------------------------
 ! setSolverParams: private routine to set parameters in KINSOL solver
-! ----------------------------------------------------------------
+! -------------------------------------------------------------------
 subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
 
   !======= Inclusions ===========

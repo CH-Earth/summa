@@ -86,9 +86,9 @@ USE mDecisions_module,only:       &
 contains
 
 
-!-------------------
+! ************************************************************************************
 ! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
-! ------------------
+! ************************************************************************************
 subroutine summaSolve4ida(                         &
                       dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
@@ -230,7 +230,7 @@ subroutine summaSolve4ida(                         &
   character(LEN=256)                :: cmessage             ! error message of downwind routine
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
-  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, default false
+  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
   logical(lgt),parameter            :: detect_events = .true.       ! flag to do event detection and restarting, default true
 
