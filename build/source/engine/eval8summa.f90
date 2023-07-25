@@ -848,9 +848,9 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
   integer(i4b)                             :: iLayer                     ! index of model layer
   ! choice of constraints to impose
   logical(lgt),parameter                   :: small_delTemp=.false.      ! flag to constain temperature change to be less than zMaxTempIncrement
-  logical(lgt),parameter                   :: detect_events=.false.       ! flag to do freezing point event detection and cross-over with epsT
+  logical(lgt),parameter                   :: detect_events=.true.       ! flag to do freezing point event detection and cross-over with epsT
   logical(lgt),parameter                   :: positive_wat=.false.       ! flag to force water to not go negative
-  real(qp),dimension(nState) :: junk
+  
   ! -----------------------------------------------------------------------------------------------------
   ! associate variables with indices of model state variables
   associate(&
