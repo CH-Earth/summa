@@ -686,10 +686,6 @@ contains
   ! check convergence
   converged = checkConv(resVecNew,xInc,stateVecNew)
 
-  !write(*,'(a,1x,2(L1,1x),5(e20.8,1x))') 'bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc = ', &
-  !                                        bracketsDefined, doBisection, xMin, xMax, stateVecTrial, stateVecNew, xInc
-  !print*, 'PAUSE'; read(*,*)
-
   end subroutine safeRootfinder
 
   ! *********************************************************************************************************
@@ -742,10 +738,6 @@ contains
    else
     xMax = stateVecNew(1)
    endif
-
-   ! print progress
-   !print*, 'xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement = ', &
-   !         xMin, xMax, stateVecTrial, stateVecNew, resVecNew, xIncrement
 
    ! check that the brackets are defined
    if( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) ) exit
@@ -1362,8 +1354,6 @@ contains
   end subroutine imposeConstraints
 
  end subroutine summaSolve4numrec
-
-
 
 
 end module summaSolve4numrec_module

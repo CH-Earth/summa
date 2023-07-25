@@ -140,6 +140,7 @@ subroutine summaSolve4kinsol(&
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
   USE eval8summa_module,only:eval8summa           ! residual of DAE
   USE computJacob_module,only:computJacob4kinsol  ! system Jacobian
+  USE var_lookup,only:maxvarDecisions             ! maximum number of decisions
    
   !======= Declarations =========
   implicit none
@@ -234,7 +235,6 @@ subroutine summaSolve4kinsol(&
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
-  eqns_data%model_decisions         = model_decisions
   eqns_data%deriv_data              = deriv_data
   eqns_data%lookup_data             = lookup_data
   eqns_data%type_data               = type_data
@@ -248,12 +248,15 @@ subroutine summaSolve4kinsol(&
   eqns_data%flux_data               = flux_data
   eqns_data%deriv_data              = deriv_data
   eqns_data%ixSaturation            = ixSaturation
+  eqns_data%firstStateIteration     = .true.
 
   ! allocate space and fill
+  allocate( eqns_data%model_decisions(maxvarDecisions) ); eqns_data%model_decisions = model_decisions
   allocate( eqns_data%fScale(nState) ); eqns_data%fScale = fScale
   allocate( eqns_data%xScale(nState) ); eqns_data%xScale = xScale
   allocate( eqns_data%sMul(nState) );   eqns_data%sMul   = sMul
   allocate( eqns_data%dMat(nState) );   eqns_data%dMat   = dMat
+  allocate( eqns_data%stateVecPrev(nState) ); eqns_data%stateVecPrev = stateVecInit  
 
   ! allocate space for other variables
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel)then
@@ -338,8 +341,8 @@ subroutine summaSolve4kinsol(&
 
   !****************************** Main Solver **********************************************
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
-  retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
-  !retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
+  !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
 
   if( retvalr < 0 )then
     kinsolSucceeds = .false.
@@ -383,6 +386,7 @@ subroutine summaSolve4kinsol(&
   deallocate( eqns_data%xScale )
   deallocate( eqns_data%sMul )
   deallocate( eqns_data%dMat )
+  deallocate( eqns_data%stateVecPrev )
   deallocate( eqns_data%dBaseflow_dMatric )
   deallocate( eqns_data%fluxVec )
   deallocate( eqns_data%resSink )

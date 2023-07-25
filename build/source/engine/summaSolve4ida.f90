@@ -149,6 +149,7 @@ subroutine summaSolve4ida(                         &
   USE eval8summaWithPrime_module,only:eval8summaWithPrime ! residual of DAE
   USE computJacobWithPrime_module,only:computJacob4ida    ! system Jacobian
   USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
+  USE var_lookup,only:maxvarDecisions             ! maximum number of decisions
 
   !======= Declarations =========
   implicit none
@@ -259,7 +260,6 @@ subroutine summaSolve4ida(                         &
   eqns_data%firstSubStep            = firstSubStep
   eqns_data%computeVegFlux          = computeVegFlux
   eqns_data%scalarSolution          = scalarSolution
-  eqns_data%model_decisions         = model_decisions
   eqns_data%lookup_data             = lookup_data
   eqns_data%type_data               = type_data
   eqns_data%attr_data               = attr_data
@@ -274,6 +274,7 @@ subroutine summaSolve4ida(                         &
   eqns_data%ixSaturation            = ixSaturation
 
   ! allocate space and fill
+  allocate( eqns_data%model_decisions(maxvarDecisions) ); eqns_data%model_decisions = model_decisions
   allocate( eqns_data%atol(nState) ); eqns_data%atol = atol
   allocate( eqns_data%rtol(nState) ); eqns_data%rtol = rtol
   allocate( eqns_data%sMul(nState) ); eqns_data%sMul = sMul

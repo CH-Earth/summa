@@ -767,18 +767,18 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   implicit none
 
   ! calling variables
-  real(rkind), value          :: tres      ! current time         t
-  type(N_Vector)              :: sunvec_y  ! solution N_Vector    y
-  type(N_Vector)              :: sunvec_yp ! derivative N_Vector  y'
-  type(N_Vector)              :: sunvec_r  ! residual N_Vector    F(t,y,y')
-  type(c_ptr), value          :: user_data ! user-defined data
+  real(rkind), value          :: tres             ! current time         t
+  type(N_Vector)              :: sunvec_y         ! solution N_Vector    y
+  type(N_Vector)              :: sunvec_yp        ! derivative N_Vector  y'
+  type(N_Vector)              :: sunvec_r         ! residual N_Vector    F(t,y,y')
+  type(c_ptr), value          :: user_data        ! user-defined data
 
   ! pointers to data in SUNDIALS vectors
-  type(data4ida), pointer     :: eqns_data ! equations data
-  real(rkind), pointer        :: stateVec(:)
-  real(rkind), pointer        :: stateVecPrime(:)
-  real(rkind), pointer        :: rVec(:)
-  logical(lgt)                :: feasible
+  type(data4ida), pointer     :: eqns_data        ! equations data
+  real(rkind), pointer        :: stateVec(:)      ! solution vector
+  real(rkind), pointer        :: stateVecPrime(:) ! derivative vector
+  real(rkind), pointer        :: rVec(:)          ! residual vector
+  logical(lgt)                :: feasible         ! feasibility of state vector
   !======= Internals ============
 
   ! get equations data from user-defined data

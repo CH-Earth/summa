@@ -78,7 +78,7 @@ type data4ida
   real(rkind), allocatable        :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer
   integer(i4b)                    :: err                          ! error code
-  character(len = 50)             :: message                      ! error message
+  character(len=50)               :: message                      ! error message
 end type data4ida
 
 
