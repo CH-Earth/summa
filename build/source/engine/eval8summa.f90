@@ -839,7 +839,7 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
   real(rkind)                              :: TcSoil                     ! critical point when soil begins to freeze (K)
   real(rkind)                              :: critDiff                   ! temperature difference from critical (K)
-  real(rkind),parameter                    :: epsT=1.e-7_rkind           ! small interval above/below critical (K)
+  real(rkind),parameter                    :: epsT=1.e-3_rkind           ! small interval above/below critical (K)
   real(rkind),parameter                    :: zMaxTempIncrement=1._rkind ! maximum temperature increment (K)
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
