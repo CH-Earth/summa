@@ -4,4 +4,4 @@
 # run script from the actor-framework directory with ./build_cmake 
 
 setenv CXX "g++"
-./configure --prefix=../actor-framework/install
+./configure --prefix=../install
