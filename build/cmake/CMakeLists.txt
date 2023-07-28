@@ -176,7 +176,7 @@ else()
         set(INC_SUNDIALS ${DIR_SUNDIALS}/include ${DIR_SUNDIALS}/fortran)
     endif()
 
-    # Actors is on Cluster, if using on personal computer might need to link directory-- not working on Mac right now
+    # If using on personal computer need to link directory-- not working on Mac right now to compile with Actors
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         set(DIR_ACTORS "")
         foreach(dir IN ITEMS
@@ -186,7 +186,7 @@ else()
             "${PARENT_DIR}../../SummaActors/actor-framework/install"
             "../../../../SummaActors/actor-framework/install") #look in same head directory as summa or up to another installation
             if(EXISTS ${dir})
-                set(DIR_SUNDIALS ${dir})
+                set(DIR_ACTORS ${dir})
                 message("\nFound Actors directory at ${DIR_ACTORS}")
                 break()
             endif()
