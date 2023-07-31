@@ -132,7 +132,7 @@ contains
  endif
 
  ! check that the maximum transpiration limit is within bounds
- if( any(critSoilTranspire > theta_sat) .or. any(critSoilTranspire < theta_res) )then
+ if( any(critSoilTranspire(1) > theta_sat) .or. any(critSoilTranspire(1) < theta_res) )then
   print*, 'theta_res         = ', theta_res
   print*, 'theta_sat         = ', theta_sat
   print*, 'critSoilTranspire = ', critSoilTranspire
@@ -142,7 +142,7 @@ contains
  end if
 
  ! check that the soil wilting point is within bounds
- if( any(critSoilWilting > theta_sat) .or. any(critSoilWilting < theta_res) )then
+ if( any(critSoilWilting(1) > theta_sat) .or. any(critSoilWilting(1) < theta_res) )then
   print*, 'theta_res       = ', theta_res
   print*, 'theta_sat       = ', theta_sat
   print*, 'critSoilWilting = ', critSoilWilting
