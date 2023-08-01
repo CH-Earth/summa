@@ -104,14 +104,14 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message("\nSetting Debug Options")
     add_compile_definitions(DEBUG)
-    set(FLAGS_NOAH -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
-    set(FLAGS_ALL  -g -O0 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
-    set(FLAGS_CXX  -g -O0 -Wfatal-errors -std=c++17)
+    set(FLAGS_NOAH -g -O0 -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
+    set(FLAGS_ALL  -g -O0 -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
+    set(FLAGS_CXX  -g -O0 -fbounds-check -Wfatal-errors -std=c++17)
 else()
     message("\nSetting Release Options")
-    set(FLAGS_NOAH -O3 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
-    set(FLAGS_ALL  -O3 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
-    set(FLAGS_CXX  -O3 -Wfatal-errors -std=c++17)
+    set(FLAGS_NOAH -O3 -flto -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
+    set(FLAGS_ALL  -O3 -flto -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
+    set(FLAGS_CXX  -O3 -flto -Wfatal-errors -std=c++17)
 endif()
 
 # Find Sundials if exists, add path here if FATAL_ERROR "Did not find Sundials directory"
@@ -164,11 +164,20 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
 else()
     message("\nBuilding for personal computer")
 
-    set(SDKROOT "$(xcrun --show-sdk-path)")
+    #set(SDKROOT "$(xcrun --show-sdk-path)") # appears to be unused and specifically for MacOS so commented out
 
-    link_directories(/opt/local/lib)
-    set(INCLUDES /opt/local/include /opt/local/lib)
-    set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
+    ## Original Block -- possibly for MacOS -- attempted to generalize things for additional platforms in the next block
+    #link_directories(/opt/local/lib)
+    #set(INCLUDES /opt/local/include /opt/local/lib)
+    #set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
+
+    # Set Links and Libraries using Environment Variables
+    set(LINK_DIRS $ENV{LINK_DIRS})         # set link directories from environment variable
+    set(INCLUDES_DIRS $ENV{INCLUDES_DIRS}) # set directories for INCLUDES from environment variable
+    set(LIBRARY_LINKS $ENV{LIBRARY_LINKS}) # set list of library links from environment variable
+    link_directories(${LINK_DIRS})
+    set(INCLUDES ${INCLUDES_DIRS})
+    set(LIBRARIES SUMMA_NOAHMP ${LIBRARY_LINKS})
 
     if(CMAKE_BUILD_TYPE MATCHES Sundials)
         link_directories(${DIR_SUNDIALS}/lib)

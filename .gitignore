@@ -36,3 +36,5 @@ Makefile-*
 # site directory from mkdocs
 site/
 Laugh-Tests/
+# cmake_build containing cmake build objects
+build/cmake_build
