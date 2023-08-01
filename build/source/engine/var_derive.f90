@@ -343,14 +343,14 @@ contains
   end select
 
   ! check that the hydraulic conductivity for macropores is greater than for micropores
-  if(iLayer > 0)then
+  if (iLayer > nSnow) then
    if( mLayerSatHydCondMP(iLayer-nSnow) < mLayerSatHydCond(iLayer-nSnow) )then
     write(*,'(2(a,e12.6),a,i0)')trim(message)//'WARNING: hydraulic conductivity for macropores [', mLayerSatHydCondMP(iLayer-nSnow), &
                                                '] is less than the hydraulic conductivity for micropores [', mLayerSatHydCond(iLayer-nSnow), &
                                                ']: resetting macropore conductivity to equal micropore value. Layer = ', iLayer
     mLayerSatHydCondMP(iLayer-nSnow) = mLayerSatHydCond(iLayer-nSnow)
    endif  ! if mLayerSatHydCondMP < mLayerSatHydCond
-  endif  ! if iLayer>0
+  end if ! if iLayer > nSnow
  end do  ! looping through soil layers
 
  end associate
