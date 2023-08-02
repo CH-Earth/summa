@@ -104,18 +104,20 @@ def run_loop(file,bench):
     #dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].fillna(0)   
     #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].fillna(0)
     
-    # get rid of gru dimension, assuming they are same as the often are (everything now as hruId)
+    # get rid of gru dimension, assuming hru and gru are one to one (everything now as hruId)
     dat = dat.drop_vars(['hruId','gruId'])
     m = dat.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     dat = dat.drop_dims('gru')
     dat = xr.merge([dat,m])  
+    dat = dat.where(dat.time!=dat.time[0],drop=True) #first timestep weird
     
     ben = ben.drop_vars(['hruId','gruId'])
     m = ben.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     ben = ben.drop_dims('gru')
     ben = xr.merge([ben,m])  
+    ben = ben.where(ben.time!=ben.time[0],drop=True) #first timestep weird
     
     diff = dat - ben
     the_hru = np.array(ben['hru'])
