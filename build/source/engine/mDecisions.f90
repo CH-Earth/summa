@@ -136,7 +136,8 @@ integer(i4b),parameter,public :: hanssonVZJ           = 283    ! test case for t
 integer(i4b),parameter,public :: localColumn          = 291    ! separate groundwater representation in each local soil column
 integer(i4b),parameter,public :: singleBasin          = 292    ! single groundwater store over the entire basin
 ! look-up values for the choice of sub-grid routing method
-integer(i4b),parameter,public :: timeDelay            = 301    ! time-delay histogram
+integer(i4b),parameter,public :: constVelocity        = 300    ! time-delay histogram based on constant velocity
+integer(i4b),parameter,public :: timeDelay            = 301    ! time-delay histogram computed using a gamma distribution with shape and scale parameters
 integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous routing
 ! look-up values for the choice of new snow density method
 integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
@@ -603,7 +604,8 @@ contains
 
  ! choice of routing method
  select case(trim(model_decisions(iLookDECISIONS%subRouting)%cDecision))
-  case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram
+  case('constVel'); model_decisions(iLookDECISIONS%subRouting)%iDecision = constVelocity       ! time-delay histogram computed based on constant velocity
+  case('timeDlay'); model_decisions(iLookDECISIONS%subRouting)%iDecision = timeDelay           ! time-delay histogram computed using a gamma distribution with shape and scale parameters
   case('qInstant'); model_decisions(iLookDECISIONS%subRouting)%iDecision = qInstant            ! instantaneous routing
   case default
    err=10; message=trim(message)//"unknown option for sub-grid routing [option="//trim(model_decisions(iLookDECISIONS%subRouting)%cDecision)//"]"; return
