@@ -136,7 +136,7 @@ contains
  integer(i4b)                            :: nSnow                  ! number of snow layers
  integer(i4b)                            :: nSoil                  ! number of soil layers
  integer(i4b)                            :: nLayers                ! total number of layers
- real(rkind)                                :: fracHRU                ! fractional area of a given HRU (-)
+ real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control

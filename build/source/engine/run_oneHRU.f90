@@ -119,7 +119,7 @@ contains
  ! model control
  integer(i4b)      , intent(in)    :: hru_nc              ! hru index in netcdf
  integer(8)        , intent(in)    :: hruId               ! hruId
- real(rkind)          , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
+ real(rkind)       , intent(inout) :: dt_init             ! used to initialize the length of the sub-step for each HRU
  logical(lgt)      , intent(inout) :: computeVegFlux      ! flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
  integer(i4b)      , intent(inout) :: nSnow,nSoil,nLayers ! number of snow and soil layers
  ! data structures (input)
