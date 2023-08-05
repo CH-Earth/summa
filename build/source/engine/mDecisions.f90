@@ -604,8 +604,8 @@ subroutine mDecisions(err,message)
 
   ! choice of method to combine and sub-divide snow layers
   select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
-    case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
-    case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
+    case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-division rules applied to all layers
+    case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-division rules depend on layer index
     case default
       err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
   end select
