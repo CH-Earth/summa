@@ -6,6 +6,7 @@
 # summa executable and bin directory
 bin
 summa.exe
+summa_sundials.exe
 # temporary files
 *~
 *.swp
@@ -27,6 +28,7 @@ summa.exe
 *.layout
 gmon.out
 summa.exe.dSYM*
+summa_sundials.exe.dSYM*
 summaversion.inc
 # makefile
 make.out

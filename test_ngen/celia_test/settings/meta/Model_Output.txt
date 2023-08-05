@@ -36,5 +36,3 @@ averageInstantRunoff      | 1
 averageRoutedRunoff       | 1
 scalarLAI                 | 1
 scalarSAI                 | 1
-
-
