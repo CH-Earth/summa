@@ -991,10 +991,10 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
       ! NOTE: fatal errors, though possible to recover using negative error codes
       if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
         soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
-        vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt  ! m s-1 --> m
-        tranSink     = sum(mLayerTranspire)*dt                                ! m s-1 --> m
-        baseSink     = sum(mLayerBaseflow)*dt                                 ! m s-1 --> m
-        compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) ) ! dimensionless --> m
+        vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
+        tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
+        baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
+        compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) )*dt ! m s-1 --> m
         liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
         if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
           !write(*,'(a,1x,f20.10)') 'dt = ', dt
