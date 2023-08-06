@@ -180,7 +180,7 @@ subroutine opSplittin(&
                       dtMultiplier,         & ! intent(out):   substep multiplier (-)
                       tooMuchMelt,          & ! intent(out):   flag to denote that ice is insufficient to support melt
                       stepFailure,          & ! intent(out):   flag to denote step failure
-                      ixCoupling,           & ! intent(out):   coupling method used in this iteration
+                      ixSolution,           & ! intent(out):   solution method used in this iteration
                       err,message)            ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
@@ -219,6 +219,7 @@ subroutine opSplittin(&
   real(rkind),intent(out)         :: dtMultiplier                   ! substep multiplier (-)
   logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
   logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure
+  integer(i4b),intent(out)        :: ixSolution                     ! index of solution method (1,2)
   integer(i4b),intent(out)        :: err                            ! error code
   character(*),intent(out)        :: message                        ! error message
   ! ---------------------------------------------------------------------------------------
@@ -256,7 +257,6 @@ subroutine opSplittin(&
   integer(i4b)                    :: nSubsteps                      ! number of substeps taken for a given split
   ! named variables defining the coupling and solution method
   integer(i4b)                    :: ixCoupling                     ! index of coupling method (1,2)
-  integer(i4b)                    :: ixSolution                     ! index of solution method (1,2)
   integer(i4b)                    :: ixStateThenDomain              ! switch between the state and domain (1,2)
   integer(i4b)                    :: tryDomainSplit                 ! (0,1) - flag to try the domain split
   ! actual number of splits
