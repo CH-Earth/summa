@@ -14,7 +14,7 @@ soilStress                      NoahType        ! (05) choice of function for th
 stomResist                      BallBerry       ! (06) choice of function for stomatal resistance
 ! ***********************************************************************************************************************
 num_method                      numrec          ! (07) choice of numerical method
-fDerivMeth                      analytic        ! (08) method used to calculate flux derivatives
+fDerivMeth                      analytic        ! (08) method used to calculate Jacobian
 LAI_method                      monTable        ! (09) method used to determine LAI and SAI
 f_Richards                      mixdform        ! (10) form of Richard's equation
 groundwatr                      noXplict        ! (11) choice of groundwater parameterization
@@ -36,7 +36,7 @@ thCondSnow                      jrdn1991        ! (26) choice of thermal conduct
 thCondSoil                      mixConstit      ! (27) choice of thermal conductivity representation for soil
 spatial_gw                      localColumn     ! (28) choice of method for the spatial representation of groundwater
 subRouting                      timeDlay        ! (29) choice of method for sub-grid routing
-howHeatCap                      closedForm      ! (30)
+howHeatCap                      closedForm      ! (30) choice of method to compute heat capacity in energy equation
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
@@ -50,7 +50,7 @@ howHeatCap                      closedForm      ! (30)
 ! ROSETTA   ! merged Rosetta table with STAS-RUC
 ! -----------------------------------------------------------------------------------------------
 ! (04) vegetation category dataset
-! USGS      ! USGS 24/27 category dataset
+! USGS                      ! USGS 24/27 category dataset
 ! MODIFIED_IGBP_MODIS_NOAH  ! MODIS 20-category dataset
 ! -----------------------------------------------------------------------------------------------
 ! (05) choice of function for the soil moisture control on stomatal resistance
@@ -65,9 +65,9 @@ howHeatCap                      closedForm      ! (30)
 ! (07) choice of numerical method
 ! numrec    ! home-grown backward Euler
 ! kinsol    ! SUNDIALS backward Euler solution using Kinsol
-! sundials  ! SUNDIALS solution using IDA
+! ida       ! SUNDIALS solution using IDA
 ! -----------------------------------------------------------------------------------------------
-! (08) method used to calculate flux derivatives
+! (08) method used to calculate Jacobian
 ! numericl  ! numerical derivatives
 ! analytic  ! analytical derivatives
 ! -----------------------------------------------------------------------------------------------
@@ -120,7 +120,7 @@ howHeatCap                      closedForm      ! (30)
 ! lightSnow   ! maximum interception capacity an inverse function of new snow density
 ! -----------------------------------------------------------------------------------------------
 ! (20) choice of wind profile
-! exponential ! exponential wind profile extends to the surface
+! exponential    ! exponential wind profile extends to the surface
 ! logBelowCanopy ! logarithmic profile below the vegetation canopy
 ! -----------------------------------------------------------------------------------------------
 ! (21) choice of stability function
@@ -165,5 +165,8 @@ howHeatCap                      closedForm      ! (30)
 ! (29) choice of method for sub-grid routing
 ! timeDlay  ! time-delay histogram
 ! qInstant  ! instantaneous routing
+! -----------------------------------------------------------------------------------------------
+! (30) choice of method to compute heat capacity in energy equation
+! closedForm  ! closed form
+! enthalpyFD  ! enthalpy finite difference, has better coincidence of energy conservation
 ! ***********************************************************************************************
-! history Mon Jul 20 16:08:18 2020: /pool0/home/andrbenn/data/summa_3/utils/convert_summa_config_v2_v3.py ./syntheticTestCases/celia1990/summa_fileManager_celia1990.txt
