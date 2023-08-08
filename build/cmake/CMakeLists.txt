@@ -122,6 +122,7 @@ if(CMAKE_BUILD_TYPE MATCHES Sundials)
         "${PARENT_DIR}../sundials/instdir"
         "${F_MASTER}../../SummaSundials/sundials/instdir"
         "${PARENT_DIR}../../SummaSundials/sundials/instdir"
+        "/home/kklenk/projects/rpp-kshook/CompHydCore/SummaSundials/sundials/sundials/instdir"
         "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})

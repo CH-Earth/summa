@@ -136,10 +136,10 @@ contains
    parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
   end if
   if (parFallback(iLookPARAM%relErrTol_ida)%default_val < 0.99_rkind*realMissing) then
-   parFallback(iLookPARAM%relErrTol_ida)%default_val = 1.e-6_rkind
+   parFallback(iLookPARAM%relErrTol_ida)%default_val = 1.e-4_rkind
   end if
   if (parFallback(iLookPARAM%absErrTol_ida)%default_val < 0.99_rkind*realMissing) then
-   parFallback(iLookPARAM%absErrTol_ida)%default_val = 1.e-6_rkind
+   parFallback(iLookPARAM%absErrTol_ida)%default_val = 1.e-4_rkind
   end if
  end if
 
