@@ -59,9 +59,6 @@ USE mDecisions_module,only:&           ! look-up values for the choice of method
  localColumn, &                        ! separate groundwater representation in each local soil column
  singleBasin, &                        ! single groundwater store over the entire basin
  bigBucket                             ! a big bucket (lumped aquifer model)
-
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -97,14 +94,10 @@ contains
                        err,message)          ! intent(out):   error control
 
  ! ----- define downstream subroutines -----------------------------------------------------------------------------------
-
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
-
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
-
  implicit none
-
  ! model control
  type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
  real(rkind)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
@@ -126,9 +119,7 @@ contains
  ! error control
  integer(i4b)        , intent(out)   :: err                  ! error code
  character(*)        , intent(out)   :: message              ! error message
-
  ! ----- define local variables ------------------------------------------------------------------------------------------
-
  ! general local variables
  character(len=256)                      :: cmessage               ! error message
  integer(i4b)                            :: iHRU                   ! HRU index
@@ -160,10 +151,7 @@ contains
   fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
  end do
 
- ! ***********************************************************************************************************************
  ! ********** RUN FOR ONE HRU ********************************************************************************************
- ! ***********************************************************************************************************************
-
  ! loop through HRUs
  do iHRU=1,gruInfo%hruCount
 
@@ -217,7 +205,6 @@ contains
   ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
 
   ! ----- compute fluxes across HRUs --------------------------------------------------------------------------------------------------
-
   ! identify lateral connectivity
   ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
   kHRU = 0
@@ -241,30 +228,25 @@ contains
   end if
 
   ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
-
   ! increment basin surface runoff (m s-1)
-  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracHRU
+  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracHRU
 
   ! increment basin soil drainage (m s-1)
-  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)  * fracHRU
+  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1) *fracHRU
 
   ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
-
-   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferRecharge)%dat(1)     * fracHRU
-   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
-   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  =  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  &
-           +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferRecharge)%dat(1) *fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracHRU
   end if
 
   ! averaging more fluxes (and/or states) can be added to this section as desired
 
  end do  ! (looping through HRUs)
-
- ! ***********************************************************************************************************************
  ! ********** END LOOP THROUGH HRUS **************************************************************************************
- ! ***********************************************************************************************************************
+ 
  ! perform the routing
  associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
 
