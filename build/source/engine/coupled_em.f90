@@ -318,7 +318,7 @@ subroutine coupled_em(&
     lastInnerStep = .false.
 
     ! count the number of snow and soil layers
-    ! NOTE: need to re-compute the number of snow and soil layers at the start of each sub-step because the number of layers may change
+    ! NOTE: need to recompute the number of snow and soil layers at the start of each sub-step because the number of layers may change
     !         (nSnow and nSoil are shared in the data structure)
     nSnow = count(indx_data%var(iLookINDEX%layerType)%dat==iname_snow)
     nSoil = count(indx_data%var(iLookINDEX%layerType)%dat==iname_soil)
@@ -1116,7 +1116,7 @@ subroutine coupled_em(&
                   err,cmessage)                                                ! error control
     if(err/=0)then; err=30; message=trim(message)//trim(cmessage); return; end if
 
-    ! re-compute snow depth, SWE, and top layer water
+    ! recompute snow depth, SWE, and top layer water
     if(nSnow > 0)then
       prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum(  prog_data%var(iLookPROG%mLayerDepth)%dat(1:nSnow))
       prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(1:nSnow)*iden_water + &
