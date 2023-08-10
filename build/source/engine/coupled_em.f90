@@ -127,7 +127,7 @@ subroutine coupled_em(&
   USE allocspace_module,only:allocLocal      ! allocate local data structures
   USE allocspace_module,only:resizeData      ! clone a data structure
   ! simulation of fluxes and residuals given a trial state vector
-  USE soil_utils_module,only:liquidHead                ! compute the liquid water matric potential
+  USE soil_utils_module,only:liquidHead      ! compute the liquid water matric potential
   ! preliminary subroutines
   USE vegPhenlgy_module,only:vegPhenlgy      ! compute vegetation phenology
   USE vegNrgFlux_module,only:wettedFrac      ! compute wetted fraction of the canopy (used in sw radiation fluxes)
@@ -1213,7 +1213,7 @@ subroutine coupled_em(&
         balanceCanopyWater1 = scalarCanopyWat
 
         ! balance checks for the canopy
-        ! NOTE: need to put the balance checks in the sub-step loop so that we can re-compute if necessary
+        ! NOTE: need to put the balance checks in the sub-step loop so that we can recompute if necessary
         scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
         if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
