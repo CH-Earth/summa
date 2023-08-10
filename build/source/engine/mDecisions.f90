@@ -19,9 +19,6 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module mDecisions_module
-#ifdef ACTORS_ACTIVE
-USE, intrinsic :: iso_c_binding
-#endif
 USE nrtype
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
@@ -126,7 +123,7 @@ integer(i4b),parameter,public :: constantSettlement   = 251    ! constant settle
 integer(i4b),parameter,public :: andersonEmpirical    = 252    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
 integer(i4b),parameter,public :: sameRulesAllLayers   = 261    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-division rules depend on layer index
 ! look-up values for the choice of thermal conductivity representation for snow
 integer(i4b),parameter,public :: Yen1965              = 271    ! Yen (1965)
 integer(i4b),parameter,public :: Mellor1977           = 272    ! Mellor (1977)
@@ -188,8 +185,7 @@ subroutine mDecisions(err,message)
   USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
 
   implicit none
-  ! define output, depends on if using Actors
-  integer(i4b)                         :: num_steps      ! number of time steps in the simulation
+  ! define output
   integer(i4b),intent(out)             :: err            ! error code
   character(*),intent(out)             :: message        ! error message
 
@@ -293,11 +289,8 @@ subroutine mDecisions(err,message)
   oldTime%var(:) = startTime%var(:)
 
   ! compute the number of time steps
-  num_steps = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
-  numtim = num_steps
-#ifndef ACTORS_ACTIVE
-  write(*,'(a,1x,i10)') 'number of time steps = ', numtim
-#endif
+  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+
 
   ! set Noah-MP options
   DVEG=3      ! option for dynamic vegetation
@@ -744,4 +737,3 @@ subroutine readoption(err,message)
   end do
 end subroutine readoption
 end module mDecisions_module
-  

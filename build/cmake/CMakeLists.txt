@@ -104,14 +104,14 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message("\nSetting Debug Options")
     add_compile_definitions(DEBUG)
-    set(FLAGS_NOAH -g -O0 -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
-    set(FLAGS_ALL  -g -O0 -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
-    set(FLAGS_CXX  -g -O0 -fbounds-check -Wfatal-errors -std=c++17)
+    set(FLAGS_NOAH -g -O0 -fbacktrace -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
+    set(FLAGS_ALL  -g -O0 -fbacktrace -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
+    set(FLAGS_CXX  -g -O0 -fbacktrace -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
     message("\nSetting Release Options")
-    set(FLAGS_NOAH -O3 -flto -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
-    set(FLAGS_ALL  -O3 -flto -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
-    set(FLAGS_CXX  -O3 -flto -Wfatal-errors -std=c++17)
+    set(FLAGS_NOAH -O3 -flto=1 -fuse-linker-plugin -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
+    set(FLAGS_ALL  -O3 -flto=1 -fuse-linker-plugin -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
+    set(FLAGS_CXX  -O3 -flto=1 -fuse-linker-plugin -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 endif()
 
 # Find Sundials if exists, add path here if FATAL_ERROR "Did not find Sundials directory"
@@ -122,8 +122,6 @@ if(CMAKE_BUILD_TYPE MATCHES Sundials)
         "${PARENT_DIR}../sundials/instdir"
         "${F_MASTER}../../SummaSundials/sundials/instdir"
         "${PARENT_DIR}../../SummaSundials/sundials/instdir"
-        "/usr/local/sundials-6.3.0"
-        "/home/kklenk/projects/rpp-kshook/CompHydCore/SummaSundials/sundials/sundials/instdir"
         "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})
@@ -195,7 +193,6 @@ else()
             "${PARENT_DIR}../actor-framework/install"
             "${F_MASTER}../../SummaActors/actor-framework/install"
             "${PARENT_DIR}../../SummaActors/actor-framework/install"
-            "/usr/local"
             "../../../../SummaActors/actor-framework/install") #look in same head directory as summa or up to another installation
             if(EXISTS ${dir})
                 set(DIR_ACTORS ${dir})
