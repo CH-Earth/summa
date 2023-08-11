@@ -122,7 +122,7 @@ if(CMAKE_BUILD_TYPE MATCHES Sundials)
         "${PARENT_DIR}../sundials/instdir"
         "${F_MASTER}../../SummaSundials/sundials/instdir"
         "${PARENT_DIR}../../SummaSundials/sundials/instdir"
-        "/usr/local/sundials-6.3.0"
+        "/usr/local/sundials/v6.6"
         "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})
@@ -393,9 +393,9 @@ set(SOLVER_SUNDIALS
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_alarms.f90
-    ${DRIVER_DIR}/summa_globalData.f90
-    ${SUB_DRIVER_DIR}/summa_util.f90)
-set(DRIVER_NOT_ACTORS
+    ${DRIVER_DIR}/summa_globalData.f90)
+    set(DRIVER_NOT_ACTORS
+    ${DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_type.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
