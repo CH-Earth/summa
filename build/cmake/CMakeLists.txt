@@ -393,9 +393,9 @@ set(SOLVER_SUNDIALS
 set(DRIVER
     ${DRIVER_DIR}/summa_alarms.f90
     ${SUB_DRIVER_DIR}/summa_globalData.f90
-    ${SUB_DRIVER_DIR}/summa_type.f90
     ${SUB_DRIVER_DIR}/summa_util.f90)
 set(DRIVER_NOT_ACTORS
+    ${DRIVER_DIR}/summa_type.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
     ${DRIVER_DIR}/summa_forcing.f90

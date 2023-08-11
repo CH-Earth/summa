@@ -19,9 +19,6 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module mDecisions_module
-#ifdef ACTORS_ACTIVE
-USE, intrinsic :: iso_c_binding
-#endif
 USE nrtype
 USE var_lookup, only: maxvarDecisions  ! maximum number of decisions
 implicit none
@@ -126,7 +123,7 @@ integer(i4b),parameter,public :: constantSettlement   = 251    ! constant settle
 integer(i4b),parameter,public :: andersonEmpirical    = 252    ! semi-empirical method of Anderson (1976)
 ! look-up values for the choice of method to combine and sub-divide snow layers
 integer(i4b),parameter,public :: sameRulesAllLayers   = 261    ! same combination/sub-division rules applied to all layers
-integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-dividion rules depend on layer index
+integer(i4b),parameter,public :: rulesDependLayerIndex= 262    ! combination/sub-division rules depend on layer index
 ! look-up values for the choice of thermal conductivity representation for snow
 integer(i4b),parameter,public :: Yen1965              = 271    ! Yen (1965)
 integer(i4b),parameter,public :: Mellor1977           = 272    ! Mellor (1977)
@@ -156,15 +153,11 @@ integer(i4b),parameter,public :: closedForm           = 324    ! closedForm
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
-
+  
 ! ************************************************************************************************
 ! public subroutine mDecisions: save model decisions as named integers
 ! ************************************************************************************************
-#ifdef ACTORS_ACTIVE
-subroutine mDecisions(num_steps,err) bind(C, name='mDecisions')
-#else
 subroutine mDecisions(err,message)
-#endif
   ! model time structures
   USE multiconst,only:secprday               ! number of seconds in a day
   USE var_lookup,only:iLookTIME              ! named variables that identify indices in the time structures
@@ -192,16 +185,10 @@ subroutine mDecisions(err,message)
   USE summaFileManager,only: SIM_START_TM, SIM_END_TM   ! time info from control file module
 
   implicit none
-  ! define output, depends on if using Actors
-#ifdef ACTORS_ACTIVE
-  integer(c_int),intent(out)           :: num_steps      ! number of time steps in the simulation
-  integer(c_int),intent(out)           :: err            ! error code
-  character(256)                       :: message        ! error message
-#else
-  integer(i4b)                         :: num_steps      ! number of time steps in the simulation
+  ! define output
   integer(i4b),intent(out)             :: err            ! error code
   character(*),intent(out)             :: message        ! error message
-#endif
+
   ! define local variables
   character(len=256)                   :: cmessage       ! error message for downwind routine
   real(rkind)                          :: dsec,dsec_tz   ! second
@@ -302,11 +289,8 @@ subroutine mDecisions(err,message)
   oldTime%var(:) = startTime%var(:)
 
   ! compute the number of time steps
-  num_steps = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
-  numtim = num_steps
-#ifndef ACTORS_ACTIVE
-  write(*,'(a,1x,i10)') 'number of time steps = ', numtim
-#endif
+  numtim = nint( (dJulianFinsh - dJulianStart)*secprday/data_step ) + 1
+
 
   ! set Noah-MP options
   DVEG=3      ! option for dynamic vegetation
@@ -604,8 +588,8 @@ subroutine mDecisions(err,message)
 
   ! choice of method to combine and sub-divide snow layers
   select case(trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision))
-    case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-division rules applied to all layers
-    case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-division rules depend on layer index
+    case('jrdn1991'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = sameRulesAllLayers    ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+    case('CLM_2010'); model_decisions(iLookDECISIONS%snowLayers)%iDecision = rulesDependLayerIndex ! CLM option: combination/sub-dividion rules depend on layer index
     case default
       err=10; message=trim(message)//"unknown option for combination/sub-division of snow layers [option="//trim(model_decisions(iLookDECISIONS%snowLayers)%cDecision)//"]"; return
   end select
