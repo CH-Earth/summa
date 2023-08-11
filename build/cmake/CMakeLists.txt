@@ -104,9 +104,9 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message("\nSetting Debug Options")
     add_compile_definitions(DEBUG)
-    set(FLAGS_NOAH -g -O0 -fbounds-check -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
-    set(FLAGS_ALL  -g -O0 -fbounds-check -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
-    set(FLAGS_CXX  -g -O0 -fbounds-check -Wfatal-errors -std=c++17)
+    set(FLAGS_NOAH -g -O0 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
+    set(FLAGS_ALL  -g -O0 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp)
+    set(FLAGS_CXX  -g -O0 -Wfatal-errors -std=c++17)
 else()
     message("\nSetting Release Options")
     set(FLAGS_NOAH -O3 -flto -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors)
@@ -279,7 +279,7 @@ set(NRPROC
 # Hook-up modules
 set(HOOKUP
     ${HOOKUP_DIR}/ascii_util.f90
-    ${SUB_HOOKUP_DIR}/summaFileManager.f90)
+    ${HOOKUP_DIR}/summaFileManager.f90)
 
 # Data modules
 set(DATAMS
@@ -330,8 +330,8 @@ set(PRELIM
     ${ENGINE_DIR}/sunGeomtry.f90)
 set(PRELIM_NOT_ACTORS
     ${ENGINE_DIR}/read_param.f90)
-set(PRELIM_ACTORS
-    ${SUB_ENGINE_DIR}/alloc_fileAccess.f90)
+# set(PRELIM_ACTORS
+#     ${SUB_ENGINE_DIR}/alloc_fileAccess.f90)
 
 # Model run support modules
 set(MODRUN
@@ -394,7 +394,7 @@ set(SOLVER_SUNDIALS
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_alarms.f90
-    ${SUB_DRIVER_DIR}/summa_globalData.f90
+    ${DRIVER_DIR}/summa_globalData.f90
     ${SUB_DRIVER_DIR}/summa_util.f90)
 set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_type.f90
@@ -492,7 +492,7 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
-        ${PRELIM_ACTORS}
+        # ${PRELIM_ACTORS}
         ${FILE_ACCESS_INTERFACE}
         ${JOB_INTERFACE}
         ${GRU_INTERFACE}
