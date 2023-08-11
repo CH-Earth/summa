@@ -345,7 +345,7 @@ subroutine systemSolv(&
     end if
     if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
 
-    ! identify the matrix solution method
+    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
     ! (the type of matrix used to solve the linear system A.X=B)
     if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux)then
       nLeadDim=nState         ! length of the leading dimension
