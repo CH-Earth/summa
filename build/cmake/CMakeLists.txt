@@ -315,7 +315,7 @@ set(NETCDF
 
 # Preliminary modules
 set(PRELIM
-    ${SUB_ENGINE_DIR}/allocspace.f90
+    ${ENGINE_DIR}/allocspace.f90
     ${SUB_ENGINE_DIR}/check_icond.f90
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
