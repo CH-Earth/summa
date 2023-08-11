@@ -532,7 +532,6 @@ subroutine coupled_em(&
                     err,cmessage)                  ! intent(out): error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-
     ! *** compute canopy sw radiation fluxes...
     ! -----------------------------------------
     call vegSWavRad(&
@@ -547,7 +546,6 @@ subroutine coupled_em(&
                     flux_data,                    & ! intent(inout): model flux variables
                     err,cmessage)                   ! intent(out):   error control
     if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
 
     ! *** compute canopy throughfall and unloading...
     ! -----------------------------------------------
@@ -814,10 +812,10 @@ subroutine coupled_em(&
           ! NOTE: include ice content as part of the solid porosity - major effect of ice is to reduce the pore size; ensure that effSat=1 at saturation
           ! (from Zhao et al., J. Hydrol., 1997: Numerical analysis of simultaneous heat and mass transfer...)
           do iSoil=1,nSoil
-            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+iSoil),  & ! input:  state variables
-                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),         & ! input:  parameters
-                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                             & ! output: liquid water matric potential (m)
-                      err=err,message=cmessage)                                                               ! output: error control
+            call liquidHead(mLayerMatricHead(iSoil),mLayerVolFracLiq(nSnow+iSoil),mLayerVolFracIce(nSnow+iSoil), & ! input:  state variables
+                      vGn_alpha(iSoil),vGn_n(iSoil),theta_sat(iSoil),theta_res(iSoil),vGn_m(iSoil),              & ! input:  parameters
+                      matricHeadLiq=mLayerMatricHeadLiq(iSoil),                                                  & ! output: liquid water matric potential (m)
+                      err=err,message=cmessage)                                                                    ! output: error control
             if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
           end do  ! looping through soil layers (computing liquid water matric potential)
 
