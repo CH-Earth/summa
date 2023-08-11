@@ -264,10 +264,7 @@ subroutine varSubstep(&
 
     ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently
     !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
-    maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
-
-    ! initalize flag for checking if energy fluxes had been modified
-    nrgFluxModified = .false.
+    maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s).
 
     ! allocate space for the temporary model flux structure
     call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -720,8 +717,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! initialize error control
     err=0; message='updateProg/'
 
-    ! initialize water balancmLayerVolFracWatTrial error
+    ! initialize flags for water balance error and energy flux modification
     waterBalanceError=.false.
+    nrgFluxModified = .false.
 
     ! get storage at the start of the step
     canopyBalance0 = merge(scalarCanopyLiq + scalarCanopyIce, realMissing, computeVegFlux)
@@ -920,7 +918,6 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! -----------------------
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver, and cannot do for IDA
-    !   if do not check could cause problems if should modify nrgFlux
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
