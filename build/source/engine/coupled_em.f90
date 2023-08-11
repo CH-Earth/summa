@@ -972,6 +972,9 @@ subroutine coupled_em(&
 
           end if  ! (if computing the vegetation flux)
 
+          ! * compute change in ice content of the top snow layer due to sublimation 
+          !   and account for compaction and cavitation in the snowpack...
+          ! ------------------------------------------------------------------------
           call computSnowDepth(&
                     whole_step,                               & ! intent(in)
                     nSnow,                                    & ! intent(in)
@@ -1021,12 +1024,12 @@ subroutine coupled_em(&
                      err,cmessage)
           if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
 
-          ! recompute snow depth, SWE, and layer water
+          ! recompute snow depth, SWE, and top layer water
           if(nSnow > 0)then
             prog_data%var(iLookPROG%scalarSnowDepth)%dat(1) = sum( mLayerDepth(1:nSnow) )
             prog_data%var(iLookPROG%scalarSWE)%dat(1)       = sum( (mLayerVolFracLiq(1:nSnow)*iden_water &
                                                               + mLayerVolFracIce(1:nSnow)*iden_ice) * mLayerDepth(1:nSnow) )
-            mLayerVolFracWat(1:nSnow) = mLayerVolFracLiq(1:nSnow) + mLayerVolFracIce(1:nSnow)*iden_ice/iden_water
+            mLayerVolFracWat(1) = mLayerVolFracLiq(1) + mLayerVolFracIce(1)*iden_ice/iden_water
           endif
 
         end associate sublime
@@ -1215,18 +1218,18 @@ subroutine coupled_em(&
         scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
         if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
-          write(*,'(a,1x,f20.10)') 'data_step                                    = ', data_step
-          write(*,'(a,1x,f20.10)') 'balanceCanopyWater0                          = ', balanceCanopyWater0
-          write(*,'(a,1x,f20.10)') 'balanceCanopyWater1                          = ', balanceCanopyWater1
-          write(*,'(a,1x,f20.10)') 'scalarSnowfall                               = ', scalarSnowfall
-          write(*,'(a,1x,f20.10)') 'scalarRainfall                               = ', scalarRainfall
-          write(*,'(a,1x,f20.10)') '(scalarSnowfall - averageThroughfallSnow)    = ', (scalarSnowfall - averageThroughfallSnow)!*data_step
-          write(*,'(a,1x,f20.10)') '(scalarRainfall - averageThroughfallRain)    = ', (scalarRainfall - averageThroughfallRain)!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopySnowUnloading                   = ', averageCanopySnowUnloading!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopyLiqDrainage                     = ', averageCanopyLiqDrainage!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopySublimation                     = ', averageCanopySublimation!*data_step
-          write(*,'(a,1x,f20.10)') 'averageCanopyEvaporation                     = ', averageCanopyEvaporation!*data_step
-          write(*,'(a,1x,f20.10)') 'scalarCanopyWatBalError                      = ', scalarCanopyWatBalError
+          write(*,'(a,1x,f20.10)') 'data_step                    = ', data_step
+          write(*,'(a,1x,f20.10)') 'balanceCanopyWater0          = ', balanceCanopyWater0
+          write(*,'(a,1x,f20.10)') 'balanceCanopyWater1          = ', balanceCanopyWater1
+          write(*,'(a,1x,f20.10)') 'snowfall                     = ', scalarSnowfall*data_step
+          write(*,'(a,1x,f20.10)') 'rainfall                     = ', scalarRainfall*data_step
+          write(*,'(a,1x,f20.10)') '(snowfall - throughfallSnow) = ', (scalarSnowfall - averageThroughfallSnow)*data_step
+          write(*,'(a,1x,f20.10)') '(rainfall - throughfallRain) = ', (scalarRainfall - averageThroughfallRain)*data_step
+          write(*,'(a,1x,f20.10)') 'canopySnowUnloading          = ', averageCanopySnowUnloading*data_step
+          write(*,'(a,1x,f20.10)') 'canopyLiqDrainage            = ', averageCanopyLiqDrainage*data_step
+          write(*,'(a,1x,f20.10)') 'canopySublimation            = ', averageCanopySublimation*data_step
+          write(*,'(a,1x,f20.10)') 'canopyEvaporation            = ', averageCanopyEvaporation*data_step
+          write(*,'(a,1x,f20.10)') 'canopyWatBalError            = ', scalarCanopyWatBalError
           message=trim(message)//'canopy hydrology does not balance'
           err=20; return
         end if
@@ -1270,7 +1273,7 @@ subroutine coupled_em(&
           write(*,'(a,1x,f20.10)') 'sublimation = ', averageSnowSublimation*data_step
           write(*,'(a,1x,f20.10)') 'snwDrainage = ', averageSnowDrainage*iden_water*data_step
           write(*,'(a,1x,f20.10)') 'sfcMeltPond = ', sfcMeltPond
-          write(*,'(a,1x,f20.10)') 'massBalance = ', massBalance
+          write(*,'(a,1x,f20.10)') 'SWE_BalErr  = ', massBalance
           message=trim(message)//'SWE does not balance'
           err=20; return
         endif  ! if failed mass balance check
@@ -1314,18 +1317,18 @@ subroutine coupled_em(&
       ! check the soil water balance
       scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilCompress) )
       if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
-        write(*,*)               'solution method           = ', ixSolution
-        write(*,'(a,1x,f20.10)') 'data_step                 = ', data_step
-        write(*,'(a,1x,f20.10)') 'balanceSoilCompress       = ', balanceSoilCompress
-        write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq        = ', scalarTotalSoilLiq
-        write(*,'(a,1x,f20.10)') 'scalarTotalSoilIce        = ', scalarTotalSoilIce
-        write(*,'(a,1x,f20.10)') 'balanceSoilWater0         = ', balanceSoilWater0
-        write(*,'(a,1x,f20.10)') 'balanceSoilWater1         = ', balanceSoilWater1
-        write(*,'(a,1x,f20.10)') 'balanceSoilInflux         = ', balanceSoilInflux
-        write(*,'(a,1x,f20.10)') 'balanceSoilBaseflow       = ', balanceSoilBaseflow
-        write(*,'(a,1x,f20.10)') 'balanceSoilDrainage       = ', balanceSoilDrainage
-        write(*,'(a,1x,f20.10)') 'balanceSoilET             = ', balanceSoilET
-        write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError     = ', scalarSoilWatBalError
+        write(*,*)               'solution method       = ', ixSolution
+        write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
+        write(*,'(a,1x,f20.10)') 'balanceSoilCompress   = ', balanceSoilCompress
+        write(*,'(a,1x,f20.10)') 'scalarTotalSoilLiq    = ', scalarTotalSoilLiq
+        write(*,'(a,1x,f20.10)') 'scalarTotalSoilIce    = ', scalarTotalSoilIce
+        write(*,'(a,1x,f20.10)') 'balanceSoilWater0     = ', balanceSoilWater0
+        write(*,'(a,1x,f20.10)') 'balanceSoilWater1     = ', balanceSoilWater1
+        write(*,'(a,1x,f20.10)') 'balanceSoilInflux     = ', balanceSoilInflux
+        write(*,'(a,1x,f20.10)') 'balanceSoilBaseflow   = ', balanceSoilBaseflow
+        write(*,'(a,1x,f20.10)') 'balanceSoilDrainage   = ', balanceSoilDrainage
+        write(*,'(a,1x,f20.10)') 'balanceSoilET         = ', balanceSoilET
+        write(*,'(a,1x,f20.10)') 'scalarSoilWatBalError = ', scalarSoilWatBalError
         message=trim(message)//'soil hydrology does not balance'
         err=20; return
       end if
