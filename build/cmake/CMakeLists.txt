@@ -101,6 +101,7 @@ endif()
 #=========================================================================================
 
 # Set compiler flags
+set(FLAGS_OPT $ENV{FLAGS_OPT}) # get optional user-specified flags from environment variables
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     message("\nSetting Debug Options")
     add_compile_definitions(DEBUG)
@@ -109,9 +110,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(FLAGS_CXX  -g -O0 -fbacktrace -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
     message("\nSetting Release Options")
-    set(FLAGS_NOAH -O3 -flto=1 -fuse-linker-plugin -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL  -O3 -flto=1 -fuse-linker-plugin -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX  -O3 -flto=1 -fuse-linker-plugin -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+    set(FLAGS_NOAH -O3 -flto=1 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
+    set(FLAGS_ALL  -O3 -flto=1 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
+    set(FLAGS_CXX  -O3 -flto=1 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 endif()
 
 # Find Sundials if exists, add path here if FATAL_ERROR "Did not find Sundials directory"
@@ -544,7 +545,7 @@ target_compile_options(SUMMA_NOAHMP PRIVATE ${FLAGS_NOAH})
 add_library(SUMMA_COMM OBJECT ${COMM_ALL})
 target_compile_options(SUMMA_COMM PRIVATE ${FLAGS_ALL})
 target_include_directories(SUMMA_COMM PRIVATE ${INCLUDES})
-target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP)
+target_link_libraries(SUMMA_COMM PUBLIC SUMMA_NOAHMP ${FLAGS_ALL}) # added flags to the link step 
 
 # For NexGen, build SUMMA Shared Library and add the outside BMI libraries
 if(CMAKE_BUILD_TYPE MATCHES NexGen)
@@ -609,10 +610,10 @@ else()
         target_link_libraries(summa PUBLIC ${LIBRARIES} ${LIB_SUNDIALS} SUMMA_NOAHMP SUMMA_COMM)
     else()
         target_include_directories(summa PUBLIC ${INCLUDES})
-        target_link_libraries(summa PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM)
+	target_link_libraries(summa PUBLIC ${LIBRARIES} SUMMA_NOAHMP SUMMA_COMM ${FLAGS_ALL}) # added flags to the link step
     endif()
 
     add_executable(${EXEC_NAME} ${MAIN_SUMMA})
     set_property(TARGET ${EXEC_NAME} PROPERTY LINKER_LANGUAGE Fortran)
-    target_link_libraries(${EXEC_NAME} summa)
+    target_link_libraries(${EXEC_NAME} summa ${FLAGS_ALL}) # added flags to the link step
 endif()

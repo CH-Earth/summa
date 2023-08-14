@@ -264,10 +264,7 @@ subroutine varSubstep(&
 
     ! change maxstep with hard code here to make only the newton step loop in systemSolv* happen more frequently
     !   NOTE: this may just be amplifying the splitting error if maxstep is smaller than the full possible step
-    maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s)
-
-    ! initalize flag for checking if energy fluxes had been modified
-    nrgFluxModified = .false.
+    maxstep = mpar_data%var(iLookPARAM%maxstep)%dat(1)  ! maximum time step (s).
 
     ! allocate space for the temporary model flux structure
     call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
@@ -362,7 +359,7 @@ subroutine varSubstep(&
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
       if(tooMuchMelt .or. reduceCoupledStep) return
 
-      ! identify failure, should not happen in SUNDIALS
+      ! identify failure
       failedSubstep = (err<0)
 
       ! check
@@ -682,8 +679,6 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     mLayerTranspire           => flux_data%var(iLookFLUX%mLayerTranspire)%dat               ,& ! intent(in)   : [dp(:)]  transpiration loss from each soil layer (m s-1)
     mLayerBaseflow            => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                ,& ! intent(in)   : [dp(:)]  baseflow from each soil layer (m s-1)
     mLayerCompress            => diag_data%var(iLookDIAG%mLayerCompress)%dat                ,& ! intent(in)   : [dp(:)]  change in storage associated with compression of the soil matrix (-)
-    scalarCanopySublimation   => flux_data%var(iLookFLUX%scalarCanopySublimation)%dat(1)    ,& ! intent(in)   : [dp]     sublimation of ice from the vegetation canopy (kg m-2 s-1)
-    scalarSnowSublimation     => flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)      ,& ! intent(in)   : [dp]     sublimation of ice from the snow surface (kg m-2 s-1)
     ! energy fluxes
     scalarLatHeatCanopyEvap   => flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)    ,& ! intent(in)   : [dp]     latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
     scalarSenHeatCanopy       => flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)        ,& ! intent(in)   : [dp]     sensible heat flux from the canopy to the canopy air space (W m-2)
@@ -722,8 +717,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! initialize error control
     err=0; message='updateProg/'
 
-    ! initialize water balancmLayerVolFracWatTrial error
+    ! initialize flags for water balance error and energy flux modification
     waterBalanceError=.false.
+    nrgFluxModified = .false.
 
     ! get storage at the start of the step
     canopyBalance0 = merge(scalarCanopyLiq + scalarCanopyIce, realMissing, computeVegFlux)
@@ -922,7 +918,6 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! -----------------------
 
     ! NOTE: should not need to do this, since mass balance is checked in the solver, and cannot do for IDA
-    !   if do not check could cause problems if should modify nrgFlux
     if(checkMassBalance)then
 
       ! check mass balance for the canopy

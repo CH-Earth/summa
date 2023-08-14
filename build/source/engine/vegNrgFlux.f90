@@ -220,15 +220,15 @@ subroutine vegNrgFlux(&
   ! input: model derivatives
   real(rkind),intent(in)             :: dCanLiq_dTcanopy                ! intent(in): derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
   ! input/output: data structures
-  type(var_i),intent(in)          :: type_data                       ! type of vegetation and soil
-  type(var_d),intent(in)          :: forc_data                       ! model forcing data
-  type(var_dlength),intent(in)    :: mpar_data                       ! model parameters
-  type(var_ilength),intent(in)    :: indx_data                       ! state vector geometry
-  type(var_dlength),intent(in)    :: prog_data                       ! prognostic variables for a local HRU
-  type(var_dlength),intent(inout) :: diag_data                       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout) :: flux_data                       ! model fluxes for a local HRU
-  type(var_dlength),intent(in)    :: bvar_data                       ! model variables for the local basin
-  type(model_options),intent(in)  :: model_decisions(:)              ! model decisions
+  type(var_i),intent(in)             :: type_data                       ! type of vegetation and soil
+  type(var_d),intent(in)             :: forc_data                       ! model forcing data
+  type(var_dlength),intent(in)       :: mpar_data                       ! model parameters
+  type(var_ilength),intent(in)       :: indx_data                       ! state vector geometry
+  type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)    :: flux_data                       ! model fluxes for a local HRU
+  type(var_dlength),intent(in)       :: bvar_data                       ! model variables for the local basin
+  type(model_options),intent(in)     :: model_decisions(:)              ! model decisions
   ! output: liquid water fluxes associated with evaporation/transpiration (needed for coupling)
   real(rkind),intent(out)            :: returnCanopyTranspiration       ! canopy transpiration (kg m-2 s-1)
   real(rkind),intent(out)            :: returnCanopyEvaporation         ! canopy evaporation/condensation (kg m-2 s-1)
@@ -266,93 +266,93 @@ subroutine vegNrgFlux(&
   real(rkind),intent(out)            :: dCanopyNetFlux_dCanWat          ! derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
   real(rkind),intent(out)            :: dGroundNetFlux_dCanWat          ! derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
   ! output: error control
-  integer(i4b),intent(out)          :: err                             ! error code
-  character(*),intent(out)          :: message                         ! error message
+  integer(i4b),intent(out)           :: err                             ! error code
+  character(*),intent(out)           :: message                         ! error message
 
   ! ---------------------------------------------------------------------------------------
   ! * local variables
   ! ---------------------------------------------------------------------------------------
   ! general)
-  character(LEN=256)                :: cmessage                         ! error message of downwind routine
-  real(rkind)                       :: VAI                              ! vegetation area index (m2 m-2)
-  real(rkind)                       :: exposedVAI                       ! exposed vegetation area index (m2 m-2)
-  real(rkind)                       :: totalCanopyWater                 ! total water on the vegetation canopy (kg m-2)
-  real(rkind)                       :: scalarAquiferStorage             ! aquifer storage (m)
+  character(LEN=256)                 :: cmessage                        ! error message of downwind routine
+  real(rkind)                        :: VAI                             ! vegetation area index (m2 m-2)
+  real(rkind)                        :: exposedVAI                      ! exposed vegetation area index (m2 m-2)
+  real(rkind)                        :: totalCanopyWater                ! total water on the vegetation canopy (kg m-2)
+  real(rkind)                        :: scalarAquiferStorage            ! aquifer storage (m)
   ! saturation vapor pressure of veg
-  real(rkind)                       :: TV_celcius                       ! vegetaion temperature (C)
-  real(rkind)                       :: TG_celcius                       ! ground temperature (C)
-  real(rkind)                       :: dSVPCanopy_dCanopyTemp           ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
-  real(rkind)                       :: dSVPGround_dGroundTemp           ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
+  real(rkind)                        :: TV_celcius                      ! vegetaion temperature (C)
+  real(rkind)                        :: TG_celcius                      ! ground temperature (C)
+  real(rkind)                        :: dSVPCanopy_dCanopyTemp          ! derivative in canopy saturated vapor pressure w.r.t. vegetation temperature (Pa/K)
+  real(rkind)                        :: dSVPGround_dGroundTemp          ! derivative in ground saturated vapor pressure w.r.t. ground temperature (Pa/K)
   ! wetted canopy area
-  real(rkind)                       :: fracLiquidCanopy                 ! fraction of liquid water in the canopy (-)
-  real(rkind)                       :: canopyWetFraction                ! trial value of the canopy wetted fraction (-)
-  real(rkind)                       :: dCanopyWetFraction_dWat          ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
-  real(rkind)                       :: dCanopyWetFraction_dT            ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
+  real(rkind)                        :: fracLiquidCanopy                ! fraction of liquid water in the canopy (-)
+  real(rkind)                        :: canopyWetFraction               ! trial value of the canopy wetted fraction (-)
+  real(rkind)                        :: dCanopyWetFraction_dWat         ! derivative in wetted fraction w.r.t. canopy total water (kg-1 m2)
+  real(rkind)                        :: dCanopyWetFraction_dT           ! derivative in wetted fraction w.r.t. canopy temperature (K-1)
   ! longwave radiation
-  real(rkind)                       :: expi                             ! exponential integral
-  real(rkind)                       :: scaleLAI                         ! scaled LAI (computing diffuse transmissivity)
-  real(rkind)                       :: diffuseTrans                     ! diffuse transmissivity (-)
-  real(rkind)                       :: groundEmissivity                 ! emissivity of the ground surface (-)
-  real(rkind),parameter             :: vegEmissivity=0.98_rkind            ! emissivity of vegetation (0.9665 in JULES) (-)
-  real(rkind),parameter             :: soilEmissivity=0.98_rkind           ! emmisivity of the soil (0.9665 in JULES) (-)
-  real(rkind),parameter             :: snowEmissivity=0.99_rkind           ! emissivity of snow (-)
-  real(rkind)                       :: dLWNetCanopy_dTCanopy            ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind)                       :: dLWNetGround_dTGround            ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
-  real(rkind)                       :: dLWNetCanopy_dTGround            ! derivative in net canopy radiation w.r.t. ground temperature (W m-2 K-1)
-  real(rkind)                       :: dLWNetGround_dTCanopy            ! derivative in net ground radiation w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: expi                            ! exponential integral
+  real(rkind)                        :: scaleLAI                        ! scaled LAI (computing diffuse transmissivity)
+  real(rkind)                        :: diffuseTrans                    ! diffuse transmissivity (-)
+  real(rkind)                        :: groundEmissivity                ! emissivity of the ground surface (-)
+  real(rkind),parameter              :: vegEmissivity=0.98_rkind        ! emissivity of vegetation (0.9665 in JULES) (-)
+  real(rkind),parameter              :: soilEmissivity=0.98_rkind       ! emmisivity of the soil (0.9665 in JULES) (-)
+  real(rkind),parameter              :: snowEmissivity=0.99_rkind       ! emissivity of snow (-)
+  real(rkind)                        :: dLWNetCanopy_dTCanopy           ! derivative in net canopy radiation w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: dLWNetGround_dTGround           ! derivative in net ground radiation w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dLWNetCanopy_dTGround           ! derivative in net canopy radiation w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dLWNetGround_dTCanopy           ! derivative in net ground radiation w.r.t. canopy temperature (W m-2 K-1)
   ! aerodynamic resistance
-  real(rkind)                       :: scalarCanopyStabilityCorrection_old    ! stability correction for the canopy (-)
-  real(rkind)                       :: scalarGroundStabilityCorrection_old    ! stability correction for the ground surface (-)
+  real(rkind)                        :: scalarCanopyStabilityCorrection_old ! stability correction for the canopy (-)
+  real(rkind)                        :: scalarGroundStabilityCorrection_old ! stability correction for the ground surface (-)
   ! turbulent heat transfer
-  real(rkind)                       :: z0Ground                         ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
-  real(rkind)                       :: soilEvapFactor                   ! soil water control on evaporation from non-vegetated surfaces
-  real(rkind)                       :: soilRelHumidity_noSnow           ! relative humidity in the soil pores [0-1]
-  real(rkind)                       :: scalarLeafConductance            ! leaf conductance (m s-1)
-  real(rkind)                       :: scalarCanopyConductance          ! canopy conductance (m s-1)
-  real(rkind)                       :: scalarGroundConductanceSH        ! ground conductance for sensible heat (m s-1)
-  real(rkind)                       :: scalarGroundConductanceLH        ! ground conductance for latent heat -- includes soil resistance (m s-1)
-  real(rkind)                       :: scalarEvapConductance            ! conductance for evaporation (m s-1)
-  real(rkind)                       :: scalarTransConductance           ! conductance for transpiration (m s-1)
-  real(rkind)                       :: scalarTotalConductanceSH         ! total conductance for sensible heat (m s-1)
-  real(rkind)                       :: scalarTotalConductanceLH         ! total conductance for latent heat (m s-1)
-  real(rkind)                       :: dGroundResistance_dTGround       ! derivative in ground resistance w.r.t. ground temperature (s m-1 K-1)
-  real(rkind)                       :: dGroundResistance_dTCanopy       ! derivative in ground resistance w.r.t. canopy temperature (s m-1 K-1)
-  real(rkind)                       :: dGroundResistance_dTCanair       ! derivative in ground resistance w.r.t. canopy air temperature (s m-1 K-1)
-  real(rkind)                       :: dCanopyResistance_dTCanopy       ! derivative in canopy resistance w.r.t. canopy temperature (s m-1 K-1)
-  real(rkind)                       :: dCanopyResistance_dTCanair       ! derivative in canopy resistance w.r.t. canopy air temperature (s m-1 K-1)
-  real(rkind)                       :: turbFluxCanair                   ! total turbulent heat fluxes exchanged at the canopy air space (W m-2)
-  real(rkind)                       :: turbFluxCanopy                   ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
-  real(rkind)                       :: turbFluxGround                   ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
+  real(rkind)                        :: z0Ground                        ! roughness length of the ground (ground below the canopy or non-vegetated surface) (m)
+  real(rkind)                        :: soilEvapFactor                  ! soil water control on evaporation from non-vegetated surfaces
+  real(rkind)                        :: soilRelHumidity_noSnow          ! relative humidity in the soil pores [0-1]
+  real(rkind)                        :: scalarLeafConductance           ! leaf conductance (m s-1)
+  real(rkind)                        :: scalarCanopyConductance         ! canopy conductance (m s-1)
+  real(rkind)                        :: scalarGroundConductanceSH       ! ground conductance for sensible heat (m s-1)
+  real(rkind)                        :: scalarGroundConductanceLH       ! ground conductance for latent heat -- includes soil resistance (m s-1)
+  real(rkind)                        :: scalarEvapConductance           ! conductance for evaporation (m s-1)
+  real(rkind)                        :: scalarTransConductance          ! conductance for transpiration (m s-1)
+  real(rkind)                        :: scalarTotalConductanceSH        ! total conductance for sensible heat (m s-1)
+  real(rkind)                        :: scalarTotalConductanceLH        ! total conductance for latent heat (m s-1)
+  real(rkind)                        :: dGroundResistance_dTGround      ! derivative in ground resistance w.r.t. ground temperature (s m-1 K-1)
+  real(rkind)                        :: dGroundResistance_dTCanopy      ! derivative in ground resistance w.r.t. canopy temperature (s m-1 K-1)
+  real(rkind)                        :: dGroundResistance_dTCanair      ! derivative in ground resistance w.r.t. canopy air temperature (s m-1 K-1)
+  real(rkind)                        :: dCanopyResistance_dTCanopy      ! derivative in canopy resistance w.r.t. canopy temperature (s m-1 K-1)
+  real(rkind)                        :: dCanopyResistance_dTCanair      ! derivative in canopy resistance w.r.t. canopy air temperature (s m-1 K-1)
+  real(rkind)                        :: turbFluxCanair                  ! total turbulent heat fluxes exchanged at the canopy air space (W m-2)
+  real(rkind)                        :: turbFluxCanopy                  ! total turbulent heat fluxes from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: turbFluxGround                  ! total turbulent heat fluxes from the ground to the canopy air space (W m-2)
   ! flux derivatives -- canopy air space
-  real(rkind)                       :: dTurbFluxCanair_dTCanair         ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxCanair_dTCanopy         ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxCanair_dTGround         ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxCanair_dCanWat          ! derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
+  real(rkind)                        :: dTurbFluxCanair_dTCanair        ! derivative in net canopy air space fluxes w.r.t. canopy air temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxCanair_dTCanopy        ! derivative in net canopy air space fluxes w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxCanair_dTGround        ! derivative in net canopy air space fluxes w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxCanair_dCanWat         ! derivative in net canopy air space fluxes w.r.t. canopy total water content (J kg-1 s-1)
   ! flux derivatives -- vegetation canopy
-  real(rkind)                       :: dTurbFluxCanopy_dTCanair         ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxCanopy_dTCanopy         ! derivative in net canopy turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxCanopy_dTGround         ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxCanopy_dCanWat          ! derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
+  real(rkind)                        :: dTurbFluxCanopy_dTCanair        ! derivative in net canopy turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxCanopy_dTCanopy        ! derivative in net canopy turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxCanopy_dTGround        ! derivative in net canopy turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxCanopy_dCanWat         ! derivative in net canopy turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
   ! flux derivatives -- ground surface
-  real(rkind)                       :: dTurbFluxGround_dTCanair         ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxGround_dTCanopy         ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxGround_dTGround         ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
-  real(rkind)                       :: dTurbFluxGround_dCanWat          ! derivative in net ground turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
+  real(rkind)                        :: dTurbFluxGround_dTCanair        ! derivative in net ground turbulent fluxes w.r.t. canopy air temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxGround_dTCanopy        ! derivative in net ground turbulent fluxes w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxGround_dTGround        ! derivative in net ground turbulent fluxes w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dTurbFluxGround_dCanWat         ! derivative in net ground turbulent fluxes w.r.t. canopy total water content (J kg-1 s-1)
   ! liquid water flux derivatives -- canopy evap
-  real(rkind)                       :: dLatHeatCanopyEvap_dCanWat       ! derivative in latent heat of canopy evaporation w.r.t. canopy total water content (W kg-1)
-  real(rkind)                       :: dLatHeatCanopyEvap_dTCanair      ! derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind)                       :: dLatHeatCanopyEvap_dTCanopy      ! derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind)                       :: dLatHeatCanopyEvap_dTGround      ! derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dLatHeatCanopyEvap_dCanWat      ! derivative in latent heat of canopy evaporation w.r.t. canopy total water content (W kg-1)
+  real(rkind)                        :: dLatHeatCanopyEvap_dTCanair     ! derivative in latent heat of canopy evaporation w.r.t. canopy air temperature (W m-2 K-1)
+  real(rkind)                        :: dLatHeatCanopyEvap_dTCanopy     ! derivative in latent heat of canopy evaporation w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: dLatHeatCanopyEvap_dTGround     ! derivative in latent heat of canopy evaporation w.r.t. ground temperature (W m-2 K-1)
   ! liquid water flux derivatives -- ground evap
-  real(rkind)                       :: dLatHeatGroundEvap_dCanWat       ! derivative in latent heat of ground evaporation w.r.t. canopy total water content (J kg-1 s-1)
-  real(rkind)                       :: dLatHeatGroundEvap_dTCanair      ! derivative in latent heat of ground evaporation w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind)                       :: dLatHeatGroundEvap_dTCanopy      ! derivative in latent heat of ground evaporation w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind)                       :: dLatHeatGroundEvap_dTGround      ! derivative in latent heat of ground evaporation w.r.t. ground temperature (W m-2 K-1)
+  real(rkind)                        :: dLatHeatGroundEvap_dCanWat      ! derivative in latent heat of ground evaporation w.r.t. canopy total water content (J kg-1 s-1)
+  real(rkind)                        :: dLatHeatGroundEvap_dTCanair     ! derivative in latent heat of ground evaporation w.r.t. canopy air temperature (W m-2 K-1)
+  real(rkind)                        :: dLatHeatGroundEvap_dTCanopy     ! derivative in latent heat of ground evaporation w.r.t. canopy temperature (W m-2 K-1)
+  real(rkind)                        :: dLatHeatGroundEvap_dTGround     ! derivative in latent heat of ground evaporation w.r.t. ground temperature (W m-2 K-1)
   ! latent heat flux derivatives -- canopy trans
-  real(rkind)                      :: dLatHeatCanopyTrans_dCanWat       ! derivative in the latent heat of canopy transpiration w.r.t. canopy total water (J kg-1 s-1)
-  real(rkind)                      :: dLatHeatCanopyTrans_dTCanair      ! derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
-  real(rkind)                      :: dLatHeatCanopyTrans_dTCanopy      ! derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
-  real(rkind)                      :: dLatHeatCanopyTrans_dTGround      ! derivative in the latent heat of canopy transpiration w.r.t. ground temperature
+  real(rkind)                        :: dLatHeatCanopyTrans_dCanWat     ! derivative in the latent heat of canopy transpiration w.r.t. canopy total water (J kg-1 s-1)
+  real(rkind)                        :: dLatHeatCanopyTrans_dTCanair    ! derivative in the latent heat of canopy transpiration w.r.t. canopy air temperature
+  real(rkind)                        :: dLatHeatCanopyTrans_dTCanopy    ! derivative in the latent heat of canopy transpiration w.r.t. canopy temperature
+  real(rkind)                        :: dLatHeatCanopyTrans_dTGround    ! derivative in the latent heat of canopy transpiration w.r.t. ground temperature
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structure
@@ -812,7 +812,7 @@ subroutine vegNrgFlux(&
         ! compute canopy longwave radiation balance
         call longwaveBal(&
                           ! input: model control
-                           computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
+                          computeVegFlux,                    & ! intent(in): flag to compute fluxes over vegetation
                           checkLWBalance,                    & ! intent(in): flag to check longwave balance
                           ! input: canopy and ground temperature
                           canopyTempTrial,                   & ! intent(in): temperature of the vegetation canopy (K)
@@ -1343,8 +1343,8 @@ subroutine longwaveBal(&
   ! initialize error control
   err=0; message='longwaveBal/'
  
-  ! NOTE: emc should be set to zero when not computing canopy fluxes
   ! compute longwave fluxes from canopy and the ground
+  ! NOTE: emc should be set to zero when not computing canopy fluxes
   if(computeVegFlux)then
     LWRadCanopy = emc*sb*canopyTemp**4_i4b                                           ! longwave radiation emitted from the canopy (W m-2)
   else
@@ -1353,23 +1353,22 @@ subroutine longwaveBal(&
   LWRadGround = emg*sb*groundTemp**4_i4b                                           ! longwave radiation emitted at the ground surface (W m-2)
 
   ! compute fluxes originating from the atmosphere
-  LWRadUbound2Canopy = (emc + (1._rkind - emc)*(1._rkind - emg)*emc)*LWRadUbound   ! downward atmospheric longwave radiation absorbed by the canopy (W m-2)
-  LWRadUbound2Ground = (1._rkind - emc)*emg*LWRadUbound                         ! downward atmospheric longwave radiation absorbed by the ground (W m-2)
+  LWRadUbound2Canopy = (emc + (1._rkind - emc)*(1._rkind - emg)*emc)*LWRadUbound      ! downward atmospheric longwave radiation absorbed by the canopy (W m-2)
+  LWRadUbound2Ground = (1._rkind - emc)*emg*LWRadUbound                               ! downward atmospheric longwave radiation absorbed by the ground (W m-2)
   LWRadUbound2Ubound = (1._rkind - emc)*(1._rkind - emg)*(1._rkind - emc)*LWRadUbound ! atmospheric radiation reflected by the ground and lost thru upper boundary (W m-2)
 
   ! compute fluxes originating from the canopy
   LWRadCanopy2Ubound = (1._rkind + (1._rkind - emc)*(1._rkind - emg))*LWRadCanopy     ! longwave radiation emitted from canopy lost thru upper boundary (W m-2)
-  LWRadCanopy2Ground = emg*LWRadCanopy                                       ! longwave radiation emitted from canopy absorbed by the ground (W m-2)
-  LWRadCanopy2Canopy = emc*(1._rkind - emg)*LWRadCanopy                         ! canopy longwave reflected from ground and absorbed by the canopy (W m-2)
-
+  LWRadCanopy2Ground = emg*LWRadCanopy                                                ! longwave radiation emitted from canopy absorbed by the ground (W m-2)
+  LWRadCanopy2Canopy = emc*(1._rkind - emg)*LWRadCanopy                               ! canopy longwave reflected from ground and absorbed by the canopy (W m-2)
   ! compute fluxes originating from the ground surface
-  LWRadGround2Ubound = (1._rkind - emc)*LWRadGround                             ! longwave radiation emitted from ground lost thru upper boundary (W m-2)
-  LWRadGround2Canopy = emc*LWRadGround                                       ! longwave radiation emitted from ground and absorbed by the canopy (W m-2)
+  LWRadGround2Ubound = (1._rkind - emc)*LWRadGround                                   ! longwave radiation emitted from ground lost thru upper boundary (W m-2)
+  LWRadGround2Canopy = emc*LWRadGround                                                ! longwave radiation emitted from ground and absorbed by the canopy (W m-2)
 
   ! compute net longwave radiation (W m-2)
   LWNetCanopy = LWRadUbound2Canopy + LWRadGround2Canopy + LWRadCanopy2Canopy - 2._rkind*LWRadCanopy  ! canopy
-  LWNetGround = LWRadUbound2Ground + LWRadCanopy2Ground - LWRadGround                             ! ground surface
-  LWNetUbound = LWRadUbound - LWRadUbound2Ubound - LWRadCanopy2Ubound - LWRadGround2Ubound                             ! upper boundary
+  LWNetGround = LWRadUbound2Ground + LWRadCanopy2Ground - LWRadGround                                ! ground surface
+  LWNetUbound = LWRadUbound - LWRadUbound2Ubound - LWRadCanopy2Ubound - LWRadGround2Ubound           ! upper boundary
 
   ! check the flux balance
   fluxBalance = LWNetUbound - (LWNetCanopy + LWNetGround)

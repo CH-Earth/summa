@@ -446,7 +446,7 @@ contains
    end if
 
    ! check feasibility
-   if(.not.feasible) return
+   if(.not.feasible) cycle ! go back and impose constraints again
 
    ! check convergence
    ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
@@ -648,7 +648,7 @@ contains
 
    ! get brackets if they do not exist
    if( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) )then
-    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,message)
+    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,cmessage)
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
    endif
 
@@ -666,7 +666,7 @@ contains
    ! compute the iteration increment
    stateVecNew = stateVecTrial + xInc
 
-  endif  ! if the iteration increment is the same sign as the residual vecto
+  endif  ! if the iteration increment is the same sign as the residual vector
 
   ! bi-section
   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined

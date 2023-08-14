@@ -341,13 +341,15 @@ subroutine summaSolve4kinsol(&
 
   !****************************** Main Solver **********************************************
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
-  !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
-  retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
+  !retvalr = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  retvalr = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
 
+  ! check if KINSol failed
   if( retvalr < 0 )then
     kinsolSucceeds = .false.
-    call getErrMessage(retval,cmessage)
+    call getErrMessage(retvalr,cmessage)
     message=trim(message)//trim(cmessage)
+    if(retvalr==-6) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
   else
     ! check the feasibility of the solution
     feasible=.true.
@@ -361,15 +363,13 @@ subroutine summaSolve4kinsol(&
                     feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
                     err,cmessage)                                 ! intent(out):   error control
-  endif 
-  !****************************** End of Main Solver ***************************************
 
-  err               = eqns_data%err
-  message           = eqns_data%message
-  if( .not. feasible)then 
-    kinsolSucceeds = .false.
-    message=trim(message)//trim(cmessage)//'non-feasible'
+    if(.not. feasible)then
+      kinsolSucceeds = .false.
+      message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubStep
+    endif
   endif
+  !****************************** End of Main Solver ***************************************
 
   if(kinsolSucceeds)then
     ! copy to output data
@@ -377,7 +377,11 @@ subroutine summaSolve4kinsol(&
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
-    indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of Flux Calculations changes
+    indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of flux calculations changes in indx_data
+    err           = eqns_data%err
+    message       = eqns_data%message
+  else
+    eqns_data%fluxVec(:) = realMissing
   endif
 
   ! free memory
