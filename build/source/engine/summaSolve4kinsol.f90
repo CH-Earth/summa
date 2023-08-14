@@ -341,8 +341,8 @@ subroutine summaSolve4kinsol(&
 
   !****************************** Main Solver **********************************************
   ! Call KINSol to solve problem with choice of solver, linesearch or Picard
-  !retval = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
-  retval = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
+  !retvalr = FKINSol(kinsol_mem, sunvec_y, KIN_LINESEARCH, sunvec_xscale, sunvec_fscale)
+  retvalr = FKINSol(kinsol_mem, sunvec_y, KIN_PICARD, sunvec_xscale, sunvec_fscale)
 
   ! check if KINSol failed
   if( retvalr < 0 )then
