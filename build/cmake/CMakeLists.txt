@@ -123,7 +123,7 @@ if(CMAKE_BUILD_TYPE MATCHES Sundials)
         "${PARENT_DIR}../sundials/instdir"
         "${F_MASTER}../../SummaSundials/sundials/instdir"
         "${PARENT_DIR}../../SummaSundials/sundials/instdir"
-        "/usr/local/sundials/v6.6"
+        $ENV{SUNDIALS_PATH}
         "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})
@@ -144,7 +144,6 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     set(BLA_VENDOR OpenBLAS)
 
     # Packages that are required
-    find_package(NetCDF REQUIRED)
     find_package(LAPACK REQUIRED)
 
     # Set include directories
@@ -195,7 +194,7 @@ else()
             "${PARENT_DIR}../actor-framework/install"
             "${F_MASTER}../../SummaActors/actor-framework/install"
             "${PARENT_DIR}../../SummaActors/actor-framework/install"
-            "/usr/local/"
+            $ENV{ACTOR_FRAMEWORK_PATH}
             "../../../../SummaActors/actor-framework/install") #look in same head directory as summa or up to another installation
             if(EXISTS ${dir})
                 set(DIR_ACTORS ${dir})
