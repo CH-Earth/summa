@@ -110,9 +110,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(FLAGS_CXX  -g -O0 -fbacktrace -fbounds-check -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 else()
     message("\nSetting Release Options")
-    set(FLAGS_NOAH -O3 -flto=1 -fuse-linker-plugin -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
-    set(FLAGS_ALL  -O3 -flto=1 -fuse-linker-plugin -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
-    set(FLAGS_CXX  -O3 -flto=1 -fuse-linker-plugin -Wfatal-errors -std=c++17 ${FLAGS_OPT})
+    set(FLAGS_NOAH -O3 -flto=1 -ffree-form -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors ${FLAGS_OPT})
+    set(FLAGS_ALL  -O3 -flto=1 -ffree-line-length-none -fmax-errors=0 -fPIC -Wfatal-errors -cpp ${FLAGS_OPT})
+    set(FLAGS_CXX  -O3 -flto=1 -Wfatal-errors -std=c++17 ${FLAGS_OPT})
 endif()
 
 # Find Sundials if exists, add path here if FATAL_ERROR "Did not find Sundials directory"
