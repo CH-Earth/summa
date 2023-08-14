@@ -451,10 +451,12 @@ subroutine summaSolve4ida(                         &
 
     ! call IDASolve, advance solver just one internal step
     retvalr = FIDASolve(ida_mem, dt_cur, tret, sunvec_y, sunvec_yp, IDA_ONE_STEP)
+    ! early return if IDASolve failed
     if( retvalr < 0 )then
       idaSucceeds = .false.
       call getErrMessage(retvalr,cmessage)
       message=trim(message)//trim(cmessage)
+      !if(retvalr==-1) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
       exit
     end if
 
@@ -482,11 +484,11 @@ subroutine summaSolve4ida(                         &
                   ! output: error control
                     err,cmessage)                                 ! intent(out):   error control
 
-    ! early return for non-feasible solutions, will fail in current IDA formulation
+    ! early return for non-feasible solutions
     if(.not.feasible)then
-      eqns_data%fluxVec(:) = realMissing
-      message=trim(message)//trim(cmessage)//'non-feasible'
-      return
+      idaSucceeds = .false.
+      message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubStep
+      exit
     end if
 
     ! sum of fluxes smoothed over the time step, average from instantaneous values
@@ -538,20 +540,17 @@ subroutine summaSolve4ida(                         &
   enddo ! while loop on one_step mode until time dt_cur
   !****************************** End of Main Solver ***************************************
 
-  err               = eqns_data%err
-  message           = eqns_data%message
-  if( .not. feasible)then 
-    idaSucceeds = .false.
-    message=trim(message)//trim(cmessage)//'non-feasible'
-  endif
-
   if(idaSucceeds)then
     ! copy to output data
     diag_data     = eqns_data%diag_data
     flux_data     = eqns_data%flux_data
     deriv_data    = eqns_data%deriv_data
     ixSaturation  = eqns_data%ixSaturation
-    indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of Flux Calculations changes
+    indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = eqns_data%indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) !only number of flux calculations changes in indx_data
+    err           = eqns_data%err
+    message       = eqns_data%message
+  else
+    eqns_data%fluxVec(:) = realMissing
   endif
 
   ! free memory

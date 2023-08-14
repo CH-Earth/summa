@@ -446,7 +446,7 @@ contains
    end if
 
    ! check feasibility
-   if(.not.feasible) return
+   if(.not.feasible) cycle ! go back and impose constraints again
 
    ! check convergence
    ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
