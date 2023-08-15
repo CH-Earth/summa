@@ -205,7 +205,7 @@ subroutine popTol4ida(&
     ! initialize error control
     err=0; message='popTol4ida/'
 
-    absTolTempCas      = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
+    absTolTempCas      = mpar_data%var(iLookPARAM%absTolTempCas)%dat(1)
     relTolTempCas      = mpar_data%var(iLookPARAM%relTolTempCas)%dat(1)
     absTolTempVeg      = mpar_data%var(iLookPARAM%absTolTempVeg)%dat(1)
     relTolTempVeg      = mpar_data%var(iLookPARAM%relTolTempVeg)%dat(1)
