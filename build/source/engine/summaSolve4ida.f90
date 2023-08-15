@@ -484,7 +484,7 @@ subroutine summaSolve4ida(                         &
                   ! output: error control
                     err,cmessage)                                 ! intent(out):   error control
 
-    ! early return for non-feasible solutions
+    ! early return for non-feasible solutions, right now will just fail if goes infeasible
     if(.not.feasible)then
       idaSucceeds = .false.
       message=trim(message)//trim(cmessage)//'non-feasible' ! err=0 is already set, could make this a warning and reduce the data window time in varSubStep
