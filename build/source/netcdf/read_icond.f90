@@ -315,9 +315,9 @@ contains
      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
     endif
 
-    ! make sure canopy water is positive
+    ! make sure canopy water is positive, otherwise add liquid water to canopy and make total water consistent later
     if( progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyWat)%dat(1) < 0.0001_rkind)then
-     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyWat)%dat(1) = 0.0001_rkind
+     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
     endif
 
     ! initialize the spectral albedo

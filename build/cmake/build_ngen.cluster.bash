@@ -7,6 +7,8 @@ module load gcc/9.3.0
 module load openblas/0.3.17
 module load netcdf-fortran/4.5.2
 
+export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
+
 # for NexGen
 module load boost
 module load udunits/2.2.28

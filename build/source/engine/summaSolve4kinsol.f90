@@ -351,7 +351,7 @@ subroutine summaSolve4kinsol(&
     message=trim(message)//trim(cmessage)
     if(retvalr==-6) err = -20 ! max iterations failure, exit and reduce the data window time in varSubStep
   else
-    ! check the feasibility of the solution
+    ! check the feasibility of the solution, imposeConstraints should keep it from going infeasible
     feasible=.true.
     call checkFeas(&
                     ! input
