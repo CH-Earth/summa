@@ -329,8 +329,6 @@ set(PRELIM
     ${ENGINE_DIR}/sunGeomtry.f90)
 set(PRELIM_NOT_ACTORS
     ${ENGINE_DIR}/read_param.f90)
-# set(PRELIM_ACTORS
-#     ${SUB_ENGINE_DIR}/alloc_fileAccess.f90)
 
 # Model run support modules
 set(MODRUN
@@ -491,7 +489,6 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
-        # ${PRELIM_ACTORS}
         ${FILE_ACCESS_INTERFACE}
         ${JOB_INTERFACE}
         ${GRU_INTERFACE}
