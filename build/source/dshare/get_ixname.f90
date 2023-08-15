@@ -390,8 +390,6 @@ contains
   case('absConvTol_energy'        ); get_ixparam = iLookPARAM%absConvTol_energy      ! absolute convergence tolerance for energy (J m-3) numrec
   case('relConvTol_aquifr'        ); get_ixparam = iLookPARAM%relConvTol_aquifr      ! relative convergence tolerance for aquifer storage (-) numrec
   case('absConvTol_aquifr'        ); get_ixparam = iLookPARAM%absConvTol_aquifr      ! absolute convergence tolerance for aquifer storage (m) numrec
-  case('relErrTol_ida'            ); get_ixparam = iLookPARAM%relErrTol_ida          ! relative error tolerance for ida
-  case('absErrTol_ida'            ); get_ixparam = iLookPARAM%absErrTol_ida          ! absolute error tolerance for ida
   case('relTolTempCas'            ); get_ixparam = iLookPARAM%relTolTempCas          ! relative error tolerance for canopy temperature state variable
   case('absTolTempCas'            ); get_ixparam = iLookPARAM%absTolTempCas          ! absolute error tolerance for canopy temperature state variable
   case('relTolTempVeg'            ); get_ixparam = iLookPARAM%relTolTempVeg          ! relative error tolerance for vegitation temp state var

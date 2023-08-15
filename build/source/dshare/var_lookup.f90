@@ -294,8 +294,6 @@ MODULE var_lookup
   integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
   integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
   integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: relErrTol_ida         = integerMissing    ! relative error tolerance for ida
-  integer(i4b)    :: absErrTol_ida         = integerMissing    ! absolute error tolerance for ida
   integer(i4b)    :: relTolTempCas         = integerMissing    ! relative error tolerance for canopy temperature state variable
   integer(i4b)    :: absTolTempCas         = integerMissing    ! absolute error tolerance for canopy temperature state variable
   integer(i4b)    :: relTolTempVeg         = integerMissing    ! relative error tolerance for vegitation temp state var
