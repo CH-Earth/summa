@@ -304,10 +304,6 @@ subroutine systemSolv(&
     ! (0) PRELIMINARIES...
     ! ********************
 
-    ! -----
-    ! * initialize...
-    ! ---------------
-
     ! check
     if(dt_cur < tinyStep)then
       message=trim(message)//'dt is tiny'
@@ -563,11 +559,11 @@ subroutine systemSolv(&
                           stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                           stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                           err,cmessage)              ! intent(out):   error control
-        ! check if IDA is successful
+        ! check if IDA is successful, only fail outright in the case of a non-recoverable error
         if( .not.sunSucceeds )then
-          err = 20
           message=trim(message)//trim(cmessage)
-        ! reduceCoupledStep  = .true.
+          !if(err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, could happen since not using imposeConstraints 
+          if(err.ne.-20) err = 20 ! -20 is a recoverable error
           return
         else
           if (tooMuchMelt) return !exit to start same step over after merge
@@ -634,11 +630,11 @@ subroutine systemSolv(&
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                           err,cmessage)              ! intent(out):   error control
-        ! check if KINSOL is successful
+        ! check if KINSOL is successful, only fail outright in the case of a non-recoverable error
         if( .not.sunSucceeds )then
-          err = 20
           message=trim(message)//trim(cmessage)
-        ! reduceCoupledStep  = .true.
+          !if(err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, should not happen with imposeConstraints 
+          if(err.ne.-20) err = 20 ! -20 if hit maximum iterations
           return
         endif
         niter = 0  ! iterations are counted inside KINSOL solver

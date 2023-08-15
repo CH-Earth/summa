@@ -839,7 +839,7 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
   real(rkind)                              :: TcSoil                     ! critical point when soil begins to freeze (K)
   real(rkind)                              :: critDiff                   ! temperature difference from critical (K)
-  real(rkind),parameter                    :: epsT=1.e-3_rkind           ! small interval above/below critical (K)
+  real(rkind),parameter                    :: epsT=1.e-3_rkind           ! small interval above/below critical (K), doesn't work well at 1e-7
   real(rkind),parameter                    :: zMaxTempIncrement=1._rkind ! maximum temperature increment (K)
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
@@ -847,9 +847,9 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
   ! indices of model layers
   integer(i4b)                             :: iLayer                     ! index of model layer
   ! choice of constraints to impose
-  logical(lgt),parameter                   :: small_delTemp=.false.      ! flag to constain temperature change to be less than zMaxTempIncrement
-  logical(lgt),parameter                   :: detect_events=.true.       ! flag to do freezing point event detection and cross-over with epsT
-  logical(lgt),parameter                   :: positive_wat=.false.       ! flag to force water to not go negative
+  logical(lgt),parameter                   :: small_delTemp=.false.      ! flag to constain temperature change to be less than zMaxTempIncrement, gets more accurate solution off
+  logical(lgt),parameter                   :: detect_events=.true.       ! flag to do freezing point event detection and cross-over with epsT, works best on
+  logical(lgt),parameter                   :: positive_wat=.true.        ! flag to force water to not go negative, works best on
   
   ! -----------------------------------------------------------------------------------------------------
   ! associate variables with indices of model state variables

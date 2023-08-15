@@ -10,6 +10,8 @@ module load netcdf-fortran/4.5.2
 # for Actors
 module load caf
 
+export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
+
 cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials_Actors_Cluster
 cmake --build ../cmake_build --target all
 

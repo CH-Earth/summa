@@ -10,7 +10,7 @@
 #export LINK_DIRS=/usr/local/lib                               # Link directories for cmake
 #export INCLUDES_DIRS="/usr/include;/usr/local/include"        # directories for INCLUDES cmake variable (cmake uses semicolons as separators)
 #export LIBRARY_LINKS="-llapack;-lnetcdff;-lnetcdf"            # list of library links -- LAPACK builds
-#export FLAGS_OPT=""                                           # optional compiler flags -- LAPACK builds
+#export FLAGS_OPT="-flto=1;-fuse-linker-plugin"                                           # optional compiler flags -- LAPACK builds
 
 # PC Example using Ubuntu: Intel oneMKL builds (see https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-link-line-advisor.html)
 #oneAPI_dir=/opt/intel/oneapi                                  # Intel oneAPI main directory
@@ -19,7 +19,7 @@
 #export LINK_DIRS=/usr/local/lib                               # Link directories for cmake
 #export INCLUDES_DIRS="/usr/include;/usr/local/include"        # directories for INCLUDES cmake variable (cmake uses semicolons as separators)
 #export LIBRARY_LINKS="-lnetcdff;-lnetcdf;-Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_gf_lp64.a ${MKLROOT}/lib/intel64/libmkl_gnu_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group;-lgomp;-lpthread;-lm;-ldl"         # list of library links -- Intel oneMKL builds
-#export FLAGS_OPT="-m64;-I"${MKLROOT}/include""                # optional compiler flags -- Intel oneMKL builds
+#export FLAGS_OPT="--m64;-I"${MKLROOT}/include;-flto=1;-fuse-linker-plugin"                # optional compiler flags -- Intel oneMKL builds
 
 # CMake Commands (build type controlled using DCMAKE_BUILD_TYPE)
 cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=BE
