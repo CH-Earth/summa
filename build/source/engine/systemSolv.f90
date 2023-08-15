@@ -561,6 +561,7 @@ subroutine systemSolv(&
                           err,cmessage)              ! intent(out):   error control
         ! check if IDA is successful, only fail outright in the case of a non-recoverable error
         if( .not.sunSucceeds )then
+          message=trim(message)//trim(cmessage)
           !if(err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, could happen since not using imposeConstraints 
           if(err.ne.-20) err = 20 ! -20 is a recoverable error
           return
