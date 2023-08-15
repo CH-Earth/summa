@@ -141,6 +141,48 @@ contains
   if (parFallback(iLookPARAM%absErrTol_ida)%default_val < 0.99_rkind*realMissing) then
    parFallback(iLookPARAM%absErrTol_ida)%default_val = 1.e-6_rkind
   end if
+  if (parFallback(iLookPARAM%relTolTempCas)%default_val < 0.99_rkind*realMissing) then
+   parFallback(iLookPARAM%relTolTempCas)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolTempCas)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolTempCas)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolTempVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolTempVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolTempVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolTempVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolWatVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolWatVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolWatVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolWatVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolTempSoilSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolTempSoilSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolTempSoilSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolTempSoilSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolWatSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolWatSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolWatSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolWatSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolMatric)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolMatric)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolMatric)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolMatric)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolAquifr)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolAquifr)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolAquifr)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolAquifr)%default_val = 1.e-6_rkind
+  end if
  end if
 
  ! check we have populated all variables

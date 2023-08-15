@@ -294,8 +294,22 @@ MODULE var_lookup
   integer(i4b)    :: absConvTol_energy     = integerMissing    ! absolute convergence tolerance for energy (J m-3)
   integer(i4b)    :: relConvTol_aquifr     = integerMissing    ! relative convergence tolerance for aquifer storage (-)
   integer(i4b)    :: absConvTol_aquifr     = integerMissing    ! absolute convergence tolerance for aquifer storage (J m-3)
-  integer(i4b)    :: relErrTol_ida         = integerMissing    ! relative error tolerance for ida'
-  integer(i4b)    :: absErrTol_ida         = integerMissing    ! absolute error tolerance for ida'
+  integer(i4b)    :: relErrTol_ida         = integerMissing    ! relative error tolerance for ida
+  integer(i4b)    :: absErrTol_ida         = integerMissing    ! absolute error tolerance for ida
+  integer(i4b)    :: relTolTempCas         = integerMissing    ! relative error tolerance for canopy temperature state variable
+  integer(i4b)    :: absTolTempCas         = integerMissing    ! absolute error tolerance for canopy temperature state variable
+  integer(i4b)    :: relTolTempVeg         = integerMissing    ! relative error tolerance for vegitation temp state var
+  integer(i4b)    :: absTolTempVeg         = integerMissing    ! absolute error tolerance for vegitation temp state var
+  integer(i4b)    :: relTolWatVeg          = integerMissing    ! relative error tolerance for vegitation hydrology
+  integer(i4b)    :: absTolWatVeg          = integerMissing    ! absolute error tolerance for vegitation hydrology
+  integer(i4b)    :: relTolTempSoilSnow    = integerMissing    ! relative error tolerance for snow+soil energy
+  integer(i4b)    :: absTolTempSoilSnow    = integerMissing    ! absolute error tolerance for snow+soil energy
+  integer(i4b)    :: relTolWatSnow         = integerMissing    ! relative error tolerance for snow hydrology
+  integer(i4b)    :: absTolWatSnow         = integerMissing    ! absolute error tolerance for snow hydrology
+  integer(i4b)    :: relTolMatric          = integerMissing    ! relative error tolerance for matric head
+  integer(i4b)    :: absTolMatric          = integerMissing    ! absolute error tolerance for matric head
+  integer(i4b)    :: relTolAquifr          = integerMissing    ! relative error tolerance for aquifer hydrology
+  integer(i4b)    :: absTolAquifr          = integerMissing    ! absolute error tolerance for aquifer hydrology
   integer(i4b)    :: zmin                  = integerMissing    ! minimum layer depth (m)
   integer(i4b)    :: zmax                  = integerMissing    ! maximum layer depth (m)
   integer(i4b)    :: zminLayer1            = integerMissing    ! minimum layer depth for the 1st (top) layer (m)
@@ -858,7 +872,8 @@ MODULE var_lookup
                                                                         131,132,133,134,135,136,137,138,139,140,&
                                                                         141,142,143,144,145,146,147,148,149,150,&
                                                                         151,152,153,154,155,156,157,158,159,160,&
-                                                                        161,162)
+                                                                        161,162,163,164,165,166,167,168,169,170,&
+                                                                        171,172,173,174,175,176)
  ! named variables: model prognostic (state) variables
  type(iLook_prog),   public,parameter  :: iLookPROG     =iLook_prog    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&
