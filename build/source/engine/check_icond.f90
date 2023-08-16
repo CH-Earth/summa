@@ -129,7 +129,6 @@ contains
    ! state variables in the vegetation canopy
    scalarCanopyTemp  => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyTemp)%dat(1)   , & ! canopy temperature
    scalarCanopyIce   => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)    , & ! mass of ice on the vegetation canopy (kg m-2)
-   scalarCanopyLiq   => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1)    , & ! mass of liquid water on the vegetation canopy (kg m-2)
    ! state variables in the snow+soil domain
    mLayerTemp        => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerTemp)%dat            , & ! temperature (K)
    mLayerVolFracLiq  => progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%mLayerVolFracLiq)%dat      , & ! volumetric fraction of liquid water in each snow layer (-)

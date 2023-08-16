@@ -379,7 +379,7 @@ contains
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
   integer(i4b),parameter         :: maxLineSearch=5          ! maximum number of backtracks
-  real(rkind),parameter          :: alpha=1.e-4_rkind           ! check on gradient
+  real(rkind),parameter          :: alpha=1.e-4_rkind        ! check on gradient
   real(rkind)                    :: xLambda                  ! backtrack magnitude
   real(rkind)                    :: xLambdaTemp              ! temporary backtrack magnitude
   real(rkind)                    :: slopeInit                ! initial slope
@@ -1124,7 +1124,7 @@ contains
   real(rkind)                     :: TcSoil                       ! critical point when soil begins to freeze (K)
   real(rkind)                     :: critDiff                     ! temperature difference from critical (K)
   real(rkind),parameter           :: epsT=1.e-7_rkind             ! small interval above/below critical (K)
-  real(rkind),parameter           :: zMaxTempIncrement=1._rkind   ! maximum temperature increment (K)
+  real(rkind),parameter           :: zMaxTempIncrement=1._rkind   ! maximum temperature increment (K), NOTE: this can cause problems especially from a cold start when we are far from the solution
   ! indices of model state variables
   integer(i4b)                    :: iState                       ! index of state within a specific variable type
   integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
@@ -1139,11 +1139,11 @@ contains
   ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
   ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
   ! indices for specific state variables
-  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
-  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
-  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
-  ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
-  ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b] index of upper-most hydrology state in the snow-soil subdomain
+  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
+  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
+  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+  ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
+  ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
   ! vector of energy indices for the snow and soil domains
   ! NOTE: states not in the subset are equal to integerMissing
   ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
@@ -1218,9 +1218,9 @@ contains
    ! check if new value of storage will be negative
    if(stateVecTrial(ixVegHyd)+xInc(ixVegHyd) < 0._rkind)then
     ! scale iteration increment
-    cInc       = -0.5_rkind*stateVecTrial(ixVegHyd)                                  ! constrained iteration increment (K) -- simplified bi-section
-    xIncFactor = cInc/xInc(ixVegHyd)                                              ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc                                                  ! new iteration increment
+    cInc       = -0.5_rkind*stateVecTrial(ixVegHyd)  ! constrained iteration increment (K) -- simplified bi-section
+    xIncFactor = cInc/xInc(ixVegHyd)                 ! scaling factor for the iteration increment (-)
+    xInc       = xIncFactor*xInc                     ! new iteration increment
    end if
 
   endif  ! if the state variable for canopy water is included within the state subset
@@ -1239,8 +1239,8 @@ contains
     iState = ixSnowOnlyNrg(iLayer)
     if(stateVecTrial(iState) + xInc(iState) > Tfreeze)then
      ! scale iteration increment
-     cInc       = 0.5_rkind*(Tfreeze - stateVecTrial(iState) )        ! constrained temperature increment (K) -- simplified bi-section
-     xIncFactor = cInc/xInc(iState)                                ! scaling factor for the iteration increment (-)
+     cInc       = 0.5_rkind*(Tfreeze - stateVecTrial(iState) )  ! constrained temperature increment (K) -- simplified bi-section
+     xIncFactor = cInc/xInc(iState)                             ! scaling factor for the iteration increment (-)
      xInc       = xIncFactor*xInc
     end if   ! if snow temperature > freezing
 

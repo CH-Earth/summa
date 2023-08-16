@@ -839,8 +839,8 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
   real(rkind)                              :: TcSoil                     ! critical point when soil begins to freeze (K)
   real(rkind)                              :: critDiff                   ! temperature difference from critical (K)
-  real(rkind),parameter                    :: epsT=1.e-3_rkind           ! small interval above/below critical (K), doesn't work well at 1e-7
-  real(rkind),parameter                    :: zMaxTempIncrement=1._rkind ! maximum temperature increment (K)
+  real(rkind),parameter                    :: epsT=1.e-3_rkind           ! small interval above/below critical (K), doesn't work well at usual 1e-7
+  real(rkind),parameter                    :: zMaxTempIncrement=1._rkind ! maximum temperature increment (K),NOTE: this can cause problems especially from a cold start when we are far from the solution
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
   integer(i4b)                             :: ixNrg,ixLiq                ! index of energy and mass state variables in full state vector
@@ -860,11 +860,11 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
     ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
     ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
     ! indices for specific state variables
-    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy air space energy state variable
-    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b] index of canopy energy state variable
-    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b] index of canopy hydrology state variable (mass)
-    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b] index of upper-most energy state in the snow-soil subdomain
-    ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b] index of upper-most hydrology state in the snow-soil subdomain
+    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
+    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
+    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
+    ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
     ! vector of energy indices for the snow and soil domains
     ! NOTE: states not in the subset are equal to integerMissing
     ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
@@ -992,9 +992,9 @@ subroutine imposeConstraints(indx_data, prog_data, mpar_data, stateVec, stateVec
         ! check if new value of storage will be negative
         if(stateVecPrev(ixVegHyd)+xInc(ixVegHyd) < 0._rkind)then
           ! scale iteration increment
-          cInc       = -0.5_rkind*stateVecPrev(ixVegHyd)              ! constrained iteration increment (K) -- simplified bi-section
-          xIncFactor = cInc/xInc(ixVegHyd)                             ! scaling factor for the iteration increment (-)
-          xInc       = xIncFactor*xInc                                  ! new iteration increment
+          cInc       = -0.5_rkind*stateVecPrev(ixVegHyd)  ! constrained iteration increment (K) -- simplified bi-section
+          xIncFactor = cInc/xInc(ixVegHyd)                ! scaling factor for the iteration increment (-)
+          xInc       = xIncFactor*xInc                    ! new iteration increment
         end if
       endif ! (if the state variable for canopy water is included within the state subset)
           
