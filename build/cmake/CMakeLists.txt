@@ -123,6 +123,7 @@ if(CMAKE_BUILD_TYPE MATCHES Sundials)
         "${PARENT_DIR}../sundials/instdir"
         "${F_MASTER}../../SummaSundials/sundials/instdir"
         "${PARENT_DIR}../../SummaSundials/sundials/instdir"
+        $ENV{SUNDIALS_PATH}
         "../../../../SummaSundials/sundials/instdir") #look in same head directory as summa or up to another installation
         if(EXISTS ${dir})
             set(DIR_SUNDIALS ${dir})
@@ -143,7 +144,6 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     set(BLA_VENDOR OpenBLAS)
 
     # Packages that are required
-    #find_package(NetCDF REQUIRED)
     find_package(LAPACK REQUIRED)
 
     # Set include directories
@@ -194,6 +194,7 @@ else()
             "${PARENT_DIR}../actor-framework/install"
             "${F_MASTER}../../SummaActors/actor-framework/install"
             "${PARENT_DIR}../../SummaActors/actor-framework/install"
+            $ENV{ACTOR_FRAMEWORK_PATH}
             "../../../../SummaActors/actor-framework/install") #look in same head directory as summa or up to another installation
             if(EXISTS ${dir})
                 set(DIR_ACTORS ${dir})
@@ -277,7 +278,7 @@ set(NRPROC
 # Hook-up modules
 set(HOOKUP
     ${HOOKUP_DIR}/ascii_util.f90
-    ${SUB_HOOKUP_DIR}/summaFileManager.f90)
+    ${HOOKUP_DIR}/summaFileManager.f90)
 
 # Data modules
 set(DATAMS
@@ -314,7 +315,7 @@ set(NETCDF
 
 # Preliminary modules
 set(PRELIM
-    ${SUB_ENGINE_DIR}/allocspace.f90
+    ${ENGINE_DIR}/allocspace.f90
     ${SUB_ENGINE_DIR}/check_icond.f90
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
@@ -328,8 +329,6 @@ set(PRELIM
     ${ENGINE_DIR}/sunGeomtry.f90)
 set(PRELIM_NOT_ACTORS
     ${ENGINE_DIR}/read_param.f90)
-set(PRELIM_ACTORS
-    ${SUB_ENGINE_DIR}/alloc_fileAccess.f90)
 
 # Model run support modules
 set(MODRUN
@@ -392,9 +391,9 @@ set(SOLVER_SUNDIALS
 # Driver support modules
 set(DRIVER
     ${DRIVER_DIR}/summa_alarms.f90
-    ${SUB_DRIVER_DIR}/summa_globalData.f90
-    ${SUB_DRIVER_DIR}/summa_util.f90)
-set(DRIVER_NOT_ACTORS
+    ${DRIVER_DIR}/summa_globalData.f90)
+    set(DRIVER_NOT_ACTORS
+    ${DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_type.f90
     ${DRIVER_DIR}/summa_defineOutput.f90
     ${DRIVER_DIR}/summa_init.f90
@@ -490,7 +489,6 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
-        ${PRELIM_ACTORS}
         ${FILE_ACCESS_INTERFACE}
         ${JOB_INTERFACE}
         ${GRU_INTERFACE}

@@ -205,20 +205,20 @@ subroutine popTol4ida(&
     ! initialize error control
     err=0; message='popTol4ida/'
 
-    absTolTempCas = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolTempCas = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
-    absTolTempVeg = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolTempVeg = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
-    absTolWatVeg = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolWatVeg = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
-    absTolTempSoilSnow = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolTempSoilSnow = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
-    absTolWatSnow = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolWatSnow = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
-    absTolMatric = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolMatric = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
-    absTolAquifr = mpar_data%var(iLookPARAM%absErrTol_ida)%dat(1)
-    relTolAquifr = mpar_data%var(iLookPARAM%relErrTol_ida)%dat(1)
+    absTolTempCas      = mpar_data%var(iLookPARAM%absTolTempCas)%dat(1)
+    relTolTempCas      = mpar_data%var(iLookPARAM%relTolTempCas)%dat(1)
+    absTolTempVeg      = mpar_data%var(iLookPARAM%absTolTempVeg)%dat(1)
+    relTolTempVeg      = mpar_data%var(iLookPARAM%relTolTempVeg)%dat(1)
+    absTolWatVeg       = mpar_data%var(iLookPARAM%absTolWatVeg)%dat(1)
+    relTolWatVeg       = mpar_data%var(iLookPARAM%relTolWatVeg)%dat(1)
+    absTolTempSoilSnow = mpar_data%var(iLookPARAM%absTolTempSoilSnow)%dat(1)
+    relTolTempSoilSnow = mpar_data%var(iLookPARAM%relTolTempSoilSnow)%dat(1)
+    absTolWatSnow      = mpar_data%var(iLookPARAM%absTolWatSnow)%dat(1)
+    relTolWatSnow      = mpar_data%var(iLookPARAM%relTolWatSnow)%dat(1)
+    absTolMatric       = mpar_data%var(iLookPARAM%absTolMatric)%dat(1)
+    relTolMatric       = mpar_data%var(iLookPARAM%relTolMatric)%dat(1)
+    absTolAquifr       = mpar_data%var(iLookPARAM%absTolAquifr)%dat(1)
+    relTolAquifr       = mpar_data%var(iLookPARAM%relTolAquifr)%dat(1)
  
     ! -----
     ! * initialize state vectors...
