@@ -24,9 +24,9 @@ module ssdNrgFlux_module
 USE nrtype
 
 ! data types
-USE data_types,only:var_d           ! x%var(:)       (rkind)
-USE data_types,only:var_dlength     ! x%var(:)%dat   (rkind)
-USE data_types,only:var_ilength     ! x%var(:)%dat   (i4b)
+USE data_types,only:var_d           ! x%var(:)     [rkind]
+USE data_types,only:var_dlength     ! x%var(:)%dat [rkind]
+USE data_types,only:var_ilength     ! x%var(:)%dat [i4b]
 
 ! physical constants
 USE multiconst,only:&
@@ -66,7 +66,7 @@ implicit none
 private
 public :: ssdNrgFlux
 ! global parameters
-real(rkind),parameter            :: dx=1.e-10_rkind             ! finite difference increment (K)
+real(rkind),parameter            :: dx=1.e-10_rkind         ! finite difference increment (K)
 contains
 ! **********************************************************************************************************
 ! public subroutine ssdNrgFlux: compute energy fluxes and derivatives at layer interfaces
@@ -145,24 +145,24 @@ subroutine ssdNrgFlux(&
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   associate(&
-    ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in): method used to calculate the upper boundary condition for thermodynamics
-    ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in): method used to calculate the lower boundary condition for thermodynamics
+    ix_bcUpprTdyn           => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision, & ! intent(in):  method used to calculate the upper boundary condition for thermodynamics
+    ix_bcLowrTdyn           => model_decisions(iLookDECISIONS%bcLowrTdyn)%iDecision, & ! intent(in):  method used to calculate the lower boundary condition for thermodynamics
     ! input: coordinate variables
-    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in): number of snow layers
-    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in): total number of layers
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in): layer type (iname_soil or iname_snow)
-    ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in): list of indices for all model layers
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,          & ! intent(in): index in the state subset for energy state variables in the snow+soil domain
-    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in): depth of each layer (m)
-    mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in): height at the mid-point of each layer (m)
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1),               & ! intent(in):  number of snow layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1),             & ! intent(in):  total number of layers
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat,              & ! intent(in):  layer type (iname_soil or iname_snow)
+    ixLayerState            => indx_data%var(iLookINDEX%ixLayerState)%dat,           & ! intent(in):  list of indices for all model layers
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,          & ! intent(in):  index in the state subset for energy state variables in the snow+soil domain
+    mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat,             & ! intent(in):  depth of each layer (m)
+    mLayerHeight            => prog_data%var(iLookPROG%mLayerHeight)%dat,            & ! intent(in):  height at the mid-point of each layer (m)
     ! input: thermal properties
-    upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in): temperature of the upper boundary (K)
-    lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in): temperature of the lower boundary (K)
-    iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in): thermal conductivity at the interface of each layer (W m-1 K-1)
+    upperBoundTemp          => mpar_data%var(iLookPARAM%upperBoundTemp)%dat(1),      & ! intent(in):  temperature of the upper boundary (K)
+    lowerBoundTemp          => mpar_data%var(iLookPARAM%lowerBoundTemp)%dat(1),      & ! intent(in):  temperature of the lower boundary (K)
+    iLayerThermalC          => diag_data%var(iLookDIAG%iLayerThermalC)%dat,          & ! intent(in):  thermal conductivity at the interface of each layer (W m-1 K-1)
      ! output: diagnostic fluxes
     iLayerConductiveFlux => flux_data%var(iLookFLUX%iLayerConductiveFlux)%dat,       & ! intent(out): conductive energy flux at layer interfaces at end of time step (W m-2)
     iLayerAdvectiveFlux  => flux_data%var(iLookFLUX%iLayerAdvectiveFlux)%dat         & ! intent(out): advective energy flux at layer interfaces at end of time step (W m-2)
-    )  ! association of local variables with information in the data structures
+    )  ! end association of local variables with information in the data structures
     ! ------------------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message='ssdNrgFlux/'
