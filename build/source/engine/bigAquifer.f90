@@ -45,10 +45,10 @@ subroutine bigAquifer(&
                     scalarCanopyTranspiration,    & ! intent(in):  canopy transpiration (kg m-2 s-1)
                     scalarSoilDrainage,           & ! intent(in):  soil drainage (m s-1)
                     ! input: pre-computed derivatives
-                    dCanopyTrans_dCanWat,         & ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-                    dCanopyTrans_dTCanair,        & ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                    dCanopyTrans_dTCanopy,        & ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                    dCanopyTrans_dTGround,        & ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+                    dCanopyTrans_dCanWat,         & ! intent(in):  derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+                    dCanopyTrans_dTCanair,        & ! intent(in):  derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+                    dCanopyTrans_dTCanopy,        & ! intent(in):  derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+                    dCanopyTrans_dTGround,        & ! intent(in):  derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
                     ! input: diagnostic variables and parameters
                     mpar_data,                    & ! intent(in):  model parameter structure
                     diag_data,                    & ! intent(in):  diagnostic variable structure
@@ -68,7 +68,7 @@ subroutine bigAquifer(&
   USE var_lookup,only:iLookDIAG                     ! named variables for structure elements
   USE var_lookup,only:iLookPARAM                    ! named variables for structure elements
   ! data types
-  USE data_types,only:var_dlength                   ! x%var(:)%dat   (rkind)
+  USE data_types,only:var_dlength                   ! x%var(:)%dat [rkind]
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: state variables, fluxes, and parameters
@@ -114,7 +114,7 @@ subroutine bigAquifer(&
     aquiferBaseflowRate    => mpar_data%var(iLookPARAM%aquiferBaseflowRate)%dat(1),   & ! intent(in): [dp] tbaseflow rate when aquiferStorage = aquiferScaleFactor (m s-1)
     aquiferScaleFactor     => mpar_data%var(iLookPARAM%aquiferScaleFactor)%dat(1),    & ! intent(in): [dp] scaling factor for aquifer storage in the big bucket (m)
     aquiferBaseflowExp     => mpar_data%var(iLookPARAM%aquiferBaseflowExp)%dat(1)     & ! intent(in): [dp] baseflow exponent (-)
-    )  ! associating local variables with the information in the data structures
+    )  ! end associating local variables with the information in the data structures
 
     ! compute aquifer transpiration (m s-1)
     aquiferTranspireFrac   = scalarAquiferRootFrac*scalarTranspireLimAqfr/scalarTranspireLim   ! fraction of total transpiration that comes from the aquifer (-)

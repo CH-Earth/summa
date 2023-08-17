@@ -35,9 +35,9 @@ USE var_lookup,only:iLookPROG              ! named variables for structure eleme
 USE var_lookup,only:iLookDIAG              ! named variables for structure elements
 
 ! data types
-USE data_types,only:var_d                  ! x%var(:)       (rkind)
-USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
-USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
+USE data_types,only:var_d                  ! x%var(:)     [rkind]
+USE data_types,only:var_dlength            ! x%var(:)%dat [rkind]
+USE data_types,only:var_ilength            ! x%var(:)%dat [i4b]
 
 ! privacy
 implicit none
