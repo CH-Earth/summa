@@ -40,7 +40,7 @@ USE var_lookup,only:iLookFORCE          ! named variables for structure elements
 USE var_lookup,only:iLookPARAM          ! named variables for structure elements
 USE var_lookup,only:iLookINDEX          ! named variables for structure elements
 USE var_lookup,only:iLookBVAR           ! named variables for structure elements
-USE var_lookup,only:iLookDECISIONS                               ! named variables for elements of the decision structure
+USE var_lookup,only:iLookDECISIONS      ! named variables for elements of the decision structure
 
 ! constants
 USE multiconst,only:gravity             ! acceleration of gravity              (m s-2)
@@ -98,7 +98,7 @@ private
 public :: vegNrgFlux
 public :: wettedFrac
 ! dimensions
-integer(i4b),parameter        :: nBands=2                    ! number of spectral bands for shortwave radiation
+integer(i4b),parameter        :: nBands  = 2                 ! number of spectral bands for shortwave radiation
 ! named variables
 integer(i4b),parameter        :: ist     = 1                 ! Surface type:  IST=1 => soil;  IST=2 => lake
 integer(i4b),parameter        :: isc     = 4                 ! Soil color type
@@ -180,7 +180,7 @@ subroutine vegNrgFlux(&
                       dCanopyNetFlux_dCanWat,                  & ! intent(out):   derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
                       dGroundNetFlux_dCanWat,                  & ! intent(out):   derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
                       ! output: error control
-                      err,message)                               ! intent(out): error control
+                      err,message)                               ! intent(out):   error control
 
   ! utilities
   USE expIntegral_module,only:expInt                             ! function to calculate the exponential integral
@@ -605,7 +605,7 @@ subroutine vegNrgFlux(&
           scalarLatHeatSubVapCanopy = getLatentHeatValue(canopyTempTrial)
           ! case when there is snow on the ground (EXCLUDE "snow without a layer" -- in this case, evaporate from the soil)
           if (nSnow > 0) then
-            if(groundTempTrial > Tfreeze)then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
+            if (groundTempTrial > Tfreeze) then; err=20; message=trim(message)//'do not expect ground temperature > 0 when snow is on the ground'; return; end if
             scalarLatHeatSubVapGround = LH_sub  ! sublimation from snow
             scalarGroundSnowFraction  = 1._rkind
             ! case when the ground is snow-free
@@ -648,7 +648,7 @@ subroutine vegNrgFlux(&
         if (computeVegFlux) then
           ! compute the fraction of liquid water in the canopy (-)
           totalCanopyWater = canopyLiqTrial + canopyIceTrial
-          if(totalCanopyWater > tiny(1.0_rkind))then
+          if (totalCanopyWater > tiny(1.0_rkind)) then
             fracLiquidCanopy = canopyLiqTrial / (canopyLiqTrial + canopyIceTrial)
           else
             fracLiquidCanopy = 0._rkind
@@ -971,7 +971,7 @@ subroutine vegNrgFlux(&
         if (scalarLatHeatSubVapCanopy > LH_vap+verySmall) then ! canopy sublimation
           scalarCanopyEvaporation = 0._rkind
           scalarCanopySublimation = scalarLatHeatCanopyEvap/LH_sub
-          if(scalarLatHeatCanopyTrans > 0._rkind)then ! flux directed towards the veg
+          if (scalarLatHeatCanopyTrans > 0._rkind) then ! flux directed towards the veg
             scalarCanopySublimation   = scalarCanopySublimation + scalarLatHeatCanopyTrans/LH_sub ! frost
             scalarCanopyTranspiration = 0._rkind
           else
@@ -980,7 +980,7 @@ subroutine vegNrgFlux(&
         else ! canopy evaporation
           scalarCanopyEvaporation = scalarLatHeatCanopyEvap/LH_vap
           scalarCanopySublimation = 0._rkind
-          if(scalarLatHeatCanopyTrans > 0._rkind)then ! flux directed towards the veg
+          if (scalarLatHeatCanopyTrans > 0._rkind) then ! flux directed towards the veg
             scalarCanopyEvaporation   = scalarCanopyEvaporation + scalarLatHeatCanopyTrans/LH_vap
             scalarCanopyTranspiration = 0._rkind
           else
@@ -2015,36 +2015,36 @@ subroutine turbFluxes(&
   ! -----------------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
-  logical(lgt),intent(in)          :: computeVegFlux        ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
+  logical(lgt),intent(in)          :: computeVegFlux          ! logical flag to compute vegetation fluxes (.false. if veg buried by snow)
    ! input: above-canopy forcing data
-  real(rkind),intent(in)           :: airtemp               ! air temperature at some height above the surface (K)
-  real(rkind),intent(in)           :: airpres               ! air pressure of the air above the vegetation canopy (Pa)
-  real(rkind),intent(in)           :: VPair                 ! vapor pressure of the air above the vegetation canopy (Pa)
+  real(rkind),intent(in)           :: airtemp                 ! air temperature at some height above the surface (K)
+  real(rkind),intent(in)           :: airpres                 ! air pressure of the air above the vegetation canopy (Pa)
+  real(rkind),intent(in)           :: VPair                   ! vapor pressure of the air above the vegetation canopy (Pa)
   ! input: latent heat of sublimation/vaporization
-  real(rkind),intent(in)           :: latHeatSubVapCanopy   ! latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
-  real(rkind),intent(in)           :: latHeatSubVapGround   ! latent heat of sublimation/vaporization for the ground surface (J kg-1)
+  real(rkind),intent(in)           :: latHeatSubVapCanopy     ! latent heat of sublimation/vaporization for the vegetation canopy (J kg-1)
+  real(rkind),intent(in)           :: latHeatSubVapGround     ! latent heat of sublimation/vaporization for the ground surface (J kg-1)
   ! input: canopy and ground temperature
-  real(rkind),intent(in)           :: canairTemp            ! temperature of the canopy air space (K)
-  real(rkind),intent(in)           :: canopyTemp            ! canopy temperature (K)
-  real(rkind),intent(in)           :: groundTemp            ! ground temperature (K)
-  real(rkind),intent(in)           :: satVP_CanopyTemp      ! saturation vapor pressure at the temperature of the veg canopy (Pa)
-  real(rkind),intent(in)           :: satVP_GroundTemp      ! saturation vapor pressure at the temperature of the ground (Pa)
+  real(rkind),intent(in)           :: canairTemp              ! temperature of the canopy air space (K)
+  real(rkind),intent(in)           :: canopyTemp              ! canopy temperature (K)
+  real(rkind),intent(in)           :: groundTemp              ! ground temperature (K)
+  real(rkind),intent(in)           :: satVP_CanopyTemp        ! saturation vapor pressure at the temperature of the veg canopy (Pa)
+  real(rkind),intent(in)           :: satVP_GroundTemp        ! saturation vapor pressure at the temperature of the ground (Pa)
   real(rkind),intent(in)           :: dSVPCanopy_dCanopyTemp  ! derivative in canopy saturation vapor pressure w.r.t. canopy temperature (Pa K-1)
   real(rkind),intent(in)           :: dSVPGround_dGroundTemp  ! derivative in ground saturation vapor pressure w.r.t. ground temperature (Pa K-1)
   ! input: diagnostic variables
-  real(rkind),intent(in)           :: exposedVAI            ! exposed vegetation area index -- leaf plus stem (m2 m-2)
-  real(rkind),intent(in)           :: canopyWetFraction     ! fraction of canopy that is wet [0-1]
+  real(rkind),intent(in)           :: exposedVAI              ! exposed vegetation area index -- leaf plus stem (m2 m-2)
+  real(rkind),intent(in)           :: canopyWetFraction       ! fraction of canopy that is wet [0-1]
   real(rkind),intent(in)           :: dCanopyWetFraction_dWat ! derivative in the canopy wetted fraction w.r.t. liquid water content (kg-1 m-2)
   real(rkind),intent(in)           :: dCanopyWetFraction_dT   ! derivative in the canopy wetted fraction w.r.t. canopy temperature (K-1)
-  real(rkind),intent(in)           :: canopySunlitLAI       ! sunlit leaf area (-)
-  real(rkind),intent(in)           :: canopyShadedLAI       ! shaded leaf area (-)
-  real(rkind),intent(in)           :: soilRelHumidity       ! relative humidity in the soil pores [0-1]
-  real(rkind),intent(in)           :: soilResistance        ! resistance from the soil (s m-1)
-  real(rkind),intent(in)           :: leafResistance        ! mean leaf boundary layer resistance per unit leaf area (s m-1)
-  real(rkind),intent(in)           :: groundResistance      ! below canopy aerodynamic resistance (s m-1)
-  real(rkind),intent(in)           :: canopyResistance      ! above canopy aerodynamic resistance (s m-1)
-  real(rkind),intent(in)           :: stomResistSunlit      ! stomatal resistance for sunlit leaves (s m-1)
-  real(rkind),intent(in)           :: stomResistShaded      ! stomatal resistance for shaded leaves (s m-1)
+  real(rkind),intent(in)           :: canopySunlitLAI         ! sunlit leaf area (-)
+  real(rkind),intent(in)           :: canopyShadedLAI         ! shaded leaf area (-)
+  real(rkind),intent(in)           :: soilRelHumidity         ! relative humidity in the soil pores [0-1]
+  real(rkind),intent(in)           :: soilResistance          ! resistance from the soil (s m-1)
+  real(rkind),intent(in)           :: leafResistance          ! mean leaf boundary layer resistance per unit leaf area (s m-1)
+  real(rkind),intent(in)           :: groundResistance        ! below canopy aerodynamic resistance (s m-1)
+  real(rkind),intent(in)           :: canopyResistance        ! above canopy aerodynamic resistance (s m-1)
+  real(rkind),intent(in)           :: stomResistSunlit        ! stomatal resistance for sunlit leaves (s m-1)
+  real(rkind),intent(in)           :: stomResistShaded        ! stomatal resistance for shaded leaves (s m-1)
   ! input: derivatives in scalar resistances
   real(rkind),intent(in)           :: dGroundResistance_dTGround       ! derivative in ground resistance w.r.t. ground temperature (s m-1 K-1)
   real(rkind),intent(in)           :: dGroundResistance_dTCanopy       ! derivative in ground resistance w.r.t. canopy temperature (s m-1 K-1)
@@ -2176,7 +2176,7 @@ subroutine turbFluxes(&
   totalConductanceSH  = leafConductance + groundConductanceSH + canopyConductance
 
   ! compute conductances for latent heat (m s-1)
-  if(computeVegFlux)then
+  if (computeVegFlux) then
     evapConductance    = canopyWetFraction*leafConductance
     transConductance   = (1._rkind - canopyWetFraction) * leafConductanceTr
   else
@@ -2367,10 +2367,10 @@ subroutine turbFluxes(&
     dVPCanopyAir_dCanWat         = 0._rkind
 
     ! set derivatives for ground fluxes w.r.t canopy temperature to zero (no canopy, so fluxes are undefined)
-    dSenHeatGround_dTCanair     = 0._rkind
-    dSenHeatGround_dTCanopy     = 0._rkind
-    dLatHeatGroundEvap_dTCanair = 0._rkind
-    dLatHeatGroundEvap_dTCanopy = 0._rkind
+    dSenHeatGround_dTCanair      = 0._rkind
+    dSenHeatGround_dTCanopy      = 0._rkind
+    dLatHeatGroundEvap_dTCanair  = 0._rkind
+    dLatHeatGroundEvap_dTCanopy  = 0._rkind
 
     ! compute derivatives for the ground fluxes w.r.t. ground temperature
     dSenHeatGround_dTGround     = (-volHeatCapacityAir*dGroundCondSH_dGroundTemp)*(groundTemp - airtemp) + &                                               ! d(ground sensible heat flux)/d(ground temp)
