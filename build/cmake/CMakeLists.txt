@@ -311,23 +311,22 @@ set(NETCDF
     ${SUB_NETCDF_DIR}/def_output.f90
     ${SUB_NETCDF_DIR}/modelwrite.f90
     ${NETCDF_DIR}/netcdf_util.f90
-    ${SUB_NETCDF_DIR}/read_icond.f90)
+    ${NETCDF_DIR}/read_icond.f90)
 
 # Preliminary modules
 set(PRELIM
     ${ENGINE_DIR}/allocspace.f90
-    ${SUB_ENGINE_DIR}/check_icond.f90
+    ${ENGINE_DIR}/check_icond.f90
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/conv_funcs.f90
     ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
-    ${SUB_ENGINE_DIR}/read_attrb.f90
+    ${ENGINE_DIR}/read_attrb.f90
     ${ENGINE_DIR}/paramCheck.f90
     ${ENGINE_DIR}/pOverwrite.f90
-    ${ENGINE_DIR}/sunGeomtry.f90)
-set(PRELIM_NOT_ACTORS
+    ${ENGINE_DIR}/sunGeomtry.f90
     ${ENGINE_DIR}/read_param.f90)
 
 # Model run support modules
@@ -413,10 +412,7 @@ set(INTERFACE
 set(FILE_ACCESS_INTERFACE
     ${FILE_ACCESS_DIR}/fortran_code/cppwrap_fileAccess.f90
     ${FILE_ACCESS_DIR}/fortran_code/output_structure.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_attrb.f90
     ${FILE_ACCESS_DIR}/fortran_code/read_force.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_icondFromStructure.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_param.f90
     ${FILE_ACCESS_DIR}/fortran_code/write_to_netcdf.f90
     ${FILE_ACCESS_DIR}/fortran_code/writeOutputFromOutputStructure.f90)
 set(JOB_INTERFACE

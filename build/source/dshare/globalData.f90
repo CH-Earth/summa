@@ -271,8 +271,6 @@ MODULE globalData
   logical(lgt),allocatable,save,public           :: failedHRUs(:)                     ! list of true and false values to indicate if an HRU has failed
   type(ilength),allocatable,save,public          :: outputTimeStep(:)                 ! timestep in output files
   ! inital conditions for Actors
-  type(init_cond),allocatable,save,public        :: init_cond_prog(:)                 ! variable data for initial conditions
-  type(init_cond),allocatable,save,public        :: init_cond_bvar(:)                 ! variable data for initial conditions
 #else
   ! define metadata for model forcing datafile non-Actors
   type(file_info),save,public,allocatable        :: forcFileInfo(:)                   ! file info for model forcing data
