@@ -30,7 +30,6 @@ import geopandas as gpd
 
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
-stat = sys.argv[2]
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -156,7 +155,7 @@ s1 = summa['wallClockTime'].sel(stat='amax')
 modulus = s0.indexes['hru'] % 518
 for plot_var in plot_vars:
     if plot_var == 'batchNum':
-        s = modulus
+        s = modulus*s0/s0
     if plot_var == 'batchNumMultWallClockTime':
         s = modulus*s0
     if plot_var == 'wallClockTime':

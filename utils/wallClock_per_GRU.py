@@ -20,15 +20,13 @@ import copy
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = False
+testing = True
 if testing: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be64','be1','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','be64','sundials_1en6'] #maybe make this an argument
 else:
     import sys
-    # The first input argument specifies the run where the files are
-    stat = sys.argv[1]
-    method_name=['be64','be32','be1','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
