@@ -20,7 +20,7 @@ import copy
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = True
+testing = False
 if testing: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be64','be1','sundials_1en6'] #maybe make this an argument
