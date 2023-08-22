@@ -12,7 +12,7 @@ import netCDF4 as nc
 import numpy as np
 
 catby_num   = 2 #number of files to cat into one, if had to divide runs from regular batches into sub-batches to finish in 7 days
-top_fold    = '/home/avanb/projects/rpp-kshook/avanb/summaWorkflow_data/domain_NorthAmerica/'
+top_fold    = '/home/avanb/scratch/'
 
 missing = False # if appending nan hrus to batch because failed
 missgru = 72055933 # batch 205 summa-be32 value

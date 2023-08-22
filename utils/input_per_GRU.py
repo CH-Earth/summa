@@ -1,19 +1,18 @@
 # written originally by W. Knoben, modified by A. Van Beusekom (2023)
 
-## Visualize statistics per GRU
+## Visualize batch number and wallClocktime per GRU, (could be modified to visualize other attributes or forcing per GRU)
 ## Needs:
 #    Catchment shapefile with GRU delineation
-#    SUMMA output statistics
+#    ? SUMMA forcing folder and attribute folder
+#    SUMMA stats file for wall clock times
 
 ## Special note
-# SUMMA simulations have been preprocessed into single value statistics per model element, using auxiliary scripts in ~/utils
 # To improve visualization of large lakes, HydroLAKES lake delineations are plotted on top of the catchment GRUs and river segments.
 # Dealing with HydroLAKES inputs is not considered within scope of the workflow and therefore requires some manual downloading and preprocessing of this data for those who wish to reproduce this step.
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-# python plot_per_GRU.py sundials_1en6 [stat]
-# where stat is rmse or maxe or kgem
+# python input_per_GRU.py be32
 
 
 # modules
@@ -40,15 +39,12 @@ viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
 
 # Specify variables of interest
-plot_vars = settings
-plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
-if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.7]
-if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,13e-3]
+plot_vars = ['batchNum','batchNumMultWallClockTime','wallClockTime','batchNumMultWallClockMax','wallClockMax']
+plt_titl = ['(a) Number in batch','(b) Number in batch * Wall clock mean time','(c) Wall clock mean time','(d) Number in batch * Wall clock max time','(e) Wall clock max time']
+leg_titl = ['$#$','$#~s$','$s$','$#~s$','$s$']
+maxes = [518,5,1e-3,260,0.5]
 
-fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
-fig_fil = fig_fil.format(','.join(settings),stat)
+fig_fil = method_name + '_wallClockTime_batchNum_compressed.png'
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -155,13 +151,20 @@ summa = xr.open_dataset(viz_dir/viz_fil)
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
+s0 = summa['wallClockTime'].sel(stat='mean')
+s1 = summa['wallClockTime'].sel(stat='amax')
+modulus = s0.indexes['hru'] % 518
 for plot_var in plot_vars:
-    stat0 = stat
+    if plot_var == 'batchNum':
+        s = modulus
+    if plot_var == 'batchNumMultWallClockTime':
+        s = modulus*s0
     if plot_var == 'wallClockTime':
-        if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
-        if stat == 'maxe': stat0 = 'amax'
-    s = summa[plot_var].sel(stat=stat0)
-    if stat == 'maxe': s = np.fabs(s) # make absolute value norm, max is not not all positive
+        s = s0
+    if plot_var == 'batchNumMultWallClockMax':
+        s = modulus*s1
+    if plot_var == 'wallClockMax':
+        s = s1
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
@@ -206,12 +209,6 @@ def run_loop(i,var,the_max,f_x,f_y):
     my_cmap.set_bad(color='white') #nan color white    
     vmin,vmax = 0, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
-    if stat=='kgem' and var!='wallClockTime': 
-        my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
-        my_cmap.set_bad(color='white') #nan color white    
-
-        vmin,vmax = the_max, 1.0
-        norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     r = i//2
     c = i-r*2
 
@@ -226,16 +223,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
     #cbr.ax.yaxis.set_offset_position('right')
 
-    if stat == 'rmse': stat_word = ' Hourly RMSE'
-    if stat == 'maxe': stat_word = ' Hourly max abs error'
-    if stat == 'kgem': stat_word = ' Hourly KGEm'
-
-    # wall Clock doesn't do difference
-    if var == 'wallClockTime':
-        if stat == 'rmse' or stat == 'kgem': stat_word = ' Hourly mean'
-        if stat == 'maxe': stat_word = ' Hourly max'
-
-    axs[r,c].set_title(plt_titl[i] + stat_word)
+    axs[r,c].set_title(plt_titl[i])
     axs[r,c].axis('off')
 
     # lakes
