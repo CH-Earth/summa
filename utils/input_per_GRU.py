@@ -155,13 +155,13 @@ s1 = summa['wallClockTime'].sel(stat='amax')
 modulus = s0.indexes['hru'] % 518
 for plot_var in plot_vars:
     if plot_var == 'batchNum':
-        s = modulus*s0/s0
+        s = s0*modulus/s0
     if plot_var == 'batchNumMultWallClockTime':
-        s = modulus*s0
+        s = s0*modulus
     if plot_var == 'wallClockTime':
         s = s0
     if plot_var == 'batchNumMultWallClockMax':
-        s = modulus*s1
+        s = s1*modulus
     if plot_var == 'wallClockMax':
         s = s1
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
