@@ -38,10 +38,10 @@ viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
 
 # Specify variables of interest
-plot_vars = ['batchNum','batchNumMultWallClockTime','wallClockTime','batchNumMultWallClockMax','wallClockMax']
-plt_titl = ['(a) Number in batch','(b) Number in batch * Wall clock mean time','(c) Wall clock mean time','(d) Number in batch * Wall clock max time','(e) Wall clock max time']
-leg_titl = ['$num$','$num~s$','$s$','$num~s$','$s$']
-maxes = [518,5,1e-3,260,0.5]
+plot_vars = ['batch','batchNum','batchNumMultWallClockTime','wallClockTime','batchNumMultWallClockMax','wallClockMax']
+plt_titl = ['(a) Batch','(b) Basin in batch','(c) Basin in batch * Wall clock mean time','(d) Wall clock mean time','(e) Basin in batch * Wall clock max time','(f) Wall clock max time']
+leg_titl = ['$num$','$num$','$num~s$','$s$','$num~s$','$s$']
+maxes = [998,517,4.6,9e-3,100,0.2]
 
 fig_fil = method_name + '_wallClockTime_batchNum_compressed.png'
 
@@ -152,8 +152,11 @@ summa = xr.open_dataset(viz_dir/viz_fil)
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 s0 = summa['wallClockTime'].sel(stat='mean')
 s1 = summa['wallClockTime'].sel(stat='amax')
-modulus = s0.indexes['hru'] % 518
+modulus  = np.arange(len(s0.indexes['hru'])) % 518
+batch = np.floor(np.arange(len(s0.indexes['hru'])) /518)
 for plot_var in plot_vars:
+    if plot_var == 'batch':
+        s = s0*batch/s0
     if plot_var == 'batchNum':
         s = s0*modulus/s0
     if plot_var == 'batchNumMultWallClockTime':

@@ -20,7 +20,7 @@ import copy
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = True
+testing = False
 if testing: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1','be64','sundials_1en6'] #maybe make this an argument
@@ -73,7 +73,7 @@ def run_loop(i,stat):
     # Data
     for m in method_name:
         s = summa[m]['wallClockTime'].sel(stat=stat)
-        modulus = s.indexes['hru'] % 518
+        modulus = np.arange(len(s.indexes['hru'])) % 518
         axs[c].scatter(x=s.values,y=modulus.values,s=1,zorder=0,label=m)
         
     if stat == 'mean': stat_word = 'Wall clock time hourly mean '
