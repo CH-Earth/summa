@@ -40,7 +40,7 @@ viz_fil = viz_fil.format(','.join(settings))
 # Specify variables of interest
 plot_vars = ['batchNum','batchNumMultWallClockTime','wallClockTime','batchNumMultWallClockMax','wallClockMax']
 plt_titl = ['(a) Number in batch','(b) Number in batch * Wall clock mean time','(c) Wall clock mean time','(d) Number in batch * Wall clock max time','(e) Wall clock max time']
-leg_titl = ['$#$','$#~s$','$s$','$#~s$','$s$']
+leg_titl = ['$num$','$num~s$','$s$','$num~s$','$s$']
 maxes = [518,5,1e-3,260,0.5]
 
 fig_fil = method_name + '_wallClockTime_batchNum_compressed.png'
