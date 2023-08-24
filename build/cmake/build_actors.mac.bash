@@ -11,4 +11,3 @@ export LIBRARY_LINKS='-llapack;-lgfortran;-lnetcdff;-lnetcdf' # list of library 
 
 cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials_Actors
 cmake --build ../cmake_build --target all
-

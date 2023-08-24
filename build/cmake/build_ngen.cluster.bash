@@ -23,4 +23,3 @@ cmake -B cmake_build -S . -DMPI_ACTIVE:BOOL=OFF -DNGEN_ACTIVATE_PYTHON:BOOL=OFF 
 # can also add -DCMAKE_BUILD_TYPE=Debug to be able to run in gdb
 # make -j 8 -C cmake_build    # build w/ 8 parallel jobs, also turn MPI on
 make -C cmake_build
-

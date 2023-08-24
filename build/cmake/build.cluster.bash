@@ -11,4 +11,3 @@ export FLAGS_OPT="-flto=1;-fuse-linker-plugin"
 
 cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials_Cluster
 cmake --build ../cmake_build --target all
-

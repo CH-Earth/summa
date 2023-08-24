@@ -40,7 +40,7 @@ Extract the corresponding compressed file
 
     tar -xzf sundials-6.3.0.tar.gz
     
-Enter the buildir and run
+An example build_cmake file is at summa/build/cmake_external/build_cmakeSundials.bash which you can copy to builddir as build_cmake. Then, enter the buildir and run
 
     cd sundials/buildir
     ./build_cmake

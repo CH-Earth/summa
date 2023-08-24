@@ -24,4 +24,3 @@
 # CMake Commands (build type controlled using DCMAKE_BUILD_TYPE)
 cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=BE
 cmake --build ../cmake_build --target all
-
