@@ -848,6 +848,14 @@ MODULE var_lookup
  end type iLook_routine
 
  ! ***********************************************************************************************************
+ ! (18) structure for looking up operation argument for subTools subroutine
+ ! ***********************************************************************************************************
+ type, public :: iLook_op
+  integer(i4b)    :: pre        = integerMissing ! pre-processing
+  integer(i4b)    :: post       = integerMissing ! post-processing
+ end type iLook_op
+
+ ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
 
@@ -940,7 +948,9 @@ MODULE var_lookup
  ! named variables in the lookup table structure
  type(iLook_vLookup), public,parameter :: iLookLOOKUP   =ilook_vLookup (  1,  2,  3)
  ! named variables: flux subroutines
- type(iLook_routine) ,public,parameter :: iLookROUTINE  =iLook_routine (  1,  2,  3,  4,  5,  6,  7)
+ type(iLook_routine), public,parameter :: iLookROUTINE  =iLook_routine (  1,  2,  3,  4,  5,  6,  7)
+ ! named variables: operation arguments for subTools subroutine 
+ type(iLook_op),      public,parameter :: iLookOP       =iLook_op      (  1,  2)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength
