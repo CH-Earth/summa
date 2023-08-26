@@ -25,12 +25,14 @@ USE nrtype
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    model_options,& ! defines the model decisions
-                    data_bin        ! x%bin(:)%{lgt(:),i4b(:),rkind(:),rmatrix(:,:),string}, x%err [i4b], x%msg [character] 
+                    var_i,             & ! data vector (i4b)
+                    var_d,             & ! data vector (rkind)
+                    var_ilength,       & ! data vector with variable length dimension (i4b)
+                    var_dlength,       & ! data vector with variable length dimension (rkind)
+                    model_options,     & ! defines the model decisions
+                    in_type_ssdNrgFlux,& ! intent(in) arguments for ssdNrgFlux call
+                    io_type_ssdNrgFlux,& ! intent(inout) arguments for ssdNrgFlux call
+                    out_type_ssdNrgFlux  ! intent(inout) arguments for ssdNrgFlux call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -214,7 +216,9 @@ subroutine computFlux(&
   real(rkind)                        :: above_soilLiqFluxDeriv      ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
   real(rkind)                        :: above_soildLiq_dTk          ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
   real(rkind)                        :: above_soilFracLiq           ! fraction of liquid water layer above soil (canopy or snow) (-)
-
+  type(in_type_ssdNrgFlux)           :: in_ssdNrgFlux               ! data structure for ssdNrgFlux arguments
+  type(io_type_ssdNrgFlux)           :: io_ssdNrgFlux               ! data structure for ssdNrgFlux arguments 
+  type(out_type_ssdNrgFlux)          :: out_ssdNrgFlux              ! data structure for ssdNrgFlux arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -488,48 +492,10 @@ subroutine computFlux(&
 
     ! check the need to compute energy fluxes throughout the snow+soil domain
     if (nSnowSoilNrg>0) then
-
       ! calculate energy fluxes at layer interfaces through the snow and soil domain
-      call ssdNrgFlux(&
-                      ! input: model control
-                      (scalarSolution .and. .not.firstFluxCall), & ! intent(in): flag to indicate the scalar solution
-                      ! input: fluxes and derivatives at the upper boundary
-                      scalarGroundNetNrgFlux,                    & ! intent(in):    total flux at the ground surface (W m-2)
-                      dGroundNetFlux_dGroundTemp,                & ! intent(in):    derivative in total ground surface flux w.r.t. ground temperature (W m-2 K-1)
-                      ! input: liquid water fluxes throughout the snow and soil domains
-                      iLayerLiqFluxSnow,                         & ! intent(in):    liquid flux at the interface of each snow layer (m s-1)
-                      iLayerLiqFluxSoil,                         & ! intent(in):    liquid flux at the interface of each soil layer (m s-1)
-                      ! input: trial value of model state variables
-                      mLayerTempTrial,                           & ! intent(in):    trial temperature at the current iteration (K)
-                      ! input: derivatives
-                      dThermalC_dWatAbove,                       & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
-                      dThermalC_dWatBelow,                       & ! intent(in):    derivative in the thermal conductivity w.r.t. water state in the layer above
-                      dThermalC_dTempAbove,                      & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
-                      dThermalC_dTempBelow,                      & ! intent(in):    derivative in the thermal conductivity w.r.t. energy state in the layer above
-                      ! input-output: data structures
-                      mpar_data,                                 & ! intent(in):    model parameters
-                      indx_data,                                 & ! intent(in):    model indices
-                      prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,                                 & ! intent(in):    model diagnostic variables for a local HRU
-                      flux_data,                                 & ! intent(inout): model fluxes for a local HRU
-                      ! output: fluxes and derivatives at all layer interfaces
-                      iLayerNrgFlux,                             & ! intent(out): 　energy flux at the layer interfaces (W m-2)
-                      dNrgFlux_dTempAbove,                       & ! intent(out): 　derivatives in the flux w.r.t. temperature in the layer above (W m-2 K-1)
-                      dNrgFlux_dTempBelow,                       & ! intent(out): 　derivatives in the flux w.r.t. temperature in the layer below (W m-2 K-1)
-                      dNrgFlux_dWatAbove,                        & ! intent(out): 　derivatives in the flux w.r.t. water state in the layer above
-                      dNrgFlux_dWatBelow,                        & ! intent(out): 　derivatives in the flux w.r.t. water state in the layer below
-                      ! output: error control
-                      err,cmessage)                                ! intent(out): error control
-      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! calculate net energy fluxes for each snow and soil layer (J m-3 s-1)
-      do iLayer=1,nLayers
-        mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
-        if (globalPrintFlag) then
-          if(iLayer < 10) write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)   = ', iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)
-        end if
-      end do
-
+      call subTools(iLookOP%pre,iLookROUTINE%ssdNrgFlux)  ! pre-processing for call to ssdNrgFlux
+      call ssdNrgFlux(in_ssdNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_ssdNrgFlux,out_ssdNrgFlux)
+      call subTools(iLookOP%post,iLookROUTINE%ssdNrgFlux) ! post-processing for call to ssdNrgFlux
     end if  ! end if computing energy fluxes throughout the snow+soil domain
 
     ! *****
@@ -1065,7 +1031,42 @@ contains
    case(iLookROUTINE%vegNrgFlux) ! vegNrgFlux
 
    case(iLookROUTINE%ssdNrgFlux) ! ssdNrgFlux
-
+    if (op==iLookOP%pre) then ! pre-processing
+     ! intent(in) arguments
+     in_ssdNrgFlux % flag=scalarSolution .and. .not.firstFluxCall
+     in_ssdNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux
+     in_ssdNrgFlux % dGroundNetFlux_dGroundTemp=dGroundNetFlux_dGroundTemp
+     in_ssdNrgFlux % iLayerLiqFluxSnow=iLayerLiqFluxSnow
+     in_ssdNrgFlux % iLayerLiqFluxSoil=iLayerLiqFluxSoil
+     in_ssdNrgFlux % mLayerTempTrial=mLayerTempTrial
+     in_ssdNrgFlux % dThermalC_dWatAbove=dThermalC_dWatAbove
+     in_ssdNrgFlux % dThermalC_dWatBelow=dThermalC_dWatBelow
+     in_ssdNrgFlux % dThermalC_dTempAbove=dThermalC_dTempAbove
+     in_ssdNrgFlux % dThermalC_dTempBelow=dThermalC_dTempBelow
+     ! intent(inout) arguments
+     io_ssdNrgFlux % dGroundNetFlux_dGroundTemp=dGroundNetFlux_dGroundTemp
+    else ! post-processing
+     ! intent(inout) arguments
+     dGroundNetFlux_dGroundTemp=io_ssdNrgFlux % dGroundNetFlux_dGroundTemp
+     ! intent(out) arguments
+     iLayerNrgFlux      =out_ssdNrgFlux % iLayerNrgFlux
+     dNrgFlux_dTempAbove=out_ssdNrgFlux % dNrgFlux_dTempAbove
+     dNrgFlux_dTempBelow=out_ssdNrgFlux % dNrgFlux_dTempBelow
+     dNrgFlux_dWatAbove =out_ssdNrgFlux % dNrgFlux_dWatAbove
+     dNrgFlux_dWatBelow =out_ssdNrgFlux % dNrgFlux_dWatBelow
+     err                =out_ssdNrgFlux % err
+     cmessage           =out_ssdNrgFlux % cmessage
+     !deallocate(in_ssdNrgFlux,io_ssdNrgFlux,out_ssdNrgFlux) -- update
+     ! error control
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     ! calculate net energy fluxes for each snow and soil layer (J m-3 s-1)
+     do iLayer=1,nLayers
+       mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
+       if (globalPrintFlag) then
+         if (iLayer < 10) write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)   = ', iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)
+       end if
+     end do
+    end if
    case(iLookROUTINE%vegLiqFlux) ! vegLiqFlux
 
    case(iLookROUTINE%snowLiqFlx) ! snowLiqFlx
