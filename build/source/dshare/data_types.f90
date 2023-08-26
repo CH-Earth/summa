@@ -315,5 +315,34 @@ MODULE data_types
   character(:), allocatable              :: msg                           ! error message
  end type data_bin
 
+ ! testing SJT
+ type, public :: in_type_ssdNrgFlux ! derived type for intent(in) arguments in ssdNrgFlux call
+  logical(lgt)             :: flag
+  real(rkind)              :: scalarGroundNetNrgFlux
+  real(rkind)              :: dGroundNetFlux_dGroundTemp
+  real(rkind), allocatable :: iLayerLiqFluxSnow(:)
+  real(rkind), allocatable :: iLayerLiqFluxSoil(:)
+  real(rkind), allocatable :: mLayerTempTrial(:)
+  real(rkind), allocatable :: dThermalC_dWatAbove(:)
+  real(rkind), allocatable :: dThermalC_dWatBelow(:)
+  real(rkind), allocatable :: dThermalC_dTempAbove(:)
+  real(rkind), allocatable :: dThermalC_dTempBelow(:)
+ end type in_type_ssdNrgFlux
+
+ type, public :: io_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
+  real(rkind)              :: dGroundNetFlux_dGroundTemp
+ end type io_type_ssdNrgFlux
+
+ type, public :: out_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
+  real(rkind), allocatable :: iLayerNrgFlux(:)
+  real(rkind), allocatable :: dNrgFlux_dTempAbove(:)
+  real(rkind), allocatable :: dNrgFlux_dTempBelow(:)
+  real(rkind), allocatable :: dNrgFlux_dWatAbove(:)
+  real(rkind), allocatable :: dNrgFlux_dWatBelow(:)
+  integer(i4b)             :: err
+  character(:),allocatable :: cmessage
+ end type out_type_ssdNrgFlux
+ ! end testing SJT
+
 END MODULE data_types
 
