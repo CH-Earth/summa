@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import copy
 
 viz_dir = Path('/home/avanb/scratch/statistics')
+nbatch_hrus = 518 # number of HRUs per batch
 
 testing = False
 if testing: 

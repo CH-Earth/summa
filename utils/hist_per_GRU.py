@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import copy
 
 viz_dir = Path('/home/avanb/scratch/statistics')
+nbatch_hrus = 518 # number of HRUs per batch
 
 testing = False
 if testing: 
@@ -49,9 +50,9 @@ leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~
 fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 # possibly want to use these to shrink the axes a bit
-if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
+if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,10e-3]
 if stat=='maxe' : maxes = [20,30,3e-4,2,4e-7,0.7]
-if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,13e-3]
+if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,10e-3]
 
 # Get the aggregated statistics of SUMMA simulations
 summa = {}
@@ -100,6 +101,11 @@ def run_loop(i,var,mx):
     # Data
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
+        if var == 'wallClockTime':
+            batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
+            batch = s*batch/s # batch number for CPU efficiency
+                    # efficiency of batch*wallClockTime
+
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         range = (0,mx)
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)

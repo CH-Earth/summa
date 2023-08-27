@@ -38,14 +38,15 @@ settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','a
 viz_dir = Path('/home/avanb/scratch/statistics')
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
+nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables of interest
 plot_vars = settings
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,13e-3]
+if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,10e-3]
 if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.7]
-if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,13e-3]
+if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,10e-3]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
@@ -161,6 +162,11 @@ for plot_var in plot_vars:
         if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
         if stat == 'maxe': stat0 = 'amax'
     s = summa[plot_var].sel(stat=stat0)
+    if var == 'wallClockTime':
+        batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
+        batch = s*batch/s # batch number for CPU efficiency
+        # efficiency of batch*wallClockTime
+
     if stat == 'maxe': s = np.fabs(s) # make absolute value norm, max is not not all positive
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 

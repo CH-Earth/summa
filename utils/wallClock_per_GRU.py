@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import copy
 
 viz_dir = Path('/home/avanb/scratch/statistics')
+nbatch_hrus = 518 # number of HRUs per batch
 
 testing = False
 if testing: 
@@ -36,8 +37,8 @@ for i, m in enumerate(method_name):
     viz_fil[i] = viz_fil[i].format(','.join(settings))
 
 # Specify variables of interest
-plt_titl = ['(a) Wall clock mean time','(b) Wall clock max time']
-leg_titl = ['$s$','$s$']
+plt_titl = ['(a) Mean time vs basin in batch','(b) Max time vs basin in batch','(c) Mean time vs batch','(d) Max time vs batch','(e) Mean time vs efficiency','(f) Max time vs efficiency']
+leg_titl = ['$s$','$s$','$s$','$s$','$s$','$s$']
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
@@ -61,9 +62,9 @@ else:
 #bas_albers['plot_ET'] = bas_albers['plot_ET'].where(bas_albers['scalarTotalET'] != -9999, np.nan)
 
 if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(1,2,figsize=(35,33))
+    fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
-    fig,axs = plt.subplots(1,2,figsize=(140,133))
+    fig,axs = plt.subplots(3,2,figsize=(140,133))
 
     
 def run_loop(i,stat):
@@ -73,20 +74,37 @@ def run_loop(i,stat):
     # Data
     for m in method_name:
         s = summa[m]['wallClockTime'].sel(stat=stat)
-        modulus = np.arange(len(s.indexes['hru'])) % 518
-        axs[c].scatter(x=s.values,y=modulus.values,s=1,zorder=0,label=m)
+        for r in range(3):
+            if r == 0:
+                modulus = np.arange(len(s.indexes['hru'])) % nbatch_hrus
+                axs[r,c].scatter(x=s.values,y=modulus.values,s=1,zorder=0,label=m)
+                stat0_word ='Basin number in batch'
+            if r == 0:
+                node= np.arange(len(s.indexes['hru'])) % nbatch_hrus
+           vs wallclock*eff?
+                axs[r,c].scatter(x=s.values,y=node.values,s=1,zorder=0,label=m)
+                stat0_word ='Node number'
+            if r == 1:
+                batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
+                axs[r,c].scatter(x=s.values,y=batch.values,s=1,zorder=0,label=m)
+                stat0_word ='Batch number'
+            if r == 2:
+                eff = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
+                axs[r,c].scatter(x=s.values,y=eff.values,s=1,zorder=0,label=m)
+                stat0_word ='Fraction efficiency'
+
+
         
     if stat == 'mean': stat_word = 'Wall clock time hourly mean '
     if stat == 'amax': stat_word = 'Wall clock time hourly max '
-    stat0_word ='Batch number'
 
  
     lgnd = axs[c].legend()
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
-    axs[c].set_title(plt_titl[i])
-    axs[c].set_xlabel(stat_word + '[{}]'.format(leg_titl[i]))
-    axs[c].set_ylabel(stat0_word)
+    axs[1,c].set_title(plt_titl[i])
+    axs[1,c].set_xlabel(stat_word + '[{}]'.format(leg_titl[i]))
+    axs[1,c].set_ylabel(stat0_word)
 
 
 for i,stat in enumerate(['mean','amax']): 
