@@ -23,6 +23,7 @@ import pandas as pd
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
 num_bins = 1000
+use_eff = False # use efficiency in wall clock time
 
 testing = False
 if testing: 
@@ -46,7 +47,7 @@ for i, m in enumerate(method_name):
 
 # Specify variables of interest
 plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
-plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
+plt_titl = ['(a) Snow Water Equivalent >0','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 
 #fig_fil = '{}_hrly_diff_hist_{}_{}_zoom_compressed.png'
@@ -63,13 +64,14 @@ eff = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-    # Read the data from the eff.txt file into a DataFrame
-    eff[m] = pd.read_csv(viz_dir/eff_fil[i], sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
-    # Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
-    eff[m]['CPU Efficiency'] = eff[m]['CPU Efficiency'].str.split(':').str[1].astype(float)
-    eff[m]['Array ID'] = eff[m]['Array ID'].str.split(':').str[1].astype(int)   
-    eff[m]['Job Wall-clock time'] = eff[m]['Job Wall-clock time'].str.split(':').str[1].astype(float)
-    eff[m]['Node Number'] = eff[m]['Node Number'].str.split(':').str[1].astype(int)
+    if use_eff:
+        # Read the data from the eff.txt file into a DataFrame
+        eff[m] = pd.read_csv(viz_dir/eff_fil[i], sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
+        # Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
+        eff[m]['CPU Efficiency'] = eff[m]['CPU Efficiency'].str.split(':').str[1].astype(float)
+        eff[m]['Array ID'] = eff[m]['Array ID'].str.split(':').str[1].astype(int)   
+        eff[m]['Job Wall-clock time'] = eff[m]['Job Wall-clock time'].str.split(':').str[1].astype(float)
+        eff[m]['Node Number'] = eff[m]['Node Number'].str.split(':').str[1].astype(int)
     
 ##Figure
 
@@ -112,7 +114,7 @@ def run_loop(i,var,mx):
     # Data
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
-        if var == 'wallClockTime':
+        if var == 'wallClockTime' and use_eff:
             batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
             #basin_num = np.arange(len(s.indexes['hru'])) % nbatch_hrus #not currently using
             # Create a dictionary to store the values for each batch
@@ -135,6 +137,7 @@ def run_loop(i,var,mx):
 
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         range = (0,mx)
+        if var == 'scalarSWE': range = (1.e-10,mx) # SWE has a lot of zeros
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
         s.plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
 
@@ -147,7 +150,7 @@ def run_loop(i,var,mx):
     if var == 'wallClockTime':
         if stat == 'rmse' or stat == 'kgem': stat_word = ' Hourly mean'
         if stat == 'maxe': stat_word = ' Hourly max'
-        #axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
+        axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
 
     axs[r,c].legend()
     axs[r,c].set_title(plt_titl[i] + stat_word)

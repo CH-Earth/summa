@@ -22,6 +22,7 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
+use_eff = False # use efficiency in wall clock time, still need files for the node number
 
 testing = False
 if testing: 
@@ -48,7 +49,6 @@ plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat',
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$num$']
 leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
@@ -116,7 +116,7 @@ def run_loop(i,var):
             eff_batch = np.array([efficiency[b] for b in batch])
             node_batch = np.array([node[b] for b in batch]) #not currently using
             # Multiply the s values by efficiency
-            s = s*eff_batch
+            if use_eff: s = s*eff_batch
             axs[r,c].scatter(x=node_batch,y=s.sel(stat=stat0),s=1,zorder=0,label=m)
             stat_word = 'Node number'
         else:

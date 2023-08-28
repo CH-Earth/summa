@@ -41,6 +41,7 @@ viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
 eff_fil = 'eff_' + method_name + '.txt'
 nbatch_hrus = 518 # number of HRUs per batch
+use_eff = False # use efficiency in wall clock time
 
 # Specify variables of interest
 plot_vars = settings
@@ -155,13 +156,14 @@ if plot_lakes:
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
 summa = xr.open_dataset(viz_dir/viz_fil)
-# Read the data from the eff.txt file into a DataFrame
-eff = pd.read_csv(viz_dir/eff_fil, sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
-# Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
-eff['CPU Efficiency'] = eff['CPU Efficiency'].str.split(':').str[1].astype(float)
-eff['Array ID'] = eff['Array ID'].str.split(':').str[1].astype(int)   
-eff['Job Wall-clock time'] = eff['Job Wall-clock time'].str.split(':').str[1].astype(float)
-eff['Node Number'] = eff['Node Number'].str.split(':').str[1].astype(int)
+if use_eff:
+    # Read the data from the eff.txt file into a DataFrame
+    eff = pd.read_csv(viz_dir/eff_fil, sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
+    # Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
+    eff['CPU Efficiency'] = eff['CPU Efficiency'].str.split(':').str[1].astype(float)
+    eff['Array ID'] = eff['Array ID'].str.split(':').str[1].astype(int)   
+    eff['Job Wall-clock time'] = eff['Job Wall-clock time'].str.split(':').str[1].astype(float)
+    eff['Node Number'] = eff['Node Number'].str.split(':').str[1].astype(int)
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
@@ -171,21 +173,18 @@ for plot_var in plot_vars:
         if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
         if stat == 'maxe': stat0 = 'amax'
     s = summa[plot_var].sel(stat=stat0)
-    if plot_var == 'wallClockTime':
+    if plot_var == 'wallClockTime' and use_eff:
         batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
         #basin_num = np.arange(len(s.indexes['hru'])) % nbatch_hrus #not currently using
         # Create a dictionary to store the values for each batch
         efficiency = {}
-        node = {}
         # Iterate over the rows in the data DataFrame
         for index, row in eff.iterrows():
             # Extract the values from the row
             batch0 = int(row['Array ID'])
             eff0 = row['CPU Efficiency']
-            node0 = row['Node Number']
             # Store the value for the current batch in the dictionary
             efficiency[batch0] = eff0  
-            node[batch0] = node0
         # Select the values for the current batch using boolean indexing
         eff_batch = np.array([efficiency[b] for b in batch])
         #node_batch = np.array([node[b] for b in batch]) #not currently using
@@ -238,7 +237,6 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat=='kgem' and var!='wallClockTime': 
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
         my_cmap.set_bad(color='white') #nan color white    
-
         vmin,vmax = the_max, 1.0
         norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     r = i//2
