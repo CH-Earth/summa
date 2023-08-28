@@ -162,8 +162,7 @@ eff['Node Number'] = eff['Node Number'].str.split(':').str[1].astype(int)
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 s0 = summa['wallClockTime'].sel(stat='mean')
 s1 = summa['wallClockTime'].sel(stat='amax')
-batch0 = np.floor(np.arange(len(s0.indexes['hru'])) /nbatch_hrus)
-batch1 = np.floor(np.arange(len(s1.indexes['hru'])) /nbatch_hrus)
+batch = np.floor(np.arange(len(s0.indexes['hru'])) /nbatch_hrus)
 #basin_num = np.arange(len(s0.indexes['hru'])) % nbatch_hrus #not currently using
 # Create a dictionary to store the values for each batch
 efficiency = {}
@@ -171,16 +170,15 @@ node = {}
 # Iterate over the rows in the data DataFrame
 for index, row in eff.iterrows():
     # Extract the values from the row
-    batch = int(row['Array ID'])
+    batch0 = int(row['Array ID'])
     eff = row['CPU Efficiency']
     nod = row['Node Number']
     # Store the value for the current batch in the dictionary
-    efficiency[batch] = eff  
-    node[batch] = nod
+    efficiency[batch0] = eff  
+    node[batch0] = nod
 # Select the values for the current batch using boolean indexing
-eff_batch0 = np.array([efficiency[b] for b in batch0])
-eff_batch1 = np.array([efficiency[b] for b in batch1])
-node_batch = np.array([node[b] for b in batch0])
+eff_batch = np.array([efficiency[b] for b in batch])
+node_batch = np.array([node[b] for b in batch])
 
 for plot_var in plot_vars:
     if plot_var == 'batch':
@@ -188,11 +186,11 @@ for plot_var in plot_vars:
     if plot_var == 'node':
         s = s0*node_batch/s0
     if plot_var == 'effMultWallClockTime':
-        s = s0*eff_batch0
+        s = s0*eff_batch
     if plot_var == 'wallClockTime':
         s = s0
-    if plot_var == 'effWallClockMax':
-        s = s1*eff_batch1
+    if plot_var == 'effMultWallClockMax':
+        s = s1*eff_batch
     if plot_var == 'wallClockMax':
         s = s1
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
