@@ -151,7 +151,7 @@ def run_loop(i,var,mx):
 
     axs[r,c].legend()
     axs[r,c].set_title(plt_titl[i] + stat_word)
-    axs[r,c].set_xlabel(stat_word + '[{}]'.format(leg_titl[i]))
+    axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     axs[r,c].set_ylabel('GRU count')
     
 
