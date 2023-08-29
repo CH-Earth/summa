@@ -27,6 +27,7 @@ import copy
 import pyproj
 import fiona
 import geopandas as gpd
+import pandas as pd
 
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
@@ -36,12 +37,15 @@ settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','a
 viz_dir = Path('/home/avanb/scratch/statistics')
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
+eff_fil = 'eff_' + method_name + '.txt'
+nbatch_hrus = 518 # number of HRUs per batch
 
 # Specify variables of interest
-plot_vars = ['batch','batchNum','batchNumMultWallClockTime','wallClockTime','batchNumMultWallClockMax','wallClockMax']
-plt_titl = ['(a) Batch','(b) Basin in batch','(c) Basin in batch * Wall clock mean time','(d) Wall clock mean time','(e) Basin in batch * Wall clock max time','(f) Wall clock max time']
-leg_titl = ['$num$','$num$','$num~s$','$s$','$num~s$','$s$']
-maxes = [998,517,4.6,9e-3,100,0.2]
+# Note, max for nodes is based off Graham which has 1185 nodes
+plot_vars = ['batch','node','effMultWallClockTime','wallClockTime','effMultWallClockMax','wallClockMax']
+plt_titl = ['(a) Batch number','(b) Node number','(c) Efficiency * Wall clock mean time','(d) Wall clock mean time','(e) Efficiency * Wall clock max time','(f) Wall clock max time']
+leg_titl = ['$num$','$num$','$s$','$s$','$s$','$s$']
+maxes = [998,1185,10e-3,10e-3,0.2,0.2]
 
 fig_fil = method_name + '_wallClockTime_batchNum_compressed.png'
 
@@ -122,7 +126,6 @@ else:
 # Find the segment ID
 seg_id = read_from_control(controlFile,'river_network_shp_segid')
 
-
 ## Load all shapefiles and project to Albers Conformal Conic and reproject
 # Set the target CRS
 acc = 'ESRI:102008'
@@ -147,24 +150,47 @@ if plot_lakes:
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
 summa = xr.open_dataset(viz_dir/viz_fil)
+# Read the data from the eff.txt file into a DataFrame
+eff = pd.read_csv(viz_dir/eff_fil, sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
+# Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
+eff['CPU Efficiency'] = eff['CPU Efficiency'].str.split(':').str[1].astype(float)
+eff['Array ID'] = eff['Array ID'].str.split(':').str[1].astype(int)   
+eff['Job Wall-clock time'] = eff['Job Wall-clock time'].str.split(':').str[1].astype(float)
+eff['Node Number'] = eff['Node Number'].str.split(':').str[1].astype(int)
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 s0 = summa['wallClockTime'].sel(stat='mean')
 s1 = summa['wallClockTime'].sel(stat='amax')
-modulus  = np.arange(len(s0.indexes['hru'])) % 518
-batch = np.floor(np.arange(len(s0.indexes['hru'])) /518)
+batch = np.floor(np.arange(len(s0.indexes['hru'])) /nbatch_hrus)
+#basin_num = np.arange(len(s0.indexes['hru'])) % nbatch_hrus #not currently using
+# Create a dictionary to store the values for each batch
+efficiency = {}
+node = {}
+# Iterate over the rows in the data DataFrame
+for index, row in eff.iterrows():
+    # Extract the values from the row
+    batch0 = int(row['Array ID'])
+    eff = row['CPU Efficiency']
+    nod = row['Node Number']
+    # Store the value for the current batch in the dictionary
+    efficiency[batch0] = eff  
+    node[batch0] = nod
+# Select the values for the current batch using boolean indexing
+eff_batch = np.array([efficiency[b] for b in batch])
+node_batch = np.array([node[b] for b in batch])
+
 for plot_var in plot_vars:
     if plot_var == 'batch':
         s = s0*batch/s0
-    if plot_var == 'batchNum':
-        s = s0*modulus/s0
-    if plot_var == 'batchNumMultWallClockTime':
-        s = s0*modulus
+    if plot_var == 'node':
+        s = s0*node_batch/s0
+    if plot_var == 'effMultWallClockTime':
+        s = s0*eff_batch
     if plot_var == 'wallClockTime':
         s = s0
-    if plot_var == 'batchNumMultWallClockMax':
-        s = s1*modulus
+    if plot_var == 'effMultWallClockMax':
+        s = s1*eff_batch
     if plot_var == 'wallClockMax':
         s = s1
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
@@ -177,8 +203,6 @@ if plot_lakes:
                 (lak_albers['Country'] == 'Mexico')
     out_domain = (lak_albers['Pour_long'] > -80) & (lak_albers['Pour_lat'] > 65) # Exclude Baffin Island
     large_lakes_albers = lak_albers.loc[(lak_albers['Lake_area'] > minSize) & in_domain & (~out_domain) ]
-# Set the lake color
-if plot_lakes:
     lake_col = (8/255,81/255,156/255)
 
 ##Figure
