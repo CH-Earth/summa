@@ -357,7 +357,10 @@ subroutine varSubstep(&
  
       ! if too much melt or need to reduce length of the coupled step then return
       ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-      if(tooMuchMelt .or. reduceCoupledStep) return
+      if(tooMuchMelt .or. reduceCoupledStep)then 
+        deallocate(sumLayerCompress)
+        return
+      endif
 
       ! identify failure
       failedSubstep = (err<0)
@@ -431,6 +434,7 @@ subroutine varSubstep(&
       if(waterBalanceError)then
         message=trim(message)//'water balance error'
         reduceCoupledStep=.true.
+        deallocate(sumLayerCompress)
         err=-20; return
       endif
 
