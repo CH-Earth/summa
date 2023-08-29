@@ -77,22 +77,22 @@ contains
  integer(i4b),intent(out)                         :: err        ! error code
  character(*),intent(out)                         :: message    ! error message
  ! declare local variables
- integer(i4b),parameter  :: cLen=8192
- character(len=cLen)     :: temp                  ! temporary line of characters
- integer(i4b)            :: iword                 ! loop through words
- integer(i4b),parameter  :: maxWords=1000         ! maximum number of words in a line
- integer(i4b)            :: i1                    ! index at the start of a given word
- character(len=256)      :: cword                 ! the current word
- integer(i4b)            :: nWords                ! number of words in the character string
+ integer(i4b),parameter                           :: cLen=8192
+ character(len=cLen)                              :: temp                  ! temporary line of characters
+ integer(i4b)                                     :: iword                 ! loop through words
+ integer(i4b),parameter                           :: maxWords=1000         ! maximum number of words in a line
+ integer(i4b)                                     :: i1                    ! index at the start of a given word
+ character(len=256)                               :: cword                 ! the current word
+ integer(i4b)                                     :: nWords                ! number of words in the character string
  ! define pointers for linked list
  type node
-  character(len=256)     :: chardat
-  integer(i4b)           :: ix
-  type(node),pointer     :: next=>null()
+  character(len=256)                              :: chardat
+  integer(i4b)                                    :: ix
+  type(node),pointer                              :: next=>null()
  end type node
- type(node),pointer      :: list=>null()
- type(node),pointer      :: current=>null()
- type(node),pointer      :: previous=>null()
+ type(node),pointer                               :: list=>null()
+ type(node),pointer                               :: current=>null()
+ type(node),pointer                               :: previous=>null()
  ! start procedure here
  err=0; message='split_line/'
  temp=inline  ! initialize string of characters
@@ -131,60 +131,71 @@ contains
  ! *********************************************************************************************************
  ! public subroutine get_vlines: get valid lines of data from file and store as a vector of charater strings
  ! *********************************************************************************************************
- subroutine get_vlines(unt,vlines,err,message)
- ! do not know how many valid lines, so use linked lists
- implicit none
- ! declare dummy arguments
- integer(i4b),intent(in)                          :: unt         ! file unit
- character(len=linewidth),intent(out),allocatable :: vlines(:)   ! vector of character strings
- integer(i4b),intent(out)                         :: err         ! error code
- character(*),intent(out)                         :: message     ! error message
- ! declare local variables
- integer(i4b)            :: iline                    ! loop through lines in the file
- integer(i4b),parameter  :: maxLines=1000000         ! maximum number of valid lines in a file
- character(len=2048)     :: temp                     ! character data or a given line
- integer(i4b)            :: icount                   ! counter for the valid lines
- integer(i4b)            :: iend                     ! index to indicate end of the file
- ! define pointers for linked list
- type node
-  character(len=2048)    :: chardat
-  integer(i4b)           :: ix
-  type(node),pointer     :: next=>null()
- end type node
- type(node),pointer      :: list=>null()
- type(node),pointer      :: current=>null()
- type(node),pointer      :: previous=>null()
- ! start procedure here
- err=0; message='get_vlines/'
- ! ***** get the valid lines of data from the file and store in linked lists *****
- icount=0  ! initialize the counter for the valid lines
- do iline=1,maxLines
-  read(unt,'(a)',iostat=iend)temp; if(iend/=0)exit    ! read line of data
-  if (temp(1:1)=='!' .or. temp == '')cycle            ! skip comment and empty lines
-  icount = icount+1
-  ! add the variable to the linked list
-  if(.not.associated(list))then
-   allocate(list,previous,current); list=node(temp,icount,null())
-   current=>list
-  else
-   allocate(current%next)
-   current%next=node(temp,icount,null())
-   current=>current%next
-  end if
-  if (iline==maxLines)then; err=20; message=trim(message)//"exceedMaxLines"; return; end if
- end do  ! looping through the lines in the file (exit clause above will kick in)
- ! ***** allocate space for the valid lines *****
- allocate(vlines(icount),stat=err)
- if(err/=0)then; err=30; message=trim(message)//"problemAllocateVlines"; return; end if
- ! ***** save the list in a vector, and deallocate space as we go... *****
- current=>list
- do while(associated(current))
-  vlines(current%ix) = current%chardat
-  previous=>current; current=>current%next
-  deallocate(previous)
- end do
- if(associated(list)) nullify(list)
- end subroutine get_vlines
+subroutine get_vlines(unt,vlines,err,message)
+  ! do not know how many valid lines, so use linked lists
+  implicit none
+  ! declare dummy arguments
+  integer(i4b),intent(in)                          :: unt         ! file unit
+  character(len=linewidth),intent(out),allocatable :: vlines(:)   ! vector of character strings
+  integer(i4b),intent(out)                         :: err         ! error code
+  character(*),intent(out)                         :: message     ! error message
+  ! declare local variables
+  integer(i4b)            :: iline                    ! loop through lines in the file
+  integer(i4b),parameter  :: maxLines=1000000         ! maximum number of valid lines in a file
+  character(len=2048)     :: temp                     ! character data or a given line
+  integer(i4b)            :: icount                   ! counter for the valid lines
+  integer(i4b)             :: iend                     ! index to indicate end of the file
+  character(len=2048),dimension(:),allocatable :: tempArray
+  ! define pointers for linked list
+  type node
+    character(len=2048)    :: chardat
+    integer(i4b)           :: ix
+    type(node),pointer     :: next=>null()
+  end type node
+  ! type(node),pointer      :: list=>null()
+  ! type(node),pointer      :: current=>null()
+  ! type(node),pointer      :: previous=>null()
+  ! start procedure here
+  err=0; message='get_vlines/'
+  allocate(tempArray(1000))
+  ! ***** get the valid lines of data from the file and store in linked lists *****
+  icount=0  ! initialize the counter for the valid lines
+  do iline=1,maxLines
+    read(unt,'(a)',iostat=iend)temp; if(iend/=0)exit    ! read line of data
+    if (temp(1:1)=='!' .or. temp == '')cycle            ! skip comment and empty lines
+    icount = icount+1
+    ! add the variable to the linked list
+    ! if(.not.associated(list))then
+    !   allocate(list)
+    !   allocate(current)
+    !   allocate(previous)
+    !   list=node(temp,icount,null())
+    !   current=>list
+    ! else
+    !  allocate(current%next)
+    !  current%next=node(temp,icount,null())
+    !  current=>current%next
+    ! end if
+    tempArray(icount) = temp
+    if (iline==maxLines)then; err=20; message=trim(message)//"exceedMaxLines"; return; end if
+  end do  ! looping through the lines in the file (exit clause above will kick in)
+  ! ***** allocate space for the valid lines *****
+  allocate(vlines(icount),stat=err)
+  if(err/=0)then; err=30; message=trim(message)//"problemAllocateVlines"; return; end if
+  ! ***** save the list in a vector, and deallocate space as we go... *****
+  do iline=1, icount
+    vlines(iline) = tempArray(iline)
+    ! print*, vlines(iline), "index = ", iline
+  end do
+  ! current=>list
+  ! do while(associated(current))
+  !   ! vlines(current%ix) = current%chardat
+  !   previous=>current; current=>current%next
+  !   deallocate(previous)
+  ! end do
+  ! if(associated(list)) nullify(list) 
+  deallocate(tempArray)
+end subroutine get_vlines
 
 
 end module ascii_util_module

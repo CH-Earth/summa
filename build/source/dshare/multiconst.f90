@@ -38,7 +38,7 @@ MODULE multiconst
  real(rkind), PARAMETER           :: LH_fus         = 333700.0_rkind  ! latent heat of fusion                (J kg-1)
  real(rkind), PARAMETER           :: LH_vap         = 2501000.0_rkind ! latent heat of vaporization          (J kg-1)
  real(rkind), PARAMETER           :: LH_sub         = 2834700.0_rkind ! latent heat of sublimation           (J kg-1)
- real(rkind), PARAMETER           :: sb             = 5.6705d-8    ! Stefan Boltzman constant             (W m-2 K-4)
+ real(rkind), PARAMETER           :: sb             = 5.6705d-8       ! Stefan Boltzman constant             (W m-2 K-4)
  real(rkind), PARAMETER           :: em_sno         = 0.99_rkind      ! emissivity of snow                   (-)
  real(rkind), PARAMETER           :: lambda_air     = 0.026_rkind     ! thermal conductivity of air          (W m-1 K-1)
  real(rkind), PARAMETER           :: lambda_ice     = 2.50_rkind      ! thermal conductivity of ice          (W m-1 K-1)

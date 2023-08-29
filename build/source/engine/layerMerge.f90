@@ -41,9 +41,9 @@ USE multiconst,only:&
 
 ! access the derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! access named variables defining elements in the data structures
@@ -133,7 +133,7 @@ contains
  ) ! end associate statement
  ! --------------------------------------------------------------------------------------------------------
 
- ! identify algorithmic control parameters to syb-divide and combine snow layers
+ ! identify algorithmic control parameters to sub-divide and combine snow layers
  zminLayer = (/zminLayer1, zminLayer2, zminLayer3, zminLayer4, zminLayer5/)
 
  ! intialize the modified layers flag
@@ -247,8 +247,6 @@ contains
    end associate
 
   end do ! (looping through snow layers)
-
-  !print*, 'ksnow = ', ksnow
 
   ! exit if finished
   if(kSnow==nCheck)exit

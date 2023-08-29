@@ -31,8 +31,8 @@ USE multiconst, only: ave_slp  ! standard pressure (Pa)
 ! derived types to define the data structures
 USE data_types,only:&
                     var_i,            & ! data vector (i4b)
-                    var_d,            & ! data vector (dp)
-                    var_dlength,      & ! data vector with variable length dimension (dp)
+                    var_d,            & ! data vector (rkind)
+                    var_dlength,      & ! data vector with variable length dimension (rkind)
                     model_options       ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -434,7 +434,6 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in the data structure
  associate(&
-
  ! input: model decisions
  ix_bbTempFunc                   => model_decisions(iLookDECISIONS%bbTempFunc)%iDecision,           & ! intent(in): [i4b] leaf temperature controls on photosynthesis + stomatal resistance
  ix_bbHumdFunc                   => model_decisions(iLookDECISIONS%bbHumdFunc)%iDecision,           & ! intent(in): [i4b] humidity controls on stomatal resistance
@@ -443,7 +442,6 @@ contains
  ix_bbNumerics                   => model_decisions(iLookDECISIONS%bbNumerics)%iDecision,           & ! intent(in): [i4b] iterative numerical solution method used in the Ball-Berry parameterization
  ix_bbAssimFnc                   => model_decisions(iLookDECISIONS%bbAssimFnc)%iDecision,           & ! intent(in): [i4b] controls on carbon assimilation (min function, or colimitation)
  ix_bbCanIntg8                   => model_decisions(iLookDECISIONS%bbCanIntg8)%iDecision,           & ! intent(in): [i4b] scaling of photosynthesis from the leaf to the canopy
-
  ! input: model parameters
  Kc25                            => mpar_data%var(iLookPARAM%Kc25)%dat(1),                          & ! intent(in): [dp] Michaelis-Menten constant for CO2 at 25 degrees C (umol mol-1)
  Ko25                            => mpar_data%var(iLookPARAM%Ko25)%dat(1),                          & ! intent(in): [dp] Michaelis-Menten constant for O2 at 25 degrees C (mol mol-1)
@@ -466,26 +464,21 @@ contains
  vpScaleFactor                   => mpar_data%var(iLookPARAM%vpScaleFactor)%dat(1),                 & ! intent(in): [dp] vapor pressure scaling factor in stomatal conductance function (Pa)
  cond2photo_slope                => mpar_data%var(iLookPARAM%cond2photo_slope)%dat(1),              & ! intent(in): [dp] slope of conductance-photosynthesis relationship (-)
  minStomatalConductance          => mpar_data%var(iLookPARAM%minStomatalConductance)%dat(1),        & ! intent(in): [dp] mimimum stomatal conductance (umol H2O m-2 s-1)
-
  ! input: forcing at the upper boundary
  airtemp                         => forc_data%var(iLookFORCE%airtemp),                              & ! intent(in): [dp] air temperature at some height above the surface (K)
  airpres                         => forc_data%var(iLookFORCE%airpres),                              & ! intent(in): [dp] air pressure at some height above the surface (Pa)
  scalarO2air                     => diag_data%var(iLookDIAG%scalarO2air)%dat(1),                    & ! intent(in): [dp] atmospheric o2 concentration (Pa)
  scalarCO2air                    => diag_data%var(iLookDIAG%scalarCO2air)%dat(1),                   & ! intent(in): [dp] atmospheric co2 concentration (Pa)
-
  ! input: state and diagnostic variables
  scalarExposedLAI                => diag_data%var(iLookDIAG%scalarExposedLAI)%dat(1),               & ! intent(in): [dp] exposed LAI (m2 m-2)
  scalarGrowingSeasonIndex        => diag_data%var(iLookDIAG%scalarGrowingSeasonIndex)%dat(1),       & ! intent(in): [dp] growing season index (0=off, 1=on)
  scalarFoliageNitrogenFactor     => diag_data%var(iLookDIAG%scalarFoliageNitrogenFactor)%dat(1),    & ! intent(in): [dp] foliage nitrogen concentration (1.0 = saturated)
  scalarTranspireLim              => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),             & ! intent(in): [dp] weighted average of the transpiration limiting factor (-)
  scalarLeafResistance            => flux_data%var(iLookFLUX%scalarLeafResistance)%dat(1)            & ! intent(in): [dp] mean leaf boundary layer resistance per unit leaf area (s m-1)
-
  )
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message="stomResist_flex/"
-
- !print*, '**'
 
  ! *****
  ! * preliminaries...
@@ -567,7 +560,6 @@ contains
   ! linear model, as used in CLM4 and Noah-MP
   case(linear)
    Js = quantamYield*joule2umolConv*absorbedPAR
-   !write(*,'(a,1x,10(f20.10,1x))') 'quantamYield, joule2umolConv, absorbedPAR = ', quantamYield, joule2umolConv, absorbedPAR
 
   ! linear function of qmax, as used in Cable [Wang et al., Ag Forest Met 1998, eq D5]
   case(linearJmax)
@@ -626,22 +618,10 @@ contains
  else
   ci = 0.7_rkind*scalarCO2air  ! always initialize if not NR
  end if
- !write(*,'(a,1x,10(f20.10,1x))') 'Kc25, Kc_qFac, Ko25, Ko_qFac = ', Kc25, Kc_qFac, Ko25, Ko_qFac
- !write(*,'(a,1x,10(f20.10,1x))') 'scalarCO2air, ci, co2compPt, Kc, Ko = ', scalarCO2air, ci, co2compPt, Kc, Ko
-
+ 
  ! initialize brackets for the solution
  cMin = 0._rkind
  cMax = scalarCO2air
-
- ! *********************************************************************************************************************************
- ! *********************************************************************************************************************************
- ! *********************************************************************************************************************************
- ! *********************************************************************************************************************************
- ! *********************************************************************************************************************************
- ! *********************************************************************************************************************************
-
- !print *, '**'
- !print *, '**'
 
  ! ***
  ! iterate
@@ -678,12 +658,6 @@ contains
   ! compute intercellular co2 partial pressues (Pa)
   x2 = h2o_co2__stomPores * airpres  ! Pa
   ci = max(cs - x2*psn*rs, 0._rkind)    ! Pa
-
-  ! print progress
-  !if(ix_bbNumerics==NoahMPsolution)then
-  ! write(*,'(a,1x,10(f20.10,1x))') 'psn, rs, ci, cs, scalarVegetationTemp, vcmax, Js = ', &
-  !                                  psn, rs, ci, cs, scalarVegetationTemp, vcmax, Js
-  !end if
 
   ! final derivative
   if(ci > tiny(ci))then
@@ -731,10 +705,6 @@ contains
    ci = 0.5_rkind * (cMin + cMax)
   end if
 
-  ! print progress
-  !write(*,'(a,1x,i4,1x,20(f12.7,1x))') 'iter, psn, rs, ci, cs, cMin, cMax, co2compPt, scalarCO2air, xInc = ', &
-  !                                      iter, psn, rs, ci, cs, cMin, cMax, co2compPt, scalarCO2air, xInc
-
   ! check for convergence
   if(abs(xInc) < convToler) exit
   if(iter==maxIter)then
@@ -743,7 +713,6 @@ contains
   end if
 
  end do  ! iterating
- !pause 'iterating'
 
  ! assign output variables
  scalarStomResist     = unitConv*umol_per_mol*rs  ! umol-1 m2 s --> s/m
@@ -754,8 +723,6 @@ contains
  contains
 
   ! ******************************************************
-  ! ******************************************************
-
   ! internal function used to test derivatives
   function testFunc(ci, cond2photo_slope, airpres, scalarCO2air, ix_bbHumdFunc, ix_bbCO2point, ix_bbAssimFnc)
   real(rkind),intent(in)     :: ci, cond2photo_slope, airpres, scalarCO2air
@@ -940,8 +907,8 @@ contains
  subroutine quadResist(desireDeriv,ix_bbHumdFunc,rlb,fHum,gMin,g0,dg0_dc,rs,drs_dc)
  implicit none
  ! dummy variables
- logical(lgt),intent(in) :: desireDeriv   ! flag to denote if the derivative is desired
- integer(i4b),intent(in) :: ix_bbHumdFunc ! option for humidity control on stomatal resistance
+ logical(lgt),intent(in)    :: desireDeriv   ! flag to denote if the derivative is desired
+ integer(i4b),intent(in)    :: ix_bbHumdFunc ! option for humidity control on stomatal resistance
  real(rkind),intent(in)     :: rlb           ! leaf boundary layer resistance (umol-1 m2 s)
  real(rkind),intent(in)     :: fHum          ! scaled humidity function (-)
  real(rkind),intent(in)     :: gMin          ! scaled minimum stomatal consuctance (umol m-2 s-1)
@@ -981,11 +948,6 @@ contains
  root1 = qQuad / aQuad
  root2 = cQuad / qQuad
  rs = max(root1,root2)
-
- ! check
- !write(*,'(a,1x,10(f20.5,1x))') 'root1, root2, rs = ', root1, root2, rs
- !write(*,'(a,1x,10(f20.5,1x))') 'g0, fHum, aquad, bquad, cquad, qquad = ', &
- !                                g0, fHum, aquad, bquad, cquad, qquad
 
  ! compute derivatives
  if(desireDeriv)then
@@ -1082,7 +1044,6 @@ contains
  ! *****
  ! * temperature functions...
  ! **************************
-
  ! q10 function for temperature dependence
  function q10(a,T,Tmid,Tscale)
  implicit none
@@ -1265,8 +1226,5 @@ contains
 
 
  ! -- end private subroutines
- ! ------------------------------------------------------------------------------------------------------------
- ! ------------------------------------------------------------------------------------------------------------
- ! ------------------------------------------------------------------------------------------------------------
 
 end module stomResist_module

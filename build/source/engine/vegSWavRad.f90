@@ -23,7 +23,7 @@ module vegSWavRad_module
 ! data types
 USE nrtype
 USE data_types,only:var_i            ! x%var(:)       (i4b)
-USE data_types,only:var_dlength      ! x%var(:)%dat   (dp)
+USE data_types,only:var_dlength      ! x%var(:)%dat   (rkind)
 
 ! physical constants
 USE multiconst,only:Tfreeze          ! temperature at freezing              (K)
@@ -587,7 +587,7 @@ contains
    ! compute transmission of diffuse radiation (-)
    vFactor    = scalarGproj*scalarExposedVAI
    expi       = expInt(vFactor)
-   taudFinite = (1._rkind - vFactor)*exp(-vFactor) + (vFactor**2._rkind)*expi
+   taudFinite = (1._rkind - vFactor)*exp(-vFactor) + (vFactor**2_i4b)*expi
 
    ! compute ground albedo (-)
    groundAlbedoDirect  = Frad_vis*spectralAlbGndDirect(ixVisible)  + (1._rkind - Frad_vis)*spectralAlbGndDirect(ixNearIR)
@@ -690,19 +690,19 @@ contains
    betaInfinite = (1._rkind - transCoefPrime)/(1._rkind + transCoefPrime)
 
    ! compute transmission for a finite canopy (-)
-   tauFinite = tauInfinite*(1._rkind - betaInfinite**2._rkind)/(1._rkind - (betaInfinite**2._rkind)*tauInfinite**2._rkind)
+   tauFinite = tauInfinite*(1._rkind - betaInfinite**2_i4b)/(1._rkind - (betaInfinite**2_i4b)*tauInfinite**2_i4b)
 
    ! compute reflectance for a finite canopy (-)
-   betaFinite = betaInfinite*(1._rkind - tauInfinite**2._rkind) / (1._rkind - (betaInfinite**2._rkind)*(tauInfinite**2._rkind))
+   betaFinite = betaInfinite*(1._rkind - tauInfinite**2_i4b) / (1._rkind - (betaInfinite**2_i4b)*(tauInfinite**2_i4b))
 
    ! compute transmission of diffuse radiation (-)
    vFactor      = transCoefPrime*scalarGproj*scalarExposedVAI
    expi         = expInt(vFactor)
-   taudInfinite = (1._rkind - vFactor)*exp(-vFactor) + (vFactor**2._rkind)*expi
-   taudFinite   = taudInfinite*(1._rkind - betaInfinite**2._rkind)/(1._rkind - (betaInfinite**2._rkind)*taudInfinite**2._rkind)
+   taudInfinite = (1._rkind - vFactor)*exp(-vFactor) + (vFactor**2_i4b)*expi
+   taudFinite   = taudInfinite*(1._rkind - betaInfinite**2_i4b)/(1._rkind - (betaInfinite**2_i4b)*taudInfinite**2_i4b)
 
    ! compute reflectance of diffuse radiation (-)
-   betadFinite  = betaInfinite*(1._rkind - taudInfinite**2._rkind) / (1._rkind - (betaInfinite**2._rkind)*(taudInfinite**2._rkind))
+   betadFinite  = betaInfinite*(1._rkind - taudInfinite**2_i4b) / (1._rkind - (betaInfinite**2_i4b)*(taudInfinite**2_i4b))
 
    ! compute total transmission of direct and diffuse radiation, accounting for multiple reflections (-)
    refMult    = 1._rkind / (1._rkind - groundAlbedoDiffuse*betadFinite*(1._rkind - taudFinite) )

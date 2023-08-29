@@ -129,6 +129,56 @@ contains
    err=40; message=trim(message)//"variable in parameter file not present in data structure [var="//trim(varname)//"]"; return
   end if
  end do  ! (looping through lines in the file)
+
+ ! add these defaults for backwards compatibility pre Sundials
+ if (isLocal) then ! dealing with parameters for local column -- fix this !!!!
+  if (parFallback(iLookPARAM%be_steps)%default_val < 0.99_rkind*realMissing) then
+   parFallback(iLookPARAM%be_steps)%default_val = 1._rkind
+  end if
+  if (parFallback(iLookPARAM%relTolTempCas)%default_val < 0.99_rkind*realMissing) then
+   parFallback(iLookPARAM%relTolTempCas)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolTempCas)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolTempCas)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolTempVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolTempVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolTempVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolTempVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolWatVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolWatVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolWatVeg)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolWatVeg)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolTempSoilSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolTempSoilSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolTempSoilSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolTempSoilSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolWatSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolWatSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolWatSnow)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolWatSnow)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolMatric)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolMatric)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolMatric)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolMatric)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%relTolAquifr)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%relTolAquifr)%default_val = 1.e-6_rkind
+  end if
+  if (parFallback(iLookPARAM%absTolAquifr)%default_val < 0.99_rkind*realMissing) then
+    parFallback(iLookPARAM%absTolAquifr)%default_val = 1.e-6_rkind
+  end if
+ end if
+
  ! check we have populated all variables
  ! NOTE: ultimately need a need a parameter dictionary to ensure that the parameters used are populated
  if(.not.backwardsCompatible)then  ! if we add new variables in future versions of the code, then some may be missing in the input file
@@ -148,6 +198,7 @@ contains
    end if
   end if
  end if
+ 
  ! close file unit
  close(unt)
  end subroutine read_pinit

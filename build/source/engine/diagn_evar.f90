@@ -25,9 +25,9 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_d,            & ! data vector (dp)
+                    var_d,            & ! data vector (rkind)
                     var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength         ! data vector with variable length dimension (dp)
+                    var_dlength         ! data vector with variable length dimension (rkind)
 
 ! named variables defining elements in the data structures
 USE var_lookup,only:iLookPARAM,iLookPROG,iLookDIAG,iLookINDEX  ! named variables for structure elements
@@ -85,14 +85,14 @@ contains
  ! **********************************************************************************************************
  subroutine diagn_evar(&
                        ! input: control variables
-                       computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
-                       canopyDepth,             & ! intent(in): canopy depth (m)
+                       computeVegFlux,          & ! intent(in):    flag to denote if computing the vegetation flux
+                       canopyDepth,             & ! intent(in):    canopy depth (m)
                        ! input/output: data structures
                        mpar_data,               & ! intent(in):    model parameters
                        indx_data,               & ! intent(in):    model layer indices
                        prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                        diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                       ! output: error control
+                        ! output: error control
                        err,message)               ! intent(out): error control
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! provide access to external subroutines
@@ -100,7 +100,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------------
  ! input: model control
  logical(lgt),intent(in)         :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
- real(rkind),intent(in)             :: canopyDepth            ! depth of the vegetation canopy (m)
+ real(rkind),intent(in)          :: canopyDepth            ! depth of the vegetation canopy (m)
  ! input/output: data structures
  type(var_dlength),intent(in)    :: mpar_data              ! model parameters
  type(var_ilength),intent(in)    :: indx_data              ! model layer indices
@@ -111,29 +111,29 @@ contains
  character(*),intent(out)        :: message                ! error message
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)                :: cmessage               ! error message of downwind routine
- integer(i4b)                      :: iLayer                 ! index of model layer
- integer(i4b)                      :: iSoil                  ! index of soil layer
- real(rkind)                          :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
- real(rkind)                          :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
- real(rkind)                          :: zdn                    ! height difference between interface and lower value (m)
- real(rkind)                          :: zdp                    ! height difference between interface and upper value (m)
- real(rkind)                          :: bulkden_soil           ! bulk density of soil (kg m-3)
- real(rkind)                          :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
- real(rkind)                          :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
- real(rkind)                          :: lambda_wet             ! thermal conductivity of the wet material
- real(rkind)                          :: relativeSat            ! relative saturation (-)
- real(rkind)                          :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
- real(rkind)                          :: den                    ! denominator in the thermal conductivity calculations
+ character(LEN=256)              :: cmessage               ! error message of downwind routine
+ integer(i4b)                    :: iLayer                 ! index of model layer
+ integer(i4b)                    :: iSoil                  ! index of soil layer
+ real(rkind)                     :: TCn                    ! thermal conductivity below the layer interface (W m-1 K-1)
+ real(rkind)                     :: TCp                    ! thermal conductivity above the layer interface (W m-1 K-1)
+ real(rkind)                     :: zdn                    ! height difference between interface and lower value (m)
+ real(rkind)                     :: zdp                    ! height difference between interface and upper value (m)
+ real(rkind)                     :: bulkden_soil           ! bulk density of soil (kg m-3)
+ real(rkind)                     :: lambda_drysoil         ! thermal conductivity of dry soil (W m-1)
+ real(rkind)                     :: lambda_wetsoil         ! thermal conductivity of wet soil (W m-1)
+ real(rkind)                     :: lambda_wet             ! thermal conductivity of the wet material
+ real(rkind)                     :: relativeSat            ! relative saturation (-)
+ real(rkind)                     :: kerstenNum             ! the Kersten number (-), defining weight applied to conductivity of the wet medium
+ real(rkind)                     :: den                    ! denominator in the thermal conductivity calculations
  ! local variables to reproduce the thermal conductivity of Hansson et al. VZJ 2005
- real(rkind),parameter                :: c1=0.55_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(rkind),parameter                :: c2=0.8_rkind              ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(rkind),parameter                :: c3=3.07_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind),parameter                :: c4=0.13_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
- real(rkind),parameter                :: c5=4._rkind               ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind),parameter                :: f1=13.05_rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind),parameter                :: f2=1.06_rkind             ! optimized parameter from Hansson et al. VZJ 2005 (-)
- real(rkind)                          :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
+ real(rkind),parameter           :: c1=0.55_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter           :: c2=0.8_rkind           ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter           :: c3=3.07_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter           :: c4=0.13_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (W m-1 K-1)
+ real(rkind),parameter           :: c5=4._rkind            ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter           :: f1=13.05_rkind         ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind),parameter           :: f2=1.06_rkind          ! optimized parameter from Hansson et al. VZJ 2005 (-)
+ real(rkind)                     :: fArg,xArg              ! temporary variables (see Hansson et al. VZJ 2005 for details)
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in data structure
  associate(&
@@ -185,7 +185,7 @@ contains
  else
   scalarBulkVolHeatCapVeg = valueMissing
  end if
- !print*, 'diagn_evar: scalarBulkVolHeatCapVeg = ', scalarBulkVolHeatCapVeg
+
 
  ! loop through layers
  do iLayer=1,nLayers
@@ -217,7 +217,7 @@ contains
    ! * soil
    case(iname_soil)
     mLayerVolHtCapBulk(iLayer) = iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
-                                 iden_ice          * Cp_Ice   * mLayerVolFracIce(iLayer)     + & ! ice component
+                                 iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
    ! * snow
@@ -225,7 +225,7 @@ contains
     mLayerVolHtCapBulk(iLayer) = iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                  iden_water        * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                  iden_air          * Cp_air   * mLayerVolFracAir(iLayer)         ! air component
-   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
+   case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute volumetric heat capacity'; return
   end select
 
   ! *****
@@ -292,7 +292,6 @@ contains
   !print*, 'iLayer, mLayerThermalC(iLayer) = ', iLayer, mLayerThermalC(iLayer)
 
  end do  ! looping through layers
- !pause
 
  ! *****
  ! * compute the thermal conductivity of snow at the interface of each layer...

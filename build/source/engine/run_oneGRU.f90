@@ -32,13 +32,15 @@ USE data_types,only:&
                     gru2hru_map,     & ! HRU info
                     ! no spatial dimension
                     var_ilength,     & ! x%var(:)%dat        (i4b)
-                    var_dlength,     & ! x%var(:)%dat        (dp)
+                    var_dlength,     & ! x%var(:)%dat        (rkind)
                     ! hru dimension
                     hru_int,         & ! x%hru(:)%var(:)     (i4b)
                     hru_int8,        & ! x%hru(:)%var(:)     integer(8)
-                    hru_double,      & ! x%hru(:)%var(:)     (dp)
+                    hru_double,      & ! x%hru(:)%var(:)     (rkind)
                     hru_intVec,      & ! x%hru(:)%var(:)%dat (i4b)
-                    hru_doubleVec      ! x%hru(:)%var(:)%dat (dp)
+                    hru_doubleVec,   & ! x%hru(:)%var(:)%dat (rkind)
+                    ! hru+z dimension
+                    hru_z_vLookup      ! x%hru(:)%z(:)%var(:)%lookup(:)
 
 ! provide access to the named variables that describe elements of parameter structures
 USE var_lookup,only:iLookTYPE          ! look-up values for classification of veg, soils etc.
@@ -57,9 +59,6 @@ USE mDecisions_module,only:&           ! look-up values for the choice of method
  localColumn, &                        ! separate groundwater representation in each local soil column
  singleBasin, &                        ! single groundwater store over the entire basin
  bigBucket                             ! a big bucket (lumped aquifer model)
-
-! -----------------------------------------------------------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------------------------------------------------------
 implicit none
 private
@@ -82,6 +81,7 @@ contains
                        typeHRU,            & ! intent(in):    local classification of soil veg etc. for each HRU
                        idHRU,              & ! intent(in):    local classification of hru and gru IDs
                        attrHRU,            & ! intent(in):    local attributes for each HRU
+                       lookupHRU,          & ! intent(in):    local lookup tables for each HRU
                        ! data structures (input-output)
                        mparHRU,            & ! intent(inout):    local model parameters
                        indxHRU,            & ! intent(inout): model indices
@@ -94,14 +94,10 @@ contains
                        err,message)          ! intent(out):   error control
 
  ! ----- define downstream subroutines -----------------------------------------------------------------------------------
-
  USE run_oneHRU_module,only:run_oneHRU                       ! module to run for one HRU
  USE qTimeDelay_module,only:qOverland                        ! module to route water through an "unresolved" river network
-
  ! ----- define dummy variables ------------------------------------------------------------------------------------------
-
  implicit none
-
  ! model control
  type(gru2hru_map)   , intent(inout) :: gruInfo              ! HRU information for given GRU (# HRUs, #snow+soil layers)
  real(rkind)            , intent(inout) :: dt_init(:)           ! used to initialize the length of the sub-step for each HRU
@@ -111,6 +107,7 @@ contains
  type(hru_int)       , intent(in)    :: typeHRU              ! x%hru(:)%var(:)     -- local classification of soil veg etc. for each HRU
  type(hru_int8)      , intent(in)    :: idHRU                ! x%hru(:)%var(:)     -- local classification of hru and gru IDs
  type(hru_double)    , intent(in)    :: attrHRU              ! x%hru(:)%var(:)     -- local attributes for each HRU
+ type(hru_z_vLookup) , intent(in)    :: lookupHRU            ! x%hru(:)%z(:)%var(:)%lookup(:) -- lookup values for each HRU
  ! data structures (input-output)
  type(hru_doubleVec) , intent(inout) :: mparHRU              ! x%hru(:)%var(:)%dat -- local (HRU) model parameters
  type(hru_intVec)    , intent(inout) :: indxHRU              ! x%hru(:)%var(:)%dat -- model indices
@@ -122,9 +119,7 @@ contains
  ! error control
  integer(i4b)        , intent(out)   :: err                  ! error code
  character(*)        , intent(out)   :: message              ! error message
-
  ! ----- define local variables ------------------------------------------------------------------------------------------
-
  ! general local variables
  character(len=256)                      :: cmessage               ! error message
  integer(i4b)                            :: iHRU                   ! HRU index
@@ -132,11 +127,11 @@ contains
  integer(i4b)                            :: nSnow                  ! number of snow layers
  integer(i4b)                            :: nSoil                  ! number of soil layers
  integer(i4b)                            :: nLayers                ! total number of layers
- real(rkind)                                :: fracHRU                ! fractional area of a given HRU (-)
+ real(rkind)                             :: fracHRU                ! fractional area of a given HRU (-)
  logical(lgt)                            :: computeVegFluxFlag     ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
 
  ! initialize error control
- err=0; write(message, '(A24,I0,A2)' ) 'run_oneGRU (gru index = ',gruInfo%gru_nc,')/'
+ err=0; write(message, '(A21,I0,A10,I0,A2)' ) 'run_oneGRU (gru nc = ',gruInfo%gru_nc -1,', gruId = ',gruInfo%gru_id,')/' !netcdf index starts with 0 if want to subset
 
  ! ----- basin initialization --------------------------------------------------------------------------------------------
 
@@ -156,10 +151,7 @@ contains
   fluxHRU%hru(iHRU)%var(iLookFLUX%mLayerColumnInflow)%dat(:) = 0._rkind
  end do
 
- ! ***********************************************************************************************************************
  ! ********** RUN FOR ONE HRU ********************************************************************************************
- ! ***********************************************************************************************************************
-
  ! loop through HRUs
  do iHRU=1,gruInfo%hruCount
 
@@ -178,6 +170,7 @@ contains
   ! simulation for a single HRU
   call run_oneHRU(&
                   ! model control
+                  gruInfo%hruInfo(iHRU)%hru_nc,    & ! intent(in):    hru count Id
                   gruInfo%hruInfo(iHRU)%hru_id,    & ! intent(in):    hruId
                   dt_init(iHRU),                   & ! intent(inout): initial time step
                   computeVegFluxFlag,              & ! intent(inout): flag to indicate if we are computing fluxes over vegetation (false=no, true=yes)
@@ -186,6 +179,7 @@ contains
                   timeVec,                         & ! intent(in):    model time data
                   typeHRU%hru(iHRU),               & ! intent(in):    local classification of soil veg etc. for each HRU
                   attrHRU%hru(iHRU),               & ! intent(in):    local attributes for each HRU
+                  lookupHRU%hru(iHRU),             & ! intent(in):    local lookup tables for each HRU
                   bvarData,                        & ! intent(in):    basin-average model variables
                   ! data structures (input-output)
                   mparHRU%hru(iHRU),               & ! intent(inout): model parameters
@@ -211,7 +205,6 @@ contains
   ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
 
   ! ----- compute fluxes across HRUs --------------------------------------------------------------------------------------------------
-
   ! identify lateral connectivity
   ! (Note:  for efficiency, this could this be done as a setup task, not every timestep)
   kHRU = 0
@@ -235,30 +228,25 @@ contains
   end if
 
   ! ----- calculate weighted basin (GRU) fluxes --------------------------------------------------------------------------------------
-
   ! increment basin surface runoff (m s-1)
-  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1) * fracHRU
+  bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1)  = bvarData%var(iLookBVAR%basin__SurfaceRunoff)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)*fracHRU
 
   ! increment basin soil drainage (m s-1)
-  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)  * fracHRU
+  bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)   = bvarData%var(iLookBVAR%basin__SoilDrainage)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1) *fracHRU
 
   ! increment aquifer variables -- ONLY if aquifer baseflow is computed individually for each HRU and aquifer is run
   ! NOTE: groundwater computed later for singleBasin
   if(model_decisions(iLookDECISIONS%spatial_gw)%iDecision == localColumn .and. model_decisions(iLookDECISIONS%groundwatr)%iDecision == bigBucket) then
-
-   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)   + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarSoilDrainage)%dat(1)     * fracHRU
-   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1) * fracHRU
-   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  =  bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  &
-           +  fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) * fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferRecharge)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferRecharge)%dat(1) *fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) = bvarData%var(iLookBVAR%basin__AquiferTranspire)%dat(1) + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferTranspire)%dat(1)*fracHRU
+   bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  = bvarData%var(iLookBVAR%basin__AquiferBaseflow)%dat(1)  + fluxHRU%hru(iHRU)%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) *fracHRU
   end if
 
   ! averaging more fluxes (and/or states) can be added to this section as desired
 
  end do  ! (looping through HRUs)
-
- ! ***********************************************************************************************************************
  ! ********** END LOOP THROUGH HRUS **************************************************************************************
- ! ***********************************************************************************************************************
+ 
  ! perform the routing
  associate(totalArea => bvarData%var(iLookBVAR%basin__totalArea)%dat(1) )
 

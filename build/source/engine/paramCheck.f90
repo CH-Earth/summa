@@ -39,7 +39,7 @@ contains
  USE globalData,only:model_decisions  ! model decision structure
  USE var_lookup,only:iLookDECISIONS   ! named variables for elements of the decision structure
  ! SUMMA look-up variables
- USE data_types,only:var_dlength      ! data vector with variable length dimension (dp): x%var(:)%dat(:)
+ USE data_types,only:var_dlength      ! data vector with variable length dimension (rkind): x%var(:)%dat(:)
  USE var_lookup,only:iLookPARAM       ! named variables for elements of the data structures
  implicit none
  ! define input
@@ -49,9 +49,9 @@ contains
  character(*),intent(out)        :: message              ! error message
  ! local variables
  integer(i4b)                    :: iLayer               ! index of model layers
- real(rkind),dimension(5)           :: zminLayer            ! minimum layer depth in each layer (m)
- real(rkind),dimension(4)           :: zmaxLayer_lower      ! lower value of maximum layer depth
- real(rkind),dimension(4)           :: zmaxLayer_upper      ! upper value of maximum layer depth
+ real(rkind),dimension(5)        :: zminLayer            ! minimum layer depth in each layer (m)
+ real(rkind),dimension(4)        :: zmaxLayer_lower      ! lower value of maximum layer depth
+ real(rkind),dimension(4)        :: zmaxLayer_upper      ! upper value of maximum layer depth
  ! Start procedure here
  err=0; message="paramCheck/"
 
@@ -107,7 +107,8 @@ contains
  ! -------------------------------------------------------------------------------------------------------------------------------------------
 
  ! *****
- ! * check parameter dependencies...
+ ! * check soil parameter dependencies...
+ ! theta_res < critSoilWilting < critSoilTranspire < fieldCapacit < theta_sat
  ! *********************************
 
  ! associations
@@ -131,7 +132,7 @@ contains
  endif
 
  ! check that the maximum transpiration limit is within bounds
- if( any(critSoilTranspire > theta_sat) .or. any(critSoilTranspire < theta_res) )then
+ if( any(critSoilTranspire(1) > theta_sat) .or. any(critSoilTranspire(1) < theta_res) )then
   print*, 'theta_res         = ', theta_res
   print*, 'theta_sat         = ', theta_sat
   print*, 'critSoilTranspire = ', critSoilTranspire
@@ -141,7 +142,7 @@ contains
  end if
 
  ! check that the soil wilting point is within bounds
- if( any(critSoilWilting > theta_sat) .or. any(critSoilWilting < theta_res) )then
+ if( any(critSoilWilting(1) > theta_sat) .or. any(critSoilWilting(1) < theta_res) )then
   print*, 'theta_res       = ', theta_res
   print*, 'theta_sat       = ', theta_sat
   print*, 'critSoilWilting = ', critSoilWilting
@@ -168,6 +169,8 @@ contains
 
  ! check porosity
  if( any(theta_sat < theta_res) )then
+  print*, 'theta_res     = ', theta_res
+  print*, 'theta_sat     = ', theta_sat
   write(message,'(a,i0,a)') trim(message)//'porosity is less than the residual liquid water content'
   err=20; return
  endif

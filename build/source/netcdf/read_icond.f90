@@ -58,18 +58,17 @@ contains
  type(var_info)      ,intent(in)     :: indx_meta(:)   ! metadata
  integer(i4b)        ,intent(out)    :: err            ! error code
  character(*)        ,intent(out)    :: message        ! returned error message
-
  ! locals
- integer(i4b)             :: ncID                       ! netcdf file id
- integer(i4b)             :: dimID                      ! netcdf file dimension id
- integer(i4b)             :: fileHRU                    ! number of HRUs in netcdf file
- integer(i4b)             :: snowID, soilID             ! netcdf variable ids
- integer(i4b)             :: iGRU, iHRU                 ! loop indexes
- integer(i4b)             :: iHRU_local                 ! index of HRU in the data subset
- integer(i4b)             :: iHRU_global                ! index of HRU in the netcdf file
- integer(i4b),allocatable :: snowData(:)                ! number of snow layers in all HRUs
- integer(i4b),allocatable :: soilData(:)                ! number of soil layers in all HRUs
- character(len=256)       :: cmessage                   ! downstream error message
+ integer(i4b)             :: ncID                      ! netcdf file id
+ integer(i4b)             :: dimID                     ! netcdf file dimension id
+ integer(i4b)             :: fileHRU                   ! number of HRUs in netcdf file
+ integer(i4b)             :: snowID, soilID            ! netcdf variable ids
+ integer(i4b)             :: iGRU, iHRU                ! loop indexes
+ integer(i4b)             :: iHRU_local                ! index of HRU in the data subset
+ integer(i4b)             :: iHRU_global               ! index of HRU in the netcdf file
+ integer(i4b),allocatable :: snowData(:)               ! number of snow layers in all HRUs
+ integer(i4b),allocatable :: soilData(:)               ! number of soil layers in all HRUs
+ character(len=256)       :: cmessage                  ! downstream error message
 
  ! --------------------------------------------------------------------------------------------------------
  ! initialize error message
@@ -112,18 +111,15 @@ contains
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
    iHRU_global = gru_struc(iGRU)%hruInfo(iHRU)%hru_nc
-
    ! single HRU (Note: 'restartFileType' is hardwired above to multiHRU)
    if(restartFileType==singleHRU) then
     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(1)
     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(1)
-
    ! multi HRU
    else
     gru_struc(iGRU)%hruInfo(iHRU)%nSnow = snowData(iHRU_global)
     gru_struc(iGRU)%hruInfo(iHRU)%nSoil = soilData(iHRU_global)
    endif
-
   end do
  end do
 
@@ -172,7 +168,6 @@ contains
  USE updatState_module,only:updateSoil                  ! update soil states
 
  implicit none
-
  ! --------------------------------------------------------------------------------------------------------
  ! variable declarations
  ! dummies
@@ -184,7 +179,6 @@ contains
  type(gru_hru_intVec)   ,intent(inout)  :: indxData     ! model indices
  integer(i4b)           ,intent(out)    :: err          ! error code
  character(*)           ,intent(out)    :: message      ! returned error message
-
  ! locals
  character(len=256)                     :: cmessage     ! downstream error message
  integer(i4b)                           :: fileHRU      ! number of HRUs in file
@@ -201,13 +195,12 @@ contains
  integer(i4b)                           :: ixFile       ! index in file
  integer(i4b)                           :: iHRU_local   ! index of HRU in the data subset
  integer(i4b)                           :: iHRU_global  ! index of HRU in the netcdf file
- real(rkind),allocatable                   :: varData(:,:) ! variable data storage
+ real(rkind),allocatable                :: varData(:,:) ! variable data storage
  integer(i4b)                           :: nSoil, nSnow, nToto ! # layers
  integer(i4b)                           :: nTDH          ! number of points in time-delay histogram
  integer(i4b)                           :: iLayer,jLayer ! layer indices
  integer(i4b),parameter                 :: nBand=2       ! number of spectral bands
  integer(i4b)                           :: nProgVars     ! number of prognostic variables written to state file
-
  character(len=32),parameter            :: scalDimName   ='scalarv'  ! dimension name for scalar data
  character(len=32),parameter            :: midSoilDimName='midSoil'  ! dimension name for soil-only layers
  character(len=32),parameter            :: midTotoDimName='midToto'  ! dimension name for layered varaiables
@@ -215,7 +208,6 @@ contains
  character(len=32),parameter            :: tdhDimName    ='tdh'      ! dimension name for time-delay basin variables
 
  ! --------------------------------------------------------------------------------------------------------
-
  ! Start procedure here
  err=0; message="read_icond/"
 
@@ -318,9 +310,14 @@ contains
 
     if(err==20)then; message=trim(message)//"data set to the fill value (name='"//trim(prog_meta(iVar)%varName)//"')"; return; endif
 
-    ! fix the snow albedo
+    ! make sure snow albedo is not negative
     if(progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) < 0._rkind)then
      progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarSnowAlbedo)%dat(1) = mparData%gru(iGRU)%hru(iHRU)%var(iLookPARAM%albedoMax)%dat(1)
+    endif
+
+    ! make sure canopy ice + liq is positive, otherwise add liquid water to canopy and make total water consistent later
+    if( (progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) + progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyIce)%dat(1)) < 0.0001_rkind)then
+     progData%gru(iGRU)%hru(iHRU)%var(iLookPROG%scalarCanopyLiq)%dat(1) = 0.0001_rkind
     endif
 
     ! initialize the spectral albedo
@@ -356,7 +353,6 @@ contains
  ! --------------------------------------------------------------------------------------------------------
  ! (3) update soil layers (diagnostic variables)
  ! --------------------------------------------------------------------------------------------------------
-
  ! loop through GRUs and HRUs
  do iGRU = 1,nGRU
   do iHRU = 1,gru_struc(iGRU)%hruCount
