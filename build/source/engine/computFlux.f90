@@ -25,14 +25,15 @@ USE nrtype
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,             & ! data vector (i4b)
-                    var_d,             & ! data vector (rkind)
-                    var_ilength,       & ! data vector with variable length dimension (i4b)
-                    var_dlength,       & ! data vector with variable length dimension (rkind)
-                    model_options,     & ! defines the model decisions
-                    in_type_ssdNrgFlux,& ! intent(in) arguments for ssdNrgFlux call
-                    io_type_ssdNrgFlux,& ! intent(inout) arguments for ssdNrgFlux call
-                    out_type_ssdNrgFlux  ! intent(inout) arguments for ssdNrgFlux call
+                    var_i,              & ! data vector (i4b)
+                    var_d,              & ! data vector (rkind)
+                    var_ilength,        & ! data vector with variable length dimension (i4b)
+                    var_dlength,        & ! data vector with variable length dimension (rkind)
+                    model_options,      & ! defines the model decisions
+                    in_type_vegNrgFlux, & ! intent(in) arguments for vegNrgFlux call
+                    in_type_ssdNrgFlux, & ! intent(in) arguments for ssdNrgFlux call
+                    io_type_ssdNrgFlux, & ! intent(inout) arguments for ssdNrgFlux call
+                    out_type_ssdNrgFlux   ! intent(out) arguments for ssdNrgFlux call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -219,6 +220,7 @@ subroutine computFlux(&
   type(in_type_ssdNrgFlux)           :: in_ssdNrgFlux               ! data structure for ssdNrgFlux arguments
   type(io_type_ssdNrgFlux)           :: io_ssdNrgFlux               ! data structure for ssdNrgFlux arguments 
   type(out_type_ssdNrgFlux)          :: out_ssdNrgFlux              ! data structure for ssdNrgFlux arguments
+  type(in_type_vegNrgFlux)           :: in_vegNrgFlux               ! data structure for ssdNrgFlux arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -1029,33 +1031,47 @@ contains
 
   select case(sub)
    case(iLookROUTINE%vegNrgFlux) ! vegNrgFlux
+    if (op==iLookOP%pre) then ! pre-processing
+     ! intent(in) arguments
+     in_vegNrgFlux % firstSubStep=firstSubStep                      ! intent(in): flag to indicate if we are processing the first sub-step
+     in_vegNrgFlux % firstFluxCall=firstFluxCall                    ! intent(in): flag to indicate if we are processing the first flux call
+     in_vegNrgFlux % computeVegFlux=computeVegFlux                  ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+     in_vegNrgFlux % checkLWBalance=checkLWBalance                  ! intent(in): flag to check longwave balance
+     in_vegNrgFlux % upperBoundTemp=upperBoundTemp                  ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
+     in_vegNrgFlux % scalarCanairTempTrial=scalarCanairTempTrial    ! intent(in): trial value of the canopy air space temperature (K)
+     in_vegNrgFlux % scalarCanopyTempTrial=scalarCanopyTempTrial    ! intent(in): trial value of canopy temperature (K)
+     in_vegNrgFlux % mLayerTempTrial_1=mLayerTempTrial(1)           ! intent(in): trial value of ground temperature (K)
+     in_vegNrgFlux % scalarCanopyIceTrial=scalarCanopyIceTrial      ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+     in_vegNrgFlux % scalarCanopyLiqTrial=scalarCanopyLiqTrial      ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+     in_vegNrgFlux % dCanLiq_dTcanopy=dCanLiq_dTcanopy              ! intent(in): derivative in canopy liquid storage w.r.t. canopy temperature (kg m-2 K-1)        
+    else ! post-processing
 
+    end if 
    case(iLookROUTINE%ssdNrgFlux) ! ssdNrgFlux
     if (op==iLookOP%pre) then ! pre-processing
      ! intent(in) arguments
-     in_ssdNrgFlux % flag=scalarSolution .and. .not.firstFluxCall
-     in_ssdNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux
-     in_ssdNrgFlux % dGroundNetFlux_dGroundTemp=dGroundNetFlux_dGroundTemp
-     in_ssdNrgFlux % iLayerLiqFluxSnow=iLayerLiqFluxSnow
-     in_ssdNrgFlux % iLayerLiqFluxSoil=iLayerLiqFluxSoil
-     in_ssdNrgFlux % mLayerTempTrial=mLayerTempTrial
-     in_ssdNrgFlux % dThermalC_dWatAbove=dThermalC_dWatAbove
-     in_ssdNrgFlux % dThermalC_dWatBelow=dThermalC_dWatBelow
-     in_ssdNrgFlux % dThermalC_dTempAbove=dThermalC_dTempAbove
-     in_ssdNrgFlux % dThermalC_dTempBelow=dThermalC_dTempBelow
+     in_ssdNrgFlux % scalarSolution=scalarSolution .and. .not.firstFluxCall ! intent(in): flag to denote if implementing the scalar solution
+     in_ssdNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux          ! intent(in): net energy flux for the ground surface (W m-2)
+     in_ssdNrgFlux % iLayerLiqFluxSnow=iLayerLiqFluxSnow                    ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+     in_ssdNrgFlux % iLayerLiqFluxSoil=iLayerLiqFluxSoil                    ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+     in_ssdNrgFlux % mLayerTempTrial=mLayerTempTrial                        ! intent(in): temperature in each layer at the current iteration (m)
+     in_ssdNrgFlux % dThermalC_dWatAbove=dThermalC_dWatAbove                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+     in_ssdNrgFlux % dThermalC_dWatBelow=dThermalC_dWatBelow                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+     in_ssdNrgFlux % dThermalC_dTempAbove=dThermalC_dTempAbove              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+     in_ssdNrgFlux % dThermalC_dTempBelow=dThermalC_dTempBelow              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
      ! intent(inout) arguments
-     io_ssdNrgFlux % dGroundNetFlux_dGroundTemp=dGroundNetFlux_dGroundTemp
+     io_ssdNrgFlux % dGroundNetFlux_dGroundTemp=dGroundNetFlux_dGroundTemp  ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
     else ! post-processing
      ! intent(inout) arguments
-     dGroundNetFlux_dGroundTemp=io_ssdNrgFlux % dGroundNetFlux_dGroundTemp
+     dGroundNetFlux_dGroundTemp=io_ssdNrgFlux % dGroundNetFlux_dGroundTemp  ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
      ! intent(out) arguments
-     iLayerNrgFlux      =out_ssdNrgFlux % iLayerNrgFlux
-     dNrgFlux_dTempAbove=out_ssdNrgFlux % dNrgFlux_dTempAbove
-     dNrgFlux_dTempBelow=out_ssdNrgFlux % dNrgFlux_dTempBelow
-     dNrgFlux_dWatAbove =out_ssdNrgFlux % dNrgFlux_dWatAbove
-     dNrgFlux_dWatBelow =out_ssdNrgFlux % dNrgFlux_dWatBelow
-     err                =out_ssdNrgFlux % err
-     cmessage           =out_ssdNrgFlux % cmessage
+     iLayerNrgFlux      =out_ssdNrgFlux % iLayerNrgFlux                     ! intent(out): energy flux at the layer interfaces (W m-2)
+     dNrgFlux_dTempAbove=out_ssdNrgFlux % dNrgFlux_dTempAbove               ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+     dNrgFlux_dTempBelow=out_ssdNrgFlux % dNrgFlux_dTempBelow               ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+     dNrgFlux_dWatAbove =out_ssdNrgFlux % dNrgFlux_dWatAbove                ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+     dNrgFlux_dWatBelow =out_ssdNrgFlux % dNrgFlux_dWatBelow                ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+     err                =out_ssdNrgFlux % err                               ! intent(out): error code
+     cmessage           =out_ssdNrgFlux % cmessage                          ! intent(out): error message
      !deallocate(in_ssdNrgFlux,io_ssdNrgFlux,out_ssdNrgFlux) -- update
      ! error control
      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
