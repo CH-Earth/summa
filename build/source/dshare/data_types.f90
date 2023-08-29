@@ -300,32 +300,47 @@ MODULE data_types
  endtype gru_i
 
  ! define derived types used to simplify passing subroutine arguments
+ ! ** vegNrgFlux
+ type, public :: in_type_vegNrgFlux ! derived type for intent(in) arguments in vegNrgFlux call
+  logical(lgt)             :: firstSubStep                      ! intent(in): flag to indicate if we are processing the first sub-step
+  logical(lgt)             :: firstFluxCall                     ! intent(in): flag to indicate if we are processing the first flux call
+  logical(lgt)             :: computeVegFlux                    ! intent(in): flag to indicate if we need to compute fluxes over vegetation
+  logical(lgt)             :: checkLWBalance                    ! intent(in): flag to check longwave balance
+  real(rkind)              :: upperBoundTemp                    ! intent(in): temperature of the upper boundary (K) --> NOTE: use air temperature
+  real(rkind)              :: scalarCanairTempTrial             ! intent(in): trial value of the canopy air space temperature (K)
+  real(rkind)              :: scalarCanopyTempTrial             ! intent(in): trial value of canopy temperature (K)
+  real(rkind)              :: mLayerTempTrial_1                 ! intent(in): trial value of ground temperature (K)
+  real(rkind)              :: scalarCanopyIceTrial              ! intent(in): trial value of mass of ice on the vegetation canopy (kg m-2)
+  real(rkind)              :: scalarCanopyLiqTrial              ! intent(in): trial value of mass of liquid water on the vegetation canopy (kg m-2)
+  real(rkind)              :: dCanLiq_dTcanopy                  ! intent(in): derivative in canopy liquid storage w.r.t. canopy temperature (kg m-2 K-1)
+ end type in_type_vegNrgFlux
+ ! ** end vegNrgFlux
+
  ! ** ssdNrgFlux
  type, public :: in_type_ssdNrgFlux ! derived type for intent(in) arguments in ssdNrgFlux call
-  logical(lgt)             :: flag
-  real(rkind)              :: scalarGroundNetNrgFlux
-  real(rkind)              :: dGroundNetFlux_dGroundTemp
-  real(rkind), allocatable :: iLayerLiqFluxSnow(:)
-  real(rkind), allocatable :: iLayerLiqFluxSoil(:)
-  real(rkind), allocatable :: mLayerTempTrial(:)
-  real(rkind), allocatable :: dThermalC_dWatAbove(:)
-  real(rkind), allocatable :: dThermalC_dWatBelow(:)
-  real(rkind), allocatable :: dThermalC_dTempAbove(:)
-  real(rkind), allocatable :: dThermalC_dTempBelow(:)
+  logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
+  real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
+  real(rkind), allocatable :: iLayerLiqFluxSnow(:)              ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+  real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+  real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
+  real(rkind), allocatable :: dThermalC_dWatAbove(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind), allocatable :: dThermalC_dWatBelow(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+  real(rkind), allocatable :: dThermalC_dTempAbove(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+  real(rkind), allocatable :: dThermalC_dTempBelow(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
  end type in_type_ssdNrgFlux
 
  type, public :: io_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
-  real(rkind)              :: dGroundNetFlux_dGroundTemp
+  real(rkind)              :: dGroundNetFlux_dGroundTemp        ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
  end type io_type_ssdNrgFlux
 
  type, public :: out_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
-  real(rkind), allocatable :: iLayerNrgFlux(:)
-  real(rkind), allocatable :: dNrgFlux_dTempAbove(:)
-  real(rkind), allocatable :: dNrgFlux_dTempBelow(:)
-  real(rkind), allocatable :: dNrgFlux_dWatAbove(:)
-  real(rkind), allocatable :: dNrgFlux_dWatBelow(:)
-  integer(i4b)             :: err
-  character(:),allocatable :: cmessage
+  real(rkind), allocatable :: iLayerNrgFlux(:)                  ! intent(out): energy flux at the layer interfaces (W m-2)
+  real(rkind), allocatable :: dNrgFlux_dTempAbove(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+  real(rkind), allocatable :: dNrgFlux_dTempBelow(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  real(rkind), allocatable :: dNrgFlux_dWatAbove(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+  real(rkind), allocatable :: dNrgFlux_dWatBelow(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+  integer(i4b)             :: err                               ! intent(out): error code
+  character(:),allocatable :: cmessage                          ! intent(out): error message
  end type out_type_ssdNrgFlux
  ! ** end ssdNrgFlux
 
