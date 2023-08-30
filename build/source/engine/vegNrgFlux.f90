@@ -25,11 +25,12 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_i,            & ! data vector (i4b)
-                    var_d,            & ! data vector (rkind)
-                    var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (rkind)
-                    model_options       ! defines the model decisions
+                    var_i,              & ! data vector (i4b)
+                    var_d,              & ! data vector (rkind)
+                    var_ilength,        & ! data vector with variable length dimension (i4b)
+                    var_dlength,        & ! data vector with variable length dimension (rkind)
+                    model_options,      & ! defines the model decisions
+                    in_type_vegNrgFlux    ! intent(in) arguments for vegNrgFlux call 
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookTYPE           ! named variables for structure elements
@@ -119,20 +120,8 @@ contains
 ! public subroutine vegNrgFlux: muster program to compute energy fluxes at vegetation and ground surfaces
 ! *******************************************************************************************************
 subroutine vegNrgFlux(&
-                      ! input: model control
-                      firstSubStep,                            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                      firstFluxCall,                           & ! intent(in):    flag to indicate if we are processing the first flux call
-                      computeVegFlux,                          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                      checkLWBalance,                          & ! intent(in):    flag to check longwave balance
-                      ! input: model state variables
-                      upperBoundTemp,                          & ! intent(in):    temperature of the upper boundary (K) --> NOTE: use air temperature
-                      canairTempTrial,                         & ! intent(in):    trial value of the canopy air space temperature (K)
-                      canopyTempTrial,                         & ! intent(in):    trial value of canopy temperature (K)
-                      groundTempTrial,                         & ! intent(in):    trial value of ground temperature (K)
-                      canopyIceTrial,                          & ! intent(in):    trial value of mass of ice on the vegetation canopy (kg m-2)
-                      canopyLiqTrial,                          & ! intent(in):    trial value of mass of liquid water on the vegetation canopy (kg m-2)
-                      ! input: model derivatives
-                      dCanLiq_dTcanopy,                        & ! intent(in):    derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
+                      ! input: model control, model state variables, and derivatives
+                      in_vegNrgFlux,                           & ! intent(in):    model control, model state variables, and derivatives
                       ! input/output: data structures
                       type_data,                               & ! intent(in):    type of vegetation and soil
                       forc_data,                               & ! intent(in):    model forcing data
@@ -198,20 +187,8 @@ subroutine vegNrgFlux(&
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
   ! ---------------------------------------------------------------------------------------
-  ! input: model control
-  logical(lgt),intent(in)            :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
-  logical(lgt),intent(in)            :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
-  logical(lgt),intent(in)            :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
-  logical(lgt),intent(in)            :: checkLWBalance                  ! flag to check longwave balance
-  ! input: model state variables
-  real(rkind),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
-  real(rkind),intent(in)             :: canairTempTrial                 ! trial value of canopy air space temperature (K)
-  real(rkind),intent(in)             :: canopyTempTrial                 ! trial value of canopy temperature (K)
-  real(rkind),intent(in)             :: groundTempTrial                 ! trial value of ground temperature (K)
-  real(rkind),intent(in)             :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),intent(in)             :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
-  ! input: model derivatives
-  real(rkind),intent(in)             :: dCanLiq_dTcanopy                ! intent(in): derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
+  ! input: model control, model state variables, and derivatives
+  type(in_type_vegNrgFlux),intent(in) :: in_vegNrgFlux                  ! model control, model state variables, and derivatives
   ! input/output: data structures
   type(var_i),intent(in)             :: type_data                       ! type of vegetation and soil
   type(var_d),intent(in)             :: forc_data                       ! model forcing data
@@ -351,6 +328,20 @@ subroutine vegNrgFlux(&
   ! point to variables in the data structure
   ! ---------------------------------------------------------------------------------------
   associate(&
+    ! input: model control
+    firstSubStep                    => in_vegNrgFlux % firstSubStep,          & ! intent(in): [dp] flag to indicate if we are processing the first sub-step
+    firstFluxCall                   => in_vegNrgFlux % firstFluxCall,         & ! intent(in): [dp] flag to indicate if we are processing the first flux call
+    computeVegFlux                  => in_vegNrgFlux % computeVegFlux,        & ! intent(in): [dp] flag to indicate if computing fluxes over vegetation
+    checkLWBalance                  => in_vegNrgFlux % checkLWBalance,        & ! intent(in): [dp] flag to check longwave balance
+    ! input: model state variables
+    upperBoundTemp                  => in_vegNrgFlux % upperBoundTemp,        & ! intent(in): [dp] temperature of the upper boundary (K) --> NOTE: use air temperature
+    canairTempTrial                 => in_vegNrgFlux % scalarCanairTempTrial, & ! intent(in): [dp] trial value of canopy air space temperature (K)
+    canopyTempTrial                 => in_vegNrgFlux % scalarCanopyTempTrial, & ! intent(in): [dp] trial value of canopy temperature (K)
+    groundTempTrial                 => in_vegNrgFlux % mLayerTempTrial_1,     & ! intent(in): [dp] trial value of ground temperature (K)
+    canopyIceTrial                  => in_vegNrgFlux % scalarCanopyIceTrial,  & ! intent(in): [dp] trial value of mass of ice on the vegetation canopy (kg m-2)
+    canopyLiqTrial                  => in_vegNrgFlux % scalarCanopyLiqTrial,  & ! intent(in): [dp] trial value of mass of liquid water on the vegetation canopy (kg m-2)
+    ! input: model derivatives
+    dCanLiq_dTcanopy                => in_vegNrgFlux % dCanLiq_dTcanopy,      & ! intent(in): [dp] derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
     ! input: model decisions
     ix_bcUpprTdyn                   => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,           & ! intent(in): [i4b] choice of upper boundary condition for thermodynamics
     ix_veg_traits                   => model_decisions(iLookDECISIONS%veg_traits)%iDecision,           & ! intent(in): [i4b] choice of parameterization for vegetation roughness length and displacement height
