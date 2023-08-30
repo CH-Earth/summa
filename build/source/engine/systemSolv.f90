@@ -733,6 +733,7 @@ subroutine systemSolv(&
         ! -----
         ! * update states...
         ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
+        ! NOTE: if the residual is large this will cause the state variables to be pushed outside of their bounds
         ! ------------------
         if (post_massCons)then
           layerVars: associate(&

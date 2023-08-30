@@ -29,6 +29,7 @@ if testing:
 else:
     import sys
     method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','be16','be32'] #sundials will not show node differences as much
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -108,16 +109,18 @@ def run_loop(c,stat):
             if r == 0:
                 axs[r,c].scatter(x=x,y=basin_num,s=1,zorder=0,label=m)
                 stat0_word ='Basin number in batch'
+                lgnd0 = axs[r,c].legend()
             if r == 1:
                 axs[r,c].scatter(x=x,y=node_batch,s=1,zorder=0,label=m)
                 stat0_word ='Node number'
+                lgnd1 = axs[r,c].legend()
             axs[r,c].set_title(plt_titl[r*2+c])
             axs[r,c].set_xlabel(stat_word + '[{}]'.format(leg_titl[r*2+c]))
             axs[r,c].set_ylabel(stat0_word)
-            lgnd = axs[r,c].legend()
     
     for j, m in enumerate(method_name):
-        lgnd.legendHandles[j]._sizes = [80]
+        lgnd0.legendHandles[j]._sizes = [80]
+        lgnd1.legendHandles[j]._sizes = [80]
 
 
 for i,stat in enumerate(['mean','amax']): 

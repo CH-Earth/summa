@@ -421,8 +421,8 @@ contains
    !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
    ! impose solution constraints
-   ! NOTE: we may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
-   !  (especially the feasibility check)
+   ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
+   !       But, imposeConstraints does not impose maxes on temps or water which will make it infeasible
    call imposeConstraints(stateVecTrial,xInc,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
