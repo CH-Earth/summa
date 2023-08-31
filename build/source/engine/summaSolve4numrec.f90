@@ -23,12 +23,12 @@ module summaSolve4numrec_module
 ! data types
 USE nrtype
 
-! constants
-USE multiconst,only:Tfreeze         ! freezing point of pure water (K)
-USE multiconst,only:iden_water      ! intrinsic density of liquid water (kg m-3)
-
 ! access the global print flag
 USE globalData,only:globalPrintFlag
+
+! domain types
+USE globalData,only:iname_snow       ! named variables for snow
+USE globalData,only:iname_soil       ! named variables for soil
 
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -60,6 +60,9 @@ USE var_lookup,only:iLookPROG       ! named variables for structure elements
 USE var_lookup,only:iLookPARAM      ! named variables for structure elements
 USE var_lookup,only:iLookINDEX      ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
+
+USE multiconst,only:&
+                    iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -139,6 +142,7 @@ contains
                        converged,               & ! intent(out):   convergence flag
                        err,message)               ! intent(out):   error control
  USE computJacob_module, only: computJacob
+ USE eval8summa_module,  only: imposeConstraints
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  implicit none
@@ -420,18 +424,17 @@ contains
    ! if enthalpy, then need to convert the iteration increment to temperature
    !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
-   ! impose solution constraints
-   ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
-   !       But, imposeConstraints does not impose maxes on temps or water which will make it infeasible
-   call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-   ! compute the iteration increment
+   ! state vector with proposed iteration increment
    stateVecNew = stateVecTrial + xInc
 
+   ! impose solution constraints adjusting state vector and iteration increment
+   ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
+   call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   xInc = stateVecNew - stateVecTrial
+
    ! compute the residual vector and function
-   ! NOTE: This calls eval8summa in an internal subroutine
-   !       The internal sub routine has access to all data
+   ! NOTE: This calls eval8summa in an internal subroutine which has access to all data
    !       Hence, we only need to include the variables of interest in lineSearch
    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
@@ -610,10 +613,8 @@ contains
   logical(lgt)                   :: feasible                 ! feasibility of the solution
   logical(lgt)                   :: doBisection              ! flag to do the bi-section
   logical(lgt)                   :: bracketsDefined          ! flag to define if the brackets are defined
-  !integer(i4b)                  :: iCheck                   ! check the model state variables (not used)
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   real(rkind),parameter          :: delX=1._rkind            ! trial increment
-  !real(rkind)                   :: xIncrement(nState)       ! trial increment (not used)
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
 
@@ -659,12 +660,13 @@ contains
   ! * case 2: the iteration increment is the correct sign
   else
 
-   ! impose solution constraints
-   call imposeConstraints(stateVecTrial,xInc,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
-   ! compute the iteration increment
+   ! state vector with proposed iteration increment
    stateVecNew = stateVecTrial + xInc
+    
+   ! impose solution constraints adjusting state vector and iteration increment
+   call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   xInc = stateVecNew - stateVecTrial
 
   endif  ! if the iteration increment is the same sign as the residual vector
 
@@ -680,7 +682,7 @@ contains
   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-  ! check feasibility (should be feasible because of the call to imposeConstraints
+  ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
   if(.not.feasible)then; err=20; message=trim(message)//'state vector not feasible'; return; endif
 
   ! check convergence
@@ -701,6 +703,7 @@ contains
   integer(i4b),intent(inout)     :: err                      ! error code
   character(*),intent(out)       :: message                  ! error message
   ! locals
+  real(rkind)                    :: stateVecPrev(nState)     ! iteration state vector
   integer(i4b)                   :: iCheck                   ! check the model state variables
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   logical(lgt)                   :: feasible                 ! feasibility of the solution
@@ -711,6 +714,7 @@ contains
 
   ! initialize state vector
   stateVecNew = stateVecTrial
+  stateVecPrev = stateVecNew
 
   ! get xIncrement
   xIncrement = -sign((/delX/),rVec)
@@ -718,18 +722,19 @@ contains
   ! try the increment a few times
   do iCheck=1,nCheck
 
-   ! impose solution constraints
-   call imposeConstraints(stateVecNew,xIncrement,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   ! state vector with proposed iteration increment
+   stateVecNew = stateVecPrev + xIncrement
 
-   ! increment state vector
-   stateVecNew = stateVecNew + xIncrement
+   ! impose solution constraints adjusting state vector and iteration increment
+   call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecPrev,nState,nSoil,nSnow,cmessage,err)
+   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   xIncrement = stateVecNew - stateVecPrev
 
    ! evaluate summa
    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-   ! check that the trial value is feasible (should not happen because of the call to impose constraints)
+   ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
    if(.not.feasible)then; message=trim(message)//'state vector not feasible'; err=20; return; endif
 
    ! update brackets
@@ -747,6 +752,9 @@ contains
     message=trim(message)//'could not fix the problem where residual and iteration increment are of the same sign'
     err=20; return
    endif
+
+   ! Save the state vector
+    stateVecPrev = stateVecNew
 
   end do  ! multiple checks
 
@@ -1095,263 +1103,6 @@ contains
   end associate
 
   end function checkConv
-
-
-  ! *********************************************************************************************************
-  ! internal subroutine imposeConstraints: impose solution constraints
-  ! *********************************************************************************************************
-  subroutine imposeConstraints(stateVecTrial,xInc,err,message)
-  ! external functions
-  USE snow_utils_module,only:fracliquid                           ! compute the fraction of liquid water at a given temperature (snow)
-  USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
-  implicit none
-  ! dummies
-  real(rkind),intent(in)          :: stateVecTrial(:)             ! trial state vector
-  real(rkind),intent(inout)       :: xInc(:)                      ! iteration increment
-  integer(i4b),intent(out)        :: err                          ! error code
-  character(*),intent(out)        :: message                      ! error message
-  ! -----------------------------------------------------------------------------------------------------
-  ! temporary variables for model constraints
-  real(rkind)                     :: cInc                         ! constrained temperature increment (K) -- simplified bi-section
-  real(rkind)                     :: xIncFactor                   ! scaling factor for the iteration increment (-)
-  integer(i4b)                    :: iMax(1)                      ! index of maximum temperature
-  real(rkind)                     :: scalarTemp                   ! temperature of an individual snow layer (K)
-  real(rkind)                     :: volFracLiq                   ! volumetric liquid water content of an individual snow layer (-)
-  logical(lgt),dimension(nSnow)   :: drainFlag                    ! flag to denote when drainage exceeds available capacity
-  logical(lgt),dimension(nSoil)   :: crosFlag                     ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
-  logical(lgt)                    :: crosTempVeg                  ! flag to denoote where temperature crosses the freezing point
-  real(rkind)                     :: xPsi00                       ! matric head after applying the iteration increment (m)
-  real(rkind)                     :: TcSoil                       ! critical point when soil begins to freeze (K)
-  real(rkind)                     :: critDiff                     ! temperature difference from critical (K)
-  real(rkind),parameter           :: epsT=1.e-7_rkind             ! small interval above/below critical (K)
-  real(rkind),parameter           :: zMaxTempIncrement=1._rkind   ! maximum temperature increment (K), NOTE: this can cause problems especially from a cold start when we are far from the solution
-  ! indices of model state variables
-  integer(i4b)                    :: iState                       ! index of state within a specific variable type
-  integer(i4b)                    :: ixNrg,ixLiq                  ! index of energy and mass state variables in full state vector
-  ! indices of model layers
-  integer(i4b)                    :: iLayer                       ! index of model layer
-  ! -----------------------------------------------------------------------------------------------------
-  ! associate variables with indices of model state variables
-  associate(&
-  ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
-  ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
-  ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
-  ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
-  ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
-  ! indices for specific state variables
-  ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
-  ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
-  ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-  ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
-  ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
-  ! vector of energy indices for the snow and soil domains
-  ! NOTE: states not in the subset are equal to integerMissing
-  ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-  ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
-  ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
-  ! vector of hydrology indices for the snow and soil domains
-  ! NOTE: states not in the subset are equal to integerMissing
-  ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-  ixSnowOnlyHyd           => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
-  ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
-  ! number of state variables of a specific type
-  nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-  nSnowOnlyNrg            => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
-  nSoilOnlyNrg            => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
-  nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
-  nSnowOnlyHyd            => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
-  nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
-  ! state variables at the start of the time step
-  mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat           & ! intent(in): [dp(:)] matric head (m)
-  ) ! associating variables with indices of model state variables
-  ! -----------------------------------------------------------------------------------------------------
-  ! initialize error control
-  err=0; message='imposeConstraints/'
-
-  ! ** limit temperature increment to zMaxTempIncrement
-  if(any(abs(xInc(ixNrgOnly)) > zMaxTempIncrement))then
-   iMax       = maxloc( abs(xInc(ixNrgOnly)) )                     ! index of maximum temperature increment
-   xIncFactor = abs( zMaxTempIncrement/xInc(ixNrgOnly(iMax(1))) )  ! scaling factor for the iteration increment (-)
-   xInc       = xIncFactor*xInc
-  end if
-
-  ! ** impose solution constraints for vegetation
-  ! (stop just above or just below the freezing point if crossing)
-  ! --------------------------------------------------------------------------------------------------------------------
-  ! canopy temperatures
-
-  if(ixVegNrg/=integerMissing)then
-
-   ! initialize
-   critDiff    = Tfreeze - stateVecTrial(ixVegNrg)
-   crosTempVeg = .false.
-
-   ! initially frozen (T < Tfreeze)
-   if(critDiff > 0._rkind)then
-    if(xInc(ixVegNrg) > critDiff)then
-     crosTempVeg = .true.
-     cInc        = critDiff + epsT  ! constrained temperature increment (K)
-    end if
-
-   ! initially unfrozen (T > Tfreeze)
-   else
-    if(xInc(ixVegNrg) < critDiff)then
-     crosTempVeg = .true.
-     cInc        = critDiff - epsT  ! constrained temperature increment (K)
-    end if
-
-   end if  ! switch between frozen and unfrozen
-
-   ! scale iterations
-   if(crosTempVeg)then
-    xIncFactor  = cInc/xInc(ixVegNrg)  ! scaling factor for the iteration increment (-)
-    xInc        = xIncFactor*xInc      ! scale iteration increments
-   endif
-
-  endif  ! if the state variable for canopy temperature is included within the state subset
-
-  ! --------------------------------------------------------------------------------------------------------------------
-  ! canopy liquid water
-
-  if(ixVegHyd/=integerMissing)then
-
-   ! check if new value of storage will be negative
-   if(stateVecTrial(ixVegHyd)+xInc(ixVegHyd) < 0._rkind)then
-    ! scale iteration increment
-    cInc       = -0.5_rkind*stateVecTrial(ixVegHyd)  ! constrained iteration increment (K) -- simplified bi-section
-    xIncFactor = cInc/xInc(ixVegHyd)                 ! scaling factor for the iteration increment (-)
-    xInc       = xIncFactor*xInc                     ! new iteration increment
-   end if
-
-  endif  ! if the state variable for canopy water is included within the state subset
-
-  ! --------------------------------------------------------------------------------------------------------------------
-  ! ** impose solution constraints for snow
-  if(nSnowOnlyNrg > 0)then
-
-   ! loop through snow layers
-   checksnow: do iLayer=1,nSnow  ! necessary to ensure that NO layers rise above Tfreeze
-
-    ! check of the data is mising
-    if(ixSnowOnlyNrg(iLayer)==integerMissing) cycle
-
-    ! check temperatures, and, if necessary, scale iteration increment
-    iState = ixSnowOnlyNrg(iLayer)
-    if(stateVecTrial(iState) + xInc(iState) > Tfreeze)then
-     ! scale iteration increment
-     cInc       = 0.5_rkind*(Tfreeze - stateVecTrial(iState) )  ! constrained temperature increment (K) -- simplified bi-section
-     xIncFactor = cInc/xInc(iState)                             ! scaling factor for the iteration increment (-)
-     xInc       = xIncFactor*xInc
-    end if   ! if snow temperature > freezing
-
-   end do checkSnow
-
-  endif  ! if there are state variables for energy in the snow domain
-
-  ! --------------------------------------------------------------------------------------------------------------------
-  ! - check if drain more than what is available
-  ! NOTE: change in total water is only due to liquid flux
-  if(nSnowOnlyHyd>0)then
-
-   ! loop through snow layers
-   do iLayer=1,nSnow
-
-    ! * check if the layer is included
-    if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
-
-    ! * get the layer temperature (from stateVecTrial if ixSnowOnlyNrg(iLayer) is within the state vector
-    if(ixSnowOnlyNrg(iLayer)/=integerMissing)then
-     scalarTemp = stateVecTrial( ixSnowOnlyNrg(iLayer) )
-
-    ! * get the layer temperature from the last update
-    else
-     scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer)
-    endif
-
-    ! * get the volumetric fraction of liquid water
-    select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
-     case(iname_watLayer); volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecTrial(ixSnowOnlyHyd(iLayer))
-     case(iname_liqLayer); volFracLiq = stateVecTrial(ixSnowOnlyHyd(iLayer))
-     case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow hydrology'; return
-    end select
-
-    ! * check that the iteration increment does not exceed volumetric liquid water content
-    if(-xInc(ixSnowOnlyHyd(iLayer)) > volFracLiq)then
-     drainFlag(iLayer) = .true.
-     xInc(ixSnowOnlyHyd(iLayer)) = -0.5_rkind*volFracLiq
-    endif
-
-   end do  ! looping through snow layers
-
-  endif   ! if there are state variables for liquid water in the snow domain
-
-  ! --------------------------------------------------------------------------------------------------------------------
-  ! ** impose solution constraints for soil temperature
-  if(nSoilOnlyNrg>0)then
-   do iLayer=1,nSoil
-
-    ! - check if energy state is included
-    if(ixSoilOnlyNrg(iLayer)==integerMissing) cycle
-
-    ! - define index of the state variables within the state subset
-    ixNrg = ixSoilOnlyNrg(iLayer)
-    ixLiq = ixSoilOnlyHyd(iLayer)
-
-    ! get the matric potential of total water
-    if(ixLiq/=integerMissing)then
-     xPsi00 = stateVecTrial(ixLiq) + xInc(ixLiq)
-    else
-     xPsi00 = mLayerMatricHead(iLayer)
-    endif
-
-    ! identify the critical point when soil begins to freeze (TcSoil)
-    TcSoil = crit_soilT(xPsi00)
-
-    ! get the difference from the current state and the crossing point (K)
-    critDiff = TcSoil - stateVecTrial(ixNrg)
-
-    ! * initially frozen (T < TcSoil)
-    if(critDiff > 0._rkind)then
-
-     ! (check crossing above zero)
-     if(xInc(ixNrg) > critDiff)then
-      crosFlag(iLayer) = .true.
-      xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
-     endif
-
-    ! * initially unfrozen (T > TcSoil)
-    else
-
-     ! (check crossing below zero)
-     if(xInc(ixNrg) < critDiff)then
-      crosFlag(iLayer) = .true.
-      xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
-     endif
-
-    endif  ! (switch between initially frozen and initially unfrozen)
-
-   end do  ! (loop through soil layers)
-  endif   ! (if there are both energy and liquid water state variables)
-
-  ! ** impose solution constraints matric head
-  if(size(ixMatOnly)>0)then
-   do iState=1,size(ixMatOnly)
-
-    ! - define index of the hydrology state variable within the state subset
-    ixLiq = ixMatOnly(iState)
-
-    ! - place constraint for matric head
-    if(xInc(ixLiq) > 1._rkind .and. stateVecTrial(ixLiq) > 0._rkind)then
-     xInc(ixLiq) = 1._rkind
-    endif  ! if constraining matric head
-
-   end do  ! (loop through soil layers)
-  endif   ! (if there are both energy and liquid water state variables)
-
-  ! end association with variables with indices of model state variables
-  end associate
-
-  end subroutine imposeConstraints
 
  end subroutine summaSolve4numrec
 

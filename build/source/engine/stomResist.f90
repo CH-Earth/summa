@@ -131,22 +131,22 @@ contains
  real(rkind),intent(in)             :: scalarSatVP_VegTemp       ! saturation vapor pressure at vegetation temperature (Pa)
  real(rkind),intent(in)             :: scalarVP_CanopyAir        ! canopy air vapor pressure (Pa)
  ! input: data structures
- type(var_i),intent(in)          :: type_data                 ! type of vegetation and soil
- type(var_d),intent(in)          :: forc_data                 ! model forcing data
- type(var_dlength),intent(in)    :: mpar_data                 ! model parameters
- type(model_options),intent(in)  :: model_decisions(:)        ! model decisions
+ type(var_i),intent(in)          :: type_data                    ! type of vegetation and soil
+ type(var_d),intent(in)          :: forc_data                    ! model forcing data
+ type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
+ type(model_options),intent(in)  :: model_decisions(:)           ! model decisions
  ! input-output: data structures
- type(var_dlength),intent(inout) :: diag_data                 ! diagnostic variables for a local HRU
- type(var_dlength),intent(inout) :: flux_data                 ! model fluxes for a local HRU
+ type(var_dlength),intent(inout) :: diag_data                    ! diagnostic variables for a local HRU
+ type(var_dlength),intent(inout) :: flux_data                    ! model fluxes for a local HRU
  ! output: error control
- integer(i4b),intent(out)        :: err                       ! error code
- character(*),intent(out)        :: message                   ! error message
- ! ------------------------------------------------------------------------------------------------------------------------------------------------------
+ integer(i4b),intent(out)        :: err                          ! error code
+ character(*),intent(out)        :: message                      ! error message
+ ! -----------------------------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- character(LEN=256)              :: cmessage                  ! error message of downwind routine
- integer(i4b),parameter          :: ixSunlit=1                ! named variable for sunlit leaves
- integer(i4b),parameter          :: ixShaded=2                ! named variable for shaded leaves
- integer(i4b)                    :: iSunShade                 ! index defining sunlit or shaded leaves
+ character(LEN=256)              :: cmessage                     ! error message of downwind routine
+ integer(i4b),parameter          :: ixSunlit=1                   ! named variable for sunlit leaves
+ integer(i4b),parameter          :: ixShaded=2                   ! named variable for shaded leaves
+ integer(i4b)                    :: iSunShade                    ! index defining sunlit or shaded leaves
  real(rkind)                        :: absorbedPAR               ! absorbed PAR (W m-2)
  real(rkind)                        :: scalarStomResist          ! stomatal resistance (s m-1)
  real(rkind)                        :: scalarPhotosynthesis      ! photosynthesis (umol CO2 m-2 s-1)
@@ -356,35 +356,35 @@ contains
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! input: state and diagnostic variables
- real(rkind),intent(in)             :: scalarVegetationTemp       ! vegetation temperature (K)
- real(rkind),intent(in)             :: scalarSatVP_VegTemp        ! saturation vapor pressure at vegetation temperature (Pa)
- real(rkind),intent(in)             :: scalarVP_CanopyAir         ! canopy air vapor pressure (Pa)
- real(rkind),intent(in)             :: absorbedPAR                ! absorbed PAR (W m-2)
+ real(rkind),intent(in)             :: scalarVegetationTemp          ! vegetation temperature (K)
+ real(rkind),intent(in)             :: scalarSatVP_VegTemp           ! saturation vapor pressure at vegetation temperature (Pa)
+ real(rkind),intent(in)             :: scalarVP_CanopyAir            ! canopy air vapor pressure (Pa)
+ real(rkind),intent(in)             :: absorbedPAR                   ! absorbed PAR (W m-2)
  ! input: data structures
- type(var_d),intent(in)          :: forc_data                  ! model forcing data
- type(var_dlength),intent(in)    :: mpar_data                  ! model parameters
- type(var_dlength),intent(in)    :: diag_data                  ! diagnostic variables for a local HRU
- type(var_dlength),intent(in)    :: flux_data                  ! model fluxes for a local HRU
- type(model_options),intent(in)  :: model_decisions(:)         ! model decisions
+ type(var_d),intent(in)             :: forc_data                     ! model forcing data
+ type(var_dlength),intent(in)       :: mpar_data                     ! model parameters
+ type(var_dlength),intent(in)       :: diag_data                     ! diagnostic variables for a local HRU
+ type(var_dlength),intent(in)       :: flux_data                     ! model fluxes for a local HRU
+ type(model_options),intent(in)     :: model_decisions(:)            ! model decisions
  ! output: stomatal resistance and photosynthesis
- real(rkind),intent(inout)          :: ci                         ! intercellular co2 partial pressure (Pa)
- real(rkind),intent(out)            :: scalarStomResist           ! stomatal resistance (s m-1)
- real(rkind),intent(out)            :: scalarPhotosynthesis       ! photosynthesis (umol CO2 m-2 s-1)
+ real(rkind),intent(inout)          :: ci                            ! intercellular co2 partial pressure (Pa)
+ real(rkind),intent(out)            :: scalarStomResist              ! stomatal resistance (s m-1)
+ real(rkind),intent(out)            :: scalarPhotosynthesis          ! photosynthesis (umol CO2 m-2 s-1)
  ! output: error control
- integer(i4b),intent(out)        :: err                        ! error code
- character(*),intent(out)        :: message                    ! error message
+ integer(i4b),intent(out)           :: err                           ! error code
+ character(*),intent(out)           :: message                       ! error message
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! general local variables
- logical(lgt),parameter          :: testDerivs=.false.         ! flag to test the derivatives
- real(rkind)                        :: unitConv                   ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
- real(rkind)                        :: rlb                        ! leaf boundary layer rersistance (umol-1 m2 s)
- real(rkind)                        :: x0,x1,x2                   ! temporary variables
- real(rkind)                        :: co2compPt                  ! co2 compensation point (Pa)
- real(rkind)                        :: fHum                       ! humidity function, fraction [0,1]
+ logical(lgt),parameter             :: testDerivs=.false.            ! flag to test the derivatives
+ real(rkind)                        :: unitConv                      ! unit conversion factor (mol m-3, convert m s-1 --> mol H20 m-2 s-1)
+ real(rkind)                        :: rlb                           ! leaf boundary layer rersistance (umol-1 m2 s)
+ real(rkind)                        :: x0,x1,x2                      ! temporary variables
+ real(rkind)                        :: co2compPt                     ! co2 compensation point (Pa)
+ real(rkind)                        :: fHum                          ! humidity function, fraction [0,1]
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! fixed parameters
- integer(i4b),parameter          :: maxiter=20                 ! maximum number of iterations
- integer(i4b),parameter          :: maxiter_noahMP=3           ! maximum number of iterations for Noah-MP
+ integer(i4b),parameter             :: maxiter=20                    ! maximum number of iterations
+ integer(i4b),parameter             :: maxiter_noahMP=3              ! maximum number of iterations for Noah-MP
  real(rkind),parameter              :: convToler=0.0001_rkind        ! convergence tolerance (Pa)
  real(rkind),parameter              :: umol_per_mol=1.e+6_rkind      ! factor to relate umol to mol
  real(rkind),parameter              :: o2scaleFactor=0.105_rkind     ! scaling factor used to compute co2 compesation point (0.21/2)
@@ -396,41 +396,41 @@ contains
  real(rkind),parameter              :: fnf=0.6666666667_rkind        ! foliage nitrogen factor (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! photosynthesis
- real(rkind)                        :: Kc,Ko                      ! Michaelis-Menten constants for co2 and o2 (Pa)
- real(rkind)                        :: vcmax25                    ! maximum Rubisco carboxylation rate at 25 deg C (umol m-2 s-1)
- real(rkind)                        :: jmax25                     ! maximum electron transport rate at 25 deg C (umol m-2 s-1)
- real(rkind)                        :: vcmax                      ! maximum Rubisco carboxylation rate (umol m-2 s-1)
- real(rkind)                        :: jmax                       ! maximum electron transport rate (umol m-2 s-1)
- real(rkind)                        :: aQuad                      ! the quadratic coefficient in the quadratic equation
- real(rkind)                        :: bQuad                      ! the linear coefficient in the quadratic equation
- real(rkind)                        :: cQuad                      ! the constant in the quadratic equation
- real(rkind)                        :: bSign                      ! sign of the linear coeffcient
- real(rkind)                        :: xTemp                      ! temporary variable in the quadratic equation
- real(rkind)                        :: qQuad                      ! the "q" term in the quadratic equation
- real(rkind)                        :: root1,root2                ! roots of the quadratic function
- real(rkind)                        :: Js                         ! scaled electron transport rate (umol co2 m-2 s-1)
- real(rkind)                        :: I_ps2                      ! PAR absorbed by PS2 (umol photon m-2 s-1)
- real(rkind)                        :: awb                        ! Michaelis-Menten control (Pa)
- real(rkind)                        :: cp2                        ! additional controls in light-limited assimilation (Pa)
- real(rkind)                        :: psn                        ! leaf gross photosynthesis rate (umol co2 m-2 s-1)
- real(rkind)                        :: dA_dc                      ! derivative in photosynthesis w.r.t. intercellular co2 concentration
+ real(rkind)                        :: Kc,Ko                         ! Michaelis-Menten constants for co2 and o2 (Pa)
+ real(rkind)                        :: vcmax25                       ! maximum Rubisco carboxylation rate at 25 deg C (umol m-2 s-1)
+ real(rkind)                        :: jmax25                        ! maximum electron transport rate at 25 deg C (umol m-2 s-1)
+ real(rkind)                        :: vcmax                         ! maximum Rubisco carboxylation rate (umol m-2 s-1)
+ real(rkind)                        :: jmax                          ! maximum electron transport rate (umol m-2 s-1)
+ real(rkind)                        :: aQuad                         ! the quadratic coefficient in the quadratic equation
+ real(rkind)                        :: bQuad                         ! the linear coefficient in the quadratic equation
+ real(rkind)                        :: cQuad                         ! the constant in the quadratic equation
+ real(rkind)                        :: bSign                         ! sign of the linear coeffcient
+ real(rkind)                        :: xTemp                         ! temporary variable in the quadratic equation
+ real(rkind)                        :: qQuad                         ! the "q" term in the quadratic equation
+ real(rkind)                        :: root1,root2                   ! roots of the quadratic function
+ real(rkind)                        :: Js                            ! scaled electron transport rate (umol co2 m-2 s-1)
+ real(rkind)                        :: I_ps2                         ! PAR absorbed by PS2 (umol photon m-2 s-1)
+ real(rkind)                        :: awb                           ! Michaelis-Menten control (Pa)
+ real(rkind)                        :: cp2                           ! additional controls in light-limited assimilation (Pa)
+ real(rkind)                        :: psn                           ! leaf gross photosynthesis rate (umol co2 m-2 s-1)
+ real(rkind)                        :: dA_dc                         ! derivative in photosynthesis w.r.t. intercellular co2 concentration
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! stomatal resistance
- real(rkind)                        :: gMin                       ! scaled minimum conductance (umol m-2 s-1)
- real(rkind)                        :: cs                         ! co2 partial pressure at leaf surface (Pa)
- real(rkind)                        :: csx                        ! control of co2 partial pressure at leaf surface on stomatal conductance (Pa)
- real(rkind)                        :: g0                         ! stomatal conductance in the absence of humidity controls (umol m-2 s-1)
- real(rkind)                        :: ci_old                     ! intercellular co2 partial pressure (Pa)
- real(rkind)                        :: rs                         ! stomatal resistance (umol-1 m2 s)
- real(rkind)                        :: dg0_dc                     ! derivative in g0 w.r.t intercellular co2 concentration (umol m-2 s-1 Pa-1)
- real(rkind)                        :: drs_dc                     ! derivative in stomatal resistance w.r.t. intercellular co2 concentration
- real(rkind)                        :: dci_dc                     ! final derivative (-)
+ real(rkind)                        :: gMin                          ! scaled minimum conductance (umol m-2 s-1)
+ real(rkind)                        :: cs                            ! co2 partial pressure at leaf surface (Pa)
+ real(rkind)                        :: csx                           ! control of co2 partial pressure at leaf surface on stomatal conductance (Pa)
+ real(rkind)                        :: g0                            ! stomatal conductance in the absence of humidity controls (umol m-2 s-1)
+ real(rkind)                        :: ci_old                        ! intercellular co2 partial pressure (Pa)
+ real(rkind)                        :: rs                            ! stomatal resistance (umol-1 m2 s)
+ real(rkind)                        :: dg0_dc                        ! derivative in g0 w.r.t intercellular co2 concentration (umol m-2 s-1 Pa-1)
+ real(rkind)                        :: drs_dc                        ! derivative in stomatal resistance w.r.t. intercellular co2 concentration
+ real(rkind)                        :: dci_dc                        ! final derivative (-)
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! iterative solution
- real(rkind)                        :: func1,func2                ! functions for numerical derivative calculation
- real(rkind)                        :: cMin,cMax                  ! solution brackets
- real(rkind)                        :: xInc                       ! iteration increment (Pa)
- integer(i4b)                    :: iter                       ! iteration index
+ real(rkind)                        :: func1,func2                   ! functions for numerical derivative calculation
+ real(rkind)                        :: cMin,cMax                     ! solution brackets
+ real(rkind)                        :: xInc                          ! iteration increment (Pa)
+ integer(i4b)                       :: iter                          ! iteration index
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------
  ! associate variables in the data structure
  associate(&
