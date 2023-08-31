@@ -378,5 +378,20 @@ MODULE data_types
  end type out_type_ssdNrgFlux
  ! ** end ssdNrgFlux
 
-END MODULE data_types
+ ! ** vegLiqFlux
+ type, public :: in_type_vegLiqFlux ! derived type for intent(in) arguments in vegLiqFlux call
+  logical(lgt)             :: computeVegFlux                    ! intent(in): flag to denote if computing energy flux over vegetation
+  real(rkind)              :: scalarCanopyLiqTrial              ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+  real(rkind)              :: scalarRainfall                    ! intent(in): rainfall rate (kg m-2 s-1)
+ end type in_type_vegLiqFlux
 
+ type, public :: out_type_vegLiqFlux ! derived type for intent(out) arguments in vegLiqFlux call
+  real(rkind)              :: scalarThroughfallRain             ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+  real(rkind)              :: scalarCanopyLiqDrainage           ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+  real(rkind)              :: scalarThroughfallRainDeriv        ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
+  real(rkind)              :: scalarCanopyLiqDrainageDeriv      ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+  integer(i4b)             :: err                               ! intent(out): error code
+  character(:),allocatable :: cmessage                          ! intent(out): error control
+ end type out_type_vegLiqFlux
+ ! ** end vegLiqFlux
+END MODULE data_types
