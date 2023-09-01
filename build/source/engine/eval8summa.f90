@@ -1085,7 +1085,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
             ! get the volumetric fraction of liquid water
             volFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
-            scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer)
+            scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer+nSnow)==iname_watLayer)
             ! checking if drain more than what is available or add more than possible
             if(-xInc(ixSoilOnlyHyd(iLayer)) > volFracLiq - theta_res(iLayer))then 
               xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(volFracLiq - theta_res(iLayer))
