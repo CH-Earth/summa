@@ -34,7 +34,10 @@ USE data_types,only:&
                     out_type_vegNrgFlux,& ! intent(out) arguments for vegNrgFlux call
                     in_type_ssdNrgFlux, & ! intent(in) arguments for ssdNrgFlux call
                     io_type_ssdNrgFlux, & ! intent(inout) arguments for ssdNrgFlux call
-                    out_type_ssdNrgFlux   ! intent(out) arguments for ssdNrgFlux call
+                    out_type_ssdNrgFlux,& ! intent(out) arguments for ssdNrgFlux call
+                    in_type_vegLiqFlux, & ! intent(in) arguments for vegLiqFlux call
+                    out_type_vegLiqFlux   ! intent(out) arguments for vegLiqFlux call
+
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -223,6 +226,8 @@ subroutine computFlux(&
   type(in_type_ssdNrgFlux)           :: in_ssdNrgFlux               ! data structure for intent(in) ssdNrgFlux arguments
   type(io_type_ssdNrgFlux)           :: io_ssdNrgFlux               ! data structure for intent(inout) ssdNrgFlux arguments 
   type(out_type_ssdNrgFlux)          :: out_ssdNrgFlux              ! data structure for intent(out) ssdNrgFlux arguments
+  type(in_type_vegLiqFlux)           :: in_vegLiqFlux               ! data structure for intent(in) vegLiqFlux arguments
+  type(out_type_vegLiqFlux)          :: out_vegLiqFlux              ! data structure for intent(out) vegLiqFlux arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -430,41 +435,10 @@ subroutine computFlux(&
 
     ! check the need to compute the liquid water fluxes through vegetation
     if (ixVegHyd/=integerMissing) then
-
       ! calculate liquid water fluxes through vegetation
-      call vegLiqFlux(&
-                      ! input
-                      computeVegFlux,                         & ! intent(in): flag to denote if computing energy flux over vegetation
-                      scalarCanopyLiqTrial,                   & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                      scalarRainfall,                         & ! intent(in): rainfall rate (kg m-2 s-1)
-                      ! input-output: data structures
-                      mpar_data,                              & ! intent(in): model parameters
-                      diag_data,                              & ! intent(in): local HRU diagnostic model variables
-                      ! output
-                      scalarThroughfallRain,                  & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-                      scalarCanopyLiqDrainage,                & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-                      scalarThroughfallRainDeriv,             & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
-                      scalarCanopyLiqDrainageDeriv,           & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-                      err,cmessage)                             ! intent(out): error control
-      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! calculate the net liquid water flux for the vegetation canopy
-      scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
-
-      ! calculate the total derivative in the downward liquid flux
-      scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
-
-      ! test
-      if (globalPrintFlag) then
-        print*, '**'
-        print*, 'scalarRainfall          = ', scalarRainfall
-        print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
-        print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
-        print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
-        print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
-        print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
-      end if
-
+      call subTools(iLookOP%pre,iLookROUTINE%vegLiqFlux)  ! pre-processing for call to vegLiqFlux
+      call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
+      call subTools(iLookOP%post,iLookROUTINE%vegLiqFlux)  ! post-processing for call to vegLiqFlux
     end if  ! end if computing the liquid water fluxes through vegetation
 
     ! *****
@@ -1055,15 +1029,60 @@ contains
      end do
     end if
    case(iLookROUTINE%vegLiqFlux) ! vegLiqFlux
-
+    if (op==iLookOP%pre) then ! pre-processing
+     ! intent(in) arguments
+     in_vegLiqFlux % computeVegFlux      =computeVegFlux        ! intent(in): flag to denote if computing energy flux over vegetation
+     in_vegLiqFlux % scalarCanopyLiqTrial=scalarCanopyLiqTrial  ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+     in_vegLiqFlux % scalarRainfall      =scalarRainfall        ! intent(in): rainfall rate (kg m-2 s-1)
+    else ! post-processing
+     ! intent(out) arguments
+     scalarThroughfallRain       =out_vegLiqFlux % scalarThroughfallRain       ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+     scalarCanopyLiqDrainage     =out_vegLiqFlux % scalarCanopyLiqDrainage     ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+     scalarThroughfallRainDeriv  =out_vegLiqFlux % scalarThroughfallRainDeriv  ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
+     scalarCanopyLiqDrainageDeriv=out_vegLiqFlux % scalarCanopyLiqDrainageDeriv! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+     err                         =out_vegLiqFlux % err                         ! intent(out): error code
+     cmessage                    =out_vegLiqFlux % cmessage                    ! intent(out): error control
+     ! error control
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     ! calculate the net liquid water flux for the vegetation canopy
+     scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+     ! calculate the total derivative in the downward liquid flux
+     scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
+     ! test
+     if (globalPrintFlag) then
+       print*, '**'
+       print*, 'scalarRainfall          = ', scalarRainfall
+       print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
+       print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
+       print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
+       print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
+       print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
+     end if
+    end if
    case(iLookROUTINE%snowLiqFlx) ! snowLiqFlx
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case(iLookROUTINE%soilLiqFlx) ! soilLiqFlx
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case(iLookROUTINE%groundwatr) ! groundwatr
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case(iLookROUTINE%bigAquifer) ! bigAquifer
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case default ! Error control for sub argument (must be s subroutine index that is included in the above case blocks)
     err=20
     cmessage="Error in subTools: invalid sub argument requested."

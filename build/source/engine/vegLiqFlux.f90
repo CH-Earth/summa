@@ -26,6 +26,8 @@ USE nrtype
 ! data types
 USE data_types,only:var_d                ! x%var(:)       (rkind)
 USE data_types,only:var_dlength          ! x%var(:)%dat   (rkind)
+USE data_types,only:in_type_vegLiqFlux   ! derived type for intent(in) arguments
+USE data_types,only:out_type_vegLiqFlux  ! derived type for intent(out) arguments
 
 ! named variables
 USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
@@ -49,41 +51,37 @@ contains
 ! public subroutine vegLiqFlux: compute water balance for the vegetation canopy
 ! ************************************************************************************************
 subroutine vegLiqFlux(&
-                    ! input
-                    computeVegFlux,               & ! intent(in): flag to denote if computing energy flux over vegetation
-                    scalarCanopyLiqTrial,         & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                    scalarRainfall,               & ! intent(in): rainfall rate (kg m-2 s-1)
+                    ! input:
+                    in_vegLiqFlux,                & ! intent(in): model control, trial value, and rainfall rate
                     ! input-output: data structures
                     mpar_data,                    & ! intent(in): model parameters
                     diag_data,                    & ! intent(in): local HRU model diagnostic variables
                     ! output
-                    scalarThroughfallRain,        & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-                    scalarCanopyLiqDrainage,      & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-                    scalarThroughfallRainDeriv,   & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
-                    scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-                    err,message)                    ! intent(out): error control
+                    out_vegLiqFlux)                 ! intent(out): output rates, derivatives, and error control
   implicit none
   ! input
-  logical(lgt),intent(in)         :: computeVegFlux               ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  real(rkind),intent(in)          :: scalarCanopyLiqTrial         ! trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-  real(rkind),intent(in)          :: scalarRainfall               ! rainfall (kg m-2 s-1)
+  type(in_type_vegLiqFlux)        :: in_vegLiqFlux                  ! model control, trial value, and rainfall rate
   ! input-output: data structures
-  type(var_dlength),intent(in)    :: mpar_data                    ! model parameters
-  type(var_dlength),intent(inout) :: diag_data                    ! model diagnostic variables for the local basin
+  type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
+  type(var_dlength),intent(inout) :: diag_data                      ! model diagnostic variables for the local basin
   ! output
-  real(rkind),intent(out)         :: scalarThroughfallRain        ! rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  real(rkind),intent(out)         :: scalarCanopyLiqDrainage      ! drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  real(rkind),intent(out)         :: scalarThroughfallRainDeriv   ! derivative in throughfall w.r.t. canopy liquid water (s-1)
-  real(rkind),intent(out)         :: scalarCanopyLiqDrainageDeriv ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-  integer(i4b),intent(out)        :: err                          ! error code
-  character(*),intent(out)        :: message                      ! error message
+  type(out_type_vegLiqFlux)       :: out_vegLiqFlux                 ! output rates, derivatives, and error control
   ! ------------------------------------------------------------------------------------------------------------------------------------------------------
   ! make association of local variables with information in the data structures
   associate(&
+    computeVegFlux       => in_vegLiqFlux % computeVegFlux,       & ! intent(in): flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
+    scalarCanopyLiqTrial => in_vegLiqFlux % scalarCanopyLiqTrial, & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+    scalarRainfall       => in_vegLiqFlux % scalarRainfall,       & ! intent(in): rainfall (kg m-2 s-1)
     ixCanopyInterception       => model_decisions(iLookDECISIONS%cIntercept)%iDecision, & ! intent(in): index defining choice of parameterization for canopy interception
     scalarCanopyLiqMax         => diag_data%var(iLookDIAG%scalarCanopyLiqMax)%dat(1),   & ! intent(in): maximum storage before canopy drainage begins (kg m-2 s-1)
     scalarThroughfallScaleRain => mpar_data%var(iLookPARAM%throughfallScaleRain)%dat(1),& ! intent(in): fraction of rain that hits the ground without touching the canopy (-)
-    scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1)  & ! intent(in): canopy drainage coefficient (s-1)
+    scalarCanopyDrainageCoeff  => mpar_data%var(iLookPARAM%canopyDrainageCoeff)%dat(1),  & ! intent(in): canopy drainage coefficient (s-1)
+    scalarThroughfallRain        => out_vegLiqFlux % scalarThroughfallRain,        & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+    scalarCanopyLiqDrainage      => out_vegLiqFlux % scalarCanopyLiqDrainage,      & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+    scalarThroughfallRainDeriv   => out_vegLiqFlux % scalarThroughfallRainDeriv,   & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
+    scalarCanopyLiqDrainageDeriv => out_vegLiqFlux % scalarCanopyLiqDrainageDeriv, & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+    err                          => out_vegLiqFlux % err,                          & ! intent(out): error code
+    message                      => out_vegLiqFlux % cmessage                      & ! intent(out): error message
     )
     ! ------------------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
