@@ -1082,7 +1082,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do iLayer=1,nSoil
           ! check if the layer is included
           if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
-          if(ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer .or. ixHydType(ixSoilOnlyHyd(iLayer))==iname_liqLayer)then
+          if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
             ! get the volumetric fraction of liquid water
             volFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
             scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(ixSoilOnlyHyd(iLayer))==iname_watLayer)
