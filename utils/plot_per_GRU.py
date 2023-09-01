@@ -131,7 +131,6 @@ else:
 # Find the segment ID
 seg_id = read_from_control(controlFile,'river_network_shp_segid')
 
-
 ## Load all shapefiles and project to Albers Conformal Conic and reproject
 # Set the target CRS
 acc = 'ESRI:102008'
@@ -161,7 +160,7 @@ if use_eff:
     eff = pd.read_csv(viz_dir/eff_fil, sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
     # Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
     eff['CPU Efficiency'] = eff['CPU Efficiency'].str.split(':').str[1].astype(float)
-    eff['Array ID'] = eff['Array ID'].str.split(':').str[1].astype(int)   
+    eff['Array ID'] = eff['Array ID'].str.split(':').str[1].astype(int)
     eff['Job Wall-clock time'] = eff['Job Wall-clock time'].str.split(':').str[1].astype(float)
     eff['Node Number'] = eff['Node Number'].str.split(':').str[1].astype(int)
 
@@ -184,7 +183,7 @@ for plot_var in plot_vars:
             batch0 = int(row['Array ID'])
             eff0 = row['CPU Efficiency']
             # Store the value for the current batch in the dictionary
-            efficiency[batch0] = eff0  
+            efficiency[batch0] = eff0
         # Select the values for the current batch using boolean indexing
         eff_batch = np.array([efficiency[b] for b in batch])
         #node_batch = np.array([node[b] for b in batch]) #not currently using
@@ -231,12 +230,12 @@ plt.tight_layout()
 
 def run_loop(i,var,the_max,f_x,f_y):
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
-    my_cmap.set_bad(color='white') #nan color white    
+    my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = 0, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
-    if stat=='kgem' and var!='wallClockTime': 
+    if stat=='kgem' and var!='wallClockTime':
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
-        my_cmap.set_bad(color='white') #nan color white    
+        my_cmap.set_bad(color='white') #nan color white
         vmin,vmax = the_max, 1.0
         norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     r = i//2
