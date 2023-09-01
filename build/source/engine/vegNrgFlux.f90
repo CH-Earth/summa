@@ -25,11 +25,13 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_i,            & ! data vector (i4b)
-                    var_d,            & ! data vector (rkind)
-                    var_ilength,      & ! data vector with variable length dimension (i4b)
-                    var_dlength,      & ! data vector with variable length dimension (rkind)
-                    model_options       ! defines the model decisions
+                    var_i,              & ! data vector (i4b)
+                    var_d,              & ! data vector (rkind)
+                    var_ilength,        & ! data vector with variable length dimension (i4b)
+                    var_dlength,        & ! data vector with variable length dimension (rkind)
+                    model_options,      & ! defines the model decisions
+                    in_type_vegNrgFlux, & ! intent(in) arguments for vegNrgFlux call 
+                    out_type_vegNrgFlux   ! intent(out) arguments for vegNrgFlux call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookTYPE           ! named variables for structure elements
@@ -119,20 +121,8 @@ contains
 ! public subroutine vegNrgFlux: muster program to compute energy fluxes at vegetation and ground surfaces
 ! *******************************************************************************************************
 subroutine vegNrgFlux(&
-                      ! input: model control
-                      firstSubStep,                            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                      firstFluxCall,                           & ! intent(in):    flag to indicate if we are processing the first flux call
-                      computeVegFlux,                          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                      checkLWBalance,                          & ! intent(in):    flag to check longwave balance
-                      ! input: model state variables
-                      upperBoundTemp,                          & ! intent(in):    temperature of the upper boundary (K) --> NOTE: use air temperature
-                      canairTempTrial,                         & ! intent(in):    trial value of the canopy air space temperature (K)
-                      canopyTempTrial,                         & ! intent(in):    trial value of canopy temperature (K)
-                      groundTempTrial,                         & ! intent(in):    trial value of ground temperature (K)
-                      canopyIceTrial,                          & ! intent(in):    trial value of mass of ice on the vegetation canopy (kg m-2)
-                      canopyLiqTrial,                          & ! intent(in):    trial value of mass of liquid water on the vegetation canopy (kg m-2)
-                      ! input: model derivatives
-                      dCanLiq_dTcanopy,                        & ! intent(in):    derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
+                      ! input: model control, model state variables, and derivatives
+                      in_vegNrgFlux,                           & ! intent(in):    model control, model state variables, and derivatives
                       ! input/output: data structures
                       type_data,                               & ! intent(in):    type of vegetation and soil
                       forc_data,                               & ! intent(in):    model forcing data
@@ -143,44 +133,8 @@ subroutine vegNrgFlux(&
                       flux_data,                               & ! intent(inout): model fluxes for a local HRU
                       bvar_data,                               & ! intent(in):    model variables for the local basin
                       model_decisions,                         & ! intent(in):    model decisions
-                      ! output: liquid water fluxes associated with evaporation/transpiration (needed for coupling)
-                      returnCanopyTranspiration,               & ! intent(out):   canopy transpiration (kg m-2 s-1)
-                      returnCanopyEvaporation,                 & ! intent(out):   canopy evaporation/condensation (kg m-2 s-1)
-                      returnGroundEvaporation,                 & ! intent(out):   ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-                      ! output: fluxes
-                      canairNetFlux,                           & ! intent(out):   net energy flux for the canopy air space (W m-2)
-                      canopyNetFlux,                           & ! intent(out):   net energy flux for the vegetation canopy (W m-2)
-                      groundNetFlux,                           & ! intent(out):   net energy flux for the ground surface (W m-2)
-                      ! output: energy flux derivatives
-                      dCanairNetFlux_dCanairTemp,              & ! intent(out):   derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
-                      dCanairNetFlux_dCanopyTemp,              & ! intent(out):   derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
-                      dCanairNetFlux_dGroundTemp,              & ! intent(out):   derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
-                      dCanopyNetFlux_dCanairTemp,              & ! intent(out):   derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
-                      dCanopyNetFlux_dCanopyTemp,              & ! intent(out):   derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
-                      dCanopyNetFlux_dGroundTemp,              & ! intent(out):   derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
-                      dGroundNetFlux_dCanairTemp,              & ! intent(out):   derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
-                      dGroundNetFlux_dCanopyTemp,              & ! intent(out):   derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
-                      dGroundNetFlux_dGroundTemp,              & ! intent(out):   derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-                      ! output liquid water flux derivarives (canopy evap)
-                      dCanopyEvaporation_dCanWat,              & ! intent(out):   derivative in canopy evaporation w.r.t. canopy total water content (s-1)
-                      dCanopyEvaporation_dTCanair,             & ! intent(out):   derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                      dCanopyEvaporation_dTCanopy,             & ! intent(out):   derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                      dCanopyEvaporation_dTGround,             & ! intent(out):   derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-                      ! output: liquid water flux derivarives (ground evap)
-                      dGroundEvaporation_dCanWat,              & ! intent(out):   derivative in ground evaporation w.r.t. canopy total water content (s-1)
-                      dGroundEvaporation_dTCanair,             & ! intent(out):   derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                      dGroundEvaporation_dTCanopy,             & ! intent(out):   derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                      dGroundEvaporation_dTGround,             & ! intent(out):   derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-                      ! output: transpiration derivatives
-                      dCanopyTrans_dCanWat,                    & ! intent(out):   derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-                      dCanopyTrans_dTCanair,                   & ! intent(out):   derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                      dCanopyTrans_dTCanopy,                   & ! intent(out):   derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                      dCanopyTrans_dTGround,                   & ! intent(out):   derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-                      ! output: cross derivative terms
-                      dCanopyNetFlux_dCanWat,                  & ! intent(out):   derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
-                      dGroundNetFlux_dCanWat,                  & ! intent(out):   derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
-                      ! output: error control
-                      err,message)                               ! intent(out):   error control
+                      ! output: fluxes, derivatives, and error control
+                      out_vegNrgFlux)                            ! intent(out):   fluxes, derivatives, and error control
 
   ! utilities
   USE expIntegral_module,only:expInt                             ! function to calculate the exponential integral
@@ -198,70 +152,20 @@ subroutine vegNrgFlux(&
   ! ---------------------------------------------------------------------------------------
   ! * dummy variables
   ! ---------------------------------------------------------------------------------------
-  ! input: model control
-  logical(lgt),intent(in)            :: firstSubStep                    ! flag to indicate if we are processing the first sub-step
-  logical(lgt),intent(in)            :: firstFluxCall                   ! flag to indicate if we are processing the first flux call
-  logical(lgt),intent(in)            :: computeVegFlux                  ! flag to indicate if computing fluxes over vegetation
-  logical(lgt),intent(in)            :: checkLWBalance                  ! flag to check longwave balance
-  ! input: model state variables
-  real(rkind),intent(in)             :: upperBoundTemp                  ! temperature of the upper boundary (K) --> NOTE: use air temperature
-  real(rkind),intent(in)             :: canairTempTrial                 ! trial value of canopy air space temperature (K)
-  real(rkind),intent(in)             :: canopyTempTrial                 ! trial value of canopy temperature (K)
-  real(rkind),intent(in)             :: groundTempTrial                 ! trial value of ground temperature (K)
-  real(rkind),intent(in)             :: canopyIceTrial                  ! trial value of mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),intent(in)             :: canopyLiqTrial                  ! trial value of mass of liquid water on the vegetation canopy (kg m-2)
-  ! input: model derivatives
-  real(rkind),intent(in)             :: dCanLiq_dTcanopy                ! intent(in): derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
+  ! input: model control, model state variables, and derivatives
+  type(in_type_vegNrgFlux),intent(in)   :: in_vegNrgFlux                ! model control, model state variables, and derivatives
   ! input/output: data structures
-  type(var_i),intent(in)             :: type_data                       ! type of vegetation and soil
-  type(var_d),intent(in)             :: forc_data                       ! model forcing data
-  type(var_dlength),intent(in)       :: mpar_data                       ! model parameters
-  type(var_ilength),intent(in)       :: indx_data                       ! state vector geometry
-  type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
-  type(var_dlength),intent(inout)    :: diag_data                       ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout)    :: flux_data                       ! model fluxes for a local HRU
-  type(var_dlength),intent(in)       :: bvar_data                       ! model variables for the local basin
-  type(model_options),intent(in)     :: model_decisions(:)              ! model decisions
-  ! output: liquid water fluxes associated with evaporation/transpiration (needed for coupling)
-  real(rkind),intent(out)            :: returnCanopyTranspiration       ! canopy transpiration (kg m-2 s-1)
-  real(rkind),intent(out)            :: returnCanopyEvaporation         ! canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind),intent(out)            :: returnGroundEvaporation         ! ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
-  ! output: fluxes
-  real(rkind),intent(out)            :: canairNetFlux                   ! net energy flux for the canopy air space (W m-2)
-  real(rkind),intent(out)            :: canopyNetFlux                   ! net energy flux for the vegetation canopy (W m-2)
-  real(rkind),intent(out)            :: groundNetFlux                   ! net energy flux for the ground surface (W m-2)
-  ! output: energy flux derivatives
-  real(rkind),intent(out)            :: dCanairNetFlux_dCanairTemp      ! derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dCanairNetFlux_dCanopyTemp      ! derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dCanairNetFlux_dGroundTemp      ! derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dCanopyNetFlux_dCanairTemp      ! derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dCanopyNetFlux_dCanopyTemp      ! derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dCanopyNetFlux_dGroundTemp      ! derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dGroundNetFlux_dCanairTemp      ! derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dGroundNetFlux_dCanopyTemp      ! derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
-  real(rkind),intent(out)            :: dGroundNetFlux_dGroundTemp      ! derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
-  ! output: liquid flux derivatives (canopy evap)
-  real(rkind),intent(out)            :: dCanopyEvaporation_dCanWat      ! derivative in canopy evaporation w.r.t. canopy total water content (s-1)
-  real(rkind),intent(out)            :: dCanopyEvaporation_dTCanair     ! derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(out)            :: dCanopyEvaporation_dTCanopy     ! derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(out)            :: dCanopyEvaporation_dTGround     ! derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-  ! output: liquid flux derivatives (ground evap)
-  real(rkind),intent(out)            :: dGroundEvaporation_dCanWat      ! derivative in ground evaporation w.r.t. canopy total water content (s-1)
-  real(rkind),intent(out)            :: dGroundEvaporation_dTCanair     ! derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(out)            :: dGroundEvaporation_dTCanopy     ! derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(out)            :: dGroundEvaporation_dTGround     ! derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
-  ! output: transpiration derivatives
-  real(rkind),intent(out)            :: dCanopyTrans_dCanWat            ! intent(out): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-  real(rkind),intent(out)            :: dCanopyTrans_dTCanair           ! intent(out): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(out)            :: dCanopyTrans_dTCanopy           ! intent(out): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(out)            :: dCanopyTrans_dTGround           ! intent(out): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-  ! output: cross derivative terms
-  real(rkind),intent(out)            :: dCanopyNetFlux_dCanWat          ! derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
-  real(rkind),intent(out)            :: dGroundNetFlux_dCanWat          ! derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
-  ! output: error control
-  integer(i4b),intent(out)           :: err                             ! error code
-  character(*),intent(out)           :: message                         ! error message
-
+  type(var_i),intent(in)                :: type_data                    ! type of vegetation and soil
+  type(var_d),intent(in)                :: forc_data                    ! model forcing data
+  type(var_dlength),intent(in)          :: mpar_data                    ! model parameters
+  type(var_ilength),intent(in)          :: indx_data                    ! state vector geometry
+  type(var_dlength),intent(in)          :: prog_data                    ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)       :: diag_data                    ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)       :: flux_data                    ! model fluxes for a local HRU
+  type(var_dlength),intent(in)          :: bvar_data                    ! model variables for the local basin
+  type(model_options),intent(in)        :: model_decisions(:)           ! model decisions
+  ! output: fluxes, derivatives, and error control
+  type(out_type_vegNrgFlux),intent(out) :: out_vegNrgFlux               ! data structure for vegNrgFlux arguments
   ! ---------------------------------------------------------------------------------------
   ! * local variables
   ! ---------------------------------------------------------------------------------------
@@ -351,6 +255,20 @@ subroutine vegNrgFlux(&
   ! point to variables in the data structure
   ! ---------------------------------------------------------------------------------------
   associate(&
+    ! input: model control
+    firstSubStep                    => in_vegNrgFlux % firstSubStep,          & ! intent(in): [dp] flag to indicate if we are processing the first sub-step
+    firstFluxCall                   => in_vegNrgFlux % firstFluxCall,         & ! intent(in): [dp] flag to indicate if we are processing the first flux call
+    computeVegFlux                  => in_vegNrgFlux % computeVegFlux,        & ! intent(in): [dp] flag to indicate if computing fluxes over vegetation
+    checkLWBalance                  => in_vegNrgFlux % checkLWBalance,        & ! intent(in): [dp] flag to check longwave balance
+    ! input: model state variables
+    upperBoundTemp                  => in_vegNrgFlux % upperBoundTemp,        & ! intent(in): [dp] temperature of the upper boundary (K) --> NOTE: use air temperature
+    canairTempTrial                 => in_vegNrgFlux % scalarCanairTempTrial, & ! intent(in): [dp] trial value of canopy air space temperature (K)
+    canopyTempTrial                 => in_vegNrgFlux % scalarCanopyTempTrial, & ! intent(in): [dp] trial value of canopy temperature (K)
+    groundTempTrial                 => in_vegNrgFlux % mLayerTempTrial_1,     & ! intent(in): [dp] trial value of ground temperature (K)
+    canopyIceTrial                  => in_vegNrgFlux % scalarCanopyIceTrial,  & ! intent(in): [dp] trial value of mass of ice on the vegetation canopy (kg m-2)
+    canopyLiqTrial                  => in_vegNrgFlux % scalarCanopyLiqTrial,  & ! intent(in): [dp] trial value of mass of liquid water on the vegetation canopy (kg m-2)
+    ! input: model derivatives
+    dCanLiq_dTcanopy                => in_vegNrgFlux % dCanLiq_dTcanopy,      & ! intent(in): [dp] derivative in canopy liquid w.r.t. canopy temperature (kg m-2 K-1)
     ! input: model decisions
     ix_bcUpprTdyn                   => model_decisions(iLookDECISIONS%bcUpprTdyn)%iDecision,           & ! intent(in): [i4b] choice of upper boundary condition for thermodynamics
     ix_veg_traits                   => model_decisions(iLookDECISIONS%veg_traits)%iDecision,           & ! intent(in): [i4b] choice of parameterization for vegetation roughness length and displacement height
@@ -506,7 +424,46 @@ subroutine vegNrgFlux(&
     scalarGroundEvaporation         => flux_data%var(iLookFLUX%scalarGroundEvaporation)%dat(1),        & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
     ! output: derived fluxes
     scalarTotalET                   => flux_data%var(iLookFLUX%scalarTotalET)%dat(1),                  & ! intent(out): [dp] total ET (kg m-2 s-1)
-    scalarNetRadiation              => flux_data%var(iLookFLUX%scalarNetRadiation)%dat(1)              & ! intent(out): [dp] net radiation (W m-2)
+    scalarNetRadiation              => flux_data%var(iLookFLUX%scalarNetRadiation)%dat(1),             & ! intent(out): [dp] net radiation (W m-2)
+    ! output: liquid water fluxes associated with evaporation/transpiration (needed for coupling)
+    returnCanopyTranspiration => out_vegNrgFlux % scalarCanopyTranspiration,  & ! intent(out): [dp] canopy transpiration (kg m-2 s-1)
+    returnCanopyEvaporation   => out_vegNrgFlux % scalarCanopyEvaporation,    & ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
+    returnGroundEvaporation   => out_vegNrgFlux % scalarGroundEvaporation,    & ! intent(out): [dp] ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
+    ! output: fluxes
+    canairNetFlux => out_vegNrgFlux % scalarCanairNetNrgFlux,                 & ! intent(out): [dp] net energy flux for the canopy air space (W m-2)
+    canopyNetFlux => out_vegNrgFlux % scalarCanopyNetNrgFlux,                 & ! intent(out): [dp] net energy flux for the vegetation canopy (W m-2)
+    groundNetFlux => out_vegNrgFlux % scalarGroundNetNrgFlux,                 & ! intent(out): [dp] net energy flux for the ground surface (W m-2)
+    ! output: energy flux derivatives
+    dCanairNetFlux_dCanairTemp => out_vegNrgFlux % dCanairNetFlux_dCanairTemp,& ! intent(out): [dp] derivative in net canopy air space flux w.r.t. canopy air temperature (W m-2 K-1)
+    dCanairNetFlux_dCanopyTemp => out_vegNrgFlux % dCanairNetFlux_dCanopyTemp,& ! intent(out): [dp] derivative in net canopy air space flux w.r.t. canopy temperature (W m-2 K-1)
+    dCanairNetFlux_dGroundTemp => out_vegNrgFlux % dCanairNetFlux_dGroundTemp,& ! intent(out): [dp] derivative in net canopy air space flux w.r.t. ground temperature (W m-2 K-1)
+    dCanopyNetFlux_dCanairTemp => out_vegNrgFlux % dCanopyNetFlux_dCanairTemp,& ! intent(out): [dp] derivative in net canopy flux w.r.t. canopy air temperature (W m-2 K-1)
+    dCanopyNetFlux_dCanopyTemp => out_vegNrgFlux % dCanopyNetFlux_dCanopyTemp,& ! intent(out): [dp] derivative in net canopy flux w.r.t. canopy temperature (W m-2 K-1)
+    dCanopyNetFlux_dGroundTemp => out_vegNrgFlux % dCanopyNetFlux_dGroundTemp,& ! intent(out): [dp] derivative in net canopy flux w.r.t. ground temperature (W m-2 K-1)
+    dGroundNetFlux_dCanairTemp => out_vegNrgFlux % dGroundNetFlux_dCanairTemp,& ! intent(out): [dp] derivative in net ground flux w.r.t. canopy air temperature (W m-2 K-1)
+    dGroundNetFlux_dCanopyTemp => out_vegNrgFlux % dGroundNetFlux_dCanopyTemp,& ! intent(out): [dp] derivative in net ground flux w.r.t. canopy temperature (W m-2 K-1)
+    dGroundNetFlux_dGroundTemp => out_vegNrgFlux % dGroundNetFlux_dGroundTemp,& ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+    ! output: liquid flux derivatives (canopy evap)
+    dCanopyEvaporation_dCanWat  => out_vegNrgFlux % dCanopyEvaporation_dCanWat,  & ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy total water content (s-1)
+    dCanopyEvaporation_dTCanair => out_vegNrgFlux % dCanopyEvaporation_dTCanair, & ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+    dCanopyEvaporation_dTCanopy => out_vegNrgFlux % dCanopyEvaporation_dTCanopy, & ! intent(out): [dp] derivative in canopy evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+    dCanopyEvaporation_dTGround => out_vegNrgFlux % dCanopyEvaporation_dTGround, & ! intent(out): [dp] derivative in canopy evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+    ! output: liquid flux derivatives (ground evap)
+    dGroundEvaporation_dCanWat  => out_vegNrgFlux % dGroundEvaporation_dCanWat,  & ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy total water content (s-1)
+    dGroundEvaporation_dTCanair => out_vegNrgFlux % dGroundEvaporation_dTCanair, & ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+    dGroundEvaporation_dTCanopy => out_vegNrgFlux % dGroundEvaporation_dTCanopy, & ! intent(out): [dp] derivative in ground evaporation w.r.t. canopy temperature (kg m-2 s-1 K-1)
+    dGroundEvaporation_dTGround => out_vegNrgFlux % dGroundEvaporation_dTGround, & ! intent(out): [dp] derivative in ground evaporation w.r.t. ground temperature (kg m-2 s-1 K-1)
+    ! output: transpiration derivatives
+    dCanopyTrans_dCanWat  => out_vegNrgFlux % dCanopyTrans_dCanWat,          & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+    dCanopyTrans_dTCanair => out_vegNrgFlux % dCanopyTrans_dTCanair,         & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dTCanopy => out_vegNrgFlux % dCanopyTrans_dTCanopy,         & ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dTGround => out_vegNrgFlux % dCanopyTrans_dTGround,         & ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+    ! output: cross derivative terms
+    dCanopyNetFlux_dCanWat => out_vegNrgFlux % dCanopyNetFlux_dCanWat,       & ! intent(out): [dp] derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
+    dGroundNetFlux_dCanWat =>out_vegNrgFlux % dGroundNetFlux_dCanWat,        & ! intent(out): [dp] derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
+    ! output: error control
+    err     => out_vegNrgFlux % err,                       & ! intent(out): [i4b] error code
+    message => out_vegNrgFlux % cmessage                   & ! intent(out): [character] error message
     )
     ! ---------------------------------------------------------------------------------------
     ! initialize error control
