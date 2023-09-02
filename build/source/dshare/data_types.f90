@@ -391,7 +391,28 @@ MODULE data_types
   real(rkind)              :: scalarThroughfallRainDeriv        ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
   real(rkind)              :: scalarCanopyLiqDrainageDeriv      ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
   integer(i4b)             :: err                               ! intent(out): error code
-  character(:),allocatable :: cmessage                          ! intent(out): error control
+  character(:),allocatable :: cmessage                          ! intent(out): error message
  end type out_type_vegLiqFlux
  ! ** end vegLiqFlux
+
+ ! ** snowLiqFlx
+ type, public :: in_type_snowLiqFlx ! derived type for intent(in) arguments in snowLiqFlx call
+  integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
+  logical(lgt)             :: firstFluxCall                     ! intent(in):    the first flux call (compute variables that are constant over the iterations)
+  logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
+  real(rkind)              :: scalarThroughfallRain             ! intent(in):    rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
+  real(rkind)              :: scalarCanopyLiqDrainage           ! intent(in):    liquid drainage from the vegetation canopy (kg m-2 s-1)
+  real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    trial value of volumetric fraction of liquid water at the current iteration (-)
+ end type in_type_snowLiqFlx
+
+ type, public :: io_type_snowLiqFlx ! derived type for intent(inout) arguments in snowLiqFlx call
+  real(rkind), allocatable :: iLayerLiqFluxSnow(:)              ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+  real(rkind), allocatable :: iLayerLiqFluxSnowDeriv(:)         ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+ end type io_type_snowLiqFlx
+
+ type, public :: out_type_snowLiqFlx ! derived type for intent(out) arguments in snowLiqFlx call
+  integer(i4b)             :: err                               ! intent(out):   error code
+  character(:),allocatable :: cmessage                          ! intent(out):   error message
+ end type out_type_snowLiqFlx
+ ! ** end snowLiqFlx
 END MODULE data_types

@@ -34,7 +34,12 @@ USE data_types,only:&
                     out_type_vegNrgFlux,& ! intent(out) arguments for vegNrgFlux call
                     in_type_ssdNrgFlux, & ! intent(in) arguments for ssdNrgFlux call
                     io_type_ssdNrgFlux, & ! intent(inout) arguments for ssdNrgFlux call
-                    out_type_ssdNrgFlux   ! intent(out) arguments for ssdNrgFlux call
+                    out_type_ssdNrgFlux,& ! intent(out) arguments for ssdNrgFlux call
+                    in_type_vegLiqFlux, & ! intent(in) arguments for vegLiqFlux call
+                    out_type_vegLiqFlux,& ! intent(out) arguments for vegLiqFlux call
+                    in_type_snowLiqFlx, & ! intent(in) arguments for snowLiqFlx call
+                    io_type_snowLiqFlx, & ! intent(inout) arguments for snowLiqFlx call
+                    out_type_snowLiqFlx   ! intent(out) arguments for snowLiqFlx call                
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -223,6 +228,11 @@ subroutine computFlux(&
   type(in_type_ssdNrgFlux)           :: in_ssdNrgFlux               ! data structure for intent(in) ssdNrgFlux arguments
   type(io_type_ssdNrgFlux)           :: io_ssdNrgFlux               ! data structure for intent(inout) ssdNrgFlux arguments 
   type(out_type_ssdNrgFlux)          :: out_ssdNrgFlux              ! data structure for intent(out) ssdNrgFlux arguments
+  type(in_type_vegLiqFlux)           :: in_vegLiqFlux               ! data structure for intent(in) vegLiqFlux arguments
+  type(out_type_vegLiqFlux)          :: out_vegLiqFlux              ! data structure for intent(out) vegLiqFlux arguments
+  type(in_type_snowLiqFlx)           :: in_snowLiqFlx               ! data structure for intent(in) snowLiqFlx arguments
+  type(io_type_snowLiqFlx)           :: io_snowLiqFlx               ! data structure for intent(inout) snowLiqFlx arguments
+  type(out_type_snowLiqFlx)          :: out_snowLiqFlx              ! data structure for intent(out) snowLiqFlx arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -430,41 +440,10 @@ subroutine computFlux(&
 
     ! check the need to compute the liquid water fluxes through vegetation
     if (ixVegHyd/=integerMissing) then
-
       ! calculate liquid water fluxes through vegetation
-      call vegLiqFlux(&
-                      ! input
-                      computeVegFlux,                         & ! intent(in): flag to denote if computing energy flux over vegetation
-                      scalarCanopyLiqTrial,                   & ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
-                      scalarRainfall,                         & ! intent(in): rainfall rate (kg m-2 s-1)
-                      ! input-output: data structures
-                      mpar_data,                              & ! intent(in): model parameters
-                      diag_data,                              & ! intent(in): local HRU diagnostic model variables
-                      ! output
-                      scalarThroughfallRain,                  & ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-                      scalarCanopyLiqDrainage,                & ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-                      scalarThroughfallRainDeriv,             & ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
-                      scalarCanopyLiqDrainageDeriv,           & ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-                      err,cmessage)                             ! intent(out): error control
-      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! calculate the net liquid water flux for the vegetation canopy
-      scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
-
-      ! calculate the total derivative in the downward liquid flux
-      scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
-
-      ! test
-      if (globalPrintFlag) then
-        print*, '**'
-        print*, 'scalarRainfall          = ', scalarRainfall
-        print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
-        print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
-        print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
-        print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
-        print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
-      end if
-
+      call subTools(iLookOP%pre,iLookROUTINE%vegLiqFlux)  ! pre-processing for call to vegLiqFlux
+      call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
+      call subTools(iLookOP%post,iLookROUTINE%vegLiqFlux)  ! post-processing for call to vegLiqFlux
     end if  ! end if computing the liquid water fluxes through vegetation
 
     ! *****
@@ -473,46 +452,10 @@ subroutine computFlux(&
 
     ! check the need to compute liquid water fluxes through snow
     if (nSnowOnlyHyd>0) then
-
       ! compute liquid fluxes through snow
-      call snowLiqFlx(&
-                      ! input: model control
-                      nSnow,                                     & ! intent(in):    number of snow layers
-                      firstFluxCall,                             & ! intent(in):    the first flux call (compute variables that are constant over the iterations)
-                      (scalarSolution .and. .not.firstFluxCall), & ! intent(in):    flag to indicate the scalar solution
-                      ! input: forcing for the snow domain
-                      scalarThroughfallRain,                     & ! intent(in):    rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
-                      scalarCanopyLiqDrainage,                   & ! intent(in):    liquid drainage from the vegetation canopy (kg m-2 s-1)
-                      ! input: model state vector
-                      mLayerVolFracLiqTrial(1:nSnow),            & ! intent(in):    trial value of volumetric fraction of liquid water at the current iteration (-)
-                      ! input-output: data structures
-                      indx_data,                                 & ! intent(in):    model indices
-                      mpar_data,                                 & ! intent(in):    model parameters
-                      prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
-                      ! output: fluxes and derivatives
-                      iLayerLiqFluxSnow(0:nSnow),                & ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
-                      iLayerLiqFluxSnowDeriv(0:nSnow),           & ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
-                      ! output: error control
-                      err,cmessage)                                ! intent(out):   error control
-      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! define forcing for the soil domain
-      scalarRainPlusMelt = iLayerLiqFluxSnow(nSnow)    ! drainage from the base of the snowpack
-
-      ! calculate net liquid water fluxes for each snow layer (s-1)
-      do iLayer=1,nSnow
-        mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
-      end do
-
-      ! compute drainage from the soil zone (needed for mass balance checks)
-      scalarSnowDrainage = iLayerLiqFluxSnow(nSnow)
-
-      ! save bottom layer of snow derivatives
-      above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
-      above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
-      above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
-
+      call subTools(iLookOP%pre,iLookROUTINE%snowLiqFlx)  ! pre-processing for call to snowLiqFlx
+      call snowLiqFlx(in_snowLiqFlx,indx_data,mpar_data,prog_data,diag_data,io_snowLiqFlx,out_snowLiqFlx)
+      call subTools(iLookOP%post,iLookROUTINE%snowLiqFlx)  ! post-processing for call to snowLiqFlx
     else
 
       ! define forcing for the soil domain for the case of no snow layers
@@ -945,6 +888,8 @@ contains
     dAquiferTrans_dTGround       => deriv_data%var(iLookDERIV%dAquiferTrans_dTGround      )%dat(1)  ,&  ! intent(out): derivatives in the aquifer transpiration flux w.r.t. ground temperature
     dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat       )%dat(1)   &  ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy total water
   )  ! end associating to data in structures
+  ! initialize error control
+  err=0; message='subTools/'
 
   ! Validate operation argument
   if ((op/=iLookOP%pre).and.(op/=iLookOP%post)) then
@@ -1055,15 +1000,87 @@ contains
      end do
     end if
    case(iLookROUTINE%vegLiqFlux) ! vegLiqFlux
-
+    if (op==iLookOP%pre) then ! pre-processing
+     ! intent(in) arguments
+     in_vegLiqFlux % computeVegFlux      =computeVegFlux        ! intent(in): flag to denote if computing energy flux over vegetation
+     in_vegLiqFlux % scalarCanopyLiqTrial=scalarCanopyLiqTrial  ! intent(in): trial mass of liquid water on the vegetation canopy at the current iteration (kg m-2)
+     in_vegLiqFlux % scalarRainfall      =scalarRainfall        ! intent(in): rainfall rate (kg m-2 s-1)
+    else ! post-processing
+     ! intent(out) arguments
+     scalarThroughfallRain       =out_vegLiqFlux % scalarThroughfallRain       ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+     scalarCanopyLiqDrainage     =out_vegLiqFlux % scalarCanopyLiqDrainage     ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+     scalarThroughfallRainDeriv  =out_vegLiqFlux % scalarThroughfallRainDeriv  ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
+     scalarCanopyLiqDrainageDeriv=out_vegLiqFlux % scalarCanopyLiqDrainageDeriv! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+     err                         =out_vegLiqFlux % err                         ! intent(out): error code
+     cmessage                    =out_vegLiqFlux % cmessage                    ! intent(out): error control
+     ! error control
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     ! calculate the net liquid water flux for the vegetation canopy
+     scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+     ! calculate the total derivative in the downward liquid flux
+     scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
+     ! test
+     if (globalPrintFlag) then
+       print*, '**'
+       print*, 'scalarRainfall          = ', scalarRainfall
+       print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
+       print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
+       print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
+       print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
+       print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
+     end if
+    end if
    case(iLookROUTINE%snowLiqFlx) ! snowLiqFlx
-
+    if (op==iLookOP%pre) then ! pre-processing
+     ! intent(in) arguments
+     in_snowLiqFlx % nSnow                  =nSnow                          ! intent(in): number of snow layers
+     in_snowLiqFlx % firstFluxCall          =firstFluxCall                  ! intent(in): the first flux call (compute variables that are constant over the iterations)
+     in_snowLiqFlx % scalarSolution         =(scalarSolution .and. .not.firstFluxCall) ! intent(in): flag to indicate the scalar solution
+     in_snowLiqFlx % scalarThroughfallRain  =scalarThroughfallRain          ! intent(in): rain that reaches the snow surface without ever touching vegetation (kg m-2 s-1)
+     in_snowLiqFlx % scalarCanopyLiqDrainage=scalarCanopyLiqDrainage        ! intent(in): liquid drainage from the vegetation canopy (kg m-2 s-1)
+     in_snowLiqFlx % mLayerVolFracLiqTrial  =mLayerVolFracLiqTrial(1:nSnow) ! intent(in): trial value of volumetric fraction of liquid water at the current iteration (-)
+     io_snowLiqFlx % iLayerLiqFluxSnow      =iLayerLiqFluxSnow       ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+     io_snowLiqFlx % iLayerLiqFluxSnowDeriv =iLayerLiqFluxSnowDeriv  ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+    else ! post-processing
+     ! intent(inout) arguments
+     iLayerLiqFluxSnow     =io_snowLiqFlx % iLayerLiqFluxSnow        ! intent(inout): vertical liquid water flux at layer interfaces (m s-1)
+     iLayerLiqFluxSnowDeriv=io_snowLiqFlx % iLayerLiqFluxSnowDeriv   ! intent(inout): derivative in vertical liquid water flux at layer interfaces (m s-1)
+     ! intent(out) arguments
+     err     =out_snowLiqFlx % err                                   ! intent(out):   error code
+     cmessage=out_snowLiqFlx % cmessage                              ! intent(out):   error message
+     ! error control
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     ! define forcing for the soil domain
+     scalarRainPlusMelt = iLayerLiqFluxSnow(nSnow)          ! drainage from the base of the snowpack
+     ! calculate net liquid water fluxes for each snow layer (s-1)
+     do iLayer=1,nSnow
+       mLayerLiqFluxSnow(iLayer) = -(iLayerLiqFluxSnow(iLayer) - iLayerLiqFluxSnow(iLayer-1))/mLayerDepth(iLayer)
+     end do
+     ! compute drainage from the soil zone (needed for mass balance checks)
+     scalarSnowDrainage = iLayerLiqFluxSnow(nSnow)
+     ! save bottom layer of snow derivatives
+     above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
+     above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)       ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
+     above_soilFracLiq      = mLayerFracLiqSnow(nSnow)      ! fraction of liquid water in bottom snow layer (-)
+    end if
    case(iLookROUTINE%soilLiqFlx) ! soilLiqFlx
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case(iLookROUTINE%groundwatr) ! groundwatr
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case(iLookROUTINE%bigAquifer) ! bigAquifer
+    if (op==iLookOP%pre) then ! pre-processing
 
+    else ! post-processing
+
+    end if
    case default ! Error control for sub argument (must be s subroutine index that is included in the above case blocks)
     err=20
     cmessage="Error in subTools: invalid sub argument requested."
