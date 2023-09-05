@@ -34,7 +34,7 @@ else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    method_name=['be1','be4','be8','be16','be32','sundials_1en4','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -155,7 +155,7 @@ def run_loop(i,var,mx):
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     axs[r,c].set_ylabel('GRU count')
-    axs[r,c].set_ylim([0, 50000])
+    axs[r,c].set_ylim([0, 45000])
 
 for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
     run_loop(i,var,mx)
