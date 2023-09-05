@@ -47,7 +47,7 @@ for i, m in enumerate(method_name):
 
 # Specify variables of interest
 plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
-plt_titl = ['(a) Snow Water Equivalent >0','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
+plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
 
 #fig_fil = '{}_hrly_diff_hist_{}_{}_zoom_compressed.png'
@@ -136,7 +136,6 @@ def run_loop(i,var,mx):
 
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         range = (0,mx)
-        if var == 'scalarSWE': range = (1.e-10,mx) # SWE has a lot of zeros
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
         s.plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
 
@@ -156,7 +155,7 @@ def run_loop(i,var,mx):
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     axs[r,c].set_ylabel('GRU count')
-    
+    axs[r,c].set_ylim([0, 50000])
 
 for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
     run_loop(i,var,mx)
