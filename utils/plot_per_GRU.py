@@ -101,7 +101,6 @@ def make_default_path(suffix):
 
     return defaultPath
 
-
 ## Catchment shapefile location and variable names
 # HM catchment shapefile path & name
 hm_catchment_path = read_from_control(controlFile,'catchment_shp_path')
@@ -114,7 +113,6 @@ else:
 
 # Find the GRU and HRU identifiers
 hm_hruid = read_from_control(controlFile,'catchment_shp_hruid')
-
 
 ## River network shapefile location and variable names
 # Plot rivers?
@@ -219,6 +217,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
+fig.suptitle('{} Hourly Statistics'.format(method_name), fontsize=40)
 
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 

@@ -25,11 +25,10 @@ nbatch_hrus = 518 # number of HRUs per batch
 testing = False
 if testing: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1','be64','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','be64',] #maybe make this an argument
 else:
     import sys
-    method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
-    method_name=['be1','be16','be32'] #sundials will not show node differences as much
+    method_name=['be1','be4','be8','be16','be32'] #sundials will not show node differences as much
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -77,6 +76,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(2,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(2,2,figsize=(140,133))
+fig.suptitle('BE Hourly Wallclock for each GRU', fontsize=40)
     
 def run_loop(c,stat):
 

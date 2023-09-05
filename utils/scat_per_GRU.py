@@ -33,7 +33,7 @@ else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','be4','be8','be16','be32','sundials_1en4','sundials_1en6'] #maybe make this an argument
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -84,6 +84,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
+fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
 
     
 def run_loop(i,var):
