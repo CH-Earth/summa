@@ -26,6 +26,9 @@ USE nrtype
 USE data_types,only:var_d                  ! x%var(:)       (rkind)
 USE data_types,only:var_ilength            ! x%var(:)%dat   (i4b)
 USE data_types,only:var_dlength            ! x%var(:)%dat   (rkind)
+USE data_types,only:in_type_soilLiqFlx     ! derived type for intent(in) arguments
+USE data_types,only:io_type_soilLiqFlx     ! derived type for intent(inout) arguments
+USE data_types,only:out_type_soilLiqFlx    ! derived type for intent(out) arguments
 
 ! missing values
 USE globalData,only:integerMissing         ! missing integer
@@ -87,31 +90,8 @@ contains
 ! public subroutine soilLiqFlx: compute liquid water fluxes and their derivatives
 ! ***************************************************************************************************************
 subroutine soilLiqFlx(&
-                      ! input: model control
-                      nSoil,                        & ! intent(in):    number of soil layers
-                      firstSplitOper,               & ! intent(in):    flag to compute infiltration, if firstSplitOper
-                      scalarSolution,               & ! intent(in):    flag to indicate the scalar solution
-                      deriv_desired,                & ! intent(in):    flag indicating if derivatives are desired
-                      ! input: trial state variables
-                      mLayerTempTrial,              & ! intent(in):    temperature (K)
-                      mLayerMatricHeadTrial,        & ! intent(in):    matric head (m)
-                      mLayerMatricHeadLiqTrial,     & ! intent(in):    liquid matric head (m)
-                      mLayerVolFracLiqTrial,        & ! intent(in):    volumetric fraction of liquid water (-)
-                      mLayerVolFracIceTrial,        & ! intent(in):    volumetric fraction of ice (-)
-                      ! input: pre-computed derivatives
-                      mLayerdTheta_dTk,             & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                      dPsiLiq_dTemp,                & ! intent(in):    derivative in liquid water matric potential w.r.t. temperature (m K-1)
-                      dCanopyTrans_dCanWat,         & ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-                      dCanopyTrans_dTCanair,        & ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                      dCanopyTrans_dTCanopy,        & ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                      dCanopyTrans_dTGround,        & ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-                      above_soilLiqFluxDeriv,       & ! intent(in):    derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
-                      above_soildLiq_dTk,           & ! intent(in):    derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-                      above_soilFracLiq,            & ! intent(in):    fraction of liquid water layer above soil (canopy or snow) (-)
-                      ! input: fluxes
-                      scalarCanopyTranspiration,    & ! intent(in):    canopy transpiration (kg m-2 s-1)
-                      scalarGroundEvaporation,      & ! intent(in):    ground evaporation (kg m-2 s-1)
-                      scalarRainPlusMelt,           & ! intent(in):    rain plus melt (m s-1)
+                      ! input: model control, trial state variables, derivatives, and fluxes
+                      in_soilLiqFlx,                & ! intent(in): model control, trial state variables, derivatives, and fluxes
                       ! input-output: data structures
                       mpar_data,                    & ! intent(in):    model parameters
                       indx_data,                    & ! intent(in):    model indices
@@ -146,7 +126,7 @@ subroutine soilLiqFlx(&
                       mLayerdTrans_dTGround,        & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. ground temperature
                       mLayerdTrans_dCanWat,         & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy total water
                       ! output: error control
-                      err,message)                    ! intent(out): error control
+                      out_soilLiqFlx)                 ! intent(out): error control
   ! utility modules
   USE soil_utils_module,only:volFracLiq               ! compute volumetric fraction of liquid water
   USE soil_utils_module,only:matricHead               ! compute matric head (m)
@@ -157,31 +137,8 @@ subroutine soilLiqFlx(&
   USE soil_utils_module,only:hydCondMP_liq            ! compute hydraulic conductivity of macropores as a function of volumetric liquid water content
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   implicit none
-  ! input: model control
-  integer(i4b),intent(in)             :: nSoil                         ! number of soil layers
-  logical(lgt),intent(in)             :: firstSplitOper                ! flag to compute infiltration
-  logical(lgt),intent(in)             :: scalarSolution                ! flag to denote if implementing the scalar solution
-  logical(lgt),intent(in)             :: deriv_desired                 ! flag indicating if derivatives are desired
-  ! input: trial model state variables
-  real(rkind),intent(in)              :: mLayerTempTrial(:)            ! temperature in each layer at the current iteration (m)
-  real(rkind),intent(in)              :: mLayerMatricHeadTrial(:)      ! matric head in each layer at the current iteration (m)
-  real(rkind),intent(in)              :: mLayerMatricHeadLiqTrial(:)   ! liquid matric head in each layer at the current iteration (m)
-  real(rkind),intent(in)              :: mLayerVolFracLiqTrial(:)      ! volumetric fraction of liquid water at the current iteration (-)
-  real(rkind),intent(in)              :: mLayerVolFracIceTrial(:)      ! volumetric fraction of ice at the current iteration (-)
-  ! input: pre-computed derivatves
-  real(rkind),intent(in)              :: mLayerdTheta_dTk(:)           ! derivative in volumetric liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)              :: dPsiLiq_dTemp(:)              ! derivative in liquid water matric potential w.r.t. temperature (m K-1)
-  real(rkind),intent(in)              :: dCanopyTrans_dCanWat          ! derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-  real(rkind),intent(in)              :: dCanopyTrans_dTCanair         ! derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(in)              :: dCanopyTrans_dTCanopy         ! derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(in)              :: dCanopyTrans_dTGround         ! derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-  real(rkind),intent(in)              :: above_soilLiqFluxDeriv        ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
-  real(rkind),intent(in)              :: above_soildLiq_dTk            ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-  real(rkind),intent(in)              :: above_soilFracLiq             ! fraction of liquid water layer above soil (canopy or snow) (-)
-  ! input: model fluxes
-  real(rkind),intent(in)              :: scalarCanopyTranspiration     ! canopy transpiration (kg m-2 s-1)
-  real(rkind),intent(in)              :: scalarGroundEvaporation       ! ground evaporation (kg m-2 s-1)
-  real(rkind),intent(in)              :: scalarRainPlusMelt            ! rain plus melt (m s-1)
+  ! input: model control, trial state variables, derivatives, and fluxes
+  type(in_type_soilLiqFlx),intent(in) :: in_soilLiqFlx                 ! model control, trial state variables, derivatives, and fluxes
   ! input-output: data structures
   type(var_dlength),intent(in)        :: mpar_data                     ! model parameters
   type(var_ilength),intent(in)        :: indx_data                     ! state vector geometry
@@ -216,35 +173,34 @@ subroutine soilLiqFlx(&
   real(rkind),intent(inout)           :: mLayerdTrans_dTGround(:)      ! derivatives in the soil layer transpiration flux w.r.t. ground temperature
   real(rkind),intent(inout)           :: mLayerdTrans_dCanWat(:)       ! derivatives in the soil layer transpiration flux w.r.t. canopy total water
   ! output: error control
-  integer(i4b),intent(out)            :: err                           ! error code
-  character(*),intent(out)            :: message                       ! error message
+  type(out_type_soilLiqFlx),intent(out) :: out_soilLiqFlx                ! error code and error message
   ! -----------------------------------------------------------------------------------------------------------------------------------------------------
   ! local variables: general
   character(LEN=256)                  :: cmessage                      ! error message of downwind routine
+  integer(i4b)                        :: nSoil                         ! number of soil layers
   integer(i4b)                        :: ibeg,iend                     ! start and end indices of the soil layers in concatanated snow-soil vector
   integer(i4b)                        :: iLayer,iSoil                  ! index of soil layer
   integer(i4b)                        :: ixLayerDesired(1)             ! layer desired (scalar solution)
   integer(i4b)                        :: ixTop                         ! top layer in subroutine call
   integer(i4b)                        :: ixBot                         ! bottom layer in subroutine call
   ! transpiration sink term
-  real(rkind),dimension(nSoil)        :: mLayerTranspireFrac           ! fraction of transpiration allocated to each soil layer (-)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerTranspireFrac     ! fraction of transpiration allocated to each soil layer (-)
   ! diagnostic variables
-  real(rkind),dimension(nSoil)        :: iceImpedeFac                  ! ice impedence factor at layer mid-points (-)
-  real(rkind),dimension(nSoil)        :: mLayerDiffuse                 ! diffusivity at layer mid-point (m2 s-1)
-  real(rkind),dimension(nSoil)        :: dHydCond_dVolLiq              ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
-  real(rkind),dimension(nSoil)        :: dDiffuse_dVolLiq              ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
-  real(rkind),dimension(nSoil)        :: dHydCond_dTemp                ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
-  real(rkind),dimension(0:nSoil)      :: iLayerHydCond                 ! hydraulic conductivity at layer interface (m s-1)
-  real(rkind),dimension(0:nSoil)      :: iLayerDiffuse                 ! diffusivity at layer interface (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: iceImpedeFac            ! ice impedence factor at layer mid-points (-)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: mLayerDiffuse           ! diffusivity at layer mid-point (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dVolLiq        ! derivative in hydraulic conductivity w.r.t volumetric liquid water content (m s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dDiffuse_dVolLiq        ! derivative in hydraulic diffusivity w.r.t volumetric liquid water content (m2 s-1)
+  real(rkind),dimension(in_soilLiqFlx % nSoil)    :: dHydCond_dTemp          ! derivative in hydraulic conductivity w.r.t temperature (m s-1 K-1)
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHydCond           ! hydraulic conductivity at layer interface (m s-1)
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerDiffuse           ! diffusivity at layer interface (m2 s-1)
   ! compute surface flux
-  integer(i4b)                        :: nRoots                        ! number of soil layers with roots
-  integer(i4b)                        :: ixIce                         ! index of the lowest soil layer that contains ice
-  real(rkind),dimension(0:nSoil)      :: iLayerHeight                  ! height of the layer interfaces (m)
+  integer(i4b)                                    :: nRoots                  ! number of soil layers with roots
+  integer(i4b)                                    :: ixIce                   ! index of the lowest soil layer that contains ice
+  real(rkind),dimension(0:in_soilLiqFlx % nSoil)  :: iLayerHeight            ! height of the layer interfaces (m)
   ! compute fluxes and derivatives at layer interfaces
-  real(rkind)                         :: scalardPsi_dTheta             ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
+  real(rkind)                         :: scalardPsi_dTheta ! derivative in soil water characteristix, used for perturbations when computing numerical derivatives
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
-  ! initialize error control
-  err=0; message='soilLiqFlx/'
+  nSoil = in_soilLiqFlx % nSoil ! get number of soil layers from input arguments
 
   ! get indices for the data structures
   ibeg = indx_data%var(iLookINDEX%nSnow)%dat(1) + 1
@@ -256,6 +212,31 @@ subroutine soilLiqFlx(&
 
   ! make association between local variables and the information in the data structures
   associate(&
+    ! input: model control
+    !nSoil          => in_soilLiqFlx % nSoil,          & ! intent(in): number of soil layers
+    firstSplitOper => in_soilLiqFlx % firstSplitOper, & ! intent(in): flag to compute infiltration
+    scalarSolution => in_soilLiqFlx % scalarSolution, & ! intent(in): flag to denote if implementing the scalar solution
+    deriv_desired  => in_soilLiqFlx % deriv_desired,  & ! intent(in): flag indicating if derivatives are desired
+    ! input: trial model state variables
+    mLayerTempTrial          => in_soilLiqFlx % mLayerTempTrial,          & ! intent(in): temperature in each layer at the current iteration (m)
+    mLayerMatricHeadTrial    => in_soilLiqFlx % mLayerMatricHeadTrial,    & ! intent(in): matric head in each layer at the current iteration (m)
+    mLayerMatricHeadLiqTrial => in_soilLiqFlx % mLayerMatricHeadLiqTrial, & ! intent(in): liquid matric head in each layer at the current iteration (m)
+    mLayerVolFracLiqTrial    => in_soilLiqFlx % mLayerVolFracLiqTrial,    & ! intent(in): volumetric fraction of liquid water at the current iteration (-)
+    mLayerVolFracIceTrial    => in_soilLiqFlx % mLayerVolFracIceTrial,    & ! intent(in): volumetric fraction of ice at the current iteration (-)
+    ! input: pre-computed derivatves
+    mLayerdTheta_dTk       => in_soilLiqFlx % mLayerdTheta_dTk,       & ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
+    dPsiLiq_dTemp          => in_soilLiqFlx % dPsiLiq_dTemp,          & ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+    dCanopyTrans_dCanWat   => in_soilLiqFlx % dCanopyTrans_dCanWat,   & ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+    dCanopyTrans_dTCanair  => in_soilLiqFlx % dCanopyTrans_dTCanair,  & ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dTCanopy  => in_soilLiqFlx % dCanopyTrans_dTCanopy,  & ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+    dCanopyTrans_dTGround  => in_soilLiqFlx % dCanopyTrans_dTGround,  & ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+    above_soilLiqFluxDeriv => in_soilLiqFlx % above_soilLiqFluxDeriv, & ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+    above_soildLiq_dTk     => in_soilLiqFlx % above_soildLiq_dTk,     & ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+    above_soilFracLiq      => in_soilLiqFlx % above_soilFracLiq,      & ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
+    ! input: model fluxes
+    scalarCanopyTranspiration => in_soilLiqFlx % scalarCanopyTranspiration, & ! intent(in): canopy transpiration (kg m-2 s-1)
+    scalarGroundEvaporation   => in_soilLiqFlx % scalarGroundEvaporation,   & ! intent(in): ground evaporation (kg m-2 s-1)
+    scalarRainPlusMelt        => in_soilLiqFlx % scalarRainPlusMelt,        & ! intent(in): rain plus melt (m s-1)
     ! input: model control
     ixRichards             => model_decisions(iLookDECISIONS%f_Richards)%iDecision,   & ! intent(in): index of the form of Richards' equation
     ixBcUpperSoilHydrology => model_decisions(iLookDECISIONS%bcUpprSoiH)%iDecision,   & ! intent(in): index of the upper boundary conditions for soil hydrology
@@ -296,8 +277,12 @@ subroutine soilLiqFlx(&
     ! input: factors limiting transpiration (from vegFlux routine)
     mLayerRootDensity      => diag_data%var(iLookDIAG%mLayerRootDensity)%dat,         & ! intent(in): root density in each layer (-)
     scalarTranspireLim     => diag_data%var(iLookDIAG%scalarTranspireLim)%dat(1),     & ! intent(in): weighted average of the transpiration limiting factor (-)
-    mLayerTranspireLim     => diag_data%var(iLookDIAG%mLayerTranspireLim)%dat         & ! intent(in): transpiration limiting factor in each layer (-)
+    mLayerTranspireLim     => diag_data%var(iLookDIAG%mLayerTranspireLim)%dat,        & ! intent(in): transpiration limiting factor in each layer (-)
+    ! output: error control
+    err                    => out_soilLiqFlx % err,                                   & ! intent(out): error code
+    message                => out_soilLiqFlx % cmessage                               & ! intent(out): error message
     )  ! end associating local variables with the information in the data structures
+    err=0; message='soilLiqFlx/' ! initialize error control
 
     ! -------------------------------------------------------------------------------------------------------------------------------------------------
     ! preliminaries

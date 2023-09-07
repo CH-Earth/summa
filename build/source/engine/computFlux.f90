@@ -39,7 +39,10 @@ USE data_types,only:&
                     out_type_vegLiqFlux,& ! intent(out) arguments for vegLiqFlux call
                     in_type_snowLiqFlx, & ! intent(in) arguments for snowLiqFlx call
                     io_type_snowLiqFlx, & ! intent(inout) arguments for snowLiqFlx call
-                    out_type_snowLiqFlx   ! intent(out) arguments for snowLiqFlx call                
+                    out_type_snowLiqFlx,& ! intent(out) arguments for snowLiqFlx call                
+                    in_type_soilLiqFlx, & ! intent(in) arguments for soilLiqFlx call
+                    io_type_soilLiqFlx, & ! intent(inout) arguments for soilLiqFlx call
+                    out_type_soilLiqFlx   ! intent(in) arguments for soilLiqFlx call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -233,6 +236,9 @@ subroutine computFlux(&
   type(in_type_snowLiqFlx)           :: in_snowLiqFlx               ! data structure for intent(in) snowLiqFlx arguments
   type(io_type_snowLiqFlx)           :: io_snowLiqFlx               ! data structure for intent(inout) snowLiqFlx arguments
   type(out_type_snowLiqFlx)          :: out_snowLiqFlx              ! data structure for intent(out) snowLiqFlx arguments
+  type(in_type_soilLiqFlx)           :: in_soilLiqFlx               ! data structure for intent(in) soilLiqFlx arguments
+  type(io_type_soilLiqFlx)           :: io_soilLiqFlx               ! data structure for intent(inout) soilLiqFlx arguments
+  type(out_type_soilLiqFlx)          :: out_soilLiqFlx              ! data structure for intent(out) soilLiqFlx arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -490,32 +496,9 @@ subroutine computFlux(&
     if (nSoilOnlyHyd>0) then
 
       ! calculate the liquid flux through soil
+      call subTools(iLookOP%pre,iLookROUTINE%soilLiqFlx)  ! pre-processing for call to soilLiqFlx
       call soilLiqFlx(&
-                      ! input: model control
-                      nSoil,                                     & ! intent(in):    number of soil layers
-                      firstSplitOper,                            & ! intent(in):    flag indicating first flux call in a splitting operation
-                      (scalarSolution .and. .not.firstFluxCall), & ! intent(in):    flag to indicate the scalar solution
-                      .true.,                                    & ! intent(in):    flag indicating if derivatives are desired
-                      ! input: trial state variables
-                      mLayerTempTrial(nSnow+1:nLayers),          & ! intent(in):    trial temperature at the current iteration (K)
-                      mLayerMatricHeadTrial(1:nSoil),            & ! intent(in):    matric potential (m)
-                      mLayerMatricHeadLiqTrial(1:nSoil),         & ! intent(in):    liquid water matric potential (m)
-                      mLayerVolFracLiqTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of liquid water (-)
-                      mLayerVolFracIceTrial(nSnow+1:nLayers),    & ! intent(in):    volumetric fraction of ice (-)
-                      ! input: pre-computed deriavatives
-                      mLayerdTheta_dTk(nSnow+1:nLayers),         & ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
-                      dPsiLiq_dTemp(1:nSoil),                    & ! intent(in):    derivative in liquid water matric potential w.r.t. temperature (m K-1)
-                      dCanopyTrans_dCanWat,                      & ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-                      dCanopyTrans_dTCanair,                     & ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                      dCanopyTrans_dTCanopy,                     & ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                      dCanopyTrans_dTGround,                     & ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-                      above_soilLiqFluxDeriv,                    & ! intent(in):    derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
-                      above_soildLiq_dTk,                        & ! intent(in):    derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
-                      above_soilFracLiq,                         & ! intent(in):    fraction of liquid water layer above soil (canopy or snow) (-)
-                      ! input: fluxes
-                      scalarCanopyTranspiration,                 & ! intent(in):    canopy transpiration (kg m-2 s-1)
-                      scalarGroundEvaporation,                   & ! intent(in):    ground evaporation (kg m-2 s-1)
-                      scalarRainPlusMelt,                        & ! intent(in):    rain plus melt (m s-1)
+                      in_soilLiqFlx, &
                       ! input-output: data structures
                       mpar_data,                                 & ! intent(in):    model parameters
                       indx_data,                                 & ! intent(in):    model indices
@@ -550,37 +533,8 @@ subroutine computFlux(&
                       mLayerdTrans_dTGround,                     & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. ground temperature
                       mLayerdTrans_dCanWat,                      & ! intent(inout): derivatives in the soil layer transpiration flux w.r.t. canopy total water
                       ! output: error control
-                      err,cmessage)                                ! intent(out): error control
-      if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! calculate net liquid water fluxes for each soil layer (s-1)
-      do iLayer=1,nSoil
-        mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
-      end do
-
-      ! calculate the soil control on infiltration
-      if (nSnow==0) then
-        ! * case of infiltration into soil
-        if (scalarMaxInfilRate > scalarRainPlusMelt) then  ! infiltration is not rate-limited
-          scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea
-        else
-          scalarSoilControl = 0._rkind  ! (scalarRainPlusMelt exceeds maximum infiltration rate
-        end if
-      else
-        ! * case of infiltration into snow
-        scalarSoilControl = 1._rkind
-      end if
-
-      ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
-      scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
-
-      ! expand derivatives to the total water matric potential
-      ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
-      if (globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
-      dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
-      dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
-      dq_dHydStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*dPsiLiq_dPsi0(1:nSoil)
-
+                      out_soilLiqFlx)
+      call subTools(iLookOP%post,iLookROUTINE%soilLiqFlx)  ! post-processing for call to soilLiqFlx
     end if  ! end if calculating the liquid flux through soil
 
     ! *****
@@ -1065,9 +1019,62 @@ contains
     end if
    case(iLookROUTINE%soilLiqFlx) ! soilLiqFlx
     if (op==iLookOP%pre) then ! pre-processing
-
+     ! intent(in) arguments
+     in_soilLiqFlx % nSoil         =nSoil                                         ! intent(in): number of soil layers
+     in_soilLiqFlx % firstSplitOper=firstSplitOper                                ! intent(in): flag indicating first flux call in a splitting operation
+     in_soilLiqFlx % scalarSolution=(scalarSolution .and. .not.firstFluxCall)     ! intent(in): flag to indicate the scalar solution
+     in_soilLiqFlx % deriv_desired =.true.                                        ! intent(in): flag indicating if derivatives are desired
+     in_soilLiqFlx % mLayerTempTrial=mLayerTempTrial(nSnow+1:nLayers)             ! intent(in): trial temperature at the current iteration (K)
+     in_soilLiqFlx % mLayerMatricHeadTrial   =mLayerMatricHeadTrial(1:nSoil)      ! intent(in): matric potential (m)
+     in_soilLiqFlx % mLayerMatricHeadLiqTrial=mLayerMatricHeadLiqTrial(1:nSoil)   ! intent(in): liquid water matric potential (m)
+     in_soilLiqFlx % mLayerVolFracLiqTrial=mLayerVolFracLiqTrial(nSnow+1:nLayers) ! intent(in): volumetric fraction of liquid water (-)
+     in_soilLiqFlx % mLayerVolFracIceTrial=mLayerVolFracIceTrial(nSnow+1:nLayers) ! intent(in): volumetric fraction of ice (-)
+     in_soilLiqFlx % mLayerdTheta_dTk=mLayerdTheta_dTk(nSnow+1:nLayers)           ! intent(in): derivative in volumetric liquid water content w.r.t. temperature (K-1)
+     in_soilLiqFlx % dPsiLiq_dTemp=dPsiLiq_dTemp(1:nSoil)                         ! intent(in): derivative in liquid water matric potential w.r.t. temperature (m K-1)
+     in_soilLiqFlx % dCanopyTrans_dCanWat  =dCanopyTrans_dCanWat     ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+     in_soilLiqFlx % dCanopyTrans_dTCanair =dCanopyTrans_dTCanair    ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+     in_soilLiqFlx % dCanopyTrans_dTCanopy =dCanopyTrans_dTCanopy    ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+     in_soilLiqFlx % dCanopyTrans_dTGround =dCanopyTrans_dTGround    ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+     in_soilLiqFlx % above_soilLiqFluxDeriv=above_soilLiqFluxDeriv   ! intent(in): derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
+     in_soilLiqFlx % above_soildLiq_dTk    =above_soildLiq_dTk       ! intent(in): derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
+     in_soilLiqFlx % above_soilFracLiq     =above_soilFracLiq        ! intent(in): fraction of liquid water layer above soil (canopy or snow) (-)
+     in_soilLiqFlx % scalarCanopyTranspiration=scalarCanopyTranspiration          ! intent(in): canopy transpiration (kg m-2 s-1)
+     in_soilLiqFlx % scalarGroundEvaporation  =scalarGroundEvaporation            ! intent(in): ground evaporation (kg m-2 s-1)
+     in_soilLiqFlx % scalarRainPlusMelt       =scalarRainPlusMelt                 ! intent(in): rain plus melt (m s-1)
     else ! post-processing
+     ! intent(out) arguments
+     err     =out_soilLiqFlx % err      ! intent(out):   error code
+     cmessage=out_soilLiqFlx % cmessage ! intent(out):   error message
+     ! error control
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
+     ! calculate net liquid water fluxes for each soil layer (s-1)
+     do iLayer=1,nSoil
+       mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
+     end do
+
+     ! calculate the soil control on infiltration
+     if (nSnow==0) then
+       ! * case of infiltration into soil
+       if (scalarMaxInfilRate > scalarRainPlusMelt) then  ! infiltration is not rate-limited
+         scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea
+       else
+         scalarSoilControl = 0._rkind  ! (scalarRainPlusMelt exceeds maximum infiltration rate
+       end if
+     else
+       ! * case of infiltration into snow
+       scalarSoilControl = 1._rkind
+     end if
+
+     ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
+     scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
+
+     ! expand derivatives to the total water matric potential
+     ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
+     if (globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
+     dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
+     dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+     dq_dHydStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*dPsiLiq_dPsi0(1:nSoil)
     end if
    case(iLookROUTINE%groundwatr) ! groundwatr
     if (op==iLookOP%pre) then ! pre-processing
