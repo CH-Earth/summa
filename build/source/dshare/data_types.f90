@@ -422,13 +422,11 @@ MODULE data_types
   logical(lgt)             :: firstSplitOper                    ! intent(in):    flag indicating first flux call in a splitting operation
   logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
   logical(lgt)             :: deriv_desired                     ! intent(in):    flag indicating if derivatives are desired
-                      !! input: trial state variables
   real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in):    trial temperature at the current iteration (K)
   real(rkind), allocatable :: mLayerMatricHeadTrial(:)          ! intent(in):    matric potential (m)
   real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
   real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
   real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
-                      !! input: pre-computed deriavatives
   real(rkind), allocatable :: mLayerdTheta_dTk(:)               ! intent(in):    derivative in volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind), allocatable :: dPsiLiq_dTemp(:)                  ! intent(in):    derivative in liquid water matric potential w.r.t. temperature (m K-1)
   real(rkind)              :: dCanopyTrans_dCanWat              ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
@@ -438,7 +436,6 @@ MODULE data_types
   real(rkind)              :: above_soilLiqFluxDeriv            ! intent(in):    derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
   real(rkind)              :: above_soildLiq_dTk                ! intent(in):    derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
   real(rkind)              :: above_soilFracLiq                 ! intent(in):    fraction of liquid water layer above soil (canopy or snow) (-)
-                      !! input: fluxes
   real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
   real(rkind)              :: scalarGroundEvaporation           ! intent(in):    ground evaporation (kg m-2 s-1)
   real(rkind)              :: scalarRainPlusMelt                ! intent(in):    rain plus melt (m s-1)
@@ -472,4 +469,29 @@ MODULE data_types
   integer(i4b)             :: err                               ! intent(out):   error code
   character(:),allocatable :: cmessage                          ! intent(out):   error message
  end type out_type_soilLiqFlx
+ ! ** end soilLiqFlx
+
+ ! ** groundwatr
+ type, public :: in_type_groundwatr  ! derived type for intent(in) arguments in groundwatr call
+  integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
+  integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
+  integer(i4b)             :: nLayers                           ! intent(in):    total number of layers
+  logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
+  real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+  real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
+  real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
+  real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
+ end type in_type_groundwatr
+
+ type, public :: io_type_groundwatr  ! derived type for intent(io) arguments in groundwatr call
+  integer(i4b)             :: ixSaturation                      ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
+ end type io_type_groundwatr
+
+ type, public :: out_type_groundwatr ! derived type for intent(out) arguments in groundwatr call
+  real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
+  real(rkind), allocatable :: dBaseflow_dMatric(:,:)            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+  integer(i4b)             :: err                               ! intent(out):   error code
+  character(:),allocatable :: cmessage                          ! intent(out):   error message
+ end type out_type_groundwatr
+ ! ** end groundwatr
 END MODULE data_types
