@@ -382,7 +382,7 @@ contains
   real(rkind)                    :: xInc(nState)             ! iteration increment (re-scaled to original units of the state vector)
   logical(lgt)                   :: feasible                 ! flag to denote the feasibility of the solution
   integer(i4b)                   :: iLine                    ! line search index
-  integer(i4b),parameter         :: maxLineSearch=5          ! maximum number of backtracks
+  integer(i4b),parameter         :: maxLineSearch=100        ! maximum number of backtracks
   real(rkind),parameter          :: alpha=1.e-4_rkind        ! check on gradient
   real(rkind)                    :: xLambda                  ! backtrack magnitude
   real(rkind)                    :: xLambdaTemp              ! temporary backtrack magnitude
