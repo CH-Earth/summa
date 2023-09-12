@@ -610,7 +610,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   integer(i4b)                    :: ixFullVector                   ! index within full state vector
   integer(i4b)                    :: ixControlIndex                 ! index within a given domain
   real(rkind)                     :: volMelt                        ! volumetric melt (kg m-3)
-  real(rkind),parameter           :: verySmall=epsilon(1._rkind)*2._rkind ! a very small number (deal with precision issues)
+  real(rkind),parameter           :: verySmall=epsilon(1._rkind)    ! a very small number (deal with precision issues)
+  real(rkind)                     :: verySmall_veg                  ! precision needs to vary based on set canopy water tolerance for IDA
+  real(rkind)                     :: verySmall_snow                 ! precision needs to vary based on set snow water tolerance for IDA
   ! mass balance
   real(rkind)                     :: canopyBalance0,canopyBalance1  ! canopy storage at start/end of time step
   real(rkind)                     :: soilBalance0,soilBalance1      ! soil storage at start/end of time step
@@ -786,9 +788,18 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     mLayerMatricHeadLiqPrime  = realMissing
     scalarAquiferStoragePrime = realMissing
 
+    ! set the default precision for the very small number
+    verySmall_veg  = verySmall*2._rkind
+    verySmall_snow = verySmall*2._rkind
+
     select case(ixNumericalMethod)
       case(ida)
 #ifdef SUNDIALS_ACTIVE
+        ! IDA precision needs to vary based on set tolerances
+        verySmall_veg = mpar_data%var(iLookPARAM%absTolWatVeg)%dat(1)*2._rkind
+        verySmall_snow = mpar_data%var(iLookPARAM%absTolWatSnow)%dat(1)*2._rkind
+
+        ! extract the derivatives from the state vector
         call varExtract(&
                   ! input
                   stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
@@ -848,6 +859,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                     err,cmessage)                                ! intent(out):   error control
 #endif
       case(kinsol, numrec)
+
          ! update diagnostic variables
         call updateVars(&
                  ! input
@@ -1057,7 +1069,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         ! canopy within numerical precision
         if(scalarCanopyIceTrial < 0._rkind)then
 
-          if(scalarCanopyIceTrial > -verySmall)then
+          if(scalarCanopyIceTrial > -verySmall_veg)then
             scalarCanopyLiqTrial = scalarCanopyLiqTrial - scalarCanopyIceTrial
             scalarCanopyIceTrial = 0._rkind
 
@@ -1079,7 +1091,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
           ! snow layer within numerical precision
           if(mLayerVolFracIceTrial(iState) < 0._rkind)then
 
-            if(mLayerVolFracIceTrial(iState) > -verySmall)then
+            if(mLayerVolFracIceTrial(iState) > -verySmall_snow)then
               mLayerVolFracLiqTrial(iState) = mLayerVolFracLiqTrial(iState) - mLayerVolFracIceTrial(iState)
               mLayerVolFracIceTrial(iState) = 0._rkind
 
@@ -1110,7 +1122,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         ! canopy within numerical precision
         if(scalarCanopyLiqTrial < 0._rkind)then
 
-          if(scalarCanopyLiqTrial > -verySmall)then
+          if(scalarCanopyLiqTrial > -verySmall_veg)then
             scalarCanopyIceTrial = scalarCanopyIceTrial - scalarCanopyLiqTrial
             scalarCanopyLiqTrial = 0._rkind
 
@@ -1132,7 +1144,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
           ! snow layer within numerical precision
           if(mLayerVolFracLiqTrial(iState) < 0._rkind)then
 
-            if(mLayerVolFracLiqTrial(iState) > -verySmall)then
+            if(mLayerVolFracLiqTrial(iState) > -verySmall_snow)then
               mLayerVolFracIceTrial(iState) = mLayerVolFracIceTrial(iState) - mLayerVolFracLiqTrial(iState)
               mLayerVolFracLiqTrial(iState) = 0._rkind
 
