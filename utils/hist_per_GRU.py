@@ -155,7 +155,8 @@ def run_loop(i,var,mx):
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     axs[r,c].set_ylabel('GRU count')
-    axs[r,c].set_ylim([0, 45000])
+    if var != 'wallClockTime': axs[r,c].set_ylim([0, 25000])
+
 
 for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
     run_loop(i,var,mx)
