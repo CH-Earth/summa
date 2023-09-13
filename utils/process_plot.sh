@@ -2,7 +2,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=50GB
-#SBATCH --time=1-00:00
+#SBATCH --time=0-04:00
 #SBATCH --job-name=GDB
 #SBATCH --mail-user=gwu479@usask.ca
 #SBATCH --mail-type=ALL

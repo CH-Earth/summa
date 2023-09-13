@@ -186,8 +186,9 @@ else:
     # -- start parallel processing
     ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
     if __name__ == "__main__":
+        import multiprocessing as mp
         pool = mp.Pool(processes=ncpus)
-        results = [pool.apply_async(run_loop, args=(file, bench, lock)) for (file, bench) in zip(src_files, ben_files)]
+        results = [pool.apply_async(run_loop, args=(file, bench)) for (file, bench) in zip(src_files, ben_files)]
         dojob = [p.get() for p in results]
         pool.close()
     # -- end parallel processing
