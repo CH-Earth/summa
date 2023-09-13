@@ -494,4 +494,32 @@ MODULE data_types
   character(:),allocatable :: cmessage                          ! intent(out):   error message
  end type out_type_groundwatr
  ! ** end groundwatr
+
+ ! ** bigAquifer
+ type, public :: in_type_bigAquifer  ! derived type for intent(in) arguments in bigAquifer call
+  real(rkind)              :: scalarAquiferStorageTrial         ! intent(in):    trial value of aquifer storage (m)
+  real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
+  real(rkind)              :: scalarSoilDrainage                ! intent(in):    soil drainage (m s-1)
+  real(rkind)              :: dCanopyTrans_dCanWat              ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+  real(rkind)              :: dCanopyTrans_dTCanair             ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+  real(rkind)              :: dCanopyTrans_dTCanopy             ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+  real(rkind)              :: dCanopyTrans_dTGround             ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+ end type in_type_bigAquifer
+
+ type, public :: io_type_bigAquifer  ! derived type for intent(inout) arguments in bigAquifer call
+  real(rkind)              :: dAquiferTrans_dTCanair            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+  real(rkind)              :: dAquiferTrans_dTCanopy            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+  real(rkind)              :: dAquiferTrans_dTGround            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+  real(rkind)              :: dAquiferTrans_dCanWat             ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+ end type io_type_bigAquifer
+
+ type, public :: out_type_bigAquifer  ! derived type for intent(out) arguments in bigAquifer call
+  real(rkind)              :: scalarAquiferTranspire            ! intent(out):   transpiration loss from the aquifer (m s-1)
+  real(rkind)              :: scalarAquiferRecharge             ! intent(out):   recharge to the aquifer (m s-1)
+  real(rkind)              :: scalarAquiferBaseflow             ! intent(out):   total baseflow from the aquifer (m s-1)
+  real(rkind)              :: dBaseflow_dAquifer                ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
+  integer(i4b)             :: err                               ! intent(out):   error code
+  character(:),allocatable :: cmessage                          ! intent(out):   error message
+ end type out_type_bigAquifer
+ ! ** end bigAquifer
 END MODULE data_types

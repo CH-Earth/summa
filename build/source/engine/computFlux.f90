@@ -45,8 +45,10 @@ USE data_types,only:&
                     out_type_soilLiqFlx,& ! intent(out) arguments for soilLiqFlx call
                     in_type_groundwatr, & ! intent(in) arguments for groundwatr call
                     io_type_groundwatr, & ! intent(inout) arguments for groundwatr call
-                    out_type_groundwatr   ! intent(out) arguments for groundwatr call
-
+                    out_type_groundwatr,& ! intent(out) arguments for groundwatr call
+                    in_type_bigAquifer, & ! intent(in) arguments for bigAquifer call
+                    io_type_bigAquifer, & ! intent(inout) arguments for bigAquifer call
+                    out_type_bigAquifer   ! intent(out) arguments for bigAquifer call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -246,6 +248,9 @@ subroutine computFlux(&
   type(in_type_groundwatr)           :: in_groundwatr               ! data structure for intent(in) groundwatr arguments
   type(io_type_groundwatr)           :: io_groundwatr               ! data structure for intent(inout) groundwatr arguments
   type(out_type_groundwatr)          :: out_groundwatr              ! data structure for intent(out) groundwatr arguments
+  type(in_type_bigAquifer)           :: in_bigAquifer               ! data structure for intent(in) bigAquifer arguments
+  type(io_type_bigAquifer)           :: io_bigAquifer               ! data structure for intent(inout) bigAquifer arguments
+  type(out_type_bigAquifer)          :: out_bigAquifer              ! data structure for intent(out) bigAquifer arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -546,47 +551,17 @@ subroutine computFlux(&
     ! check if computing aquifer fluxes
     if (ixAqWat/=integerMissing) then
       if (local_ixGroundwater==bigBucket) then ! identify modeling decision
-
         ! compute fluxes for the big bucket
-        call bigAquifer(&
-                        ! input: state variables and fluxes
-                        scalarAquiferStorageTrial,    & ! intent(in):    trial value of aquifer storage (m)
-                        scalarCanopyTranspiration,    & ! intent(in):    canopy transpiration (kg m-2 s-1)
-                        scalarSoilDrainage,           & ! intent(in):    soil drainage (m s-1)
-                        ! input: pre-computed derivatives
-                        dCanopyTrans_dCanWat,         & ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-                        dCanopyTrans_dTCanair,        & ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-                        dCanopyTrans_dTCanopy,        & ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-                        dCanopyTrans_dTGround,        & ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
-                        ! input: diagnostic variables and parameters
-                        mpar_data,                    & ! intent(in):    model parameter structure
-                        diag_data,                    & ! intent(in):    diagnostic variable structure
-                        ! output: fluxes
-                        scalarAquiferTranspire,       & ! intent(out):   transpiration loss from the aquifer (m s-1)
-                        scalarAquiferRecharge,        & ! intent(out):   recharge to the aquifer (m s-1)
-                        scalarAquiferBaseflow,        & ! intent(out):   total baseflow from the aquifer (m s-1)
-                        dBaseflow_dAquifer,           & ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
-                        ! output: derivatives in transpiration w.r.t. canopy state variables
-                        dAquiferTrans_dTCanair,       & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
-                        dAquiferTrans_dTCanopy,       & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
-                        dAquiferTrans_dTGround,       & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
-                        dAquiferTrans_dCanWat,        & ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
-                        ! output: error control
-                        err,cmessage)                   ! intent(out):   error control
-        if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-        ! compute total runoff (overwrite previously calculated value before considering aquifer).
-        !   (Note:  SoilDrainage goes into aquifer, not runoff)
-        scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow
-
+        call subTools(iLookOP%pre,iLookROUTINE%bigAquifer)  ! pre-processing for call to bigAquifer
+        call bigAquifer(in_bigAquifer,mpar_data,diag_data,io_bigAquifer,out_bigAquifer)
+        call subTools(iLookOP%post,iLookROUTINE%bigAquifer) ! post-processing for call to bigAquifer
       ! if no aquifer, then fluxes are zero
-      else
+      else ! if no aquifer, then fluxes are zero
         scalarAquiferTranspire = 0._rkind  ! transpiration loss from the aquifer (m s-1)
         scalarAquiferRecharge  = 0._rkind  ! recharge to the aquifer (m s-1)
         scalarAquiferBaseflow  = 0._rkind  ! total baseflow from the aquifer (m s-1)
         dBaseflow_dAquifer     = 0._rkind  ! change in baseflow flux w.r.t. aquifer storage (s-1)
-      end if ! no aquifer
-
+      end if ! end if aquifer exists
     end if  ! if computing aquifer fluxes
 
     ! *****
@@ -1092,9 +1067,37 @@ contains
     end if
    case(iLookROUTINE%bigAquifer) ! bigAquifer
     if (op==iLookOP%pre) then ! pre-processing
-
+     ! intent(in) arguments
+     in_bigAquifer % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! intent(in): trial value of aquifer storage (m)
+     in_bigAquifer % scalarCanopyTranspiration = scalarCanopyTranspiration ! intent(in): canopy transpiration (kg m-2 s-1)
+     in_bigAquifer % scalarSoilDrainage        = scalarSoilDrainage        ! intent(in): soil drainage (m s-1)
+     in_bigAquifer % dCanopyTrans_dCanWat      = dCanopyTrans_dCanWat      ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+     in_bigAquifer % dCanopyTrans_dTCanair     = dCanopyTrans_dTCanair     ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+     in_bigAquifer % dCanopyTrans_dTCanopy     = dCanopyTrans_dTCanopy     ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+     in_bigAquifer % dCanopyTrans_dTGround     = dCanopyTrans_dTGround     ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+     ! intent(inout) arguments
+     io_bigAquifer % dAquiferTrans_dTCanair = dAquiferTrans_dTCanair       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+     io_bigAquifer % dAquiferTrans_dTCanopy = dAquiferTrans_dTCanopy       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+     io_bigAquifer % dAquiferTrans_dTGround = dAquiferTrans_dTGround       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+     io_bigAquifer % dAquiferTrans_dCanWat  = dAquiferTrans_dCanWat        ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
     else ! post-processing
-
+     ! intent(inout) arguments
+     dAquiferTrans_dTCanair = io_bigAquifer % dAquiferTrans_dTCanair       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+     dAquiferTrans_dTCanopy = io_bigAquifer % dAquiferTrans_dTCanopy       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+     dAquiferTrans_dTGround = io_bigAquifer % dAquiferTrans_dTGround       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+     dAquiferTrans_dCanWat  = io_bigAquifer % dAquiferTrans_dCanWat        ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+     ! intent(out) arguments
+     scalarAquiferTranspire = out_bigAquifer % scalarAquiferTranspire      ! intent(out):   transpiration loss from the aquifer (m s-1)
+     scalarAquiferRecharge  = out_bigAquifer % scalarAquiferRecharge       ! intent(out):   recharge to the aquifer (m s-1)
+     scalarAquiferBaseflow  = out_bigAquifer % scalarAquiferBaseflow       ! intent(out):   total baseflow from the aquifer (m s-1)
+     dBaseflow_dAquifer     = out_bigAquifer % dBaseflow_dAquifer          ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
+     err                    = out_bigAquifer % err                         ! intent(out):   error code
+     cmessage               = out_bigAquifer % cmessage                    ! intent(out):   error message
+     ! error control
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+     ! compute total runoff (overwrite previously calculated value before considering aquifer).
+     !   (Note:  SoilDrainage goes into aquifer, not runoff)
+     scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow     
     end if
    case default ! Error control for sub argument (must be s subroutine index that is included in the above case blocks)
     err=20
