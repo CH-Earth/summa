@@ -81,18 +81,18 @@ contains
 !
 ! ************************************************************************************************
 subroutine groundwatr(&
-                    ! input: model control, state variables, and diagnostic variables
-                    in_groundwatr,                          & ! intent(in): model control, state variables, and diagnostic variables
-                    ! input/output: data structures
-                    attr_data,                              & ! intent(in):    spatial attributes
-                    mpar_data,                              & ! intent(in):    model parameters
-                    prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
-                    diag_data,                              & ! intent(in):    model diagnostic variables for a local HRU
-                    flux_data,                              & ! intent(inout): model fluxes for a local HRU
-                    ! input-output: baseflow
-                    io_groundwatr,                          & ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
-                    ! output: baseflow and error control
-                    out_groundwatr)                           ! intent(out):   baseflow and error control
+                      ! input: model control, state variables, and diagnostic variables
+                      in_groundwatr,                          & ! intent(in): model control, state variables, and diagnostic variables
+                      ! input/output: data structures
+                      attr_data,                              & ! intent(in):    spatial attributes
+                      mpar_data,                              & ! intent(in):    model parameters
+                      prog_data,                              & ! intent(in):    model prognostic variables for a local HRU
+                      diag_data,                              & ! intent(in):    model diagnostic variables for a local HRU
+                      flux_data,                              & ! intent(inout): model fluxes for a local HRU
+                      ! input-output: baseflow
+                      io_groundwatr,                          & ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
+                      ! output: baseflow and error control
+                      out_groundwatr)                           ! intent(out):   baseflow and error control
   ! ---------------------------------------------------------------------------------------
   ! utility modules
   USE soil_utils_module,only:volFracLiq                       ! compute volumetric fraction of liquid water as a function of matric head
