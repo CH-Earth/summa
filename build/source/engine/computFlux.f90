@@ -30,25 +30,13 @@ USE data_types,only:&
                     var_ilength,        & ! data vector with variable length dimension (i4b)
                     var_dlength,        & ! data vector with variable length dimension (rkind)
                     model_options,      & ! defines the model decisions
-                    in_type_vegNrgFlux, & ! intent(in) arguments for vegNrgFlux call
-                    out_type_vegNrgFlux,& ! intent(out) arguments for vegNrgFlux call
-                    in_type_ssdNrgFlux, & ! intent(in) arguments for ssdNrgFlux call
-                    io_type_ssdNrgFlux, & ! intent(inout) arguments for ssdNrgFlux call
-                    out_type_ssdNrgFlux,& ! intent(out) arguments for ssdNrgFlux call
-                    in_type_vegLiqFlux, & ! intent(in) arguments for vegLiqFlux call
-                    out_type_vegLiqFlux,& ! intent(out) arguments for vegLiqFlux call
-                    in_type_snowLiqFlx, & ! intent(in) arguments for snowLiqFlx call
-                    io_type_snowLiqFlx, & ! intent(inout) arguments for snowLiqFlx call
-                    out_type_snowLiqFlx,& ! intent(out) arguments for snowLiqFlx call                
-                    in_type_soilLiqFlx, & ! intent(in) arguments for soilLiqFlx call
-                    io_type_soilLiqFlx, & ! intent(inout) arguments for soilLiqFlx call
-                    out_type_soilLiqFlx,& ! intent(out) arguments for soilLiqFlx call
-                    in_type_groundwatr, & ! intent(in) arguments for groundwatr call
-                    io_type_groundwatr, & ! intent(inout) arguments for groundwatr call
-                    out_type_groundwatr,& ! intent(out) arguments for groundwatr call
-                    in_type_bigAquifer, & ! intent(in) arguments for bigAquifer call
-                    io_type_bigAquifer, & ! intent(inout) arguments for bigAquifer call
-                    out_type_bigAquifer   ! intent(out) arguments for bigAquifer call
+                    in_type_vegNrgFlux,out_type_vegNrgFlux,                   & ! arguments for vegNrgFlux call
+                    in_type_ssdNrgFlux,io_type_ssdNrgFlux,out_type_ssdNrgFlux,& ! arguments for ssdNrgFlux call
+                    in_type_vegLiqFlux,out_type_vegLiqFlux,                   & ! arguments for vegLiqFlux call
+                    in_type_snowLiqFlx,io_type_snowLiqFlx,out_type_snowLiqFlx,& ! arguments for snowLiqFlx call                
+                    in_type_soilLiqFlx,io_type_soilLiqFlx,out_type_soilLiqFlx,& ! arguments for soilLiqFlx call
+                    in_type_groundwatr,io_type_groundwatr,out_type_groundwatr,& ! arguments for groundwatr call
+                    in_type_bigAquifer,io_type_bigAquifer,out_type_bigAquifer   ! arguments for bigAquifer call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -232,25 +220,15 @@ subroutine computFlux(&
   real(rkind)                        :: above_soilLiqFluxDeriv      ! derivative in layer above soil (canopy or snow) liquid flux w.r.t. liquid water
   real(rkind)                        :: above_soildLiq_dTk          ! derivative of layer above soil (canopy or snow) liquid flux w.r.t. temperature
   real(rkind)                        :: above_soilFracLiq           ! fraction of liquid water layer above soil (canopy or snow) (-)
-  type(in_type_vegNrgFlux)           :: in_vegNrgFlux               ! data structure for intent(in) vegNrgFlux arguments
-  type(out_type_vegNrgFlux)          :: out_vegNrgFlux              ! data structure for intent(out) vegNrgFlux arguments
-  type(in_type_ssdNrgFlux)           :: in_ssdNrgFlux               ! data structure for intent(in) ssdNrgFlux arguments
-  type(io_type_ssdNrgFlux)           :: io_ssdNrgFlux               ! data structure for intent(inout) ssdNrgFlux arguments 
-  type(out_type_ssdNrgFlux)          :: out_ssdNrgFlux              ! data structure for intent(out) ssdNrgFlux arguments
-  type(in_type_vegLiqFlux)           :: in_vegLiqFlux               ! data structure for intent(in) vegLiqFlux arguments
-  type(out_type_vegLiqFlux)          :: out_vegLiqFlux              ! data structure for intent(out) vegLiqFlux arguments
-  type(in_type_snowLiqFlx)           :: in_snowLiqFlx               ! data structure for intent(in) snowLiqFlx arguments
-  type(io_type_snowLiqFlx)           :: io_snowLiqFlx               ! data structure for intent(inout) snowLiqFlx arguments
-  type(out_type_snowLiqFlx)          :: out_snowLiqFlx              ! data structure for intent(out) snowLiqFlx arguments
-  type(in_type_soilLiqFlx)           :: in_soilLiqFlx               ! data structure for intent(in) soilLiqFlx arguments
-  type(io_type_soilLiqFlx)           :: io_soilLiqFlx               ! data structure for intent(inout) soilLiqFlx arguments
-  type(out_type_soilLiqFlx)          :: out_soilLiqFlx              ! data structure for intent(out) soilLiqFlx arguments
-  type(in_type_groundwatr)           :: in_groundwatr               ! data structure for intent(in) groundwatr arguments
-  type(io_type_groundwatr)           :: io_groundwatr               ! data structure for intent(inout) groundwatr arguments
-  type(out_type_groundwatr)          :: out_groundwatr              ! data structure for intent(out) groundwatr arguments
-  type(in_type_bigAquifer)           :: in_bigAquifer               ! data structure for intent(in) bigAquifer arguments
-  type(io_type_bigAquifer)           :: io_bigAquifer               ! data structure for intent(inout) bigAquifer arguments
-  type(out_type_bigAquifer)          :: out_bigAquifer              ! data structure for intent(out) bigAquifer arguments
+  ! data structures for flux subroutine arguments (derived types defined in data_types module)
+  !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
+  type(in_type_vegNrgFlux) :: in_vegNrgFlux;                                            type(out_type_vegNrgFlux) :: out_vegNrgFlux ! vegNrgFlux arguments
+  type(in_type_ssdNrgFlux) :: in_ssdNrgFlux; type(io_type_ssdNrgFlux) :: io_ssdNrgFlux; type(out_type_ssdNrgFlux) :: out_ssdNrgFlux ! ssdNrgFlux arguments
+  type(in_type_vegLiqFlux) :: in_vegLiqFlux;                                            type(out_type_vegLiqFlux) :: out_vegLiqFlux ! vegLiqFlux arguments
+  type(in_type_snowLiqFlx) :: in_snowLiqFlx; type(io_type_snowLiqFlx) :: io_snowLiqFlx; type(out_type_snowLiqFlx) :: out_snowLiqFlx ! snowLiqFlx arguments
+  type(in_type_soilLiqFlx) :: in_soilLiqFlx; type(io_type_soilLiqFlx) :: io_soilLiqFlx; type(out_type_soilLiqFlx) :: out_soilLiqFlx ! soilLiqFlx arguments
+  type(in_type_groundwatr) :: in_groundwatr; type(io_type_groundwatr) :: io_groundwatr; type(out_type_groundwatr) :: out_groundwatr ! groundwatr arguments
+  type(in_type_bigAquifer) :: in_bigAquifer; type(io_type_bigAquifer) :: io_bigAquifer; type(out_type_bigAquifer) :: out_bigAquifer ! bigAquifer arguments
   ! --------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
@@ -340,62 +318,40 @@ subroutine computFlux(&
       iLayerLiqFluxSoil(0:nSoil) = 0._rkind
     end if
 
-    ! *****
-    ! * CALCULATE ENERGY FLUXES OVER VEGETATION...
-    ! *********************************************
-
+    ! *** CALCULATE ENERGY FLUXES OVER VEGETATION ***
     ! identify the need to calculate the energy flux over vegetation
     doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
- 
-    if (doVegNrgFlux) then ! check if there is a need to calculate the energy fluxes over vegetation
-      ! calculate the energy fluxes over vegetation
+    if (doVegNrgFlux) then ! if necessary, calculate the energy fluxes over vegetation
       call subTools(iLookOP%pre,iLookROUTINE%vegNrgFlux)  ! pre-processing for call to vegNrgFlux
       call vegNrgFlux(in_vegNrgFlux,type_data,forc_data,mpar_data,indx_data,prog_data,diag_data,flux_data,bvar_data,model_decisions,out_vegNrgFlux)
-      call subTools(iLookOP%post,iLookROUTINE%vegNrgFlux)  ! post-processing for call to vegNrgFlux
+      call subTools(iLookOP%post,iLookROUTINE%vegNrgFlux) ! post-processing for call to vegNrgFlux
     end if ! end if calculating the energy fluxes over vegetation
 
-    ! *****
-    ! * CALCULATE ENERGY FLUXES THROUGH THE SNOW-SOIL DOMAIN...
-    ! **********************************************************
-
-    ! check the need to compute energy fluxes throughout the snow+soil domain
-    if (nSnowSoilNrg>0) then
-      ! calculate energy fluxes at layer interfaces through the snow and soil domain
+    ! *** CALCULATE ENERGY FLUXES THROUGH THE SNOW-SOIL DOMAIN ***
+    if (nSnowSoilNrg>0) then ! if necessary, calculate energy fluxes at layer interfaces through the snow and soil domain
       call subTools(iLookOP%pre,iLookROUTINE%ssdNrgFlux)  ! pre-processing for call to ssdNrgFlux
       call ssdNrgFlux(in_ssdNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_ssdNrgFlux,out_ssdNrgFlux)
       call subTools(iLookOP%post,iLookROUTINE%ssdNrgFlux) ! post-processing for call to ssdNrgFlux
     end if  ! end if computing energy fluxes throughout the snow+soil domain
 
-    ! *****
-    ! * CALCULATE THE LIQUID FLUX THROUGH VEGETATION...
-    ! **************************************************
-
-    ! check the need to compute the liquid water fluxes through vegetation
-    if (ixVegHyd/=integerMissing) then
-      ! calculate liquid water fluxes through vegetation
+    ! *** CALCULATE THE LIQUID FLUX THROUGH VEGETATION ***
+    if (ixVegHyd/=integerMissing) then ! if necessary, calculate liquid water fluxes through vegetation
       call subTools(iLookOP%pre,iLookROUTINE%vegLiqFlux)  ! pre-processing for call to vegLiqFlux
       call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
-      call subTools(iLookOP%post,iLookROUTINE%vegLiqFlux)  ! post-processing for call to vegLiqFlux
+      call subTools(iLookOP%post,iLookROUTINE%vegLiqFlux) ! post-processing for call to vegLiqFlux
     end if  ! end if computing the liquid water fluxes through vegetation
 
-    ! *****
-    ! * CALCULATE THE LIQUID FLUX THROUGH SNOW...
-    ! ********************************************
-
-    ! check the need to compute liquid water fluxes through snow
-    if (nSnowOnlyHyd>0) then
-      ! compute liquid fluxes through snow
+    ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
+    if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
       call subTools(iLookOP%pre,iLookROUTINE%snowLiqFlx)  ! pre-processing for call to snowLiqFlx
       call snowLiqFlx(in_snowLiqFlx,indx_data,mpar_data,prog_data,diag_data,io_snowLiqFlx,out_snowLiqFlx)
-      call subTools(iLookOP%post,iLookROUTINE%snowLiqFlx)  ! post-processing for call to snowLiqFlx
+      call subTools(iLookOP%post,iLookROUTINE%snowLiqFlx) ! post-processing for call to snowLiqFlx
     else
-
       ! define forcing for the soil domain for the case of no snow layers
       ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
       if (nSnow==0) then !no snow layers
         scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
                             + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
-
         if (ixVegHyd/=integerMissing) then
           ! save canopy derivatives
           above_soilLiqFluxDeriv = scalarCanopyLiqDeriv/iden_water ! derivative in (throughfall + drainage) w.r.t. canopy liquid water
@@ -411,46 +367,29 @@ subroutine computFlux(&
         above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
         above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
       end if  ! snow layers or not
-
     end if ! if calculating the liquid flux through snow
 
-    ! *****
-    ! * CALCULATE THE LIQUID FLUX THROUGH SOIL...
-    ! ********************************************
-
-    ! check the need to calculate the liquid flux through soil
-    if (nSoilOnlyHyd>0) then
-      ! calculate the liquid flux through soil
+    ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
+    if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call subTools(iLookOP%pre,iLookROUTINE%soilLiqFlx)  ! pre-processing for call to soilLiqFlx
       call soilLiqFlx(in_soilLiqFlx,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlx,out_soilLiqFlx)
       call subTools(iLookOP%post,iLookROUTINE%soilLiqFlx) ! post-processing for call to soilLiqFlx
     end if  ! end if calculating the liquid flux through soil
 
-    ! *****
-    ! * CALCULATE THE GROUNDWATER FLOW...
-    ! ************************************
-
-    ! check if computing soil hydrology
-    if (nSoilOnlyHyd>0) then
-      ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
-      if (local_ixGroundwater/=qbaseTopmodel) then
+    ! *** CALCULATE THE GROUNDWATER FLOW ***
+    if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
+      if (local_ixGroundwater/=qbaseTopmodel) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
         ! diagnostic variables in the data structures
         scalarExfiltration     = 0._rkind  ! exfiltration from the soil profile (m s-1)
         mLayerColumnOutflow(:) = 0._rkind  ! column outflow from each soil layer (m3 s-1)
         ! variables needed for the numerical solution
         mLayerBaseflow(:)      = 0._rkind  ! baseflow from each soil layer (m s-1)
-
-        ! topmodel-ish shallow groundwater
-      else ! local_ixGroundwater==qbaseTopmodel
-        ! compute the baseflow flux
+      else ! compute the baseflow flux for topmodel-ish shallow groundwater
         call subTools(iLookOP%pre,iLookROUTINE%groundwatr)  ! pre-processing for call to groundwatr
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,diag_data,flux_data,io_groundwatr,out_groundwatr)
         call subTools(iLookOP%post,iLookROUTINE%groundwatr) ! post-processing for call to groundwatr
       end if  ! computing baseflow flux
-
-      ! compute total baseflow from the soil zone (needed for mass balance checks)
-      scalarSoilBaseflow = sum(mLayerBaseflow)
-
+      scalarSoilBaseflow = sum(mLayerBaseflow) ! compute total baseflow from the soil zone (needed for mass balance checks)
       ! compute total runoff
       ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
       ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
@@ -458,46 +397,34 @@ subroutine computFlux(&
     end if  ! end if computing soil hydrology
 
 
-    ! *****
-    ! (7) CALCULATE FLUXES FOR THE DEEP AQUIFER...
-    ! ********************************************
-
-    ! check if computing aquifer fluxes
-    if (ixAqWat/=integerMissing) then
-      if (local_ixGroundwater==bigBucket) then ! identify modeling decision
-        ! compute fluxes for the big bucket
+    ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
+    if (ixAqWat/=integerMissing) then ! check if computing aquifer fluxes
+      if (local_ixGroundwater==bigBucket) then ! compute fluxes for the big bucket
         call subTools(iLookOP%pre,iLookROUTINE%bigAquifer)  ! pre-processing for call to bigAquifer
         call bigAquifer(in_bigAquifer,mpar_data,diag_data,io_bigAquifer,out_bigAquifer)
         call subTools(iLookOP%post,iLookROUTINE%bigAquifer) ! post-processing for call to bigAquifer
-      ! if no aquifer, then fluxes are zero
       else ! if no aquifer, then fluxes are zero
         scalarAquiferTranspire = 0._rkind  ! transpiration loss from the aquifer (m s-1)
         scalarAquiferRecharge  = 0._rkind  ! recharge to the aquifer (m s-1)
         scalarAquiferBaseflow  = 0._rkind  ! total baseflow from the aquifer (m s-1)
         dBaseflow_dAquifer     = 0._rkind  ! change in baseflow flux w.r.t. aquifer storage (s-1)
-      end if ! end if aquifer exists
+      end if ! end check aquifer model decision
     end if  ! if computing aquifer fluxes
 
-    ! *****
-    ! (X) WRAP UP...
-    ! *************
-
+    ! *** WRAP UP ***
     ! define model flux vector for the vegetation sub-domain
     if (ixCasNrg/=integerMissing) fluxVec(ixCasNrg) = scalarCanairNetNrgFlux/canopyDepth
     if (ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
     if (ixVegHyd/=integerMissing) fluxVec(ixVegHyd) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
-
-    ! populate the flux vector for energy
-    if (nSnowSoilNrg>0) then
+    if (nSnowSoilNrg>0) then ! if necessary, populate the flux vector for energy
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! loop through non-missing energy state variables in the snow+soil domain
         fluxVec( ixSnowSoilNrg(iLayer) ) = mLayerNrgFlux(iLayer)
-      end do  ! looping through non-missing energy state variables in the snow+soil domain
+      end do
     end if
-
     ! populate the flux vector for hydrology
     ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
     if (nSnowSoilHyd>0) then  ! check if any hydrology states exist
-      do iLayer=1,nLayers
+      do iLayer=1,nLayers     ! loop through non-missing energy state variables in the snow+soil domain
         if (ixSnowSoilHyd(iLayer)/=integerMissing) then   ! check if a given hydrology state exists
           select case(layerType(iLayer))
             case(iname_snow); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSnow(iLayer)
@@ -505,9 +432,8 @@ subroutine computFlux(&
             case default; err=20; message=trim(message)//'expect layerType to be either iname_snow or iname_soil'; return
           end select
         end if  ! end if a given hydrology state exists
-      end do ! end looping through non-missing energy state variables in the snow+soil domain
+      end do
     end if  ! end if any hydrology states exist
-
     ! compute the flux vector for the aquifer
     if (ixAqWat/=integerMissing) fluxVec(ixAqWat) = scalarAquiferTranspire + scalarAquiferRecharge - scalarAquiferBaseflow
 
