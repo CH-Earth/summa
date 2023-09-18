@@ -35,7 +35,8 @@ testing = False
 # The first input argument specifies the run where the files are
 method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
 
-des_dir =  top_fold + 'statistics'
+des_dir =  top_fold + 'statistics_temp'
+fnl_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
@@ -47,17 +48,33 @@ viz_fil = viz_fil.format(','.join(settings))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)
+fnl_dir = Path(fnl_dir)
 ben_dir = Path(ben_dir)
 des_dir = Path(des_dir)
 
 # Ensure the output path exists
 des_dir.mkdir(parents=True, exist_ok=True)
 
+# Construct the path to the processed_files.txt file
+processed_files_path = os.path.join(des_dir, 'processed_files.txt')
+
 # Get the names of all inputs, assuming folders have same splits of domains and same file names
 src_files = glob.glob(str( src_dir / src_pat ))
 src_files.sort()
 ben_files = glob.glob(str( ben_dir / src_pat ))
 ben_files.sort()
+
+# Load the list of files that have already been processed
+if os.path.exists(processed_files_path):
+    with open(processed_files_path, 'r') as f:
+        processed_files = f.read().splitlines()
+else:
+    processed_files = []
+
+
+# Filter out the files that have already been processed
+src_files = [f for f in src_files if f not in processed_files]
+ben_files = [f for f in ben_files if f not in processed_files]
 
 # definitions for KGE computation
 def covariance(x,y,dims=None):
@@ -81,7 +98,7 @@ assert len(ben_files) == len(src_files), \
 #        print('Error opening file:', file, bench)
 
 # -- functions
-def run_loop(file,bench):
+def run_loop(file,bench,processed_files_path):
 
     # extract the subset IDs
     subset = file.split('/')[-1].split('_')[1]
@@ -155,7 +172,19 @@ def run_loop(file,bench):
         new = xr.merge([mean,amax,rmse,maxe,kgem])
         new.to_netcdf(des_dir / des_fil.format(var,subset))
 
-    print("wrote output: %s" % (top_fold + 'statistics/' +subset))
+   # write the name of the processed file to the file list, acquire the lock before opening the file
+    if testing:
+        with open(processed_files_path, 'a') as filew:
+            filew.write(file + '\n')
+            filew.write(bench + '\n')
+    else:
+        import multiprocessing as mp
+        lock = mp.Lock()
+        with lock:
+            with open(processed_files_path, 'a') as filew:
+                filew.write(file + '\n')
+                filew.write(bench + '\n')
+    filew.close()  # close the file after writing to it
 
     return #nothing
 
@@ -181,20 +210,29 @@ def merge_subsets_into_one(src,pattern,des,name):
 if testing:
     # -- no parallel processing
     for (file, bench) in zip(src_files,ben_files):
-        run_loop(file, bench)
+        run_loop(file,bench,processed_files_path)
+    # -- end no parallel processing
+
 else:
     # -- start parallel processing
     ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
     if __name__ == "__main__":
+        import multiprocessing as mp
         pool = mp.Pool(processes=ncpus)
-        results = [pool.apply_async(run_loop, args=(file, bench, lock)) for (file, bench) in zip(src_files, ben_files)]
-        dojob = [p.get() for p in results]
+        with open(processed_files_path, 'a') as f:
+            results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, ben_files)]
+            for r in results:
+                try:
+                    r.get()
+                except Exception as e:
+                    print(f"Error processing file: {e}")
+                    raise e
         pool.close()
     # -- end parallel processing
 
 
 # merge the individual files into one for further vizualization
-merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),des_dir,viz_fil)
+merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
 
 # remove the individual files for cleanliness
 for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):
