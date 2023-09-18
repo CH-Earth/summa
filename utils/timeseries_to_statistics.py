@@ -225,7 +225,7 @@ else:
                 try:
                     r.get()
                 except Exception as e:
-                    print(f"Error processing file: {e}")
+                    print("Error processing file: {e}")
                     raise e
         pool.close()
     # -- end parallel processing
