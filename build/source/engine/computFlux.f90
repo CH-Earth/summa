@@ -107,6 +107,7 @@ private
 public::computFlux
 public::soilCmpres
 public::soilCmpresPrime
+
 contains
 ! *********************************************************************************************************
 ! public subroutine computFlux: compute model fluxes
@@ -336,9 +337,9 @@ subroutine computFlux(&
 
     ! *** CALCULATE THE LIQUID FLUX THROUGH VEGETATION ***
     if (ixVegHyd/=integerMissing) then ! if necessary, calculate liquid water fluxes through vegetation
-      call subTools(iLookOP%pre,iLookROUTINE%vegLiqFlux)  ! pre-processing for call to vegLiqFlux
+      call in_vegLiqFlux%initialize(computeVegFlux,scalarCanopyLiqTrial,flux_data)
       call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
-      call subTools(iLookOP%post,iLookROUTINE%vegLiqFlux) ! post-processing for call to vegLiqFlux
+      call out_vegLiqFlux%finalize(globalPrintFlag,scalarCanopyLiqTrial,flux_data,deriv_data,message,err,cmessage)
     end if  ! end if computing the liquid water fluxes through vegetation
 
     ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
@@ -918,7 +919,6 @@ contains
  end subroutine subTools
 
 end subroutine computFlux
-
 
 ! **********************************************************************************************************
 ! public subroutine soilCmpres: compute soil compressibility (-) and its derivative w.r.t matric head (m-1)

@@ -26,8 +26,8 @@ USE nrtype
 ! data types
 USE data_types,only:var_d                ! x%var(:)       (rkind)
 USE data_types,only:var_dlength          ! x%var(:)%dat   (rkind)
-USE data_types,only:in_type_vegLiqFlux   ! derived type for intent(in) arguments
-USE data_types,only:out_type_vegLiqFlux  ! derived type for intent(out) arguments
+USE data_types,only:in_type_vegLiqFlux   ! class type for intent(in) arguments
+USE data_types,only:out_type_vegLiqFlux  ! class type for intent(out) arguments
 
 ! named variables
 USE var_lookup,only:iLookPARAM,iLookDIAG ! named variables for structure elements
