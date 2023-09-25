@@ -337,9 +337,9 @@ subroutine computFlux(&
 
     ! *** CALCULATE THE LIQUID FLUX THROUGH VEGETATION ***
     if (ixVegHyd/=integerMissing) then ! if necessary, calculate liquid water fluxes through vegetation
-      call in_vegLiqFlux%initialize(computeVegFlux,scalarCanopyLiqTrial,flux_data)
+      call initialize_vegLiqFlux
       call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
-      call out_vegLiqFlux%finalize(globalPrintFlag,scalarCanopyLiqTrial,flux_data,deriv_data,message,err,cmessage)
+      call finalize_vegLiqFlux
     end if  ! end if computing the liquid water fluxes through vegetation
 
     ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
@@ -918,6 +918,40 @@ contains
   end associate ! end associate block
 
  end subroutine subTools
+
+ subroutine initialize_vegLiqFlux
+  call in_vegLiqFlux%initialize(computeVegFlux,scalarCanopyLiqTrial,flux_data)
+ end subroutine initialize_vegLiqFlux
+ 
+ subroutine finalize_vegLiqFlux
+  call out_vegLiqFlux%finalize(flux_data,deriv_data,err,cmessage)
+  associate( &
+   scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),         & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+   scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),       & ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+   scalarThroughfallRainDeriv   => deriv_data%var(iLookDERIV%scalarThroughfallRainDeriv  )%dat(1),& ! intent(out): [dp] derivative in throughfall w.r.t. canopy liquid water
+   scalarCanopyLiqDrainageDeriv => deriv_data%var(iLookDERIV%scalarCanopyLiqDrainageDeriv)%dat(1),& ! intent(out): [dp] derivative in canopy drainage w.r.t. canopy liquid water
+   scalarCanopyNetLiqFlux       => flux_data%var(iLookFLUX%scalarCanopyNetLiqFlux)%dat(1),        & ! intent(out): [dp] net liquid water flux for the vegetation canopy (kg m-2 s-1)
+   scalarRainfall               => flux_data%var(iLookFLUX%scalarRainfall)%dat(1),                & ! intent(in):  [dp] rainfall rate (kg m-2 s-1)
+   scalarCanopyEvaporation      => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1),       & ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
+   scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1) ) ! intent(out): [dp] derivative in (throughfall + drainage) w.r.t. canopy liquid water
+   ! error control
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+   ! calculate the net liquid water flux for the vegetation canopy
+   scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+   ! calculate the total derivative in the downward liquid flux
+   scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
+   ! test
+   if (globalPrintFlag) then
+    print*, '**'
+    print*, 'scalarRainfall          = ', scalarRainfall
+    print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
+    print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
+    print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
+    print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
+    print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
+   end if
+  end associate
+ end subroutine finalize_vegLiqFlux
 
  subroutine initialize_snowLiqFlx
   call in_snowLiqFlx%initialize(nSnow,firstFluxCall,scalarSolution,mLayerVolFracLiqTrial,flux_data)

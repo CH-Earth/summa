@@ -552,47 +552,24 @@ contains
   end associate
  end subroutine initialize_in_vegLiqFlux
 
- subroutine finalize_out_vegLiqFlux(out_vegLiqFlux,globalPrintFlag,scalarCanopyLiqTrial,flux_data,deriv_data,message,err,cmessage)
+ subroutine finalize_out_vegLiqFlux(out_vegLiqFlux,flux_data,deriv_data,err,cmessage)
   class(out_type_vegLiqFlux),intent(in)   :: out_vegLiqFlux              ! class object for intent(out) vegLiqFlux arguments
-  logical(lgt),intent(in)                 :: globalPrintFlag             ! global print flag for debug output
-  real(rkind),intent(in)                  :: scalarCanopyLiqTrial        ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   type(var_dlength),intent(inout)         :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout)         :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
-  character(*),intent(inout)              :: message                     ! computFlux error message
   integer(i4b),intent(out)                :: err                         ! error code
   character(*),intent(out)                :: cmessage                    ! error message from vegLiqFlux
   associate( &
    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),         & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1),       & ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
    scalarThroughfallRainDeriv   => deriv_data%var(iLookDERIV%scalarThroughfallRainDeriv  )%dat(1),& ! intent(out): [dp] derivative in throughfall w.r.t. canopy liquid water
-   scalarCanopyLiqDrainageDeriv => deriv_data%var(iLookDERIV%scalarCanopyLiqDrainageDeriv)%dat(1),& ! intent(out): [dp] derivative in canopy drainage w.r.t. canopy liquid water
-   scalarCanopyNetLiqFlux       => flux_data%var(iLookFLUX%scalarCanopyNetLiqFlux)%dat(1),        & ! intent(out): [dp] net liquid water flux for the vegetation canopy (kg m-2 s-1)
-   scalarRainfall               => flux_data%var(iLookFLUX%scalarRainfall)%dat(1),                & ! intent(in):  [dp] rainfall rate (kg m-2 s-1)
-   scalarCanopyEvaporation      => flux_data%var(iLookFLUX%scalarCanopyEvaporation)%dat(1),       & ! intent(out): [dp] canopy evaporation/condensation (kg m-2 s-1)
-   scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1) ) ! intent(out): [dp] derivative in (throughfall + drainage) w.r.t. canopy liquid water
-  ! intent(out) arguments
-  scalarThroughfallRain       =out_vegLiqFlux % scalarThroughfallRain       ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-  scalarCanopyLiqDrainage     =out_vegLiqFlux % scalarCanopyLiqDrainage     ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-  scalarThroughfallRainDeriv  =out_vegLiqFlux % scalarThroughfallRainDeriv  ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
-  scalarCanopyLiqDrainageDeriv=out_vegLiqFlux % scalarCanopyLiqDrainageDeriv! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
-  err                         =out_vegLiqFlux % err                         ! intent(out): error code
-  cmessage                    =out_vegLiqFlux % cmessage                    ! intent(out): error control
-  ! error control
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-  ! calculate the net liquid water flux for the vegetation canopy
-  scalarCanopyNetLiqFlux = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
-  ! calculate the total derivative in the downward liquid flux
-  scalarCanopyLiqDeriv   = scalarThroughfallRainDeriv + scalarCanopyLiqDrainageDeriv
-  ! test
-  if (globalPrintFlag) then
-   print*, '**'
-   print*, 'scalarRainfall          = ', scalarRainfall
-   print*, 'scalarThroughfallRain   = ', scalarThroughfallRain
-   print*, 'scalarCanopyEvaporation = ', scalarCanopyEvaporation
-   print*, 'scalarCanopyLiqDrainage = ', scalarCanopyLiqDrainage
-   print*, 'scalarCanopyNetLiqFlux  = ', scalarCanopyNetLiqFlux
-   print*, 'scalarCanopyLiqTrial    = ', scalarCanopyLiqTrial
-  end if
+   scalarCanopyLiqDrainageDeriv => deriv_data%var(iLookDERIV%scalarCanopyLiqDrainageDeriv)%dat(1) ) ! intent(out): [dp] derivative in canopy drainage w.r.t. canopy liquid water
+   ! intent(out) arguments
+   scalarThroughfallRain       =out_vegLiqFlux % scalarThroughfallRain       ! intent(out): rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+   scalarCanopyLiqDrainage     =out_vegLiqFlux % scalarCanopyLiqDrainage     ! intent(out): drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+   scalarThroughfallRainDeriv  =out_vegLiqFlux % scalarThroughfallRainDeriv  ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
+   scalarCanopyLiqDrainageDeriv=out_vegLiqFlux % scalarCanopyLiqDrainageDeriv! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
+   err                         =out_vegLiqFlux % err                         ! intent(out): error code
+   cmessage                    =out_vegLiqFlux % cmessage                    ! intent(out): error control
   end associate
  end subroutine finalize_out_vegLiqFlux
  ! ** end vegLiqFlux
@@ -652,4 +629,11 @@ contains
   cmessage=out_snowLiqFlx % cmessage                              ! intent(out):   error message
  end subroutine finalize_out_snowLiqFlx
  ! ** end snowLiqFlx
+
+ ! ** groundwatr
+ subroutine initialize_in_groundwatr
+ end subroutine initialize_in_groundwatr
+
+ 
+ ! ** end groundwatr
 END MODULE data_types
