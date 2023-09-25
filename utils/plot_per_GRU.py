@@ -50,6 +50,7 @@ leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~
 if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,10e-3]
 if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.2]
 if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,10e-3]
+if stat=='mean': maxes = [100,1700,5e-5,8,1e-7,10e-3]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
@@ -188,7 +189,7 @@ for plot_var in plot_vars:
         # Multiply the s values by efficiency
         s = s*eff_batch
 
-    if stat == 'maxe': s = np.fabs(s) # make absolute value norm, max is not not all positive
+    if stat == 'maxe' or 'mean': s = np.fabs(s) # make absolute value norm, max is not not all positive
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
@@ -209,10 +210,6 @@ if 'compressed' in fig_fil:
 else:
     plt.rcParams.update({'font.size': 100})
 
-# Flip the evaporation values so that they become positive, not if plotting diffs
-#bas_albers['plot_ET'] = bas_albers['scalarTotalET'] * -1
-#bas_albers['plot_ET'] = bas_albers['plot_ET'].where(bas_albers['scalarTotalET'] != -9999, np.nan)
-
 if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
@@ -231,6 +228,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = 0, the_max
+    if stat=='mean' and var=='scalarTotalSoilWater': vmin,vmax = 600, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     if stat=='kgem' and var!='wallClockTime':
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
@@ -254,6 +252,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat == 'rmse': stat_word = ' Hourly RMSE'
     if stat == 'maxe': stat_word = ' Hourly max abs error'
     if stat == 'kgem': stat_word = ' Hourly KGEm'
+    if stat == 'mean': stat_word = ' Hourly abs mean'
 
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
