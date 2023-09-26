@@ -386,9 +386,9 @@ subroutine computFlux(&
         ! variables needed for the numerical solution
         mLayerBaseflow(:)      = 0._rkind  ! baseflow from each soil layer (m s-1)
       else ! compute the baseflow flux for topmodel-ish shallow groundwater
-        call subTools(iLookOP%pre,iLookROUTINE%groundwatr)  ! pre-processing for call to groundwatr
+        call initialize_groundwatr
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,diag_data,flux_data,io_groundwatr,out_groundwatr)
-        call subTools(iLookOP%post,iLookROUTINE%groundwatr) ! post-processing for call to groundwatr
+        call finalize_groundwatr
       end if  ! computing baseflow flux
       scalarSoilBaseflow = sum(mLayerBaseflow) ! compute total baseflow from the soil zone (needed for mass balance checks)
       ! compute total runoff
@@ -986,6 +986,24 @@ contains
    above_soilFracLiq      = mLayerFracLiqSnow(nSnow)      ! fraction of liquid water in bottom snow layer (-)
   end associate
  end subroutine finalize_snowLiqFlx
+
+ subroutine initialize_groundwatr
+  ! check the derivative matrix is sized appropriately
+  if (size(dBaseflow_dMatric,1)/=nSoil .or. size(dBaseflow_dMatric,2)/=nSoil) then
+    message=trim(message)//'expect dBaseflow_dMatric to be nSoil x nSoil'
+    err=20; return
+  end if
+  call in_groundwatr%initialize(nSnow,nSoil,nLayers,firstFluxCall,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  call io_groundwatr%initialize(ixSaturation)
+ end subroutine initialize_groundwatr
+
+ subroutine finalize_groundwatr
+  call io_groundwatr%finalize(ixSaturation)
+  call out_groundwatr%finalize(dBaseflow_dMatric,flux_data,err,cmessage)
+  ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+ end subroutine finalize_groundwatr
+ 
 end subroutine computFlux
 
 ! **********************************************************************************************************

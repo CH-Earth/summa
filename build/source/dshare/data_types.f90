@@ -486,25 +486,32 @@ MODULE data_types
 
  ! ** groundwatr
  type, public :: in_type_groundwatr  ! derived type for intent(in) arguments in groundwatr call
-  integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
-  integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
-  integer(i4b)             :: nLayers                           ! intent(in):    total number of layers
-  logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
-  real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-  real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
-  real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
-  real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
+   integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
+   integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
+   integer(i4b)             :: nLayers                           ! intent(in):    total number of layers
+   logical(lgt)             :: firstFluxCall                     ! intent(in):    logical flag to compute index of the lowest saturated layer
+   real(rkind), allocatable :: mLayerdTheta_dPsi(:)              ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+   real(rkind), allocatable :: mLayerMatricHeadLiqTrial(:)       ! intent(in):    liquid water matric potential (m)
+   real(rkind), allocatable :: mLayerVolFracLiqTrial(:)          ! intent(in):    volumetric fraction of liquid water (-)
+   real(rkind), allocatable :: mLayerVolFracIceTrial(:)          ! intent(in):    volumetric fraction of ice (-)
+  contains
+   procedure :: initialize => initialize_in_groundwatr
  end type in_type_groundwatr
 
  type, public :: io_type_groundwatr  ! derived type for intent(io) arguments in groundwatr call
-  integer(i4b)             :: ixSaturation                      ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
+   integer(i4b)             :: ixSaturation                      ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
+  contains
+   procedure :: initialize => initialize_io_groundwatr
+   procedure :: finalize   => finalize_io_groundwatr 
  end type io_type_groundwatr
 
  type, public :: out_type_groundwatr ! derived type for intent(out) arguments in groundwatr call
-  real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
-  real(rkind), allocatable :: dBaseflow_dMatric(:,:)            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
-  integer(i4b)             :: err                               ! intent(out):   error code
-  character(:),allocatable :: cmessage                          ! intent(out):   error message
+   real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
+   real(rkind), allocatable :: dBaseflow_dMatric(:,:)            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+   integer(i4b)             :: err                               ! intent(out):   error code
+   character(:),allocatable :: cmessage                          ! intent(out):   error message
+  contains
+   procedure :: finalize => finalize_out_groundwatr
  end type out_type_groundwatr
  ! ** end groundwatr
 
@@ -631,9 +638,59 @@ contains
  ! ** end snowLiqFlx
 
  ! ** groundwatr
- subroutine initialize_in_groundwatr
+ subroutine initialize_in_groundwatr(in_groundwatr,nSnow,nSoil,nLayers,firstFluxCall,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,deriv_data)
+  class(in_type_groundwatr),intent(out) :: in_groundwatr               ! class object for intent(in) arguments
+  integer(i4b),intent(in)               :: nSnow                       ! number of snow layers
+  integer(i4b),intent(in)               :: nSoil                       ! number of soil layers
+  integer(i4b),intent(in)               :: nLayers                     ! total number of layers
+  logical(lgt),intent(in)               :: firstFluxCall               ! logical flag to compute index of the lowest saturated layer
+  real(rkind),intent(in)                :: mLayerMatricHeadLiqTrial(:) ! trial value for the liquid water matric potential (m)
+  real(rkind),intent(in)                :: mLayerVolFracLiqTrial(:)    ! trial value for volumetric fraction of liquid water (-)
+  real(rkind),intent(in)                :: mLayerVolFracIceTrial(:)    ! trial value for volumetric fraction of ice (-)
+  type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+ 
+  associate(&
+   mLayerdTheta_dPsi            => deriv_data%var(iLookDERIV%mLayerdTheta_dPsi)%dat )! intent(out): [dp(:)] derivative in the soil water characteristic w.r.t. psi
+   ! intent(in) arguments
+   in_groundwatr % nSnow                    = nSnow                                  ! intent(in):    number of snow layers
+   in_groundwatr % nSoil                    = nSoil                                  ! intent(in):    number of soil layers
+   in_groundwatr % nLayers                  = nLayers                                ! intent(in):    total number of layers
+   in_groundwatr % firstFluxCall            = firstFluxCall                          ! intent(in):    logical flag to compute index of the lowest saturated layer
+   in_groundwatr % mLayerdTheta_dPsi        = mLayerdTheta_dPsi                      ! intent(in):    derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+   in_groundwatr % mLayerMatricHeadLiqTrial = mLayerMatricHeadLiqTrial               ! intent(in):    liquid water matric potential (m)
+   in_groundwatr % mLayerVolFracLiqTrial    = mLayerVolFracLiqTrial(nSnow+1:nLayers) ! intent(in):    volumetric fraction of liquid water (-)
+   in_groundwatr % mLayerVolFracIceTrial    = mLayerVolFracIceTrial(nSnow+1:nLayers) ! intent(in):    volumetric fraction of ice (-)
+  end associate
  end subroutine initialize_in_groundwatr
 
+ subroutine initialize_io_groundwatr(io_groundwatr,ixSaturation)
+  class(io_type_groundwatr),intent(out) :: io_groundwatr ! class object for intent(inout) arguments
+  integer(i4b),intent(in)               :: ixSaturation  ! index of lowest saturated layer (NOTE: only computed on the first iteration)
+  ! intent(inout) arguments
+  io_groundwatr % ixSaturation = ixSaturation ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
+ end subroutine initialize_io_groundwatr
  
+ subroutine finalize_io_groundwatr(io_groundwatr,ixSaturation)
+  class(io_type_groundwatr),intent(in)  :: io_groundwatr ! class object for intent(inout) arguments
+  integer(i4b),intent(out)              :: ixSaturation  ! index of lowest saturated layer (NOTE: only computed on the first iteration)
+  ! intent(inout) arguments
+  ixSaturation = io_groundwatr % ixSaturation ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
+ end subroutine finalize_io_groundwatr
+
+ subroutine finalize_out_groundwatr(out_groundwatr,dBaseflow_dMatric,flux_data,err,cmessage)
+  class(out_type_groundwatr),intent(in) :: out_groundwatr              ! class object for intent(out) arguments
+  real(rkind),intent(out)               :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
+  type(var_dlength),intent(inout)       :: flux_data                   ! model fluxes for a local HRU
+  integer(i4b),intent(out)              :: err                         ! error code
+  character(*),intent(out)              :: cmessage                    ! error message from vegLiqFlux
+  associate(&
+   mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat )     ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
+   ! intent(out) arguments
+   mLayerBaseflow    = out_groundwatr % mLayerBaseflow                               ! intent(out):   baseflow from each soil layer (m s-1)
+   dBaseflow_dMatric = out_groundwatr % dBaseflow_dMatric                            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
+   err               = out_groundwatr % err                                          ! intent(out):   error code
+   cmessage          = out_groundwatr % cmessage                                     ! intent(out):   error message
+  end associate
+ end subroutine finalize_out_groundwatr
  ! ** end groundwatr
 END MODULE data_types
