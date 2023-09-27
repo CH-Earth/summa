@@ -517,29 +517,36 @@ MODULE data_types
 
  ! ** bigAquifer
  type, public :: in_type_bigAquifer  ! derived type for intent(in) arguments in bigAquifer call
-  real(rkind)              :: scalarAquiferStorageTrial         ! intent(in):    trial value of aquifer storage (m)
-  real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
-  real(rkind)              :: scalarSoilDrainage                ! intent(in):    soil drainage (m s-1)
-  real(rkind)              :: dCanopyTrans_dCanWat              ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
-  real(rkind)              :: dCanopyTrans_dTCanair             ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
-  real(rkind)              :: dCanopyTrans_dTCanopy             ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
-  real(rkind)              :: dCanopyTrans_dTGround             ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+   real(rkind)              :: scalarAquiferStorageTrial         ! intent(in):    trial value of aquifer storage (m)
+   real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
+   real(rkind)              :: scalarSoilDrainage                ! intent(in):    soil drainage (m s-1)
+   real(rkind)              :: dCanopyTrans_dCanWat              ! intent(in):    derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+   real(rkind)              :: dCanopyTrans_dTCanair             ! intent(in):    derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   real(rkind)              :: dCanopyTrans_dTCanopy             ! intent(in):    derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   real(rkind)              :: dCanopyTrans_dTGround             ! intent(in):    derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+  contains
+   procedure :: initialize => initialize_in_bigAquifer
  end type in_type_bigAquifer
 
  type, public :: io_type_bigAquifer  ! derived type for intent(inout) arguments in bigAquifer call
-  real(rkind)              :: dAquiferTrans_dTCanair            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
-  real(rkind)              :: dAquiferTrans_dTCanopy            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
-  real(rkind)              :: dAquiferTrans_dTGround            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
-  real(rkind)              :: dAquiferTrans_dCanWat             ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+   real(rkind)              :: dAquiferTrans_dTCanair            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+   real(rkind)              :: dAquiferTrans_dTCanopy            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+   real(rkind)              :: dAquiferTrans_dTGround            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+   real(rkind)              :: dAquiferTrans_dCanWat             ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+  contains
+   procedure :: initialize => initialize_io_bigAquifer
+   procedure :: finalize   => finalize_io_bigAquifer
  end type io_type_bigAquifer
 
  type, public :: out_type_bigAquifer  ! derived type for intent(out) arguments in bigAquifer call
-  real(rkind)              :: scalarAquiferTranspire            ! intent(out):   transpiration loss from the aquifer (m s-1)
-  real(rkind)              :: scalarAquiferRecharge             ! intent(out):   recharge to the aquifer (m s-1)
-  real(rkind)              :: scalarAquiferBaseflow             ! intent(out):   total baseflow from the aquifer (m s-1)
-  real(rkind)              :: dBaseflow_dAquifer                ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
-  integer(i4b)             :: err                               ! intent(out):   error code
-  character(:),allocatable :: cmessage                          ! intent(out):   error message
+   real(rkind)              :: scalarAquiferTranspire            ! intent(out):   transpiration loss from the aquifer (m s-1)
+   real(rkind)              :: scalarAquiferRecharge             ! intent(out):   recharge to the aquifer (m s-1)
+   real(rkind)              :: scalarAquiferBaseflow             ! intent(out):   total baseflow from the aquifer (m s-1)
+   real(rkind)              :: dBaseflow_dAquifer                ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
+   integer(i4b)             :: err                               ! intent(out):   error code
+   character(:),allocatable :: cmessage                          ! intent(out):   error message
+  contains
+   procedure :: finalize   => finalize_out_bigAquifer
  end type out_type_bigAquifer
  ! ** end bigAquifer
 
@@ -693,4 +700,82 @@ contains
   end associate
  end subroutine finalize_out_groundwatr
  ! ** end groundwatr
+
+ ! ** bigAquifer
+ subroutine initialize_in_bigAquifer(in_bigAquifer,scalarAquiferStorageTrial,flux_data,deriv_data)
+  class(in_type_bigAquifer),intent(out) :: in_bigAquifer             ! class object for intent(in) arguments
+  real(rkind),intent(in)                :: scalarAquiferStorageTrial ! trial value of aquifer storage (m)
+  type(var_dlength),intent(in)          :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(in)          :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  associate(&
+   scalarCanopyTranspiration    => flux_data%var(iLookFLUX%scalarCanopyTranspiration)%dat(1), &  ! intent(out): [dp]    canopy transpiration (kg m-2 s-1)
+   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1),        &  ! intent(out): [dp]     drainage from the soil profile (m s-1)
+   dCanopyTrans_dCanWat         => deriv_data%var(iLookDERIV%dCanopyTrans_dCanWat)%dat(1),    &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+   dCanopyTrans_dTCanair        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanair)%dat(1),   &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTCanopy        => deriv_data%var(iLookDERIV%dCanopyTrans_dTCanopy)%dat(1),   &  ! intent(out): [dp] derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   dCanopyTrans_dTGround        => deriv_data%var(iLookDERIV%dCanopyTrans_dTGround)%dat(1) )     ! intent(out): [dp] derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+   ! intent(in) arguments
+   in_bigAquifer % scalarAquiferStorageTrial = scalarAquiferStorageTrial ! intent(in): trial value of aquifer storage (m)
+   in_bigAquifer % scalarCanopyTranspiration = scalarCanopyTranspiration ! intent(in): canopy transpiration (kg m-2 s-1)
+   in_bigAquifer % scalarSoilDrainage        = scalarSoilDrainage        ! intent(in): soil drainage (m s-1)
+   in_bigAquifer % dCanopyTrans_dCanWat      = dCanopyTrans_dCanWat      ! intent(in): derivative in canopy transpiration w.r.t. canopy total water content (s-1)
+   in_bigAquifer % dCanopyTrans_dTCanair     = dCanopyTrans_dTCanair     ! intent(in): derivative in canopy transpiration w.r.t. canopy air temperature (kg m-2 s-1 K-1)
+   in_bigAquifer % dCanopyTrans_dTCanopy     = dCanopyTrans_dTCanopy     ! intent(in): derivative in canopy transpiration w.r.t. canopy temperature (kg m-2 s-1 K-1)
+   in_bigAquifer % dCanopyTrans_dTGround     = dCanopyTrans_dTGround     ! intent(in): derivative in canopy transpiration w.r.t. ground temperature (kg m-2 s-1 K-1)
+  end associate
+ end subroutine initialize_in_bigAquifer
+ 
+ subroutine initialize_io_bigAquifer(io_bigAquifer,deriv_data)
+  class(io_type_bigAquifer),intent(out) :: io_bigAquifer  ! class object for intent(inout) arguments
+  type(var_dlength),intent(in)          :: deriv_data     ! derivatives in model fluxes w.r.t. relevant state variables
+  associate(&
+   dAquiferTrans_dTCanair       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanair)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+   dAquiferTrans_dTCanopy       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanopy)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+   dAquiferTrans_dTGround       => deriv_data%var(iLookDERIV%dAquiferTrans_dTGround)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+   dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat)%dat(1) )   ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+   ! intent(inout) arguments
+   io_bigAquifer % dAquiferTrans_dTCanair = dAquiferTrans_dTCanair       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+   io_bigAquifer % dAquiferTrans_dTCanopy = dAquiferTrans_dTCanopy       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+   io_bigAquifer % dAquiferTrans_dTGround = dAquiferTrans_dTGround       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+   io_bigAquifer % dAquiferTrans_dCanWat  = dAquiferTrans_dCanWat        ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+  end associate
+ end subroutine initialize_io_bigAquifer
+ 
+ subroutine finalize_io_bigAquifer(io_bigAquifer,deriv_data)
+  class(io_type_bigAquifer),intent(in)  :: io_bigAquifer  ! class object for intent(inout) arguments
+  type(var_dlength),intent(inout)       :: deriv_data     ! derivatives in model fluxes w.r.t. relevant state variables
+  associate(&
+   dAquiferTrans_dTCanair       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanair)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+   dAquiferTrans_dTCanopy       => deriv_data%var(iLookDERIV%dAquiferTrans_dTCanopy)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+   dAquiferTrans_dTGround       => deriv_data%var(iLookDERIV%dAquiferTrans_dTGround)%dat(1), & ! intent(out): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+   dAquiferTrans_dCanWat        => deriv_data%var(iLookDERIV%dAquiferTrans_dCanWat)%dat(1) )   ! intent(out): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+   ! intent(inout) arguments
+   dAquiferTrans_dTCanair = io_bigAquifer % dAquiferTrans_dTCanair       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
+   dAquiferTrans_dTCanopy = io_bigAquifer % dAquiferTrans_dTCanopy       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
+   dAquiferTrans_dTGround = io_bigAquifer % dAquiferTrans_dTGround       ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
+   dAquiferTrans_dCanWat  = io_bigAquifer % dAquiferTrans_dCanWat        ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy total water
+  end associate
+ end subroutine finalize_io_bigAquifer
+
+ subroutine finalize_out_bigAquifer(out_bigAquifer,flux_data,deriv_data,err,cmessage)
+  class(out_type_bigAquifer),intent(in) :: out_bigAquifer ! class object for intent(out) arguments
+  type(var_dlength),intent(inout)       :: flux_data      ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)       :: deriv_data     ! derivatives in model fluxes w.r.t. relevant state variables
+  integer(i4b),intent(out)              :: err                         ! error code
+  character(*),intent(out)              :: cmessage                    ! error message from vegLiqFlux
+  associate(&
+   scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1)
+   scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1),  & ! intent(out): [dp] total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer)%dat(1) )    ! intent(out): [dp(:)] derivative in baseflow flux w.r.t. aquifer storage (s-1)
+   ! intent(out) arguments
+   scalarAquiferTranspire = out_bigAquifer % scalarAquiferTranspire      ! intent(out):   transpiration loss from the aquifer (m s-1)
+   scalarAquiferRecharge  = out_bigAquifer % scalarAquiferRecharge       ! intent(out):   recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow  = out_bigAquifer % scalarAquiferBaseflow       ! intent(out):   total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer     = out_bigAquifer % dBaseflow_dAquifer          ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
+   err                    = out_bigAquifer % err                         ! intent(out):   error code
+   cmessage               = out_bigAquifer % cmessage                    ! intent(out):   error message
+  end associate
+ end subroutine finalize_out_bigAquifer
+ ! ** end bigAquifer
 END MODULE data_types

@@ -401,9 +401,9 @@ subroutine computFlux(&
     ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
     if (ixAqWat/=integerMissing) then ! check if computing aquifer fluxes
       if (local_ixGroundwater==bigBucket) then ! compute fluxes for the big bucket
-        call subTools(iLookOP%pre,iLookROUTINE%bigAquifer)  ! pre-processing for call to bigAquifer
+        call initialize_bigAquifer
         call bigAquifer(in_bigAquifer,mpar_data,diag_data,io_bigAquifer,out_bigAquifer)
-        call subTools(iLookOP%post,iLookROUTINE%bigAquifer) ! post-processing for call to bigAquifer
+        call finalize_bigAquifer
       else ! if no aquifer, then fluxes are zero
         scalarAquiferTranspire = 0._rkind  ! transpiration loss from the aquifer (m s-1)
         scalarAquiferRecharge  = 0._rkind  ! recharge to the aquifer (m s-1)
@@ -1003,7 +1003,27 @@ contains
   ! error control
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
  end subroutine finalize_groundwatr
- 
+
+ subroutine initialize_bigAquifer
+  call in_bigAquifer%initialize(scalarAquiferStorageTrial,flux_data,deriv_data)
+  call io_bigAquifer%initialize(deriv_data)
+ end subroutine initialize_bigAquifer
+
+ subroutine finalize_bigAquifer
+  call io_bigAquifer%finalize(deriv_data)
+  call out_bigAquifer%finalize(flux_data,deriv_data,err,cmessage)
+  associate(&
+   scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)               ,&  ! intent(out): [dp] total runoff (m s-1)
+   scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)             ,&  ! intent(out): [dp] surface runoff (m s-1)
+   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1) )             ! intent(out): [dp] total baseflow from the aquifer (m s-1)
+   ! error control
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+   ! compute total runoff (overwrite previously calculated value before considering aquifer).
+   !   (Note:  SoilDrainage goes into aquifer, not runoff)
+   scalarTotalRunoff  = scalarSurfaceRunoff + scalarAquiferBaseflow     
+  end associate
+ end subroutine finalize_bigAquifer
+
 end subroutine computFlux
 
 ! **********************************************************************************************************
