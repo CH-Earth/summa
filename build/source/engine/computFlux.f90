@@ -330,9 +330,9 @@ subroutine computFlux(&
 
     ! *** CALCULATE ENERGY FLUXES THROUGH THE SNOW-SOIL DOMAIN ***
     if (nSnowSoilNrg>0) then ! if necessary, calculate energy fluxes at layer interfaces through the snow and soil domain
-      call subTools(iLookOP%pre,iLookROUTINE%ssdNrgFlux)  ! pre-processing for call to ssdNrgFlux
+      call initialize_ssdNrgFlux
       call ssdNrgFlux(in_ssdNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_ssdNrgFlux,out_ssdNrgFlux)
-      call subTools(iLookOP%post,iLookROUTINE%ssdNrgFlux) ! post-processing for call to ssdNrgFlux
+      call finalize_ssdNrgFlux
     end if  ! end if computing energy fluxes throughout the snow+soil domain
 
     ! *** CALCULATE THE LIQUID FLUX THROUGH VEGETATION ***
@@ -918,6 +918,30 @@ contains
   end associate ! end associate block
 
  end subroutine subTools
+
+ subroutine initialize_ssdNrgFlux
+  call in_ssdNrgFlux%initialize(scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
+  call io_ssdNrgFlux%initialize(deriv_data)
+ end subroutine initialize_ssdNrgFlux
+
+ subroutine finalize_ssdNrgFlux
+  call io_ssdNrgFlux%finalize(deriv_data)
+  call out_ssdNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
+  associate(&
+   mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat, & ! intent(out): [dp] net energy flux for each layer within the snow+soil domain (J m-3 s-1)
+   iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat, & ! intent(out): [dp(0:)] vertical energy flux at the interface of snow and soil layers
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat    ) ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+   ! error control
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+   ! calculate net energy fluxes for each snow and soil layer (J m-3 s-1)
+   do iLayer=1,nLayers
+     mLayerNrgFlux(iLayer) = -(iLayerNrgFlux(iLayer) - iLayerNrgFlux(iLayer-1))/mLayerDepth(iLayer)
+     if (globalPrintFlag) then
+       if (iLayer < 10) write(*,'(a,1x,i4,1x,10(f25.15,1x))') 'iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)   = ', iLayer, iLayerNrgFlux(iLayer-1:iLayer), mLayerNrgFlux(iLayer)
+     end if
+   end do
+  end associate
+ end subroutine finalize_ssdNrgFlux
 
  subroutine initialize_vegLiqFlux
   call in_vegLiqFlux%initialize(computeVegFlux,scalarCanopyLiqTrial,flux_data)

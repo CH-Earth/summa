@@ -354,29 +354,36 @@ MODULE data_types
 
  ! ** ssdNrgFlux
  type, public :: in_type_ssdNrgFlux ! derived type for intent(in) arguments in ssdNrgFlux call
-  logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
-  real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
-  real(rkind), allocatable :: iLayerLiqFluxSnow(:)              ! intent(in): liquid flux at the interface of each snow layer (m s-1)
-  real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
-  real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
-  real(rkind), allocatable :: dThermalC_dWatAbove(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind), allocatable :: dThermalC_dWatBelow(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
-  real(rkind), allocatable :: dThermalC_dTempAbove(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
-  real(rkind), allocatable :: dThermalC_dTempBelow(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+   logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
+   real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
+   real(rkind), allocatable :: iLayerLiqFluxSnow(:)              ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+   real(rkind), allocatable :: iLayerLiqFluxSoil(:)              ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+   real(rkind), allocatable :: mLayerTempTrial(:)                ! intent(in): temperature in each layer at the current iteration (m)
+   real(rkind), allocatable :: dThermalC_dWatAbove(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+   real(rkind), allocatable :: dThermalC_dWatBelow(:)            ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+   real(rkind), allocatable :: dThermalC_dTempAbove(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+   real(rkind), allocatable :: dThermalC_dTempBelow(:)           ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+  contains
+   procedure :: initialize => initialize_in_ssdNrgFlux
  end type in_type_ssdNrgFlux
 
  type, public :: io_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
-  real(rkind)              :: dGroundNetFlux_dGroundTemp        ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+   real(rkind)              :: dGroundNetFlux_dGroundTemp        ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+  contains
+   procedure :: initialize => initialize_io_ssdNrgFlux
+   procedure :: finalize   => finalize_io_ssdNrgFlux
  end type io_type_ssdNrgFlux
 
  type, public :: out_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
-  real(rkind), allocatable :: iLayerNrgFlux(:)                  ! intent(out): energy flux at the layer interfaces (W m-2)
-  real(rkind), allocatable :: dNrgFlux_dTempAbove(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
-  real(rkind), allocatable :: dNrgFlux_dTempBelow(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
-  real(rkind), allocatable :: dNrgFlux_dWatAbove(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
-  real(rkind), allocatable :: dNrgFlux_dWatBelow(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
-  integer(i4b)             :: err                               ! intent(out): error code
-  character(:),allocatable :: cmessage                          ! intent(out): error message
+   real(rkind), allocatable :: iLayerNrgFlux(:)                  ! intent(out): energy flux at the layer interfaces (W m-2)
+   real(rkind), allocatable :: dNrgFlux_dTempAbove(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+   real(rkind), allocatable :: dNrgFlux_dTempBelow(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+   real(rkind), allocatable :: dNrgFlux_dWatAbove(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+   real(rkind), allocatable :: dNrgFlux_dWatBelow(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+   integer(i4b)             :: err                               ! intent(out): error code
+   character(:),allocatable :: cmessage                          ! intent(out): error message
+  contains
+   procedure :: finalize   => finalize_out_ssdNrgFlux
  end type out_type_ssdNrgFlux
  ! ** end ssdNrgFlux
 
@@ -551,6 +558,79 @@ MODULE data_types
  ! ** end bigAquifer
 
 contains
+
+ ! ** ssdNrgFlux
+ subroutine initialize_in_ssdNrgFlux(in_ssdNrgFlux,scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
+  class(in_type_ssdNrgFlux),intent(out) :: in_ssdNrgFlux               ! class object for intent(in) ssdNrgFlux arguments
+  logical(lgt),intent(in)               :: scalarSolution              ! flag to denote if implementing the scalar solution
+  logical(lgt),intent(in)               :: firstFluxCall               ! flag to indicate if we are processing the first flux call
+  real(rkind),intent(in)                :: mLayerTempTrial(:)          ! trial value for temperature of each snow/soil layer (K)
+  type(var_dlength),intent(in)          :: flux_data                   ! model fluxes for a local HRU
+  type(var_dlength),intent(in)          :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+  associate(&
+   scalarGroundNetNrgFlux       => flux_data%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the ground surface (W m-2)
+   iLayerLiqFluxSnow            => flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,         & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+   dThermalC_dWatAbove          => deriv_data%var(iLookDERIV%dThermalC_dWatAbove)%dat,     & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
+   dThermalC_dWatBelow          => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat,     & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
+   dThermalC_dTempAbove         => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat,    & ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
+   dThermalC_dTempBelow         => deriv_data%var(iLookDERIV%dThermalC_dTempBelow)%dat     ) ! intent(in):  [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
+   ! intent(in) arguments
+   in_ssdNrgFlux % scalarSolution=scalarSolution .and. .not.firstFluxCall ! intent(in): flag to denote if implementing the scalar solution
+   in_ssdNrgFlux % scalarGroundNetNrgFlux=scalarGroundNetNrgFlux          ! intent(in): net energy flux for the ground surface (W m-2)
+   in_ssdNrgFlux % iLayerLiqFluxSnow=iLayerLiqFluxSnow                    ! intent(in): liquid flux at the interface of each snow layer (m s-1)
+   in_ssdNrgFlux % iLayerLiqFluxSoil=iLayerLiqFluxSoil                    ! intent(in): liquid flux at the interface of each soil layer (m s-1)
+   in_ssdNrgFlux % mLayerTempTrial=mLayerTempTrial                        ! intent(in): temperature in each layer at the current iteration (m)
+   in_ssdNrgFlux % dThermalC_dWatAbove=dThermalC_dWatAbove                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+   in_ssdNrgFlux % dThermalC_dWatBelow=dThermalC_dWatBelow                ! intent(in): derivative in the thermal conductivity w.r.t. water state in the layer above
+   in_ssdNrgFlux % dThermalC_dTempAbove=dThermalC_dTempAbove              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+   in_ssdNrgFlux % dThermalC_dTempBelow=dThermalC_dTempBelow              ! intent(in): derivative in the thermal conductivity w.r.t. energy state in the layer above
+  end associate
+ end subroutine initialize_in_ssdNrgFlux
+
+ subroutine initialize_io_ssdNrgFlux(io_ssdNrgFlux,deriv_data)
+  class(io_type_ssdNrgFlux),intent(out) :: io_ssdNrgFlux                 ! class object for intent(inout) ssdNrgFlux arguments
+  type(var_dlength),intent(in)          :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
+  associate(&
+   dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp)%dat(1) ) ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
+   ! intent(inout) arguments
+   io_ssdNrgFlux % dGroundNetFlux_dGroundTemp=dGroundNetFlux_dGroundTemp ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+  end associate
+ end subroutine initialize_io_ssdNrgFlux
+
+ subroutine finalize_io_ssdNrgFlux(io_ssdNrgFlux,deriv_data)
+  class(io_type_ssdNrgFlux),intent(in)  :: io_ssdNrgFlux                 ! class object for intent(inout) ssdNrgFlux arguments
+  type(var_dlength),intent(inout)       :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
+  associate(&
+   dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp)%dat(1) ) ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
+   ! intent(inout) arguments
+   dGroundNetFlux_dGroundTemp=io_ssdNrgFlux % dGroundNetFlux_dGroundTemp ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
+  end associate
+ end subroutine finalize_io_ssdNrgFlux
+
+ subroutine finalize_out_ssdNrgFlux(out_ssdNrgFlux,flux_data,deriv_data,err,cmessage)
+  class(out_type_ssdNrgFlux),intent(in) :: out_ssdNrgFlux              ! class object for intent(out) ssdNrgFlux arguments
+  type(var_dlength),intent(inout)       :: flux_data                   ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)       :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
+  integer(i4b),intent(out)              :: err                         ! error code
+  character(*),intent(out)              :: cmessage                    ! error message from vegLiqFlux
+  associate(&
+   iLayerNrgFlux                => flux_data%var(iLookFLUX%iLayerNrgFlux)%dat,         & ! intent(out): [dp(0:)] vertical energy flux at the interface of snow and soil layers
+   dNrgFlux_dTempAbove          => deriv_data%var(iLookDERIV%dNrgFlux_dTempAbove)%dat, & ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer above
+   dNrgFlux_dTempBelow          => deriv_data%var(iLookDERIV%dNrgFlux_dTempBelow)%dat, & ! intent(out): [dp(:)] derivatives in the flux w.r.t. temperature in the layer below
+   dNrgFlux_dWatAbove           => deriv_data%var(iLookDERIV%dNrgFlux_dWatAbove)%dat,  & ! intent(out):  [dp(:)] derivatives in the flux w.r.t. water state in the layer above
+   dNrgFlux_dWatBelow           => deriv_data%var(iLookDERIV%dNrgFlux_dWatBelow)%dat   ) ! intent(out): [dp(:)] derivatives in the flux w.r.t. water state in the layer below
+   ! intent(out) arguments
+   iLayerNrgFlux      =out_ssdNrgFlux % iLayerNrgFlux                     ! intent(out): energy flux at the layer interfaces (W m-2)
+   dNrgFlux_dTempAbove=out_ssdNrgFlux % dNrgFlux_dTempAbove               ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
+   dNrgFlux_dTempBelow=out_ssdNrgFlux % dNrgFlux_dTempBelow               ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+   dNrgFlux_dWatAbove =out_ssdNrgFlux % dNrgFlux_dWatAbove                ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
+   dNrgFlux_dWatBelow =out_ssdNrgFlux % dNrgFlux_dWatBelow                ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
+   err                =out_ssdNrgFlux % err                               ! intent(out): error code
+   cmessage           =out_ssdNrgFlux % cmessage                          ! intent(out): error message
+  end associate
+ end subroutine finalize_out_ssdNrgFlux
+ ! ** end ssdNrgFlux
  
  ! ** vegLiqFlux
  subroutine initialize_in_vegLiqFlux(in_vegLiqFlux,computeVegFlux,scalarCanopyLiqTrial,flux_data) ! SJT
