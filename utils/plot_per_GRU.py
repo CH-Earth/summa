@@ -47,10 +47,12 @@ use_eff = False # use efficiency in wall clock time
 plot_vars = settings
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-if stat=='rmse': maxes = [2,15,8e-6,0.08,7e-9,10e-3]
-if stat=='maxe': maxes = [20,30,3e-4,2,4e-7,0.2]
-if stat=='kgem' : maxes = [0.9,0.7,0.9,0.95,0.95,10e-3]
-if stat=='mean': maxes = [100,1700,5e-5,8,1e-7,10e-3]
+if stat == 'rmse': maxes = [2,15,8e-6,0.08,7e-9,10e-3]
+# if stat=='rmse': maxes = [0.25,2,1e-6,0.01,1e-9,2e-3]
+if stat == 'maxe': maxes = [20,30,3e-4,2,4e-7,0.2]
+if stat == 'kgem': maxes = [0.9,0.7,0.9,0.95,0.95,10e-3]
+if stat == 'mean': maxes = [80,1500,5e-5,8,1e-7,10e-3]
+if stat == 'amax': maxes = [240,1800,1e-3,25,1.554e-5,0.2]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
@@ -189,7 +191,7 @@ for plot_var in plot_vars:
         # Multiply the s values by efficiency
         s = s*eff_batch
 
-    if stat == 'maxe' or 'mean': s = np.fabs(s) # make absolute value norm, max is not not all positive
+    if stat == 'maxe' or stat =='mean' or stat =='amax': s = np.fabs(s) # make absolute value norm, max is not not all positive
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
@@ -228,9 +230,11 @@ def run_loop(i,var,the_max,f_x,f_y):
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = 0, the_max
-    if stat=='mean' and var=='scalarTotalSoilWater': vmin,vmax = 600, the_max
+    if stat =='mean' and var=='scalarTotalSoilWat': vmin,vmax = 700, the_max
+    if stat =='amax' and var=='scalarTotalSoilWat': vmin,vmax = 1000, the_max
+    if stat =='amax' and var=='averageRoutedRunoff': vmin,vmax = 1.538e-5, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
-    if stat=='kgem' and var!='wallClockTime':
+    if stat =='kgem' and var!='wallClockTime':
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
         my_cmap.set_bad(color='white') #nan color white
         vmin,vmax = the_max, 1.0
@@ -253,6 +257,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat == 'maxe': stat_word = ' Hourly max abs error'
     if stat == 'kgem': stat_word = ' Hourly KGEm'
     if stat == 'mean': stat_word = ' Hourly abs mean'
+    if stat == 'amax': stat_word = ' Hourly abs max'
 
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
