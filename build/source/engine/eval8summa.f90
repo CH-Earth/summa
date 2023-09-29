@@ -909,10 +909,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
     select case(ixNumericalMethod)
     case(ida); err=20; message=trim(message)//'should not be imposing constraints for IDA solver'; return
       case(kinsol)
-        small_delTemp       = .false.     ! flag to constain temperature change to be less than zMaxTempIncrement, gets more accurate solution if off
-        zMaxTempIncrement   = 1._rkind    ! maximum temperature increment (K)
-        small_delMatric     = .false.     ! flag to constain matric head change to be less than zMaxMatricIncrement, gets more accurate solution if off
-        zMaxMatricIncrement = 1._rkind    ! maximum matric head increment (m)
+        small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
+        zMaxTempIncrement   = 10._rkind   ! maximum temperature increment (K)
+        small_delMatric     = .true.      ! flag to constain matric head change to be less than zMaxMatricIncrement
+        zMaxMatricIncrement = 10._rkind   ! maximum matric head increment (m)
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT, works best if on
         epsT                = 1.e-3_rkind ! small interval above/below critical (K), works better if larger
         water_bounds        = .true.      ! flag to force water bounds, works best if on

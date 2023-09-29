@@ -644,8 +644,8 @@ subroutine setSolverParams(dt_cur,nonlin_iter,ida_mem,retval)
   integer(i4b),intent(out)    :: retval             ! return value
 
   !======= Internals ============
-  integer,parameter           :: max_order = 5      ! maximum BDF order,  default = 5
-  real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
+  integer,parameter           :: max_order = 5      ! maximum BDF order,  default and max = 5
+  real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
   integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
   integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
   integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
@@ -656,12 +656,12 @@ subroutine setSolverParams(dt_cur,nonlin_iter,ida_mem,retval)
   retval = FIDASetMaxOrd(ida_mem, max_order)
   if (retval /= 0) return
 
-  ! Set Coeff. in the nonlinear convergence test
+  ! Set coefficient in the nonlinear convergence test
   retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
   if (retval /= 0) return
 
-  ! Set maximun number of nonliear iterations
-   retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+  ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
+  retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
   if (retval /= 0) return
 
   !  Set maximum number of convergence test failures
