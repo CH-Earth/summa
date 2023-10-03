@@ -323,9 +323,9 @@ subroutine computFlux(&
     ! identify the need to calculate the energy flux over vegetation
     doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
     if (doVegNrgFlux) then ! if necessary, calculate the energy fluxes over vegetation
-      call subTools(iLookOP%pre,iLookROUTINE%vegNrgFlux)  ! pre-processing for call to vegNrgFlux
+      call initialize_vegNrgFlux
       call vegNrgFlux(in_vegNrgFlux,type_data,forc_data,mpar_data,indx_data,prog_data,diag_data,flux_data,bvar_data,model_decisions,out_vegNrgFlux)
-      call subTools(iLookOP%post,iLookROUTINE%vegNrgFlux) ! post-processing for call to vegNrgFlux
+      call finalize_vegNrgFlux
     end if ! end if calculating the energy fluxes over vegetation
 
     ! *** CALCULATE ENERGY FLUXES THROUGH THE SNOW-SOIL DOMAIN ***
@@ -396,7 +396,6 @@ subroutine computFlux(&
       ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
       scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow
     end if  ! end if computing soil hydrology
-
 
     ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
     if (ixAqWat/=integerMissing) then ! check if computing aquifer fluxes
@@ -918,6 +917,46 @@ contains
   end associate ! end associate block
 
  end subroutine subTools
+
+ subroutine initialize_vegNrgFlux
+  associate(&
+   dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy)%dat(1), & ! intent(out): [dp] derivative of canopy liquid storage w.r.t. temperature
+   dTheta_dTkCanopy             => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1), & ! intent(in):  [dp] derivative of volumetric liquid water content w.r.t. temperature
+   canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)   ) ! intent(in): [dp]  canopy depth (m)
+
+   dCanLiq_dTcanopy = dTheta_dTkCanopy*iden_water*canopyDepth     ! derivative in canopy liquid storage w.r.t. canopy temperature (kg m-2 K-1)
+  end associate
+  call in_vegNrgFlux % initialize(firstSubStep,firstFluxCall,computeVegFlux,checkLWBalance,&
+                                  scalarCanairTempTrial,scalarCanopyTempTrial,mLayerTempTrial,scalarCanopyIceTrial,&
+                                  scalarCanopyLiqTrial,forc_data,deriv_data)
+ end subroutine initialize_vegNrgFlux
+
+ subroutine finalize_vegNrgFlux
+  call out_vegNrgFlux%finalize(flux_data,deriv_data,err,cmessage)
+  associate(&
+   canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),      & ! intent(in): [dp   ]  canopy depth (m)
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,               & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+   scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the canopy air space  (W m-2)
+   scalarCanopyNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the vegetation canopy (W m-2)
+   scalarGroundNetNrgFlux       => flux_data%var(iLookFLUX%scalarGroundNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the ground surface    (W m-2)
+   dGroundNetFlux_dGroundTemp   => deriv_data%var(iLookDERIV%dGroundNetFlux_dGroundTemp)%dat(1) ) ! intent(out): [dp] derivative in net ground flux w.r.t. ground temperature
+   ! error control
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+   ! check fluxes
+   if (globalPrintFlag) then
+    print*, '**'
+    write(*,'(a,1x,10(f30.20))') 'canopyDepth           = ',  canopyDepth
+    write(*,'(a,1x,10(f30.20))') 'mLayerDepth(1:2)      = ',  mLayerDepth(1:2)
+    write(*,'(a,1x,10(f30.20))') 'scalarCanairTempTrial = ',  scalarCanairTempTrial   ! trial value of the canopy air space temperature (K)
+    write(*,'(a,1x,10(f30.20))') 'scalarCanopyTempTrial = ',  scalarCanopyTempTrial   ! trial value of canopy temperature (K)
+    write(*,'(a,1x,10(f30.20))') 'mLayerTempTrial(1:2)  = ',  mLayerTempTrial(1:2)    ! trial value of ground temperature (K)
+    write(*,'(a,1x,10(f30.20))') 'scalarCanairNetNrgFlux = ', scalarCanairNetNrgFlux
+    write(*,'(a,1x,10(f30.20))') 'scalarCanopyNetNrgFlux = ', scalarCanopyNetNrgFlux
+    write(*,'(a,1x,10(f30.20))') 'scalarGroundNetNrgFlux = ', scalarGroundNetNrgFlux
+    write(*,'(a,1x,10(f30.20))') 'dGroundNetFlux_dGroundTemp = ', dGroundNetFlux_dGroundTemp
+   end if ! end if checking fluxes
+  end associate
+ end subroutine finalize_vegNrgFlux
 
  subroutine initialize_ssdNrgFlux
   call in_ssdNrgFlux%initialize(scalarSolution,firstFluxCall,mLayerTempTrial,flux_data,deriv_data)
