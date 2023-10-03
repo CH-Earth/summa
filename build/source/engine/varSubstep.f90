@@ -414,7 +414,7 @@ subroutine varSubstep(&
 
       ! identify the need to check the mass balance
       select case(ixNumericalMethod)
-        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances
+        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances (maybe kinsol should be false too)
         case(kinsol, numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
       end select
 
@@ -446,7 +446,7 @@ subroutine varSubstep(&
 
         ! modify step
         err=0  ! error recovery
-        dtSubstep = dtSubstep/2._rkind
+        dtSubstep = dtSubstep/2._rkind 
 
         ! check minimum: fail minimum step if there is an error in the update
         if(dtSubstep<dt_min)then
@@ -933,7 +933,8 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! * check mass balance...
     ! -----------------------
 
-    ! NOTE: should not need to do this, since mass balance is checked in the solver, and cannot do for IDA
+    ! NOTE: currently this will only fail with kinsol solver, since mass balance is checked in the numrec solver and not checked for ida solver
+    !   Negative error code will mean step will be failed and retried with smaller step size
     if(checkMassBalance)then
 
       ! check mass balance for the canopy
@@ -996,8 +997,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
         endif  ! if there is a water balance error
       endif  ! if veg canopy
 
-      ! check mass balance for soil, again not checked for IDA
-      ! NOTE: fatal errors, though possible to recover using negative error codes
+      ! check mass balance for soil, again already satisfied for numrec solver and not checked for ida and solver
       if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
         soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
         vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m

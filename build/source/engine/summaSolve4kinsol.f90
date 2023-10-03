@@ -470,7 +470,7 @@ subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
   if (retval /= 0) return
 
   ! Set maximum number of iterations   
-  nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type
+  nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type, maybe should just make 200 (instead of SUMMA parameter)
   retval = FKINSetNumMaxIters(kinsol_mem, nonlin_itr)
   if (retval /= 0) return
 
