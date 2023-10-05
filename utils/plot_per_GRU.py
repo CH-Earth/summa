@@ -46,13 +46,16 @@ use_eff = False # use efficiency in wall clock time
 # Specify variables of interest
 plot_vars = settings
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
-if stat == 'rmse': maxes = [2,15,8e-6,0.08,7e-9,10e-3]
-# if stat=='rmse': maxes = [0.25,2,1e-6,0.01,1e-9,2e-3]
-if stat == 'maxe': maxes = [20,30,3e-4,2,4e-7,0.2]
-if stat == 'kgem': maxes = [0.9,0.7,0.9,0.95,0.95,10e-3]
-if stat == 'mean': maxes = [80,1500,5e-5,8,1e-7,10e-3]
-if stat == 'amax': maxes = [240,1800,1e-3,25,1.554e-5,0.2]
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
+leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
+
+if stat == 'rmse': maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
+# if stat=='rmse': maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
+if stat == 'rmnz': maxes = [2,15,250,0.08,200,10e-3]
+if stat == 'maxe': maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
+if stat == 'kgem': maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
+if stat == 'mean': maxes = [80,1500,1500,3000,10e-3] #[80,1500,5e-5,8,1e-7,10e-3]
+if stat == 'amax': maxes = [240,1800,3.5,25,7.5,0.2] #[240,1800,1e-3,25,2e-6,0.2]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
@@ -192,6 +195,12 @@ for plot_var in plot_vars:
         s = s*eff_batch
 
     if stat == 'maxe' or stat =='mean' or stat =='amax': s = np.fabs(s) # make absolute value norm, max is not not all positive
+    if plot_var == 'scalarTotalET':
+        if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
+        if stat =='maxe': s = s*3600 # make hourly max
+    if plot_var == 'averageRoutedRunoff':
+        if stat =='rmse' or stat =='rmnz' : s = s*31557600*1000 # make annual total
+        if stat =='maxe': s = s*3600*1000 # make hourly max    
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
@@ -232,13 +241,12 @@ def run_loop(i,var,the_max,f_x,f_y):
     vmin,vmax = 0, the_max
     if stat =='mean' and var=='scalarTotalSoilWat': vmin,vmax = 700, the_max
     if stat =='amax' and var=='scalarTotalSoilWat': vmin,vmax = 1000, the_max
-    if stat =='amax' and var=='averageRoutedRunoff': vmin,vmax = 1.538e-5, the_max
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     if stat =='kgem' and var!='wallClockTime':
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
         my_cmap.set_bad(color='white') #nan color white
         vmin,vmax = the_max, 1.0
-        norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=1.5)
     r = i//2
     c = i-r*2
 
@@ -250,19 +258,22 @@ def run_loop(i,var,the_max,f_x,f_y):
     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-    cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+    if stat == 'rmse' or stat == 'rmnz' or stat == 'mean': cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+    if stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+
     #cbr.ax.yaxis.set_offset_position('right')
 
-    if stat == 'rmse': stat_word = ' Hourly RMSE'
-    if stat == 'maxe': stat_word = ' Hourly max abs error'
-    if stat == 'kgem': stat_word = ' Hourly KGEm'
-    if stat == 'mean': stat_word = ' Hourly abs mean'
-    if stat == 'amax': stat_word = ' Hourly abs max'
+    if stat == 'rmse': stat_word = ' RMSE'
+    if stat == 'rmnz': stat_word = ' RMSE no 0s'
+    if stat == 'maxe': stat_word = ' max abs error'
+    if stat == 'kgem': stat_word = ' KGE"'
+    if stat == 'mean': stat_word = ' abs mean'
+    if stat == 'amax': stat_word = ' abs max'
 
     # wall Clock doesn't do difference
     if var == 'wallClockTime':
-        if stat == 'rmse' or stat == 'kgem': stat_word = ' Hourly mean'
-        if stat == 'maxe': stat_word = ' Hourly max'
+        if stat == 'rmse' or stat == 'kgem': stat_word = ' mean'
+        if stat == 'maxe': stat_word = ' max'
 
     axs[r,c].set_title(plt_titl[i] + stat_word)
     axs[r,c].axis('off')
