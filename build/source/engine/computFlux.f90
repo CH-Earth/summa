@@ -372,9 +372,9 @@ subroutine computFlux(&
 
     ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
-      call subTools(iLookOP%pre,iLookROUTINE%soilLiqFlx)  ! pre-processing for call to soilLiqFlx
+      call initialize_soilLiqFlx
       call soilLiqFlx(in_soilLiqFlx,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlx,out_soilLiqFlx)
-      call subTools(iLookOP%post,iLookROUTINE%soilLiqFlx) ! post-processing for call to soilLiqFlx
+      call finalize_soilLiqFlx
     end if  ! end if calculating the liquid flux through soil
 
     ! *** CALCULATE THE GROUNDWATER FLOW ***
@@ -1049,6 +1049,66 @@ contains
    above_soilFracLiq      = mLayerFracLiqSnow(nSnow)      ! fraction of liquid water in bottom snow layer (-)
   end associate
  end subroutine finalize_snowLiqFlx
+
+ subroutine initialize_soilLiqFlx
+  call in_soilLiqFlx%initialize(nsnow,nSoil,nlayers,firstSplitOper,scalarSolution,firstFluxCall,&
+                                mLayerTempTrial,mLayerMatricHeadTrial,mLayerMatricHeadLiqTrial,mLayerVolFracLiqTrial,mLayerVolFracIceTrial,&
+                                above_soilLiqFluxDeriv,above_soildLiq_dTk,above_soilFracLiq,flux_data,deriv_data)
+  call io_soilLiqFlx%initialize(nsoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+ end subroutine initialize_soilLiqFlx
+
+ subroutine finalize_soilLiqFlx
+  call io_soilLiqFlx%finalize(nsoil,dHydCond_dMatric,flux_data,diag_data,deriv_data)
+  call out_soilLiqFlx%finalize(err,cmessage)
+  ! error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+  associate(&
+   mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,     & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
+   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat,     & ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+   mLayerDepth                  => prog_data%var(iLookPROG%mLayerDepth)%dat,           & ! intent(in): [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
+   scalarMaxInfilRate           => flux_data%var(iLookFLUX%scalarMaxInfilRate)%dat(1), & ! intent(out): [dp] maximum infiltration rate (m s-1)
+   scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1), & ! intent(out): [dp] rain plus melt (m s-1)
+   scalarSoilControl            => diag_data%var(iLookDIAG%scalarSoilControl )%dat(1), & ! intent(out): [dp] soil control on infiltration, zero or one
+   scalarInfilArea              => diag_data%var(iLookDIAG%scalarInfilArea   )%dat(1), & ! intent(out): [dp] fraction of unfrozen area where water can infiltrate (-)
+   scalarFrozenArea             => diag_data%var(iLookDIAG%scalarFrozenArea  )%dat(1), & ! intent(out): [dp] fraction of area that is considered impermeable due to soil ice (-)
+   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)  ) ! intent(out): [dp]     drainage from the soil profile (m s-1)
+
+   ! calculate net liquid water fluxes for each soil layer (s-1)
+   do iLayer=1,nSoil
+     mLayerLiqFluxSoil(iLayer) = -(iLayerLiqFluxSoil(iLayer) - iLayerLiqFluxSoil(iLayer-1))/mLayerDepth(iLayer+nSnow)
+   end do
+
+   ! calculate the soil control on infiltration
+   if (nSnow==0) then
+     ! * case of infiltration into soil
+     if (scalarMaxInfilRate > scalarRainPlusMelt) then  ! infiltration is not rate-limited
+       scalarSoilControl = (1._rkind - scalarFrozenArea)*scalarInfilArea
+     else
+       scalarSoilControl = 0._rkind  ! (scalarRainPlusMelt exceeds maximum infiltration rate
+     end if
+   else
+     ! * case of infiltration into snow
+     scalarSoilControl = 1._rkind
+   end if
+
+   ! compute drainage from the soil zone (needed for mass balance checks and in aquifer recharge)
+   scalarSoilDrainage = iLayerLiqFluxSoil(nSoil)
+  end associate
+
+  associate(&
+   dq_dHydStateAbove            => deriv_data%var(iLookDERIV%dq_dHydStateAbove)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer above
+   dq_dHydStateBelow            => deriv_data%var(iLookDERIV%dq_dHydStateBelow)%dat,        & ! intent(out): [dp(:)] change in flux at layer interfaces w.r.t. states in the layer below
+   dq_dHydStateLayerSurfVec     => deriv_data%var(iLookDERIV%dq_dHydStateLayerSurfVec)%dat, & ! intent(out): [dp(:)] change in the flux in soil surface interface w.r.t. state variables in layers
+   dPsiLiq_dPsi0                => deriv_data%var(iLookDERIV%dPsiLiq_dPsi0   )%dat          ) ! intent(in):  [dp(:)] derivative in liquid water matric pot w.r.t. the total water matric pot (-)
+   ! expand derivatives to the total water matric potential
+   ! NOTE: arrays are offset because computing derivatives in interface fluxes, at the top and bottom of the layer respectively
+   if (globalPrintFlag) print*, 'dPsiLiq_dPsi0(1:nSoil) = ', dPsiLiq_dPsi0(1:nSoil)
+   dq_dHydStateAbove(1:nSoil)   = dq_dHydStateAbove(1:nSoil)  *dPsiLiq_dPsi0(1:nSoil)
+   dq_dHydStateBelow(0:nSoil-1) = dq_dHydStateBelow(0:nSoil-1)*dPsiLiq_dPsi0(1:nSoil)
+   dq_dHydStateLayerSurfVec(1:nSoil) = dq_dHydStateLayerSurfVec(1:nSoil)*dPsiLiq_dPsi0(1:nSoil)
+  end associate
+ end subroutine finalize_soilLiqFlx
 
  subroutine initialize_groundwatr
   ! check the derivative matrix is sized appropriately
