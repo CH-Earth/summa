@@ -23,17 +23,19 @@ import pandas as pd
 viz_dir = Path('/home/avanb/scratch/statistics')
 nbatch_hrus = 518 # number of HRUs per batch
 use_eff = False # use efficiency in wall clock time, still need files for the node number
+do_rel = True # plot relative to the benchmark simulation
 
 testing = False
 if testing: 
-    stat = 'rmse'
+    stat = 'rmnz'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1','be64','sundials_1en6'] #maybe make this an argument
+    method_name=['be1','sundials_1en6'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
     method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
@@ -47,8 +49,9 @@ for i, m in enumerate(method_name):
 # Specify variables of interest
 plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$num$']
-leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}$','$m~s^{-1}$','$s$']
+leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$num$']
+leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
+leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
@@ -85,17 +88,34 @@ if 'compressed' in fig_fil:
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
 fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
-
     
 def run_loop(i,var):
     r = i//2
     c = i-r*2
-    if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
-    if stat == 'maxe': stat0 = 'amax'
+    if stat == 'rmse' or stat == 'kgem': 
+        stat0 = 'mean'
+        statr = 'mean_ben'
+    if stat == 'rmnz':
+        stat0 = 'mnnz'
+        statr = 'mnnz_ben'
+    if stat == 'maxe': 
+        stat0 = 'amax'
+        statr = 'amax_ben'
 
     # Data
+    if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=[stat,stat0])
+        if do_rel and var != 'wallClockTime':
+            s = s/s_rel
+            word_add = 'rel to bench '
+
+        if var == 'scalarTotalET' and not do_rel:
+            if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
+            if stat =='maxe': s = s*3600 # make hourly max
+        if var == 'averageRoutedRunoff'and not do_rel:
+            if stat =='rmse' or stat =='rmnz' : s = s*31557600*1000 # make annual total
+            if stat =='maxe': s = s*3600*1000 # make hourly max      
         if stat == 'maxe': s.loc[dict(stat='maxe')] = np.fabs(s.loc[dict(stat='maxe')]) # make absolute value norm
 
         if var == 'wallClockTime':
@@ -121,20 +141,27 @@ def run_loop(i,var):
             axs[r,c].scatter(x=node_batch,y=s.sel(stat=stat0),s=1,zorder=0,label=m)
             stat_word = 'Node number'
         else:
-            axs[r,c].scatter(x=s.sel(stat=stat).values,y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
-            if stat == 'rmse': stat_word = 'Hourly RMSE '
-            if stat == 'maxe': stat_word = 'Hourly max abs error '
-            if stat == 'kgem': stat_word = 'Hourly KGEm '
+            axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
+            if stat == 'rmse': stat_word = 'RMSE '
+            if stat == 'rmnz': stat_word = 'RMSE no 0s '
+            if stat == 'maxe': stat_word = 'max abs error '
+            if stat == 'kgem': stat_word = 'KGE" '
  
-    if stat0 == 'mean': stat0_word = 'Hourly mean '
-    if stat0 == 'amax': stat0_word = 'Hourly max '
+    if stat0 == 'mean': stat0_word = 'mean '
+    if stat0 == 'mnnz': stat0_word = 'mean no 0s '
+    if stat0 == 'amax': stat0_word = 'max '
  
     lgnd = axs[r,c].legend()
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_titl[i])
-    axs[r,c].set_xlabel(stat_word + '[{}]'.format(leg_titl[i]))
+    if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
+    if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
+    if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + word_add + stat0_word)
+
     axs[r,c].set_ylabel(stat0_word + '[{}]'.format(leg_titl0[i]))
+    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + word_add + stat0_word)
 
 
 for i,var in enumerate(plot_vars): 

@@ -21,19 +21,25 @@ import glob
 import xarray as xr
 from pathlib import Path
 import numpy as np
-import sys
 
 import warnings
 warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 in kgem, both have no snow
 
 # Settings
 bench_name  = 'sundials_1en8'
-top_fold    = '/home/avanb/scratch/'
 
+not_parallel = False # should usually be false, runs faster
 testing = False
 
-# The first input argument specifies the run where the files are
-method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+if testing: 
+    top_fold    = '/Users/amedin/Research/USask/test_py/'
+    method_name='be1'
+    not_parallel = True
+else:
+    import sys
+    # The first input argument specifies the run where the files are
+    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+    top_fold    = '/home/avanb/scratch/'
 
 des_dir =  top_fold + 'statistics_temp'
 fnl_dir =  top_fold + 'statistics'
@@ -104,7 +110,7 @@ def run_loop(file,bench,processed_files_path):
     subset = file.split('/')[-1].split('_')[1]
 
     # acquire the lock before opening the file
-    if testing:
+    if not_parallel:
         dat, ben = xr.open_dataset(file), xr.open_dataset(bench)
     else:
         import multiprocessing as mp
@@ -117,9 +123,7 @@ def run_loop(file,bench,processed_files_path):
     ben = ben.where(ben!=-9999)
     # some weird negative values in runoff if not routed
     dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
-    ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0)   
-    #dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].fillna(0)   
-    #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].fillna(0)
+    ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
     
     # get rid of gru dimension, assuming hru and gru are one to one (everything now as hruId)
     dat = dat.drop_vars(['hruId','gruId'])
@@ -142,14 +146,34 @@ def run_loop(file,bench,processed_files_path):
     for var in settings:
         mean = dat[var].mean(dim='time')
         mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
+
+        datnz = dat[var].where(np.logical_and(ben[var] != 0,dat[var] != 0))  # don't include both 0
+        mnnz = datnz.mean(dim='time')
+        mnnz = mnnz.expand_dims("stat").assign_coords(stat=("stat",["mnnz"]))
+
+        mean_ben = ben[var].mean(dim='time')
+        mean_ben = mean_ben.expand_dims("stat").assign_coords(stat=("stat",["mean_ben"]))
+
+        datnz = ben[var].where(np.logical_and(ben[var] != 0,dat[var] != 0))  # don't include both 0
+        mnnz_ben = datnz.mean(dim='time')
+        mnnz_ben = mnnz_ben.expand_dims("stat").assign_coords(stat=("stat",["mnnz_ben"]))
         
         na_mx = np.fabs(dat[var]).max()+1
         amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
         amax = dat[var].isel(amx).drop_vars('time')
         amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
+
+        na_mx = np.fabs(ben[var]).max()+1
+        amx = np.fabs(ben[var].fillna(na_mx)).argmax(dim=['time'])
+        amax_ben = ben[var].isel(amx).drop_vars('time')
+        amax_ben = amax_ben.expand_dims("stat").assign_coords(stat=("stat",["amax_ben"]))
         
         rmse = (np.square(diff[var]).mean(dim='time'))**(1/2) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
         rmse = rmse.expand_dims("stat").assign_coords(stat=("stat",["rmse"]))
+
+        diffnz = diff[var].where(np.logical_and(ben[var] != 0,dat[var] != 0))  # don't include both 0
+        rmnz = (np.square(diffnz).mean(dim='time'))**(1/2)
+        rmnz = rmnz.expand_dims("stat").assign_coords(stat=("stat",["rmnz"]))
 
         na_mx = np.fabs(diff[var]).max()+1
         amx = np.fabs(diff[var].fillna(na_mx)).argmax(dim=['time'])
@@ -169,11 +193,11 @@ def run_loop(file,bench,processed_files_path):
         kgem = kgem/(2.0-kgem)
         kgem = kgem.expand_dims("stat").assign_coords(stat=("stat",["kgem"]))
 
-        new = xr.merge([mean,amax,rmse,maxe,kgem])
+        new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, kgem])
         new.to_netcdf(des_dir / des_fil.format(var,subset))
 
    # write the name of the processed file to the file list, acquire the lock before opening the file
-    if testing:
+    if not_parallel:
         with open(processed_files_path, 'a') as filew:
             filew.write(file + '\n')
             filew.write(bench + '\n')
@@ -207,7 +231,7 @@ def merge_subsets_into_one(src,pattern,des,name):
 # -- end functions
 
 
-if testing:
+if not_parallel:
     # -- no parallel processing
     for (file, bench) in zip(src_files,ben_files):
         run_loop(file,bench,processed_files_path)
