@@ -27,7 +27,7 @@ do_rel = True # plot relative to the benchmark simulation
 
 testing = False
 if testing: 
-    stat = 'rmnz'
+    stat = 'maxe'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1','sundials_1en6'] #maybe make this an argument
 else:
@@ -51,11 +51,10 @@ plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat',
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$num$']
 leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
-leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
+leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$num$']
 
-#fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
-#fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
 fig_fil = 'Hrly_diff_scat_{}_{}_compressed.png'
+if do_rel: fig_fil = 'Hrly_diff_scat_{}_{}_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
 summa = {}
@@ -78,10 +77,6 @@ if 'compressed' in fig_fil:
     plt.rcParams.update({'font.size': 25})
 else:
     plt.rcParams.update({'font.size': 100})
-
-# Flip the evaporation values so that they become positive, not if plotting diffs
-#bas_albers['plot_ET'] = bas_albers['scalarTotalET'] * -1
-#bas_albers['plot_ET'] = bas_albers['plot_ET'].where(bas_albers['scalarTotalET'] != -9999, np.nan)
 
 if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
@@ -106,9 +101,7 @@ def run_loop(i,var):
     if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=[stat,stat0])
-        if do_rel and var != 'wallClockTime':
-            s = s/s_rel
-            word_add = 'rel to bench '
+        if do_rel and var != 'wallClockTime': s = s/s_rel
 
         if var == 'scalarTotalET' and not do_rel:
             if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
@@ -158,10 +151,10 @@ def run_loop(i,var):
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + word_add + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + 'rel to bench ' + stat0_word)
 
     axs[r,c].set_ylabel(stat0_word + '[{}]'.format(leg_titl0[i]))
-    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + word_add + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + 'rel to bench ' + stat0_word)
 
 
 for i,var in enumerate(plot_vars): 

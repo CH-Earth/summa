@@ -42,6 +42,8 @@ viz_fil = viz_fil.format(','.join(settings))
 eff_fil = 'eff_' + method_name + '.txt'
 nbatch_hrus = 518 # number of HRUs per batch
 use_eff = False # use efficiency in wall clock time
+do_rel = True # plot relative to the benchmark simulation
+if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Specify variables of interest
 plot_vars = settings
@@ -49,15 +51,27 @@ plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Tota
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
 
-if stat == 'rmse': maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
-# if stat=='rmse': maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-if stat == 'rmnz': maxes = [2,15,250,0.08,200,10e-3]
-if stat == 'maxe': maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-if stat == 'kgem': maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
-if stat == 'mean': maxes = [80,1500,1500,3000,10e-3] #[80,1500,5e-5,8,1e-7,10e-3]
-if stat == 'amax': maxes = [240,1800,3.5,25,7.5,0.2] #[240,1800,1e-3,25,2e-6,0.2]
+if stat == 'rmse': 
+    maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
+    #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
+    if do_rel: maxes = [1,1,1,1,1,10e-3]
+if stat == 'rmnz': 
+    maxes = [2,15,250,0.08,200,10e-3]
+    if do_rel: maxes = [1,1,1,1,1,10e-3]
+if stat == 'maxe': 
+    maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
+    if do_rel: maxes = [1,1,1,1,1,10e-3]
+if stat == 'kgem': 
+    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
+if stat == 'mean': 
+    maxes = [80,1500,1500,3000,10e-3] #[80,1500,5e-5,8,1e-7,10e-3]
+    if do_rel: maxes = [1.05,1.05,1.05,1.05,1.05,10e-3]
+if stat == 'amax': 
+    maxes = [240,1800,3.5,25,7.5,0.2] #[240,1800,1e-3,25,2e-6,0.2]
+    if do_rel: maxes = [1.05,1.05,1.05,1.05,1.05,10e-3]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
+if do_rel: fig_fil = method_name + '_hrly_diff_stats_{}_{}_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
 # Get the albers shapes
@@ -172,10 +186,20 @@ if use_eff:
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for plot_var in plot_vars:
     stat0 = stat
-    if plot_var == 'wallClockTime':
-        if stat == 'rmse' or stat == 'kgem': stat0 = 'mean'
-        if stat == 'maxe': stat0 = 'amax'
+    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
+        if plot_var == 'wallClockTime': stat0 = 'mean'
+        statr = 'mean_ben'
+    if stat == 'rmnz' or stat == 'mnnz':
+        if plot_var == 'wallClockTime': stat0 = 'mnnz'
+        statr = 'mnnz_ben'
+    if stat == 'maxe' or stat == 'amax': 
+        if plot_var == 'wallClockTime': stat0 = 'amax'
+        statr = 'amax_ben'
+
+    if do_rel: s_rel = summa[plot_var].sel(stat=statr)
     s = summa[plot_var].sel(stat=stat0)
+    if do_rel and plot_var != 'wallClockTime': s = s/s_rel
+
     if plot_var == 'wallClockTime' and use_eff:
         batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
         #basin_num = np.arange(len(s.indexes['hru'])) % nbatch_hrus #not currently using
@@ -194,11 +218,11 @@ for plot_var in plot_vars:
         # Multiply the s values by efficiency
         s = s*eff_batch
 
-    if stat == 'maxe' or stat =='mean' or stat =='amax': s = np.fabs(s) # make absolute value norm, max is not not all positive
-    if plot_var == 'scalarTotalET':
+    s = np.fabs(s) # make absolute value norm, not all positive
+    if plot_var == 'scalarTotalET' and not do_rel:
         if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
         if stat =='maxe': s = s*3600 # make hourly max
-    if plot_var == 'averageRoutedRunoff':
+    if plot_var == 'averageRoutedRunoff' and not do_rel:
         if stat =='rmse' or stat =='rmnz' : s = s*31557600*1000 # make annual total
         if stat =='maxe': s = s*3600*1000 # make hourly max    
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
@@ -239,8 +263,10 @@ def run_loop(i,var,the_max,f_x,f_y):
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = 0, the_max
-    if stat =='mean' and var=='scalarTotalSoilWat': vmin,vmax = 700, the_max
-    if stat =='amax' and var=='scalarTotalSoilWat': vmin,vmax = 1000, the_max
+    if stat =='mean' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 700, the_max
+    if stat =='amax' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 1000, the_max
+    if (stat == 'mean' or stat == 'mnnz' or stat == 'amax') and var!='wallClockTime' and do_rel: vmin,vmax = 0.995, the_max
+ 
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     if stat =='kgem' and var!='wallClockTime':
         my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
@@ -253,30 +279,32 @@ def run_loop(i,var,the_max,f_x,f_y):
     # Data
     bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
 
+    if stat0 == 'rmse': stat_word = 'RMSE'
+    if stat0 == 'rmnz': stat_word = 'RMSE no 0s'
+    if stat0 == 'maxe': stat_word = 'max abs error'
+    if stat0 == 'kgem': stat_word = 'KGE"'
+    if stat0 == 'mean': stat_word = 'abs mean'
+    if stat0 == 'mnnz': stat_word = 'abs mean no 0s '
+    if stat0 == 'amax': stat_word = 'abs max'
+
+    if statr == 'mean_ben': statr_word = 'mean '
+    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s '
+    if statr == 'amax_ben': statr_word = 'max '
+
+    axs[r,c].set_title(plt_titl[i])
+    axs[r,c].axis('off')
+
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.25])
     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-    if stat == 'rmse' or stat == 'rmnz' or stat == 'mean': cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
-    if stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+    if stat == 'rmse' or stat == 'rmnz' or stat == 'mean': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+    if stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titlm[i]), labelpad=40, rotation=270)
+    if stat == 'kgem': cbr.ax.set_ylabel(stat_word, labelpad=40, rotation=270)
+    if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + 'rel to bench ' + statr_word, labelpad=40, rotation=270)
 
     #cbr.ax.yaxis.set_offset_position('right')
-
-    if stat == 'rmse': stat_word = ' RMSE'
-    if stat == 'rmnz': stat_word = ' RMSE no 0s'
-    if stat == 'maxe': stat_word = ' max abs error'
-    if stat == 'kgem': stat_word = ' KGE"'
-    if stat == 'mean': stat_word = ' abs mean'
-    if stat == 'amax': stat_word = ' abs max'
-
-    # wall Clock doesn't do difference
-    if var == 'wallClockTime':
-        if stat == 'rmse' or stat == 'kgem': stat_word = ' mean'
-        if stat == 'maxe': stat_word = ' max'
-
-    axs[r,c].set_title(plt_titl[i] + stat_word)
-    axs[r,c].axis('off')
 
     # lakes
     if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
