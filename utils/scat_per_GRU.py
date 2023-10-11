@@ -47,7 +47,7 @@ for i, m in enumerate(method_name):
     eff_fil[i] = 'eff_' + m + '.txt'
 
 # Specify variables of interest
-plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+plot_vars = settings.copy()
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$num$']
 leg_titl0 = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
@@ -135,14 +135,14 @@ def run_loop(i,var):
             stat_word = 'Node number'
         else:
             axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
-            if stat == 'rmse': stat_word = 'RMSE '
-            if stat == 'rmnz': stat_word = 'RMSE no 0s '
-            if stat == 'maxe': stat_word = 'max abs error '
-            if stat == 'kgem': stat_word = 'KGE" '
+            if stat == 'rmse': stat_word = 'RMSE'
+            if stat == 'rmnz': stat_word = 'RMSE no 0s'
+            if stat == 'maxe': stat_word = 'max abs error'
+            if stat == 'kgem': stat_word = 'KGE"'
  
-    if stat0 == 'mean': stat0_word = 'mean '
-    if stat0 == 'mnnz': stat0_word = 'mean no 0s '
-    if stat0 == 'amax': stat0_word = 'max '
+    if stat0 == 'mean': stat0_word = 'mean'
+    if stat0 == 'mnnz': stat0_word = 'mean no 0s'
+    if stat0 == 'amax': stat0_word = 'max'
  
     lgnd = axs[r,c].legend()
     for j, m in enumerate(method_name):
@@ -151,10 +151,10 @@ def run_loop(i,var):
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + 'rel to bench ' + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + stat0_word)
 
     axs[r,c].set_ylabel(stat0_word + '[{}]'.format(leg_titl0[i]))
-    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + 'rel to bench ' + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + ' rel to bench ' + stat0_word)
 
 
 for i,var in enumerate(plot_vars): 

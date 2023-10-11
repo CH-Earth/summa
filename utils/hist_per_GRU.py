@@ -48,7 +48,7 @@ for i, m in enumerate(method_name):
     eff_fil[i] = 'eff_' + m + '.txt'
 
 # Specify variables of interest
-plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+plot_vars = settings.copy()
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
@@ -60,13 +60,13 @@ fig_fil = fig_fil.format(','.join(settings),stat)
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
     #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 
@@ -167,14 +167,14 @@ def run_loop(i,var,mx):
     if stat0 == 'rmnz': stat_word = 'RMSE no 0s'
     if stat0 == 'maxe': stat_word = 'max abs error'
     if stat0 == 'kgem': stat_word = 'KGE"'
-    if stat0 == 'mean': stat_word = 'mean '
-    if stat0 == 'mnnz': stat_word = 'mean no 0s '
-    if stat0 == 'amax': stat_word = 'max '
+    if stat0 == 'mean': stat_word = 'mean'
+    if stat0 == 'mnnz': stat_word = 'mean no 0s'
+    if stat0 == 'amax': stat_word = 'max'
     fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40)
 
-    if statr == 'mean_ben': statr_word = 'mean '
-    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s '
-    if statr == 'amax_ben': statr_word = 'max '
+    if statr == 'mean_ben': statr_word = 'mean'
+    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s'
+    if statr == 'amax_ben': statr_word = 'max'
         
     #if var == 'wallClockTime': axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
 
@@ -183,7 +183,7 @@ def run_loop(i,var,mx):
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + 'rel to bench ' + statr_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + statr_word)
 
     axs[r,c].set_ylabel('GRU count')
     if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])

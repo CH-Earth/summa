@@ -46,7 +46,7 @@ do_rel = True # plot relative to the benchmark simulation
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Specify variables of interest
-plot_vars = settings
+plot_vars = settings.copy()
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
@@ -54,21 +54,21 @@ leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
     #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 if stat == 'mean': 
     maxes = [80,1500,1500,3000,10e-3] #[80,1500,5e-5,8,1e-7,10e-3]
-    if do_rel: maxes = [1.05,1.05,1.05,1.05,1.05,10e-3]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,10e-3]
 if stat == 'amax': 
     maxes = [240,1800,3.5,25,7.5,0.2] #[240,1800,1e-3,25,2e-6,0.2]
-    if do_rel: maxes = [1.05,1.05,1.05,1.05,1.05,10e-3]
+    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,0.2]
 
 fig_fil = method_name + '_hrly_diff_stats_{}_{}_compressed.png'
 if do_rel: fig_fil = method_name + '_hrly_diff_stats_{}_{}_rel_compressed.png'
@@ -265,7 +265,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     vmin,vmax = 0, the_max
     if stat =='mean' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 700, the_max
     if stat =='amax' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 1000, the_max
-    if (stat == 'mean' or stat == 'mnnz' or stat == 'amax') and var!='wallClockTime' and do_rel: vmin,vmax = 0.995, the_max
+    if (stat == 'mean' or stat == 'mnnz' or stat == 'amax') and var!='wallClockTime' and do_rel: vmin,vmax = 0.9, the_max
  
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     if stat =='kgem' and var!='wallClockTime':
@@ -284,12 +284,12 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat0 == 'maxe': stat_word = 'max abs error'
     if stat0 == 'kgem': stat_word = 'KGE"'
     if stat0 == 'mean': stat_word = 'abs mean'
-    if stat0 == 'mnnz': stat_word = 'abs mean no 0s '
+    if stat0 == 'mnnz': stat_word = 'abs mean no 0s'
     if stat0 == 'amax': stat_word = 'abs max'
 
-    if statr == 'mean_ben': statr_word = 'mean '
-    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s '
-    if statr == 'amax_ben': statr_word = 'max '
+    if statr == 'mean_ben': statr_word = 'mean'
+    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s'
+    if statr == 'amax_ben': statr_word = 'max'
 
     axs[r,c].set_title(plt_titl[i])
     axs[r,c].axis('off')
@@ -302,7 +302,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat == 'rmse' or stat == 'rmnz' or stat == 'mean': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
     if stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titlm[i]), labelpad=40, rotation=270)
     if stat == 'kgem': cbr.ax.set_ylabel(stat_word, labelpad=40, rotation=270)
-    if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + 'rel to bench ' + statr_word, labelpad=40, rotation=270)
+    if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + ' rel to bench ' + statr_word, labelpad=40, rotation=270)
 
     #cbr.ax.yaxis.set_offset_position('right')
 
