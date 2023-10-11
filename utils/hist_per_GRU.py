@@ -48,26 +48,25 @@ for i, m in enumerate(method_name):
     eff_fil[i] = 'eff_' + m + '.txt'
 
 # Specify variables of interest
-plot_vars = ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+plot_vars = settings.copy()
 plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
 
-#fig_fil = '{}_hrly_diff_hist_{}_{}_zoom_compressed.png'
-#fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
 fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
+if do_rel: fig_fil = 'Hrly_diff_hist_{}_{}_zoom_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
-# possibly want to use these to shrink the axes a bit
+
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
     #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [1,1,1,1,1,10e-3]
+    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 
@@ -92,10 +91,6 @@ if 'compressed' in fig_fil:
     plt.rcParams.update({'font.size': 25})
 else:
     plt.rcParams.update({'font.size': 100})
-
-# Flip the evaporation values so that they become positive, not if plotting diffs
-#bas_albers['plot_ET'] = bas_albers['scalarTotalET'] * -1
-#bas_albers['plot_ET'] = bas_albers['plot_ET'].where(bas_albers['scalarTotalET'] != -9999, np.nan)
 
 if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
@@ -128,15 +123,13 @@ def run_loop(i,var,mx):
             if do_rel and var != 'wallClockTime': s = s/s_rel
             if stat == 'maxe': s = np.fabs(s) # make absolute value norm
             mx = max(s.max(),mx)
-            if stat=='kgem' : mn = min(s.min(),mn)
+            if stat == 'kgem': mn = min(s.min(),mn)
 
     # Data
     if do_rel: s_rel = summa[method_name[0]][var].sel(stat=statr)
     for m in method_name:
         s = summa[m][var].sel(stat=stat0)
-        if do_rel and var != 'wallClockTime':
-            s = s/s_rel
-            word_add = 'rel to bench '
+        if do_rel and var != 'wallClockTime': s = s/s_rel
 
         if var == 'wallClockTime' and use_eff:
             batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
@@ -170,28 +163,27 @@ def run_loop(i,var,mx):
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
         np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
 
-
     if stat0 == 'rmse': stat_word = 'RMSE'
     if stat0 == 'rmnz': stat_word = 'RMSE no 0s'
     if stat0 == 'maxe': stat_word = 'max abs error'
     if stat0 == 'kgem': stat_word = 'KGE"'
-    if stat0 == 'mean': stat_word = 'mean '
-    if stat0 == 'mnnz': stat_word = 'mean no 0s '
-    if stat0 == 'amax': stat_word = 'max '
+    if stat0 == 'mean': stat_word = 'mean'
+    if stat0 == 'mnnz': stat_word = 'mean no 0s'
+    if stat0 == 'amax': stat_word = 'max'
     fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40)
 
-    if statr == 'mean_ben': stat0_word = 'mean '
-    if statr == 'mnnz_ben': stat0_word = 'mean excluding 0s '
-    if statr == 'amax_ben': stat0_word = 'max '
+    if statr == 'mean_ben': statr_word = 'mean'
+    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s'
+    if statr == 'amax_ben': statr_word = 'max'
         
     #if var == 'wallClockTime': axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
 
     axs[r,c].legend()
-    axs[r,c].set_title(plt_titl[i] + stat_word)
+    axs[r,c].set_title(plt_titl[i])
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + word_add + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + statr_word)
 
     axs[r,c].set_ylabel('GRU count')
     if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
