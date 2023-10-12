@@ -30,13 +30,13 @@ USE data_types,only:&
                     var_ilength,        & ! data vector with variable length dimension (i4b)
                     var_dlength,        & ! data vector with variable length dimension (rkind)
                     model_options,      & ! defines the model decisions
-                    in_type_vegNrgFlux,out_type_vegNrgFlux,                   & ! arguments for vegNrgFlux call
-                    in_type_ssdNrgFlux,io_type_ssdNrgFlux,out_type_ssdNrgFlux,& ! arguments for ssdNrgFlux call
-                    in_type_vegLiqFlux,out_type_vegLiqFlux,                   & ! arguments for vegLiqFlux call
-                    in_type_snowLiqFlx,io_type_snowLiqFlx,out_type_snowLiqFlx,& ! arguments for snowLiqFlx call                
-                    in_type_soilLiqFlx,io_type_soilLiqFlx,out_type_soilLiqFlx,& ! arguments for soilLiqFlx call
-                    in_type_groundwatr,io_type_groundwatr,out_type_groundwatr,& ! arguments for groundwatr call
-                    in_type_bigAquifer,io_type_bigAquifer,out_type_bigAquifer   ! arguments for bigAquifer call
+                    in_type_vegNrgFlux,out_type_vegNrgFlux,                   & ! classes for vegNrgFlux call
+                    in_type_ssdNrgFlux,io_type_ssdNrgFlux,out_type_ssdNrgFlux,& ! classes for ssdNrgFlux call
+                    in_type_vegLiqFlux,out_type_vegLiqFlux,                   & ! classes for vegLiqFlux call
+                    in_type_snowLiqFlx,io_type_snowLiqFlx,out_type_snowLiqFlx,& ! classes for snowLiqFlx call                
+                    in_type_soilLiqFlx,io_type_soilLiqFlx,out_type_soilLiqFlx,& ! classes for soilLiqFlx call
+                    in_type_groundwatr,io_type_groundwatr,out_type_groundwatr,& ! classes for groundwatr call
+                    in_type_bigAquifer,io_type_bigAquifer,out_type_bigAquifer   ! classes for bigAquifer call
 
 ! indices that define elements of the data structures
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure
@@ -162,9 +162,9 @@ subroutine computFlux(&
   USE groundwatr_module,only:groundwatr           ! compute the baseflow flux
   USE bigAquifer_module,only:bigAquifer           ! compute fluxes for the big aquifer
   implicit none
-  ! ---------------------------------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------------------------------------------
   ! * dummy variables
-  ! ---------------------------------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------------------------------------------
   ! input-output: control
   integer(i4b),intent(in)            :: nSnow                       ! number of snow layers
   integer(i4b),intent(in)            :: nSoil                       ! number of soil layers
@@ -208,9 +208,9 @@ subroutine computFlux(&
   ! output: error control
   integer(i4b),intent(out)           :: err                         ! error code
   character(*),intent(out)           :: message                     ! error message
-  ! ---------------------------------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------------------------------------------
   ! * local variables
-  ! ---------------------------------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------------------------------------------
   integer(i4b)                       :: local_ixGroundwater         ! local index for groundwater representation
   integer(i4b)                       :: iLayer                      ! index of model layers
   logical(lgt)                       :: doVegNrgFlux                ! flag to compute the energy flux over vegetation
@@ -228,217 +228,258 @@ subroutine computFlux(&
   type(in_type_soilLiqFlx) :: in_soilLiqFlx; type(io_type_soilLiqFlx) :: io_soilLiqFlx; type(out_type_soilLiqFlx) :: out_soilLiqFlx ! soilLiqFlx arguments
   type(in_type_groundwatr) :: in_groundwatr; type(io_type_groundwatr) :: io_groundwatr; type(out_type_groundwatr) :: out_groundwatr ! groundwatr arguments
   type(in_type_bigAquifer) :: in_bigAquifer; type(io_type_bigAquifer) :: io_bigAquifer; type(out_type_bigAquifer) :: out_bigAquifer ! bigAquifer arguments
-  ! --------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='computFlux/'
 
-  ! *** PRELIMINARIES ***
-  ! get the necessary variables for the flux computations
+  call initialize_computFlux ! Preliminary operations to start routine
+
+  ! *** CALCULATE ENERGY FLUXES OVER VEGETATION ***
   associate(&
-    ! model decisions
-    ixGroundwater                => model_decisions(iLookDECISIONS%groundwatr)%iDecision            ,& ! intent(in): [i4b]    groundwater parameterization
-    ixSpatialGroundwater         => model_decisions(iLookDECISIONS%spatial_gw)%iDecision            ,& ! intent(in): [i4b]    spatial representation of groundwater (local-column or single-basin)
-    ! canopy and layer depth
-    canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)               ,& ! intent(in): [dp   ]  canopy depth (m)
-    ! indices of model state variables for the vegetation subdomain
-    ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy air space energy state variable
-    ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy energy state variable
-    ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                       ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg                     => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                       ,& ! intent(in): [i4b]    index of upper-most energy state in the snow+soil subdomain
-    ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                        ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ! indices of model state variables for the snow+soil domain
-    ixSnowSoilNrg                => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                     ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnowSoilHyd                => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                     ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
-    layerType                    => indx_data%var(iLookINDEX%layerType)%dat                         ,& ! intent(in): [i4b(:)] type of layer (iname_soil or iname_snow)
-    ! number of state variables of a specific type
-    nSnowSoilNrg                 => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)                  ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd                 => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
-    nSnowOnlyHyd                 => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
-    nSoilOnlyHyd                 => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)                  ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
-    ! derivatives
-    mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat                 ,&  ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-    ! number of flux calls
-    numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1)                    ,&  ! intent(out): [dp] number of flux calls (-)
-    ! net fluxes over the vegetation domain
-    scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1)          ,&  ! intent(out): [dp] net energy flux for the canopy air space        (W m-2)
-    scalarCanopyNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1)          ,&  ! intent(out): [dp] net energy flux for the vegetation canopy       (W m-2)
-    scalarCanopyNetLiqFlux       => flux_data%var(iLookFLUX%scalarCanopyNetLiqFlux)%dat(1)          ,&  ! intent(out): [dp] net liquid water flux for the vegetation canopy (kg m-2 s-1)
-    ! net fluxes over the snow+soil domain
-    mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat                      ,&  ! intent(out): [dp] net energy flux for each layer within the snow+soil domain (J m-3 s-1)
-    mLayerLiqFluxSnow            => flux_data%var(iLookFLUX%mLayerLiqFluxSnow)%dat                  ,&  ! intent(out): [dp] net liquid water flux for each snow layer (s-1)
-    mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat                  ,&  ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
-    ! fluxes for the snow+soil domain
-    iLayerLiqFluxSnow            => flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat                  ,&  ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
-    iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat                  ,&  ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
-    mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat                     ,&  ! intent(out): [dp(:)]  baseflow from each soil layer (m s-1)
-    scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)              ,&  ! intent(out): [dp]     drainage from the soil profile (m s-1)
-    scalarSoilBaseflow           => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1)              ,&  ! intent(out): [dp]     total baseflow from the soil profile (m s-1)
-    ! infiltration
-    scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)                ,& ! intent(inout): [dp] fraction of liquid water on vegetation (-)
-    mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat                  ,& ! intent(inout): [dp(:)] fraction of liquid water in each snow layer (-)
-    ! boundary fluxes in the soil domain
-    scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1)           ,&  ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
-    scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1)         ,&  ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
-    scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1)              ,&  ! intent(out): [dp] rain plus melt (m s-1)
-    scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1)             ,&  ! intent(out): [dp] surface runoff (m s-1)
-    scalarExfiltration           => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1)              ,&  ! intent(out): [dp] exfiltration from the soil profile (m s-1)
-    mLayerColumnOutflow          => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat                ,&  ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
-    ! fluxes for the aquifer
-    scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1)          ,&  ! intent(out): [dp] transpiration loss from the aquifer (m s-1
-    scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1)           ,&  ! intent(out): [dp] recharge to the aquifer (m s-1)
-    scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)           ,&  ! intent(out): [dp] total baseflow from the aquifer (m s-1)
-    ! total runoff
-    scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1)               ,&  ! intent(out): [dp] total runoff (m s-1)
-    ! derivatives in canopy water w.r.t canopy temperature
-    dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy            )%dat(1)  ,&  ! intent(out): [dp] derivative of canopy liquid storage w.r.t. temperature
-    ! derivatives in canopy liquid fluxes w.r.t. canopy water
-    scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv        )%dat(1)  ,&  ! intent(out): [dp] derivative in (throughfall + drainage) w.r.t. canopy liquid water
-    ! derivative in liquid water fluxes at the interface of snow layers w.r.t. volumetric liquid water content in the layer above
-    iLayerLiqFluxSnowDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnowDeriv      )%dat     ,&  ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
-    ! derivative in baseflow flux w.r.t. aquifer storage
-    dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer          )%dat(1)   &  ! intent(out): [dp(:)] derivative in baseflow flux w.r.t. aquifer storage (s-1)
-    )  ! end association to data in structures
-
-    numFluxCalls = numFluxCalls+1 ! increment the number of flux calls
-
-    ! modify the groundwater representation for this single-column implementation
-    select case(ixSpatialGroundwater)
-      case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
-      case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
-      case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
-    end select ! end modify the groundwater representation for this single-column implementation
-
-    ! initialize liquid water fluxes throughout the snow and soil domains
-    ! NOTE: used in the energy routines, which is called before the hydrology routines
-    if (firstFluxCall) then
-      if (nSnow>0) iLayerLiqFluxSnow(0:nSnow) = 0._rkind
-      iLayerLiqFluxSoil(0:nSoil) = 0._rkind
-    end if
-
-    ! *** CALCULATE ENERGY FLUXES OVER VEGETATION ***
+    ixCasNrg => indx_data%var(iLookINDEX%ixCasNrg)%dat(1), & ! intent(in): [i4b] index of canopy air space energy state variable
+    ixVegNrg => indx_data%var(iLookINDEX%ixVegNrg)%dat(1), & ! intent(in): [i4b] index of canopy energy state variable
+    ixTopNrg => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)  ) ! intent(in): [i4b] index of upper-most energy state in the snow+soil subdomain
     ! identify the need to calculate the energy flux over vegetation
     doVegNrgFlux = (ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixTopNrg/=integerMissing)
     if (doVegNrgFlux) then ! if necessary, calculate the energy fluxes over vegetation
       call initialize_vegNrgFlux
       call vegNrgFlux(in_vegNrgFlux,type_data,forc_data,mpar_data,indx_data,prog_data,diag_data,flux_data,bvar_data,model_decisions,out_vegNrgFlux)
       call finalize_vegNrgFlux
-    end if ! end if calculating the energy fluxes over vegetation
+    end if
+  end associate
 
-    ! *** CALCULATE ENERGY FLUXES THROUGH THE SNOW-SOIL DOMAIN ***
+  ! *** CALCULATE ENERGY FLUXES THROUGH THE SNOW-SOIL DOMAIN ***
+  associate(nSnowSoilNrg => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1)) ! intent(in): [i4b] number of energy state variables in the snow+soil domain
     if (nSnowSoilNrg>0) then ! if necessary, calculate energy fluxes at layer interfaces through the snow and soil domain
       call initialize_ssdNrgFlux
       call ssdNrgFlux(in_ssdNrgFlux,mpar_data,indx_data,prog_data,diag_data,flux_data,io_ssdNrgFlux,out_ssdNrgFlux)
       call finalize_ssdNrgFlux
-    end if  ! end if computing energy fluxes throughout the snow+soil domain
+    end if
+  end associate
 
-    ! *** CALCULATE THE LIQUID FLUX THROUGH VEGETATION ***
+  ! *** CALCULATE THE LIQUID FLUX THROUGH VEGETATION ***
+  associate(ixVegHyd => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)) ! intent(in): [i4b] index of canopy hydrology state variable (mass)
     if (ixVegHyd/=integerMissing) then ! if necessary, calculate liquid water fluxes through vegetation
       call initialize_vegLiqFlux
       call vegLiqFlux(in_vegLiqFlux,mpar_data,diag_data,out_vegLiqFlux)
       call finalize_vegLiqFlux
-    end if  ! end if computing the liquid water fluxes through vegetation
+    end if
+  end associate
 
-    ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
+  ! *** CALCULATE THE LIQUID FLUX THROUGH SNOW ***
+  associate(nSnowOnlyHyd => indx_data%var(iLookINDEX%nSnowOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the snow domain
     if (nSnowOnlyHyd>0) then ! if necessary, compute liquid fluxes through snow
       call initialize_snowLiqFlx
       call snowLiqFlx(in_snowLiqFlx,indx_data,mpar_data,prog_data,diag_data,io_snowLiqFlx,out_snowLiqFlx)
       call finalize_snowLiqFlx
     else
-      ! define forcing for the soil domain for the case of no snow layers
-      ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
-      if (nSnow==0) then !no snow layers
-        scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
-                            + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
-        if (ixVegHyd/=integerMissing) then
-          ! save canopy derivatives
-          above_soilLiqFluxDeriv = scalarCanopyLiqDeriv/iden_water ! derivative in (throughfall + drainage) w.r.t. canopy liquid water
-          above_soildLiq_dTk     = dCanLiq_dTcanopy     ! derivative of canopy liquid storage w.r.t. temperature
-          above_soilFracLiq      = scalarFracLiqVeg     ! fraction of liquid water in canopy (-)
-        else
-          above_soilLiqFluxDeriv = 0._rkind
-          above_soildLiq_dTk     = 0._rkind
-          above_soilFracLiq      = 0._rkind
-        end if
-      else ! snow layers, take from previous flux calculation
-        above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
-        above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
-        above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
-      end if  ! snow layers or not
-    end if ! if calculating the liquid flux through snow
+      call soilForcingNoSnow ! define forcing for the soil domain for the case of no snow layers
+    end if
+  end associate
 
-    ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
+  ! *** CALCULATE THE LIQUID FLUX THROUGH SOIL ***
+  associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! if necessary, calculate the liquid flux through soil
       call initialize_soilLiqFlx
       call soilLiqFlx(in_soilLiqFlx,mpar_data,indx_data,prog_data,diag_data,flux_data,io_soilLiqFlx,out_soilLiqFlx)
       call finalize_soilLiqFlx
-    end if  ! end if calculating the liquid flux through soil
+    end if 
+  end associate
 
-    ! *** CALCULATE THE GROUNDWATER FLOW ***
+  ! *** CALCULATE THE GROUNDWATER FLOW ***
+  associate(nSoilOnlyHyd => indx_data%var(iLookINDEX%nSoilOnlyHyd)%dat(1)) ! intent(in): [i4b] number of hydrology variables in the soil domain
     if (nSoilOnlyHyd>0) then ! check if computing soil hydrology
       if (local_ixGroundwater/=qbaseTopmodel) then ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
-        ! diagnostic variables in the data structures
-        scalarExfiltration     = 0._rkind  ! exfiltration from the soil profile (m s-1)
-        mLayerColumnOutflow(:) = 0._rkind  ! column outflow from each soil layer (m3 s-1)
-        ! variables needed for the numerical solution
-        mLayerBaseflow(:)      = 0._rkind  ! baseflow from each soil layer (m s-1)
+        call zeroBaseflowFluxes
       else ! compute the baseflow flux for topmodel-ish shallow groundwater
         call initialize_groundwatr
         call groundwatr(in_groundwatr,attr_data,mpar_data,prog_data,diag_data,flux_data,io_groundwatr,out_groundwatr)
         call finalize_groundwatr
-      end if  ! computing baseflow flux
-      scalarSoilBaseflow = sum(mLayerBaseflow) ! compute total baseflow from the soil zone (needed for mass balance checks)
-      ! compute total runoff
-      ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
-      ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
-      scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow
-    end if  ! end if computing soil hydrology
+      end if
+      call computeBaseflowRunoff ! compute total baseflow from soil and runoff
+    end if
+  end associate
 
-    ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
+  ! *** CALCULATE FLUXES FOR THE DEEP AQUIFER ***
+  associate(ixAqWat => indx_data%var(iLookINDEX%ixAqWat)%dat(1)) ! intent(in): [i4b] index of water storage in the aquifer
     if (ixAqWat/=integerMissing) then ! check if computing aquifer fluxes
       if (local_ixGroundwater==bigBucket) then ! compute fluxes for the big bucket
         call initialize_bigAquifer
         call bigAquifer(in_bigAquifer,mpar_data,diag_data,io_bigAquifer,out_bigAquifer)
         call finalize_bigAquifer
       else ! if no aquifer, then fluxes are zero
-        scalarAquiferTranspire = 0._rkind  ! transpiration loss from the aquifer (m s-1)
-        scalarAquiferRecharge  = 0._rkind  ! recharge to the aquifer (m s-1)
-        scalarAquiferBaseflow  = 0._rkind  ! total baseflow from the aquifer (m s-1)
-        dBaseflow_dAquifer     = 0._rkind  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+        call zeroAquiferFluxes
       end if ! end check aquifer model decision
     end if  ! if computing aquifer fluxes
+  end associate
 
-    ! *** WRAP UP ***
-    ! define model flux vector for the vegetation sub-domain
-    if (ixCasNrg/=integerMissing) fluxVec(ixCasNrg) = scalarCanairNetNrgFlux/canopyDepth
-    if (ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
-    if (ixVegHyd/=integerMissing) fluxVec(ixVegHyd) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
-    if (nSnowSoilNrg>0) then ! if necessary, populate the flux vector for energy
-      do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! loop through non-missing energy state variables in the snow+soil domain
-        fluxVec( ixSnowSoilNrg(iLayer) ) = mLayerNrgFlux(iLayer)
-      end do
-    end if
-    ! populate the flux vector for hydrology
-    ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
-    if (nSnowSoilHyd>0) then  ! check if any hydrology states exist
-      do iLayer=1,nLayers     ! loop through non-missing energy state variables in the snow+soil domain
-        if (ixSnowSoilHyd(iLayer)/=integerMissing) then   ! check if a given hydrology state exists
-          select case(layerType(iLayer))
-            case(iname_snow); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSnow(iLayer)
-            case(iname_soil); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSoil(iLayer-nSnow)
-            case default; err=20; message=trim(message)//'expect layerType to be either iname_snow or iname_soil'; return
-          end select
-        end if  ! end if a given hydrology state exists
-      end do
-    end if  ! end if any hydrology states exist
-    ! compute the flux vector for the aquifer
-    if (ixAqWat/=integerMissing) fluxVec(ixAqWat) = scalarAquiferTranspire + scalarAquiferRecharge - scalarAquiferBaseflow
-
-    firstFluxCall=.false. ! set the first flux call to false
-
-  end associate  ! end association to variables in the data structures
+  call finalize_computFlux ! final operations to prep for end of routine
 
 contains
 
+ ! **** Subroutines that handle the absence of model features ****
+ subroutine soilForcingNoSnow
+  ! define forcing for the soil domain for the case of no snow layers
+  ! NOTE: in case where nSnowOnlyHyd==0 AND snow layers exist, then scalarRainPlusMelt is taken from the previous flux evaluation
+  associate(&
+   scalarRainPlusMelt           => flux_data%var(iLookFLUX%scalarRainPlusMelt)%dat(1),      & ! intent(out): [dp] rain plus melt (m s-1)
+   scalarThroughfallRain        => flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1),   & ! intent(out): [dp] rain that reaches the ground without ever touching the canopy (kg m-2 s-1)
+   scalarCanopyLiqDrainage      => flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1), & ! intent(out): [dp] drainage of liquid water from the vegetation canopy (kg m-2 s-1)
+   ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1),               & ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+   scalarCanopyLiqDeriv         => deriv_data%var(iLookDERIV%scalarCanopyLiqDeriv)%dat(1),  & ! intent(out): [dp] derivative in (throughfall + drainage) w.r.t. canopy liquid water
+   dCanLiq_dTcanopy             => deriv_data%var(iLookDERIV%dCanLiq_dTcanopy)%dat(1),      & ! intent(out): [dp] derivative of canopy liquid storage w.r.t. temperature
+   scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1),        & ! intent(inout): [dp] fraction of liquid water on vegetation (-)
+   iLayerLiqFluxSnowDeriv       => deriv_data%var(iLookDERIV%iLayerLiqFluxSnowDeriv)%dat,   & ! intent(out): [dp(:)] derivative in vertical liquid water flux at layer interfaces
+   mLayerdTheta_dTk             => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat,         & ! intent(in):  [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+   mLayerFracLiqSnow            => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat           ) ! intent(inout): [dp(:)] fraction of liquid water in each snow layer (-)
+   if (nSnow==0) then !no snow layers
+    scalarRainPlusMelt = (scalarThroughfallRain + scalarCanopyLiqDrainage)/iden_water &  ! liquid flux from the canopy (m s-1)
+                       + drainageMeltPond/iden_water  ! melt of the snow without a layer (m s-1)
+    if (ixVegHyd/=integerMissing) then
+     ! save canopy derivatives
+     above_soilLiqFluxDeriv = scalarCanopyLiqDeriv/iden_water ! derivative in (throughfall + drainage) w.r.t. canopy liquid water
+     above_soildLiq_dTk     = dCanLiq_dTcanopy     ! derivative of canopy liquid storage w.r.t. temperature
+     above_soilFracLiq      = scalarFracLiqVeg     ! fraction of liquid water in canopy (-)
+    else
+     above_soilLiqFluxDeriv = 0._rkind
+     above_soildLiq_dTk     = 0._rkind
+     above_soilFracLiq      = 0._rkind
+    end if
+   else ! snow layers, take from previous flux calculation
+    above_soilLiqFluxDeriv = iLayerLiqFluxSnowDeriv(nSnow) ! derivative in vertical liquid water flux at bottom snow layer interface
+    above_soildLiq_dTk     = mLayerdTheta_dTk(nSnow)  ! derivative in volumetric liquid water content in bottom snow layer w.r.t. temperature
+    above_soilFracLiq      = mLayerFracLiqSnow(nSnow) ! fraction of liquid water in bottom snow layer (-)
+   end if ! snow layers or not
+  end associate
+ end subroutine soilForcingNoSnow
+
+ subroutine zeroBaseflowFluxes
+  ! set baseflow fluxes to zero if the topmodel baseflow routine is not used
+  associate(&
+   scalarExfiltration           => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1), & ! intent(out): [dp] exfiltration from the soil profile (m s-1)
+   mLayerColumnOutflow          => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,   & ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
+   mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat         ) ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
+   ! diagnostic variables in the data structures
+   scalarExfiltration     = 0._rkind  ! exfiltration from the soil profile (m s-1)
+   mLayerColumnOutflow(:) = 0._rkind  ! column outflow from each soil layer (m3 s-1)
+   ! variables needed for the numerical solution
+   mLayerBaseflow(:)      = 0._rkind  ! baseflow from each soil layer (m s-1)
+  end associate
+ end subroutine zeroBaseflowFluxes
+
+ subroutine computeBaseflowRunoff
+  ! compute total baseflow from the soil zone (needed for mass balance checks) and total runoff
+  ! (Note: scalarSoilBaseflow is zero if topmodel is not used)
+  ! (Note: scalarSoilBaseflow may need to re-envisioned in topmodel formulation if parts of it flow into neighboring soil rather than exfiltrate)
+  associate(&
+   scalarSoilBaseflow           => flux_data%var(iLookFLUX%scalarSoilBaseflow)%dat(1),  & ! intent(out): [dp] total baseflow from the soil profile (m s-1)
+   mLayerBaseflow               => flux_data%var(iLookFLUX%mLayerBaseflow)%dat,         & ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
+   scalarTotalRunoff            => flux_data%var(iLookFLUX%scalarTotalRunoff)%dat(1),   & ! intent(out): [dp] total runoff (m s-1)
+   scalarSurfaceRunoff          => flux_data%var(iLookFLUX%scalarSurfaceRunoff)%dat(1), & ! intent(out): [dp] surface runoff (m s-1)
+   scalarSoilDrainage           => flux_data%var(iLookFLUX%scalarSoilDrainage)%dat(1)   ) ! intent(out): [dp] drainage from the soil profile (m s-1)
+   scalarSoilBaseflow = sum(mLayerBaseflow)                                               ! baseflow from the soil zone 
+   scalarTotalRunoff  = scalarSurfaceRunoff + scalarSoilDrainage + scalarSoilBaseflow     ! total runoff
+  end associate
+ end subroutine computeBaseflowRunoff  
+
+ subroutine zeroAquiferFluxes
+  ! set aquifer fluxes to zero (if no aquifer exists)
+  associate(&
+   scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1
+   scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1),  & ! intent(out): [dp] total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer           => deriv_data%var(iLookDERIV%dBaseflow_dAquifer)%dat(1)    ) ! intent(out): [dp(:)] derivative in baseflow flux w.r.t. aquifer storage (s-1)
+   scalarAquiferTranspire = 0._rkind  ! transpiration loss from the aquifer (m s-1)
+   scalarAquiferRecharge  = 0._rkind  ! recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow  = 0._rkind  ! total baseflow from the aquifer (m s-1)
+   dBaseflow_dAquifer     = 0._rkind  ! change in baseflow flux w.r.t. aquifer storage (s-1)
+  end associate
+ end subroutine zeroAquiferFluxes
+
+ ! **** Subroutines for starting/ending operations of computFlux ****
+ subroutine initialize_computFlux
+  ! operations to prep for the start of computFlux
+  associate(&
+   numFluxCalls                 => diag_data%var(iLookDIAG%numFluxCalls)%dat(1),         & ! intent(out): [dp] number of flux calls (-)
+   ixSpatialGroundwater         => model_decisions(iLookDECISIONS%spatial_gw)%iDecision, & ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
+   ixGroundwater                => model_decisions(iLookDECISIONS%groundwatr)%iDecision, & ! intent(in): [i4b] groundwater parameterization
+   iLayerLiqFluxSnow            => flux_data%var(iLookFLUX%iLayerLiqFluxSnow)%dat,       & ! intent(out): [dp(0:)] vertical liquid water flux at snow layer interfaces (-)
+   iLayerLiqFluxSoil            => flux_data%var(iLookFLUX%iLayerLiqFluxSoil)%dat        ) ! intent(out): [dp(0:)] vertical liquid water flux at soil layer interfaces (-)
+
+   numFluxCalls = numFluxCalls+1 ! increment the number of flux calls
+
+   ! modify the groundwater representation for this single-column implementation
+   select case(ixSpatialGroundwater)
+     case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
+     case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
+     case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
+   end select ! end modify the groundwater representation for this single-column implementation
+
+   ! initialize liquid water fluxes throughout the snow and soil domains
+   ! NOTE: used in the energy routines, which is called before the hydrology routines
+   if (firstFluxCall) then
+     if (nSnow>0) iLayerLiqFluxSnow(0:nSnow) = 0._rkind
+     iLayerLiqFluxSoil(0:nSoil) = 0._rkind
+   end if
+  end associate
+ end subroutine initialize_computFlux
+
+ subroutine finalize_computFlux
+  ! operations to prep for the end of computFlux
+  associate(&
+   ixCasNrg                     => indx_data%var(iLookINDEX%ixCasNrg)%dat(1),              & ! intent(in): [i4b] index of canopy air space energy state variable
+   ixVegNrg                     => indx_data%var(iLookINDEX%ixVegNrg)%dat(1),              & ! intent(in): [i4b] index of canopy energy state variable
+   ixVegHyd                     => indx_data%var(iLookINDEX%ixVegHyd)%dat(1),              & ! intent(in): [i4b] index of canopy hydrology state variable (mass)
+   scalarCanairNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanairNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the canopy air space (W m-2)
+   scalarCanopyNetNrgFlux       => flux_data%var(iLookFLUX%scalarCanopyNetNrgFlux)%dat(1), & ! intent(out): [dp] net energy flux for the vegetation canopy       (W m-2)
+   scalarCanopyNetLiqFlux       => flux_data%var(iLookFLUX%scalarCanopyNetLiqFlux)%dat(1), & ! intent(out): [dp] net liquid water flux for the vegetation canopy (kg m-2 s-1)
+   canopyDepth                  => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),      & ! intent(in): [dp] canopy depth (m)
+   nSnowSoilNrg                 => indx_data%var(iLookINDEX%nSnowSoilNrg)%dat(1),          & ! intent(in): [i4b] number of energy state variables in the snow+soil domain
+   ixSnowSoilNrg                => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat,            & ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+   mLayerNrgFlux                => flux_data%var(iLookFLUX%mLayerNrgFlux)%dat              ) ! intent(out): [dp] net energy flux for each layer within the snow+soil domain (J m-3 s-1)
+   ! *** WRAP UP ***
+   ! define model flux vector for the vegetation sub-domain
+   if (ixCasNrg/=integerMissing) fluxVec(ixCasNrg) = scalarCanairNetNrgFlux/canopyDepth
+   if (ixVegNrg/=integerMissing) fluxVec(ixVegNrg) = scalarCanopyNetNrgFlux/canopyDepth
+   if (ixVegHyd/=integerMissing) fluxVec(ixVegHyd) = scalarCanopyNetLiqFlux   ! NOTE: solid fluxes are handled separately
+   if (nSnowSoilNrg>0) then ! if necessary, populate the flux vector for energy
+     do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! loop through non-missing energy state variables in the snow+soil domain
+       fluxVec( ixSnowSoilNrg(iLayer) ) = mLayerNrgFlux(iLayer)
+     end do
+   end if
+  end associate
+
+  associate(&
+   ixAqWat                      => indx_data%var(iLookINDEX%ixAqWat)%dat(1),               & ! intent(in): [i4b] index of water storage in the aquifer
+   ixSnowSoilHyd                => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat,            & ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+   nSnowSoilHyd                 => indx_data%var(iLookINDEX%nSnowSoilHyd)%dat(1),          & ! intent(in): [i4b] number of hydrology variables in the snow+soil domain
+   layerType                    => indx_data%var(iLookINDEX%layerType)%dat,                & ! intent(in): [i4b(:)] type of layer (iname_soil or iname_snow)
+   mLayerLiqFluxSnow            => flux_data%var(iLookFLUX%mLayerLiqFluxSnow)%dat,         & ! intent(out): [dp] net liquid water flux for each snow layer (s-1)
+   mLayerLiqFluxSoil            => flux_data%var(iLookFLUX%mLayerLiqFluxSoil)%dat,         & ! intent(out): [dp] net liquid water flux for each soil layer (s-1)
+   scalarAquiferTranspire       => flux_data%var(iLookFLUX%scalarAquiferTranspire)%dat(1), & ! intent(out): [dp] transpiration loss from the aquifer (m s-1
+   scalarAquiferRecharge        => flux_data%var(iLookFLUX%scalarAquiferRecharge)%dat(1),  & ! intent(out): [dp] recharge to the aquifer (m s-1)
+   scalarAquiferBaseflow        => flux_data%var(iLookFLUX%scalarAquiferBaseflow)%dat(1)   ) ! intent(out): [dp] total baseflow from the aquifer (m s-1)
+   ! populate the flux vector for hydrology
+   ! NOTE: ixVolFracWat  and ixVolFracLiq can also include states in the soil domain, hence enable primary variable switching
+   if (nSnowSoilHyd>0) then  ! check if any hydrology states exist
+     do iLayer=1,nLayers     ! loop through non-missing energy state variables in the snow+soil domain
+       if (ixSnowSoilHyd(iLayer)/=integerMissing) then   ! check if a given hydrology state exists
+         select case(layerType(iLayer))
+           case(iname_snow); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSnow(iLayer)
+           case(iname_soil); fluxVec(ixSnowSoilHyd(iLayer)) = mLayerLiqFluxSoil(iLayer-nSnow)
+           case default; err=20; message=trim(message)//'expect layerType to be either iname_snow or iname_soil'; return
+         end select
+       end if  ! end if a given hydrology state exists
+     end do
+   end if  ! end if any hydrology states exist
+   ! compute the flux vector for the aquifer
+   if (ixAqWat/=integerMissing) fluxVec(ixAqWat) = scalarAquiferTranspire + scalarAquiferRecharge - scalarAquiferBaseflow
+  end associate
+
+   firstFluxCall=.false. ! set the first flux call to false
+ end subroutine finalize_computFlux
+
+ ! ----------------------- Initialize and Finalize procedures for the flux routines -----------------------
  ! **** vegNrgFlux ****
  subroutine initialize_vegNrgFlux
   associate(&
