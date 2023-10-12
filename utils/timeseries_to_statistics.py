@@ -131,14 +131,16 @@ def run_loop(file,bench,processed_files_path):
     m = m.rename({'gru': 'hru'})
     dat = dat.drop_dims('gru')
     dat = xr.merge([dat,m])  
-    dat = dat.where(dat.time!=dat.time[0],drop=True) #first timestep weird
+    #dat = dat.where(dat.time!=dat.time[0],drop=True) #drop first timestep, weird
+    dat = dat.isel(time=slice(24, None)) #drop first day, weird
     
     ben = ben.drop_vars(['hruId','gruId'])
     m = ben.drop_dims('hru')
     m = m.rename({'gru': 'hru'})
     ben = ben.drop_dims('gru')
     ben = xr.merge([ben,m])  
-    ben = ben.where(ben.time!=ben.time[0],drop=True) #first timestep weird
+    #ben = ben.where(ben.time!=ben.time[0],drop=True) drop first timestep, weird
+    ben = ben.isel(time=slice(24, None)) #drop first day, weird
     
     diff = dat - ben
     the_hru = np.array(ben['hru'])
