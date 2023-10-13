@@ -239,7 +239,7 @@ subroutine opSplittin(&
   type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
   type(var_dlength)               :: flux_temp                      ! temporary model fluxes
   type(var_dlength)               :: flux_mean                      ! mean model fluxes
-  type(var_dlength)               :: flux_mntemp                     ! temporary mean model fluxes
+  type(var_dlength)               :: flux_mntemp                    ! temporary mean model fluxes
   type(var_dlength)               :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
   ! ------------------------------------------------------------------------------------------------------
   ! * operator splitting
@@ -535,6 +535,16 @@ subroutine opSplittin(&
                     ! * identify flux mask for the fully coupled solution
                     if(ixCoupling==fullyCoupled)then
                       desiredFlux            = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+
+                      ! make sure firstFluxCall fluxes are included in the mask
+                      if (firstFluxCall) then 
+                        if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+                      endif
+
                       fluxMask%var(iVar)%dat = desiredFlux
 
                     ! * identify flux mask for the split solution
@@ -547,13 +557,21 @@ subroutine opSplittin(&
                         case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
                       end select
 
+                      ! make sure firstFluxCall fluxes are included in the mask
+                      if (firstFluxCall) then 
+                        if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
+                        if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+                      endif
+
                       ! no domain splitting
                       if(nDomains==1)then
                         fluxMask%var(iVar)%dat = desiredFlux
 
                       ! domain splitting
                       else
-                        !print*,"split domain"
 
                         ! initialize to .false.
                         fluxMask%var(iVar)%dat = .false.
