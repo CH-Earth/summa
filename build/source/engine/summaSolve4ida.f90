@@ -126,6 +126,7 @@ subroutine summaSolve4ida(                         &
                       ixSaturation,            & ! intent(inout)  index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if IDA successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout): lag to denote that there was too much melt
+                      nSteps,                  & ! intent(out):   number of time steps taken in solver
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
                       err,message)               ! intent(out):   error control
@@ -192,6 +193,7 @@ subroutine summaSolve4ida(                         &
   real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
+  integer(i4b),intent(out)        :: nSteps                 ! number of time steps taken in solver
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
@@ -437,6 +439,7 @@ subroutine summaSolve4ida(                         &
   tinystep = .false.
   tret(1) = t0           ! initial time
   tretPrev = tret(1)
+  nSteps = 0 ! initialize number of time steps taken in solver
   do while(tret(1) < dt_cur)
 
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)
@@ -470,6 +473,7 @@ subroutine summaSolve4ida(                         &
     ! get the last stepsize and difference from previous end time, not necessarily the same
     retval = FIDAGetLastStep(ida_mem, dt_last)
     dt_diff = tret(1) - tretPrev
+    nSteps = nSteps + 1 ! number of time steps taken in solver
 
     ! check the feasibility of the solution
     feasible=.true.

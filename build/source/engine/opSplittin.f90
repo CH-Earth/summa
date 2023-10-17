@@ -181,6 +181,7 @@ subroutine opSplittin(&
                       tooMuchMelt,          & ! intent(out):   flag to denote that ice is insufficient to support melt
                       stepFailure,          & ! intent(out):   flag to denote step failure
                       ixSolution,           & ! intent(out):   solution method used in this iteration
+                      mean_step_dt,         & ! intent(out):   mean solution step for the time step
                       err,message)            ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
@@ -220,6 +221,7 @@ subroutine opSplittin(&
   logical(lgt),intent(out)        :: tooMuchMelt                    ! flag to denote that ice is insufficient to support melt
   logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure
   integer(i4b),intent(out)        :: ixSolution                     ! index of solution method (1,2)
+  real(rkind),intent(out)         :: mean_step_dt                   ! mean solution step for the time step
   integer(i4b),intent(out)        :: err                            ! error code
   character(*),intent(out)        :: message                        ! error message
   ! ---------------------------------------------------------------------------------------
@@ -283,6 +285,9 @@ subroutine opSplittin(&
   integer(i4b)                    :: ixSaturation                   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
   integer(i4b)                    :: nCoupling
   logical(lgt)                    :: firstInnerStep                 ! flag to denote if the first time step in maxstep subStep
+  ! mean steps 
+  real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
+  real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -412,17 +417,19 @@ subroutine opSplittin(&
 
       ! define the number of operator splits for the state type
       select case(ixCoupling)
-      case(fullyCoupled);   nStateTypeSplit=1
-      case(stateTypeSplit); nStateTypeSplit=nStateTypes
-      case default; err=20; message=trim(message)//'coupling case not found'; return
+        case(fullyCoupled);   nStateTypeSplit=1
+        case(stateTypeSplit); nStateTypeSplit=nStateTypes
+        case default; err=20; message=trim(message)//'coupling case not found'; return
       end select  ! operator splitting option
 
       ! define if we wish to try the domain split
       select case(ixCoupling)
-      case(fullyCoupled);   tryDomainSplit=0
-      case(stateTypeSplit); tryDomainSplit=1
-      case default; err=20; message=trim(message)//'coupling case not found'; return
+        case(fullyCoupled);   tryDomainSplit=0
+        case(stateTypeSplit); tryDomainSplit=1
+        case default; err=20; message=trim(message)//'coupling case not found'; return
       end select  ! operator splitting option
+
+      mean_step_dt = 0._rkind ! initialize mean step for the time step
 
       ! state splitting loop
       stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit
@@ -463,11 +470,14 @@ subroutine opSplittin(&
             err=20; return
           endif
 
+          mean_step_state = 0._rkind ! initialize mean step for state
+
           ! domain splitting loop
           domainSplit: do iDomainSplit=1,nDomainSplit
 
             ! trial with the vector then scalar solution
             solution: do ixSolution=1,nSolutions
+              mean_step_solution = 0._rkind ! initialize mean step for a solution
 
               ! initialize error control
               err=0; message="opSplittin/"
@@ -488,7 +498,6 @@ subroutine opSplittin(&
                 case(scalar); nStateSplit=count(stateMask)
                 case default; err=20; message=trim(message)//'unknown solution method'; return
               end select
-
 
               ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
               stateSplit: do iStateSplit=1,nStateSplit
@@ -792,6 +801,8 @@ subroutine opSplittin(&
 
                 ! success = exit solution
                 if(.not.failure)then
+                  ! sum the mean steps for the successful solution type
+                  mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
                   select case(ixStateThenDomain)
                     case(fullDomain); if(iStateSplit==nStateSplit) exit stateThenDomain
                     case(subDomain);  if(iStateSplit==nStateSplit) exit solution
@@ -816,12 +827,20 @@ subroutine opSplittin(&
 
             end do solution ! trial with the full layer solution then the split layer solution
 
+            ! sum the mean steps for the state over each domain split
+            mean_step_state = mean_step_state + mean_step_solution/nDomainSplit
+
           ! ***** trial with a given solution method...
           ! *******************************************************************************************************************************
-
           end do domainSplit ! domain type splitting loop
 
         end do stateThenDomain  ! switch between the state and the domain
+
+        ! sum the mean steps for the time step over each state type split
+        select case(ixStateThenDomain) 
+          case(fullDomain); mean_step_dt = mean_step_dt + mean_step_solution/nStateTypeSplit
+          case(subDomain);  mean_step_dt = mean_step_dt + mean_step_state/nStateTypeSplit
+        end select
 
         ! -----
         ! * reset state variables for the mass split...

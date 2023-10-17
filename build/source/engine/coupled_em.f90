@@ -266,6 +266,9 @@ subroutine coupled_em(&
   ! timing information
   real(rkind)                          :: startTime              ! start time (used to compute wall clock time)
   real(rkind)                          :: endTime                ! end time (used to compute wall clock time)
+  real(rkind)                          :: mean_step_dt_sub       ! mean solution step for the sub-step
+  real(rkind)                          :: sumStepSize            ! sum solution step for the data step
+  integer(i4b)                         :: nSteps                 ! number of solution steps for the data step
   ! outer loop control
   logical(lgt)                         :: firstInnerStep         ! flag to denote if the first time step in maxstep subStep
   logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
@@ -356,6 +359,8 @@ subroutine coupled_em(&
     meanLatHeatCanopyEvap = 0._rkind ! mean latent heat flux for evaporation from the canopy
     meanSenHeatCanopy     = 0._rkind ! mean sensible heat flux from the canopy
     effRainfall           = 0._rkind ! mean total effective rainfall over snow
+
+    diag_data%var(iLookDIAG%meanStepSize)%dat(1) = 0._rkind ! mean step size over data_step
 
     ! Need mean soil compression for balance checks but it is not in flux structure so handle differently 
     !  This will be a problem if nSoil changes (currently not possible)-- then might need to not keep the average
@@ -837,6 +842,8 @@ subroutine coupled_em(&
         end do
         innerEffRainfall  = 0._rkind ! mean total effective rainfall over snow
         innerSoilCompress = 0._rkind ! mean total soil compression
+        nsteps = 0 ! initialize the number of steps
+        sumStepSize= 0._rkind ! initialize the sum of the step sizes
 
       endif ! (do_outer loop)
 
@@ -874,6 +881,7 @@ subroutine coupled_em(&
                       tooMuchMelt,                            & ! intent(out):   flag to denote that ice is insufficient to support melt
                       stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed
                       ixSolution,                             & ! intent(out):   solution method used in this iteration
+                      mean_step_dt_sub,                       & ! intent(out):   mean solution step for the sub-step
                       err,cmessage)                             ! intent(out):   error code and error message
       ! check for all errors (error recovery within opSplittin)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -909,6 +917,10 @@ subroutine coupled_em(&
       sumSnowSublimation   = sumSnowSublimation   + dt_sub*flux_data%var(iLookFLUX%scalarSnowSublimation)%dat(1)
       sumLatHeatCanopyEvap = sumLatHeatCanopyEvap + dt_sub*flux_data%var(iLookFLUX%scalarLatHeatCanopyEvap)%dat(1)
       sumSenHeatCanopy     = sumSenHeatCanopy     + dt_sub*flux_data%var(iLookFLUX%scalarSenHeatCanopy)%dat(1)
+
+      ! update the step size sum
+      sumStepSize = sumStepSize + mean_step_dt_sub
+      nsteps = nsteps + 1
 
       ! update first step and first and last inner steps
       firstSubStep = .false.
@@ -1073,6 +1085,9 @@ subroutine coupled_em(&
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = meanCanopySublimation
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy
+
+        ! add mean step size for the data_step to the total mean step size
+        diag_data%var(iLookDIAG%meanStepSize)%dat(1) =  diag_data%var(iLookDIAG%meanStepSize)%dat(1) + sumStepSize/nsteps
       endif
 
       ! save the time step to initialize the subsequent step

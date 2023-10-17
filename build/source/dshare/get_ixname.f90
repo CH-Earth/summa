@@ -583,6 +583,7 @@ contains
   ! timing information
   case('numFluxCalls'                   ); get_ixdiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
   case('wallClockTime'                  ); get_ixdiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
+  case('meanStepSize'                   ); get_ixdiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window')
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing

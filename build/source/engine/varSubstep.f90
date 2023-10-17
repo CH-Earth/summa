@@ -192,12 +192,9 @@ subroutine varSubstep(&
   real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
   real(rkind)                        :: dtSubstep                     ! length of a substep (s)
   real(rkind)                        :: maxstep                       ! maximum time step length (seconds)
-  ! adaptive sub-stepping for the explicit solution
+  integer(i4b)                       :: nSteps                        ! number of time steps taken in solver
+  ! adaptive sub-stepping for the i solution
   logical(lgt)                       :: failedSubstep                 ! flag to denote success of substepping for a given split
-  real(rkind),parameter              :: safety=0.85_rkind             ! safety factor in adaptive sub-stepping
-  real(rkind),parameter              :: reduceMin=0.1_rkind           ! mimimum factor that time step is reduced
-  real(rkind),parameter              :: increaseMax=4.0_rkind         ! maximum factor that time step is increased
-  ! adaptive sub-stepping for the implicit solution
   integer(i4b)                       :: niter                         ! number of iterations taken
   integer(i4b),parameter             :: n_inc=5                       ! minimum number of iterations to increase time step
   integer(i4b),parameter             :: n_dec=15                      ! maximum number of iterations to decrease time step
@@ -347,6 +344,7 @@ subroutine varSubstep(&
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
                       untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       niter,             & ! intent(out):   number of iterations taken (numrec)
+                      nSteps,            & ! intent(out):   number of time steps taken in solver
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that ice is insufficient to support melt
                       err,cmessage)        ! intent(out):   error code and error message
@@ -518,7 +516,7 @@ subroutine varSubstep(&
       end do  ! (loop through fluxes)
 
       ! increment the number of substeps
-      nSubsteps = nSubsteps+1
+      nSubsteps = nSubsteps + nSteps
 
       ! increment the sub-step legth
       dtSum = dtSum + dtSubstep
