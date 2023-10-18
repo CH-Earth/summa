@@ -129,7 +129,7 @@ integer(i4b),parameter  :: nSolutions=2               ! number of solution metho
 
 ! named variables for the switch between states and domains
 integer(i4b),parameter  :: fullDomain=1               ! full domain (veg+snow+soil)
-integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, and soil separately)
+integer(i4b),parameter  :: subDomain=2                ! sub domain (veg, snow, soil, and aquifer separately)
 
 ! maximum number of possible splits
 integer(i4b),parameter  :: nStateTypes=2              ! number of state types (energy, water)
@@ -288,6 +288,7 @@ subroutine opSplittin(&
   ! mean steps 
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
+  logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -471,6 +472,7 @@ subroutine opSplittin(&
           endif
 
           mean_step_state = 0._rkind ! initialize mean step for state
+          addFirstFlux = .true.     ! flag to add the first flux
 
           ! domain splitting loop
           domainSplit: do iDomainSplit=1,nDomainSplit
@@ -501,8 +503,8 @@ subroutine opSplittin(&
 
               ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
               stateSplit: do iStateSplit=1,nStateSplit
-
-                ! -----
+ 
+              ! -----
                 ! * define state subsets for a given split...
                 ! -------------------------------------------
 
@@ -527,6 +529,15 @@ subroutine opSplittin(&
                                 err,cmessage)                  ! intent(out)   : error control
                 if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
+                ! check that we do not attempt the scalar solution for the fully coupled case
+                if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
+                  message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
+                  err=20; return
+                endif
+
+                ! reset the flag for the first flux call
+                if(.not.firstSuccess) firstFluxCall=.true.
+
                 ! -----
                 ! * define the mask of the fluxes used...
                 ! ---------------------------------------
@@ -543,15 +554,16 @@ subroutine opSplittin(&
 
                     ! * identify flux mask for the fully coupled solution
                     if(ixCoupling==fullyCoupled)then
-                      desiredFlux            = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+                      desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
 
                       ! make sure firstFluxCall fluxes are included in the mask
-                      if (firstFluxCall) then 
+                      if (firstFluxCall .and. addFirstFlux) then 
                         if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+                        addFirstFlux = .false.
                       endif
 
                       fluxMask%var(iVar)%dat = desiredFlux
@@ -567,12 +579,13 @@ subroutine opSplittin(&
                       end select
 
                       ! make sure firstFluxCall fluxes are included in the mask
-                      if (firstFluxCall) then 
+                      if (firstFluxCall .and. addFirstFlux) then 
                         if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
                         if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+                        addFirstFlux = .false.
                       endif
 
                       ! no domain splitting
@@ -643,6 +656,10 @@ subroutine opSplittin(&
                                 endif    ! if the layer is active
                               end do   ! looping through layers
 
+                            ! fluxes through aquifer
+                            case(aquiferSplit)
+                              fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
+
                             ! check
                             case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return
                           end select  ! domain split
@@ -666,15 +683,6 @@ subroutine opSplittin(&
 
                 ! *******************************************************************************************************************************
                 ! ***** trial with a given solution method...
-
-                ! check that we do not attempt the scalar solution for the fully coupled case
-                if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
-                  message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
-                  err=20; return
-                endif
-
-                ! reset the flag for the first flux call
-                if(.not.firstSuccess) firstFluxCall=.true.
 
                 ! save/recover copies of prognostic variables
                 do iVar=1,size(prog_data%var)

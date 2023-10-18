@@ -190,6 +190,7 @@ subroutine coupled_em(&
   real(rkind)                          :: maxstep_op             ! maximum time step length (seconds) to run opSplittin over
   real(rkind)                          :: whole_step             ! step the surface pond drainage and sublimation calculated over
   integer(i4b)                         :: nsub                   ! number of substeps
+  integer(i4b)                         :: nsub_success           ! number of successful substeps
   logical(lgt)                         :: computeVegFluxOld      ! flag to indicate if we are computing fluxes over vegetation on the previous sub step
   logical(lgt)                         :: includeAquifer         ! flag to denote that an aquifer is included
   logical(lgt)                         :: modifiedLayers         ! flag to denote that snow layers were modified
@@ -268,7 +269,6 @@ subroutine coupled_em(&
   real(rkind)                          :: endTime                ! end time (used to compute wall clock time)
   real(rkind)                          :: mean_step_dt_sub       ! mean solution step for the sub-step
   real(rkind)                          :: sumStepSize            ! sum solution step for the data step
-  integer(i4b)                         :: nSteps                 ! number of solution steps for the data step
   ! outer loop control
   logical(lgt)                         :: firstInnerStep         ! flag to denote if the first time step in maxstep subStep
   logical(lgt)                         :: lastInnerStep          ! flag to denote if the last time step in maxstep subStep
@@ -610,7 +610,8 @@ subroutine coupled_em(&
     dtSave  = whole_step       ! length of whole substep
 
     ! initialize the number of sub-steps
-    nsub=0
+    nsub = 0
+    nsub_success = 0
 
     ! loop through sub-steps
     substeps: do  ! continuous do statement with exit clause (alternative to "while")
@@ -920,7 +921,6 @@ subroutine coupled_em(&
 
       ! update the step size sum
       sumStepSize = sumStepSize + mean_step_dt_sub
-      nsteps = nsteps + 1
 
       ! update first step and first and last inner steps
       firstSubStep = .false.
@@ -1086,8 +1086,8 @@ subroutine coupled_em(&
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarSenHeatCanopy))%dat(1)     = meanSenHeatCanopy
 
-        ! add mean step size for the data_step to the total mean step size
-        diag_data%var(iLookDIAG%meanStepSize)%dat(1) =  diag_data%var(iLookDIAG%meanStepSize)%dat(1) + sumStepSize/nsteps
+        ! add mean step size for the data_step to the total step size sum
+        diag_data%var(iLookDIAG%meanStepSize)%dat(1) =  diag_data%var(iLookDIAG%meanStepSize)%dat(1) + sumStepSize
       endif
 
       ! save the time step to initialize the subsequent step
@@ -1097,6 +1097,7 @@ subroutine coupled_em(&
       if(globalPrintFlag)&
       write(*,'(a,1x,3(f18.5,1x))') 'dt_sub, dt_solv, data_step: ', dt_sub, dt_solv, data_step
 
+      nsub_success = nsub_success + 1
       ! check that we have completed the sub-step
       if(dt_solv >= data_step-verySmall) then
         exit substeps
@@ -1106,6 +1107,7 @@ subroutine coupled_em(&
       dt_sub = min(data_step - dt_solv, dt_sub)
 
     end do  substeps ! (sub-step loop)
+    diag_data%var(iLookDIAG%meanStepSize)%dat(1) = diag_data%var(iLookDIAG%meanStepSize)%dat(1)/nsub_success
 
     ! *** add snowfall to the snowpack...
     ! -----------------------------------
