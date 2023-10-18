@@ -843,7 +843,6 @@ subroutine coupled_em(&
         end do
         innerEffRainfall  = 0._rkind ! mean total effective rainfall over snow
         innerSoilCompress = 0._rkind ! mean total soil compression
-        nsteps = 0 ! initialize the number of steps
         sumStepSize= 0._rkind ! initialize the sum of the step sizes
 
       endif ! (do_outer loop)
