@@ -53,6 +53,8 @@ stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','nu
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
+viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
+viz_fl2 = viz_fl2.format(','.join(stepsets))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)
@@ -272,7 +274,7 @@ else:
 
 # merge the individual files into one for further vizualization
 merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
-merge_subsets_into_one(des_dir,des_fl2.replace('{}','*'),fnl_dir,viz_fil)
+merge_subsets_into_one(des_dir,des_fl2.replace('{}','*'),fnl_dir,viz_fl2)
 
 # remove the individual files for cleanliness
 for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):

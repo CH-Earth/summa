@@ -153,7 +153,7 @@ def run_loop(i,var):
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + stat0_word)
 
-    axs[r,c].set_ylabel(stat0_word + '[{}]'.format(leg_titl0[i]))
+    axs[r,c].set_ylabel(stat0_word + ' [{}]'.format(leg_titl0[i]))
     if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + ' rel to bench ' + stat0_word)
 
 

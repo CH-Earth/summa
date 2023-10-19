@@ -25,7 +25,7 @@ nbatch_hrus = 518 # number of HRUs per batch
 testing = False
 if testing: 
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1','be64',] #maybe make this an argument
+    method_name=['be1'] #maybe make this an argument
 else:
     import sys
     method_name=['be1','be4','be8','be16','be32'] #sundials will not show node differences as much
