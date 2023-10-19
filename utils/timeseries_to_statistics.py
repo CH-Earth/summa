@@ -46,8 +46,10 @@ fnl_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
-des_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
+des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
+des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
@@ -196,6 +198,19 @@ def run_loop(file,bench,processed_files_path):
         new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, kgem])
         new.to_netcdf(des_dir / des_fil.format(var,subset))
 
+    for var in stepsets:
+        mean = dat[var].mean(dim='time')
+        mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
+        
+        na_mx = np.fabs(dat[var]).max()+1
+        amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
+        amax = dat[var].isel(amx).drop_vars('time')
+        amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
+
+        new = xr.merge([mean,amax])
+        new.to_netcdf(des_dir / des_fl2.format(var,subset))
+
+
    # write the name of the processed file to the file list, acquire the lock before opening the file
     if not_parallel:
         with open(processed_files_path, 'a') as filew:
@@ -257,8 +272,10 @@ else:
 
 # merge the individual files into one for further vizualization
 merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
+merge_subsets_into_one(des_dir,des_fl2.replace('{}','*'),fnl_dir,viz_fil)
 
 # remove the individual files for cleanliness
 for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):
     os.remove(file)
-
+for file in glob.glob(str(des_dir / des_fl2.replace('{}','*'))):
+    os.remove(file)
