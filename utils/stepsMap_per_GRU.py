@@ -12,7 +12,7 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-# python input_per_GRU.py be32
+# python stepsMap_per_GRU.py be32
 
 
 # modules
@@ -30,24 +30,28 @@ import geopandas as gpd
 import pandas as pd
 
 # The first input argument specifies the run where the files are
-method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+method_name = sys.argv[1] # sys.argv values are strings by default so this is fine 
+stat = sys.argv[2]
 
 # Simulation statistics file locations
+stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+
 viz_dir = Path('/home/avanb/scratch/statistics')
-viz_fil = method_name + '_hrly_diff_stats_{}.nc'
+viz_fil = method_name + '_hrly_diff_steps_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
-eff_fil = 'eff_' + method_name + '.txt'
-nbatch_hrus = 518 # number of HRUs per batch
+viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
+viz_fl2 = viz_fl2.format(','.join(stepsets))
 
 # Specify variables of interest
 # Note, max for nodes is based off Graham which has 1185 nodes
-plot_vars = ['batch','node','effMultWallClockTime','wallClockTime','effMultWallClockMax','wallClockMax']
-plt_titl = ['(a) Batch number','(b) Node number','(c) Efficiency * Wall clock mean time','(d) Wall clock mean time','(e) Efficiency * Wall clock max time','(f) Wall clock max time']
-leg_titl = ['$num$','$num$','$s$','$s$','$s$','$s$']
-maxes = [998,1185,10e-3,10e-3,0.2,0.2]
+plot_vars = ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize','wallClockTime']
+plt_titl = ['(a) State Splits','(b) Energy Domain Splits','(c) Mass Domain Splits','(d) Scalar Solutions', '(e) Mean Step Size','(f) Wallclock Time']
+leg_titl = ['$num$','$num$','$num$','$num$','$s$','$s$']
+if stat == 'mean': maxes = [1,1,1,1,3600,10e-3] 
+if stat == 'amax': maxes = [1,1,1,1,3600,0.2] 
 
-fig_fil = method_name + '_wallClockTime_batchNum_compressed.png'
+fig_fil = method_name + '_splits_steps_compressed.png'
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -149,50 +153,20 @@ if plot_lakes:
 
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
-summa = xr.open_dataset(viz_dir/viz_fil)
-# Read the data from the eff.txt file into a DataFrame
-eff = pd.read_csv(viz_dir/eff_fil, sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
-# Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
-eff['CPU Efficiency'] = eff['CPU Efficiency'].str.split(':').str[1].astype(float)
-eff['Array ID'] = eff['Array ID'].str.split(':').str[1].astype(int)   
-eff['Job Wall-clock time'] = eff['Job Wall-clock time'].str.split(':').str[1].astype(float)
-eff['Node Number'] = eff['Node Number'].str.split(':').str[1].astype(int)
+summa = xr.open_dataset(viz_dir/viz_fl2)
+wall = xr.open_dataset(viz_dir/viz_fil)
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
-s0 = summa['wallClockTime'].sel(stat='mean')
-s1 = summa['wallClockTime'].sel(stat='amax')
-batch = np.floor(np.arange(len(s0.indexes['hru'])) /nbatch_hrus)
-#basin_num = np.arange(len(s0.indexes['hru'])) % nbatch_hrus #not currently using
-# Create a dictionary to store the values for each batch
-efficiency = {}
-node = {}
-# Iterate over the rows in the data DataFrame
-for index, row in eff.iterrows():
-    # Extract the values from the row
-    batch0 = int(row['Array ID'])
-    eff = row['CPU Efficiency']
-    nod = row['Node Number']
-    # Store the value for the current batch in the dictionary
-    efficiency[batch0] = eff  
-    node[batch0] = nod
-# Select the values for the current batch using boolean indexing
-eff_batch = np.array([efficiency[b] for b in batch])
-node_batch = np.array([node[b] for b in batch])
-
 for plot_var in plot_vars:
-    if plot_var == 'batch':
-        s = s0*batch/s0
-    if plot_var == 'node':
-        s = s0*node_batch/s0
-    if plot_var == 'effMultWallClockTime':
-        s = s0*eff_batch
-    if plot_var == 'wallClockTime':
-        s = s0
-    if plot_var == 'effMultWallClockMax':
-        s = s1*eff_batch
-    if plot_var == 'wallClockMax':
-        s = s1
+    stat0 = stat
+
+    if plot_var != 'wallClockTime': 
+        s = summa[plot_var].sel(stat=stat0)
+    else:
+        s = wall[plot_var].sel(stat=stat0)
+
+    s = np.fabs(s) # make absolute value norm, not all positive  
     bas_albers[plot_var] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
@@ -213,15 +187,11 @@ if 'compressed' in fig_fil:
 else:
     plt.rcParams.update({'font.size': 100})
 
-# Flip the evaporation values so that they become positive, not if plotting diffs
-#bas_albers['plot_ET'] = bas_albers['scalarTotalET'] * -1
-#bas_albers['plot_ET'] = bas_albers['plot_ET'].where(bas_albers['scalarTotalET'] != -9999, np.nan)
-
 if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
-fig.suptitle('{} Wallclock, Batch, and Node'.format(method_name), fontsize=40)
+fig.suptitle('{} Hourly Statistics'.format(method_name), fontsize=40)
 
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
@@ -233,25 +203,34 @@ plt.tight_layout()
 
 def run_loop(i,var,the_max,f_x,f_y):
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
-    my_cmap.set_bad(color='white') #nan color white    
-    vmin,vmax = 0, the_max
+    my_cmap.set_bad(color='white') #nan color white
+    vmin,vmax = 0, the_max 
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
+    if var=='meanStepSize':
+        my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
+        my_cmap.set_bad(color='white') #nan color white
+        vmin,vmax = 0, the_max
+        norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
     r = i//2
     c = i-r*2
 
     # Data
     bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
+ 
+    if stat == 'mean': word = 'mean'
+    if stat == 'amax': word = 'max'
+
+    axs[r,c].set_title(plt_titl[i])
+    axs[r,c].axis('off')
 
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.25])
     sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
     sm._A = []
     cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-    cbr.ax.set_ylabel('[{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+    cbr.ax.set_ylabel(word + ' [{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
+ 
     #cbr.ax.yaxis.set_offset_position('right')
-
-    axs[r,c].set_title(plt_titl[i])
-    axs[r,c].axis('off')
 
     # lakes
     if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)

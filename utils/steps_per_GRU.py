@@ -21,7 +21,6 @@ import copy
 import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
-nbatch_hrus = 518 # number of HRUs per batch
 
 testing = False
 if testing: 
@@ -49,7 +48,7 @@ for i, m in enumerate(method_name):
 
 # Specify variables of interest
 plot_vars = stepsets.copy()
-plt_titl = ['(a) Energy Domain Splits','(b) Mass Domain Splits','(c) Scalar Solutions', '(d) Step Size']
+plt_titl = ['(a) Energy Domain Splits','(b) Mass Domain Splits','(c) Scalar Solutions', '(d) Mean Step Size']
 leg_titl = ['$num$', '$num$','$num$','$s$']
 leg_titl0 = ['$num$', '$num$','$num$','$s$']
 
