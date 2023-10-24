@@ -328,82 +328,8 @@ subroutine opSplittin(&
       case(kinsol, numrec); nCoupling = 2
      end select
 
-    ! -----
-    ! * initialize...
-    ! ---------------
-
-    ! set the global print flag
-    globalPrintFlag=.false.
-
-    if(globalPrintFlag)&
-    print*, trim(message), dt
-
-    ! initialize the first success call
-    firstSuccess=.false.
-    if (.not.firstInnerStep) firstSuccess=.true.
-
-    ! initialize the flags
-    tooMuchMelt=.false.  ! too much melt (merge snow layers)
-    stepFailure=.false.  ! step failure
-
-    ! initialize flag for the success of the substepping
-    failure=.false.
-
-    ! initialize the flux check
-    neededFlux(:) = .false.
-
-    ! initialize the state check
-    stateCheck(:) = 0
-
-    ! allocate space for the flux mask (used to define when fluxes are updated)
-    call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the flux count (used to check that fluxes are only updated once)
-    call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the temporary prognostic variable structure
-    call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the temporary diagnostic variable structure
-    call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the temporary flux variable structure
-    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the mean flux variable structure
-    call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the temporary mean flux variable structure
-    call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for the derivative structure
-    call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
-
-    ! intialize the flux counter
-    do iVar=1,size(flux_meta)  ! loop through fluxes
-      fluxCount%var(iVar)%dat(:) = 0
-    end do
-
-    ! initialize the model fluxes
-    do iVar=1,size(flux_meta)  ! loop through fluxes
-      if(flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
-      if(flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
-      if (firstInnerStep) flux_data%var(iVar)%dat(:) = 0._rkind
-      flux_mean%var(iVar)%dat(:) = 0._rkind
-    end do
-
-    ! initialize derivatives
-    do iVar=1,size(deriv_meta)
-      deriv_data%var(iVar)%dat(:) = 0._rkind
-    end do
+    ! *** initialize ***
+    call initialize_opSplittin
 
     ! ==========================================================================================================================================
     ! loop through different coupling strategies
@@ -870,26 +796,116 @@ subroutine opSplittin(&
 
     end do coupling ! coupling method
 
-    ! check that all state variables were updated
-    if(any(stateCheck==0))then
-      message=trim(message)//'some state variables were not updated!'
-      err=20; return
-    endif
+    ! *** Finalize ***
+    call finalize_opSplittin
 
-    ! check that the desired fluxes were computed
-    do iVar=1,size(flux_meta)
-      if(neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0))then
-        print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
-        message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
-        err=20; return
-      endif
-    end do
-
-    ! use step halving if unable to complete the fully coupled solution in one substep
-    if(ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
-
-    ! end associate statements
+  ! end associate statements
   end associate globalVars
+
+ contains
+
+  subroutine initialize_opSplittin
+   ! *** initial steps for opSplittin subroutine ***
+
+   ! set the global print flag
+   globalPrintFlag=.false.
+
+   if (globalPrintFlag) print *, trim(message), dt
+
+   ! initialize the first success call
+   firstSuccess=.false.
+   if (.not.firstInnerStep) firstSuccess=.true.
+
+   ! initialize the flags
+   tooMuchMelt=.false.  ! too much melt (merge snow layers)
+   stepFailure=.false.  ! step failure
+
+   ! initialize flag for the success of the substepping
+   failure=.false.
+
+   ! initialize the flux check
+   neededFlux(:) = .false.
+
+   ! initialize the state check
+   stateCheck(:) = 0
+
+   ! allocate local structures based on the number of snow and soil layers
+   call allocate_memory 
+
+   ! intialize the flux counter
+   do iVar=1,size(flux_meta)  ! loop through fluxes
+     fluxCount%var(iVar)%dat(:) = 0
+   end do
+
+   ! initialize the model fluxes
+   do iVar=1,size(flux_meta)  ! loop through fluxes
+    if (flux2state_orig(iVar)%state1==integerMissing .and. flux2state_orig(iVar)%state2==integerMissing) cycle ! flux does not depend on state (e.g., input)
+    if (flux2state_orig(iVar)%state1==iname_watCanopy .and. .not.computeVegFlux) cycle ! use input fluxes in cases where there is no canopy
+    if (firstInnerStep) flux_data%var(iVar)%dat(:) = 0._rkind
+    flux_mean%var(iVar)%dat(:) = 0._rkind
+   end do
+
+   ! initialize derivatives
+   do iVar=1,size(deriv_meta)
+    deriv_data%var(iVar)%dat(:) = 0._rkind
+   end do
+  end subroutine initialize_opSplittin
+
+  subroutine allocate_memory
+   ! *** allocate memory for local structures ***
+   ! allocate space for the flux mask (used to define when fluxes are updated)
+   call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the flux count (used to check that fluxes are only updated once)
+   call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the temporary prognostic variable structure
+   call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the temporary diagnostic variable structure
+   call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the temporary flux variable structure
+   call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the mean flux variable structure
+   call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the temporary mean flux variable structure
+   call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+
+   ! allocate space for the derivative structure
+   call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+  end subroutine allocate_memory
+
+  subroutine finalize_opSplittin
+   ! *** final operations for opSplittin subroutine ***
+   ! check that all state variables were updated
+   if (any(stateCheck==0)) then
+    message=trim(message)//'some state variables were not updated!'
+    err=20; return
+   endif
+
+   ! check that the desired fluxes were computed
+   do iVar=1,size(flux_meta)
+    if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
+     print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
+     message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
+     err=20; return
+    endif
+   end do
+
+   ! use step halving if unable to complete the fully coupled solution in one substep
+   if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
+  end subroutine finalize_opSplittin
 
 end subroutine opSplittin
 
