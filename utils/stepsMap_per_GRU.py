@@ -38,7 +38,7 @@ stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','nu
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 
 viz_dir = Path('/home/avanb/scratch/statistics')
-viz_fil = method_name + '_hrly_diff_steps_{}.nc'
+viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
 viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
 viz_fl2 = viz_fl2.format(','.join(stepsets))
@@ -48,10 +48,11 @@ viz_fl2 = viz_fl2.format(','.join(stepsets))
 plot_vars = ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize','wallClockTime']
 plt_titl = ['(a) State Splits','(b) Energy Domain Splits','(c) Mass Domain Splits','(d) Scalar Solutions', '(e) Mean Step Size','(f) Wallclock Time']
 leg_titl = ['$num$','$num$','$num$','$num$','$s$','$s$']
-if stat == 'mean': maxes = [1,1,1,1,3600,10e-3] 
-if stat == 'amax': maxes = [1,1,1,1,3600,0.2] 
+if stat == 'mean': maxes = [0.06,0.0004,0.0004,0.0015,3600,10e-3] 
+if stat == 'amax': maxes = [2,1,1,10,3600,0.2] 
 
-fig_fil = method_name + '_splits_steps_compressed.png'
+fig_fil = method_name + '_splits_steps_{}_compressed.png'
+fig_fil = fig_fil.format(stat)
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -138,6 +139,7 @@ acc = 'ESRI:102008'
 #bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
 #bas_albers = bas.to_crs(acc)
 bas_albers = gpd.read_file(main/'basin.shp')
+xmin, ymin, xmax, ymax = bas_albers.total_bounds
 
 # river network shapefile, first 2 lines throw error so cutting them
 if plot_rivers:
@@ -222,6 +224,8 @@ def run_loop(i,var,the_max,f_x,f_y):
 
     axs[r,c].set_title(plt_titl[i])
     axs[r,c].axis('off')
+    axs[r,c].set_xlim(xmin, xmax)
+    axs[r,c].set_ylim(ymin, ymax)
 
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.25])

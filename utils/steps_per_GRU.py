@@ -22,9 +22,9 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = False
+testing = True
 if testing: 
-    stat = 'mean'
+    stat = 'amax'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1'] #maybe make this an argument
 else:
@@ -32,6 +32,7 @@ else:
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
     method_name=['be1','be4','be8','be16','be32'] #maybe make this an argument
+    method_name=['be1'] #maybe make this an argument
     #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
 
 # Simulation statistics file locations
@@ -47,21 +48,22 @@ for i, m in enumerate(method_name):
     viz_fl2[i] = viz_fl2[i].format(','.join(stepsets))
 
 # Specify variables of interest
-plot_vars = stepsets.copy()
+plot_vars = ['numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 plt_titl = ['(a) Energy Domain Splits','(b) Mass Domain Splits','(c) Scalar Solutions', '(d) Mean Step Size']
 leg_titl = ['$num$', '$num$','$num$','$s$']
 leg_titl0 = ['$num$', '$num$','$num$','$s$']
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
-fig_fil = 'Splits_steps_scat_compressed.png'
+fig_fil = 'Splits_steps_scat_{}_compressed.png'
+fig_fil = fig_fil.format(stat)
 
 summa = {}
 wall = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fl2[i])
-    wall[m] = xr.open_dataset(viz_dir/viz_fl2[i])
+    wall[m] = xr.open_dataset(viz_dir/viz_fil[i])
     
 ##Figure
 
@@ -86,7 +88,7 @@ def run_loop(i,var):
         s = summa[m][var].sel(stat=stat)
 
         if var == 'numberDomainSplitNrg' or var == 'numberDomainSplitMass':
-            s0 = summa[m]['numberStateSplit',].sel(stat=stat)
+            s0 = summa[m]['numberStateSplit'].sel(stat=stat)
             stat0_word = 'State Splits'
             if var == 'numberDomainSplitNrg': stat_word = 'Energy Domain Splits'
             if var == 'numberDomainSplitMass': stat_word = 'Mass Domain Splits'
@@ -99,7 +101,7 @@ def run_loop(i,var):
             stat0_word = 'Wallclock Time'
             stat_word = 'Mean Step Size'
 
-        axs[r,c].scatter(x=s.values,y=s0.values,s=1,zorder=0,label=m)        
+        axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
  
     if stat == 'mean': word = ' mean'
     if stat == 'amax': word = ' max'

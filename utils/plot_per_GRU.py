@@ -54,13 +54,13 @@ leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$
 if stat == 'rmse': 
     maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
     #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,10e-3]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'maxe': 
     maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.1,0.6,0.6,0.6,0.2]
+    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 if stat == 'mean': 
@@ -157,6 +157,7 @@ acc = 'ESRI:102008'
 #bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
 #bas_albers = bas.to_crs(acc)
 bas_albers = gpd.read_file(main/'basin.shp')
+xmin, ymin, xmax, ymax = bas_albers.total_bounds
 
 # river network shapefile, first 2 lines throw error so cutting them
 if plot_rivers:
@@ -218,7 +219,12 @@ for plot_var in plot_vars:
         # Multiply the s values by efficiency
         s = s*eff_batch
 
-    s = np.fabs(s) # make absolute value norm, not all positive
+    # Make absolute value norm, not all positive
+    s = np.fabs(s) 
+    
+    # Replace inf values with NaN in the s DataArray
+    s = s.where(~np.isinf(s), np.nan)
+
     if plot_var == 'scalarTotalET' and not do_rel:
         if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
         if stat =='maxe': s = s*3600 # make hourly max
@@ -276,7 +282,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     r = i//2
     c = i-r*2
 
-    # Data
+    # Plot the data with the full extent of the bas_albers shape
     bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
 
     if stat0 == 'rmse': stat_word = 'RMSE'
@@ -293,6 +299,8 @@ def run_loop(i,var,the_max,f_x,f_y):
 
     axs[r,c].set_title(plt_titl[i])
     axs[r,c].axis('off')
+    axs[r,c].set_xlim(xmin, xmax)
+    axs[r,c].set_ylim(ymin, ymax)
 
     # Custom colorbar
     cax = fig.add_axes([f_x,f_y,0.02,0.25])
