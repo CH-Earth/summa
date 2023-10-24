@@ -134,6 +134,7 @@ acc = 'ESRI:102008'
 #bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
 #bas_albers = bas.to_crs(acc)
 bas_albers = gpd.read_file(main/'basin.shp')
+xmin, ymin, xmax, ymax = bas_albers.total_bounds
 
 # river network shapefile, first 2 lines throw error so cutting them
 if plot_rivers:
@@ -252,6 +253,8 @@ def run_loop(i,var,the_max,f_x,f_y):
 
     axs[r,c].set_title(plt_titl[i])
     axs[r,c].axis('off')
+    axs[r,c].set_xlim(xmin, xmax)
+    axs[r,c].set_ylim(ymin, ymax)
 
     # lakes
     if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)
