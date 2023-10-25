@@ -1,0 +1,1 @@
+cmake_build/ngen data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" ./extern/summa/summa/test_ngen/example_realization_config_w_summa_bmi.json

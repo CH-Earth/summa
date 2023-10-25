@@ -56,100 +56,100 @@ CHARACTER(LEN=summaPathLen)  :: OUTPUT_PREFIX    = 'summa_output_'              
 
 contains
 
- ! **************************************************************************************************
- ! public subroutine summa_SetTimesDirsAndFiles: Sets times, directories and filenames for summa run
- ! **************************************************************************************************
- subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
- ! Purpose: Sets run times, directories and filenames for summa.
- ! ---
- USE ascii_util_module,only:file_open       ! function to open file
- USE ascii_util_module,only:linewidth       ! max character number for one line
- USE ascii_util_module,only:get_vlines      ! function to get a vector of non-comment lines
+! **************************************************************************************************
+! public subroutine summa_SetTimesDirsAndFiles: Sets times, directories and filenames for summa run
+! **************************************************************************************************
+subroutine summa_SetTimesDirsAndFiles(summaFileManagerIn,err,message)
+  ! Purpose: Sets run times, directories and filenames for summa.
+  ! ---
+  USE ascii_util_module,only:file_open       ! function to open file
+  USE ascii_util_module,only:linewidth       ! max character number for one line
+  USE ascii_util_module,only:get_vlines      ! function to get a vector of non-comment lines
 
- implicit none
+  implicit none
 
- ! input/output vars
- character(*),intent(in)              :: summaFileManagerIn
- integer(i4b),intent(out)             :: err
- character(*),intent(out)             :: message
- ! local vars
- character(*),parameter               :: summaFileManagerHeader='SUMMA_FILE_MANAGER_V3.0.0'
- integer(i4b),parameter               :: runinfo_fileunit=67   ! file unit for run time information
- character(len=8)                     :: cdate
- character(len=10)                    :: ctime
- character(len=256)                   :: cmessage              ! error message for downwind routine
- integer(i4b)                         :: unt                   ! file unit (free unit output from file_open)
- character(LEN=linewidth),allocatable :: charline(:)           ! vector of character strings
- integer(i4b)                         :: iControl, nControl    ! number of model info
- character(len=summaPathLen)          :: varEntry              ! name of model info
- character(len=32)                    :: option                ! option for model info
+  ! input/output vars
+  character(*),intent(in)              :: summaFileManagerIn
+  integer(i4b),intent(out)             :: err
+  character(*),intent(out)             :: message
+  ! local vars
+  character(*),parameter               :: summaFileManagerHeader='SUMMA_FILE_MANAGER_V3.0.0'
+  integer(i4b),parameter               :: runinfo_fileunit=67   ! file unit for run time information
+  character(len=8)                     :: cdate
+  character(len=10)                    :: ctime
+  character(len=256)                   :: cmessage              ! error message for downwind routine
+  integer(i4b)                         :: unt                   ! file unit (free unit output from file_open)
+  character(LEN=linewidth),allocatable :: charline(:)           ! vector of character strings
+  integer(i4b)                         :: iControl, nControl    ! number of model info
+  character(len=summaPathLen)          :: varEntry              ! name of model info
+  character(len=32)                    :: option                ! option for model info
 
- err=0; message="summa_SetTimesDirsAndFiles/"
+  err=0; message="summa_SetTimesDirsAndFiles/"
 
- ! read information from model control file, and populate model control structure
- ! populates global control information structure
+  ! read information from model control file, and populate model control structure
+  ! populates global control information structure
 
- ! open file, read non-comment lines, close file
- call file_open(trim(summaFileManagerIn),unt,err,cmessage)
- if(err/=0) then; message=trim(message)//trim(cmessage)//"/Failed to open control file [''"//trim(summaFileManagerIn)//"']"; err=-10; return; end if
- call get_vlines(unt,charline,err,cmessage)  ! 'charline' is a list of strings from non-comment lines
- if(err/=0) then; message=trim(message)//trim(cmessage)//"/Control file read issue in get_vlines()"; return; end if
- close(unt)
+  ! open file, read non-comment lines, close file
+  call file_open(trim(summaFileManagerIn),unt,err,cmessage)
+  if(err/=0) then; message=trim(message)//trim(cmessage)//"/Failed to open control file [''"//trim(summaFileManagerIn)//"']"; err=-10; return; end if
+  call get_vlines(unt,charline,err,cmessage)  ! 'charline' is a list of strings from non-comment lines
+  if(err/=0) then; message=trim(message)//trim(cmessage)//"/Control file read issue in get_vlines()"; return; end if
+  close(unt)
 
- ! get the number of model control file entries
- nControl = size(charline)
+  ! get the number of model control file entries
+  nControl = size(charline)
 
- ! populate the model control info structure
- do iControl=1,nControl
-  ! extract name of decision and the decision selected
-  read(charline(iControl),*,iostat=err) option, varEntry
-  if (err/=0) then; err=30; message=trim(message)//"error reading charline array"; return; end if
-  ! get the index of the control file entry in the data structure
-  write(*,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
+  ! populate the model control info structure
+  do iControl=1,nControl
+    ! extract name of decision and the decision selected
+    read(charline(iControl),*,iostat=err) option, varEntry
+    if (err/=0) then; err=30; message=trim(message)//"error reading charline array"; return; end if
+    ! get the index of the control file entry in the data structure
+    write(*,'(i4,1x,a)') iControl, trim(option)//': '//trim(varEntry)
 
-  ! assign entries from control file to module public variables; add checking as needed
-  select case(trim(option))
-   case('controlVersion' );
-       CONTROL_VRS = trim(varEntry);
-       if(trim(varEntry)/=trim(summaFileManagerHeader)) then
-         message=trim(message)//"unknown control file version in '"//trim(summaFileManagerIn)//" looking for "//trim(summaFileManagerHeader)
-         err=20
-         return
-       end if
-   case('simStartTime'       ); SIM_START_TM = trim(varEntry)                  ! start simulation time
-   case('simEndTime'         ); SIM_END_TM = trim(varEntry)                    ! end simulation time
-   case('tmZoneInfo'         ); NC_TIME_ZONE = trim(varEntry)                  ! time zone info
-   case('settingsPath'       ); SETTINGS_PATH = trim(varEntry)                 ! settings directory
-   case('forcingPath'        ); FORCING_PATH = trim(varEntry)                  ! input forcing directory
-   case('outputPath'         ); OUTPUT_PATH = trim(varEntry)                   ! output directory
-   case('statePath'          ); STATE_PATH = trim(varEntry)                    ! state file input/output directory
-   case('decisionsFile'      ); M_DECISIONS = trim(varEntry)                   ! model decisions file
-   case('outputControlFile'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
-   case('globalHruParamFile' ); LOCALPARAM_INFO = trim(varEntry)               ! default/global hru-level param file
-   case('globalGruParamFile' ); BASINPARAM_INFO = trim(varEntry)               ! default/global gru-level param file
-   case('attributeFile'      ); LOCAL_ATTRIBUTES = trim(varEntry)              ! attribute file
-   case('trialParamFile'     ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file (hru and/or gru)
-   case('vegTableFile'       ); VEGPARM = trim(varEntry)                       ! vegetation parameter table
-   case('soilTableFile'      ); SOILPARM = trim(varEntry)                      ! soil parameter table
-   case('generalTableFile'   ); GENPARM = trim(varEntry)                       ! general parameter table
-   case('noahmpTableFile'    ); MPTABLE = trim(varEntry)                       ! noah mp parameter table
-   case('forcingListFile'    ); FORCING_FILELIST = trim(varEntry)              ! file listing forcing filenames
-   case('initConditionFile'  ); MODEL_INITCOND = trim(varEntry)                ! initial conditions file (cold State)
-   case('outFilePrefix'      ); OUTPUT_PREFIX = trim(varEntry)                 ! filename root for output files
-   ! get to here if cannot find the variable
-   case default
-     err=10; message=trim(message)//"unknown control file option: "//trim(option); return
-  end select
- end do
+    ! assign entries from control file to module public variables; add checking as needed
+    select case(trim(option))
+    case('controlVersion' );
+      CONTROL_VRS = trim(varEntry);
+      if(trim(varEntry)/=trim(summaFileManagerHeader)) then
+        message=trim(message)//"unknown control file version in '"//trim(summaFileManagerIn)//" looking for "//trim(summaFileManagerHeader)
+        err=20
+        return
+      end if
+      case('simStartTime'       ); SIM_START_TM = trim(varEntry)                  ! start simulation time
+      case('simEndTime'         ); SIM_END_TM = trim(varEntry)                    ! end simulation time
+      case('tmZoneInfo'         ); NC_TIME_ZONE = trim(varEntry)                  ! time zone info
+      case('settingsPath'       ); SETTINGS_PATH = trim(varEntry)                 ! settings directory
+      case('forcingPath'        ); FORCING_PATH = trim(varEntry)                  ! input forcing directory
+      case('outputPath'         ); OUTPUT_PATH = trim(varEntry)                   ! output directory
+      case('statePath'          ); STATE_PATH = trim(varEntry)                    ! state file input/output directory
+      case('decisionsFile'      ); M_DECISIONS = trim(varEntry)                   ! model decisions file
+      case('outputControlFile'  ); OUTPUT_CONTROL = trim(varEntry)                ! output control file
+      case('globalHruParamFile' ); LOCALPARAM_INFO = trim(varEntry)               ! default/global hru-level param file
+      case('globalGruParamFile' ); BASINPARAM_INFO = trim(varEntry)               ! default/global gru-level param file
+      case('attributeFile'      ); LOCAL_ATTRIBUTES = trim(varEntry)              ! attribute file
+      case('trialParamFile'     ); PARAMETER_TRIAL = trim(varEntry)               ! trial parameters file (hru and/or gru)
+      case('vegTableFile'       ); VEGPARM = trim(varEntry)                       ! vegetation parameter table
+      case('soilTableFile'      ); SOILPARM = trim(varEntry)                      ! soil parameter table
+      case('generalTableFile'   ); GENPARM = trim(varEntry)                       ! general parameter table
+      case('noahmpTableFile'    ); MPTABLE = trim(varEntry)                       ! noah mp parameter table
+      case('forcingListFile'    ); FORCING_FILELIST = trim(varEntry)              ! file listing forcing filenames
+      case('initConditionFile'  ); MODEL_INITCOND = trim(varEntry)                ! initial conditions file (cold State)
+      case('outFilePrefix'      ); OUTPUT_PREFIX = trim(varEntry)                 ! filename root for output files
+      ! get to here if cannot find the variable
+      case default
+        err=10; message=trim(message)//"unknown control file option: "//trim(option); return
+    end select
+  end do
 
- ! before embarking on a run, check that the output directory is writable; write system date and time to a log file there
- open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
- if(err/=0)then; err=10; message=trim(message)//"cannot write to output directory '"//trim(OUTPUT_PATH)//"'"; return; end if
- call date_and_time(cdate,ctime)
- write(runinfo_fileunit,*) 'Run start time on system:  ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//cdate(7:8), &
-                         ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
- close(runinfo_fileunit)
+  ! before embarking on a run, check that the output directory is writable; write system date and time to a log file there
+  open(runinfo_fileunit,file=trim(OUTPUT_PATH)//"runinfo.txt",iostat=err)
+  if(err/=0)then; err=10; message=trim(message)//"cannot write to output directory '"//trim(OUTPUT_PATH)//"'"; return; end if
+  call date_and_time(cdate,ctime)
+  write(runinfo_fileunit,*) 'Run start time on system:  ccyy='//cdate(1:4)//' - mm='//cdate(5:6)//' - dd='//cdate(7:8), &
+                          ' - hh='//ctime(1:2)//' - mi='//ctime(3:4)//' - ss='//ctime(5:10)
+  close(runinfo_fileunit)
 
- end subroutine summa_SetTimesDirsAndFiles
+end subroutine summa_SetTimesDirsAndFiles
 
 END MODULE summaFileManager

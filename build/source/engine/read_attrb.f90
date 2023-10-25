@@ -123,10 +123,6 @@ contains
  err = nf90_inq_varid(ncID,"hru2gruId",varID); if (err/=0) then; message=trim(message)//'problem finding hru2gruId'; return; end if
  err = nf90_get_var(ncID,varID,hru2gru_id);    if (err/=0) then; message=trim(message)//'problem reading hru2gruId'; return; end if
 
- ! close netcdf file
- call nc_file_close(ncID,err,cmessage)
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
  ! array from 1 to total # of HRUs in attributes file
  hru_ix=arth(1,1,fileHRU)
 
@@ -187,6 +183,11 @@ else ! anything other than a single HRU run
 
 end if ! not checkHRU
 
+deallocate(gru_id, hru_ix, hru_id, hru2gru_id)
+! close netcdf file
+call nc_file_close(ncID,err,cmessage)
+if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
 end subroutine read_dimension
 
  ! ************************************************************************************************
@@ -201,7 +202,7 @@ end subroutine read_dimension
  ! provide access to derived data types
  USE data_types,only:gru_hru_int                            ! x%gru(:)%hru(:)%var(:)     (i4b)
  USE data_types,only:gru_hru_int8                           ! x%gru(:)%hru(:)%var(:)     integer(8)
- USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (dp)
+ USE data_types,only:gru_hru_double                         ! x%gru(:)%hru(:)%var(:)     (rkind)
  ! provide access to global data
  USE globalData,only:gru_struc                              ! gru-hru mapping structure
  USE globalData,only:attr_meta,type_meta,id_meta            ! metadata structures
@@ -393,13 +394,13 @@ end subroutine read_dimension
  ! **********************************************************************************************
  ! (5) close netcdf file
  ! **********************************************************************************************
- call nc_file_close(ncID,err,cmessage)
- if (err/=0)then; message=trim(message)//trim(cmessage); return; end if
-
- ! free memory
+! free memory
  deallocate(checkType)
  deallocate(checkId)
  deallocate(checkAttr)
+
+ call nc_file_close(ncID,err,cmessage)
+ if (err/=0)then; message=trim(message)//trim(cmessage); return; end if
 
  end subroutine read_attrb
 

@@ -1,0 +1,13 @@
+
+To switch between SUMMA-BE and SUMMA-SUNDIALS, the num_method in the model_decision file can be either one of the values "numrec" (choice "itertive" is backward compatible), "kinsol", or "ida".
+
+In energy equation, the heat capacity is computed using either the analytical (closed) formula or the finite difference formula (dH_T/dT). The "howHeatCap" variable has been added to the var_lookup module to handle such decision. A user should add this variable to the model_decision file with one of the values "closedForm" or "enthalpyFD". Choice of num_method as "itertive" will set num_method=numrec and howHeatCap=closedForm.
+
+All SUMMA-SUNDIALS files are in build/source/engine. The important ones are as following:
+
+summaSolve4ida.f90: contains public subroutine summaSolve4ida which solves the differential equation system F(y,y') = 0 by IDA (y is the state vector) and private subroutines setInitialCondition and setSolverParams. Subroutine setSolverParams can be used to to set parameters (maximum order, number of nonlinear iteration , etc) in IDA solver.
+
+eval8summaWithPrime.f90: contains public subroutine eval8summaWithPrime which computes the residual vector F(t,y,y') mainly by calling varExtract, updateVarsWithPrime, computFlux, and computResidWithPrime. We also switch between different forms of the energy equation in this subroutine. It also contains public function eval8summa4ida which is the interface wrapper for computing the residual vector required for the IDA solver.
+
+computJacobWithPrime.f90: contains public subroutine computJacobWithPrime which computes the Jacobian matrix dF/dy + c dF/dy'. It also contains the public function computJacob4ida which is the interface wrapper for computing the Jacobian matrix required for the IDA solver.
+
