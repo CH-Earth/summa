@@ -573,6 +573,44 @@ MODULE data_types
  end type out_type_bigAquifer
  ! ** end bigAquifer
 
+ ! ** varSubstep
+ type, public :: in_type_varSubstep  ! derived type for intent(in) arguments in varSubstep call
+   real(rkind)              :: dt                          ! intent(in): time step (s)
+   real(rkind)              :: dtInit                      ! intent(in): initial time step (seconds)
+   real(rkind)              :: dt_min                      ! intent(in): minimum time step (seconds)
+   real(rkind)              :: whole_step                  ! intent(in): length of whole step for surface drainage and average flux
+   integer(i4b)             :: nSubset                     ! intent(in): total number of variables in the state subset
+   logical(lgt)             :: doAdjustTemp                ! intent(in): flag to indicate if we adjust the temperature
+   logical(lgt)             :: firstSubStep                ! intent(in): flag to denote first sub-step
+   logical(lgt)             :: computeVegFlux              ! intent(in): flag to denote if computing energy flux over vegetation
+   logical(lgt)             :: scalarSolution              ! intent(in): flag to denote computing the scalar solution
+   integer(i4b)             :: iStateSplit                 ! intent(in): index of the layer in the splitting operation
+   type(var_flagVec)        :: fluxMask                    ! intent(in): mask for the fluxes used in this given state subset
+  contains
+   procedure :: initialize => initialize_in_varSubstep
+ end type in_type_varSubstep
+
+ type, public :: io_type_varSubstep  ! derived type for intent(inout) arguments in varSubstep call
+   logical(lgt)             :: firstFluxCall               ! intent(inout) : flag to indicate if we are processing the first flux call
+   integer(i4b)             :: fluxCount                   ! intent(inout) : number of times fluxes are updated (should equal nsubstep)
+   integer(i4b)             :: ixSaturation                ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  contains
+
+ end type io_type_varSubstep
+
+ type, public :: out_type_varSubstep  ! derived type for intent(out) arguments in varSubstep call
+   real(rkind)              :: dtMultiplier                ! intent(out): substep multiplier (-)
+   integer(i4b)             :: nSubsteps                   ! intent(out): number of substeps taken for a given split
+   logical(lgt)             :: failedMinimumStep           ! intent(out): flag for failed substeps
+   logical(lgt)             :: reduceCoupledStep           ! intent(out): flag to reduce the length of the coupled step
+   logical(lgt)             :: tooMuchMelt                 ! intent(out): flag to denote that ice is insufficient to support melt
+   integer(i4b)             :: err                         ! intent(out): error code
+   character(:),allocatable :: cmessage                    ! intent(out): error message
+  contains
+
+ end type out_type_varSubstep
+ ! ** end varSubstep
+
 contains
  
  ! **** vegNrgFlux ****
@@ -1208,4 +1246,36 @@ contains
   end associate
  end subroutine finalize_out_bigAquifer
  ! **** end bigAquifer ****
+
+ ! **** varSubstep ****
+ subroutine initialize_in_varSubstep(in_varSubstep,dt,dtInit,dt_min,whole_step,nSubset,&
+                                     doAdjustTemp,firstSubStep,computeVegFlux,ixSolution,scalar,iStateSplit,fluxMask)
+  class(in_type_varSubstep),intent(out) :: in_varSubstep  ! class object for intent(in) varSubstep arguments
+  real(rkind),intent(in)                :: dt             ! time step (s)
+  real(rkind),intent(in)                :: dtInit         ! initial time step (s)
+  real(rkind),intent(in)                :: dt_min         ! minimum time step (s) 
+  real(rkind),intent(in)                :: whole_step     ! length of whole step for surface drainage and average flux
+  integer(i4b),intent(in)               :: nSubset        ! total number of variables in the state subset
+  logical(lgt),intent(in)               :: doAdjustTemp   ! flag to indicate if we adjust the temperature
+  logical(lgt),intent(in)               :: firstSubStep   ! flag to denote first sub-step
+  logical(lgt),intent(in)               :: computeVegFlux ! flag to denote if computing energy flux over vegetation
+  integer(i4b),intent(in)               :: ixSolution     ! index of solution method
+  integer(i4b),intent(in)               :: scalar         ! scalar solution method
+  integer(i4b),intent(in)               :: iStateSplit    ! index of the layer in the splitting operation
+  type(var_flagVec),intent(in)          :: fluxMask       ! mask for the fluxes used in this given state subset
+ 
+  ! intent(in) arguments
+  in_varSubstep % dt             = dt                     ! intent(in): time step (s)
+  in_varSubstep % dtInit         = dtInit                 ! intent(in): initial time step (s)
+  in_varSubstep % dt_min         = dt_min                 ! intent(in): minimum time step (s)
+  in_varSubstep % whole_step     = whole_step             ! intent(in): length of whole step for surface drainage and average flux
+  in_varSubstep % nSubset        = nSubset                ! intent(in): total number of variables in the state subset
+  in_varSubstep % doAdjustTemp   = doAdjustTemp           ! intent(in): flag to indicate if we adjust the temperature
+  in_varSubstep % firstSubStep   = firstSubStep           ! intent(in): flag to denote first sub-step
+  in_varSubstep % computeVegFlux = computeVegFlux         ! intent(in): flag to denote if computing energy flux over vegetation
+  in_varSubstep % scalarSolution = (ixSolution==scalar)   ! intent(in): flag to denote computing the scalar solution
+  in_varSubstep % iStateSplit    = iStateSplit            ! intent(in): index of the layer in the splitting operation
+  in_varSubstep % fluxMask       = fluxMask               ! intent(in): mask for the fluxes used in this given state subset
+ end subroutine initialize_in_varSubstep
+ ! **** end varSubstep ****
 END MODULE data_types

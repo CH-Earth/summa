@@ -88,14 +88,14 @@ USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
-                    var_flagVec,  & ! data vector with variable length dimension (i4b)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
-                    model_options   ! defines the model decisions
-
+                    var_i,             & ! data vector (i4b)
+                    var_d,             & ! data vector (rkind)
+                    var_flagVec,       & ! data vector with variable length dimension (i4b)
+                    var_ilength,       & ! data vector with variable length dimension (i4b)
+                    var_dlength,       & ! data vector with variable length dimension (rkind)
+                    zLookup,           & ! lookup tables
+                    model_options,     & ! defines the model decisions
+                    in_type_varSubstep   ! class for varSubstep objects
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
@@ -289,6 +289,10 @@ subroutine opSplittin(&
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
+  ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
+  !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
+  type(in_type_varSubstep) :: in_varSubstep; ! varSubstep arguments
+
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -647,20 +651,11 @@ subroutine opSplittin(&
                 if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
                 ! solve variable subset for one full time steps
+                call initialize_varSubstep
                 call varSubstep(&
                                 ! input: model control
-                                dt,                         & ! intent(in)    : time step (s)
-                                dtInit,                     & ! intent(in)    : initial time step (seconds)
-                                dt_min,                     & ! intent(in)    : minimum time step (seconds)
-                                whole_step,                 & ! intent(in)    : length of whole step for surface drainage and average flux
-                                nSubset,                    & ! intent(in)    : total number of variables in the state subset
-                                doAdjustTemp,               & ! intent(in)    : flag to indicate if we adjust the temperature
-                                firstSubStep,               & ! intent(in)    : flag to denote first sub-step
+                                in_varSubstep,              & ! intent(in)    : model control
                                 firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
-                                computeVegFlux,             & ! intent(in)    : flag to denote if computing energy flux over vegetation
-                                (ixSolution==scalar),       & ! intent(in)    : flag to denote computing the scalar solution
-                                iStateSplit,                & ! intent(in)    : index of the layer in the splitting operation
-                                fluxMask,                   & ! intent(in)    : mask for the fluxes used in this given state subset
                                 fluxCount,                  & ! intent(inout) : number of times fluxes are updated (should equal nsubstep)
                                 ! input/output: data structures
                                 model_decisions,            & ! intent(in)    : model decisions
@@ -906,6 +901,11 @@ subroutine opSplittin(&
    ! use step halving if unable to complete the fully coupled solution in one substep
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
   end subroutine finalize_opSplittin
+
+  ! **** varSubstep ****
+  subroutine initialize_varSubstep
+   call in_varSubstep%initialize(dt,dtInit,dt_min,whole_step,nSubset,doAdjustTemp,firstSubStep,computeVegFlux,ixSolution,scalar,iStateSplit,fluxMask)
+  end subroutine initialize_varSubstep
 
 end subroutine opSplittin
 
