@@ -72,7 +72,7 @@ else()
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         message("\nUsing Actors Framework, should have been installed previously")
         add_compile_definitions(ACTORS_ACTIVE)
-
+        add_compile_definitions(V4_ACTIVE)
         project(summaactors DESCRIPTION "Summa-Sundials-BE Actors")
 
         include(FortranCInterface)
@@ -158,7 +158,7 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
 
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         find_package(CAF REQUIRED)
-        set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/gru_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
+        set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io)
     endif()
 
@@ -206,7 +206,12 @@ else()
             message(FATAL_ERROR "Did not find Actors directory, edit CMakeLists.txt to add path")
         endif()
         link_directories(${DIR_ACTORS}/lib)
-        set(INC_ACTORS ${DIR_ACTORS}/include ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/gru_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
+        set(INC_ACTORS ${DIR_ACTORS}/include 
+                       ${PARENT_DIR}/build/includes/global 
+                       ${PARENT_DIR}/build/includes/summa_actor  
+                       ${PARENT_DIR}/build/includes/job_actor 
+                       ${PARENT_DIR}/build/includes/file_access_actor
+                       ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io)
     endif()
 
@@ -238,21 +243,20 @@ set(HOOKUP_DIR ${F_MASTER}/build/source/hookup)
 set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
 set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
 
-# Define directories for source files that might be replaced by actors (identical if not using actors)
-set(SUB_DRIVER_DIR ${PARENT_DIR}/build/source/driver)
-set(SUB_DSHARE_DIR ${PARENT_DIR}/build/source/dshare)
-set(SUB_ENGINE_DIR ${PARENT_DIR}/build/source/engine)
-set(SUB_HOOKUP_DIR ${PARENT_DIR}/build/source/hookup)
-set(SUB_NETCDF_DIR ${PARENT_DIR}/build/source/netcdf)
-
 # Define Actors specific directories
 set(ACTORS_DIR ${PARENT_DIR}/build/source/actors)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
-set(GRU_ACTOR_DIR   ${ACTORS_DIR}/gru_actor)
 
-
+if(CMAKE_BUILD_TYPE MATCHES Actors)
+    # Define directories for source files that might be replaced by actors (identical if not using actors)
+    set(SUB_ENGINE_DIR ${FILE_ACCESS_DIR})
+    set(SUB_NETCDF_DIR ${FILE_ACCESS_DIR})
+else()
+    set(SUB_ENGINE_DIR ${PARENT_DIR}/build/source/engine)
+    set(SUB_NETCDF_DIR ${PARENT_DIR}/build/source/netcdf)
+endif()
 #=========================================================================================
 # COMPILE PART 2: Assemble all of the SUMMA sub-routines
 #=========================================================================================
@@ -282,7 +286,7 @@ set(HOOKUP
 
 # Data modules
 set(DATAMS
-    ${SUB_DSHARE_DIR}/data_types.f90
+    ${DSHARE_DIR}/data_types.f90
     ${DSHARE_DIR}/flxMapping.f90
     ${DSHARE_DIR}/get_ixname.f90
     ${DSHARE_DIR}/globalData.f90
@@ -293,6 +297,8 @@ set(DATAMS
 set(DATAMS_SUNDIALS
     ${DSHARE_DIR}/type4ida.f90
     ${DSHARE_DIR}/type4kinsol.f90)
+set(DATAMS_ACTORS
+    ${ACTORS_DIR}/global/actor_data_types.f90)
 
 # Utility modules
 set(UTILMS
@@ -309,7 +315,7 @@ set(UTILMS_SUNDIALS
 # NetCDF routines
 set(NETCDF
     ${SUB_NETCDF_DIR}/def_output.f90
-    ${SUB_NETCDF_DIR}/modelwrite.f90
+    ${NETCDF_DIR}/modelwrite.f90
     ${NETCDF_DIR}/netcdf_util.f90
     ${NETCDF_DIR}/read_icond.f90)
 
@@ -410,23 +416,17 @@ set(INTERFACE
     ${ACTORS_DIR}/global/cppwrap_datatypes.f90
     ${ACTORS_DIR}/global/cppwrap_metadata.f90)
 set(FILE_ACCESS_INTERFACE
-    ${FILE_ACCESS_DIR}/fortran_code/cppwrap_fileAccess.f90
-    ${FILE_ACCESS_DIR}/fortran_code/output_structure.f90
-    ${FILE_ACCESS_DIR}/fortran_code/read_force.f90
-    ${FILE_ACCESS_DIR}/fortran_code/write_to_netcdf.f90
-    ${FILE_ACCESS_DIR}/fortran_code/writeOutputFromOutputStructure.f90)
+    ${FILE_ACCESS_DIR}/cppwrap_fileAccess.f90
+    ${FILE_ACCESS_DIR}/output_structure.f90
+    ${FILE_ACCESS_DIR}/read_force.f90
+    ${FILE_ACCESS_DIR}/fileAccess_writeOutput.f90)
 set(JOB_INTERFACE
     ${JOB_ACTOR_DIR}/job_actor.f90)
-set(GRU_INTERFACE
-    ${GRU_ACTOR_DIR}/gru_actor.f90)
 set(HRU_INTERFACE
-    ${HRU_ACTOR_DIR}/fortran_code/hru_actor.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_init.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_modelRun.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_modelwrite.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_restart.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_setup.f90
-    ${HRU_ACTOR_DIR}/fortran_code/hru_writeOutput.f90)
+    ${HRU_ACTOR_DIR}/hru_init.f90
+    ${HRU_ACTOR_DIR}/hru_read.f90
+    ${HRU_ACTOR_DIR}/hru_modelRun.f90
+    ${HRU_ACTOR_DIR}/hru_writeOutput.f90)
 
 # Actors actual actor modules
 set(ACTORS_GLOBAL
@@ -436,25 +436,23 @@ set(ACTORS_GLOBAL
     ${ACTORS_DIR}/global/settings_functions.cpp
     ${ACTORS_DIR}/global/timing_info.cpp)
 set(SUMMA_ACTOR
-    ${ACTORS_DIR}/summa_actor/batch/batch.cpp
-    ${ACTORS_DIR}/summa_actor/batch/batch_container.cpp
-    ${ACTORS_DIR}/summa_actor/client/client.cpp
-    ${ACTORS_DIR}/summa_actor/client/client_container.cpp
+    ${ACTORS_DIR}/summa_actor/batch.cpp
+    ${ACTORS_DIR}/summa_actor/batch_container.cpp
+    ${ACTORS_DIR}/summa_actor/client.cpp
+    ${ACTORS_DIR}/summa_actor/client_container.cpp
     ${ACTORS_DIR}/summa_actor/summa_actor.cpp
     ${ACTORS_DIR}/summa_actor/summa_backup_server.cpp
     ${ACTORS_DIR}/summa_actor/summa_client.cpp
     ${ACTORS_DIR}/summa_actor/summa_server.cpp)
 set(FILE_ACCESS_ACTOR
-    ${ACTORS_DIR}/file_access_actor/cpp_code/file_access_actor.cpp
-    ${ACTORS_DIR}/file_access_actor/cpp_code/forcing_file_info.cpp
-    ${ACTORS_DIR}/file_access_actor/cpp_code/output_container.cpp)
+    ${ACTORS_DIR}/file_access_actor/file_access_actor.cpp
+    ${ACTORS_DIR}/file_access_actor/forcing_file_info.cpp
+    ${ACTORS_DIR}/file_access_actor/output_container.cpp)
 set(JOB_ACTOR
     ${ACTORS_DIR}/job_actor/GRU.cpp
     ${ACTORS_DIR}/job_actor/job_actor.cpp)
-set(GRU_ACTOR
-    ${ACTORS_DIR}/gru_actor/gru_actor.cpp)
 set(HRU_ACTOR
-    ${ACTORS_DIR}/hru_actor/cpp_code/hru_actor.cpp)
+    ${ACTORS_DIR}/hru_actor/hru_actor.cpp)
 
 
 #=========================================================================================
@@ -467,13 +465,10 @@ set(COMM_ALL
     ${DATAMS}
     ${UTILMS})
 if(CMAKE_BUILD_TYPE MATCHES Actors)
-    set(COMM_ALL ${COMM_ALL}
-        ${INTERFACE})
+    set(COMM_ALL ${COMM_ALL} ${DATAMS_ACTORS} ${INTERFACE})
 endif()
 if(CMAKE_BUILD_TYPE MATCHES Sundials)
-    set(COMM_ALL ${COMM_ALL}
-        ${DATAMS_SUNDIALS}
-        ${UTILMS_SUNDIALS})
+    set(COMM_ALL ${COMM_ALL} ${DATAMS_SUNDIALS} ${UTILMS_SUNDIALS})
 endif()
 
 set(SUMMA_ALL
@@ -485,10 +480,9 @@ set(SUMMA_ALL
 
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     set(SUMMA_ALL ${SUMMA_ALL}
-        ${FILE_ACCESS_INTERFACE}
-        ${JOB_INTERFACE}
-        ${GRU_INTERFACE}
-        ${HRU_INTERFACE})
+                  ${FILE_ACCESS_INTERFACE}
+                  ${JOB_INTERFACE}
+                  ${HRU_INTERFACE})
 else()
     set(SUMMA_ALL ${SUMMA_ALL}
         ${PRELIM_NOT_ACTORS}
@@ -582,7 +576,6 @@ elseif(CMAKE_BUILD_TYPE MATCHES Actors)
         ${ACTORS_GLOBAL}
         ${FILE_ACCESS_ACTOR}
         ${JOB_ACTOR}
-        ${GRU_ACTOR}
         ${HRU_ACTOR}
         ${SUMMA_ACTOR}
         ${SUMMA_CLIENT}
