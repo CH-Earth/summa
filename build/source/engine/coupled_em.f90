@@ -147,12 +147,8 @@ subroutine coupled_em(&
   USE computSnowDepth_module,only:computSnowDepth
 
   implicit none
-  ! model control
-#ifdef ACTORS_ACTIVE
-  integer(4),intent(in)                :: hruId                  ! hruId
-#else
+
   integer(8),intent(in)                :: hruId                  ! hruId
-#endif
   real(rkind),intent(inout)            :: dt_init                ! used to initialize the size of the sub-step
   integer(i4b),intent(in)              :: dt_init_factor         ! Used to adjust the length of the timestep in the event of a failure
   logical(lgt),intent(inout)           :: computeVegFlux         ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
