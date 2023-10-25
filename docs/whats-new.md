@@ -10,7 +10,7 @@ This page provides simple, high-level documentation about what has changed in ea
     - the length of computFlux has been decreased substantially
 
 ### Minor changes
-- Updated SWE balance check in coupled_em for cases where all snow melts in one of the substeps
+-
 
 ## Version 3.2.0
 ### Major changes

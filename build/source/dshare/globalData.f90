@@ -37,6 +37,12 @@ MODULE globalData
   USE data_types,only:extended_info   ! extended metadata for variables in each model structure
   USE data_types,only:struct_info     ! summary information on all data structures
   USE data_types,only:var_i           ! vector of integers
+#ifdef ACTORS_ACTIVE
+  USE data_types,only:var_forc        ! for Actors
+  USE data_types,only:dlength         ! for Actors
+  USE data_types,only:ilength         ! for Actors
+  USE data_types,only:init_cond       ! for Actors
+#endif
   ! number of variables in each data structure
   USE var_lookup,only:maxvarTime      ! time:                     maximum number variables
   USE var_lookup,only:maxvarForc      ! forcing data:             maximum number variables
@@ -258,6 +264,14 @@ MODULE globalData
   integer(i4b),parameter,public                  :: ncTime=1                          ! time zone information from NetCDF file (timeOffset = longitude/15. - ncTimeOffset)
   integer(i4b),parameter,public                  :: utcTime=2                         ! all times in UTC (timeOffset = longitude/15. hours)
   integer(i4b),parameter,public                  :: localTime=3                       ! all times local (timeOffset = 0)
+#ifdef ACTORS_ACTIVE
+  ! global data structures are managed by FileAccessActor
+  type(var_forc),allocatable,save,public         :: forcingDataStruct(:)              ! forcingDataStruct(:)%var(:)%dataFromFile(:,:)
+  type(dlength),allocatable,save,public          :: vecTime(:)
+  logical(lgt),allocatable,save,public           :: failedHRUs(:)                     ! list of true and false values to indicate if an HRU has failed
+  type(ilength),allocatable,save,public          :: outputTimeStep(:)                 ! timestep in output files
+  ! inital conditions for Actors
+#else
   ! define metadata for model forcing datafile non-Actors
   type(file_info),save,public,allocatable        :: forcFileInfo(:)                   ! file info for model forcing data
   ! define indices in the forcing data files non-Actors
@@ -272,6 +286,7 @@ MODULE globalData
   real(rkind),save,public                        :: fracJulDay                        ! fractional julian days since the start of year
   real(rkind),save,public                        :: tmZoneOffsetFracDay               ! time zone offset in fractional days
   integer(i4b),save,public                       :: yearLength                        ! number of days in the current year
+#endif
   ! define fixed dimensions
   integer(i4b),parameter,public                   :: nBand=2                          ! number of spectral bands
   integer(i4b),parameter,public                   :: nTimeDelay=2000                  ! number of time steps in the time delay histogram (default: ~1 season = 24*365/4)
