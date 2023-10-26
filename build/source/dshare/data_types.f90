@@ -308,7 +308,7 @@ MODULE data_types
  ! ***********************************************************************************************************
  ! Note: class procedures are located in the contains block of this (data_types) module
  ! ** vegNrgFlux
- type, public :: in_type_vegNrgFlux ! derived type for intent(in) arguments in vegNrgFlux call
+ type, public :: in_type_vegNrgFlux ! class for intent(in) arguments in vegNrgFlux call
    logical(lgt)             :: firstSubStep                      ! intent(in): flag to indicate if we are processing the first sub-step
    logical(lgt)             :: firstFluxCall                     ! intent(in): flag to indicate if we are processing the first flux call
    logical(lgt)             :: computeVegFlux                    ! intent(in): flag to indicate if we need to compute fluxes over vegetation
@@ -324,7 +324,7 @@ MODULE data_types
    procedure :: initialize => initialize_in_vegNrgFlux
  end type in_type_vegNrgFlux
 
- type, public :: out_type_vegNrgFlux ! derived type for intent(out) arguments in vegNrgFlux call
+ type, public :: out_type_vegNrgFlux ! class for intent(out) arguments in vegNrgFlux call
    real(rkind)              :: scalarCanopyTranspiration               ! intent(out): canopy transpiration (kg m-2 s-1)
    real(rkind)              :: scalarCanopyEvaporation                 ! intent(out): canopy evaporation/condensation (kg m-2 s-1)
    real(rkind)              :: scalarGroundEvaporation                 ! intent(out): ground evaporation/condensation -- below canopy or non-vegetated (kg m-2 s-1)
@@ -362,7 +362,7 @@ MODULE data_types
  ! ** end vegNrgFlux
 
  ! ** ssdNrgFlux
- type, public :: in_type_ssdNrgFlux ! derived type for intent(in) arguments in ssdNrgFlux call
+ type, public :: in_type_ssdNrgFlux ! class for intent(in) arguments in ssdNrgFlux call
    logical(lgt)             :: scalarSolution                    ! intent(in): flag to denote if implementing the scalar solution
    real(rkind)              :: scalarGroundNetNrgFlux            ! intent(in): net energy flux for the ground surface (W m-2)
    real(rkind), allocatable :: iLayerLiqFluxSnow(:)              ! intent(in): liquid flux at the interface of each snow layer (m s-1)
@@ -376,14 +376,14 @@ MODULE data_types
    procedure :: initialize => initialize_in_ssdNrgFlux
  end type in_type_ssdNrgFlux
 
- type, public :: io_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
+ type, public :: io_type_ssdNrgFlux ! class for intent(inout) arguments in ssdNrgFlux call
    real(rkind)              :: dGroundNetFlux_dGroundTemp        ! intent(inout): derivative in net ground flux w.r.t. ground temperature (W m-2 K-1)
   contains
    procedure :: initialize => initialize_io_ssdNrgFlux
    procedure :: finalize   => finalize_io_ssdNrgFlux
  end type io_type_ssdNrgFlux
 
- type, public :: out_type_ssdNrgFlux ! derived type for intent(inout) arguments in ssdNrgFlux call
+ type, public :: out_type_ssdNrgFlux ! class for intent(inout) arguments in ssdNrgFlux call
    real(rkind), allocatable :: iLayerNrgFlux(:)                  ! intent(out): energy flux at the layer interfaces (W m-2)
    real(rkind), allocatable :: dNrgFlux_dTempAbove(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
    real(rkind), allocatable :: dNrgFlux_dTempBelow(:)            ! intent(out): derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
@@ -437,7 +437,7 @@ MODULE data_types
    procedure :: finalize   => finalize_io_snowLiqFlx
  end type io_type_snowLiqFlx
 
- type, public :: out_type_snowLiqFlx ! derived type for intent(out) arguments in snowLiqFlx call
+ type, public :: out_type_snowLiqFlx ! class for intent(out) arguments in snowLiqFlx call
    integer(i4b)             :: err                               ! intent(out):   error code
    character(:),allocatable :: cmessage                          ! intent(out):   error message
   contains
@@ -446,7 +446,7 @@ MODULE data_types
  ! ** end snowLiqFlx
 
  ! ** soilLiqFlx
- type, public :: in_type_soilLiqFlx ! derived type for intent(in) arguments in soilLiqFlx call
+ type, public :: in_type_soilLiqFlx ! class for intent(in) arguments in soilLiqFlx call
    integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    logical(lgt)             :: firstSplitOper                    ! intent(in):    flag indicating first flux call in a splitting operation
    logical(lgt)             :: scalarSolution                    ! intent(in):    flag to indicate the scalar solution
@@ -472,7 +472,7 @@ MODULE data_types
    procedure :: initialize => initialize_in_soilLiqFlx
  end type in_type_soilLiqFlx
 
- type, public :: io_type_soilLiqFlx ! derived type for intent(inout) arguments in soilLiqFlx call
+ type, public :: io_type_soilLiqFlx ! class for intent(inout) arguments in soilLiqFlx call
    real(rkind)              :: scalarMaxInfilRate                ! intent(inout): maximum infiltration rate (m s-1)
    real(rkind)              :: scalarInfilArea                   ! intent(inout): fraction of unfrozen area where water can infiltrate (-)
    real(rkind)              :: scalarFrozenArea                  ! intent(inout): fraction of area that is considered impermeable due to soil ice (-)
@@ -499,7 +499,7 @@ MODULE data_types
    procedure :: finalize   => finalize_io_soilLiqFlx
  end type io_type_soilLiqFlx
 
- type, public :: out_type_soilLiqFlx ! derived type for intent(out) arguments in soilLiqFlx call
+ type, public :: out_type_soilLiqFlx ! class for intent(out) arguments in soilLiqFlx call
    integer(i4b)             :: err                               ! intent(out):   error code
    character(:),allocatable :: cmessage                          ! intent(out):   error message
   contains
@@ -508,7 +508,7 @@ MODULE data_types
  ! ** end soilLiqFlx
 
  ! ** groundwatr
- type, public :: in_type_groundwatr  ! derived type for intent(in) arguments in groundwatr call
+ type, public :: in_type_groundwatr  ! class for intent(in) arguments in groundwatr call
    integer(i4b)             :: nSnow                             ! intent(in):    number of snow layers
    integer(i4b)             :: nSoil                             ! intent(in):    number of soil layers
    integer(i4b)             :: nLayers                           ! intent(in):    total number of layers
@@ -521,14 +521,14 @@ MODULE data_types
    procedure :: initialize => initialize_in_groundwatr
  end type in_type_groundwatr
 
- type, public :: io_type_groundwatr  ! derived type for intent(io) arguments in groundwatr call
+ type, public :: io_type_groundwatr  ! class for intent(io) arguments in groundwatr call
    integer(i4b)             :: ixSaturation                      ! intent(inout): index of lowest saturated layer (NOTE: only computed on the first iteration)
   contains
    procedure :: initialize => initialize_io_groundwatr
    procedure :: finalize   => finalize_io_groundwatr 
  end type io_type_groundwatr
 
- type, public :: out_type_groundwatr ! derived type for intent(out) arguments in groundwatr call
+ type, public :: out_type_groundwatr ! class for intent(out) arguments in groundwatr call
    real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
    real(rkind), allocatable :: dBaseflow_dMatric(:,:)            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
    integer(i4b)             :: err                               ! intent(out):   error code
@@ -539,7 +539,7 @@ MODULE data_types
  ! ** end groundwatr
 
  ! ** bigAquifer
- type, public :: in_type_bigAquifer  ! derived type for intent(in) arguments in bigAquifer call
+ type, public :: in_type_bigAquifer  ! class for intent(in) arguments in bigAquifer call
    real(rkind)              :: scalarAquiferStorageTrial         ! intent(in):    trial value of aquifer storage (m)
    real(rkind)              :: scalarCanopyTranspiration         ! intent(in):    canopy transpiration (kg m-2 s-1)
    real(rkind)              :: scalarSoilDrainage                ! intent(in):    soil drainage (m s-1)
@@ -551,7 +551,7 @@ MODULE data_types
    procedure :: initialize => initialize_in_bigAquifer
  end type in_type_bigAquifer
 
- type, public :: io_type_bigAquifer  ! derived type for intent(inout) arguments in bigAquifer call
+ type, public :: io_type_bigAquifer  ! class for intent(inout) arguments in bigAquifer call
    real(rkind)              :: dAquiferTrans_dTCanair            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy air temperature
    real(rkind)              :: dAquiferTrans_dTCanopy            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. canopy temperature
    real(rkind)              :: dAquiferTrans_dTGround            ! intent(inout): derivatives in the aquifer transpiration flux w.r.t. ground temperature
@@ -561,7 +561,7 @@ MODULE data_types
    procedure :: finalize   => finalize_io_bigAquifer
  end type io_type_bigAquifer
 
- type, public :: out_type_bigAquifer  ! derived type for intent(out) arguments in bigAquifer call
+ type, public :: out_type_bigAquifer  ! class for intent(out) arguments in bigAquifer call
    real(rkind)              :: scalarAquiferTranspire            ! intent(out):   transpiration loss from the aquifer (m s-1)
    real(rkind)              :: scalarAquiferRecharge             ! intent(out):   recharge to the aquifer (m s-1)
    real(rkind)              :: scalarAquiferBaseflow             ! intent(out):   total baseflow from the aquifer (m s-1)
@@ -572,6 +572,45 @@ MODULE data_types
    procedure :: finalize   => finalize_out_bigAquifer
  end type out_type_bigAquifer
  ! ** end bigAquifer
+
+ ! ** varSubstep
+ type, public :: in_type_varSubstep  ! class for intent(in) arguments in varSubstep call
+   real(rkind)              :: dt                          ! intent(in): time step (s)
+   real(rkind)              :: dtInit                      ! intent(in): initial time step (seconds)
+   real(rkind)              :: dt_min                      ! intent(in): minimum time step (seconds)
+   real(rkind)              :: whole_step                  ! intent(in): length of whole step for surface drainage and average flux
+   integer(i4b)             :: nSubset                     ! intent(in): total number of variables in the state subset
+   logical(lgt)             :: doAdjustTemp                ! intent(in): flag to indicate if we adjust the temperature
+   logical(lgt)             :: firstSubStep                ! intent(in): flag to denote first sub-step
+   logical(lgt)             :: computeVegFlux              ! intent(in): flag to denote if computing energy flux over vegetation
+   logical(lgt)             :: scalarSolution              ! intent(in): flag to denote computing the scalar solution
+   integer(i4b)             :: iStateSplit                 ! intent(in): index of the layer in the splitting operation
+   type(var_flagVec)        :: fluxMask                    ! intent(in): mask for the fluxes used in this given state subset
+  contains
+   procedure :: initialize => initialize_in_varSubstep
+ end type in_type_varSubstep
+
+ type, public :: io_type_varSubstep  ! class for intent(inout) arguments in varSubstep call
+   logical(lgt)             :: firstFluxCall               ! intent(inout): flag to indicate if we are processing the first flux call
+   type(var_ilength)        :: fluxCount                   ! intent(inout): number of times fluxes are updated (should equal nsubstep)
+   integer(i4b)             :: ixSaturation                ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  contains
+   procedure :: initialize => initialize_io_varSubstep
+   procedure :: finalize   => finalize_io_varSubstep
+ end type io_type_varSubstep
+
+ type, public :: out_type_varSubstep  ! class for intent(out) arguments in varSubstep call
+   real(rkind)              :: dtMultiplier                ! intent(out): substep multiplier (-)
+   integer(i4b)             :: nSubsteps                   ! intent(out): number of substeps taken for a given split
+   logical(lgt)             :: failedMinimumStep           ! intent(out): flag for failed substeps
+   logical(lgt)             :: reduceCoupledStep           ! intent(out): flag to reduce the length of the coupled step
+   logical(lgt)             :: tooMuchMelt                 ! intent(out): flag to denote that ice is insufficient to support melt
+   integer(i4b)             :: err                         ! intent(out): error code
+   character(:),allocatable :: cmessage                    ! intent(out): error message
+  contains
+   procedure :: finalize   => finalize_out_varSubstep
+ end type out_type_varSubstep
+ ! ** end varSubstep
 
 contains
  
@@ -1208,4 +1247,81 @@ contains
   end associate
  end subroutine finalize_out_bigAquifer
  ! **** end bigAquifer ****
+
+ ! **** varSubstep ****
+ subroutine initialize_in_varSubstep(in_varSubstep,dt,dtInit,dt_min,whole_step,nSubset,&
+                                     doAdjustTemp,firstSubStep,computeVegFlux,ixSolution,scalar,iStateSplit,fluxMask)
+  class(in_type_varSubstep),intent(out) :: in_varSubstep  ! class object for intent(in) varSubstep arguments
+  real(rkind),intent(in)                :: dt             ! time step (s)
+  real(rkind),intent(in)                :: dtInit         ! initial time step (s)
+  real(rkind),intent(in)                :: dt_min         ! minimum time step (s) 
+  real(rkind),intent(in)                :: whole_step     ! length of whole step for surface drainage and average flux
+  integer(i4b),intent(in)               :: nSubset        ! total number of variables in the state subset
+  logical(lgt),intent(in)               :: doAdjustTemp   ! flag to indicate if we adjust the temperature
+  logical(lgt),intent(in)               :: firstSubStep   ! flag to denote first sub-step
+  logical(lgt),intent(in)               :: computeVegFlux ! flag to denote if computing energy flux over vegetation
+  integer(i4b),intent(in)               :: ixSolution     ! index of solution method
+  integer(i4b),intent(in)               :: scalar         ! scalar solution method
+  integer(i4b),intent(in)               :: iStateSplit    ! index of the layer in the splitting operation
+  type(var_flagVec),intent(in)          :: fluxMask       ! mask for the fluxes used in this given state subset
+ 
+  ! intent(in) arguments
+  in_varSubstep % dt             = dt                     ! intent(in): time step (s)
+  in_varSubstep % dtInit         = dtInit                 ! intent(in): initial time step (s)
+  in_varSubstep % dt_min         = dt_min                 ! intent(in): minimum time step (s)
+  in_varSubstep % whole_step     = whole_step             ! intent(in): length of whole step for surface drainage and average flux
+  in_varSubstep % nSubset        = nSubset                ! intent(in): total number of variables in the state subset
+  in_varSubstep % doAdjustTemp   = doAdjustTemp           ! intent(in): flag to indicate if we adjust the temperature
+  in_varSubstep % firstSubStep   = firstSubStep           ! intent(in): flag to denote first sub-step
+  in_varSubstep % computeVegFlux = computeVegFlux         ! intent(in): flag to denote if computing energy flux over vegetation
+  in_varSubstep % scalarSolution = (ixSolution==scalar)   ! intent(in): flag to denote computing the scalar solution
+  in_varSubstep % iStateSplit    = iStateSplit            ! intent(in): index of the layer in the splitting operation
+  in_varSubstep % fluxMask       = fluxMask               ! intent(in): mask for the fluxes used in this given state subset
+ end subroutine initialize_in_varSubstep
+
+ subroutine initialize_io_varSubstep(io_varSubstep,firstFluxCall,fluxCount,ixSaturation)
+  class(io_type_varSubstep),intent(out) :: io_varSubstep  ! class object for intent(in) varSubstep arguments
+  logical(lgt),intent(in)               :: firstFluxCall  ! flag to indicate if we are processing the first flux call
+  type(var_ilength),intent(in)          :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
+  integer(i4b),intent(in)               :: ixSaturation   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+
+  ! intent(inout) arguments
+  io_varSubstep % firstFluxCall = firstFluxCall           ! intent(inout): flag to indicate if we are processing the first flux call
+  io_varSubstep % fluxCount     = fluxCount               ! intent(inout): number of times fluxes are updated (should equal nsubstep)
+  io_varSubstep % ixSaturation  = ixSaturation            ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ end subroutine initialize_io_varSubstep
+
+ subroutine finalize_io_varSubstep(io_varSubstep,firstFluxCall,fluxCount,ixSaturation)
+  class(io_type_varSubstep),intent(in)  :: io_varSubstep  ! class object for intent(in) varSubstep arguments
+  logical(lgt),intent(out)              :: firstFluxCall  ! flag to indicate if we are processing the first flux call
+  type(var_ilength),intent(out)         :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
+  integer(i4b),intent(out)              :: ixSaturation   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+
+  ! intent(inout) arguments
+  firstFluxCall = io_varSubstep % firstFluxCall           ! intent(inout): flag to indicate if we are processing the first flux call
+  fluxCount     = io_varSubstep % fluxCount               ! intent(inout): number of times fluxes are updated (should equal nsubstep)
+  ixSaturation  = io_varSubstep % ixSaturation            ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+ end subroutine finalize_io_varSubstep
+
+ subroutine finalize_out_varSubstep(out_varSubstep,dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
+  class(out_type_varSubstep),intent(in) :: out_varSubstep    ! class object for intent(out) varSubstep arguments
+  real(rkind),intent(out)               :: dtMultiplier      ! substep multiplier (-)
+  integer(i4b),intent(out)              :: nSubsteps         ! number of substeps taken for a given split
+  logical(lgt),intent(out)              :: failedMinimumStep ! flag for failed substeps
+  logical(lgt),intent(out)              :: reduceCoupledStep ! flag to reduce the length of the coupled step
+  logical(lgt),intent(out)              :: tooMuchMelt       ! flag to denote that ice is insufficient to support melt
+  integer(i4b),intent(out)              :: err               ! error code
+  character(*),intent(out)              :: cmessage          ! error message                                          
+
+  ! intent(out) arguments
+  dtMultiplier      = out_varSubstep % dtMultiplier       ! intent(out): substep multiplier (-)
+  nSubsteps         = out_varSubstep % nSubsteps          ! intent(out): number of substeps taken for a given split
+  failedMinimumStep = out_varSubstep % failedMinimumStep  ! intent(out): flag for failed substeps
+  reduceCoupledStep = out_varSubstep % reduceCoupledStep  ! intent(out): flag to reduce the length of the coupled step
+  tooMuchMelt       = out_varSubstep % tooMuchMelt        ! intent(out): flag to denote that ice is insufficient to support melt
+  err               = out_varSubstep % err                ! intent(out): error code
+  cmessage          = out_varSubstep % cmessage           ! intent(out): error message                                          
+ end subroutine finalize_out_varSubstep
+ ! **** end varSubstep ****
+
 END MODULE data_types

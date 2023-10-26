@@ -42,13 +42,16 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
-                    var_flagVec,  & ! data vector with variable length dimension (i4b)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
-                    model_options   ! defines the model decisions
+                    var_i,              & ! data vector (i4b)
+                    var_d,              & ! data vector (rkind)
+                    var_flagVec,        & ! data vector with variable length dimension (i4b)
+                    var_ilength,        & ! data vector with variable length dimension (i4b)
+                    var_dlength,        & ! data vector with variable length dimension (rkind)
+                    zLookup,            & ! lookup tables
+                    model_options,      & ! defines the model decisions
+                    in_type_varSubstep, & ! class for intent(in) arguments
+                    io_type_varSubstep, & ! class for intent(inout) arguments
+                    out_type_varSubstep   ! class for intent(out) arguments
 
 ! provide access to indices that define elements of the data structures
 USE var_lookup,only:iLookFLUX       ! named variables for structure elements
@@ -92,20 +95,9 @@ contains
 ! **********************************************************************************************************
 subroutine varSubstep(&
                       ! input: model control
-                      dt,                & ! intent(in)    : time step (s)
-                      dtInit,            & ! intent(in)    : initial time step (seconds)
-                      dt_min,            & ! intent(in)    : minimum time step (seconds)
-                      whole_step,        & ! intent(in)    : length of whole step for surface drainage and average flux
-                      nState,            & ! intent(in)    : total number of state variables
-                      doAdjustTemp,      & ! intent(in)    : flag to indicate if we adjust the temperature
-                      firstSubStep,      & ! intent(in)    : flag to denote first sub-step
-                      firstFluxCall,     & ! intent(inout) : flag to indicate if we are processing the first flux call
-                      computeVegFlux,    & ! intent(in)    : flag to denote if computing energy flux over vegetation
-                      scalarSolution,    & ! intent(in)    : flag to denote implementing the scalar solution
-                      iStateSplit,       & ! intent(in)    : index of the state in the splitting operation
-                      fluxMask,          & ! intent(in)    : mask for the fluxes used in this given state subset
-                      fluxCount,         & ! intent(inout) : number of times that fluxes are updated (should equal nSubsteps)
-                       ! input/output: data structures
+                      in_varSubstep,     & ! intent(in)    : model control
+                      io_varSubstep,     & ! intent(inout) : model control
+                      ! input/output: data structures
                       model_decisions,   & ! intent(in)    : model decisions
                       lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
@@ -120,13 +112,7 @@ subroutine varSubstep(&
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
                       ! output: model control
-                      ixSaturation,      & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                      dtMultiplier,      & ! intent(out)   : substep multiplier (-)
-                      nSubsteps,         & ! intent(out)   : number of substeps taken for a given split
-                      failedMinimumStep, & ! intent(out)   : flag to denote success of substepping for a given split
-                      reduceCoupledStep, & ! intent(out)   : flag to denote need to reduce the length of the coupled step
-                      tooMuchMelt,       & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                      err,message)         ! intent(out)   : error code and error message
+                      out_varSubstep)      ! intent(out)   : model control
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
   USE allocspace_module,only:allocLocal                ! allocate local data structures
@@ -141,42 +127,24 @@ subroutine varSubstep(&
   ! * dummy variables
   ! ---------------------------------------------------------------------------------------
   ! input: model control
-  real(rkind),intent(in)             :: dt                            ! time step (seconds)
-  real(rkind),intent(in)             :: dtInit                        ! initial time step (seconds)
-  real(rkind),intent(in)             :: dt_min                        ! minimum time step (seconds)
-  real(rkind),intent(in)             :: whole_step                    ! length of whole step for surface drainage and average flux
-  integer(i4b),intent(in)            :: nState                        ! total number of state variables
-  logical(lgt),intent(in)            :: doAdjustTemp                  ! flag to indicate if we adjust the temperature
-  logical(lgt),intent(in)            :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
-  logical(lgt),intent(inout)         :: firstFluxCall                 ! flag to define the first flux call
-  logical(lgt),intent(in)            :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
-  logical(lgt),intent(in)            :: scalarSolution                ! flag to denote implementing the scalar solution
-  integer(i4b),intent(in)            :: iStateSplit                   ! index of the state in the splitting operation
-  type(var_flagVec),intent(in)       :: fluxMask                      ! flags to denote if the flux is calculated in the given state subset
-  type(var_ilength),intent(inout)    :: fluxCount                     ! number of times that the flux is updated (should equal nSubsteps)
+  type(in_type_varSubstep),intent(in)    :: in_varSubstep             ! model control
+  type(io_type_varSubstep),intent(inout) :: io_varSubstep             ! model control
   ! input/output: data structures
-  type(model_options),intent(in)     :: model_decisions(:)            ! model decisions
-  type(zLookup),intent(in)           :: lookup_data                   ! lookup tables
-  type(var_i),intent(in)             :: type_data                     ! type of vegetation and soil
-  type(var_d),intent(in)             :: attr_data                     ! spatial attributes
-  type(var_d),intent(in)             :: forc_data                     ! model forcing data
-  type(var_dlength),intent(in)       :: mpar_data                     ! model parameters
-  type(var_ilength),intent(inout)    :: indx_data                     ! indices for a local HRU
-  type(var_dlength),intent(inout)    :: prog_data                     ! prognostic variables for a local HRU
-  type(var_dlength),intent(inout)    :: diag_data                     ! diagnostic variables for a local HRU
-  type(var_dlength),intent(inout)    :: flux_data                     ! model fluxes for a local HRU
-  type(var_dlength),intent(inout)    :: flux_mean                     ! mean model fluxes for a local HRU
-  type(var_dlength),intent(inout)    :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
-  type(var_dlength),intent(in)       :: bvar_data                     ! model variables for the local basin
+  type(model_options),intent(in)         :: model_decisions(:)        ! model decisions
+  type(zLookup),intent(in)               :: lookup_data               ! lookup tables
+  type(var_i),intent(in)                 :: type_data                 ! type of vegetation and soil
+  type(var_d),intent(in)                 :: attr_data                 ! spatial attributes
+  type(var_d),intent(in)                 :: forc_data                 ! model forcing data
+  type(var_dlength),intent(in)           :: mpar_data                 ! model parameters
+  type(var_ilength),intent(inout)        :: indx_data                 ! indices for a local HRU
+  type(var_dlength),intent(inout)        :: prog_data                 ! prognostic variables for a local HRU
+  type(var_dlength),intent(inout)        :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_dlength),intent(inout)        :: flux_data                 ! model fluxes for a local HRU
+  type(var_dlength),intent(inout)        :: flux_mean                 ! mean model fluxes for a local HRU
+  type(var_dlength),intent(inout)        :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
+  type(var_dlength),intent(in)           :: bvar_data                 ! model variables for the local basin
   ! output: model control
-  integer(i4b),intent(inout)         :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)            :: dtMultiplier                  ! substep multiplier (-)
-  integer(i4b),intent(out)           :: nSubsteps                     ! number of substeps taken for a given split
-  logical(lgt),intent(out)           :: failedMinimumStep             ! flag to denote success of substepping for a given split
-  logical(lgt),intent(out)           :: reduceCoupledStep             ! flag to denote need to reduce the length of the coupled step
-  logical(lgt),intent(out)           :: tooMuchMelt                   ! flag to denote that ice is insufficient to support melt
-  integer(i4b),intent(out)           :: err                           ! error code
-  character(*),intent(out)           :: message                       ! error message
+  type(out_type_varSubstep),intent(out)  :: out_varSubstep            ! model control
   ! ---------------------------------------------------------------------------------------
   ! * general local variables
   ! ---------------------------------------------------------------------------------------
@@ -200,12 +168,12 @@ subroutine varSubstep(&
   integer(i4b),parameter             :: n_dec=15                      ! maximum number of iterations to decrease time step
   real(rkind),parameter              :: F_inc = 1.25_rkind            ! factor used to increase time step
   real(rkind),parameter              :: F_dec = 0.90_rkind            ! factor used to decrease time step
-  ! state and flux vectors
-  real(rkind)                        :: untappedMelt(nState)          ! un-tapped melt energy (J m-3 s-1)
-  real(rkind)                        :: stateVecInit(nState)          ! initial state vector (mixed units)
-  real(rkind)                        :: stateVecTrial(nState)         ! trial state vector (mixed units)
-  real(rkind)                        :: stateVecPrime(nState)         ! trial state vector (mixed units)
-  type(var_dlength)                  :: flux_temp                     ! temporary model fluxes
+  ! state and flux vectors (Note: nstate = in_varSubstep % nSubset)
+  real(rkind)                        :: untappedMelt(in_varSubstep % nSubset)  ! un-tapped melt energy (J m-3 s-1)
+  real(rkind)                        :: stateVecInit(in_varSubstep % nSubset)  ! initial state vector (mixed units)
+  real(rkind)                        :: stateVecTrial(in_varSubstep % nSubset) ! trial state vector (mixed units)
+  real(rkind)                        :: stateVecPrime(in_varSubstep % nSubset) ! trial state vector (mixed units)
+  type(var_dlength)                  :: flux_temp                              ! temporary model fluxes
   ! flags
   logical(lgt)                       :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt)                       :: checkMassBalance              ! flag to check the mass balance
@@ -222,6 +190,21 @@ subroutine varSubstep(&
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
   globalVars: associate(&
+    ! input: model control
+    dt             => in_varSubstep % dt,             & ! intent(in): time step (seconds)
+    dtInit         => in_varSubstep % dtInit,         & ! intent(in): initial time step (seconds)
+    dt_min         => in_varSubstep % dt_min,         & ! intent(in): minimum time step (seconds)
+    whole_step     => in_varSubstep % whole_step,     & ! intent(in): length of whole step for surface drainage and average flux
+    nState         => in_varSubstep % nSubset,        & ! intent(in): total number of state variables
+    doAdjustTemp   => in_varSubstep % doAdjustTemp,   & ! intent(in): flag to indicate if we adjust the temperature
+    firstSubStep   => in_varSubstep % firstSubStep,   & ! intent(in): flag to indicate if processing the first sub-step
+    computeVegFlux => in_varSubstep % computeVegFlux, & ! intent(in): flag to indicate if computing fluxes over vegetation (.false. means veg is buried with snow)
+    scalarSolution => in_varSubstep % scalarSolution, & ! intent(in): flag to denote implementing the scalar solution
+    iStateSplit    => in_varSubstep % iStateSplit,    & ! intent(in): index of the state in the splitting operation
+    fluxMask       => in_varSubstep % fluxMask,       & ! intent(in): flags to denote if the flux is calculated in the given state subset
+    firstFluxCall  => io_varSubstep % firstFluxCall,  & ! intent(inout): flag to define the first flux call
+    fluxCount      => io_varSubstep % fluxCount,      & ! intent(inout): number of times that the flux is updated (should equal nSubsteps)
+    ixSaturation   => io_varSubstep % ixSaturation,   & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
     ! model decisions
     ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in):    [i4b]    choice of numerical solver
     ! number of layers
@@ -246,7 +229,15 @@ subroutine varSubstep(&
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(inout): [dp(:)]  volumetric fraction of total water (-)
     mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)]  matric head (m)
-    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat        & ! intent(inout): [dp(:)]  matric potential of liquid water (m)
+    mLayerMatricHeadLiq     => diag_data%var(iLookDIAG%mLayerMatricHeadLiq)%dat       ,& ! intent(inout): [dp(:)]  matric potential of liquid water (m)
+    ! model control
+    dtMultiplier      => out_varSubstep % dtMultiplier             ,& ! intent(out): substep multiplier (-)
+    nSubsteps         => out_varSubstep % nSubsteps                ,& ! intent(out): number of substeps taken for a given split
+    failedMinimumStep => out_varSubstep % failedMinimumStep        ,& ! intent(out): flag to denote success of substepping for a given split
+    reduceCoupledStep => out_varSubstep % reduceCoupledStep        ,& ! intent(out): flag to denote need to reduce the length of the coupled step
+    tooMuchMelt       => out_varSubstep % tooMuchMelt              ,& ! intent(out): flag to denote that ice is insufficient to support melt
+    err               => out_varSubstep % err                      ,& ! intent(out): error code
+    message           => out_varSubstep % cmessage                  & ! intent(out): error message
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
    
@@ -551,14 +542,13 @@ subroutine varSubstep(&
     end do
     deallocate(sumLayerCompress)
 
+    ! update error codes
+    if (failedMinimumStep) then
+      err=-20 ! negative = recoverable error
+      message=trim(message)//'failed minimum step'
+    end if
   ! end associate statements
   end associate globalVars
-
-  ! update error codes
-  if(failedMinimumStep)then
-    err=-20 ! negative = recoverable error
-    message=trim(message)//'failed minimum step'
-  endif
 end subroutine varSubstep
 
 
