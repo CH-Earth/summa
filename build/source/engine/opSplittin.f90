@@ -88,14 +88,14 @@ USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,             & ! data vector (i4b)
-                    var_d,             & ! data vector (rkind)
-                    var_flagVec,       & ! data vector with variable length dimension (i4b)
-                    var_ilength,       & ! data vector with variable length dimension (i4b)
-                    var_dlength,       & ! data vector with variable length dimension (rkind)
-                    zLookup,           & ! lookup tables
-                    model_options,     & ! defines the model decisions
-                    in_type_varSubstep   ! class for varSubstep objects
+                    var_i,                                                     & ! data vector (i4b)
+                    var_d,                                                     & ! data vector (rkind)
+                    var_flagVec,                                               & ! data vector with variable length dimension (i4b)
+                    var_ilength,                                               & ! data vector with variable length dimension (i4b)
+                    var_dlength,                                               & ! data vector with variable length dimension (rkind)
+                    zLookup,                                                   & ! lookup tables
+                    model_options,                                             & ! defines the model decisions
+                    in_type_varSubstep,io_type_varSubstep,out_type_varSubstep    ! classes for varSubstep objects
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
@@ -291,7 +291,7 @@ subroutine opSplittin(&
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
   !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
-  type(in_type_varSubstep) :: in_varSubstep; ! varSubstep arguments
+  type(in_type_varSubstep) :: in_varSubstep; type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep) :: out_varSubstep;! varSubstep arguments
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
@@ -650,39 +650,13 @@ subroutine opSplittin(&
                 ! keep track of the number of scalar solutions
                 if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
-                ! solve variable subset for one full time steps
+                ! solve variable subset for one full time step
                 call initialize_varSubstep
-                call varSubstep(&
-                                ! input: model control
-                                in_varSubstep,              & ! intent(in)    : model control
-                                firstFluxCall,              & ! intent(inout) : flag to indicate if we are processing the first flux call
-                                fluxCount,                  & ! intent(inout) : number of times fluxes are updated (should equal nsubstep)
-                                ! input/output: data structures
-                                model_decisions,            & ! intent(in)    : model decisions
-                                lookup_data,                & ! intent(in)    : lookup tables
-                                type_data,                  & ! intent(in)    : type of vegetation and soil
-                                attr_data,                  & ! intent(in)    : spatial attributes
-                                forc_data,                  & ! intent(in)    : model forcing data
-                                mpar_data,                  & ! intent(in)    : model parameters
-                                indx_data,                  & ! intent(inout) : index data
-                                prog_data,                  & ! intent(inout) : model prognostic variables for a local HRU
-                                diag_data,                  & ! intent(inout) : model diagnostic variables for a local HRU
-                                flux_data,                  & ! intent(inout) : model fluxes for a local HRU
-                                flux_mean,                  & ! intent(inout) : mean model fluxes for a local HRU
-                                deriv_data,                 & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
-                                bvar_data,                  & ! intent(in)    : model variables for the local basin
-                                ! output: control
-                                ixSaturation,               & ! intent(inout) : index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                                dtMultiplier,               & ! intent(out)   : substep multiplier (-)
-                                nSubsteps,                  & ! intent(out)   : number of substeps taken for a given split
-                                failedMinimumStep,          & ! intent(out)   : flag for failed substeps
-                                reduceCoupledStep,          & ! intent(out)   : flag to reduce the length of the coupled step
-                                tooMuchMelt,                & ! intent(out)   : flag to denote that ice is insufficient to support melt
-                                err,cmessage)                 ! intent(out)   : error code and error message
-                if(err/=0)then
-                  message=trim(message)//trim(cmessage)
-                  if(err>0) return
-                endif  ! (check for errors)
+                call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control              
+                                model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
+                                indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
+                                out_varSubstep)                                                          ! intent(out): class object for model control
+                call finalize_varSubstep
 
                 ! reduce coupled step if failed the minimum step for the scalar solution
                 if(failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
@@ -904,9 +878,15 @@ subroutine opSplittin(&
 
   ! **** varSubstep ****
   subroutine initialize_varSubstep
-   call in_varSubstep%initialize(dt,dtInit,dt_min,whole_step,nSubset,doAdjustTemp,firstSubStep,computeVegFlux,ixSolution,scalar,iStateSplit,fluxMask)
+   call in_varSubstep % initialize(dt,dtInit,dt_min,whole_step,nSubset,doAdjustTemp,firstSubStep,computeVegFlux,ixSolution,scalar,iStateSplit,fluxMask)
+   call io_varSubstep % initialize(firstFluxCall,fluxCount,ixSaturation)
   end subroutine initialize_varSubstep
 
+  subroutine finalize_varSubstep
+   call io_varSubstep  % finalize(firstFluxCall,fluxCount,ixSaturation)
+   call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
+  end subroutine finalize_varSubstep
 end subroutine opSplittin
 
 
