@@ -252,10 +252,8 @@ set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
 if(CMAKE_BUILD_TYPE MATCHES Actors)
     # Define directories for source files that might be replaced by actors (identical if not using actors)
     set(SUB_ENGINE_DIR ${FILE_ACCESS_DIR})
-    set(SUB_NETCDF_DIR ${FILE_ACCESS_DIR})
 else()
     set(SUB_ENGINE_DIR ${PARENT_DIR}/build/source/engine)
-    set(SUB_NETCDF_DIR ${PARENT_DIR}/build/source/netcdf)
 endif()
 #=========================================================================================
 # COMPILE PART 2: Assemble all of the SUMMA sub-routines
@@ -314,7 +312,7 @@ set(UTILMS_SUNDIALS
 
 # NetCDF routines
 set(NETCDF
-    ${SUB_NETCDF_DIR}/def_output.f90
+    ${NETCDF_DIR}/def_output.f90
     ${NETCDF_DIR}/modelwrite.f90
     ${NETCDF_DIR}/netcdf_util.f90
     ${NETCDF_DIR}/read_icond.f90)
