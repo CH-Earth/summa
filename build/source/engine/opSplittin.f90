@@ -95,6 +95,7 @@ USE data_types,only:&
                     var_dlength,                                               & ! data vector with variable length dimension (rkind)
                     zLookup,                                                   & ! lookup tables
                     model_options,                                             & ! defines the model decisions
+                    in_type_statefilter,out_type_statefilter,                  & ! classes for stateFilter objects
                     in_type_varSubstep,io_type_varSubstep,out_type_varSubstep    ! classes for varSubstep objects
 
 ! look-up values for the numerical method
@@ -289,9 +290,10 @@ subroutine opSplittin(&
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
-  ! ---------------------- classes for flux subroutine arguments (classes defined in data_types module) ----------------------
-  !      ** intent(in) arguments **       ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
-  type(in_type_varSubstep) :: in_varSubstep; type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep) :: out_varSubstep;! varSubstep arguments
+  ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
+  !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
+  type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
+  type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
@@ -334,6 +336,7 @@ subroutine opSplittin(&
 
     ! *** initialize ***
     call initialize_opSplittin
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
     ! ==========================================================================================================================================
     ! loop through different coupling strategies
@@ -439,9 +442,10 @@ subroutine opSplittin(&
                 ! -------------------------------------------
 
                 ! get the mask for the state subset
-                call stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit,&
-                                  indx_data,stateMask,nSubset,err,cmessage)
-                if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
+                call initialize_stateFilter
+                call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
+                call finalize_stateFilter
+                if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! error control
 
                 ! check that state variables exist
                 if(nSubset==0) cycle domainSplit
@@ -657,6 +661,7 @@ subroutine opSplittin(&
                                 indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
                                 out_varSubstep)                                                          ! intent(out): class object for model control
                 call finalize_varSubstep
+                if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
 
                 ! reduce coupled step if failed the minimum step for the scalar solution
                 if(failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
@@ -824,31 +829,31 @@ subroutine opSplittin(&
    ! *** allocate memory for local structures ***
    ! allocate space for the flux mask (used to define when fluxes are updated)
    call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
    call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the temporary prognostic variable structure
    call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the temporary diagnostic variable structure
    call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the temporary flux variable structure
    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the mean flux variable structure
    call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the temporary mean flux variable structure
    call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; endif
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
 
    ! allocate space for the derivative structure
    call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
@@ -869,12 +874,21 @@ subroutine opSplittin(&
      print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
      message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
      err=20; return
-    endif
+    end if
    end do
 
    ! use step halving if unable to complete the fully coupled solution in one substep
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
   end subroutine finalize_opSplittin
+
+  ! **** stateFilter ****
+  subroutine initialize_stateFilter
+   call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
+  end subroutine initialize_stateFilter
+
+  subroutine finalize_stateFilter
+   call out_stateFilter % finalize(nSubset,err,cmessage)
+  end subroutine finalize_stateFilter
 
   ! **** varSubstep ****
   subroutine initialize_varSubstep
@@ -885,7 +899,6 @@ subroutine opSplittin(&
   subroutine finalize_varSubstep
    call io_varSubstep  % finalize(firstFluxCall,fluxCount,ixSaturation)
    call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
   end subroutine finalize_varSubstep
 end subroutine opSplittin
 
@@ -893,30 +906,29 @@ end subroutine opSplittin
 ! **********************************************************************************************************
 ! private subroutine stateFilter: get a mask for the desired state variables
 ! **********************************************************************************************************
-subroutine stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit,&
-                      indx_data,stateMask,nSubset,err,message)
+subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
 
-  USE indexState_module,only:indxSubset                            ! get state indices
+  USE indexState_module,only:indxSubset                               ! get state indices
   implicit none
   ! input
-  integer(i4b),intent(in)         :: ixCoupling                    ! index of coupling method (1,2)
-  integer(i4b),intent(in)         :: ixSolution                    ! index of solution method (1,2)
-  integer(i4b),intent(in)         :: ixStateThenDomain             ! switch between full domain and sub domains
-  integer(i4b),intent(in)         :: iStateTypeSplit               ! index of the state type split
-  integer(i4b),intent(in)         :: iDomainSplit                  ! index of the domain split
-  integer(i4b),intent(in)         :: iStateSplit                   ! index of the layer split
-  type(var_ilength),intent(inout) :: indx_data                     ! indices for a local HRU
+  type(in_type_stateFilter),intent(in)   :: in_stateFilter            ! indices
+  type(var_ilength),intent(inout)        :: indx_data                 ! indices for a local HRU
   ! output
-  logical(lgt),intent(out)        :: stateMask(:)                  ! mask defining desired state variables
-  integer(i4b),intent(out)        :: nSubset                       ! number of selected state variables for a given split
-  integer(i4b),intent(out)        :: err                           ! error code
-  character(*),intent(out)        :: message                       ! error message
+  logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
+  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
   ! local
-  integer(i4b),allocatable        :: ixSubset(:)                   ! list of indices in the state subset
-  character(len=256)              :: cmessage                      ! error message
+  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
+  character(len=256)                     :: cmessage                  ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   ! data structures
   associate(&
+    ! indices for splitting methods
+    ixCoupling        => in_stateFilter %  ixCoupling              ,& ! intent(in): [i4b] index of coupling method (1,2)
+    ixSolution        => in_stateFilter %  ixSolution              ,& ! intent(in): [i4b] index of solution method (1,2)
+    ixStateThenDomain => in_stateFilter %  ixStateThenDomain       ,& ! intent(in): [i4b] switch between full domain and sub domains
+    iStateTypeSplit   => in_stateFilter %  iStateTypeSplit         ,& ! intent(in): [i4b] index of the state type split
+    iDomainSplit      => in_stateFilter %  iDomainSplit            ,& ! intent(in): [i4b] index of the domain split
+    iStateSplit       => in_stateFilter %  iStateSplit             ,& ! intent(in): [i4b] index of the layer split
     ! indices of model state variables
     ixStateType  => indx_data%var(iLookINDEX%ixStateType)%dat      ,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
     ixNrgCanair  => indx_data%var(iLookINDEX%ixNrgCanair)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
@@ -929,7 +941,11 @@ subroutine stateFilter(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,i
     ! number of layers
     nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b]    number of snow layers
     nSoil        => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b]    number of soil layers
-    nLayers      => indx_data%var(iLookINDEX%nLayers)%dat(1)        & ! intent(in): [i4b]    total number of layers
+    nLayers      => indx_data%var(iLookINDEX%nLayers)%dat(1)       ,& ! intent(in): [i4b]    total number of layers
+    ! output
+    nSubset      => out_stateFilter % nSubset                      ,& ! intent(out): number of selected state variables for a given split
+    err          => out_stateFilter % err                          ,& ! intent(out): error code
+    message      => out_stateFilter % cmessage                       & ! intent(out): error message
     ) ! data structures
     ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     ! initialize error control
