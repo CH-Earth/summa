@@ -120,6 +120,7 @@ subroutine systemSolv(&
                       dt_cur,            & ! intent(in):    current stepsize
                       dt,                & ! intent(in):    entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
+                      nLayers,           & ! intent(in):    total number of layers
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
@@ -173,6 +174,7 @@ subroutine systemSolv(&
   real(rkind),intent(in)          :: dt_cur                        ! current stepsize
   real(rkind),intent(in)          :: dt                            ! entire time step for drainage pond rate
   integer(i4b),intent(in)         :: nState                        ! total number of state variables
+  integer(i4b),intent(in)         :: nLayers                       ! total number of layers
   logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
   logical(lgt),intent(inout)      :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -253,8 +255,8 @@ subroutine systemSolv(&
   ! enthalpy derivatives
   real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
   real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind)                     :: dEnthalpy_dTk(nState)         ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind)                     :: dEnthalpy_dWat(nState)        ! derivatives in layer enthalpy w.r.t. water state
+  real(rkind)                     :: dEnthalpy_dTk(nLayers)         ! derivatives in layer enthalpy w.r.t. temperature
+  real(rkind)                     :: dEnthalpy_dWat(nLayers)        ! derivatives in layer enthalpy w.r.t. water state
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -295,8 +297,7 @@ subroutine systemSolv(&
     ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
     ! layer geometry
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
-    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                  & ! intent(in):    [i4b]    number of soil layers
     )
     ! ---------------------------------------------------------------------------------------
     ! initialize error control
