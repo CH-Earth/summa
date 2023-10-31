@@ -177,7 +177,7 @@ subroutine varSubstep(&
   ! flags
   logical(lgt)                       :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt)                       :: checkMassBalance              ! flag to check the mass balance
-  logical(lgt)                       :: checkNrgBalance
+  logical(lgt)                       :: checkNrgBalance               ! flag to check the energy balance
   logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
   logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
   ! energy fluxes
@@ -310,6 +310,7 @@ subroutine varSubstep(&
                       dtSubstep,         & ! intent(in):    time step (s)
                       whole_step,        & ! intent(in):    entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
+                      nLayers,           & ! intent(in):    total number of layers
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
@@ -904,9 +905,9 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                   mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
                   dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                   ! output: enthalpy
-                  scalarCanairEnthalpyTrial,        & ! intent(out):  enthalpy of the canopy air space (J m-3)
-                  scalarCanopyEnthalpyTrial,        & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
-                  mLayerEnthalpyTrial,             & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                  scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
+                  scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
+                  mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
                   dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
                   dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
                   dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
