@@ -96,6 +96,7 @@ USE data_types,only:&
                     zLookup,                                                   & ! lookup tables
                     model_options,                                             & ! defines the model decisions
                     in_type_statefilter,out_type_statefilter,                  & ! classes for stateFilter objects
+                    in_type_indexSplit,out_type_indexSplit,                    & ! classes for indexSplit objects
                     in_type_varSubstep,io_type_varSubstep,out_type_varSubstep    ! classes for varSubstep objects
 
 ! look-up values for the numerical method
@@ -293,6 +294,7 @@ subroutine opSplittin(&
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
+  type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
 
   ! ---------------------------------------------------------------------------------------
@@ -496,10 +498,9 @@ subroutine opSplittin(&
                 ! * assemble vectors for a given split...
                 ! ---------------------------------------
                 ! get indices for a given split
-                call indexSplit(stateMask,                   & ! intent(in)    : logical vector (.true. if state is in the subset)
-                                nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
-                                indx_data,                   & ! intent(inout) : index data structure
-                                err,cmessage)                  ! intent(out)   : error control
+                call initialize_indexSplit
+                call indexSplit(in_indexSplit,stateMask,indx_data,out_indexSplit)
+                call finalize_indexSplit
                 if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
                 ! -----
@@ -889,6 +890,16 @@ subroutine opSplittin(&
   subroutine finalize_stateFilter
    call out_stateFilter % finalize(nSubset,err,cmessage)
   end subroutine finalize_stateFilter
+
+  ! **** indexSplit ****
+  subroutine initialize_indexSplit
+   call in_indexSplit % initialize(nSnow,nSoil,nLayers,nSubset)
+  end subroutine initialize_indexSplit
+
+  subroutine finalize_indexSplit
+   call out_indexSplit % finalize(err,cmessage)
+  end subroutine finalize_indexSplit
+  ! **** end indexSplit ****
 
   ! **** varSubstep ****
   subroutine initialize_varSubstep
