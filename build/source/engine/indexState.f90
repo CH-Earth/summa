@@ -24,7 +24,8 @@ module indexState_module
 USE nrtype
 
 ! derived types to define the data structures
-USE data_types,only:var_ilength     ! data vector with variable length dimension (i4b)
+USE data_types,only:var_ilength                            ! data vector with variable length dimension (i4b)
+USE data_types,only:in_type_indexSplit,out_type_indexSplit ! classes for indexSplit subroutine arguments
 
 ! missing data
 USE globalData,only:integerMissing  ! missing integer
@@ -276,41 +277,44 @@ contains
  ! **********************************************************************************************************
  ! public subroutine indexSplit: define list of indices for each state variable
  ! **********************************************************************************************************
- subroutine indexSplit(stateSubsetMask,             & ! intent(in)    : logical vector (.true. if state is in the subset)
-                       nSnow,nSoil,nLayers,nSubset, & ! intent(in)    : number of snow and soil layers, and total number of layers
+ subroutine indexSplit(in_indexSplit,               & ! intent(in)    : number of model layers and states in a subset
+                       stateSubsetMask,             & ! intent(in)    : logical vector (.true. if state is in the subset)
                        indx_data,                   & ! intent(inout) : index data structure
-                       err,message)                   ! intent(out)   : error control
+                       out_indexSplit)                ! intent(out)   : error control
  ! external modules 
  USE f2008funcs_module,only:findIndex                 ! finds the index of the first value within a vector
  USE nr_utility_module,only:arth                      ! creates a sequence of numbers (start, incr, n)
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! input
- logical(lgt),intent(in)         :: stateSubsetMask(:)          ! logical vector (.true. if state is in the subset)
- integer(i4b),intent(in)         :: nSnow,nSoil,nLayers,nSubset ! number of snow and soil layers, total number of layers, and number of states in the subset
- type(var_ilength),intent(inout) :: indx_data                   ! indices defining model states and layers
+ type(in_type_indexSplit),intent(in)   :: in_indexSplit                ! number of model layers and states in a subset
+ logical(lgt),intent(in)               :: stateSubsetMask(:)           ! logical vector (.true. if state is in the subset)
+ type(var_ilength),intent(inout)       :: indx_data                    ! indices defining model states and layers
  ! output
- integer(i4b),intent(out)        :: err                         ! error code
- character(*),intent(out)        :: message                     ! error message
+ type(out_type_indexSplit),intent(out) :: out_indexSplit               ! error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
- integer(i4b)                    :: iVar                        ! variable index
- integer(i4b)                    :: ixVegWat                    ! index of total water in the vegetation canopy
- integer(i4b)                    :: ixVegLiq                    ! index of liquid water in the vegetation canopy
- integer(i4b)                    :: ixTopWat                    ! index of upper-most total water state in the snow-soil subdomain
- integer(i4b)                    :: ixTopLiq                    ! index of upper-most liquid water state in the snow-soil subdomain
- integer(i4b)                    :: ixTopMat                    ! index of upper-most total water matric potential state in the soil subdomain
- integer(i4b)                    :: ixTopLMP                    ! index of upper-most liquid water matric potential state in the soil subdomain
- integer(i4b),dimension(nSubset) :: ixSequence                  ! sequential index in model state vector
- logical(lgt),dimension(nSubset) :: stateTypeMask               ! mask of state vector for specific state subsets
- logical(lgt),dimension(nLayers) :: volFracWat_mask             ! mask of layers within the snow+soil domain
- logical(lgt),dimension(nSoil)   :: matricHead_mask             ! mask of layers within the soil domain
- character(len=256)              :: cmessage                    ! error message of downwind routine
+ integer(i4b)                                    :: iVar               ! variable index
+ integer(i4b)                                    :: ixVegWat           ! index of total water in the vegetation canopy
+ integer(i4b)                                    :: ixVegLiq           ! index of liquid water in the vegetation canopy
+ integer(i4b)                                    :: ixTopWat           ! index of upper-most total water state in the snow-soil subdomain
+ integer(i4b)                                    :: ixTopLiq           ! index of upper-most liquid water state in the snow-soil subdomain
+ integer(i4b)                                    :: ixTopMat           ! index of upper-most total water matric potential state in the soil subdomain
+ integer(i4b)                                    :: ixTopLMP           ! index of upper-most liquid water matric potential state in the soil subdomain
+ integer(i4b),dimension(in_indexSplit % nSubset) :: ixSequence         ! sequential index in model state vector
+ logical(lgt),dimension(in_indexSplit % nSubset) :: stateTypeMask      ! mask of state vector for specific state subsets
+ logical(lgt),dimension(in_indexSplit % nLayers) :: volFracWat_mask    ! mask of layers within the snow+soil domain
+ logical(lgt),dimension(in_indexSplit % nSoil)   :: matricHead_mask    ! mask of layers within the soil domain
+ character(len=256)                              :: cmessage           ! error message of downwind routine
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  ! make association to variables in the data structures
  fullState: associate(&
-
+ ! number of snow and soil layers, total number of layers, and number of states in the subset
+ nSnow            => in_indexSplit % nSnow                          ,& ! intent(in):    [i4b]    number of snow layers 
+ nSoil            => in_indexSplit % nSoil                          ,& ! intent(in):    [i4b]    number of soil layers 
+ nLayers          => in_indexSplit % nLayers                        ,& ! intent(in):    [i4b]    total number of layers
+ nSubset          => in_indexSplit % nSubset                        ,& ! intent(in):    [i4b]    number of states in the subset
  ! indices of model state variables for the vegetation domain
  ixCasNrg         => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
  ixVegNrg         => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in):    [i4b]    index of canopy energy state variable
@@ -357,8 +361,11 @@ contains
  nSoilOnlyNrg     => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1) ,& ! intent(in):    [i4b]    number of energy state variables in the soil domain
  nSnowSoilHyd     => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1) ,& ! intent(in):    [i4b]    number of hydrology variables in the snow+soil domain
  nSnowOnlyHyd     => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1) ,& ! intent(in):    [i4b]    number of hydrology variables in the snow domain
- nSoilOnlyHyd     => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)  & ! intent(in):    [i4b]    number of hydrology variables in the soil domain
+ nSoilOnlyHyd     => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1) ,& ! intent(in):    [i4b]    number of hydrology variables in the soil domain
 
+ ! error control
+ err              => out_indexSplit % err                           ,& ! intent(out):   [i4b]       error code
+ message          => out_indexSplit % cmessage                       & ! intent(out):   [character] error message
  ) ! association to variables in the data structures
 
  ! ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
