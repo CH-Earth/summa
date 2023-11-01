@@ -594,6 +594,25 @@ MODULE data_types
  end type out_type_stateFilter
  ! ** end stateFilter
 
+ ! ** indexSplit
+ type, public :: in_type_indexSplit  ! class for intent(in) arguments in indexSplit call
+   integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
+   integer(i4b)             :: nSoil                       ! intent(in): number of soil layers
+   integer(i4b)             :: nLayers                     ! intent(in): total number of layers
+   integer(i4b)             :: nSubset                     ! intent(in): number of states in the subset
+  contains
+   procedure :: initialize => initialize_in_indexSplit
+ end type in_type_indexSplit
+
+ type, public :: out_type_indexSplit ! class for intent(out) arguments in indexSplit call
+   integer(i4b)             :: err                         ! intent(out): error code
+   character(:),allocatable :: cmessage                    ! intent(out): error message
+  contains
+   procedure :: finalize   => finalize_out_indexSplit
+ end type out_type_indexSplit
+ ! ** end indexSplit
+
+
  ! ** varSubstep
  type, public :: in_type_varSubstep  ! class for intent(in) arguments in varSubstep call
    real(rkind)              :: dt                          ! intent(in): time step (s)
@@ -1287,7 +1306,7 @@ contains
  end subroutine initialize_in_stateFilter
 
  subroutine finalize_out_stateFilter(out_stateFilter,nSubset,err,cmessage)
-  class(out_type_stateFilter),intent(in) :: out_stateFilter   ! class object for intent(in) stateFilter arguments
+  class(out_type_stateFilter),intent(in) :: out_stateFilter   ! class object for intent(out) stateFilter arguments
   integer(i4b),intent(out)               :: nSubset           ! intent(out): number of selected state variables for a given split
   integer(i4b),intent(out)               :: err               ! intent(out): error code
   character(*),intent(out)               :: cmessage          ! intent(out): error message
@@ -1296,6 +1315,28 @@ contains
   cmessage = out_stateFilter % cmessage                       ! intent(out): error message
  end subroutine finalize_out_stateFilter
  ! **** end stateFilter ****
+
+ ! **** indexSplit ****
+ subroutine initialize_in_indexSplit(in_indexSplit,nSnow,nSoil,nLayers,nSubset)
+  class(in_type_indexSplit),intent(out) :: in_indexSplit    ! class object for intent(in) indexSplit arguments
+  integer(i4b),intent(in)               :: nSnow            ! intent(in): number of snow layers
+  integer(i4b),intent(in)               :: nSoil            ! intent(in): number of soil layers
+  integer(i4b),intent(in)               :: nLayers          ! intent(in): total number of layers
+  integer(i4b),intent(in)               :: nSubset          ! intent(in): number of states in the subset
+  in_indexSplit % nSnow   = nSnow                           ! intent(in): number of snow layers          
+  in_indexSplit % nSoil   = nSoil                           ! intent(in): number of soil layers
+  in_indexSplit % nLayers = nLayers                         ! intent(in): total number of layers
+  in_indexSplit % nSubset = nSubset                         ! intent(in): number of states in the subset
+ end subroutine initialize_in_indexSplit
+
+ subroutine finalize_out_indexSplit(out_indexSplit,err,cmessage)
+  class(out_type_indexSplit),intent(in) :: out_indexSplit   ! class object for intent(out) indexSplit arguments
+  integer(i4b),intent(out)              :: err              ! intent(out): error code
+  character(*),intent(out)              :: cmessage         ! intent(out): error message
+  err      = out_indexSplit % err                           ! intent(out): error code    
+  cmessage = out_indexSplit % cmessage                      ! intent(out): error message
+ end subroutine finalize_out_indexSplit
+ ! **** end indexSplit ****
 
  ! **** varSubstep ****
  subroutine initialize_in_varSubstep(in_varSubstep,dt,dtInit,dt_min,whole_step,nSubset,&
@@ -1329,7 +1370,7 @@ contains
  end subroutine initialize_in_varSubstep
 
  subroutine initialize_io_varSubstep(io_varSubstep,firstFluxCall,fluxCount,ixSaturation)
-  class(io_type_varSubstep),intent(out) :: io_varSubstep  ! class object for intent(in) varSubstep arguments
+  class(io_type_varSubstep),intent(out) :: io_varSubstep  ! class object for intent(inout) varSubstep arguments
   logical(lgt),intent(in)               :: firstFluxCall  ! flag to indicate if we are processing the first flux call
   type(var_ilength),intent(in)          :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
   integer(i4b),intent(in)               :: ixSaturation   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
@@ -1341,7 +1382,7 @@ contains
  end subroutine initialize_io_varSubstep
 
  subroutine finalize_io_varSubstep(io_varSubstep,firstFluxCall,fluxCount,ixSaturation)
-  class(io_type_varSubstep),intent(in)  :: io_varSubstep  ! class object for intent(in) varSubstep arguments
+  class(io_type_varSubstep),intent(in)  :: io_varSubstep  ! class object for intent(inout) varSubstep arguments
   logical(lgt),intent(out)              :: firstFluxCall  ! flag to indicate if we are processing the first flux call
   type(var_ilength),intent(out)         :: fluxCount      ! number of times fluxes are updated (should equal nsubstep)
   integer(i4b),intent(out)              :: ixSaturation   ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
