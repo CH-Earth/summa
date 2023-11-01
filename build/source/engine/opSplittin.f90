@@ -501,149 +501,14 @@ subroutine opSplittin(&
                 call initialize_indexSplit
                 call indexSplit(in_indexSplit,stateMask,indx_data,out_indexSplit)
                 call finalize_indexSplit
-                if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+                if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
                 ! -----
                 ! * define the mask of the fluxes used...
                 ! ---------------------------------------
-
-                ! identify the type of state for the states in the subset
-                stateSubset: associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat ,& ! intent(in): [i4b(:)] indices of state types
-                                       ixMapFull2Subset   => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat   ,& ! intent(in): [i4b(:)] mapping of full state vector to the state subset
-                                       ixControlVolume    => indx_data%var(iLookINDEX%ixControlVolume)%dat    ,& ! intent(in): [i4b(:)] index of control volume for different domains (veg, snow, soil)
-                                       ixLayerActive      => indx_data%var(iLookINDEX%ixLayerActive)%dat      ,& ! intent(in): [i4b(:)] list of indices for all active layers (inactive=integerM
-                                       ixDomainType       => indx_data%var(iLookINDEX%ixDomainType)%dat       )  ! intent(in): [i4b(:)] indices defining the type of the domain (iname_veg, iname_snow, iname_soil)
-
-                  ! loop through flux variables
-                  do iVar=1,size(flux_meta)
-
-                    ! * identify flux mask for the fully coupled solution
-                    if(ixCoupling==fullyCoupled)then
-                      desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
-
-                      ! make sure firstFluxCall fluxes are included in the mask
-                      if (firstFluxCall .and. addFirstFlux) then 
-                        if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
-                      endif
-
-                      fluxMask%var(iVar)%dat = desiredFlux
-
-                    ! * identify flux mask for the split solution
-                    else
-
-                      ! identify the flux mask for a given state split
-                      select case(iStateTypeSplit)
-                        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
-                        case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
-                        case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
-                      end select
-
-                      ! make sure firstFluxCall fluxes are included in the mask
-                      if (firstFluxCall .and. addFirstFlux) then 
-                        if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
-                        if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
-                      endif
-
-                      ! no domain splitting
-                      if(nDomains==1)then
-                        fluxMask%var(iVar)%dat = desiredFlux
-
-                      ! domain splitting
-                      else
-
-                        ! initialize to .false.
-                        fluxMask%var(iVar)%dat = .false.
-
-                        ! only need to proceed if the flux is desired
-                        if(desiredFlux)then
-
-                          ! different domain splitting operations
-                          select case(iDomainSplit)
-
-                            ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
-                            case(vegSplit)
-
-                              ! vector solution (should only be present for energy)
-                              if(ixSolution==vector)then
-                                fluxMask%var(iVar)%dat(:1) = desiredFlux
-                                if(ixStateThenDomain>1 .and. iStateTypeSplit/=nrgSplit)then
-                                  message=trim(message)//'only expect a vector solution for the vegetation domain for energy'
-                                  err=20; return
-                                endif
-
-                              ! scalar solution
-                              else
-                                fluxMask%var(iVar)%dat(:1) = desiredFlux
-                              endif
-
-                            ! fluxes through snow and soil
-                            case(snowSplit,soilSplit)
-
-                              ! loop through layers
-                              do iLayer=1,nLayers
-                                if(ixlayerActive(iLayer)/=integerMissing)then
-
-                                  ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+1, nSnow+2, ..., nLayers)
-                                  iOffset = merge(nSnow, 0, flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil)
-                                  jLayer  = iLayer-iOffset
-
-                                  ! identify the minimum layer
-                                  select case(flux_meta(iVar)%vartype)
-                                    case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcSoil); minLayer=merge(jLayer-1, jLayer, jLayer==1)
-                                    case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midSoil); minLayer=jLayer
-                                    case default; minLayer=integerMissing
-                                  end select
-
-                                  ! set desired layers
-                                  select case(flux_meta(iVar)%vartype)
-                                    case(iLookVarType%midToto,iLookVarType%ifcToto);                   fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-                                    case(iLookVarType%midSnow,iLookVarType%ifcSnow); if(iLayer<=nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-                                    case(iLookVarType%midSoil,iLookVarType%ifcSoil); if(iLayer> nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
-                                  end select
-
-                                  ! add hydrology states for scalar variables
-                                  if(iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv)then
-                                    select case(iDomainSplit)
-                                    case(snowSplit); if(iLayer==nSnow)   fluxMask%var(iVar)%dat = desiredFlux
-                                    case(soilSplit); if(iLayer==nSnow+1) fluxMask%var(iVar)%dat = desiredFlux
-                                    end select
-                                  endif  ! if hydrology split and scalar
-
-                                endif    ! if the layer is active
-                              end do   ! looping through layers
-
-                            ! fluxes through aquifer
-                            case(aquiferSplit)
-                              fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
-
-                            ! check
-                            case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return
-                          end select  ! domain split
-
-                        endif  ! if flux is desired
-
-                      endif  ! domain splitting
-                    endif  ! not fully coupled
-
-                    ! define if the flux is desired
-                    if(desiredFlux) neededFlux(iVar)=.true.
-                    !if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
-
-                    ! * check
-                    if( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 )&
-                    print*, trim(flux_meta(iVar)%varname)
-
-                  end do  ! (loop through fluxes)
-
-                end associate stateSubset
-
+                call update_fluxMask
+                if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+            
                 ! *******************************************************************************************************************************
                 ! ***** trial with a given solution method...
 
@@ -911,6 +776,115 @@ subroutine opSplittin(&
    call io_varSubstep  % finalize(firstFluxCall,fluxCount,ixSaturation)
    call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
   end subroutine finalize_varSubstep
+
+  subroutine update_fluxMask
+   ! *** update the fluxMask data structure *** 
+   do iVar=1,size(flux_meta) ! loop through flux variables
+
+    if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
+     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
+      desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+     end associate
+
+     ! make sure firstFluxCall fluxes are included in the mask
+     if (firstFluxCall .and. addFirstFlux) then 
+      if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+     end if
+
+     fluxMask%var(iVar)%dat = desiredFlux
+
+    else ! * identify flux mask for the split solution
+
+     associate(ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat) ! intent(in): [i4b(:)] indices of state types
+      select case(iStateTypeSplit) ! identify the flux mask for a given state split
+       case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
+       case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
+       case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+      end select
+     end associate
+
+     ! make sure firstFluxCall fluxes are included in the mask
+     if (firstFluxCall .and. addFirstFlux) then 
+      if (iVar==iLookFlux%scalarSoilResistance) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarStomResistSunlit) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarStomResistShaded) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarPhotosynthesisSunlit) desiredFlux = .true.
+      if (iVar==iLookFlux%scalarPhotosynthesisShaded) desiredFlux = .true.
+     end if
+
+     if (nDomains==1) then ! no domain splitting
+      fluxMask%var(iVar)%dat = desiredFlux
+     else ! domain splitting
+      fluxMask%var(iVar)%dat = .false. ! initialize to .false.
+      if (desiredFlux) then ! only need to proceed if the flux is desired
+       select case(iDomainSplit) ! different domain splitting operations
+        case(vegSplit) ! canopy fluxes -- (:1) gets the upper boundary(0) if it exists
+         if (ixSolution==vector) then ! vector solution (should only be present for energy)
+          fluxMask%var(iVar)%dat(:1) = desiredFlux
+          if (ixStateThenDomain>1 .and. iStateTypeSplit/=nrgSplit) then
+           message=trim(message)//'only expect a vector solution for the vegetation domain for energy'
+           err=20; return
+          end if
+         else                         ! scalar solution
+          fluxMask%var(iVar)%dat(:1) = desiredFlux
+         end if
+        case(snowSplit,soilSplit) ! fluxes through snow and soil
+
+         do iLayer=1,nLayers! loop through layers
+          associate(ixLayerActive => indx_data%var(iLookINDEX%ixLayerActive)%dat) ! intent(in): [i4b(:)] indices for all active layers (inactive=integerMissing)
+           if (ixLayerActive(iLayer)/=integerMissing) then
+
+            ! get the offset (ixLayerActive=1,2,3,...nLayers, and soil vectors nSnow+1, nSnow+2, ..., nLayers)
+            iOffset = merge(nSnow, 0, flux_meta(iVar)%vartype==iLookVarType%midSoil .or. flux_meta(iVar)%vartype==iLookVarType%ifcSoil)
+            jLayer  = iLayer-iOffset
+
+            ! identify the minimum layer
+            select case(flux_meta(iVar)%vartype)
+             case(iLookVarType%ifcToto, iLookVarType%ifcSnow, iLookVarType%ifcSoil); minLayer=merge(jLayer-1, jLayer, jLayer==1)
+             case(iLookVarType%midToto, iLookVarType%midSnow, iLookVarType%midSoil); minLayer=jLayer
+             case default; minLayer=integerMissing
+            end select
+
+            ! set desired layers
+            select case(flux_meta(iVar)%vartype)
+             case(iLookVarType%midToto,iLookVarType%ifcToto);                    fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midSnow,iLookVarType%ifcSnow); if (iLayer<=nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+             case(iLookVarType%midSoil,iLookVarType%ifcSoil); if (iLayer> nSnow) fluxMask%var(iVar)%dat(minLayer:jLayer) = desiredFlux
+            end select
+
+            ! add hydrology states for scalar variables
+            if (iStateTypeSplit==massSplit .and. flux_meta(iVar)%vartype==iLookVarType%scalarv) then
+             select case(iDomainSplit)
+              case(snowSplit); if(iLayer==nSnow)   fluxMask%var(iVar)%dat = desiredFlux
+              case(soilSplit); if(iLayer==nSnow+1) fluxMask%var(iVar)%dat = desiredFlux
+             end select
+            end if  ! if hydrology split and scalar
+
+           end if    ! if the layer is active
+          end associate
+         end do   ! looping through layers
+
+        case(aquiferSplit) ! fluxes through aquifer
+         fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
+        case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return ! check
+       end select  ! domain split
+      end if  ! end if flux is desired
+     end if  ! end if domain splitting
+    end if  ! end if not fully coupled
+
+    ! define if the flux is desired
+    if (desiredFlux) neededFlux(iVar)=.true.
+    !if(desiredFlux) print*, flux_meta(iVar)%varname, fluxMask%var(iVar)%dat
+
+    if ( globalPrintFlag .and. count(fluxMask%var(iVar)%dat)>0 ) print*, trim(flux_meta(iVar)%varname) ! * check
+
+   end do  ! end looping through fluxes
+
+  end subroutine update_fluxMask
 end subroutine opSplittin
 
 
