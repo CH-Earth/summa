@@ -216,7 +216,7 @@ subroutine eval8summa(&
   real(rkind)                        :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
   real(rkind),dimension(nLayers)     :: mLayerCmTrial             ! trial vector of Cm for snow+soil
   logical(lgt),parameter             :: updateCp=.true.          ! flag to indicate if we update Cp at each step
-  logical(lgt),parameter             :: needCm=.false.            ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  logical(lgt),parameter             :: needCm=.true.            ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
