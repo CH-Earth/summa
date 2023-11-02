@@ -698,11 +698,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     scalarCanopyEnthalpy      => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the vegetation canopy (J m-3)
     mLayerEnthalpy            => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)]  enthalpy of the snow+soil layers (J m-3)
     ! derivatives, diagnositic for enthalpy
-    dTheta_dTkCanopy          => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)         ,& ! intent(in):    [dp]     derivative of volumetric liquid water content w.r.t. temperature
     dVolTot_dPsi0             => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat               ,& ! intent(in):    [dp(:)]  derivative in total water content w.r.t. total water matric potential
-    mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat            ,& ! intent(in):    [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
-    scalarFracLiqVeg          => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)           ,& ! intent(in):    [dp]     fraction of liquid water on vegetation (-)
-    mLayerFracLiqSnow         => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat             ,& ! intent(in):    [dp(:)]  fraction of liquid water in each snow layer (-)
     ! model state variables (aquifer)
     scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout): [dp(:)]  storage of water in the aquifer (m)
     ! error tolerance
@@ -882,7 +878,6 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     if(checkNrgBalance)then
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
-                  .true.,                      & ! intent(in): logical flag to include phase change in enthalpy
                   ! input: data structures
                   diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                   mpar_data,                   & ! intent(in):  parameter data structure
@@ -892,17 +887,11 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                   scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
                   scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
                   scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
-                  scalarCanopyIceTrial,        & ! intent(in):  trial value of canopy ice content (kg m-2)
-                  ! input: variables for the snow-soil domain
+                   ! input: variables for the snow-soil domain
                   mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
                   mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                   mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                  mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
                   ! input: pre-computed derivatives
-                  dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-                  scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
-                  mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                  mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
                   dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                   ! output: enthalpy
                   scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
@@ -915,7 +904,25 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
+      call t2enthalpy_addphase(&
+                  ! input: data structures
+                  diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
+                  mpar_data,                         & ! intent(in):    parameter data structure
+                  indx_data,                         & ! intent(in):    model indices
+                  lookup_data,                       & ! intent(in):    lookup table data structure
+                  ! input: state variables for the vegetation canopy  
+                  scalarCanopyTempTrial,             & ! intent(in):    trial value of canopy temperature (K)
+                  scalarCanopyIceTrial,              & ! intent(in):    trial value of canopy ice content (kg m-2)
+                  ! input: variables for the snow-soil domain  
+                  mLayerTempTrial,                   & ! intent(in):    trial vector of layer temperature (K)
+                  mLayerMatricHeadTrial,             & ! intent(in):    trial vector of total water matric potential (m)
+                  mLayerVolFracIceTrial,             & ! intent(in):    trial vector of volumetric ice water content (-)
+                  ! input/output: enthalpy
+                  scalarCanopyEnthalpyTrial,         & ! intent(inout): enthalpy of the vegetation canopy (J m-3)
+                  mLayerEnthalpyTrial,               & ! intent(inout): enthalpy of each snow+soil layer (J m-3)
+                  ! output: error control
+                  err,message)                         ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     endif
 
     ! -----

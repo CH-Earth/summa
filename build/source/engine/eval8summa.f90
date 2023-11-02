@@ -390,7 +390,6 @@ subroutine eval8summa(&
       if(ixHowHeatCap == enthalpyFD)then
         ! compute H_T without phase change
         call t2enthalpy(&
-                         .false.,                    & ! intent(in):  ogical flag to not include phase change in enthalpy
                         ! input: data structures
                         diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                         mpar_data,                   & ! intent(in):  parameter data structure
@@ -400,17 +399,11 @@ subroutine eval8summa(&
                         scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
                         scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
                         scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
-                        scalarCanopyIceTrial,        & ! intent(in):  trial value of canopy ice content (kg m-2)
                         ! input: variables for the snow-soil domain
                         mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
                         mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                         mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                        mLayerVolFracIceTrial,       & ! intent(in):  trial vector of volumetric fraction of ice (-)
                         ! input: pre-computed derivatives
-                        dTheta_dTkCanopy,            & ! intent(in):  derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-                        scalarFracLiqVeg,            & ! intent(in):  fraction of canopy liquid water (-)
-                        mLayerdTheta_dTk,            & ! intent(in):  derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                        mLayerFracLiqSnow,           & ! intent(in):  fraction of liquid water (-)
                         dVolTot_dPsi0,               & ! intent(in):  derivative in total water content w.r.t. total water matric potential (m-1)
                         ! output: enthalpy
                         scalarCanairEnthalpy,        & ! intent(out): enthalpy of the canopy air space (J m-3)

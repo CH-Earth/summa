@@ -151,6 +151,7 @@ subroutine summaSolve4ida(                         &
   USE computJacobWithPrime_module,only:computJacob4ida    ! system Jacobian
   USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions             ! maximum number of decisions
+  USE t2enthalpy_module,only:t2enthalpy_addphase  ! add phase to enthalpy
 
   !======= Declarations =========
   implicit none
@@ -236,6 +237,7 @@ subroutine summaSolve4ida(                         &
   logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
   logical(lgt),parameter            :: detect_events = .true.       ! flag to do event detection and restarting, default true
+  logical(lgt),parameter            :: checkNrgBalance = .false.    ! flag to check energy balance, default false
 
   ! -----------------------------------------------------------------------------------------------------
 
@@ -502,6 +504,51 @@ subroutine summaSolve4ida(                         &
     end do
     mLayerCmpress_sum(:) = mLayerCmpress_sum(:) + ( eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:) * eqns_data%mLayerMatricHeadPrime(:) &
                                                     + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
+
+    ! ----
+    ! * check energy balance, have to call again because need to include phase change
+    !------------------------
+    if(checkNrgBalance)then
+      ! compute enthalpy at t_{n+1}
+      call t2enthalpy_addphase(&
+                  ! input: data structures
+                  eqns_data%diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
+                  eqns_data%mpar_data,                         & ! intent(in):    parameter data structure
+                  eqns_data%indx_data,                         & ! intent(in):    model indices
+                  eqns_data%lookup_data,                       & ! intent(in):    lookup table data structure
+                  ! input: state variables for the vegetation canopy
+                  eqns_data%scalarCanopyTempTrial,             & ! intent(in):    trial value of canopy temperature (K)
+                  eqns_data%scalarCanopyIceTrial,              & ! intent(in):    trial value of canopy ice content (kg m-2)
+                  ! input: variables for the snow-soil domain
+                  eqns_data%mLayerTempTrial,                   & ! intent(in):    trial vector of layer temperature (K)
+                  eqns_data%mLayerMatricHeadTrial,             & ! intent(in):    trial vector of total water matric potential (m)
+                  eqns_data%mLayerVolFracIceTrial,             & ! intent(in):    trial vector of ice volume fraction (-)
+                  ! input/output: enthalpy
+                  eqns_data%scalarCanopyEnthalpyTrial,         & ! intent(inout): enthalpy of the vegetation canopy (J m-3)
+                  eqns_data%mLayerEnthalpyTrial,               & ! intent(inout): enthalpy of each snow+soil layer (J m-3)
+                  ! output: error control
+                  err,message)                         ! intent(out): error control
+      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+
+      ! compute energy balance
+      !sum_bal = eqns_data%scalarCanopyEnthalpyTrial - eqns_data%scalarCanopyEnthalpyPrev - rVec*dt_diff
+
+    endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     ! save required quantities for next step
     eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
