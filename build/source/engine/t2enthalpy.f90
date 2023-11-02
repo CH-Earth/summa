@@ -241,7 +241,7 @@ end subroutine T2E_lookup
 ! public subroutine t2enthalpy: compute enthalpy from temperature and total water content
 ! ************************************************************************************************************************
 subroutine t2enthalpy(&
-                      doPhase,                          & ! intent(in): logical flag to include phase change in enthalpy or not
+                      doPhase,                           & ! intent(in): logical flag to include phase change in enthalpy or not
                       ! input: data structures
                       diag_data,                         & ! intent(in):  model diagnostic variables for a local HRU
                       mpar_data,                         & ! intent(in):  parameter data structure
@@ -258,11 +258,11 @@ subroutine t2enthalpy(&
                       mLayerMatricHeadTrial,             & ! intent(in):  trial vector of total water matric potential (m)
                       mLayerVolFracIceTrial,             & ! intent(in)
                       ! input: pre-computed derivatives
-                      dTheta_dTkCanopy,                  & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-                      scalarFracLiqVeg,                  & ! intent(in): fraction of canopy liquid water (-)
-                      mLayerdTheta_dTk,                  & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                      mLayerFracLiqSnow,                 & ! intent(in): fraction of liquid water (-)
-                      dVolTot_dPsi0,                     & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                      dTheta_dTkCanopy,                  & ! intent(in):  derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
+                      scalarFracLiqVeg,                  & ! intent(in):  fraction of canopy liquid water (-)
+                      mLayerdTheta_dTk,                  & ! intent(in):  derivative of volumetric liquid water content w.r.t. temperature (K-1)
+                      mLayerFracLiqSnow,                 & ! intent(in):  fraction of liquid water (-)
+                      dVolTot_dPsi0,                     & ! intent(in):  derivative in total water content w.r.t. total water matric potential (m-1)
                       ! output: enthalpy
                       scalarCanairEnthalpy,              & ! intent(out):  enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthalpy,              & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
@@ -329,7 +329,7 @@ subroutine t2enthalpy(&
   real(rkind)                      :: Tcrit                     ! temperature where all water is unfrozen (K)
   real(rkind)                      :: psiLiq                    ! matric head of liquid water (m)
   real(rkind)                      :: volFracWat                ! volumetric fraction of total water, liquid+ice (-)
-  real(rkind)                      :: vFracLiq                ! volumetric fraction of liquid water (-)
+  real(rkind)                      :: vFracLiq                  ! volumetric fraction of liquid water (-)
   real(rkind)                      :: volFracIce                ! volumetric fraction of ice (-)
   real(rkind)                      :: diffT                     ! temperature difference from Tfreeze
   real(rkind)                      :: integral                  ! integral of snow freezing curve
@@ -338,7 +338,6 @@ subroutine t2enthalpy(&
   real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
   real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
   real(rkind)                      :: dEcrit                    ! derivative of enthalpy with temperature at critical temperature
-
   ! enthalpy
   real(rkind)                      :: enthVeg                   ! enthalpy of the vegetation (J m-3)
   real(rkind)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
@@ -472,7 +471,7 @@ subroutine t2enthalpy(&
               scalarCanopyEnthalpy = enthVeg + enthLiq + enthIce
               dCanEnthalpy_dTk     = dEnthVeg_dTk + dEnthLiq_dTk + dEnthIce_dTk
               dCanEnthalpy_dWat    = dEnthVeg_dWat + dEnthLiq_dWat + dEnthIce_dWat
-              if (doPhase)then
+              if (doPhase)then ! only need for calculating energy balance error so shouldn't need derivatives
                 scalarCanopyEnthalpy = scalarCanopyEnthalpy - enthPhase
                 dCanEnthalpy_dTk     = dCanEnthalpy_dTk - dEnthPhase_dTk
                 dCanEnthalpy_dWat    = dCanEnthalpy_dWat - dEnthPhase_dWat
@@ -520,7 +519,7 @@ subroutine t2enthalpy(&
               mLayerEnthalpy(iLayer) = enthLiq + enthIce + enthAir
               dEnthalpy_dTk(iLayer)  = dEnthLiq_dTk + dEnthIce_dTk + dEnthAir_dTk
               dEnthalpy_dWat(iLayer) = dEnthLiq_dWat + dEnthIce_dWat + dEnthAir_dWat
-              if (doPhase)then
+              if (doPhase)then ! only need for calculating energy balance error so shouldn't need derivatives
                 mLayerEnthalpy(iLayer) = mLayerEnthalpy(iLayer) - enthPhase
                 dEnthalpy_dTk(iLayer)  = dEnthalpy_dTk(iLayer) - dEnthPhase_dTk
                 dEnthalpy_dWat(iLayer) = dEnthalpy_dWat(iLayer) - dEnthPhase_dWat
@@ -554,7 +553,7 @@ subroutine t2enthalpy(&
               diffT = mLayerTempTrial(iLayer) - Tfreeze
 
               ! *** compute enthalpy of water for unfrozen conditions
-              if(mlayerTempTrial(iLayer) > Tcrit)then
+              if(mlayerTempTrial(iLayer)>=Tcrit)then
                 enthWater = iden_water*Cp_water*volFracWat*diffT ! valid for temperatures below freezing also
                 enthPhase = 0._rkind
                 ! enthalpy derivatives
@@ -607,7 +606,7 @@ subroutine t2enthalpy(&
               mLayerEnthalpy(iLayer) = enthSoil + enthWater + enthAir
               dEnthalpy_dTk(iLayer) =  dEnthSoil_dTk + dEnthWater_dTk + dEnthAir_dTk
               dEnthalpy_dWat(iLayer) = dEnthSoil_dWat + dEnthWater_dWat + dEnthAir_dWat
-              if (doPhase)then
+              if (doPhase)then ! only need for calculating energy balance error so shouldn't need derivatives
                 mLayerEnthalpy(iLayer) = mLayerEnthalpy(iLayer) - enthPhase
                 dEnthalpy_dTk(iLayer)  = dEnthalpy_dTk(iLayer) - dEnthPhase_dTk
                 dEnthalpy_dWat(iLayer) = dEnthalpy_dWat(iLayer) - dEnthPhase_dWat
