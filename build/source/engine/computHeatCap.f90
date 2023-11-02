@@ -609,6 +609,7 @@ subroutine computCm(&
     ! compute Cm of vegetation
     ! Note that scalarCanopyCm/iden_water is computed
     if(computeVegFlux)then
+      diffT = scalarCanopyTemp - Tfreeze
       if(diffT>=0._rkind)then
         scalarCanopyCm =  Cp_water * diffT
         ! derivatives
