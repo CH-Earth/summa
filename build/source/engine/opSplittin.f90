@@ -450,49 +450,22 @@ subroutine opSplittin(&
                 if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! error control
 
                 ! check that state variables exist
-                if(nSubset==0) cycle domainSplit
+                if (nSubset==0) cycle domainSplit
 
                 ! avoid redundant case where vector solution is of length 1
-                if(ixSolution==vector .and. count(stateMask)==1) cycle solution
+                if (ixSolution==vector .and. count(stateMask)==1) cycle solution
 
                 ! check that we do not attempt the scalar solution for the fully coupled case
-                if(ixCoupling==fullyCoupled .and. ixSolution==scalar)then
+                if (ixCoupling==fullyCoupled .and. ixSolution==scalar) then
                   message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
                   err=20; return
-                endif
+                end if
 
                 ! reset the flag for the first flux call
-                if(.not.firstSuccess) firstFluxCall=.true.
+                if (.not.firstSuccess) firstFluxCall=.true.
 
-                ! save/recover copies of prognostic variables
-                do iVar=1,size(prog_data%var)
-                  select case(failure)
-                    case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
-                    case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
-                  end select
-                end do  ! looping through variables
-
-                ! save/recover copies of diagnostic variables
-                do iVar=1,size(diag_data%var)
-                  select case(failure)
-                    case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
-                    case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
-                  end select
-                end do  ! looping through variables
-
-                ! save/recover copies of model fluxes and mean fluxes
-                do iVar=1,size(flux_data%var)
-                  select case(failure)
-                    case(.false.)
-                      flux_temp%var(iVar)%dat(:)   = flux_data%var(iVar)%dat(:)
-                      flux_mntemp%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:)
-                      addFirstFlux = .false.
-                    case(.true.)
-                      flux_data%var(iVar)%dat(:)  = flux_temp%var(iVar)%dat(:)
-                      flux_mean%var(iVar)%dat(:)  = flux_mntemp%var(iVar)%dat(:)
-                      if(addFirstFlux) addFirstFlux = .true.
-                  end select
-                end do  ! looping through variables
+                ! save/recover copies of variables and fluxes
+                call save_recover
 
                 ! -----
                 ! * assemble vectors for a given split...
@@ -518,7 +491,7 @@ subroutine opSplittin(&
                 ! --------------------------------------------
 
                 ! keep track of the number of scalar solutions
-                if(ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
+                if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
 
                 ! solve variable subset for one full time step
                 call initialize_varSubstep
@@ -530,11 +503,11 @@ subroutine opSplittin(&
                 if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
 
                 ! reduce coupled step if failed the minimum step for the scalar solution
-                if(failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
+                if (failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
 
                 ! if too much melt (or some other need to reduce the coupled step) then return
                 ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-                if(tooMuchMelt .or. reduceCoupledStep)then
+                if (tooMuchMelt .or. reduceCoupledStep) then
                   stepFailure=.true.
                   err=0 ! recovering
                   return
@@ -542,24 +515,24 @@ subroutine opSplittin(&
 
                 ! define failure
                 failure = (failedMinimumStep .or. err<0)
-                if(.not.failure) firstSuccess=.true.
+                if (.not.failure) firstSuccess=.true.
 
                 ! if failed, need to reset the flux counter
-                if(failure)then
+                if (failure) then
                   do iVar=1,size(flux_meta)
                     iMin=lbound(flux_data%var(iVar)%dat)
                     iMax=ubound(flux_data%var(iVar)%dat)
                     do iLayer=iMin(1),iMax(1)
-                      if(fluxMask%var(iVar)%dat(iLayer)) fluxCount%var(iVar)%dat(iLayer) = fluxCount%var(iVar)%dat(iLayer) - nSubsteps
+                      if (fluxMask%var(iVar)%dat(iLayer)) fluxCount%var(iVar)%dat(iLayer) = fluxCount%var(iVar)%dat(iLayer) - nSubsteps
                     end do
                   end do
                 endif
 
                 ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
-                if(ixCoupling==fullyCoupled .and. failure) cycle coupling
+                if (ixCoupling==fullyCoupled .and. failure) cycle coupling
 
                 ! try the scalar solution if failed to converge with a minimum time step in the split solution
-                if(ixCoupling/=fullyCoupled)then
+                if (ixCoupling/=fullyCoupled) then
                   select case(ixStateThenDomain)
                     case(fullDomain); if(failure) cycle stateThenDomain
                     case(subDomain);  if(failure) cycle solution
@@ -569,34 +542,23 @@ subroutine opSplittin(&
 
                 ! check that state variables updated
                 where(stateMask) stateCheck = stateCheck+1
-                if(any(stateCheck>1))then
+                if (any(stateCheck>1)) then
                   message=trim(message)//'state variable updated more than once!'
                   err=20; return
-                endif
+                end if
 
                 ! success = exit solution
-                if(.not.failure)then
+                if (.not.failure) then
                   ! sum the mean steps for the successful solution type
                   mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
                   select case(ixStateThenDomain)
-                    case(fullDomain); if(iStateSplit==nStateSplit) exit stateThenDomain
-                    case(subDomain);  if(iStateSplit==nStateSplit) exit solution
+                    case(fullDomain); if (iStateSplit==nStateSplit) exit stateThenDomain
+                    case(subDomain);  if (iStateSplit==nStateSplit) exit solution
                     case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
                   end select
-                else
-
-                  ! check that we did not fail for the scalar solution (last resort)
-                  if(ixSolution==scalar)then
-                    message=trim(message)//'failed the minimum step for the scalar solution'
-                    err=20; return
-
-                  ! check for an unexpected failure
-                  else
-                    message=trim(message)//'unexpected failure'
-                    err=20; return
-                  endif
-
-                endif  ! success check
+                else ! failure
+                  call check_failure; return ! check reason for failure and return
+                end if  ! success check
 
               end do stateSplit ! solution with split layers
 
@@ -776,6 +738,49 @@ subroutine opSplittin(&
    call io_varSubstep  % finalize(firstFluxCall,fluxCount,ixSaturation)
    call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
   end subroutine finalize_varSubstep
+
+  subroutine save_recover
+   ! save/recover copies of prognostic variables
+   do iVar=1,size(prog_data%var)
+     select case(failure)
+       case(.false.); prog_temp%var(iVar)%dat(:) = prog_data%var(iVar)%dat(:)
+       case(.true.);  prog_data%var(iVar)%dat(:) = prog_temp%var(iVar)%dat(:)
+     end select
+   end do 
+
+   ! save/recover copies of diagnostic variables
+   do iVar=1,size(diag_data%var)
+     select case(failure)
+       case(.false.); diag_temp%var(iVar)%dat(:) = diag_data%var(iVar)%dat(:)
+       case(.true.);  diag_data%var(iVar)%dat(:) = diag_temp%var(iVar)%dat(:)
+     end select
+   end do 
+
+   ! save/recover copies of model fluxes and mean fluxes
+   do iVar=1,size(flux_data%var)
+     select case(failure)
+       case(.false.)
+         flux_temp%var(iVar)%dat(:)   = flux_data%var(iVar)%dat(:)
+         flux_mntemp%var(iVar)%dat(:) = flux_mean%var(iVar)%dat(:)
+         addFirstFlux = .false.
+       case(.true.)
+         flux_data%var(iVar)%dat(:)   = flux_temp%var(iVar)%dat(:)
+         flux_mean%var(iVar)%dat(:)   = flux_mntemp%var(iVar)%dat(:)
+         if (addFirstFlux) addFirstFlux = .true.
+     end select
+   end do
+  end subroutine save_recover
+
+  subroutine check_failure
+   ! *** Analyze reason for failure ***
+   if (ixSolution==scalar) then ! check that we did not fail for the scalar solution (last resort)
+     message=trim(message)//'failed the minimum step for the scalar solution'
+     err=20; return
+   else ! check for an unexpected failure
+     message=trim(message)//'unexpected failure'
+     err=20; return
+   end if
+  end subroutine check_failure
 
   subroutine update_fluxMask
    ! *** update the fluxMask data structure *** 
