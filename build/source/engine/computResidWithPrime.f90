@@ -79,8 +79,8 @@ subroutine computResidWithPrime(&
                       mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (s-1)
                       mLayerVolFracWatPrime,     & ! intent(in):    Prime value for the volumetric water in each snow and soil layer (s-1)
                       mLayerVolFracLiqPrime,     & ! intent(in):    Prime value for the volumetric liq in each snow and soil layer (s-1)
-                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (-)
-                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (-)
+                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (J kg K-1)
+                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (J kg K-1)
                       ! input: data structures
                       prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
