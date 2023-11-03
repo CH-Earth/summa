@@ -239,6 +239,7 @@ subroutine opSplittin(&
   logical(lgt)                    :: firstSuccess                   ! flag to define the first success
   logical(lgt)                    :: firstFluxCall                  ! flag to define the first flux call
   logical(lgt)                    :: reduceCoupledStep              ! flag to define the need to reduce the length of the coupled step
+  logical(lgt)                    :: return_flag                    ! flag to indicate the execution of a return statement
   type(var_dlength)               :: prog_temp                      ! temporary model prognostic variables
   type(var_dlength)               :: diag_temp                      ! temporary model diagnostic variables
   type(var_dlength)               :: flux_temp                      ! temporary model fluxes
@@ -414,27 +415,9 @@ subroutine opSplittin(&
 
             ! trial with the vector then scalar solution
             solution: do ixSolution=1,nSolutions
-              mean_step_solution = 0._rkind ! initialize mean step for a solution
 
-              ! initialize error control
-              err=0; message="opSplittin/"
-
-              ! refine the time step
-              if(ixSolution==scalar)then
-                dtInit = min(dtmin_split, dt)    ! initial time step
-                dt_min = min(dtmin_scalar, dt)   ! minimum time step
-              endif
-
-              ! initialize the first flux call
-              firstFluxCall=.true.
-              if (.not.firstInnerStep) firstFluxCall=.false.
-
-              ! get the number of split layers
-              select case(ixSolution)
-                case(vector); nStateSplit=1
-                case(scalar); nStateSplit=count(stateMask)
-                case default; err=20; message=trim(message)//'unknown solution method'; return
-              end select
+              call initialize_stateSplit_loop
+              if (err/=0) then; return; end if  ! error control
 
               ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
               stateSplit: do iStateSplit=1,nStateSplit
@@ -502,31 +485,9 @@ subroutine opSplittin(&
                 call finalize_varSubstep
                 if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
 
-                ! reduce coupled step if failed the minimum step for the scalar solution
-                if (failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
-
-                ! if too much melt (or some other need to reduce the coupled step) then return
-                ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
-                if (tooMuchMelt .or. reduceCoupledStep) then
-                  stepFailure=.true.
-                  err=0 ! recovering
-                  return
-                endif
-
-                ! define failure
-                failure = (failedMinimumStep .or. err<0)
-                if (.not.failure) firstSuccess=.true.
-
-                ! if failed, need to reset the flux counter
-                if (failure) then
-                  do iVar=1,size(flux_meta)
-                    iMin=lbound(flux_data%var(iVar)%dat)
-                    iMax=ubound(flux_data%var(iVar)%dat)
-                    do iLayer=iMin(1),iMax(1)
-                      if (fluxMask%var(iVar)%dat(iLayer)) fluxCount%var(iVar)%dat(iLayer) = fluxCount%var(iVar)%dat(iLayer) - nSubsteps
-                    end do
-                  end do
-                endif
+                ! determine whether solution is a success or a failure
+                call judge_solution
+                if (return_flag.eqv..true.) return ! return for a recovering solution
 
                 ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
                 if (ixCoupling==fullyCoupled .and. failure) cycle coupling
@@ -534,11 +495,11 @@ subroutine opSplittin(&
                 ! try the scalar solution if failed to converge with a minimum time step in the split solution
                 if (ixCoupling/=fullyCoupled) then
                   select case(ixStateThenDomain)
-                    case(fullDomain); if(failure) cycle stateThenDomain
-                    case(subDomain);  if(failure) cycle solution
+                    case(fullDomain); if (failure) cycle stateThenDomain
+                    case(subDomain);  if (failure) cycle solution
                     case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
                   end select
-                endif
+                end if
 
                 ! check that state variables updated
                 where(stateMask) stateCheck = stateCheck+1
@@ -709,6 +670,32 @@ subroutine opSplittin(&
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
   end subroutine finalize_opSplittin
 
+
+  subroutine initialize_stateSplit_loop
+   ! *** initial operations to set up stateSplit loop ***
+   mean_step_solution = 0._rkind ! initialize mean step for a solution
+
+   ! initialize error control
+   err=0; message="opSplittin/"
+
+   ! refine the time step
+   if (ixSolution==scalar) then
+     dtInit = min(dtmin_split, dt)    ! initial time step
+     dt_min = min(dtmin_scalar, dt)   ! minimum time step
+   end if
+
+   ! initialize the first flux call
+   firstFluxCall=.true.
+   if (.not.firstInnerStep) firstFluxCall=.false.
+
+   ! get the number of split layers
+   select case(ixSolution)
+     case(vector); nStateSplit=1
+     case(scalar); nStateSplit=count(stateMask)
+     case default; err=20; message=trim(message)//'unknown solution method'; return
+   end select
+  end subroutine initialize_stateSplit_loop
+
   ! **** stateFilter ****
   subroutine initialize_stateFilter
    call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
@@ -738,6 +725,39 @@ subroutine opSplittin(&
    call io_varSubstep  % finalize(firstFluxCall,fluxCount,ixSaturation)
    call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
   end subroutine finalize_varSubstep
+
+
+  subroutine judge_solution
+   ! *** determine whether solution is a success or a failure ***
+   return_flag=.false. ! initialize flag
+
+   ! reduce coupled step if failed the minimum step for the scalar solution
+   if (failedMinimumStep .and. ixSolution==scalar) reduceCoupledStep=.true.
+
+   ! if too much melt (or some other need to reduce the coupled step) then return
+   ! NOTE: need to go all the way back to coupled_em and merge snow layers, as all splitting operations need to occur with the same layer geometry
+   if (tooMuchMelt .or. reduceCoupledStep) then
+     stepFailure=.true.
+     err=0 ! recovering
+     return_flag=.true. ! return statement required in opSplittin
+     return
+   end if
+
+   ! define failure
+   failure = (failedMinimumStep .or. err<0)
+   if (.not.failure) firstSuccess=.true.
+
+   ! if failed, need to reset the flux counter
+   if (failure) then
+     do iVar=1,size(flux_meta)
+       iMin=lbound(flux_data%var(iVar)%dat)
+       iMax=ubound(flux_data%var(iVar)%dat)
+       do iLayer=iMin(1),iMax(1)
+         if (fluxMask%var(iVar)%dat(iLayer)) fluxCount%var(iVar)%dat(iLayer) = fluxCount%var(iVar)%dat(iLayer) - nSubsteps
+       end do
+     end do
+   end if
+  end subroutine judge_solution
 
   subroutine save_recover
    ! save/recover copies of prognostic variables
