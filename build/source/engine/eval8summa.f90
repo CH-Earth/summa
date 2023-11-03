@@ -678,7 +678,7 @@ subroutine eval8summa(&
                       mLayerVolFracIceTrial,     & ! intent(in):  trial value for the volumetric ice in each snow and soil layer (-)
                       mLayerVolFracWatTrial,     & ! intent(in):  trial value for the volumetric water in each snow and soil layer (-)
                       mLayerVolFracLiqTrial,     & ! intent(in):  trial value for the volumetric liq in each snow and soil layer (-)
-                      scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (-)
+                      canopyCmTrial,             & ! intent(in):  Cm of vegetation canopy (-)
                       mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (-)
                       ! input: data structures
                       prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
