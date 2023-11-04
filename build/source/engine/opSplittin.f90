@@ -323,8 +323,6 @@ subroutine opSplittin(&
     ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
     ! numerix tracking
     numberStateSplit        => indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) ,& ! intent(inout): [i4b]    number of state splitting solutions             (-)
-    numberDomainSplitNrg    => indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1) ,& ! intent(inout): [i4b]    number of domain splitting solutions for energy (-)
-    numberDomainSplitMass   => indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) ,& ! intent(inout): [i4b]    number of domain splitting solutions for mass   (-)
     numberScalarSolutions   => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)  & ! intent(inout): [i4b]    number of scalar solutions                      (-)
     )
     ! ---------------------------------------------------------------------------------------
@@ -391,24 +389,8 @@ subroutine opSplittin(&
         ! first try the state type split, then try the domain split within a given state type
         stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
 
-          ! keep track of the number of domain splits
-          if(iStateTypeSplit==nrgSplit  .and. ixStateThenDomain==subDomain) numberDomainSplitNrg  = numberDomainSplitNrg  + 1
-          if(iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
-
-          ! define the number of domain splits for the state type
-          select case(ixStateThenDomain)
-            case(fullDomain); nDomainSplit=1
-            case(subDomain);  nDomainSplit=nDomains
-            case default; err=20; message=trim(message)//'coupling case not found'; return
-          end select
-
-          ! check that we haven't split the domain when we are fully coupled
-          if(ixCoupling==fullyCoupled .and. nDomainSplit==nDomains)then
-            message=trim(message)//'cannot split domains when fully coupled'
-            err=20; return
-          endif
-
-          mean_step_state = 0._rkind ! initialize mean step for state
+          call initialize_domainSplit_loop
+          if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
           ! domain splitting loop
           domainSplit: do iDomainSplit=1,nDomainSplit
@@ -417,7 +399,7 @@ subroutine opSplittin(&
             solution: do ixSolution=1,nSolutions
 
               call initialize_stateSplit_loop
-              if (err/=0) then; return; end if  ! error control
+              if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
               ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
               stateSplit: do iStateSplit=1,nStateSplit
@@ -670,9 +652,38 @@ subroutine opSplittin(&
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
   end subroutine finalize_opSplittin
 
+  subroutine initialize_domainSplit_loop
+   ! *** initial operations to set up domainSplit loop ***
+   return_flag=.false. ! initialize flag
+   associate(numberDomainSplitNrg => indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1),& ! intent(inout): [i4b] number of domain splitting solutions for energy (-)
+             numberDomainSplitMass => indx_data%var(iLookINDEX%numberDomainSplitMass)%dat(1) )! intent(inout): [i4b] number of domain splitting solutions for mass   (-)
+    ! keep track of the number of domain splits
+    if (iStateTypeSplit==nrgSplit  .and. ixStateThenDomain==subDomain) numberDomainSplitNrg  = numberDomainSplitNrg  + 1
+    if (iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
+   end associate
+
+   ! define the number of domain splits for the state type
+   select case(ixStateThenDomain)
+     case(fullDomain); nDomainSplit=1
+     case(subDomain);  nDomainSplit=nDomains
+     case default; err=20; message=trim(message)//'coupling case not found';
+      return_flag=.true. ! return statement required in opSplittin
+      return
+   end select
+
+   ! check that we haven't split the domain when we are fully coupled
+   if (ixCoupling==fullyCoupled .and. nDomainSplit==nDomains) then
+     message=trim(message)//'cannot split domains when fully coupled'
+     return_flag=.true. ! return statement required in opSplittin
+     err=20; return
+   end if
+
+   mean_step_state = 0._rkind ! initialize mean step for state
+  end subroutine initialize_domainSplit_loop
 
   subroutine initialize_stateSplit_loop
    ! *** initial operations to set up stateSplit loop ***
+   return_flag=.false. ! initialize flag
    mean_step_solution = 0._rkind ! initialize mean step for a solution
 
    ! initialize error control
@@ -692,7 +703,9 @@ subroutine opSplittin(&
    select case(ixSolution)
      case(vector); nStateSplit=1
      case(scalar); nStateSplit=count(stateMask)
-     case default; err=20; message=trim(message)//'unknown solution method'; return
+     case default; err=20; message=trim(message)//'unknown solution method'; 
+      return_flag=.true. ! return statement required in opSplittin
+      return
    end select
   end subroutine initialize_stateSplit_loop
 
