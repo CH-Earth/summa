@@ -166,7 +166,7 @@ subroutine summaSolve4kinsol(&
   real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
-  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
+  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
@@ -470,7 +470,7 @@ subroutine setSolverParams(nonlin_iter,kinsol_mem,retval)
   if (retval /= 0) return
 
   ! Set maximum number of iterations   
-  nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type
+  nonlin_itr = nonlin_iter ! maximum number of nonlinear iterations in SUNDIALS type, maybe should just make 200 (instead of SUMMA parameter)
   retval = FKINSetNumMaxIters(kinsol_mem, nonlin_itr)
   if (retval /= 0) return
 

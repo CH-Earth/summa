@@ -1,5 +1,5 @@
 #!/bin/bash
-# run as bash write_seff.bash /path/to/log.txt /path/to/output.txt
+# run as write_seff.bash /path/to/log.txt /path/to/output.txt
 
 # Set the path to the log file
 LOG_FILE="$1"

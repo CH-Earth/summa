@@ -126,6 +126,7 @@ subroutine summaSolve4ida(                         &
                       ixSaturation,            & ! intent(inout)  index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       idaSucceeds,             & ! intent(out):   flag to indicate if IDA successfully solved the problem in current data step
                       tooMuchMelt,             & ! intent(inout): lag to denote that there was too much melt
+                      nSteps,                  & ! intent(out):   number of time steps taken in solver
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
                       err,message)               ! intent(out):   error control
@@ -175,7 +176,7 @@ subroutine summaSolve4ida(                         &
   real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
-  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
+  type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
   type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
@@ -192,6 +193,7 @@ subroutine summaSolve4ida(                         &
   real(rkind),intent(inout)       :: mLayerCmpress_sum(:)   ! sum of soil compress
   ! output: state vectors
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
+  integer(i4b),intent(out)        :: nSteps                 ! number of time steps taken in solver
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(inout)       :: stateVecPrime(:)       ! model state vector (y')
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
@@ -437,6 +439,7 @@ subroutine summaSolve4ida(                         &
   tinystep = .false.
   tret(1) = t0           ! initial time
   tretPrev = tret(1)
+  nSteps = 0 ! initialize number of time steps taken in solver
   do while(tret(1) < dt_cur)
 
     ! call this at beginning of step to reduce root bouncing (only looking in one direction)
@@ -470,6 +473,7 @@ subroutine summaSolve4ida(                         &
     ! get the last stepsize and difference from previous end time, not necessarily the same
     retval = FIDAGetLastStep(ida_mem, dt_last)
     dt_diff = tret(1) - tretPrev
+    nSteps = nSteps + 1 ! number of time steps taken in solver
 
     ! check the feasibility of the solution
     feasible=.true.
@@ -644,8 +648,8 @@ subroutine setSolverParams(dt_cur,nonlin_iter,ida_mem,retval)
   integer(i4b),intent(out)    :: retval             ! return value
 
   !======= Internals ============
-  integer,parameter           :: max_order = 5      ! maximum BDF order,  default = 5
-  real(qp),parameter          :: coef_nonlin = 0.33 ! Coeff. in the nonlinear convergence test, default = 0.33
+  integer,parameter           :: max_order = 5      ! maximum BDF order,  default and max = 5
+  real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
   integer,parameter           :: acurtest_fail = 50 ! maximum number of error test failures, default = 10
   integer,parameter           :: convtest_fail = 50 ! maximum number of convergence test failures, default = 10
   integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
@@ -656,12 +660,12 @@ subroutine setSolverParams(dt_cur,nonlin_iter,ida_mem,retval)
   retval = FIDASetMaxOrd(ida_mem, max_order)
   if (retval /= 0) return
 
-  ! Set Coeff. in the nonlinear convergence test
+  ! Set coefficient in the nonlinear convergence test
   retval = FIDASetNonlinConvCoef(ida_mem, coef_nonlin)
   if (retval /= 0) return
 
-  ! Set maximun number of nonliear iterations
-   retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
+  ! Set maximun number of nonliear iterations, maybe should just make 4 (instead of SUMMA parameter)
+  retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
   if (retval /= 0) return
 
   !  Set maximum number of convergence test failures

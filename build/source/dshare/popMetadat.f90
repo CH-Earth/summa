@@ -341,6 +341,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarCanopyDepth)               = var_info('scalarCanopyDepth'              , 'canopy depth'                                                     , 'm'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarGreenVegFraction)          = var_info('scalarGreenVegFraction'         , 'green vegetation fraction (used to compute LAI)'                  , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarBulkVolHeatCapVeg)         = var_info('scalarBulkVolHeatCapVeg'        , 'bulk volumetric heat capacity of vegetation'                      , 'J m-3 K-1'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarCanopyCm)                  = var_info('scalarCanopyCm'                 , 'Cm of canopy'                                                     , 'J kg-1 K-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarCanopyEmissivity)          = var_info('scalarCanopyEmissivity'         , 'effective canopy emissivity'                                      , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarRootZoneTemp)              = var_info('scalarRootZoneTemp'             , 'average temperature of the root zone'                             , 'K'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarLAI)                       = var_info('scalarLAI'                      , 'one-sided leaf area index'                                        , 'm2 m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -356,6 +357,7 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%scalarVolHtCap_soil)             = var_info('scalarVolHtCap_soil'            , 'volumetric heat capacity dry soil'                                , 'J m-3 K-1'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarVolHtCap_water)            = var_info('scalarVolHtCap_water'           , 'volumetric heat capacity liquid wat'                              , 'J m-3 K-1'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerVolHtCapBulk)              = var_info('mLayerVolHtCapBulk'             , 'volumetric heat capacity in each layer'                           , 'J m-3 K-1'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%mLayerCm)                        = var_info('mLayerCm'                       , 'Cm of each layer'                                                 , 'J kg-1 K-1'      , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarLambda_drysoil)            = var_info('scalarLambda_drysoil'           , 'thermal conductivity of dry soil'                                 , 'W m-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarLambda_wetsoil)            = var_info('scalarLambda_wetsoil'           , 'thermal conductivity of wet soil'                                 , 'W m-1'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%mLayerThermalC)                  = var_info('mLayerThermalC'                 , 'thermal conductivity at the mid-point of each layer'              , 'W m-1 K-1'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
@@ -438,6 +440,7 @@ subroutine popMetadat(err,message)
   ! timing information
   diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time'                                                  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%meanStepSize)                    = var_info('meanStepSize'                   , 'mean time step size over data window'                             , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------
@@ -582,13 +585,16 @@ subroutine popMetadat(err,message)
   ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
   deriv_meta(iLookDERIV%dVolHtCapBulk_dPsi0)           = var_info('dVolHtCapBulk_dPsi0'          , 'derivative in bulk heat capacity w.r.t. matric potential'             , 'J m-4 K-1'      , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dVolHtCapBulk_dTheta)          = var_info('dVolHtCapBulk_dTheta'         , 'derivative in bulk heat capacity w.r.t. volumetric water content'     , 'J m-3 K-1'      , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dCanWat)         = var_info('dVolHtCapBulk_dCanWat'        , 'derivative in bulk heat capacity w.r.t. volumetric water content'     , 'J m-3 K-1'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dVolHtCapBulk_dCanWat)         = var_info('dVolHtCapBulk_dCanWat'        , 'derivative in bulk heat capacity w.r.t. canopy volumetric water content', 'J m-3 K-1'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dVolHtCapBulk_dTk)             = var_info('dVolHtCapBulk_dTk'            , 'derivative in bulk heat capacity w.r.t. temperature'                  , 'J m-3 K-2'      , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dTkCanopy)       = var_info('dVolHtCapBulk_dTkCanopy'      , 'derivative in bulk heat capacity w.r.t. temperature'                  , 'J m-3 K-2'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dVolHtCapBulk_dTkCanopy)       = var_info('dVolHtCapBulk_dTkCanopy'      , 'derivative in bulk heat capacity w.r.t. canopy temperature'           , 'J m-3 K-2'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dTempAbove)          = var_info('dThermalC_dTempAbove'         , 'derivative in the thermal conductivity w.r.t. energy in the layer above','J m-2 s-1 K-1' , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dTempBelow)          = var_info('dThermalC_dTempBelow'         , 'derivative in the thermal conductivity w.r.t. energy in the layer above','J m-2 s-1 K-1' , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dWatAbove)           = var_info('dThermalC_dWatAbove'          , 'derivative in the thermal conductivity w.r.t. water in the layer above', 'unknown'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dWatBelow)           = var_info('dThermalC_dWatBelow'          , 'derivative in the thermal conductivity w.r.t. water in the layer above', 'unknown'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
+  ! energy derivatives that might be treated as constant if Cm not updated
+  deriv_meta(iLookDERIV%dCm_dTk)                       = var_info('dCm_dTk'                      , 'derivative in Cm w.r.t. temperature'                                 , 'J kg K-2'        , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dCm_dTkCanopy)                 = var_info('dCm_dTkCanopy'                , 'derivative in Cm w.r.t. canopy temperature'                          , 'J kg K-2'        , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. temperature in layers above and below
   deriv_meta(iLookDERIV%dNrgFlux_dTempAbove)           = var_info('dNrgFlux_dTempAbove'          , 'derivatives in the flux w.r.t. temperature in the layer above'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dNrgFlux_dTempBelow)           = var_info('dNrgFlux_dTempBelow'          , 'derivatives in the flux w.r.t. temperature in the layer below'        , 'J m-2 s-1 K-1'  , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
@@ -631,6 +637,8 @@ subroutine popMetadat(err,message)
   ! derivatives in time
   deriv_meta(iLookDERIV%mLayerdTemp_dt)                = var_info('mLayerdTemp_dt'               , 'timestep change in layer temperature'                                 , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%scalarCanopydTemp_dt)          = var_info('scalarCanopydTemp_dt'         , 'timestep change in canopy temperature'                                , 'K'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%mLayerdWat_dt)                 = var_info('mLayerdWat_dt'                , 'timestep change in layer volumetric fraction of total water'          , '-'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%scalarCanopydWat_dt)           = var_info('scalarCanopydWat_dt'          , 'timestep change in canopy water content'                              , 'kg m-2'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------

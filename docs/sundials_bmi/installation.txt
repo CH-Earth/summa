@@ -27,10 +27,10 @@ cp ../../summa/build/makefiles/build_cmakeBMI build_cmake
 % make install
 
 6. If you are using Sundials, now install that. Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
-% wget "https://github.com/LLNL/sundials/releases/download/v6.3.0/sundials-6.3.0.tar.gz"
+% wget "https://github.com/LLNL/sundials/releases/download/v6.6.0/sundials-6.6.0.tar.gz"
 
 7. Extract the corresponding compressed file
-% tar -xzf sundials-6.3.0.tar.gz
+% tar -xzf sundials-6.6.0.tar.gz
 
 8. Read INSTALL_GUIDE.pdf and follow the installation instructions. Roughly, do the following:
 Make a directory outside the sundials-6.3.0 folder and enter it, and make the install and build dirs, enter the build dir.
@@ -42,7 +42,7 @@ Make a directory outside the sundials-6.3.0 folder and enter it, and make the in
 NOTE if you need to recompile after a system upgrade, delete the contents of these directories before running cmake in the next step!
 
 9. Since in SUMMA-SUNDIALS utilizes the Fortran/C interface FIDA, the following setting needs to be enabled, as well as the setting the install directory, while running the cmake inside the builddir, using your home directory as $(YOUR_HOME)
-% cmake ../sundials-5.8.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
+% cmake ../sundials-6.6.0/ -DBUILD_FORTRAN_MODULE_INTERFACE=ON DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/sundials/instdir -DEXAMPLES_INSTALL_PATH=$(YOUR_HOME)/sundials/instdir/examples
 
 10. The default compiler is gfortan. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
    -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
@@ -59,7 +59,7 @@ cp ../../summa/build/makefiles/build_cmakeSundials build_cmake
 	git clone https://git.cs.usask.ca/numerical_simulations_lab/summa.git
 
 13. In SUMMA Makefile, define the FC_EXE to be the same compiler as you used for BMI and netcdf
-   
+
 14. In SUMMA Makefile, define the SUNDIALS installation directory (and all the folders as required in the SUMMA instructions.
 	DIR_SUNDIALS=$(YOUR_HOME)/sundials/instdir
 

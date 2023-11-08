@@ -120,6 +120,7 @@ subroutine systemSolv(&
                       dt_cur,            & ! intent(in):    current stepsize
                       dt,                & ! intent(in):    entire time step (s)
                       nState,            & ! intent(in):    total number of state variables
+                      nLayers,           & ! intent(in):    total number of layers
                       firstSubStep,      & ! intent(in):    flag to denote first sub-step
                       firstFluxCall,     & ! intent(inout): flag to indicate if we are processing the first flux call
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
@@ -145,6 +146,7 @@ subroutine systemSolv(&
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
                       untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       niter,             & ! intent(out):   number of iterations taken (numrec)
+                      nSteps,            & ! intent(out):   number of time steps taken in solver
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
                       tooMuchMelt,       & ! intent(out):   flag to denote that there was too much melt
                       err,message)         ! intent(out):   error code and error message
@@ -172,6 +174,7 @@ subroutine systemSolv(&
   real(rkind),intent(in)          :: dt_cur                        ! current stepsize
   real(rkind),intent(in)          :: dt                            ! entire time step for drainage pond rate
   integer(i4b),intent(in)         :: nState                        ! total number of state variables
+  integer(i4b),intent(in)         :: nLayers                       ! total number of layers
   logical(lgt),intent(in)         :: firstSubStep                  ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(inout)      :: firstFluxCall                 ! flag to define the first flux call
   logical(lgt),intent(inout)      :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
@@ -198,6 +201,7 @@ subroutine systemSolv(&
   real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
   logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
   logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
+  integer(i4b),intent(out)        :: nSteps                        ! number of time steps taken in solver
   integer(i4b),intent(out)        :: niter                         ! number of iterations taken
   integer(i4b),intent(out)        :: err                           ! error code
   character(*),intent(out)        :: message                       ! error message
@@ -251,8 +255,8 @@ subroutine systemSolv(&
   ! enthalpy derivatives
   real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
   real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind)                     :: dEnthalpy_dTk(nState)         ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind)                     :: dEnthalpy_dWat(nState)        ! derivatives in layer enthalpy w.r.t. water state
+  real(rkind)                     :: dEnthalpy_dTk(nLayers)         ! derivatives in layer enthalpy w.r.t. temperature
+  real(rkind)                     :: dEnthalpy_dWat(nLayers)        ! derivatives in layer enthalpy w.r.t. water state
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -293,12 +297,12 @@ subroutine systemSolv(&
     ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
     ! layer geometry
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
-    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)                & ! intent(in):    [i4b]    total number of layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                  & ! intent(in):    [i4b]    number of soil layers
     )
     ! ---------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message="systemSolv/"
+    nSteps = 0 ! initialize number of time steps taken in solver
 
     ! *****
     ! (0) PRELIMINARIES...
@@ -556,6 +560,7 @@ subroutine systemSolv(&
                           ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
+                          nSteps,                  & ! intent(out):   number of time steps taken in solver
                           stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
                           stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
                           err,cmessage)              ! intent(out):   error control
@@ -638,6 +643,7 @@ subroutine systemSolv(&
           return
         endif
         niter = 0  ! iterations are counted inside KINSOL solver
+        nSteps = 1 ! number of time steps taken in solver
 
         ! save the computed solution
         stateVecTrial = stateVecNew
@@ -713,8 +719,8 @@ subroutine systemSolv(&
           fOld          = fNew
           rVec          = resVecNew
           stateVecTrial = stateVecNew
-          ! NOTE 1: The derivatives computed in summaSolve4numrec are used to calculate the Jacobian matrix at the next iteration
-          ! NOTE 2: The Jacobian matrix together with the residual vector is used to calculate the new iteration increment
+          stateVecPrime = stateVecTrial  !prime values not used here, dummy
+          nSteps = 1 ! number of time steps taken in solver
 
           ! exit iteration loop if converged
           if(converged) exit
@@ -727,12 +733,10 @@ subroutine systemSolv(&
               
         end do  ! iterating
 
-        ! prime values not used here, dummy
-        stateVecPrime = stateVecTrial 
-
         ! -----
         ! * update states...
         ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
+        ! NOTE: if the residual is large this will cause the state variables to be pushed outside of their bounds
         ! ------------------
         if (post_massCons)then
           layerVars: associate(&

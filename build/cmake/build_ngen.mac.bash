@@ -14,7 +14,7 @@ cmake --build extern/iso_c_fortran_bmi/cmake_build --target all
 cmake -B extern/summa/cmake_build -S extern/summa -DCMAKE_BUILD_TYPE=BE_NexGen
 cmake --build extern/summa/cmake_build --target all
 
-cmake -B cmake_build -S . -DMPI_ACTIVE:BOOL=OFF -DNGEN_ACTIVATE_PYTHON:BOOL=OFF -DBMI_C_LIB_ACTIVE:BOOL=ON -DBMI_FORTRAN_ACTIVE:BOOL=ON
+cmake -B cmake_build -S . -DNGEN_WITH_MPI:BOOL=OFF -DNGEN_WITH_PYTHON:BOOL=OFF -DNGEN_WITH_BMI_C:BOOL=ON -DNGEN_WITH_BMI_FORTRAN:BOOL=ON -DNGEN_WITH_NETCDF:BOOL=OFF
 # can also add -DCMAKE_BUILD_TYPE=Debug to be able to run in gdb
 # make -j 8 -C cmake_build    # build w/ 8 parallel jobs, also turn MPI on
 make -C cmake_build

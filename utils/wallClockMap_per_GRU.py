@@ -12,7 +12,7 @@
 # The relevant code is easily disabled by switching the plot_lakes = True flag to False.
 
 # Run:
-# python input_per_GRU.py be32
+# python wallClockMap_per_GRU.py be32
 
 
 # modules
@@ -134,6 +134,7 @@ acc = 'ESRI:102008'
 #bas = gpd.read_file(hm_catchment_path/hm_catchment_name)
 #bas_albers = bas.to_crs(acc)
 bas_albers = gpd.read_file(main/'basin.shp')
+xmin, ymin, xmax, ymax = bas_albers.total_bounds
 
 # river network shapefile, first 2 lines throw error so cutting them
 if plot_rivers:
@@ -221,6 +222,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
+fig.suptitle('{} Wallclock, Batch, and Node'.format(method_name), fontsize=40)
 
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
@@ -251,6 +253,8 @@ def run_loop(i,var,the_max,f_x,f_y):
 
     axs[r,c].set_title(plt_titl[i])
     axs[r,c].axis('off')
+    axs[r,c].set_xlim(xmin, xmax)
+    axs[r,c].set_ylim(ymin, ymax)
 
     # lakes
     if plot_lakes: large_lakes_albers.plot(ax=axs[r,c], color=lake_col, zorder=1)

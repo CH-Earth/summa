@@ -190,7 +190,6 @@ soilIceCV                 |       0.4500 |       0.1000 |       5.0000
 minwind                   |       0.1000 |       0.0010 |       1.0000
 minstep                   |       1.0000 |       1.0000 |    1800.0000
 maxstep                   |    3600.0000 |      60.0000 |    7200.0000
-be_steps                  |       1.0000 |       1.0000 |     512.0000
 wimplicit                 |       0.0000 |       0.0000 |       1.0000
 maxiter                   |     100.0000 |       1.0000 |     100.0000
 relConvTol_liquid         |       1.0d-3 |       1.0d-5 |       1.0d-1
@@ -201,8 +200,6 @@ relConvTol_energy         |       1.0d-2 |       1.0d-5 |       1.0d-1
 absConvTol_energy         |       1.0d-0 |       1.0d-2 |       1.0d+1
 relConvTol_aquifr         |       1.0d-0 |       1.0d-2 |       1.0d+1
 absConvTol_aquifr         |       1.0d-5 |       1.0d-5 |       1.0d-1
-relErrTol_ida             |       1.0d-6 |       1.0d-10|       1.0d-2
-absErrTol_ida             |       1.0d-6 |       1.0d-10|       1.0d-2
 zmin                      |       0.0100 |       0.0050 |       0.1000
 zmax                      |       0.0500 |       0.0100 |       0.5000
 ! ---
@@ -226,4 +223,3 @@ minTempUnloading          |       270.16 |       260.16 |       273.16
 minWindUnloading          |       0.0000 |       0.0000 |       10.000
 rateTempUnloading         |      1.87d+5 |       1.0d+5 |       3.0d+5
 rateWindUnloading         |      1.56d+5 |       1.0d+5 |       3.0d+5
-! history Mon Jul 20 16:08:18 2020: /pool0/home/andrbenn/data/summa_3/utils/convert_summa_config_v2_v3.py ./syntheticTestCases/celia1990/summa_fileManager_celia1990.txt

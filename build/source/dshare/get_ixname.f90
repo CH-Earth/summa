@@ -486,6 +486,7 @@ contains
   case('scalarCanopyDepth'              ); get_ixdiag = iLookDIAG%scalarCanopyDepth                ! canopy depth (m)
   case('scalarGreenVegFraction'         ); get_ixdiag = iLookDIAG%scalarGreenVegFraction           ! green vegetation fraction used to compute LAI (-)
   case('scalarBulkVolHeatCapVeg'        ); get_ixdiag = iLookDIAG%scalarBulkVolHeatCapVeg          ! bulk volumetric heat capacity of vegetation (J m-3 K-1)
+  case('scalarCanopyCm'                 ); get_ixdiag = iLookDIAG%scalarCanopyCm                   ! Cm of canopy (J kg-1 K-1)
   case('scalarCanopyEmissivity'         ); get_ixdiag = iLookDIAG%scalarCanopyEmissivity           ! effective canopy emissivity (-)
   case('scalarRootZoneTemp'             ); get_ixdiag = iLookDIAG%scalarRootZoneTemp               ! average temperature of the root zone (K)
   case('scalarLAI'                      ); get_ixdiag = iLookDIAG%scalarLAI                        ! one-sided leaf area index (m2 m-2)
@@ -501,6 +502,7 @@ contains
   case('scalarVolHtCap_soil'            ); get_ixdiag = iLookDIAG%scalarVolHtCap_soil              ! volumetric heat capacity dry soil (J m-3 K-1)
   case('scalarVolHtCap_water'           ); get_ixdiag = iLookDIAG%scalarVolHtCap_water             ! volumetric heat capacity liquid wat (J m-3 K-1)
   case('mLayerVolHtCapBulk'             ); get_ixdiag = iLookDIAG%mLayerVolHtCapBulk               ! volumetric heat capacity in each layer (J m-3 K-1)
+  case('mLayerCm'                       ); get_ixdiag = iLookDIAG%mLayerCm                         ! Cm of each layer (J kg-1 K-1)
   case('scalarLambda_drysoil'           ); get_ixdiag = iLookDIAG%scalarLambda_drysoil             ! thermal conductivity of dry soil     (W m-1)
   case('scalarLambda_wetsoil'           ); get_ixdiag = iLookDIAG%scalarLambda_wetsoil             ! thermal conductivity of wet soil     (W m-1)
   case('mLayerThermalC'                 ); get_ixdiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
@@ -583,6 +585,7 @@ contains
   ! timing information
   case('numFluxCalls'                   ); get_ixdiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
   case('wallClockTime'                  ); get_ixdiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
+  case('meanStepSize'                   ); get_ixdiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing
@@ -754,18 +757,21 @@ contains
   case('scalarCanopyLiqDeriv'           ); get_ixderiv = iLookDERIV%scalarCanopyLiqDeriv           ! derivative in (throughfall + canopy drainage) w.r.t. canopy liquid water (s-1)
   case('scalarThroughfallRainDeriv'     ); get_ixderiv = iLookDERIV%scalarThroughfallRainDeriv     ! derivative in throughfall w.r.t. canopy liquid water (s-1)
   case('scalarCanopyLiqDrainageDeriv'   ); get_ixderiv = iLookDERIV%scalarCanopyLiqDrainageDeriv   ! derivative in canopy drainage w.r.t. canopy liquid water (s-1)
- ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
+  ! energy derivatives that might be treated as constant if heat capacity and thermal conductivity not updated
   case('dVolHtCapBulk_dPsi0'            ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dPsi0            ! derivative in bulk heat capacity w.r.t. matric potential
   case('dVolHtCapBulk_dTheta'           ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTheta           ! derivative in bulk heat capacity w.r.t. volumetric water content
-  case('dVolHtCapBulk_dCanWat'          ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWat          ! derivative in bulk heat capacity w.r.t. volumetric water content
+  case('dVolHtCapBulk_dCanWat'          ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWat          ! derivative in bulk heat capacity w.r.t. canopy volumetric water content
   case('dVolHtCapBulk_dTk'              ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTk              ! derivative in bulk heat capacity w.r.t. temperature
-  case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. temperature
+  case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. canopy temperature
   case('dThermalC_dTempAbove'           ); get_ixderiv = iLookDERIV%dThermalC_dTempAbove           ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   case('dThermalC_dTempBelow'           ); get_ixderiv = iLookDERIV%dThermalC_dTempBelow           ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   case('dThermalC_dWatAbove'            ); get_ixderiv = iLookDERIV%dThermalC_dWatAbove            ! derivative in the thermal conductivity w.r.t. water state in the layer above
   case('dThermalC_dWatBelow'            ); get_ixderiv = iLookDERIV%dThermalC_dWatBelow            ! derivative in the thermal conductivity w.r.t. water state in the layer above
   case('dNrgFlux_dTempAbove'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempAbove            ! derivatives in the flux w.r.t. temperature in the layer above (J m-2 s-1 K-1)
   case('dNrgFlux_dTempBelow'            ); get_ixderiv = iLookDERIV%dNrgFlux_dTempBelow            ! derivatives in the flux w.r.t. temperature in the layer below (J m-2 s-1 K-1)
+  ! energy derivatives that might be treated as constant if Cm not updated
+  case('dCm_dTk'                        ); get_ixderiv = iLookDERIV%dCm_dTk                        ! derivative in Cm w.r.t. temperature (J kg K-2)
+  case('dCm_dTkCanopy'                  ); get_ixderiv = iLookDERIV%dCm_dTkCanopy                  ! derivative in Cm w.r.t. canopy temperature (J kg K-2)
   ! derivatives in energy fluxes at the interface of snow+soil layers w.r.t. water state in layers above and below
   case('dNrgFlux_dWatAbove'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatAbove             ! derivatives in the flux w.r.t. water state temperature in the layer above
   case('dNrgFlux_dWatBelow'             ); get_ixderiv = iLookDERIV%dNrgFlux_dWatBelow             ! derivatives in the flux w.r.t. water state in the layer below
@@ -805,6 +811,8 @@ contains
  ! derivatives in time
   case( 'mLayerdTemp_dt'               ); get_ixderiv = iLookDERIV%mLayerdTemp_dt                  ! timestep change in layer temperature
   case( 'scalarCanopydTemp_dt'         ); get_ixderiv = iLookDERIV%scalarCanopydTemp_dt            ! timestep change in canopy temperature
+  case( 'mLayerdWat_dt'                ); get_ixderiv = iLookDERIV%mLayerdWat_dt                   ! timestep change in layer volumetric fraction of total water
+  case( 'scalarCanopydWat_dt'          ); get_ixderiv = iLookDERIV%scalarCanopydWat_dt             ! timestep change in canopy water content
 
   case default
    get_ixderiv = integerMissing

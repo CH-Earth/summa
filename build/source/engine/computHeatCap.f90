@@ -283,14 +283,14 @@ end subroutine computHeatCap
 ! public subroutine computStatMult: get scale factors
 ! **********************************************************************************************************
 subroutine computStatMult(&
-                      heatCapVeg,              &
-                      mLayerHeatCap,             &
+                      heatCapVeg,              & ! intent(in):  heat capacity for canopy
+                      mLayerHeatCap,           & ! intent(in):  heat capacity for snow and soil
                       ! input: data structures
-                      diag_data,               & ! intent(in):    model diagnostic variables for a local HRU
-                      indx_data,               & ! intent(in):    indices defining model states and layers
+                      diag_data,               & ! intent(in):  model diagnostic variables for a local HRU
+                      indx_data,               & ! intent(in):  indices defining model states and layers
                       ! output
-                      sMul,                    & ! intent(out):   multiplier for state vector (used in the residual calculations)
-                      err,message)               ! intent(out):   error control
+                      sMul,                    & ! intent(out): multiplier for state vector (used in the residual calculations)
+                      err,message)               ! intent(out): error control
 ! --------------------------------------------------------------------------------------------------------------------------------
 USE nr_utility_module,only:arth                   ! get a sequence of numbers arth(start, incr, count)
 USE f2008funcs_module,only:findIndex              ! finds the index of the first value within a vector
@@ -546,17 +546,19 @@ end subroutine computHeatCapAnalytic
 ! **********************************************************************************************************
 subroutine computCm(&
                       ! input: control variables
-                      computeVegFlux,          & ! intent(in): flag to denote if computing the vegetation flux
+                      computeVegFlux,          & ! intent(in):  flag to denote if computing the vegetation flux
                       ! input: state variables
-                      scalarCanopyTemp,        & ! intent(in): value of canopy temperature (kg m-2)
-                      mLayerTemp,              & ! intent(in): vector of temperature (-)
-                      mLayerMatricHead,        & ! intent(in): vector of total water matric potential (m)
+                      scalarCanopyTemp,        & ! intent(in):  value of canopy temperature (K)
+                      mLayerTemp,              & ! intent(in):  vector of temperature (K)
+                      mLayerMatricHead,        & ! intent(in):  vector of total water matric potential (-)
                       ! input data structures
-                      mpar_data,               & ! intent(in): model parameters
-                      indx_data,               & ! intent(in): model layer indices
+                      mpar_data,               & ! intent(in):  model parameters
+                      indx_data,               & ! intent(in):  model layer indices
                       ! output
-                      scalarCanopyCm,          & ! intent(out):   Cm for vegetation
-                      mLayerCm,                & ! intent(out):   Cm for soil and snow
+                      scalarCanopyCm,          & ! intent(out): Cm for vegetation (J kg K-1)
+                      mLayerCm,                & ! intent(out): Cm for soil and snow (J kg K-1)
+                      dCm_dTk,                 & ! intent(out): derivative in Cm w.r.t. temperature (J kg K-2)
+                      dCm_dTkCanopy,           & ! intent(out): derivative in Cm w.r.t. temperature (J kg K-2)
                       ! output: error control
                       err,message)               ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------------
@@ -565,15 +567,18 @@ subroutine computCm(&
   ! --------------------------------------------------------------------------------------------------------------------------------------
   ! input: model control
   logical(lgt),intent(in)              :: computeVegFlux         ! logical flag to denote if computing the vegetation flux
-  real(rkind),intent(in)               :: scalarCanopyTemp       ! value of canopy temperature (kg m-2)
-  real(rkind),intent(in)               :: mLayerTemp(:)          ! vector of temperature (-)
-  real(rkind),intent(in)               :: mLayerMatricHead(:)    ! vector of total water matric potential (m)
+  real(rkind),intent(in)               :: scalarCanopyTemp       ! value of canopy temperature (K)
+  real(rkind),intent(in)               :: mLayerTemp(:)          ! vector of temperature (K)
+  real(rkind),intent(in)               :: mLayerMatricHead(:)    ! vector of total water matric potential (-)
   ! input/output: data structures
   type(var_dlength),intent(in)         :: mpar_data              ! model parameters
   type(var_ilength),intent(in)         :: indx_data              ! model layer indices
+  ! output: Cm and derivatives
+  real(qp),intent(out)                 :: scalarCanopyCm         ! Cm for vegetation (J kg K-1)
+  real(qp),intent(out)                 :: mLayerCm(:)            ! Cm for soil and snow (J kg K-1)
+  real(rkind),intent(out)              :: dCm_dTk(:)             ! derivative in Cm w.r.t. temperature (J kg K-2)
+  real(rkind),intent(out)              :: dCm_dTkCanopy          ! derivative in Cm w.r.t. temperature (J kg K-2)
   ! output: error control
-  real(qp),intent(out)                 :: scalarCanopyCm         ! Cm for vegetation
-  real(qp),intent(out)                 :: mLayerCm(:)            ! Cm for soil and snow
   integer(i4b),intent(out)             :: err                    ! error code
   character(*),intent(out)             :: message                ! error message
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -581,10 +586,10 @@ subroutine computCm(&
   character(LEN=256)                   :: cmessage               ! error message of downwind routine
   integer(i4b)                         :: iLayer                 ! index of model layer
   integer(i4b)                         :: iSoil                  ! index of soil layer
-  real(rkind)                          :: g1
-  real(rkind)                          :: g2
+  real(rkind)                          :: diffT                  ! temperature difference from Tfreeze
+  real(rkind)                          :: integral               ! integral of snow freezing curve
   real(rkind)                          :: Tcrit                  ! temperature where all water is unfrozen (K)
-
+  real(rkind)                          :: d_integral_dTk         ! derivative of integral with temperature
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! associate variables in data structure
   associate(&
@@ -604,12 +609,17 @@ subroutine computCm(&
     ! compute Cm of vegetation
     ! Note that scalarCanopyCm/iden_water is computed
     if(computeVegFlux)then
-      g2 = scalarCanopyTemp - Tfreeze
-      g1 = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * g2)
-      if(scalarCanopyTemp < Tfreeze)then
-        scalarCanopyCm =  Cp_water * g1 + Cp_ice * (g2 - g1)
+      diffT = scalarCanopyTemp - Tfreeze
+      if(diffT>=0._rkind)then
+        scalarCanopyCm =  Cp_water * diffT
+        ! derivatives
+        dCm_dTkCanopy  = Cp_water
       else
-        scalarCanopyCm =  Cp_water * g2
+        integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+        scalarCanopyCm =  Cp_water * integral + Cp_ice * (diffT - integral)
+        ! derivatives
+        d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+        dCm_dTkCanopy = Cp_water * d_integral_dTk + Cp_ice * (1._rkind - d_integral_dTk)
       end if
     end if
 
@@ -625,19 +635,27 @@ subroutine computCm(&
       select case(layerType(iLayer))
         ! * soil
         case(iname_soil)
-          g2 = mLayerTemp(iLayer) - Tfreeze
+          diffT = mLayerTemp(iLayer) - Tfreeze
           Tcrit = crit_soilT( mLayerMatricHead(iSoil) )
-          if( mLayerTemp(iLayer) < Tcrit)then
-            mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * g2
-          else
-            mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * g2
-          end if
+          if( mLayerTemp(iLayer)>=Tcrit)then
+            mLayerCm(iLayer) = (iden_water * Cp_water - iden_air * Cp_air) * diffT
+            ! derivatives
+            dCm_dTk(iLayer) = (iden_water * Cp_water - iden_air * Cp_air)
+          else        
+            mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air) * diffT
+            ! derivatives
+            dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air)
+          endif
 
         case(iname_snow)
-          g2 = mLayerTemp(iLayer) - Tfreeze
-          g1 = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * g2)
-          mLayerCm(iLayer) =  (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( g2 - g1 ) &
-                  +  (iden_water * Cp_water - iden_air * Cp_air) * g1
+          diffT = mLayerTemp(iLayer) - Tfreeze
+          integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+          mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
+                  +  (iden_water * Cp_water - iden_air * Cp_air) * integral
+          ! derivatives
+          d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+          dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind - d_integral_dTk ) &
+                  +  (iden_water * Cp_water - iden_air * Cp_air) * d_integral_dTk
 
         case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute Cm'; return
       end select

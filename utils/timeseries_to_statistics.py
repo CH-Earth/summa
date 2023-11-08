@@ -21,43 +21,70 @@ import glob
 import xarray as xr
 from pathlib import Path
 import numpy as np
-import sys
 
 import warnings
 warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 in kgem, both have no snow
 
 # Settings
 bench_name  = 'sundials_1en8'
-top_fold    = '/home/avanb/scratch/'
 
+not_parallel = False # should usually be false, runs faster
 testing = False
 
-# The first input argument specifies the run where the files are
-method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+if testing: 
+    top_fold    = '/Users/amedin/Research/USask/test_py/'
+    method_name='be1'
+    not_parallel = True
+else:
+    import sys
+    # The first input argument specifies the run where the files are
+    method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+    top_fold    = '/home/avanb/scratch/'
 
-des_dir =  top_fold + 'statistics'
+des_dir =  top_fold + 'statistics_temp'
+fnl_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
 src_pat = 'run1_G*_timestep.nc'
-des_fil = method_name + '_hrly_diff_stats_{}_{}.nc'
+des_fil  = method_name + '_hrly_diff_stats_{}_{}.nc'
+des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
+viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
+viz_fl2 = viz_fl2.format(','.join(stepsets))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)
+fnl_dir = Path(fnl_dir)
 ben_dir = Path(ben_dir)
 des_dir = Path(des_dir)
 
 # Ensure the output path exists
 des_dir.mkdir(parents=True, exist_ok=True)
 
+# Construct the path to the processed_files.txt file
+processed_files_path = os.path.join(des_dir, 'processed_files.txt')
+
 # Get the names of all inputs, assuming folders have same splits of domains and same file names
 src_files = glob.glob(str( src_dir / src_pat ))
 src_files.sort()
 ben_files = glob.glob(str( ben_dir / src_pat ))
 ben_files.sort()
+
+# Load the list of files that have already been processed
+if os.path.exists(processed_files_path):
+    with open(processed_files_path, 'r') as f:
+        processed_files = f.read().splitlines()
+else:
+    processed_files = []
+
+
+# Filter out the files that have already been processed
+src_files = [f for f in src_files if f not in processed_files]
+ben_files = [f for f in ben_files if f not in processed_files]
 
 # definitions for KGE computation
 def covariance(x,y,dims=None):
@@ -81,13 +108,13 @@ assert len(ben_files) == len(src_files), \
 #        print('Error opening file:', file, bench)
 
 # -- functions
-def run_loop(file,bench):
+def run_loop(file,bench,processed_files_path):
 
     # extract the subset IDs
     subset = file.split('/')[-1].split('_')[1]
 
     # acquire the lock before opening the file
-    if testing:
+    if not_parallel:
         dat, ben = xr.open_dataset(file), xr.open_dataset(bench)
     else:
         import multiprocessing as mp
@@ -100,9 +127,7 @@ def run_loop(file,bench):
     ben = ben.where(ben!=-9999)
     # some weird negative values in runoff if not routed
     dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].where(dat['averageRoutedRunoff']>=0)
-    ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0)   
-    #dat['averageRoutedRunoff'] = dat['averageRoutedRunoff'].fillna(0)   
-    #ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].fillna(0)
+    ben['averageRoutedRunoff'] = ben['averageRoutedRunoff'].where(ben['averageRoutedRunoff']>=0) 
     
     # get rid of gru dimension, assuming hru and gru are one to one (everything now as hruId)
     dat = dat.drop_vars(['hruId','gruId'])
@@ -125,14 +150,34 @@ def run_loop(file,bench):
     for var in settings:
         mean = dat[var].mean(dim='time')
         mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
+
+        datnz = dat[var].where(np.logical_and(ben[var] != 0,dat[var] != 0))  # don't include both 0
+        mnnz = datnz.mean(dim='time')
+        mnnz = mnnz.expand_dims("stat").assign_coords(stat=("stat",["mnnz"]))
+
+        mean_ben = ben[var].mean(dim='time')
+        mean_ben = mean_ben.expand_dims("stat").assign_coords(stat=("stat",["mean_ben"]))
+
+        datnz = ben[var].where(np.logical_and(ben[var] != 0,dat[var] != 0))  # don't include both 0
+        mnnz_ben = datnz.mean(dim='time')
+        mnnz_ben = mnnz_ben.expand_dims("stat").assign_coords(stat=("stat",["mnnz_ben"]))
         
         na_mx = np.fabs(dat[var]).max()+1
         amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
         amax = dat[var].isel(amx).drop_vars('time')
         amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
+
+        na_mx = np.fabs(ben[var]).max()+1
+        amx = np.fabs(ben[var].fillna(na_mx)).argmax(dim=['time'])
+        amax_ben = ben[var].isel(amx).drop_vars('time')
+        amax_ben = amax_ben.expand_dims("stat").assign_coords(stat=("stat",["amax_ben"]))
         
         rmse = (np.square(diff[var]).mean(dim='time'))**(1/2) #RMSE SHOULD THIS BE NORMALIZED? colorbar will normalize
         rmse = rmse.expand_dims("stat").assign_coords(stat=("stat",["rmse"]))
+
+        diffnz = diff[var].where(np.logical_and(ben[var] != 0,dat[var] != 0))  # don't include both 0
+        rmnz = (np.square(diffnz).mean(dim='time'))**(1/2)
+        rmnz = rmnz.expand_dims("stat").assign_coords(stat=("stat",["rmnz"]))
 
         na_mx = np.fabs(diff[var]).max()+1
         amx = np.fabs(diff[var].fillna(na_mx)).argmax(dim=['time'])
@@ -152,10 +197,35 @@ def run_loop(file,bench):
         kgem = kgem/(2.0-kgem)
         kgem = kgem.expand_dims("stat").assign_coords(stat=("stat",["kgem"]))
 
-        new = xr.merge([mean,amax,rmse,maxe,kgem])
+        new = xr.merge([mean,mnnz,amax, mean_ben,mnnz_ben,amax_ben, rmse,rmnz, maxe, kgem])
         new.to_netcdf(des_dir / des_fil.format(var,subset))
 
-    print("wrote output: %s" % (top_fold + 'statistics/' +subset))
+    for var in stepsets:
+        mean = dat[var].mean(dim='time')
+        mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
+        
+        na_mx = np.fabs(dat[var]).max()+1
+        amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
+        amax = dat[var].isel(amx).drop_vars('time')
+        amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
+
+        new = xr.merge([mean,amax])
+        new.to_netcdf(des_dir / des_fl2.format(var,subset))
+
+
+   # write the name of the processed file to the file list, acquire the lock before opening the file
+    if not_parallel:
+        with open(processed_files_path, 'a') as filew:
+            filew.write(file + '\n')
+            filew.write(bench + '\n')
+    else:
+        import multiprocessing as mp
+        lock = mp.Lock()
+        with lock:
+            with open(processed_files_path, 'a') as filew:
+                filew.write(file + '\n')
+                filew.write(bench + '\n')
+    filew.close()  # close the file after writing to it
 
     return #nothing
 
@@ -178,25 +248,36 @@ def merge_subsets_into_one(src,pattern,des,name):
 # -- end functions
 
 
-if testing:
+if not_parallel:
     # -- no parallel processing
     for (file, bench) in zip(src_files,ben_files):
-        run_loop(file, bench)
+        run_loop(file,bench,processed_files_path)
+    # -- end no parallel processing
+
 else:
     # -- start parallel processing
     ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
     if __name__ == "__main__":
+        import multiprocessing as mp
         pool = mp.Pool(processes=ncpus)
-        results = [pool.apply_async(run_loop, args=(file, bench, lock)) for (file, bench) in zip(src_files, ben_files)]
-        dojob = [p.get() for p in results]
+        with open(processed_files_path, 'a') as f:
+            results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, ben_files)]
+            for r in results:
+                try:
+                    r.get()
+                except Exception as e:
+                    print(f"Error processing file: {e}")
+                    raise e
         pool.close()
     # -- end parallel processing
 
 
 # merge the individual files into one for further vizualization
-merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),des_dir,viz_fil)
+merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
+merge_subsets_into_one(des_dir,des_fl2.replace('{}','*'),fnl_dir,viz_fl2)
 
 # remove the individual files for cleanliness
 for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):
     os.remove(file)
-
+for file in glob.glob(str(des_dir / des_fl2.replace('{}','*'))):
+    os.remove(file)
