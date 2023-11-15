@@ -586,6 +586,15 @@ contains
   case('numFluxCalls'                   ); get_ixdiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
   case('wallClockTime'                  ); get_ixdiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
   case('meanStepSize'                   ); get_ixdiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window
+  ! balances
+  case('balanceCasNrg'                  ); get_ixdiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy
+  case('balanceVegNrg'                  ); get_ixdiag = iLookDIAG%balanceVegNrg                    ! balance of energy in the vegetation
+  case('balanceSnowNrg'                 ); get_ixdiag = iLookDIAG%balanceSnowNrg                   ! balance of energy in the snow
+  case('balanceSoilNrg'                 ); get_ixdiag = iLookDIAG%balanceSoilNrg                   ! balance of energy in the soil
+  case('balanceVegMass'                 ); get_ixdiag = iLookDIAG%balanceVegMass                   ! balance of water in the vegetation
+  case('balanceSnowMass'                ); get_ixdiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow
+  case('balanceSoilMass'                ); get_ixdiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil
+  case('balanceAqMass'                  ); get_ixdiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing

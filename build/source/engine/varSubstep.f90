@@ -111,6 +111,9 @@ subroutine varSubstep(&
                       flux_mean,         & ! intent(inout) : mean model fluxes for a local HRU
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
+                      ! input/output: balances
+                      sumBalanceNrg,     & ! intent(inout) : step balance of energy per domain
+                      sumBalanceMass,    & ! intent(inout) : step balance of mass per domain
                       ! output: model control
                       out_varSubstep)      ! intent(out)   : model control
   ! ---------------------------------------------------------------------------------------
@@ -143,7 +146,9 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)        :: flux_mean                 ! mean model fluxes for a local HRU
   type(var_dlength),intent(inout)        :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)           :: bvar_data                 ! model variables for the local basin
-  ! output: model control
+  real(rkind),intent(inout)              :: sumBalanceNrg(:)          ! step balance of energy per domain
+  real(rkind),intent(inout)              :: sumBalanceMass(:)         ! step balance of mass per domain
+    ! output: model control
   type(out_type_varSubstep),intent(out)  :: out_varSubstep            ! model control
   ! ---------------------------------------------------------------------------------------
   ! * general local variables
@@ -154,7 +159,7 @@ subroutine varSubstep(&
   integer(i4b)                       :: iVar                          ! index of variables in data structures
   integer(i4b)                       :: iSoil                         ! index of soil layers
   integer(i4b)                       :: ixLayer                       ! index in a given domain
-  integer(i4b), dimension(1)         :: ixMin,ixMax                   ! bounds of a given flux vector
+  integer(i4b),dimension(1)          :: ixMin,ixMax                   ! bounds of a given flux vector
   ! time stepping
   real(rkind)                        :: dtSum                         ! sum of time from successful steps (seconds)
   real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
@@ -176,8 +181,6 @@ subroutine varSubstep(&
   type(var_dlength)                  :: flux_temp                              ! temporary model fluxes
   ! flags
   logical(lgt)                       :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
-  logical(lgt)                       :: checkMassBalance              ! flag to check the mass balance
-  logical(lgt)                       :: checkNrgBalance               ! flag to check the energy balance
   logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
   logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
   ! energy fluxes
@@ -186,6 +189,15 @@ subroutine varSubstep(&
   real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
   real(rkind)                        :: sumSoilCompress               ! sum of total soil compression
   real(rkind),allocatable            :: sumLayerCompress(:)           ! sum of soil compression by layer
+  ! balances and residual vectors
+  real(rkind)                        :: fluxVec(in_varSubstep % nSubset) ! flux vector (mixed units)
+  real(rkind)                        :: resSink(in_varSubstep % nSubset) ! sink terms on the RHS of the state equation
+  real(qp)                           :: resVec(in_varSubstep % nSubset)  ! residual vector
+  real(rkind),dimension(4)           :: balanceNrg                       ! substep balance of energy per domain
+  real(rkind),dimension(4)           :: balanceMass                      ! substep balance of mass per domain
+  logical(lgt),parameter             :: checkMassBalance = .true.        ! flag to check the mass balance
+  logical(lgt),parameter             :: checkNrgBalance = .true.         ! flag to check the energy balance
+
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -240,7 +252,11 @@ subroutine varSubstep(&
     message           => out_varSubstep % cmessage                  & ! intent(out): error message
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
-   
+
+    ! initialize balances
+    balanceNrg   = 0._rkind
+    balanceMass  = 0._rkind
+
     ! initialize error control
     err=0; message='varSubstep/'
 
@@ -316,6 +332,8 @@ subroutine varSubstep(&
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                       computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                       scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
+                      checkMassBalance,  & ! intent(in):    flag to check mass balance
+                      checkNrgBalance,   & ! intent(in):    flag to check energy balance
                       ! input/output: data structures
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
@@ -334,7 +352,14 @@ subroutine varSubstep(&
                       ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       stateVecTrial,     & ! intent(out):   updated state vector
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
+                      fluxVec,           & ! intent(out):   model flux vector
+                      resSink,           & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                      resVec,            & ! intent(out):   residual vector
                       untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
+                      ! output: balances (only computed at this level for ida)
+                      balanceNrg,        & ! intent(out):   balance of energy per domain
+                      balanceMass,       & ! intent(out):   balance of mass per domain
+                      ! output  model control
                       niter,             & ! intent(out):   number of iterations taken (numrec)
                       nSteps,            & ! intent(out):   number of time steps taken in solver
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
@@ -402,19 +427,10 @@ subroutine varSubstep(&
         return
       endif
 
-      ! identify the need to check the mass balance
-      select case(ixNumericalMethod)
-        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances (maybe kinsol should be false too)
-        case(kinsol, numrec); checkMassBalance = .true.  ! (.not.scalarSolution)
-      end select
-
-      ! identify the need to check the energy balance, DOES NOT WORK YET and only check if ixHowHeatCap == enthalpyFD
-      checkNrgBalance = .false.
-
-      ! update prognostic variables
+      ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                             & ! input-output: data structures
-                      waterBalanceError,nrgFluxModified,err,cmessage)                                                                                         ! output: flags and error control
+                      fluxVec,resVec,balanceNrg,balanceMass,waterBalanceError,nrgFluxModified,err,message)                                                    ! output: balances, flags, and error control
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
@@ -506,6 +522,9 @@ subroutine varSubstep(&
 
         endif   ! (if the flux is desired)
       end do  ! (loop through fluxes)
+      ! If did not compute the layer residual vector on this step, added balance
+      sumBalanceNrg = sumBalanceNrg + balanceNrg
+      sumBalanceMass = sumBalanceMass + balanceMass
 
       ! increment the number of substeps
       nSubsteps = nSubsteps + nSteps
@@ -558,13 +577,14 @@ end subroutine varSubstep
 ! **********************************************************************************************************
 subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                      & ! input-output: data structures
-                      waterBalanceError,nrgFluxModified,err,message)                                                                                   ! output: flags and error control
+                      fluxVec,resVec,balanceNrg,balanceMass,waterBalanceError,nrgFluxModified,err,message)                                             ! output: balances, flags, and error control
   USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
-  USE updateVarsWithPrime_module,only:updateVarsWithPrime             ! update prognostic variables
+  USE updateVarsWithPrime_module,only:updateVarsWithPrime           ! update prognostic variables
 #endif
   USE updateVars_module,only:updateVars                             ! update prognostic variables
-  USE t2enthalpy_module, only:t2enthalpy                            ! compute enthalpy
+  USE t2enthalpy_module,only:t2enthalpy                             ! compute enthalpy
+  USE t2enthalpy_module,only:t2enthalpy_addphase                    ! add phase to enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                             ! time step (s)
@@ -587,13 +607,18 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   type(var_dlength),intent(inout) :: prog_data                      ! prognostic variables for a local HRU
   type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: deriv_data                     ! derivatives in model fluxes w.r.t. relevant state variables
-  ! flags and error control
+  ! balances, flags, and error control
+  real(rkind)      ,intent(in)    :: fluxVec(:)                     ! flux vector (mixed units)
+  real(qp)         ,intent(in)    :: resVec(:)    ! NOTE: qp        ! residual vector
+  real(rkind)      ,intent(inout) :: balanceNrg(4)                  ! balance of energy per domain
+  real(rkind)      ,intent(inout) :: balanceMass(4)                 ! balance of mass per domain
   logical(lgt)     ,intent(out)   :: waterBalanceError              ! flag to denote that there is a water balance error
   logical(lgt)     ,intent(out)   :: nrgFluxModified                ! flag to denote that the energy fluxes were modified
   integer(i4b)     ,intent(out)   :: err                            ! error code
   character(*)     ,intent(out)   :: message                        ! error message
   ! ==================================================================================================================
   ! general
+  integer(i4b)                    :: i                              ! indices
   integer(i4b)                    :: iState                         ! index of model state variable
   integer(i4b)                    :: ixSubset                       ! index within the state subset
   integer(i4b)                    :: ixFullVector                   ! index within full state vector
@@ -644,10 +669,10 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   real(rkind)                     :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial            ! enthalpy of snow + soil (J m-3)
   ! enthalpy derivatives
-  real(rkind)                     :: dCanEnthalpy_dTk               ! derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind)                     :: dCanEnthalpy_dWat              ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind),dimension(nLayers)  :: dEnthalpy_dTk                  ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind),dimension(nLayers)  :: dEnthalpy_dWat                 ! derivatives in layer enthalpy w.r.t. water state
+  real(rkind)                     :: dCanEnthalpy_dTk_unused        ! will not be used, derivatives in canopy enthalpy w.r.t. temperature
+  real(rkind)                     :: dCanEnthalpy_dWat_unused       ! will not be used, derivatives in canopy enthalpy w.r.t. water state
+  real(rkind),dimension(nLayers)  :: dEnthalpy_dTk_unused           ! will not be used, derivatives in layer enthalpy w.r.t. temperature
+  real(rkind),dimension(nLayers)  :: dEnthalpy_dWat_unused          ! will not be used, derivatives in layer enthalpy w.r.t. water state
   ! -------------------------------------------------------------------------------------------------------------------
 
   ! -------------------------------------------------------------------------------------------------------------------
@@ -655,9 +680,19 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   associate(&
     ! model decisions
     ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in):  [i4b] choice of numerical solver
-    ! get indices for mass balance
+    ! get indices for balances
+    ixCasNrg                  => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy air space energy state variable
+    ixVegNrg                  => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy energy state variable
     ixVegHyd                  => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy hydrology state variable (mass)
+    ixTopNrg                  => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of upper-most energy state in the snow+soil subdomain
+    ixTopHyd                  => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)                  ,& ! intent(in)   : [i4b]    index of upper-most hydrology state in the snow+soil subdomain
+    ixAqWat                   => indx_data%var(iLookINDEX%ixAqWat)%dat(1)                   ,& ! intent(in)   : [i4b]    index of water storage in the aquifer
     ixSoilOnlyHyd             => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+    ixSnowSoilNrg             => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+    ixSnowSoilHyd             => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat                ,& ! intent(in)   : [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+    nSnowSoilNrg              => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)             ,& ! intent(in)   : [i4b]    number of energy state variables in the snow+soil domain
+    nSnowSoilHyd              => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)             ,& ! intent(in)   : [i4b]    number of hydrology state variables in the snow+soil domain
+    layerType                 => indx_data%var(iLookINDEX%layerType)%dat                    ,& ! intent(in)   : [i4b(:)] named variables defining the type of layer in snow+soil domain
     ! get indices for the un-tapped melt
     ixNrgOnly                 => indx_data%var(iLookINDEX%ixNrgOnly)%dat                    ,& ! intent(in)   : [i4b(:)] list of indices for all energy states
     ixDomainType              => indx_data%var(iLookINDEX%ixDomainType)%dat                 ,& ! intent(in)   : [i4b(:)] indices defining the domain of the state (iname_veg, iname_snow, iname_soil)
@@ -722,16 +757,19 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
 
     ! initialize to state variable from the last update
     scalarCanairTempTrial     = scalarCanairTemp
+    scalarCanairEnthalpyTrial = scalarCanairEnthalpy
     scalarCanopyTempTrial     = scalarCanopyTemp
     scalarCanopyWatTrial      = scalarCanopyWat
     scalarCanopyLiqTrial      = scalarCanopyLiq
     scalarCanopyIceTrial      = scalarCanopyIce
+    scalarCanopyEnthalpyTrial = scalarCanopyEnthalpy
     mLayerTempTrial           = mLayerTemp
     mLayerVolFracWatTrial     = mLayerVolFracWat
     mLayerVolFracLiqTrial     = mLayerVolFracLiq
     mLayerVolFracIceTrial     = mLayerVolFracIce
     mLayerMatricHeadTrial     = mLayerMatricHead
     mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq
+    mLayerEnthalpyTrial       = mLayerEnthalpy
     scalarAquiferStorageTrial = scalarAquiferStorage
 
     ! extract states from the state vector
@@ -875,7 +913,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! ----
     ! * check energy balance
     !------------------------
-    if(checkNrgBalance)then
+    if(checkNrgBalance)then ! update diagnostic enthalpy variables
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
                   ! input: data structures
@@ -897,10 +935,10 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                   scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
                   scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
                   mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
-                  dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
-                  dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
-                  dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
-                  dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
+                  dCanEnthalpy_dTk_unused,     & ! intent(out):  will not be used, derivatives in canopy enthalpy w.r.t. temperature
+                  dCanEnthalpy_dWat_unused,    & ! intent(out):  will not be used, derivatives in canopy enthalpy w.r.t. water state
+                  dEnthalpy_dTk_unused,        & ! intent(out):  will not be used, derivatives in layer enthalpy w.r.t. temperature
+                  dEnthalpy_dWat_unused,       & ! intent(out):  will not be used, derivatives in layer enthalpy w.r.t. water state
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -923,7 +961,25 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                   ! output: error control
                   err,message)                         ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    endif
+
+      ! compute energy balance if didn't do inside solver substeps
+      select case(ixNumericalMethod)
+        case(ida); ! do nothing
+        case(kinsol, numrec)
+          ! compute energy balance, maybe should use to check for step reduction
+          if(ixCasNrg/=integerMissing) balanceNrg(1) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixVegNrg)*dt
+          if(ixVegNrg/=integerMissing) balanceNrg(2) = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy - fluxVec(ixVegNrg)*dt
+          if(nSnowSoilNrg>0)then
+            do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+              select case(layerType(i))
+                case(iname_snow); balanceNrg(3) = (mLayerEnthalpyTrial(i) - mLayerEnthalpy(i) - fluxVec(ixSnowSoilNrg(i))*dt)/nSnow
+                case(iname_soil); balanceNrg(4) = (mLayerEnthalpyTrial(i) - mLayerEnthalpy(i) - fluxVec(ixSnowSoilNrg(i))*dt)/(nLayers-nSnow)
+              end select
+            enddo
+          endif
+      end select
+
+    endif  ! if checking energy balance
 
     ! -----
     ! * check mass balance...
@@ -933,8 +989,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     !   Negative error code will mean step will be failed and retried with smaller step size
     if(checkMassBalance)then
 
-      ! check mass balance for the canopy
-      if(ixVegHyd/=integerMissing)then
+      if(ixVegHyd/=integerMissing)then ! check for complete drainage
 
         ! handle cases where fluxes empty the canopy
         fluxNet = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
@@ -974,46 +1029,69 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
           canopyBalance1  = canopyBalance0 + fluxNet*dt
           nrgFluxModified = .false.
         endif  ! cases where fluxes empty the canopy
+      
+      endif ! check for complete drainage
 
-        ! check the mass balance
-        fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
-        liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
-        if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
-          !write(*,'(a,1x,f20.10)') 'dt = ', dt
-          !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
-          !write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
-          !write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
-          !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
-          !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
-          !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
-          !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
-          !write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
-          waterBalanceError = .true.
-          return
-        endif  ! if there is a water balance error
-      endif  ! if veg canopy
+      ! compute mass balance if didn't do inside solver substeps
+      select case(ixNumericalMethod)
+        case(ida); ! do nothing
+        case(kinsol, numrec)
+          ! old mass balance checks
+          if(ixVegHyd/=integerMissing)then
+            ! check the mass balance for the canopy for step reduction (ida and kinsol should have done this already unless modified canopy water above)
+            fluxNet  = scalarRainfall + scalarCanopyEvaporation - scalarThroughfallRain - scalarCanopyLiqDrainage
+            liqError = (canopyBalance0 + fluxNet*dt) - scalarCanopyWatTrial
+            if(abs(liqError) > absConvTol_liquid*10._rkind)then  ! *10 because of precision issues
+              !write(*,'(a,1x,f20.10)') 'dt = ', dt
+              !write(*,'(a,1x,f20.10)') 'scalarCanopyWatTrial         = ', scalarCanopyWatTrial
+              !write(*,'(a,1x,f20.10)') 'canopyBalance0               = ', canopyBalance0
+              !write(*,'(a,1x,f20.10)') 'canopyBalance1               = ', canopyBalance1
+              !write(*,'(a,1x,f20.10)') 'scalarRainfall*dt            = ', scalarRainfall*dt
+              !write(*,'(a,1x,f20.10)') 'scalarCanopyLiqDrainage*dt   = ', scalarCanopyLiqDrainage*dt
+              !write(*,'(a,1x,f20.10)') 'scalarCanopyEvaporation*dt   = ', scalarCanopyEvaporation*dt
+              !write(*,'(a,1x,f20.10)') 'scalarThroughfallRain*dt     = ', scalarThroughfallRain*dt
+              !write(*,'(a,1x,f20.10)') 'liqError                     = ', liqError
+              waterBalanceError = .true.
+              return
+            endif  ! if there is a water balance error
+          endif  ! if veg canopy
 
-      ! check mass balance for soil, again already satisfied for numrec solver and not checked for ida and solver
-      if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
-        soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
-        vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
-        tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
-        baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
-        compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) )*dt ! m s-1 --> m
-        liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
-        if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
-          !write(*,'(a,1x,f20.10)') 'dt = ', dt
-          !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
-          !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
-          !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
-          !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
-          !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
-          !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
-          !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
-          waterBalanceError = .true.
-          return
-        endif  ! if there is a water balance error
-      endif  ! if hydrology states exist in the soil domain
+          ! check mass balance for soil domain for step reduction (ida and kinsol should have done this already 
+          if(count(ixSoilOnlyHyd/=integerMissing)==nSoil)then
+            soilBalance1 = sum( (mLayerVolFracLiqTrial(nSnow+1:nLayers) + mLayerVolFracIceTrial(nSnow+1:nLayers) )*mLayerDepth(nSnow+1:nLayers) )
+            vertFlux     = -(iLayerLiqFluxSoil(nSoil) - iLayerLiqFluxSoil(0))*dt           ! m s-1 --> m
+            tranSink     = sum(mLayerTranspire)*dt                                         ! m s-1 --> m
+            baseSink     = sum(mLayerBaseflow)*dt                                          ! m s-1 --> m
+            compSink     = sum(mLayerCompress(1:nSoil) * mLayerDepth(nSnow+1:nLayers) )*dt ! m s-1 --> m
+            liqError     = soilBalance1 - (soilBalance0 + vertFlux + tranSink - baseSink - compSink)
+            if(abs(liqError) > absConvTol_liquid*10._rkind)then   ! *10 because of precision issues
+              !write(*,'(a,1x,f20.10)') 'dt = ', dt
+              !write(*,'(a,1x,f20.10)') 'soilBalance0      = ', soilBalance0
+              !write(*,'(a,1x,f20.10)') 'soilBalance1      = ', soilBalance1
+              !write(*,'(a,1x,f20.10)') 'vertFlux          = ', vertFlux
+              !write(*,'(a,1x,f20.10)') 'tranSink          = ', tranSink
+              !write(*,'(a,1x,f20.10)') 'baseSink          = ', baseSink
+              !write(*,'(a,1x,f20.10)') 'compSink          = ', compSink
+              !write(*,'(a,1x,f20.10)') 'liqError          = ', liqError
+              waterBalanceError = .true.
+              return
+            endif  ! if there is a water balance error
+          endif  ! if hydrology states exist in the soil domain
+
+          ! compute mass balance, maybe should use to check for step reduction
+          ! resVec is the residual vector from the solver over dt
+          if(ixVegHyd/=integerMissing) balanceMass(1) = balanceMass(1) + resVec(ixVegHyd)
+          if(nSnowSoilHyd>0)then
+            do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
+              select case(layerType(i))
+                case(iname_snow); balanceMass(2) = balanceMass(2) + resVec(ixSnowSoilHyd(i))/nSnow
+                case(iname_soil); balanceMass(3) = balanceMass(3) + resVec(ixSnowSoilHyd(i))/(nLayers-nSnow)
+              end select
+            enddo
+          endif
+          if(ixAqWat/=integerMissing) balanceMass(4) = balanceMass(4) + resVec(ixAqWat)*dt
+
+      end select
     endif  ! if checking the mass balance
 
     ! -----

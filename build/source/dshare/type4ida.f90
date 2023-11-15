@@ -40,7 +40,10 @@ type data4ida
   type(var_dlength)               :: diag_data                    ! diagnostic variables for a local HRU
   type(var_dlength)               :: flux_data                    ! model fluxes for a local HRU
   type(var_dlength)               :: deriv_data                   ! derivatives in model fluxes w.r.t. relevant state variables
-   real(rkind)                    :: scalarCanopyTempTrial        ! trial value of canopy temperature (K)
+  real(rkind)                     :: scalarCanairTempTrial        ! trial value of canopy air temperature (K) 
+  real(rkind)                     :: scalarCanairEnthalpyTrial    ! trial enthalpy of the canopy air space (J m-3)
+  real(rkind)                     :: scalarCanairEnthalpyPrev     ! previous enthalpy of the canopy air space (J m-3)
+  real(rkind)                     :: scalarCanopyTempTrial        ! trial value of canopy temperature (K)
   real(rkind)                     :: scalarCanopyTempPrev         ! previous value of canopy temperature (K)
   real(rkind)                     :: scalarCanopyIceTrial         ! trial value of canopy ice content (kg m-2)
   real(rkind)                     :: scalarCanopyIcePrev          ! value of canopy ice content (kg m-2) at previous step
@@ -51,6 +54,7 @@ type data4ida
   real(qp), allocatable           :: sMul(:)                      ! state vector multiplier (used in the residual calculations)
   real(rkind), allocatable        :: dMat(:)                      ! diagonal of the Jacobian matrix
   real(rkind), allocatable        :: fluxVec(:)                   ! flux vector
+  real(qp), allocatable           :: resVec(:)                    ! residual vector
   real(qp), allocatable           :: resSink(:)                   ! additional (sink) terms on the RHS of the state equation
   real(rkind), allocatable        :: atol(:)                      ! vector of absolute tolerances
   real(rkind), allocatable        :: rtol(:)                      ! vector of relative tolerances

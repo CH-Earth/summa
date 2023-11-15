@@ -606,7 +606,7 @@ subroutine t2enthalpy_addphase(&
   type(var_ilength),intent(in)     :: indx_data                 ! model indices
   type(zLookup),intent(in)         :: lookup_data               ! lookup tables
   ! input: state variables for the vegetation canopy
-   real(rkind),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
+  real(rkind),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
   real(rkind),intent(in)           :: scalarCanopyIceTrial      ! trial value of canopy ice content (kg m-2)
   ! input: variables for the snow-soil domain
   real(rkind),intent(in)           :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)

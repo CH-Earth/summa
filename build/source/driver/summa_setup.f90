@@ -306,14 +306,14 @@ contains
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table to compute enthalpy from temperature, only for enthalpyFD
-   if(model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD)then
+   ! calculate a lookup table to compute enthalpy from temperature, need for enthalpyFD or if checkNrgBalance is true
+   !if(model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD)then
      call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
                      mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
                      lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
                      err,cmessage)                              ! intent(out):   error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   endif
+   !endif
 
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)

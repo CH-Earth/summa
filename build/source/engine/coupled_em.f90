@@ -256,6 +256,8 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceSoilET          ! output from the soil zone
   real(rkind)                          :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
+  real(rkind)                          :: balanceNrg(4)          ! substep balance of energy per domain
+  real(rkind)                          :: balanceMass(4)         ! substep balance of mass per domain
   ! test balance checks
   logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
   real(rkind), allocatable             :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
@@ -605,6 +607,16 @@ subroutine coupled_em(&
     dt_sub = dt_init
     dtSave  = whole_step       ! length of whole substep
 
+    ! initialize balances from inside solver
+    diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = 0._rkind  ! balance of energy in the canopy
+    diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = 0._rkind  ! balance of energy in the vegetation
+    diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = 0._rkind  ! balance of energy in the snow
+    diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = 0._rkind  ! balance of energy in the soil
+    diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = 0._rkind  ! balance of water in the vegetation
+    diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = 0._rkind  ! balance of water in the snow
+    diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = 0._rkind  ! balance of water in the soil
+    diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = 0._rkind  ! balance of water in the aquifer
+
     ! initialize the number of sub-steps
     nsub = 0
     nsub_success = 0
@@ -878,6 +890,8 @@ subroutine coupled_em(&
                       stepFailure,                            & ! intent(out):   flag to denote that the coupled step failed
                       ixSolution,                             & ! intent(out):   solution method used in this iteration
                       mean_step_dt_sub,                       & ! intent(out):   mean solution step for the sub-step
+                      balanceNrg,                             & ! intent(out):   balance of energy per domain
+                      balanceMass,                            & ! intent(out):   balance of mass per domain                      
                       err,cmessage)                             ! intent(out):   error code and error message
       ! check for all errors (error recovery within opSplittin)
       if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; end if
@@ -1058,6 +1072,16 @@ subroutine coupled_em(&
       innerSoilCompress(:) = innerSoilCompress(:) + diag_data%var(iLookDIAG%mLayerCompress)%dat(:)*dt_wght
       if (nSnow>0) innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
+      ! sum the balance of energy and water per domain
+      diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   + balanceNrg(1)   ! balance of energy in the canopy
+      diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   + balanceNrg(2)   ! balance of energy in the vegetation
+      diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  + balanceNrg(3)   ! balance of energy in the snow
+      diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  + balanceNrg(4)   ! balance of energy in the soil
+      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  + balanceMass(1)  ! balance of water in the vegetation
+      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + balanceMass(2)  ! balance of water in the snow
+      diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + balanceMass(3)  ! balance of water in the soil
+      diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   + balanceMass(4)  ! balance of water in the aquifer
+      
       ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub
       dt_solv = dt_solv + dt_sub

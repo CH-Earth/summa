@@ -81,6 +81,8 @@ subroutine eval8summaWithPrime(&
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                       ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
+                      scalarCanairTempTrial,   & ! intent(out):   trial value for temperature of the canopy air space (K)
+                      scalarCanairEnthalpyTrial,& ! intent(out):  enthalpy of the canopy air space (J m-3)
                       scalarCanopyTempTrial,   & ! intent(out):   trial value of canopy temperature (K)
                       scalarCanopyTempPrev,    & ! intent(in):    value of canopy temperature (K)
                       scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -167,6 +169,8 @@ subroutine eval8summaWithPrime(&
   type(var_dlength),intent(inout) :: flux_data                   ! model fluxes for a local HRU
   type(var_dlength),intent(inout) :: deriv_data                  ! derivatives in model fluxes w.r.t. relevant state variables
   ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
+  real(rkind),intent(out)         :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
+  real(rkind),intent(out)         :: scalarCanairEnthalpyTrial   ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind),intent(out)         :: scalarCanopyTempTrial       ! trial value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)          :: scalarCanopyTempPrev        ! previous value for temperature of the vegetation canopy (K)
   real(rkind),intent(out)         :: scalarCanopyIceTrial        ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -212,7 +216,6 @@ subroutine eval8summaWithPrime(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   real(rkind)                        :: dt1                       ! residual step size
   ! state variables
-  real(rkind)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
   real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
   ! derivative of state variables
   real(rkind)                        :: scalarCanairTempPrime     ! derivative value for temperature of the canopy air space (K)
@@ -223,8 +226,6 @@ subroutine eval8summaWithPrime(&
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqPrime     ! derivative value for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)     :: mLayerVolFracIcePrime     ! derivative value for volumetric fraction of ice (-)
   ! enthalpy
-  real(rkind)                        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
-  real(rkind),dimension(nLayers)     :: mLayerEnthalpyPrime       ! enthalpy of each snow+soil layer (J m-3)
   real(rkind)                        :: dCanEnthalpy_dTk          ! derivatives in canopy enthalpy w.r.t. temperature
   real(rkind)                        :: dCanEnthalpy_dWat         ! derivatives in canopy enthalpy w.r.t. water state
   real(rkind),dimension(nLayers)     :: dEnthalpy_dTk             ! derivatives in layer enthalpy w.r.t. temperature
@@ -456,7 +457,7 @@ subroutine eval8summaWithPrime(&
                         ! input: pre-computed derivatives
                         dVolTot_dPsi0,               & ! intent(in):  derivative in total water content w.r.t. total water matric potential (m-1)
                         ! output: enthalpy
-                        scalarCanairEnthalpy,        & ! intent(out): enthalpy of the canopy air space (J m-3)
+                        scalarCanairEnthalpyTrial,   & ! intent(out): enthalpy of the canopy air space (J m-3)
                         scalarCanopyEnthalpyTrial,   & ! intent(out): enthalpy of the vegetation canopy (J m-3)
                         mLayerEnthalpyTrial,         & ! intent(out): enthalpy of each snow+soil layer (J m-3)
                         dCanEnthalpy_dTk,            & ! intent(out): derivatives in canopy enthalpy w.r.t. temperature
@@ -780,7 +781,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   type(data4ida), pointer     :: eqns_data        ! equations data
   real(rkind), pointer        :: stateVec(:)      ! solution vector
   real(rkind), pointer        :: stateVecPrime(:) ! derivative vector
-  real(rkind), pointer        :: rVec(:)          ! residual vector
   logical(lgt)                :: feasible         ! feasibility of state vector
   !======= Internals ============
 
@@ -790,7 +790,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   ! get data arrays from SUNDIALS vectors
   stateVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_y)
   stateVecPrime(1:eqns_data%nState) => FN_VGetArrayPointer(sunvec_yp)
-  rVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_r)
 
   ! compute the flux and the residual vector for a given state vector
   call eval8summaWithPrime(&
@@ -824,7 +823,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                 eqns_data%flux_data,               & ! intent(inout): model fluxes for a local HRU (initial flux structure)
                 eqns_data%deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                 ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
+                ! input-output: here we need to pass some extra variables that do not get updated in in the IDA loops
+                eqns_data%scalarCanairTempTrial,   & ! intent(out):   trial value for the temperature of the canopy air space (K)
+                eqns_data%scalarCanairEnthalpyTrial,& ! intent(out):  enthalpy of the canopy air space (J m-3)
                 eqns_data%scalarCanopyTempTrial,   & ! intent(in):    trial value of canopy temperature (K)
                 eqns_data%scalarCanopyTempPrev,    & ! intent(in):    previous value of canopy temperature (K)
                 eqns_data%scalarCanopyIceTrial,    & ! intent(out):   trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -848,12 +849,12 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%scalarAquiferStoragePrev, & ! intent(in):   value of storage of water in the aquifer (m)
                 eqns_data%mLayerEnthalpyPrev,      & ! intent(in):    vector of enthalpy for snow+soil layers (J m-3)
                 eqns_data%mLayerEnthalpyTrial,     & ! intent(out):   trial vector of enthalpy for snow+soil layers (J m-3)
-                eqns_data%mLayerTempPrime,         & ! intent(out):    derivative value for temperature of each snow and soil layer (K)
-                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):    derivative value for matric head of each snow and soil layer (m)
-                eqns_data%mLayerMatricHeadLiqPrime,& ! intent(out):    derivative value for liquid water matric head of each snow and soil layer (m)
-                eqns_data%mLayerVolFracWatPrime,   & ! intent(out):    derivative value for volumetric total water content of each snow and soil layer (-)
-                eqns_data%scalarCanopyTempPrime,   & ! intent(out):    derivative value for temperature of the vegetation canopy (K)
-                eqns_data%scalarCanopyWatPrime,    & ! intent(out):    derivative value for total water content of the vegetation canopy (kg m-2)
+                eqns_data%mLayerTempPrime,         & ! intent(out):   derivative value for temperature of each snow and soil layer (K)
+                eqns_data%mLayerMatricHeadPrime,   & ! intent(out):   derivative value for matric head of each snow and soil layer (m)
+                eqns_data%mLayerMatricHeadLiqPrime,& ! intent(out):   derivative value for liquid water matric head of each snow and soil layer (m)
+                eqns_data%mLayerVolFracWatPrime,   & ! intent(out):   derivative value for volumetric total water content of each snow and soil layer (-)
+                eqns_data%scalarCanopyTempPrime,   & ! intent(out):   derivative value for temperature of the vegetation canopy (K)
+                eqns_data%scalarCanopyWatPrime,    & ! intent(out):   derivative value for total water content of the vegetation canopy (kg m-2)
                 ! input-output: baseflow
                 eqns_data%ixSaturation,            & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,       & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -861,7 +862,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 feasible,                          & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
                 eqns_data%fluxVec,                 & ! intent(out):   flux vector
                 eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                rVec,                              & ! intent(out):   residual vector
+                eqns_data%resVec,                  & ! intent(out):   residual vector
                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif

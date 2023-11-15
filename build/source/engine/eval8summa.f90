@@ -417,7 +417,6 @@ subroutine eval8summa(&
                         err,cmessage)                  ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-
         ! *** compute volumetric heat capacity C_p = dH_T/dT
         call computHeatCap(&
                             ! input: control variables
@@ -729,7 +728,6 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
   ! pointers to data in SUNDIALS vectors
   type(data4kinsol), pointer  :: eqns_data   ! equations data
   real(rkind), pointer        :: stateVec(:) ! solution vector
-  real(rkind), pointer        :: rVec(:)     ! residual vector
   logical(lgt)                :: feasible    ! feasibility of state vector
   real(rkind)                 :: fNew        ! function values, not needed here
   integer(i4b)                :: err         ! error in imposeConstraints
@@ -741,7 +739,6 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
 
   ! get data arrays from SUNDIALS vectors
   stateVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_y)
-  rVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_r)
 
   ! increment the proposed iteration for simple error control if needed
   if (eqns_data%firstStateiteration) then
@@ -793,7 +790,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 feasible,                          & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
                 eqns_data%fluxVec,                 & ! intent(out):   flux vector
                 eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                rVec,                              & ! intent(out):   residual vector
+                eqns_data%resVec,                  & ! intent(out):   residual vector
                 fNew,                              & ! intent(out):   new function evaluation
                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
