@@ -243,7 +243,6 @@ subroutine summaSolve4ida(                         &
   real(qp)                          :: dt_diff              ! difference from previous timestep
   integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
   integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
-  real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   integer(i4b)                      :: nRoot                ! total number of roots (events) to find
   real(qp)                          :: tret(1)              ! time in data window

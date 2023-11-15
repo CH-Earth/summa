@@ -868,8 +868,9 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif
-  
-  ! return success
+
+  ! save residual and return success
+  eqns_data%resVec = rVec
   ierr = 0
   return
 

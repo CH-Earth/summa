@@ -208,7 +208,6 @@ subroutine summaSolve4kinsol(&
   logical(lgt)                      :: feasible             ! feasibility flag
   integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
   integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
-  real(rkind)                       :: rVec(nStat)          ! residual vector
   integer(i4b)                      :: iVar, i              ! indices
   character(LEN=256)                :: cmessage             ! error message of downwind routine
   logical(lgt)                      :: use_fdJac            ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
