@@ -781,6 +781,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   type(data4ida), pointer     :: eqns_data        ! equations data
   real(rkind), pointer        :: stateVec(:)      ! solution vector
   real(rkind), pointer        :: stateVecPrime(:) ! derivative vector
+  real(rkind), pointer        :: rVec(:)          ! residual vector
   logical(lgt)                :: feasible         ! feasibility of state vector
   !======= Internals ============
 
@@ -790,6 +791,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
   ! get data arrays from SUNDIALS vectors
   stateVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_y)
   stateVecPrime(1:eqns_data%nState) => FN_VGetArrayPointer(sunvec_yp)
+  rVec(1:eqns_data%nState)  => FN_VGetArrayPointer(sunvec_r)
 
   ! compute the flux and the residual vector for a given state vector
   call eval8summaWithPrime(&
@@ -862,7 +864,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 feasible,                          & ! intent(out):   flag to denote the feasibility of the solution always true inside SUNDIALS
                 eqns_data%fluxVec,                 & ! intent(out):   flux vector
                 eqns_data%resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                eqns_data%resVec,                  & ! intent(out):   residual vector
+                rVec,                              & ! intent(out):   residual vector
                 eqns_data%err,eqns_data%message)     ! intent(out):   error control
   if(eqns_data%err > 0)then; eqns_data%message=trim(eqns_data%message); ierr=-1; return; endif
   if(eqns_data%err < 0)then; eqns_data%message=trim(eqns_data%message); ierr=1; return; endif

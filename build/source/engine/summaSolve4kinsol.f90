@@ -186,7 +186,7 @@ subroutine summaSolve4kinsol(&
   integer(i4b),intent(inout)      :: ixSaturation           ! index of the lowest saturated layer
   real(rkind),intent(inout)       :: stateVec(:)            ! model state vector (y)
   real(rkind),intent(out)         :: fluxVec(:)             ! model flux vector (f)
-  real(rkind),intent(out)         :: resSink(:)            ! sink terms on the RHS of the flux equation
+  real(rkind),intent(out)         :: resSink(:)             ! sink terms on the RHS of the flux equation
   real(qp),intent(out)            :: resVec(:)              ! residual vector
   logical(lgt),intent(out)        :: kinsolSucceeds         ! flag to indicate if KINSOL is successful
   ! output: error control
