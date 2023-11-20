@@ -462,9 +462,6 @@ subroutine eval8summa(&
                             ! output: error control
                             err,cmessage)                ! intent(out):   error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        ! update values
-        mLayerEnthalpy = mLayerEnthalpyTrial
-        scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
       else if(ixHowHeatCap == closedForm)then
         call computHeatCapAnalytic(&
                           ! input: control variables
@@ -503,13 +500,13 @@ subroutine eval8summa(&
       ! compute multiplier of state vector
       call computStatMult(&
                     ! input
-                    heatCapVegTrial,                  & ! intent(in):  volumetric heat capacity of vegetation canopy
-                    mLayerHeatCapTrial,               & ! intent(in):  volumetric heat capacity of soil and snow
-                    diag_data,                        & ! intent(in):  model diagnostic variables for a local HRU
-                    indx_data,                        & ! intent(in):  indices defining model states and layers
+                    heatCapVegTrial,         & ! intent(in):  volumetric heat capacity of vegetation canopy
+                    mLayerHeatCapTrial,      & ! intent(in):  volumetric heat capacity of soil and snow
+                    diag_data,               & ! intent(in):  model diagnostic variables for a local HRU
+                    indx_data,               & ! intent(in):  indices defining model states and layers
                     ! output
-                    sMul,                             & ! intent(out): multiplier for state vector (used in the residual calculations)
-                    err,cmessage)                       ! intent(out): error control
+                    sMul,                    & ! intent(out): multiplier for state vector (used in the residual calculations)
+                    err,cmessage)              ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
 
       ! update thermal conductivity

@@ -608,7 +608,7 @@ subroutine coupled_em(&
     dtSave  = whole_step       ! length of whole substep
 
     ! initialize balances from inside solver
-    diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = 0._rkind  ! balance of energy in the canopy
+    diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = 0._rkind  ! balance of energy in the canopy air space
     diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = 0._rkind  ! balance of energy in the vegetation
     diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = 0._rkind  ! balance of energy in the snow
     diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = 0._rkind  ! balance of energy in the soil
@@ -1073,14 +1073,14 @@ subroutine coupled_em(&
       if (nSnow>0) innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
       ! sum the balance of energy and water per domain
-      diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   + balanceNrg(1)   ! balance of energy in the canopy
-      diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   + balanceNrg(2)   ! balance of energy in the vegetation
-      diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  + balanceNrg(3)   ! balance of energy in the snow
-      diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  + balanceNrg(4)   ! balance of energy in the soil
-      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  + balanceMass(1)  ! balance of water in the vegetation
-      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + balanceMass(2)  ! balance of water in the snow
-      diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + balanceMass(3)  ! balance of water in the soil
-      diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   + balanceMass(4)  ! balance of water in the aquifer
+      diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   + balanceNrg(1)*dt_wght   ! balance of energy in the canopy air space
+      diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   + balanceNrg(2)*dt_wght   ! balance of energy in the vegetation
+      diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  + balanceNrg(3)*dt_wght   ! balance of energy in the snow
+      diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  + balanceNrg(4)*dt_wght   ! balance of energy in the soil
+      diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  + balanceMass(1)*dt_wght  ! balance of water in the vegetation
+      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + balanceMass(2)*dt_wght  ! balance of water in the snow
+      diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + balanceMass(3)*dt_wght  ! balance of water in the soil
+      diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   + balanceMass(4)*dt_wght  ! balance of water in the aquifer
       
       ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub

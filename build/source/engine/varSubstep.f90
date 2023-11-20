@@ -79,6 +79,11 @@ USE mDecisions_module,only:       &
                     kinsol       ,&  ! SUNDIALS backward Euler solution using Kinsol
                     ida              ! SUNDIALS solution using IDA
 
+! look-up values for the choice of heat capacity computation
+USE mDecisions_module,only:       &
+                    closedForm,   & ! heat capacity using closed form, not using enthalpy
+                    enthalpyFD      ! heat capacity using enthalpy
+
 ! safety: set private unless specified otherwise
 implicit none
 private
@@ -112,8 +117,8 @@ subroutine varSubstep(&
                       deriv_data,        & ! intent(inout) : derivatives in model fluxes w.r.t. relevant state variables
                       bvar_data,         & ! intent(in)    : model variables for the local basin
                       ! input/output: balances
-                      sumBalanceNrg,     & ! intent(inout) : step balance of energy per domain
-                      sumBalanceMass,    & ! intent(inout) : step balance of mass per domain
+                      sumBalanceNrg,     & ! intent(out)   : step balance of energy per domain
+                      sumBalanceMass,    & ! intent(out)   : step balance of mass per domain
                       ! output: model control
                       out_varSubstep)      ! intent(out)   : model control
   ! ---------------------------------------------------------------------------------------
@@ -146,8 +151,8 @@ subroutine varSubstep(&
   type(var_dlength),intent(inout)        :: flux_mean                 ! mean model fluxes for a local HRU
   type(var_dlength),intent(inout)        :: deriv_data                ! derivatives in model fluxes w.r.t. relevant state variables
   type(var_dlength),intent(in)           :: bvar_data                 ! model variables for the local basin
-  real(rkind),intent(inout)              :: sumBalanceNrg(:)          ! step balance of energy per domain
-  real(rkind),intent(inout)              :: sumBalanceMass(:)         ! step balance of mass per domain
+  real(rkind),intent(out)                :: sumBalanceNrg(:)          ! step balance of energy per domain
+  real(rkind),intent(out)                :: sumBalanceMass(:)         ! step balance of mass per domain
     ! output: model control
   type(out_type_varSubstep),intent(out)  :: out_varSubstep            ! model control
   ! ---------------------------------------------------------------------------------------
@@ -219,6 +224,7 @@ subroutine varSubstep(&
     ixSaturation   => io_varSubstep % ixSaturation,   & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
     ! model decisions
     ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in):    [i4b]    choice of numerical solver
+    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
     ! number of layers
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -254,8 +260,8 @@ subroutine varSubstep(&
     ! *********************************************************************************************************************************************************
 
     ! initialize balances
-    balanceNrg   = 0._rkind
-    balanceMass  = 0._rkind
+    sumBalanceNrg   = 0._rkind
+    sumBalanceMass  = 0._rkind
 
     ! initialize error control
     err=0; message='varSubstep/'
@@ -428,9 +434,10 @@ subroutine varSubstep(&
       endif
 
       ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
-      call updateProg(dtSubstep,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
-                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,                                             & ! input-output: data structures
-                      fluxVec,resVec,balanceNrg,balanceMass,waterBalanceError,nrgFluxModified,err,message)                                                    ! output: balances, flags, and error control
+      call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                     & ! input: states
+                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,ixHowHeatCap == enthalpyFD,   & ! input: model control
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,   & ! input-output: data structures
+                      fluxVec,resVec,balanceNrg,balanceMass,waterBalanceError,nrgFluxModified,err,message)          ! output: balances, flags, and error control
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
@@ -523,8 +530,8 @@ subroutine varSubstep(&
         endif   ! (if the flux is desired)
       end do  ! (loop through fluxes)
       ! If did not compute the layer residual vector on this step, added balance
-      sumBalanceNrg = sumBalanceNrg + balanceNrg
-      sumBalanceMass = sumBalanceMass + balanceMass
+      sumBalanceNrg = sumBalanceNrg + balanceNrg*dt_wght
+      sumBalanceMass = sumBalanceMass + balanceMass*dt_wght
 
       ! increment the number of substeps
       nSubsteps = nSubsteps + nSteps
@@ -575,10 +582,11 @@ end subroutine varSubstep
 ! **********************************************************************************************************
 ! private subroutine updateProg: update prognostic variables
 ! **********************************************************************************************************
-subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappedMelt,stateVecTrial,stateVecPrime,checkMassBalance, checkNrgBalance, & ! input: model control
-                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,                                      & ! input-output: data structures
-                      fluxVec,resVec,balanceNrg,balanceMass,waterBalanceError,nrgFluxModified,err,message)                                             ! output: balances, flags, and error control
-  USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
+subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                            & ! input: states
+                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,use_enthalpyFD,               & ! input: model control
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,   & ! input-output: data structures
+                      fluxVec,resVec,balanceNrg,balanceMass,waterBalanceError,nrgFluxModified,err,message)          ! output: balances, flags, and error control
+USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
   USE updateVarsWithPrime_module,only:updateVarsWithPrime           ! update prognostic variables
 #endif
@@ -598,6 +606,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   real(rkind)      ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
   logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
   logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance
+  logical(lgt)     ,intent(in)    :: use_enthalpyFD                 ! flag that using enthalpy finite difference and need to update
   ! data structures
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
   type(zLookup),intent(in)        :: lookup_data                    ! lookup tables
@@ -646,6 +655,11 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadTrial          ! trial vector for total water matric potential (m)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial       ! trial vector for liquid water matric potential (m)
   real(rkind)                     :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
+  real(rkind)                     :: scalarCanairEnthalpyTrial      ! trial value for enthalpy of the canopy air space (J m-3)
+  real(rkind)                     :: scalarCanopyEnthalpyTrial      ! trial value for enthalpy of the vegetation canopy (J m-3)
+  real(rkind)                     :: scalarCanopyEnthalpy_nophase   ! trial value for enthalpy of the vegetation canopy (J m-3), no phase change
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial            ! trial vector for enthalpy of snow + soil (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpy_nophase         ! trial vector for enthalpy of snow + soil (J m-3), no phase change
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -665,9 +679,6 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
   real(rkind)                     :: scalarCanopyIcePrime           ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
-  real(rkind)                     :: scalarCanairEnthalpyTrial      ! enthalpy of the canopy air space (J m-3)
-  real(rkind)                     :: scalarCanopyEnthalpyTrial      ! enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial            ! enthalpy of snow + soil (J m-3)
   ! enthalpy derivatives
   real(rkind)                     :: dCanEnthalpy_dTk_unused        ! will not be used, derivatives in canopy enthalpy w.r.t. temperature
   real(rkind)                     :: dCanEnthalpy_dWat_unused       ! will not be used, derivatives in canopy enthalpy w.r.t. water state
@@ -913,7 +924,7 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
     ! ----
     ! * check energy balance
     !------------------------
-    if(checkNrgBalance)then ! update diagnostic enthalpy variables
+    if(checkNrgBalance .or. use_enthalpyFD)then ! update diagnostic enthalpy variables
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
                   ! input: data structures
@@ -942,6 +953,12 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+      ! update no phase values for enthalpy
+      mLayerEnthalpy_nophase = mLayerEnthalpyTrial
+      scalarCanopyEnthalpy_nophase = scalarCanopyEnthalpyTrial
+    endif
+
+    if(checkNrgBalance)then
       call t2enthalpy_addphase(&
                   ! input: data structures
                   diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
@@ -978,8 +995,14 @@ subroutine updateProg(dt,nSnow,nSoil,nLayers,doAdjustTemp,computeVegFlux,untappe
             enddo
           endif
       end select
-
     endif  ! if checking energy balance
+
+    ! save the trial values
+    if(checkNrgBalance .or. use_enthalpyFD)then
+      scalarCanairEnthalpy = scalarCanairEnthalpyTrial
+      mLayerEnthalpy_nophase = mLayerEnthalpy_nophase
+      scalarCanopyEnthalpy_nophase = scalarCanopyEnthalpy_nophase
+    endif
 
     ! -----
     ! * check mass balance...

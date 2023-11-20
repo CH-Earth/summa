@@ -587,7 +587,7 @@ contains
   case('wallClockTime'                  ); get_ixdiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
   case('meanStepSize'                   ); get_ixdiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window
   ! balances
-  case('balanceCasNrg'                  ); get_ixdiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy
+  case('balanceCasNrg'                  ); get_ixdiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy air space
   case('balanceVegNrg'                  ); get_ixdiag = iLookDIAG%balanceVegNrg                    ! balance of energy in the vegetation
   case('balanceSnowNrg'                 ); get_ixdiag = iLookDIAG%balanceSnowNrg                   ! balance of energy in the snow
   case('balanceSoilNrg'                 ); get_ixdiag = iLookDIAG%balanceSoilNrg                   ! balance of energy in the soil

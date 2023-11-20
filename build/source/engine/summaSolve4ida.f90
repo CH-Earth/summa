@@ -612,13 +612,13 @@ subroutine summaSolve4ida(                         &
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
         ! compute energy balance
-        if(ixCasNrg/=integerMissing) balanceNrg(1) = balanceNrg(1) + eqns_data%scalarCanairEnthalpyTrial - eqns_data%scalarCanairEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff
-        if(ixVegNrg/=integerMissing) balanceNrg(2) = balanceNrg(2) + eqns_data%scalarCanopyEnthalpyTrial - eqns_data%scalarCanopyEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff
+        if(ixCasNrg/=integerMissing) balanceNrg(1) = balanceNrg(1) + eqns_data%scalarCanairEnthalpyTrial - eqns_data%scalarCanairEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff/dt
+        if(ixVegNrg/=integerMissing) balanceNrg(2) = balanceNrg(2) + eqns_data%scalarCanopyEnthalpyTrial - eqns_data%scalarCanopyEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff/dt
         if(nSnowSoilNrg>0)then
           do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
             select case(layerType(i))
-              case(iname_snow); balanceNrg(3) = balanceNrg(3) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff)/nSnow
-              case(iname_soil); balanceNrg(4) = balanceNrg(4) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff)/(nLayers-nSnow)
+              case(iname_snow); balanceNrg(3) = balanceNrg(3) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff/dt)/nSnow
+              case(iname_soil); balanceNrg(4) = balanceNrg(4) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff/dt)/(nLayers-nSnow)
             end select
           enddo
         endif
@@ -631,16 +631,16 @@ subroutine summaSolve4ida(                         &
     
         ! compute mass balance
         ! resVec is the instanteous residual vector from the solver
-        if(ixVegHyd/=integerMissing) balanceMass(1) = balanceMass(1) + eqns_data%resVec(ixVegHyd)*dt_diff
+        if(ixVegHyd/=integerMissing) balanceMass(1) = balanceMass(1) + eqns_data%resVec(ixVegHyd)
         if(nSnowSoilHyd>0)then
           do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
             select case(layerType(i))
-              case(iname_snow); balanceMass(2) = balanceMass(2) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/nSnow
-              case(iname_soil); balanceMass(3) = balanceMass(3) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/(nLayers-nSnow)
+              case(iname_snow); balanceMass(2) = balanceMass(2) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/dt/nSnow
+              case(iname_soil); balanceMass(3) = balanceMass(3) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/dt/(nLayers-nSnow)
             end select
           enddo
         endif
-        if(ixAqWat/=integerMissing) balanceMass(4) = balanceMass(4) + eqns_data%resVec(ixAqWat)*dt_diff
+        if(ixAqWat/=integerMissing) balanceMass(4) = balanceMass(4) + eqns_data%resVec(ixAqWat)
       endif
     
       ! save required quantities for next step

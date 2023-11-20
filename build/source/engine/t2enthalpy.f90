@@ -201,7 +201,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
           ! compute enthalpy
           ! NOTE: assume intrrinsic density of ice is the intrinsic density of water
           ! NOTE: kg m-3 J kg-1 K-1 K
-          Ey(iLook)  = Ey(iLook) + iden_water*Cp_water*vFracLiq*T_incr + iden_water*Cp_ice*volFracIce*T_incr
+          Ey(iLook)  = Ey(iLook) + iden_water * Cp_water*vFracLiq*T_incr + iden_water * Cp_ice*volFracIce*T_incr
 
         end do  ! numerical integration
 
@@ -452,31 +452,20 @@ subroutine t2enthalpy(&
               snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
               )
 
-              diffT = mLayerTempTrial(iLayer) - Tfreeze
-              if(diffT>=0._rkind)then
-                enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * diffT
-                enthIce = 0._rkind
-                enthAir = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWatTrial(iLayer) ) * diffT
-                ! enthalpy derivatives
-                dEnthLiq_dTk  = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer)
-                dEnthAir_dTk  = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWatTrial(iLayer) )
-                dEnthLiq_dWat = iden_water * Cp_water * diffT
-                dEnthAir_dWat = -iden_air * Cp_air * diffT
-              else
-                integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-                enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * integral
-                enthIce = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( diffT - integral )
-                enthAir = iden_air * Cp_air * ( diffT - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
-                ! derivatives
-                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
-                ! enthalpy derivatives
-                dEnthLiq_dTk = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * d_integral_dTk
-                dEnthIce_dTk = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( 1._rkind - d_integral_dTk )
-                dEnthAir_dTk = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(1._rkind-d_integral_dTk) + d_integral_dTk ) )
-                dEnthLiq_dWat = iden_water * Cp_water * integral
-                dEnthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
-                dEnthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
-               endif
+              diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
+              integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+              enthLiq = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * integral
+              enthIce = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( diffT - integral )
+              enthAir = iden_air * Cp_air * ( diffT - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(diffT-integral) + integral ) )
+              ! derivatives
+              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+              ! enthalpy derivatives
+              dEnthLiq_dTk = iden_water * Cp_water * mLayerVolFracWatTrial(iLayer) * d_integral_dTk
+              dEnthIce_dTk = iden_water * Cp_ice * mLayerVolFracWatTrial(iLayer) * ( 1._rkind - d_integral_dTk )
+              dEnthAir_dTk = iden_air * Cp_air * ( 1._rkind - mLayerVolFracWatTrial(iLayer) * ( (iden_water/iden_ice)*(1._rkind-d_integral_dTk) + d_integral_dTk ) )
+              dEnthLiq_dWat = iden_water * Cp_water * integral
+              dEnthIce_dWat = iden_water * Cp_ice * ( diffT - integral )
+              dEnthAir_dWat = -iden_air * Cp_air * ( (iden_water/iden_ice)*(diffT-integral) + integral )
 
               mLayerEnthalpy(iLayer) = enthLiq + enthIce + enthAir
               dEnthalpy_dTk(iLayer)  = dEnthLiq_dTk + dEnthIce_dTk + dEnthAir_dTk
@@ -511,10 +500,10 @@ subroutine t2enthalpy(&
 
               ! *** compute enthalpy of water for unfrozen conditions
               if(mlayerTempTrial(iLayer)>=Tcrit)then
-                enthWater = iden_water*Cp_water*volFracWat*diffT ! valid for temperatures below freezing also
+                enthWater = iden_water * Cp_water * volFracWat * diffT ! valid for temperatures below freezing also
                 ! enthalpy derivatives
-                dEnthWater_dTk = iden_water*Cp_water*volFracWat
-                dEnthWater_dWat = iden_water*Cp_water*dVolTot_dPsi0(ixControlIndex) !dVolFracWat_dWat = dVolTot_dPsi0(ixControlIndex)
+                dEnthWater_dTk = iden_water * Cp_water * volFracWat
+                dEnthWater_dWat = iden_water * Cp_water * dVolTot_dPsi0(ixControlIndex) !dVolFracWat_dWat = dVolTot_dPsi0(ixControlIndex)
 
               ! *** compute enthalpy of water for frozen conditions
               else
@@ -528,15 +517,15 @@ subroutine t2enthalpy(&
 
                 ! calculate the enthalpy of water
                 enthMix   = enthTemp - enthTcrit ! enthalpy of the liquid+ice mix
-                enthLiq   = iden_water*Cp_water*volFracWat*(Tcrit - Tfreeze)
+                enthLiq   = iden_water * Cp_water * volFracWat * (Tcrit - Tfreeze)
                 enthWater = enthMix + enthLiq
 
                 ! derivatives
                 dTcrit_dPsi0 = 0._rkind
-                if (mLayerMatricHeadTrial(ixControlIndex)<0._rkind) dTcrit_dPsi0 = gravity*Tfreeze/LH_fus
+                if (mLayerMatricHeadTrial(ixControlIndex)<0._rkind) dTcrit_dPsi0 = gravity * Tfreeze/LH_fus
                 ! enthalpy derivatives
                 dEnthWater_dTk = dE
-                dEnthWater_dWat = -dEcrit*dTcrit_dPsi0 + iden_water*Cp_water*dVolTot_dPsi0(ixControlIndex)*(Tcrit - Tfreeze) + iden_water*Cp_water*volFracWat*dTcrit_dPsi0
+                dEnthWater_dWat = -dEcrit*dTcrit_dPsi0 + iden_water * Cp_water * dVolTot_dPsi0(ixControlIndex) * (Tcrit - Tfreeze) + iden_water * Cp_water * volFracWat*dTcrit_dPsi0
               endif ! (if frozen conditions)
 
               ! *** compute the enthalpy of soil
