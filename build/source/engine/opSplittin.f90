@@ -297,8 +297,8 @@ subroutine opSplittin(&
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
-
   ! ---------------------------------------------------------------------------------------
+
   ! initialize error control
   err=0; message="opSplittin/"
 
@@ -318,34 +318,11 @@ subroutine opSplittin(&
   ! loop through different coupling strategies
   coupling: do ixCoupling=1,nCoupling
 
-    ! initialize the time step
-    dtInit = min( merge(dt,            dtmin_coupled, ixCoupling==fullyCoupled), dt) ! initial time step
-    dt_min = min( merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
-
-    ! keep track of the number of state splits
-    associate(numberStateSplit => indx_data%var(iLookINDEX%numberStateSplit)%dat(1)) ! intent(inout): [i4b] number of state splitting solutions
-     if (ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
-    end associate
-
-    ! define the number of operator splits for the state type
-    select case(ixCoupling)
-      case(fullyCoupled);   nStateTypeSplit=1
-      case(stateTypeSplit); nStateTypeSplit=nStateTypes
-      case default; err=20; message=trim(message)//'coupling case not found'; return
-    end select  ! operator splitting option
-
-    ! define if we wish to try the domain split
-    select case(ixCoupling)
-      case(fullyCoupled);   tryDomainSplit=0
-      case(stateTypeSplit); tryDomainSplit=1
-      case default; err=20; message=trim(message)//'coupling case not found'; return
-    end select  ! operator splitting option
-
-    mean_step_dt = 0._rkind ! initialize mean step for the time step
-    addFirstFlux = .true.     ! flag to add the first flux to the mask
+    call initialize_stateTypeSplitting_loop    
+    if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
     ! state splitting loop
-    stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit
+    stateTypeSplitting: do iStateTypeSplit=1,nStateTypeSplit
 
       ! identify state-specific variables for a given state split
       call initialize_stateThenDomain_loop
@@ -484,10 +461,10 @@ subroutine opSplittin(&
 
       call finalize_stateThenDomain_loop ! final steps following the stateThenDomain loop
 
-    end do stateTypeSplit ! state type splitting loop
+    end do stateTypeSplitting ! state type splitting loop
 
     ! success = exit the coupling loop
-    if(ixCoupling==fullyCoupled .and. .not.failure) exit coupling
+    if (ixCoupling==fullyCoupled .and. .not.failure) exit coupling
 
   end do coupling ! coupling method
 
@@ -599,6 +576,36 @@ subroutine opSplittin(&
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
   end subroutine finalize_opSplittin
 
+  subroutine initialize_stateTypeSplitting_loop
+   ! *** Initial steps to prepare for iterations of the stateTypeSplit loop ***
+   return_flag=.false. ! initialize flag
+   ! initialize the time step
+   dtInit = min(merge(dt,            dtmin_coupled, ixCoupling==fullyCoupled), dt) ! initial time step
+   dt_min = min(merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
+
+   ! keep track of the number of state splits
+   associate(numberStateSplit => indx_data%var(iLookINDEX%numberStateSplit)%dat(1)) ! intent(inout): [i4b] number of state splitting solutions
+    if (ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
+   end associate
+
+   ! define the number of operator splits for the state type
+   select case(ixCoupling)
+    case(fullyCoupled); nStateTypeSplit=1
+    case(stateTypeSplit); nStateTypeSplit=nStateTypes
+    case default; err=20; message=trim(message)//'coupling case not found'; return_flag=.true.; return
+   end select  ! operator splitting option
+
+   ! define if we wish to try the domain split
+   select case(ixCoupling)
+    case(fullyCoupled);   tryDomainSplit=0
+    case(stateTypeSplit); tryDomainSplit=1
+    case default; err=20; message=trim(message)//'coupling case not found'; return_flag=.true.; return
+   end select  ! operator splitting option
+
+   mean_step_dt = 0._rkind ! initialize mean step for the time step
+   addFirstFlux = .true.     ! flag to add the first flux to the mask
+  end subroutine initialize_stateTypeSplitting_loop
+
   subroutine initialize_stateThenDomain_loop
    ! *** Identify state-specific variables for a given state split ***
    doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) ! flag to adjust the temperature
@@ -681,8 +688,8 @@ subroutine opSplittin(&
 
    ! refine the time step
    if (ixSolution==scalar) then
-     dtInit = min(dtmin_split, dt)    ! initial time step
-     dt_min = min(dtmin_scalar, dt)   ! minimum time step
+    dtInit = min(dtmin_split, dt)    ! initial time step
+    dt_min = min(dtmin_scalar, dt)   ! minimum time step
    end if
 
    ! initialize the first flux call
@@ -691,11 +698,11 @@ subroutine opSplittin(&
 
    ! get the number of split layers
    select case(ixSolution)
-     case(vector); nStateSplit=1
-     case(scalar); nStateSplit=count(stateMask)
-     case default; err=20; message=trim(message)//'unknown solution method'; 
-      return_flag=.true. ! return statement required in opSplittin
-      return
+    case(vector); nStateSplit=1
+    case(scalar); nStateSplit=count(stateMask)
+    case default; err=20; message=trim(message)//'unknown solution method'; 
+     return_flag=.true. ! return statement required in opSplittin
+     return
    end select
   end subroutine initialize_stateSplit_loop
 
@@ -913,6 +920,7 @@ subroutine opSplittin(&
    end do  ! end looping through fluxes
 
   end subroutine update_fluxMask
+
 end subroutine opSplittin
 
 
