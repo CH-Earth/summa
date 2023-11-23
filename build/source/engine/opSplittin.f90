@@ -292,6 +292,8 @@ subroutine opSplittin(&
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
+  ! loop control
+  logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
@@ -299,51 +301,32 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! ---------------------------------------------------------------------------------------
 
-  ! initialize error control
-  err=0; message="opSplittin/"
+  call initialize_opSplittin ! initial setup steps -- select coupling options and allocate memory
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if ! return if error in initialize step
 
-  associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
-   ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
-   select case(ixNumericalMethod)
-    case(ida);            nCoupling = 1
-    case(kinsol, numrec); nCoupling = 2
-   end select
-  end associate
+  coupling: do ixCoupling=1,nCoupling ! loop through different coupling strategies
 
-  ! *** initialize ***
-  call initialize_opSplittin
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+    call initialize_stateTypeSplitting_loop ! setup steps for stateTypeSplitting loop    
+    if (return_flag.eqv..true.) return      ! return if error occurs during initialization
 
-  ! ==========================================================================================================================================
-  ! loop through different coupling strategies
-  coupling: do ixCoupling=1,nCoupling
+    stateTypeSplitting: do iStateTypeSplit=1,nStateTypeSplit ! state splitting loop
 
-    call initialize_stateTypeSplitting_loop    
-    if (return_flag.eqv..true.) return ! return if error occurs during initialization
-
-    ! state splitting loop
-    stateTypeSplitting: do iStateTypeSplit=1,nStateTypeSplit
-
-      ! identify state-specific variables for a given state split
-      call initialize_stateThenDomain_loop
+      call initialize_stateThenDomain_loop ! setup steps for stateThenDomain loop -- identify state-specific variables for a given state split
 
       ! first try the state type split, then try the domain split within a given state type
       stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
 
-        call initialize_domainSplit_loop
+        call initialize_domainSplit_loop   ! setup steps for domainSplit loop
         if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
-        ! domain splitting loop
-        domainSplit: do iDomainSplit=1,nDomainSplit
+        domainSplit: do iDomainSplit=1,nDomainSplit ! domain splitting loop
 
-          ! trial with the vector then scalar solution
-          solution: do ixSolution=1,nSolutions
+          solution: do ixSolution=1,nSolutions ! trial with the vector then scalar solution
 
-            call initialize_stateSplit_loop
+            call initialize_stateSplit_loop    ! setup steps for stateSplit loop
             if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
-            ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
-            stateSplit: do iStateSplit=1,nStateSplit
+            stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
  
               ! -----
               ! * define state subsets for a given split...
@@ -387,10 +370,6 @@ subroutine opSplittin(&
               ! ---------------------------------------
               call update_fluxMask
               if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-          
-              ! *******************************************************************************************************************************
-              ! ***** trial with a given solution method...
-
 
               ! -----
               ! * solve variable subset for one time step...
@@ -403,15 +382,14 @@ subroutine opSplittin(&
 
               ! solve variable subset for one full time step
               call initialize_varSubstep
-              call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control              
+              call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
                               model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
                               indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
                               out_varSubstep)                                                          ! intent(out): class object for model control
               call finalize_varSubstep
               if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
 
-              ! determine whether solution is a success or a failure
-              call judge_solution
+              call judge_solution                ! determine whether solution is a success or a failure
               if (return_flag.eqv..true.) return ! return for a recovering solution
 
               ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
@@ -433,48 +411,44 @@ subroutine opSplittin(&
                 err=20; return
               end if
 
-              ! success = exit solution
-              if (.not.failure) then
-                ! sum the mean steps for the successful solution type
-                mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
-                select case(ixStateThenDomain)
-                  case(fullDomain); if (iStateSplit==nStateSplit) exit stateThenDomain
-                  case(subDomain);  if (iStateSplit==nStateSplit) exit solution
-                  case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
-                end select
-              else ! failure
-                call check_failure; return ! check reason for failure and return
-              end if  ! success check
+              call success_check ! check for success
+              if (exit_stateThenDomain) exit stateThenDomain ! exit loops if necessary
+              if (exit_solution) exit solution
 
             end do stateSplit ! solution with split layers
 
           end do solution ! trial with the full layer solution then the split layer solution
 
-          ! sum the mean steps for the state over each domain split
-          mean_step_state = mean_step_state + mean_step_solution/nDomainSplit
+          call finalize_solution_loop ! final steps following solution loop
 
-        ! ***** trial with a given solution method...
-        ! *******************************************************************************************************************************
         end do domainSplit ! domain type splitting loop
 
-      end do stateThenDomain  ! switch between the state and the domain
+      end do stateThenDomain  ! switch between the state type and domain type splitting
 
       call finalize_stateThenDomain_loop ! final steps following the stateThenDomain loop
 
     end do stateTypeSplitting ! state type splitting loop
 
-    ! success = exit the coupling loop
-    if (ixCoupling==fullyCoupled .and. .not.failure) exit coupling
+    if (ixCoupling==fullyCoupled .and. .not.failure) exit coupling ! success = exit the coupling loop
 
   end do coupling ! coupling method
 
-  ! *** Finalize ***
-  call finalize_opSplittin
+  call finalize_opSplittin ! final steps -- check variables and fluxes, and apply step halving if needed
 
  contains
 
   subroutine initialize_opSplittin
    ! *** initial steps for opSplittin subroutine ***
+   ! initialize error control
+   err=0; message="opSplittin/"
+
+   associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
+    ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
+    select case(ixNumericalMethod)
+     case(ida);            nCoupling = 1
+     case(kinsol, numrec); nCoupling = 2
+    end select
+   end associate
 
    ! set the global print flag
    globalPrintFlag=.false.
@@ -678,6 +652,12 @@ subroutine opSplittin(&
    mean_step_state = 0._rkind ! initialize mean step for state
   end subroutine initialize_domainSplit_loop
 
+  subroutine finalize_solution_loop
+   ! *** final operations following solution loop ***
+   ! sum the mean steps for the state over each domain split
+   mean_step_state = mean_step_state + mean_step_solution/nDomainSplit
+  end subroutine finalize_solution_loop
+
   subroutine initialize_stateSplit_loop
    ! *** initial operations to set up stateSplit loop ***
    return_flag=.false. ! initialize flag
@@ -800,6 +780,24 @@ subroutine opSplittin(&
      end select
    end do
   end subroutine save_recover
+
+  subroutine success_check
+   ! initialize flags
+   exit_stateThenDomain=.false.
+   exit_solution=.false.
+   ! success = exit solution
+   if (.not.failure) then
+     ! sum the mean steps for the successful solution type
+     mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
+     select case(ixStateThenDomain)
+       case(fullDomain); if (iStateSplit==nStateSplit) exit_stateThenDomain=.true. !exit stateThenDomain
+       case(subDomain);  if (iStateSplit==nStateSplit) exit_solution=.true. !exit solution
+       case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
+     end select
+   else ! failure
+     call check_failure; return ! check reason for failure and return
+   end if  ! success check
+  end subroutine success_check
 
   subroutine check_failure
    ! *** Analyze reason for failure ***
