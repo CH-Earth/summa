@@ -184,8 +184,6 @@ subroutine opSplittin(&
                       stepFailure,          & ! intent(out):   flag to denote step failure
                       ixSolution,           & ! intent(out):   solution method used in this iteration
                       mean_step_dt,         & ! intent(out):   mean solution step for the time step
-                      balanceNrg,           & ! intent(out):   balance of energy per domain
-                      balanceMass,          & ! intent(out):   balance of mass per domain
                       err,message)            ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
@@ -226,8 +224,6 @@ subroutine opSplittin(&
   logical(lgt),intent(out)        :: stepFailure                    ! flag to denote step failure
   integer(i4b),intent(out)        :: ixSolution                     ! index of solution method (1,2)
   real(rkind),intent(out)         :: mean_step_dt                   ! mean solution step for the time step
-  real(rkind),intent(out)         :: balanceNrg(4)                  ! balance of energy per domain
-  real(rkind),intent(out)         :: balanceMass(4)                 ! balance of mass per domain
   integer(i4b),intent(out)        :: err                            ! error code
   character(*),intent(out)        :: message                        ! error message
   ! ---------------------------------------------------------------------------------------
@@ -466,8 +462,7 @@ subroutine opSplittin(&
                 call initialize_varSubstep
                 call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control              
                                 model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
-                                indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
-                                balanceNrg,balanceMass, &                                                ! intent(inout): balances 
+                                indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,& ! intent(inout): data structures for model variables
                                 out_varSubstep)                                                          ! intent(out): class object for model control
                 call finalize_varSubstep
                 if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control

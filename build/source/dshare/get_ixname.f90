@@ -589,9 +589,11 @@ contains
   ! balances
   case('balanceCasNrg'                  ); get_ixdiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy air space
   case('balanceVegNrg'                  ); get_ixdiag = iLookDIAG%balanceVegNrg                    ! balance of energy in the vegetation
+  case('balanceLayerNrg'                ); get_ixdiag = iLookDIAG%balanceLayerNrg                  ! balance of energy in each snow+soil layer
   case('balanceSnowNrg'                 ); get_ixdiag = iLookDIAG%balanceSnowNrg                   ! balance of energy in the snow
   case('balanceSoilNrg'                 ); get_ixdiag = iLookDIAG%balanceSoilNrg                   ! balance of energy in the soil
   case('balanceVegMass'                 ); get_ixdiag = iLookDIAG%balanceVegMass                   ! balance of water in the vegetation
+  case('balanceLayerMass'               ); get_ixdiag = iLookDIAG%balanceLayerMass                 ! balance of water in each snow+soil layer
   case('balanceSnowMass'                ); get_ixdiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow
   case('balanceSoilMass'                ); get_ixdiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil
   case('balanceAqMass'                  ); get_ixdiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer

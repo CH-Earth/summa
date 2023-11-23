@@ -469,9 +469,11 @@ MODULE var_lookup
   ! balances
   integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-2)
   integer(i4b)    :: balanceVegNrg                   = integerMissing ! balance of energy in the vegetation (W m-2)
+  integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each snow+soil layer (W m-2)
   integer(i4b)    :: balanceSnowNrg                  = integerMissing ! balance of energy in the snow (W m-2)
   integer(i4b)    :: balanceSoilNrg                  = integerMissing ! balance of energy in the soil (W m-2)
   integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-2)
+  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-2)
   integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2)
   integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2)
   integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2)
@@ -903,7 +905,8 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92, 93, 94, 95, 96, 97, 98, 99,100)
+                                                                         91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
+                                                                        101,102)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

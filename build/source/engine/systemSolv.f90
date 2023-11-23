@@ -38,11 +38,6 @@ USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matri
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
-! domain types
-USE globalData,only:iname_veg       ! named variables for vegetation
-USE globalData,only:iname_snow      ! named variables for snow
-USE globalData,only:iname_soil      ! named variables for soil
-
 ! state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
@@ -151,8 +146,7 @@ subroutine systemSolv(&
                       resVec,            & ! intent(out):   new residual vector
                       untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
                       ! output: balances (only computed at this level for ida)
-                      balanceNrg,        & ! intent(out):   balance of energy per domain
-                      balanceMass,       & ! intent(out):   balance of mass per domain
+                      balance,           & ! intent(out):   balance of energy per state
                       ! output: model control
                       niter,             & ! intent(out):   number of iterations taken (numrec)
                       nSteps,            & ! intent(out):   number of time steps taken in solver
@@ -214,8 +208,7 @@ subroutine systemSolv(&
   real(qp),intent(out)            :: resVec(nState)    ! NOTE: qp  ! residual vector
   real(rkind),intent(out)         :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
   ! output: balances (only computed at this level for ida)
-  real(rkind),intent(out)         :: balanceNrg(4)                 ! balance of energy per domain
-  real(rkind),intent(out)         :: balanceMass(4)                ! balance of mass per domain
+  real(rkind),intent(out)         :: balance(nState)               ! balance per state
   ! output: model control
   integer(i4b),intent(out)        :: niter                         ! number of iterations taken
   integer(i4b),intent(out)        :: nSteps                        ! number of time steps taken in solver
@@ -323,8 +316,7 @@ subroutine systemSolv(&
     fluxVec = 0._rkind
     resSink = 0._rkind
     resVec  = 0._rkind
-    balanceNrg  = 0._rkind
-    balanceMass = 0._rkind
+    balance = 0._rkind
 
     ! *****
     ! (0) PRELIMINARIES...
@@ -578,10 +570,9 @@ subroutine systemSolv(&
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
                           nSteps,                  & ! intent(out):   number of time steps taken in solver
-                          stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
-                          stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
-                          balanceNrg,              & ! intent(out):   balance of energy per domain
-                          balanceMass,             & ! intent(out):   balance of mass per domain
+                          stateVecNew,             & ! intent(inout): model state vector (y) at the end of the data time step
+                          stateVecPrime,           & ! intent(inout): derivative of model state vector (y') at the end of the data time step
+                          balance,                 & ! intent(inout): balance per state
                           err,cmessage)              ! intent(out):   error control
         ! check if IDA is successful, only fail outright in the case of a non-recoverable error
         if( .not.sunSucceeds )then

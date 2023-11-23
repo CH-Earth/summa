@@ -29,12 +29,6 @@ USE type4ida
 ! access the global print flag
 USE globalData,only:globalPrintFlag
 
-! domain types
-USE globalData,only:iname_cas       ! named variables for the canopy air space
-USE globalData,only:iname_veg       ! named variables for vegetation
-USE globalData,only:iname_snow      ! named variables for snow
-USE globalData,only:iname_soil      ! named variables for soil
-
 ! access missing values
 USE globalData,only:integerMissing  ! missing integer
 USE globalData,only:realMissing     ! missing double precision number
@@ -142,8 +136,7 @@ subroutine summaSolve4ida(                         &
                       nSteps,                  & ! intent(out):   number of time steps taken in solver
                       stateVec,                & ! intent(out):   model state vector
                       stateVecPrime,           & ! intent(out):   derivative of model state vector
-                      balanceNrg,              & ! intent(out):   balance of energy per domain
-                      balanceMass,             & ! intent(out):   balance of mass per domain
+                      balance,                 & ! intent(inout): balance per state
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
@@ -218,8 +211,7 @@ subroutine summaSolve4ida(                         &
   logical(lgt),intent(out)        :: idaSucceeds            ! flag to indicate if IDA is successful
   logical(lgt),intent(inout)      :: tooMuchMelt            ! flag to denote that there was too much melt
   ! output: residual terms and balances
-  real(rkind),intent(out)         :: balanceNrg(4)          ! balance of energy per domain
-  real(rkind),intent(out)         :: balanceMass(4)         ! balance of mass per domain
+  real(rkind),intent(inout)       :: balance(:)             ! balance per state
   ! output: error control
   integer(i4b),intent(out)        :: err                    ! error code
   character(*),intent(out)        :: message                ! error message
@@ -488,10 +480,6 @@ subroutine summaSolve4ida(                         &
     tretPrev = tret(1)
     nSteps = 0 ! initialize number of time steps taken in solver
     
-    ! initialize balances
-    balanceNrg  = 0._rkind
-    balanceMass = 0._rkind
-    
     do while(tret(1) < dt_cur)
     
       ! call this at beginning of step to reduce root bouncing (only looking in one direction)
@@ -612,14 +600,11 @@ subroutine summaSolve4ida(                         &
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
         ! compute energy balance
-        if(ixCasNrg/=integerMissing) balanceNrg(1) = balanceNrg(1) + eqns_data%scalarCanairEnthalpyTrial - eqns_data%scalarCanairEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff/dt
-        if(ixVegNrg/=integerMissing) balanceNrg(2) = balanceNrg(2) + eqns_data%scalarCanopyEnthalpyTrial - eqns_data%scalarCanopyEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff/dt
+        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + (eqns_data%scalarCanairEnthalpyTrial - eqns_data%scalarCanairEnthalpyPrev - eqns_data%fluxVec(ixCasNrg)*dt_diff)*dt_diff/dt
+        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + (eqns_data%scalarCanopyEnthalpyTrial - eqns_data%scalarCanopyEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff)*dt_diff/dt
         if(nSnowSoilNrg>0)then
-          do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-            select case(layerType(i))
-              case(iname_snow); balanceNrg(3) = balanceNrg(3) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff/dt)/nSnow
-              case(iname_soil); balanceNrg(4) = balanceNrg(4) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff/dt)/(nLayers-nSnow)
-            end select
+          do i=1,nSnowSoilNrg
+            if(ixSnowSoilNrg(i)/=integerMissing) balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff)*dt_diff/dt
           enddo
         endif
       endif
@@ -631,16 +616,13 @@ subroutine summaSolve4ida(                         &
     
         ! compute mass balance
         ! resVec is the instanteous residual vector from the solver
-        if(ixVegHyd/=integerMissing) balanceMass(1) = balanceMass(1) + eqns_data%resVec(ixVegHyd)
+        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + eqns_data%resVec(ixVegHyd)*dt_diff/dt
         if(nSnowSoilHyd>0)then
-          do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-            select case(layerType(i))
-              case(iname_snow); balanceMass(2) = balanceMass(2) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/dt/nSnow
-              case(iname_soil); balanceMass(3) = balanceMass(3) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/dt/(nLayers-nSnow)
-            end select
+          do i=1,nSnowSoilHyd
+            if(ixSnowSoilHyd(i)/=integerMissing) balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/dt
           enddo
         endif
-        if(ixAqWat/=integerMissing) balanceMass(4) = balanceMass(4) + eqns_data%resVec(ixAqWat)
+        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + eqns_data%resVec(ixAqWat)*dt_diff/dt
       endif
     
       ! save required quantities for next step

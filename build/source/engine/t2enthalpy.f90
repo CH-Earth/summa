@@ -673,7 +673,7 @@ subroutine t2enthalpy_addphase(&
 
         ! identify domain
         select case(ixDomainType)
-          case(iname_cas); cycle ! aquifer: do nothing
+          case(iname_cas); cycle ! canopy air space: do nothing
  
           case(iname_veg)
             ! association to necessary variables for vegetation
