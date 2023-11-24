@@ -294,6 +294,7 @@ subroutine opSplittin(&
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
   ! loop control
   logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
+  logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
@@ -392,28 +393,18 @@ subroutine opSplittin(&
               call judge_solution                ! determine whether solution is a success or a failure
               if (return_flag.eqv..true.) return ! return for a recovering solution
 
-              ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
-              if (ixCoupling==fullyCoupled .and. failure) cycle coupling
+              call try_other_solution_methods                  ! if solution failed to converge, try other splitting methods 
+              if (cycle_coupling)        cycle coupling        ! exit loops if necessary
+              if (cycle_stateThenDomain) cycle stateThenDomain
+              if (cycle_solution)        cycle solution
 
-              ! try the scalar solution if failed to converge with a minimum time step in the split solution
-              if (ixCoupling/=fullyCoupled) then
-                select case(ixStateThenDomain)
-                  case(fullDomain); if (failure) cycle stateThenDomain
-                  case(subDomain);  if (failure) cycle solution
-                  case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
-                end select
-              end if
-
-              ! check that state variables updated
-              where(stateMask) stateCheck = stateCheck+1
-              if (any(stateCheck>1)) then
-                message=trim(message)//'state variable updated more than once!'
-                err=20; return
-              end if
+              call confirm_variable_updates ! check that state variables updated
+              if (return_flag.eqv..true.) return ! return if error 
 
               call success_check ! check for success
               if (exit_stateThenDomain) exit stateThenDomain ! exit loops if necessary
               if (exit_solution) exit solution
+              if (return_flag.eqv..true.) return             ! return if error 
 
             end do stateSplit ! solution with split layers
 
@@ -749,6 +740,26 @@ subroutine opSplittin(&
    end if
   end subroutine judge_solution
 
+  subroutine try_other_solution_methods 
+   ! *** if solution failed to converge, try other splitting methods *** 
+   ! initialize flags
+   cycle_coupling=.false.
+   cycle_stateThenDomain=.false.
+   cycle_solution=.false.
+
+   ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
+   if (ixCoupling==fullyCoupled .and. failure) then; cycle_coupling=.true.; return; end if! return required to execute cycle statement in opSplittin
+
+   ! try the scalar solution if failed to converge with a minimum time step in the split solution
+   if (ixCoupling/=fullyCoupled) then
+     select case(ixStateThenDomain)
+       case(fullDomain); if (failure) cycle_stateThenDomain=.true.; return ! return required to execute cycle statement in opSplittin
+       case(subDomain);  if (failure) cycle_solution=.true.; return
+       case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
+     end select
+   end if
+  end subroutine try_other_solution_methods 
+
   subroutine save_recover
    ! save/recover copies of prognostic variables
    do iVar=1,size(prog_data%var)
@@ -781,8 +792,21 @@ subroutine opSplittin(&
    end do
   end subroutine save_recover
 
+
+  subroutine confirm_variable_updates
+   ! *** check that state variables updated ***
+   return_flag=.false. ! set flag
+   ! check that state variables updated
+   where(stateMask) stateCheck = stateCheck+1
+   if (any(stateCheck>1)) then
+     message=trim(message)//'state variable updated more than once!'
+     err=20; return_flag=.true.; return
+   end if
+  end subroutine confirm_variable_updates
+
   subroutine success_check
    ! initialize flags
+   return_flag=.false.
    exit_stateThenDomain=.false.
    exit_solution=.false.
    ! success = exit solution
@@ -790,12 +814,12 @@ subroutine opSplittin(&
      ! sum the mean steps for the successful solution type
      mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
      select case(ixStateThenDomain)
-       case(fullDomain); if (iStateSplit==nStateSplit) exit_stateThenDomain=.true. !exit stateThenDomain
-       case(subDomain);  if (iStateSplit==nStateSplit) exit_solution=.true. !exit solution
+       case(fullDomain); if (iStateSplit==nStateSplit) exit_stateThenDomain=.true. ! exit stateThenDomain
+       case(subDomain);  if (iStateSplit==nStateSplit) exit_solution=.true. ! exit solution
        case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
      end select
    else ! failure
-     call check_failure; return ! check reason for failure and return
+     call check_failure; return_flag=.true.; return ! check reason for failure and return
    end if  ! success check
   end subroutine success_check
 
