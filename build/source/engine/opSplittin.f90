@@ -360,35 +360,14 @@ subroutine opSplittin(&
               ! -----
               ! * assemble vectors for a given split...
               ! ---------------------------------------
-              ! get indices for a given split
-              call initialize_indexSplit
-              call indexSplit(in_indexSplit,stateMask,indx_data,out_indexSplit)
-              call finalize_indexSplit
+              call get_split_indices             ! get indices for a given split
+              if (return_flag.eqv..true.) return ! return for a non-zero error code
+              
+              call update_fluxMask ! define the mask of the fluxes used
               if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
-              ! -----
-              ! * define the mask of the fluxes used...
-              ! ---------------------------------------
-              call update_fluxMask
-              if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-              ! -----
-              ! * solve variable subset for one time step...
-              ! --------------------------------------------
-
-              ! keep track of the number of scalar solutions
-              associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
-               if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
-              end associate
-
-              ! solve variable subset for one full time step
-              call initialize_varSubstep
-              call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
-                              model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
-                              indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
-                              out_varSubstep)                                                          ! intent(out): class object for model control
-              call finalize_varSubstep
-              if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
+              call solve_subset                  ! solve variable subset for one time step
+              if (return_flag.eqv..true.) return ! return for a positive error code
 
               call judge_solution                ! determine whether solution is a success or a failure
               if (return_flag.eqv..true.) return ! return for a recovering solution
@@ -707,6 +686,28 @@ subroutine opSplittin(&
    call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
   end subroutine finalize_varSubstep
 
+  subroutine solve_subset 
+   ! *** Solve variable subset for one time step ***
+   return_flag=.false. ! initialize flag
+   ! keep track of the number of scalar solutions
+   associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
+    if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
+   end associate
+
+   ! solve variable subset for one full time step
+   call initialize_varSubstep
+   call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
+                   model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
+                   indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
+                   out_varSubstep)                                                          ! intent(out): class object for model control
+   call finalize_varSubstep
+   if (err/=0) then 
+    message=trim(message)//trim(cmessage) 
+    if (err>0) then ! return for positive error codes
+     return_flag=.true.; return
+    end if 
+   end if ! error control
+  end subroutine solve_subset 
 
   subroutine judge_solution
    ! *** determine whether solution is a success or a failure ***
@@ -792,6 +793,14 @@ subroutine opSplittin(&
    end do
   end subroutine save_recover
 
+  subroutine get_split_indices
+   ! *** Get indices for a given split ***
+   return_flag=.false. ! initialize flag
+   call initialize_indexSplit
+   call indexSplit(in_indexSplit,stateMask,indx_data,out_indexSplit)
+   call finalize_indexSplit
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+  end subroutine get_split_indices
 
   subroutine confirm_variable_updates
    ! *** check that state variables updated ***
