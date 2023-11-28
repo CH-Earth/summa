@@ -328,16 +328,13 @@ subroutine opSplittin(&
             if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
             stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
- 
+
               ! -----
               ! * define state subsets for a given split...
               ! -------------------------------------------
 
-              ! get the mask for the state subset
-              call initialize_stateFilter
-              call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
-              call finalize_stateFilter
-              if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! error control
+              call update_stateFilter ! get the mask for the state subset
+              if (return_flag.eqv..true.) return ! return for a non-zero error code
 
               ! check that state variables exist
               if (nSubset==0) cycle domainSplit
@@ -760,6 +757,15 @@ subroutine opSplittin(&
      end select
    end if
   end subroutine try_other_solution_methods 
+
+  subroutine update_stateFilter
+   ! *** Get the mask for the state subset ***
+   return_flag=.false. ! initialize flag
+   call initialize_stateFilter
+   call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
+   call finalize_stateFilter
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
+  end subroutine update_stateFilter
 
   subroutine save_recover
    ! save/recover copies of prognostic variables
