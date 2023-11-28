@@ -336,20 +336,10 @@ subroutine opSplittin(&
               call update_stateFilter ! get the mask for the state subset
               if (return_flag.eqv..true.) return ! return for a non-zero error code
 
-              ! check that state variables exist
-              if (nSubset==0) cycle domainSplit
-
-              ! avoid redundant case where vector solution is of length 1
-              if (ixSolution==vector .and. count(stateMask)==1) cycle solution
-
-              ! check that we do not attempt the scalar solution for the fully coupled case
-              if (ixCoupling==fullyCoupled .and. ixSolution==scalar) then
-                message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
-                err=20; return
-              end if
-
-              ! reset the flag for the first flux call
-              if (.not.firstSuccess) firstFluxCall=.true.
+              call validate_split ! verify that the split is valid
+              if (cycle_domainSplit) cycle domainSplit
+              if (cycle_solution) cycle solution
+              if (return_flag.eqv..true.) return ! return for a non-zero error code
 
               ! save/recover copies of variables and fluxes
               call save_recover
@@ -766,6 +756,28 @@ subroutine opSplittin(&
    call finalize_stateFilter
    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
   end subroutine update_stateFilter
+
+  subroutine validate_split 
+   ! *** Verify that the split is valid ***
+   ! initialize flags
+   cycle_domainSplit=.false.
+   cycle_solution=.false.
+   return_flag=.false.
+   ! check that state variables exist
+   if (nSubset==0) then; cycle_domainSplit=.true.; return; end if
+
+   ! avoid redundant case where vector solution is of length 1
+   if (ixSolution==vector .and. count(stateMask)==1) then; cycle_solution=.true.; return; end if
+
+   ! check that we do not attempt the scalar solution for the fully coupled case
+   if (ixCoupling==fullyCoupled .and. ixSolution==scalar) then
+     message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
+     err=20; return_flag=.true.; return
+   end if
+
+   ! reset the flag for the first flux call
+   if (.not.firstSuccess) firstFluxCall=.true.
+  end subroutine validate_split 
 
   subroutine save_recover
    ! save/recover copies of prognostic variables
