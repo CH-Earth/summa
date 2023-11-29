@@ -302,8 +302,8 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! ---------------------------------------------------------------------------------------
 
-  call initialize_opSplittin ! initial setup steps -- select coupling options and allocate memory
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if ! return if error in initialize step
+  call initialize_opSplittin         ! select coupling options and allocate memory
+  if (return_flag.eqv..true.) return ! return if error occurs during initialization
 
   coupling: do ixCoupling=1,nCoupling ! loop through different coupling strategies
 
@@ -350,8 +350,8 @@ subroutine opSplittin(&
               call get_split_indices             ! get indices for a given split
               if (return_flag.eqv..true.) return ! return for a non-zero error code
               
-              call update_fluxMask ! define the mask of the fluxes used
-              if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+              call update_fluxMask               ! define the mask of the fluxes used
+              if (return_flag.eqv..true.) return ! return for a non-zero error code
 
               call solve_subset                  ! solve variable subset for one time step
               if (return_flag.eqv..true.) return ! return for a positive error code
@@ -430,7 +430,8 @@ subroutine opSplittin(&
    stateCheck(:) = 0
 
    ! allocate local structures based on the number of snow and soil layers
-   call allocate_memory 
+   call allocate_memory
+   if (return_flag.eqv..true.) return ! return if an error occurs during memory allocation 
 
    ! intialize the flux counter
    do iVar=1,size(flux_meta)  ! loop through fluxes
@@ -453,37 +454,39 @@ subroutine opSplittin(&
 
   subroutine allocate_memory
    ! *** allocate memory for local structures ***
+   return_flag=.false. ! initialize flag
+
    ! allocate space for the flux mask (used to define when fluxes are updated)
    call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
    call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
    call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
    call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
    call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
    call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
    call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
   subroutine finalize_opSplittin
@@ -862,7 +865,9 @@ subroutine opSplittin(&
   end subroutine check_failure
 
   subroutine update_fluxMask
-   ! *** update the fluxMask data structure *** 
+   ! *** update the fluxMask data structure ***
+   return_flag=.false. ! initialize flag
+ 
    do iVar=1,size(flux_meta) ! loop through flux variables
 
     if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
@@ -887,7 +892,7 @@ subroutine opSplittin(&
       select case(iStateTypeSplit) ! identify the flux mask for a given state split
        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
        case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
-       case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+       case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
       end select
      end associate
 
@@ -911,7 +916,7 @@ subroutine opSplittin(&
           fluxMask%var(iVar)%dat(:1) = desiredFlux
           if (ixStateThenDomain>1 .and. iStateTypeSplit/=nrgSplit) then
            message=trim(message)//'only expect a vector solution for the vegetation domain for energy'
-           err=20; return
+           err=20; return_flag=.true.; return
           end if
          else                         ! scalar solution
           fluxMask%var(iVar)%dat(:1) = desiredFlux
@@ -954,7 +959,7 @@ subroutine opSplittin(&
 
         case(aquiferSplit) ! fluxes through aquifer
          fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
-        case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return ! check
+        case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return_flag=.true.; return ! check
        end select  ! domain split
       end if  ! end if flux is desired
      end if  ! end if domain splitting
