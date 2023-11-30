@@ -302,70 +302,46 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! ---------------------------------------------------------------------------------------
 
-  call initialize_opSplittin         ! select coupling options and allocate memory
-  if (return_flag.eqv..true.) return ! return if error occurs during initialization
+  call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
+  coupling: do ixCoupling=1,nCoupling                          ! loop through different coupling strategies
 
-  coupling: do ixCoupling=1,nCoupling ! loop through different coupling strategies
-
-    call initialize_stateTypeSplitting_loop ! setup steps for stateTypeSplitting loop    
-    if (return_flag.eqv..true.) return      ! return if error occurs during initialization
-
-    stateTypeSplitting: do iStateTypeSplit=1,nStateTypeSplit ! state splitting loop
-
-      call initialize_stateThenDomain_loop ! setup steps for stateThenDomain loop -- identify state-specific variables for a given state split
+    call initialize_stateTypeSplitting; if (return_flag.eqv..true.) return ! setup steps for stateTypeSplitting loop - return if error occurs
+    stateTypeSplitting: do iStateTypeSplit=1,nStateTypeSplit               ! state splitting loop
 
       ! first try the state type split, then try the domain split within a given state type
+      call initialize_stateThenDomain ! setup steps for stateThenDomain loop -- identify state-specific variables for a given state split
       stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
 
-        call initialize_domainSplit_loop   ! setup steps for domainSplit loop
-        if (return_flag.eqv..true.) return ! return if error occurs during initialization
-
-        domainSplit: do iDomainSplit=1,nDomainSplit ! domain splitting loop
+        call initialize_domainSplit; if (return_flag.eqv..true.) return ! setup steps for domainSplit loop - return if error occurs
+        domainSplit: do iDomainSplit=1,nDomainSplit                     ! domain splitting loop
 
           solution: do ixSolution=1,nSolutions ! trial with the vector then scalar solution
 
-            call initialize_stateSplit_loop    ! setup steps for stateSplit loop
-            if (return_flag.eqv..true.) return ! return if error occurs during initialization
-
+            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
             stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
 
-              ! -----
-              ! * define state subsets for a given split...
-              ! -------------------------------------------
-
-              call update_stateFilter ! get the mask for the state subset
-              if (return_flag.eqv..true.) return ! return for a non-zero error code
-
+              ! define state subsets for a given split...
+              call update_stateFilter; if (return_flag.eqv..true.) return ! get the mask for the state subset - return for a non-zero error code
               call validate_split ! verify that the split is valid
               if (cycle_domainSplit) cycle domainSplit
               if (cycle_solution) cycle solution
               if (return_flag.eqv..true.) return ! return for a non-zero error code
+              call save_recover ! save/recover copies of variables and fluxes
 
-              ! save/recover copies of variables and fluxes
-              call save_recover
+              ! assemble vectors for a given split...
+              call get_split_indices; if (return_flag.eqv..true.) return ! get indices for a given split - return for a non-zero error code
+              call update_fluxMask; if (return_flag.eqv..true.) return ! define the mask of the fluxes used - return for a non-zero error code
 
-              ! -----
-              ! * assemble vectors for a given split...
-              ! ---------------------------------------
-              call get_split_indices             ! get indices for a given split
-              if (return_flag.eqv..true.) return ! return for a non-zero error code
-              
-              call update_fluxMask               ! define the mask of the fluxes used
-              if (return_flag.eqv..true.) return ! return for a non-zero error code
+              call solve_subset; if (return_flag.eqv..true.) return ! solve variable subset for one time step - return for a positive error code
 
-              call solve_subset                  ! solve variable subset for one time step
-              if (return_flag.eqv..true.) return ! return for a positive error code
-
-              call judge_solution                ! determine whether solution is a success or a failure
-              if (return_flag.eqv..true.) return ! return for a recovering solution
+              call assess_solution; if (return_flag.eqv..true.) return ! is solution a success or failure? - return for a recovering solution
 
               call try_other_solution_methods                  ! if solution failed to converge, try other splitting methods 
               if (cycle_coupling)        cycle coupling        ! exit loops if necessary
               if (cycle_stateThenDomain) cycle stateThenDomain
               if (cycle_solution)        cycle solution
 
-              call confirm_variable_updates ! check that state variables updated
-              if (return_flag.eqv..true.) return ! return if error 
+              call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
 
               call success_check ! check for success
               if (exit_stateThenDomain) exit stateThenDomain ! exit loops if necessary
@@ -374,28 +350,24 @@ subroutine opSplittin(&
 
             end do stateSplit ! solution with split layers
 
-          end do solution ! trial with the full layer solution then the split layer solution
-
-          call finalize_solution_loop ! final steps following solution loop
+          end do solution        ! trial with the full layer solution then the split layer solution
+          call finalize_solution ! final steps following solution loop
 
         end do domainSplit ! domain type splitting loop
 
-      end do stateThenDomain  ! switch between the state type and domain type splitting
+      end do stateThenDomain        ! switch between the state type and domain type splitting
+      call finalize_stateThenDomain ! final steps following the stateThenDomain loop
 
-      call finalize_stateThenDomain_loop ! final steps following the stateThenDomain loop
+    end do stateTypeSplitting                                          ! state type splitting loop
+    call finalize_stateTypeSplitting; if (exit_coupling) exit coupling ! success = exit the coupling loop
 
-    end do stateTypeSplitting ! state type splitting loop
-
-    if (ixCoupling==fullyCoupled .and. .not.failure) exit coupling ! success = exit the coupling loop
-
-  end do coupling ! coupling method
-
-  call finalize_opSplittin ! final steps -- check variables and fluxes, and apply step halving if needed
+  end do coupling        ! loop over coupling methods
+  call finalize_coupling ! check variables and fluxes, and apply step halving if needed
 
  contains
 
-  subroutine initialize_opSplittin
-   ! *** initial steps for opSplittin subroutine ***
+  subroutine initialize_coupling
+   ! *** initial steps for coupling loop ***
    ! initialize error control
    err=0; message="opSplittin/"
 
@@ -450,7 +422,7 @@ subroutine opSplittin(&
    do iVar=1,size(deriv_meta)
     deriv_data%var(iVar)%dat(:) = 0._rkind
    end do
-  end subroutine initialize_opSplittin
+  end subroutine initialize_coupling
 
   subroutine allocate_memory
    ! *** allocate memory for local structures ***
@@ -489,8 +461,8 @@ subroutine opSplittin(&
    if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
-  subroutine finalize_opSplittin
-   ! *** final operations for opSplittin subroutine ***
+  subroutine finalize_coupling
+   ! *** final operations for coupling loop ***
    ! check that all state variables were updated
    if (any(stateCheck==0)) then
     message=trim(message)//'some state variables were not updated!'
@@ -508,9 +480,9 @@ subroutine opSplittin(&
 
    ! use step halving if unable to complete the fully coupled solution in one substep
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
-  end subroutine finalize_opSplittin
+  end subroutine finalize_coupling
 
-  subroutine initialize_stateTypeSplitting_loop
+  subroutine initialize_stateTypeSplitting
    ! *** Initial steps to prepare for iterations of the stateTypeSplit loop ***
    return_flag=.false. ! initialize flag
    ! initialize the time step
@@ -538,9 +510,15 @@ subroutine opSplittin(&
 
    mean_step_dt = 0._rkind ! initialize mean step for the time step
    addFirstFlux = .true.     ! flag to add the first flux to the mask
-  end subroutine initialize_stateTypeSplitting_loop
+  end subroutine initialize_stateTypeSplitting
 
-  subroutine initialize_stateThenDomain_loop
+  subroutine finalize_stateTypeSplitting
+   ! *** Final operations subsequent to the stateTypeSplitting loop ***
+   exit_coupling=.false. ! initialize flag for loop control 
+   if (ixCoupling==fullyCoupled .and. .not.failure) then; exit_coupling=.true.; return; end if ! success = exit the coupling loop in opSplittin
+  end subroutine finalize_stateTypeSplitting
+
+  subroutine initialize_stateThenDomain
    ! *** Identify state-specific variables for a given state split ***
    doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) ! flag to adjust the temperature
    associate(&
@@ -557,9 +535,9 @@ subroutine opSplittin(&
       where(ixStateType(ixHydLayer)==iname_matLayer) ixStateType(ixHydLayer)=iname_lmpLayer
     end if
    end associate
-  end subroutine initialize_stateThenDomain_loop
+  end subroutine initialize_stateThenDomain
 
-  subroutine finalize_stateThenDomain_loop
+  subroutine finalize_stateThenDomain
    ! *** Final steps following the stateThenDomain loop ***
    ! sum the mean steps for the time step over each state type split
    select case(ixStateThenDomain) 
@@ -581,9 +559,9 @@ subroutine opSplittin(&
       where(ixStateType(ixHydLayer)==iname_lmpLayer) ixStateType(ixHydLayer)=iname_matLayer
     end if
    end associate  
-  end subroutine finalize_stateThenDomain_loop
+  end subroutine finalize_stateThenDomain
 
-  subroutine initialize_domainSplit_loop
+  subroutine initialize_domainSplit
    ! *** initial operations to set up domainSplit loop ***
    return_flag=.false. ! initialize flag
    associate(numberDomainSplitNrg => indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1),& ! intent(inout): [i4b] number of domain splitting solutions for energy (-)
@@ -610,15 +588,15 @@ subroutine opSplittin(&
    end if
 
    mean_step_state = 0._rkind ! initialize mean step for state
-  end subroutine initialize_domainSplit_loop
+  end subroutine initialize_domainSplit
 
-  subroutine finalize_solution_loop
+  subroutine finalize_solution
    ! *** final operations following solution loop ***
    ! sum the mean steps for the state over each domain split
    mean_step_state = mean_step_state + mean_step_solution/nDomainSplit
-  end subroutine finalize_solution_loop
+  end subroutine finalize_solution
 
-  subroutine initialize_stateSplit_loop
+  subroutine initialize_stateSplit
    ! *** initial operations to set up stateSplit loop ***
    return_flag=.false. ! initialize flag
    mean_step_solution = 0._rkind ! initialize mean step for a solution
@@ -644,7 +622,7 @@ subroutine opSplittin(&
      return_flag=.true. ! return statement required in opSplittin
      return
    end select
-  end subroutine initialize_stateSplit_loop
+  end subroutine initialize_stateSplit
 
   ! **** stateFilter ****
   subroutine initialize_stateFilter
@@ -699,7 +677,7 @@ subroutine opSplittin(&
    end if ! error control
   end subroutine solve_subset 
 
-  subroutine judge_solution
+  subroutine assess_solution
    ! *** determine whether solution is a success or a failure ***
    return_flag=.false. ! initialize flag
 
@@ -729,7 +707,7 @@ subroutine opSplittin(&
        end do
      end do
    end if
-  end subroutine judge_solution
+  end subroutine assess_solution
 
   subroutine try_other_solution_methods 
    ! *** if solution failed to converge, try other splitting methods *** 
@@ -955,7 +933,7 @@ subroutine opSplittin(&
 
            end if    ! if the layer is active
           end associate
-         end do   ! looping through layers
+         end do   ! end looping through layers
 
         case(aquiferSplit) ! fluxes through aquifer
          fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
