@@ -130,9 +130,9 @@ subroutine eval8summa(&
   USE t2enthalpy_module, only:t2enthalpy                ! compute enthalpy
   USE computFlux_module, only:soilCmpres                ! compute soil compression
   USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
-  USE computHeatCap_module,only:computHeatCap           ! recompute heat capacity and derivatives
-  USE computHeatCap_module,only:computHeatCapAnalytic   ! recompute heat capacity and derivatives
-  USE computHeatCap_module,only:computCm
+  USE computHeatCap_module,only:computHeatCap           ! recompute heat capacity (Cp) and derivatives
+  USE computHeatCap_module,only:computHeatCapAnalytic   ! recompute closed form heat capacity (Cp) and derivatives
+  USE computHeatCap_module,only:computCm                ! compute Cm and derivatives
   USE computHeatCap_module, only:computStatMult         ! recompute state multiplier
   USE computResid_module,only:computResid               ! compute residuals given a state vector
   USE computThermConduct_module,only:computThermConduct ! recompute thermal conductivity and derivatives
@@ -322,7 +322,7 @@ subroutine eval8summa(&
       ixEnd  = nSoil
     endif
 
-    ! initialize to state variable from the last update
+    ! initialize to state variable from the last update incase splitting is used
     scalarCanairTempTrial     = scalarCanairTemp
     scalarCanopyTempTrial     = scalarCanopyTemp
     scalarCanopyWatTrial      = scalarCanopyWat
@@ -390,7 +390,7 @@ subroutine eval8summa(&
       if(ixHowHeatCap == enthalpyFD)then
         ! compute H_T without phase change
         call t2enthalpy(&
-                        ! input: data structures
+                         ! input: data structures
                         diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                         mpar_data,                   & ! intent(in):  parameter data structure
                         indx_data,                   & ! intent(in):  model indices

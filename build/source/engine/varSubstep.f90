@@ -690,9 +690,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
   real(rkind)                     :: scalarAquiferStorageTrial      ! trial value for storage of water in the aquifer (m)
   real(rkind)                     :: scalarCanairEnthalpyTrial      ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind)                     :: scalarCanopyEnthalpyTrial      ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind)                     :: scalarCanopyEnthalpy_nophase   ! trial value for enthalpy of the vegetation canopy (J m-3), no phase change
   real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial            ! trial vector for enthalpy of snow + soil (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpy_nophase         ! trial vector for enthalpy of snow + soil (J m-3), no phase change
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial           ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial           ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -956,7 +954,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
     ! ----
     ! * check energy balance
     !------------------------
-    if(checkNrgBalance .or. use_enthalpyFD)then ! update diagnostic enthalpy variables
+    if(checkNrgBalance .or. use_enthalpyFD)then ! update diagnostic enthalpy variables, don't do if not checking energy balance and closed form enthalpy
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
                   ! input: data structures
@@ -985,24 +983,15 @@ USE getVectorz_module,only:varExtract                             ! extract vari
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-      ! update no phase values for enthalpy
-      mLayerEnthalpy_nophase = mLayerEnthalpyTrial
-      scalarCanopyEnthalpy_nophase = scalarCanopyEnthalpyTrial
-    endif
 
-    if(checkNrgBalance)then
+      ! compute enthalpy with phase change
       call t2enthalpy_addphase(&
                   ! input: data structures
                   diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
-                  mpar_data,                         & ! intent(in):    parameter data structure
                   indx_data,                         & ! intent(in):    model indices
-                  lookup_data,                       & ! intent(in):    lookup table data structure
                   ! input: state variables for the vegetation canopy  
-                  scalarCanopyTempTrial,             & ! intent(in):    trial value of canopy temperature (K)
                   scalarCanopyIceTrial,              & ! intent(in):    trial value of canopy ice content (kg m-2)
                   ! input: variables for the snow-soil domain  
-                  mLayerTempTrial,                   & ! intent(in):    trial vector of layer temperature (K)
-                  mLayerMatricHeadTrial,             & ! intent(in):    trial vector of total water matric potential (m)
                   mLayerVolFracIceTrial,             & ! intent(in):    trial vector of volumetric ice water content (-)
                   ! input/output: enthalpy
                   scalarCanopyEnthalpyTrial,         & ! intent(inout): enthalpy of the vegetation canopy (J m-3)
@@ -1010,13 +999,16 @@ USE getVectorz_module,only:varExtract                             ! extract vari
                   ! output: error control
                   err,message)                         ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
+    endif
 
+    if(checkNrgBalance)then
       ! compute energy balance if didn't do inside solver substeps
       select case(ixNumericalMethod)
         case(ida); ! do nothing, already computed
         case(kinsol, numrec)
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixCasNrg)*dt
+          !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg) ! should be equivalent to above, use for debugging
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy - fluxVec(ixVegNrg)*dt
           if(nSnowSoilNrg>0)then
             do i=1,nSnowSoilNrg
@@ -1029,8 +1021,8 @@ USE getVectorz_module,only:varExtract                             ! extract vari
     ! save the trial values
     if(checkNrgBalance .or. use_enthalpyFD)then
       scalarCanairEnthalpy = scalarCanairEnthalpyTrial
-      mLayerEnthalpy_nophase = mLayerEnthalpy_nophase
-      scalarCanopyEnthalpy_nophase = scalarCanopyEnthalpy_nophase
+      mLayerEnthalpy = mLayerEnthalpyTrial
+      scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
     endif
 
     ! -----

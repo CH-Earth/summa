@@ -206,10 +206,10 @@ else()
             message(FATAL_ERROR "Did not find Actors directory, edit CMakeLists.txt to add path")
         endif()
         link_directories(${DIR_ACTORS}/lib)
-        set(INC_ACTORS ${DIR_ACTORS}/include 
-                       ${PARENT_DIR}/build/includes/global 
-                       ${PARENT_DIR}/build/includes/summa_actor  
-                       ${PARENT_DIR}/build/includes/job_actor 
+        set(INC_ACTORS ${DIR_ACTORS}/include
+                       ${PARENT_DIR}/build/includes/global
+                       ${PARENT_DIR}/build/includes/summa_actor
+                       ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io)
@@ -353,6 +353,7 @@ set(MODRUN_NOT_ACTORS
     ${ENGINE_DIR}/read_force.f90)
 set(MODRUN_SUNDIALS
     ${ENGINE_DIR}/tol4ida.f90
+    ${ENGINE_DIR}/t2enthalpyAddPrime.f90
     ${ENGINE_DIR}/updateVarsWithPrime.f90)
 
 # Solver main modules
@@ -384,6 +385,7 @@ set(SOLVER_NOT_ACTORS
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90)
 set(SOLVER_SUNDIALS
+    ${ENGINE_DIR}/computHeatCapWithPrime.f90
     ${ENGINE_DIR}/computJacobWithPrime.f90
     ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90

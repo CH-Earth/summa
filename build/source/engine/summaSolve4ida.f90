@@ -140,27 +140,27 @@ subroutine summaSolve4ida(                         &
                       err,message)               ! intent(out):   error control
 
   !======= Inclusions ===========
-  USE fida_mod                                    ! Fortran interface to IDA
-  USE fsundials_context_mod                       ! Fortran interface to SUNContext
-  USE fnvector_serial_mod                         ! Fortran interface to serial N_Vector
-  USE fsundials_nvector_mod                       ! Fortran interface to generic N_Vector
-  USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
-  USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
-  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
-  USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
-  USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
-  USE fsunnonlinsol_newton_mod                    ! Fortran interface to Newton SUNNonlinearSolver
-  USE fsundials_nonlinearsolver_mod               ! Fortran interface to generic SUNNonlinearSolver
-  USE allocspace_module,only:allocLocal           ! allocate local data structures
-  USE getVectorz_module, only:checkFeas           ! check feasibility of state vector
-  USE eval8summaWithPrime_module,only:eval8summa4ida      ! DAE/ODE functions
-  USE eval8summaWithPrime_module,only:eval8summaWithPrime ! residual of DAE
-  USE computJacobWithPrime_module,only:computJacob4ida    ! system Jacobian
-  USE tol4ida_module,only:computWeight4ida        ! weight required for tolerances
-  USE var_lookup,only:maxvarDecisions             ! maximum number of decisions
-  USE t2enthalpy_module,only:t2enthalpy           ! compute enthalpy
-  USE t2enthalpy_module,only:t2enthalpy_addphase  ! add phase to enthalpy
+  USE fida_mod                                                ! Fortran interface to IDA
+  USE fsundials_context_mod                                   ! Fortran interface to SUNContext
+  USE fnvector_serial_mod                                     ! Fortran interface to serial N_Vector
+  USE fsundials_nvector_mod                                   ! Fortran interface to generic N_Vector
+  USE fsunmatrix_dense_mod                                    ! Fortran interface to dense SUNMatrix
+  USE fsunmatrix_band_mod                                     ! Fortran interface to banded SUNMatrix
+  USE fsundials_matrix_mod                                    ! Fortran interface to generic SUNMatrix
+  USE fsunlinsol_dense_mod                                    ! Fortran interface to dense SUNLinearSolver
+  USE fsunlinsol_band_mod                                     ! Fortran interface to banded SUNLinearSolver
+  USE fsundials_linearsolver_mod                              ! Fortran interface to generic SUNLinearSolver
+  USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
+  USE fsundials_nonlinearsolver_mod                           ! Fortran interface to generic SUNNonlinearSolver
+  USE allocspace_module,only:allocLocal                       ! allocate local data structures
+  USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
+  USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
+  USE eval8summaWithPrime_module,only:eval8summaWithPrime     ! residual of DAE
+  USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
+  USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
+  USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
+  USE t2enthalpyAddPrime_module,only:t2enthalpyPrime          ! compute enthalpy
+  USE t2enthalpy_module,only:t2enthalpy_addphase              ! add phase to enthalpy
 
   !======= Declarations =========
   implicit none
@@ -219,42 +219,51 @@ subroutine summaSolve4ida(                         &
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
-  type(N_Vector),           pointer :: sunvec_y             ! sundials solution vector
-  type(N_Vector),           pointer :: sunvec_yp            ! sundials derivative vector
-  type(N_Vector),           pointer :: sunvec_av            ! sundials tolerance vector
-  type(SUNMatrix),          pointer :: sunmat_A             ! sundials matrix
-  type(SUNLinearSolver),    pointer :: sunlinsol_LS         ! sundials linear solver
-  type(SUNNonLinearSolver), pointer :: sunnonlin_NLS        ! sundials nonlinear solver
-  type(c_ptr)                       :: ida_mem              ! IDA memory
-  type(c_ptr)                       :: sunctx               ! SUNDIALS simulation context
-  type(data4ida),           target  :: eqns_data            ! IDA type
-  integer(i4b)                      :: retval, retvalr      ! return value
-  logical(lgt)                      :: feasible             ! feasibility flag
-  real(qp)                          :: t0                   ! starting time
-  real(qp)                          :: dt_last(1)           ! last time step
-  real(qp)                          :: dt_diff              ! difference from previous timestep
-  integer(c_long)                   :: mu, lu               ! in banded matrix mode in SUNDIALS type
-  integer(c_long)                   :: nState               ! total number of state variables in SUNDIALS type
-  integer(i4b)                      :: iVar, i              ! indices
-  integer(i4b)                      :: nRoot                ! total number of roots (events) to find
-  real(qp)                          :: tret(1)              ! time in data window
-  real(qp)                          :: tretPrev             ! previous time in data window
-  integer(i4b),allocatable          :: rootsfound(:)        ! crossing direction of discontinuities
-  integer(i4b),allocatable          :: rootdir(:)           ! forced crossing direction of discontinuities
-  logical(lgt)                      :: tinystep             ! if step goes below small size
-  type(var_dlength)                 :: flux_prev            ! previous model fluxes for a local HRU
-  character(LEN=256)                :: cmessage             ! error message of downwind routine
-  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:) ! previous derivative value for total water matric potential (m s-1)
-  real(rkind),allocatable           :: dCompress_dPsiPrev(:)        ! previous derivative value soil compression
-  ! enthalpy derivatives
-  real(rkind)                       :: dCanEnthalpy_dTk_unused  ! will not be used, derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind)                       :: dCanEnthalpy_dWat_unused ! will not be used, derivatives in canopy enthalpy w.r.t. water state
-  real(rkind),allocatable           :: dEnthalpy_dTk_unused(:)  ! will not be used, derivatives in layer enthalpy w.r.t. temperature
-  real(rkind),allocatable           :: dEnthalpy_dWat_unused(:) ! will not be used, derivatives in layer enthalpy w.r.t. water state
+  type(N_Vector),           pointer :: sunvec_y                      ! sundials solution vector
+  type(N_Vector),           pointer :: sunvec_yp                     ! sundials derivative vector
+  type(N_Vector),           pointer :: sunvec_av                     ! sundials tolerance vector
+  type(SUNMatrix),          pointer :: sunmat_A                      ! sundials matrix
+  type(SUNLinearSolver),    pointer :: sunlinsol_LS                  ! sundials linear solver
+  type(SUNNonLinearSolver), pointer :: sunnonlin_NLS                 ! sundials nonlinear solver
+  type(c_ptr)                       :: ida_mem                       ! IDA memory
+  type(c_ptr)                       :: sunctx                        ! SUNDIALS simulation context
+  type(data4ida),           target  :: eqns_data                     ! IDA type
+  integer(i4b)                      :: retval, retvalr               ! return value
+  logical(lgt)                      :: feasible                      ! feasibility flag
+  real(qp)                          :: t0                            ! starting time
+  real(qp)                          :: dt_last(1)                    ! last time step
+  real(qp)                          :: dt_diff                       ! difference from previous timestep
+  integer(c_long)                   :: mu, lu                        ! in banded matrix mode in SUNDIALS type
+  integer(c_long)                   :: nState                        ! total number of state variables in SUNDIALS type
+  integer(i4b)                      :: iVar, i                       ! indices
+  integer(i4b)                      :: nRoot                         ! total number of roots (events) to find
+  real(qp)                          :: tret(1)                       ! time in data window
+  real(qp)                          :: tretPrev                      ! previous time in data window
+  integer(i4b),allocatable          :: rootsfound(:)                 ! crossing direction of discontinuities
+  integer(i4b),allocatable          :: rootdir(:)                    ! forced crossing direction of discontinuities
+  logical(lgt)                      :: tinystep                      ! if step goes below small size
+  type(var_dlength)                 :: flux_prev                     ! previous model fluxes for a local HRU
+  character(LEN=256)                :: cmessage                      ! error message of downwind routine
+  real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)  ! previous derivative value for total water matric potential (m s-1)
+  real(rkind)                       :: scalarCanairEnthalpyPrimePrev ! previous derivative value for canopy air enthalpy (J m-3)
+  real(rkind)                       :: scalarCanopyEnthalpyPrimePrev ! previous derivative value for canopy enthalpy (J m-3)
+  real(rkind),allocatable           :: mLayerEnthalpyPrimePrev(:)    ! previous derivative value for total water enthalpy (J m-3)
+  real(rkind),allocatable           :: fluxVecPrev(:)                ! previous value for fluxes
+  real(rkind),allocatable           :: resVecPrev(:)                 ! previous value for residuals
+  real(rkind),allocatable           :: dCompress_dPsiPrev(:)         ! previous derivative value soil compression
+  ! enthalpy derivatives, not used here since only required for Jacobian updates
+  real(rkind)                       :: scalarDeriv_unused1 
+  real(rkind)                       :: scalarDeriv_unused2 
+  real(rkind)                       :: scalarDeriv_unused3 
+  real(rkind)                       :: scalarDeriv_unused4 
+  real(rkind),allocatable           :: mLayerDeriv_unused1(:)
+  real(rkind),allocatable           :: mLayerDeriv_unused2(:) 
+  real(rkind),allocatable           :: mLayerDeriv_unused3(:) 
+  real(rkind),allocatable           :: mLayerDeriv_unused4(:) 
   ! flags
-  logical(lgt)                      :: use_fdJac                    ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
-  logical(lgt),parameter            :: offErrWarnMessage = .true.   ! flag to turn IDA warnings off, default true
-  logical(lgt),parameter            :: detect_events = .true.       ! flag to do event detection and restarting, default true
+  logical(lgt)                      :: use_fdJac                     ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
+  logical(lgt),parameter            :: offErrWarnMessage = .true.    ! flag to turn IDA warnings off, default true
+  logical(lgt),parameter            :: detect_events = .true.        ! flag to do event detection and restarting, default true
   ! -----------------------------------------------------------------------------------------------------
   ! link to the necessary variables
   associate(&
@@ -328,46 +337,41 @@ subroutine summaSolve4ida(                         &
     else
       allocate(eqns_data%dBaseflow_dMatric(0,0),stat=err)
     end if
-    allocate( eqns_data%mLayerMatricHeadLiqTrial(nSoil) )
-    allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
-    allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
-    allocate( eqns_data%mLayerVolFracWatTrial(nLayers) )
-    allocate( eqns_data%mLayerVolFracWatPrev(nLayers) )
-    allocate( eqns_data%mLayerTempTrial(nLayers) )
     allocate( eqns_data%mLayerTempPrev(nLayers) )
-    allocate( eqns_data%mLayerVolFracIceTrial(nLayers) )
-    allocate( eqns_data%mLayerVolFracIcePrev(nLayers) )
-    allocate( eqns_data%mLayerVolFracLiqTrial(nLayers) )
-    allocate( eqns_data%mLayerVolFracLiqPrev(nLayers) )
-    allocate( eqns_data%mLayerEnthalpyTrial(nLayers) )
-    allocate( eqns_data%mLayerEnthalpyPrev(nLayers) )
-    allocate( eqns_data%mLayerTempPrime(nLayers) )
-    allocate( eqns_data%mLayerMatricHeadPrime(nSoil) )
+    allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
+    allocate( eqns_data%mLayerTempTrial(nLayers) )
+    allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
     allocate( eqns_data%mLayerMatricHeadLiqPrime(nSoil) )
-    allocate( eqns_data%mLayerVolFracWatPrime(nLayers) )
+    allocate( eqns_data%mLayerVolFracWatTrial(nLayers) )
+    allocate( eqns_data%mLayerTempPrime(nLayers) )       
+    allocate( eqns_data%mLayerMatricHeadPrime(nSoil) )
+    allocate( eqns_data%mLayerVolFracWatPrime(nLayers) ) 
+    allocate( eqns_data%mLayerVolFracIcePrime(nLayers) )
+    allocate( eqns_data%mLayerEnthalpyPrime(nLayers) )
     allocate( mLayerMatricHeadPrimePrev(nSoil) )
+    allocate( mLayerEnthalpyPrimePrev(nLayers) )
     allocate( dCompress_dPsiPrev(nSoil) )
     allocate( eqns_data%fluxVec(nState) )
     allocate( eqns_data%resVec(nState) )
     allocate( eqns_data%resSink(nState) )
-    allocate( dEnthalpy_dTk_unused(nLayers) )
-    allocate( dEnthalpy_dWat_unused(nLayers) )
+    allocate( fluxVecPrev(nState) )
+    allocate( resVecPrev(nState) )
+    allocate( mLayerDeriv_unused1(nLayers) )
+    allocate( mLayerDeriv_unused2(nLayers) )
+    allocate( mLayerDeriv_unused3(nLayers) )
+    allocate( mLayerDeriv_unused4(nLayers) )
     
     ! need the following values for the first substep
-    eqns_data%scalarCanairEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)
     eqns_data%scalarCanopyTempPrev     = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
-    eqns_data%scalarCanopyIcePrev      = prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)
-    eqns_data%scalarCanopyLiqPrev      = prog_data%var(iLookPROG%scalarCanopyLiq)%dat(1)
-    eqns_data%scalarCanopyEnthalpyPrev = diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)
     eqns_data%mLayerTempPrev(:)        = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
     eqns_data%mLayerMatricHeadPrev(:)  = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
-    eqns_data%mLayerVolFracWatPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracWat)%dat(:)
-    eqns_data%mLayerVolFracIcePrev(:)  = prog_data%var(iLookPROG%mLayerVolFracIce)%dat(:)
-    eqns_data%mLayerVolFracLiqPrev(:)  = prog_data%var(iLookPROG%mLayerVolFracLiq)%dat(:)
-    eqns_data%mLayerEnthalpyPrev(:)    = diag_data%var(iLookDIAG%mLayerEnthalpy)%dat(:)
-    eqns_data%scalarAquiferStoragePrev = prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)
     mLayerMatricHeadPrimePrev(:)       = 0._rkind
+    scalarCanairEnthalpyPrimePrev      = 0._rkind
+    scalarCanopyEnthalpyPrimePrev      = 0._rkind
+    mLayerEnthalpyPrimePrev(:)         = 0._rkind
     dCompress_dPsiPrev(:)              = 0._rkind
+    fluxVecPrev(:)                     = 0._rkind
+    resVecPrev(:)                      = 0._rkind
     
     retval = FSUNContext_Create(c_null_ptr, sunctx)
     
@@ -549,62 +553,71 @@ subroutine summaSolve4ida(                         &
       if(checkNrgBalance)then
     
         if( model_decisions(iLookDECISIONS%howHeatCap)%iDecision == closedForm)then ! did not compute enthalpy without phase already
-          call t2enthalpy(&
+          call t2enthalpyPrime(&
                           ! input: data structures
                           eqns_data%diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                           eqns_data%mpar_data,                   & ! intent(in):  parameter data structure
                           eqns_data%indx_data,                   & ! intent(in):  model indices
                           eqns_data%lookup_data,                 & ! intent(in):  lookup table data structure
                           ! input: state variables for the vegetation canopy
-                          eqns_data%scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
+                          eqns_data%scalarCanairTempPrime,       & ! intent(in):  prime value of canopy air temperature (K)
                           eqns_data%scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
-                          eqns_data%scalarCanopyLiqTrial + eqns_data%scalarCanopyIceTrial, & ! intent(in):  trial value of canopy total water (kg m-2)
+                          eqns_data%scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
+                          eqns_data%scalarCanopyTempPrime,       & ! intent(in):  prime temperature of the vegetation canopy (K)
+                          eqns_data%scalarCanopyWatPrime,        & ! intent(in):  prime total water of the vegetation canopy (kg m-2)
                            ! input: variables for the snow-soil domain
                           eqns_data%mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
                           eqns_data%mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                           eqns_data%mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
+                          eqns_data%mLayerTempPrime,             & ! intent(in):  prime temperature of each snow+soil layer (K)
+                          eqns_data%mLayerVolFracWatPrime,       & ! intent(in):  prime volumetric total water content of each snow+soil layer (-)
+                          eqns_data%mLayerMatricHeadPrime,       & ! intent(in):  prime total water matric potential of each snow+soil layer (m)
                           ! input: pre-computed derivatives
-                          deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat, & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                          deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,  & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                          deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat,& ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                           ! output: enthalpy
-                          eqns_data%scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
-                          eqns_data%scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
-                          eqns_data%mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
-                          dCanEnthalpy_dTk_unused,               & ! intent(out):  will not be used, derivatives in canopy enthalpy w.r.t. temperature
-                          dCanEnthalpy_dWat_unused,              & ! intent(out):  will not be used, derivatives in canopy enthalpy w.r.t. water state
-                          dEnthalpy_dTk_unused,                  & ! intent(out):  will not be used, derivatives in layer enthalpy w.r.t. temperature
-                          dEnthalpy_dWat_unused,                 & ! intent(out):  will not be used, derivatives in layer enthalpy w.r.t. water state
+                          eqns_data%scalarCanairEnthalpyPrime,   & ! intent(out):  prime enthalpy of the canopy air space (J m-3)
+                          eqns_data%scalarCanopyEnthalpyPrime,   & ! intent(out):  prime enthalpy of the vegetation canopy (J m-3)
+                          eqns_data%mLayerEnthalpyPrime,         & ! intent(out):  prime enthalpy of each snow+soil layer (J m-3)
+                          scalarDeriv_unused1,                   & ! intent(out):  will not be used, derivatives
+                          scalarDeriv_unused2,                   & ! intent(out):  will not be used, derivatives
+                          mLayerDeriv_unused1,                   & ! intent(out):  will not be used, derivatives
+                          mLayerDeriv_unused2,                   & ! intent(out):  will not be used, derivatives
+                          scalarDeriv_unused3,                   & ! intent(out):  will not be used, derivatives
+                          scalarDeriv_unused4,                   & ! intent(out):  will not be used, derivatives
+                          mLayerDeriv_unused3,                   & ! intent(out):  will not be used, derivatives
+                          mLayerDeriv_unused4,                   & ! intent(out):  will not be used, derivatives
                           ! output: error control
                           err,cmessage)                  ! intent(out): error control
            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
         endif
 
-        ! compute enthalpy at t_{n+1}
+        ! compute enthalpy prime with phase change
         call t2enthalpy_addphase(&
                     ! input: data structures
                     eqns_data%diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
-                    eqns_data%mpar_data,                         & ! intent(in):    parameter data structure
                     eqns_data%indx_data,                         & ! intent(in):    model indices
-                    eqns_data%lookup_data,                       & ! intent(in):    lookup table data structure
                     ! input: state variables for the vegetation canopy
-                    eqns_data%scalarCanopyTempTrial,             & ! intent(in):    trial value of canopy temperature (K)
-                    eqns_data%scalarCanopyIceTrial,              & ! intent(in):    trial value of canopy ice content (kg m-2)
+                    eqns_data%scalarCanopyIcePrime,              & ! intent(in):    prime value of canopy ice content (kg m-2 s-1)
                     ! input: variables for the snow-soil domain
-                    eqns_data%mLayerTempTrial,                   & ! intent(in):    trial vector of layer temperature (K)
-                    eqns_data%mLayerMatricHeadTrial,             & ! intent(in):    trial vector of total water matric potential (m)
-                    eqns_data%mLayerVolFracIceTrial,             & ! intent(in):    trial vector of ice volume fraction (-)
+                    eqns_data%mLayerVolFracIcePrime,             & ! intent(in):    prime vector of ice volume fraction (s-1)
                     ! input/output: enthalpy
-                    eqns_data%scalarCanopyEnthalpyTrial,         & ! intent(inout): enthalpy of the vegetation canopy (J m-3)
-                    eqns_data%mLayerEnthalpyTrial,               & ! intent(inout): enthalpy of each snow+soil layer (J m-3)
+                    eqns_data%scalarCanopyEnthalpyPrime,         & ! intent(inout): prime enthalpy of the vegetation canopy (J m-3 s-1)
+                    eqns_data%mLayerEnthalpyPrime,               & ! intent(inout): prime enthalpy of each snow+soil layer (J m-3 s-1)
                     ! output: error control
                     err,message)                         ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
-        ! compute energy balance
-        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + (eqns_data%scalarCanairEnthalpyTrial - eqns_data%scalarCanairEnthalpyPrev - eqns_data%fluxVec(ixCasNrg)*dt_diff)*dt_diff/dt
-        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + (eqns_data%scalarCanopyEnthalpyTrial - eqns_data%scalarCanopyEnthalpyPrev - eqns_data%fluxVec(ixVegNrg)*dt_diff)*dt_diff/dt
+        ! compute energy balance mean
+        if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%scalarCanairEnthalpyPrime - eqns_data%fluxVec(ixCasNrg) & 
+                                                                               + scalarCanairEnthalpyPrimePrev - fluxVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
+        !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt ! should be equivalent to above, use for debugging
+        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%scalarCanopyEnthalpyPrime - eqns_data%fluxVec(ixVegNrg) &
+                                                                               + scalarCanopyEnthalpyPrimePrev - fluxVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then
           do i=1,nSnowSoilNrg
-            if(ixSnowSoilNrg(i)/=integerMissing) balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + (eqns_data%mLayerEnthalpyTrial(i) - eqns_data%mLayerEnthalpyPrev(i) - eqns_data%fluxVec(ixSnowSoilNrg(i))*dt_diff)*dt_diff/dt
+            if(ixSnowSoilNrg(i)/=integerMissing) balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%mLayerEnthalpyPrime(i) - eqns_data%fluxVec(ixSnowSoilNrg(i)) &
+                                                                                                           + mLayerEnthalpyPrimePrev(i) - fluxVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
           enddo
         endif
       endif
@@ -614,34 +627,30 @@ subroutine summaSolve4ida(                         &
       !------------------------
       if(checkMassBalance)then
     
-        ! compute mass balance
+        ! compute mass balance mean
         ! resVec is the instanteous residual vector from the solver
-        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + eqns_data%resVec(ixVegHyd)*dt_diff/dt
+        if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_diff/2._rkind/dt
         if(nSnowSoilHyd>0)then
           do i=1,nSnowSoilHyd
-            if(ixSnowSoilHyd(i)/=integerMissing) balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + eqns_data%resVec(ixSnowSoilHyd(i))*dt_diff/dt
+            if(ixSnowSoilHyd(i)/=integerMissing) balance(ixSnowSoilHyd(i)) = balance(ixSnowSoilHyd(i)) + ( eqns_data%resVec(ixSnowSoilHyd(i)) + resVecPrev(ixSnowSoilHyd(i)) )*dt_diff/2._rkind/dt
           enddo
         endif
-        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + eqns_data%resVec(ixAqWat)*dt_diff/dt
+        if(ixAqWat/=integerMissing) balance(ixAqWat) = balance(ixAqWat) + ( eqns_data%resVec(ixAqWat) + resVecPrev(ixAqWat) )*dt_diff/2._rkind/dt
       endif
     
       ! save required quantities for next step
-      eqns_data%scalarCanairEnthalpyPrev = eqns_data%scalarCanairEnthalpyTrial
       eqns_data%scalarCanopyTempPrev     = eqns_data%scalarCanopyTempTrial
-      eqns_data%scalarCanopyIcePrev      = eqns_data%scalarCanopyIceTrial
-      eqns_data%scalarCanopyLiqPrev      = eqns_data%scalarCanopyLiqTrial
-      eqns_data%scalarCanopyEnthalpyPrev = eqns_data%scalarCanopyEnthalpyTrial
       eqns_data%mLayerTempPrev(:)        = eqns_data%mLayerTempTrial(:)
       eqns_data%mLayerMatricHeadPrev(:)  = eqns_data%mLayerMatricHeadTrial(:)
-      eqns_data%mLayerVolFracWatPrev(:)  = eqns_data%mLayerVolFracWatTrial(:)
-      eqns_data%mLayerVolFracIcePrev(:)  = eqns_data%mLayerVolFracIceTrial(:)
-      eqns_data%mLayerVolFracLiqPrev(:)  = eqns_data%mLayerVolFracLiqTrial(:)
-      eqns_data%mLayerEnthalpyPrev(:)    = eqns_data%mLayerEnthalpyTrial(:)
-      eqns_data%scalarAquiferStoragePrev = eqns_data%scalarAquiferStorageTrial
       mLayerMatricHeadPrimePrev(:)       = eqns_data%mLayerMatricHeadPrime(:)
+      scalarCanairEnthalpyPrimePrev      = eqns_data%scalarCanairEnthalpyPrime
+      scalarCanopyEnthalpyPrimePrev      = eqns_data%scalarCanopyEnthalpyPrime
+      mLayerEnthalpyPrimePrev(:)         = eqns_data%mLayerEnthalpyPrime(:) 
       dCompress_dPsiPrev(:)              = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                           = tret(1)
       flux_prev                          = eqns_data%flux_data
+      fluxVecPrev(:)                     = eqns_data%fluxVec(:)
+      resVecPrev(:)                      = eqns_data%resVec(:)
     
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
@@ -685,27 +694,24 @@ subroutine summaSolve4ida(                         &
     deallocate( eqns_data%sMul )
     deallocate( eqns_data%dMat )
     deallocate( eqns_data%dBaseflow_dMatric )
-    deallocate( eqns_data%mLayerMatricHeadLiqTrial )
-    deallocate( eqns_data%mLayerMatricHeadTrial )
-    deallocate( eqns_data%mLayerMatricHeadPrev )
-    deallocate( eqns_data%mLayerVolFracWatTrial )
-    deallocate( eqns_data%mLayerVolFracWatPrev )
-    deallocate( eqns_data%mLayerVolFracIceTrial )
     deallocate( eqns_data%mLayerTempPrev )
+    deallocate( eqns_data%mLayerMatricHeadPrev )
     deallocate( eqns_data%mLayerTempTrial )
-    deallocate( eqns_data%mLayerVolFracIcePrev )
-    deallocate( eqns_data%mLayerVolFracLiqPrev )
-    deallocate( eqns_data%mLayerEnthalpyTrial )
-    deallocate( eqns_data%mLayerEnthalpyPrev )
-    deallocate( eqns_data%mLayerTempPrime )
+    deallocate( eqns_data%mLayerMatricHeadTrial )
+    deallocate( eqns_data%mLayerVolFracWatTrial )
+    deallocate( eqns_data%mLayerTempPrime )       
     deallocate( eqns_data%mLayerMatricHeadPrime )
-    deallocate( eqns_data%mLayerMatricHeadLiqPrime )
-    deallocate( eqns_data%mLayerVolFracWatPrime )
-    deallocate( dEnthalpy_dTk_unused )
-    deallocate( dEnthalpy_dWat_unused )
-    
+    deallocate( eqns_data%mLayerMatricHeadLiqPrime)
+    deallocate( eqns_data%mLayerVolFracWatPrime ) 
+    deallocate( eqns_data%mLayerVolFracIcePrime )
+    deallocate( eqns_data%mLayerEnthalpyPrime )
     deallocate( mLayerMatricHeadPrimePrev )
+    deallocate( mLayerEnthalpyPrimePrev )
     deallocate( dCompress_dPsiPrev )
+    deallocate( mLayerDeriv_unused1 )
+    deallocate( mLayerDeriv_unused2 )
+    deallocate( mLayerDeriv_unused3 )
+    deallocate( mLayerDeriv_unused4 )
     deallocate( eqns_data%fluxVec )
     deallocate( eqns_data%resVec )
     deallocate( eqns_data%resSink )

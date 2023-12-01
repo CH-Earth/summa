@@ -261,7 +261,7 @@ subroutine updateVarsWithPrime(&
     dFracLiqSnow_dTk        => deriv_data%var(iLookDERIV%dFracLiqSnow_dTk      )%dat     ,& ! intent(out): [dp(:)] derivative in fraction of liquid snow w.r.t. temperature
     dFracLiqVeg_dTkCanopy   => deriv_data%var(iLookDERIV%dFracLiqVeg_dTkCanopy )%dat(1)  ,& ! intent(out): [dp   ] derivative in fraction of (throughfall + drainage) w.r.t. temperature
     ! derivatives inside solver for Jacobian only
-    d2VolTot_d2Psi0         => deriv_data%var(iLookDERIV%d2VolTot_d2Psi0       )%dat     ,& ! intent(out): [dp(:)] second derivative in total water content w.r.t. total water matric potential
+    d2VolTot_dPsi02         => deriv_data%var(iLookDERIV%d2VolTot_dPsi02       )%dat     ,& ! intent(out): [dp(:)] second derivative in total water content w.r.t. total water matric potential
     mLayerd2Theta_dTk2      => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2    )%dat     ,& ! intent(out): [dp(:)] second derivative of volumetric liquid water content w.r.t. temperature
     d2Theta_dTkCanopy2      => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2    )%dat(1)   & ! intent(out): [dp   ] second derivative of volumetric liquid water content w.r.t. temperature
     ) ! association with variables in the data structures
@@ -420,10 +420,10 @@ subroutine updateVarsWithPrime(&
           select case( ixStateType(ixFullVector) )
             case(iname_lmpLayer)
               dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
-              if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
+              if(computJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadLiqTrial(ixControlIndex),vGn_alpha(ixControlIndex),0._rkind,1._rkind,vGn_n(ixControlIndex),vGn_m(ixControlIndex))*avPore
             case default
               dVolTot_dPsi0(ixControlIndex) = dTheta_dPsi(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),vGn_n(ixControlIndex),vGn_m(ixControlIndex))
-              if(computJac) d2VolTot_d2Psi0(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
+              if(computJac) d2VolTot_dPsi02(ixControlIndex) = d2Theta_dPsi2(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha(ixControlIndex),theta_res(ixControlIndex),theta_sat(ixControlIndex),&
                                                 vGn_n(ixControlIndex),vGn_m(ixControlIndex))
             end select
         endif
