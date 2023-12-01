@@ -292,265 +292,92 @@ subroutine opSplittin(&
   real(rkind)                     :: mean_step_state                ! mean step over the state (with or without domain splits)
   real(rkind)                     :: mean_step_solution             ! mean step for a solution (scalar or vector)
   logical(lgt)                    :: addFirstFlux                   ! flag to add the first flux to the mask
+  ! loop control
+  logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
+  logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
-
-  ! ---------------------------------------------------------------------------------------
-  ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
 
-  globalVars: associate(&
-    ! model decisions
-    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical solver
-    ! vector of energy and hydrology indices for the snow and soil domains
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in):    [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in):    [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in):    [i4b]    number of hydrology state variables in the snow+soil domain
-    ! indices of model state variables
-    ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat         ,& ! intent(in):    [i4b(:)] list of indices in the state subset (missing for values not in the subset)
-    ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat              ,& ! intent(in):    [i4b(:)] indices defining the type of the state (ixNrgState...)
-    ixNrgCanair             => indx_data%var(iLookINDEX%ixNrgCanair)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
-    ixNrgCanopy             => indx_data%var(iLookINDEX%ixNrgCanopy)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
-    ixHydCanopy             => indx_data%var(iLookINDEX%ixHydCanopy)%dat              ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixNrgLayer              => indx_data%var(iLookINDEX%ixNrgLayer)%dat               ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
-    ixHydLayer              => indx_data%var(iLookINDEX%ixHydLayer)%dat               ,& ! intent(in):    [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
-    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy air space energy state variable
-    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy energy state variable
-    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in):    [i4b]    index of canopy hydrology state variable (mass)
-    ! numerix tracking
-    numberStateSplit        => indx_data%var(iLookINDEX%numberStateSplit     )%dat(1) ,& ! intent(inout): [i4b]    number of state splitting solutions             (-)
-    numberScalarSolutions   => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)  & ! intent(inout): [i4b]    number of scalar solutions                      (-)
-    )
-    ! ---------------------------------------------------------------------------------------
-    ! initialize error control
-    err=0; message="opSplittin/"
+  call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
+  coupling: do ixCoupling=1,nCoupling                          ! loop through different coupling strategies
 
-    ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
-    select case(ixNumericalMethod)
-      case(ida);            nCoupling = 1
-      case(kinsol, numrec); nCoupling = 2
-     end select
+    call initialize_stateTypeSplitting; if (return_flag.eqv..true.) return ! setup steps for stateTypeSplitting loop - return if error occurs
+    stateTypeSplitting: do iStateTypeSplit=1,nStateTypeSplit               ! state splitting loop
 
-    ! *** initialize ***
-    call initialize_opSplittin
-    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
+      ! first try the state type split, then try the domain split within a given state type
+      call initialize_stateThenDomain ! setup steps for stateThenDomain loop -- identify state-specific variables for a given state split
+      stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
 
-    ! ==========================================================================================================================================
-    ! loop through different coupling strategies
-    coupling: do ixCoupling=1,nCoupling
+        call initialize_domainSplit; if (return_flag.eqv..true.) return ! setup steps for domainSplit loop - return if error occurs
+        domainSplit: do iDomainSplit=1,nDomainSplit                     ! domain splitting loop
 
-      ! initialize the time step
-      dtInit = min( merge(dt,            dtmin_coupled, ixCoupling==fullyCoupled), dt) ! initial time step
-      dt_min = min( merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
+          solution: do ixSolution=1,nSolutions ! trial with the vector then scalar solution
 
-      ! keep track of the number of state splits
-      if(ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
+            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
+            stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
 
-      ! define the number of operator splits for the state type
-      select case(ixCoupling)
-        case(fullyCoupled);   nStateTypeSplit=1
-        case(stateTypeSplit); nStateTypeSplit=nStateTypes
-        case default; err=20; message=trim(message)//'coupling case not found'; return
-      end select  ! operator splitting option
+              ! define state subsets for a given split...
+              call update_stateFilter; if (return_flag.eqv..true.) return ! get the mask for the state subset - return for a non-zero error code
+              call validate_split ! verify that the split is valid
+              if (cycle_domainSplit) cycle domainSplit
+              if (cycle_solution) cycle solution
+              if (return_flag.eqv..true.) return ! return for a non-zero error code
+              call save_recover ! save/recover copies of variables and fluxes
 
-      ! define if we wish to try the domain split
-      select case(ixCoupling)
-        case(fullyCoupled);   tryDomainSplit=0
-        case(stateTypeSplit); tryDomainSplit=1
-        case default; err=20; message=trim(message)//'coupling case not found'; return
-      end select  ! operator splitting option
+              ! assemble vectors for a given split...
+              call get_split_indices; if (return_flag.eqv..true.) return ! get indices for a given split - return for a non-zero error code
+              call update_fluxMask; if (return_flag.eqv..true.) return ! define the mask of the fluxes used - return for a non-zero error code
 
-      mean_step_dt = 0._rkind ! initialize mean step for the time step
-      addFirstFlux = .true.     ! flag to add the first flux to the mask
+              call solve_subset; if (return_flag.eqv..true.) return ! solve variable subset for one time step - return for a positive error code
 
-      ! state splitting loop
-      stateTypeSplit: do iStateTypeSplit=1,nStateTypeSplit
+              call assess_solution; if (return_flag.eqv..true.) return ! is solution a success or failure? - return for a recovering solution
 
-        ! -----
-        ! * identify state-specific variables for a given state split...
-        ! --------------------------------------------------------------
+              call try_other_solution_methods                  ! if solution failed to converge, try other splitting methods 
+              if (cycle_coupling)        cycle coupling        ! exit loops if necessary
+              if (cycle_stateThenDomain) cycle stateThenDomain
+              if (cycle_solution)        cycle solution
 
-        ! flag to adjust the temperature
-        doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)
+              call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
 
-        ! modify the state type names associated with the state vector
-        if(ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)then
-          if(computeVegFlux)then
-            where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
-          endif
-          where(ixStateType(ixHydLayer) ==iname_watLayer)  ixStateType(ixHydLayer) =iname_liqLayer
-          where(ixStateType(ixHydLayer) ==iname_matLayer)  ixStateType(ixHydLayer) =iname_lmpLayer
-        endif  ! if modifying state variables for the mass split
+              call success_check ! check for success
+              if (exit_stateThenDomain) exit stateThenDomain ! exit loops if necessary
+              if (exit_solution) exit solution
+              if (return_flag.eqv..true.) return             ! return if error 
 
-        ! first try the state type split, then try the domain split within a given state type
-        stateThenDomain: do ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
+            end do stateSplit ! solution with split layers
 
-          call initialize_domainSplit_loop
-          if (return_flag.eqv..true.) return ! return if error occurs during initialization
+          end do solution        ! trial with the full layer solution then the split layer solution
+          call finalize_solution ! final steps following solution loop
 
-          ! domain splitting loop
-          domainSplit: do iDomainSplit=1,nDomainSplit
+        end do domainSplit ! domain type splitting loop
 
-            ! trial with the vector then scalar solution
-            solution: do ixSolution=1,nSolutions
+      end do stateThenDomain        ! switch between the state type and domain type splitting
+      call finalize_stateThenDomain ! final steps following the stateThenDomain loop
 
-              call initialize_stateSplit_loop
-              if (return_flag.eqv..true.) return ! return if error occurs during initialization
+    end do stateTypeSplitting                                          ! state type splitting loop
+    call finalize_stateTypeSplitting; if (exit_coupling) exit coupling ! success = exit the coupling loop
 
-              ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
-              stateSplit: do iStateSplit=1,nStateSplit
- 
-                ! -----
-                ! * define state subsets for a given split...
-                ! -------------------------------------------
-
-                ! get the mask for the state subset
-                call initialize_stateFilter
-                call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
-                call finalize_stateFilter
-                if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! error control
-
-                ! check that state variables exist
-                if (nSubset==0) cycle domainSplit
-
-                ! avoid redundant case where vector solution is of length 1
-                if (ixSolution==vector .and. count(stateMask)==1) cycle solution
-
-                ! check that we do not attempt the scalar solution for the fully coupled case
-                if (ixCoupling==fullyCoupled .and. ixSolution==scalar) then
-                  message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
-                  err=20; return
-                end if
-
-                ! reset the flag for the first flux call
-                if (.not.firstSuccess) firstFluxCall=.true.
-
-                ! save/recover copies of variables and fluxes
-                call save_recover
-
-                ! -----
-                ! * assemble vectors for a given split...
-                ! ---------------------------------------
-                ! get indices for a given split
-                call initialize_indexSplit
-                call indexSplit(in_indexSplit,stateMask,indx_data,out_indexSplit)
-                call finalize_indexSplit
-                if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-                ! -----
-                ! * define the mask of the fluxes used...
-                ! ---------------------------------------
-                call update_fluxMask
-                if (err/=0) then; message=trim(message)//trim(cmessage); return; end if
-            
-                ! *******************************************************************************************************************************
-                ! ***** trial with a given solution method...
-
-
-                ! -----
-                ! * solve variable subset for one time step...
-                ! --------------------------------------------
-
-                ! keep track of the number of scalar solutions
-                if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
-
-                ! solve variable subset for one full time step
-                call initialize_varSubstep
-                call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control              
-                                model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
-                                indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
-                                out_varSubstep)                                                          ! intent(out): class object for model control
-                call finalize_varSubstep
-                if (err/=0) then; message=trim(message)//trim(cmessage); if (err>0) return; end if ! error control
-
-                ! determine whether solution is a success or a failure
-                call judge_solution
-                if (return_flag.eqv..true.) return ! return for a recovering solution
-
-                ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
-                if (ixCoupling==fullyCoupled .and. failure) cycle coupling
-
-                ! try the scalar solution if failed to converge with a minimum time step in the split solution
-                if (ixCoupling/=fullyCoupled) then
-                  select case(ixStateThenDomain)
-                    case(fullDomain); if (failure) cycle stateThenDomain
-                    case(subDomain);  if (failure) cycle solution
-                    case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
-                  end select
-                end if
-
-                ! check that state variables updated
-                where(stateMask) stateCheck = stateCheck+1
-                if (any(stateCheck>1)) then
-                  message=trim(message)//'state variable updated more than once!'
-                  err=20; return
-                end if
-
-                ! success = exit solution
-                if (.not.failure) then
-                  ! sum the mean steps for the successful solution type
-                  mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
-                  select case(ixStateThenDomain)
-                    case(fullDomain); if (iStateSplit==nStateSplit) exit stateThenDomain
-                    case(subDomain);  if (iStateSplit==nStateSplit) exit solution
-                    case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
-                  end select
-                else ! failure
-                  call check_failure; return ! check reason for failure and return
-                end if  ! success check
-
-              end do stateSplit ! solution with split layers
-
-            end do solution ! trial with the full layer solution then the split layer solution
-
-            ! sum the mean steps for the state over each domain split
-            mean_step_state = mean_step_state + mean_step_solution/nDomainSplit
-
-          ! ***** trial with a given solution method...
-          ! *******************************************************************************************************************************
-          end do domainSplit ! domain type splitting loop
-
-        end do stateThenDomain  ! switch between the state and the domain
-
-        ! sum the mean steps for the time step over each state type split
-        select case(ixStateThenDomain) 
-          case(fullDomain); mean_step_dt = mean_step_dt + mean_step_solution/nStateTypeSplit
-          case(subDomain);  mean_step_dt = mean_step_dt + mean_step_state/nStateTypeSplit
-        end select
-
-        ! -----
-        ! * reset state variables for the mass split...
-        ! ---------------------------------------------
-        ! modify the state type names associated with the state vector
-        if(ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit)then
-          if(computeVegFlux)then
-            where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
-          endif
-          where(ixStateType(ixHydLayer) ==iname_liqLayer)  ixStateType(ixHydLayer) =iname_watLayer
-          where(ixStateType(ixHydLayer) ==iname_lmpLayer)  ixStateType(ixHydLayer) =iname_matLayer
-        endif  ! if modifying state variables for the mass split
-
-      end do stateTypeSplit ! state type splitting loop
-
-      ! success = exit the coupling loop
-      if(ixCoupling==fullyCoupled .and. .not.failure) exit coupling
-
-    end do coupling ! coupling method
-
-    ! *** Finalize ***
-    call finalize_opSplittin
-
-  ! end associate statements
-  end associate globalVars
+  end do coupling        ! loop over coupling methods
+  call finalize_coupling ! check variables and fluxes, and apply step halving if needed
 
  contains
 
-  subroutine initialize_opSplittin
-   ! *** initial steps for opSplittin subroutine ***
+  subroutine initialize_coupling
+   ! *** initial steps for coupling loop ***
+   ! initialize error control
+   err=0; message="opSplittin/"
+
+   associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
+    ! we just solve the fully coupled problem if IDA for now, splitting can happen otherwise
+    select case(ixNumericalMethod)
+     case(ida);            nCoupling = 1
+     case(kinsol, numrec); nCoupling = 2
+    end select
+   end associate
 
    ! set the global print flag
    globalPrintFlag=.false.
@@ -575,7 +402,8 @@ subroutine opSplittin(&
    stateCheck(:) = 0
 
    ! allocate local structures based on the number of snow and soil layers
-   call allocate_memory 
+   call allocate_memory
+   if (return_flag.eqv..true.) return ! return if an error occurs during memory allocation 
 
    ! intialize the flux counter
    do iVar=1,size(flux_meta)  ! loop through fluxes
@@ -594,45 +422,47 @@ subroutine opSplittin(&
    do iVar=1,size(deriv_meta)
     deriv_data%var(iVar)%dat(:) = 0._rkind
    end do
-  end subroutine initialize_opSplittin
+  end subroutine initialize_coupling
 
   subroutine allocate_memory
    ! *** allocate memory for local structures ***
+   return_flag=.false. ! initialize flag
+
    ! allocate space for the flux mask (used to define when fluxes are updated)
    call allocLocal(flux_meta(:),fluxMask,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the flux count (used to check that fluxes are only updated once)
    call allocLocal(flux_meta(:),fluxCount,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary prognostic variable structure
    call allocLocal(prog_meta(:),prog_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary diagnostic variable structure
    call allocLocal(diag_meta(:),diag_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary flux variable structure
    call allocLocal(flux_meta(:),flux_temp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the mean flux variable structure
    call allocLocal(flux_meta(:),flux_mean,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the temporary mean flux variable structure
    call allocLocal(flux_meta(:),flux_mntemp,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
 
    ! allocate space for the derivative structure
    call allocLocal(deriv_meta(:),deriv_data,nSnow,nSoil,err,cmessage)
-   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
   end subroutine allocate_memory
 
-  subroutine finalize_opSplittin
-   ! *** final operations for opSplittin subroutine ***
+  subroutine finalize_coupling
+   ! *** final operations for coupling loop ***
    ! check that all state variables were updated
    if (any(stateCheck==0)) then
     message=trim(message)//'some state variables were not updated!'
@@ -650,9 +480,88 @@ subroutine opSplittin(&
 
    ! use step halving if unable to complete the fully coupled solution in one substep
    if (ixCoupling/=fullyCoupled .or. nSubsteps>1) dtMultiplier=0.5_rkind
-  end subroutine finalize_opSplittin
+  end subroutine finalize_coupling
 
-  subroutine initialize_domainSplit_loop
+  subroutine initialize_stateTypeSplitting
+   ! *** Initial steps to prepare for iterations of the stateTypeSplit loop ***
+   return_flag=.false. ! initialize flag
+   ! initialize the time step
+   dtInit = min(merge(dt,            dtmin_coupled, ixCoupling==fullyCoupled), dt) ! initial time step
+   dt_min = min(merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
+
+   ! keep track of the number of state splits
+   associate(numberStateSplit => indx_data%var(iLookINDEX%numberStateSplit)%dat(1)) ! intent(inout): [i4b] number of state splitting solutions
+    if (ixCoupling/=fullyCoupled) numberStateSplit = numberStateSplit + 1
+   end associate
+
+   ! define the number of operator splits for the state type
+   select case(ixCoupling)
+    case(fullyCoupled); nStateTypeSplit=1
+    case(stateTypeSplit); nStateTypeSplit=nStateTypes
+    case default; err=20; message=trim(message)//'coupling case not found'; return_flag=.true.; return
+   end select  ! operator splitting option
+
+   ! define if we wish to try the domain split
+   select case(ixCoupling)
+    case(fullyCoupled);   tryDomainSplit=0
+    case(stateTypeSplit); tryDomainSplit=1
+    case default; err=20; message=trim(message)//'coupling case not found'; return_flag=.true.; return
+   end select  ! operator splitting option
+
+   mean_step_dt = 0._rkind ! initialize mean step for the time step
+   addFirstFlux = .true.     ! flag to add the first flux to the mask
+  end subroutine initialize_stateTypeSplitting
+
+  subroutine finalize_stateTypeSplitting
+   ! *** Final operations subsequent to the stateTypeSplitting loop ***
+   exit_coupling=.false. ! initialize flag for loop control 
+   if (ixCoupling==fullyCoupled .and. .not.failure) then; exit_coupling=.true.; return; end if ! success = exit the coupling loop in opSplittin
+  end subroutine finalize_stateTypeSplitting
+
+  subroutine initialize_stateThenDomain
+   ! *** Identify state-specific variables for a given state split ***
+   doAdjustTemp = (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) ! flag to adjust the temperature
+   associate(&
+    ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat, & ! intent(in): [i4b(:)] indices defining the type of the state
+    ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat, & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+
+    ! modify the state type names associated with the state vector
+    if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
+      if (computeVegFlux) then
+        where(ixStateType(ixHydCanopy)==iname_watCanopy) ixStateType(ixHydCanopy)=iname_liqCanopy
+      end if
+      where(ixStateType(ixHydLayer)==iname_watLayer) ixStateType(ixHydLayer)=iname_liqLayer
+      where(ixStateType(ixHydLayer)==iname_matLayer) ixStateType(ixHydLayer)=iname_lmpLayer
+    end if
+   end associate
+  end subroutine initialize_stateThenDomain
+
+  subroutine finalize_stateThenDomain
+   ! *** Final steps following the stateThenDomain loop ***
+   ! sum the mean steps for the time step over each state type split
+   select case(ixStateThenDomain) 
+     case(fullDomain); mean_step_dt = mean_step_dt + mean_step_solution/nStateTypeSplit
+     case(subDomain);  mean_step_dt = mean_step_dt + mean_step_state/nStateTypeSplit
+   end select
+   associate(&
+    ixStateType => indx_data%var(iLookINDEX%ixStateType)%dat, & ! intent(in): [i4b(:)] indices defining the type of the state
+    ixHydCanopy => indx_data%var(iLookINDEX%ixHydCanopy)%dat, & ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+    ixHydLayer  => indx_data%var(iLookINDEX%ixHydLayer)%dat   ) ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+
+    ! * reset state variables for the mass split...
+    ! modify the state type names associated with the state vector
+    if (ixCoupling/=fullyCoupled .and. iStateTypeSplit==massSplit) then ! if modifying state variables for the mass split
+      if (computeVegFlux) then
+        where(ixStateType(ixHydCanopy)==iname_liqCanopy) ixStateType(ixHydCanopy)=iname_watCanopy
+      end if
+      where(ixStateType(ixHydLayer)==iname_liqLayer) ixStateType(ixHydLayer)=iname_watLayer
+      where(ixStateType(ixHydLayer)==iname_lmpLayer) ixStateType(ixHydLayer)=iname_matLayer
+    end if
+   end associate  
+  end subroutine finalize_stateThenDomain
+
+  subroutine initialize_domainSplit
    ! *** initial operations to set up domainSplit loop ***
    return_flag=.false. ! initialize flag
    associate(numberDomainSplitNrg => indx_data%var(iLookINDEX%numberDomainSplitNrg )%dat(1),& ! intent(inout): [i4b] number of domain splitting solutions for energy (-)
@@ -679,9 +588,15 @@ subroutine opSplittin(&
    end if
 
    mean_step_state = 0._rkind ! initialize mean step for state
-  end subroutine initialize_domainSplit_loop
+  end subroutine initialize_domainSplit
 
-  subroutine initialize_stateSplit_loop
+  subroutine finalize_solution
+   ! *** final operations following solution loop ***
+   ! sum the mean steps for the state over each domain split
+   mean_step_state = mean_step_state + mean_step_solution/nDomainSplit
+  end subroutine finalize_solution
+
+  subroutine initialize_stateSplit
    ! *** initial operations to set up stateSplit loop ***
    return_flag=.false. ! initialize flag
    mean_step_solution = 0._rkind ! initialize mean step for a solution
@@ -691,8 +606,8 @@ subroutine opSplittin(&
 
    ! refine the time step
    if (ixSolution==scalar) then
-     dtInit = min(dtmin_split, dt)    ! initial time step
-     dt_min = min(dtmin_scalar, dt)   ! minimum time step
+    dtInit = min(dtmin_split, dt)    ! initial time step
+    dt_min = min(dtmin_scalar, dt)   ! minimum time step
    end if
 
    ! initialize the first flux call
@@ -701,13 +616,13 @@ subroutine opSplittin(&
 
    ! get the number of split layers
    select case(ixSolution)
-     case(vector); nStateSplit=1
-     case(scalar); nStateSplit=count(stateMask)
-     case default; err=20; message=trim(message)//'unknown solution method'; 
-      return_flag=.true. ! return statement required in opSplittin
-      return
+    case(vector); nStateSplit=1
+    case(scalar); nStateSplit=count(stateMask)
+    case default; err=20; message=trim(message)//'unknown solution method'; 
+     return_flag=.true. ! return statement required in opSplittin
+     return
    end select
-  end subroutine initialize_stateSplit_loop
+  end subroutine initialize_stateSplit
 
   ! **** stateFilter ****
   subroutine initialize_stateFilter
@@ -739,8 +654,30 @@ subroutine opSplittin(&
    call out_varSubstep % finalize(dtMultiplier,nSubsteps,failedMinimumStep,reduceCoupledStep,tooMuchMelt,err,cmessage)
   end subroutine finalize_varSubstep
 
+  subroutine solve_subset 
+   ! *** Solve variable subset for one time step ***
+   return_flag=.false. ! initialize flag
+   ! keep track of the number of scalar solutions
+   associate(numberScalarSolutions => indx_data%var(iLookINDEX%numberScalarSolutions)%dat(1)) ! intent(inout): [i4b] number of scalar solutions
+    if (ixSolution==scalar) numberScalarSolutions = numberScalarSolutions + 1
+   end associate
 
-  subroutine judge_solution
+   ! solve variable subset for one full time step
+   call initialize_varSubstep
+   call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
+                   model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
+                   indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
+                   out_varSubstep)                                                          ! intent(out): class object for model control
+   call finalize_varSubstep
+   if (err/=0) then 
+    message=trim(message)//trim(cmessage) 
+    if (err>0) then ! return for positive error codes
+     return_flag=.true.; return
+    end if 
+   end if ! error control
+  end subroutine solve_subset 
+
+  subroutine assess_solution
    ! *** determine whether solution is a success or a failure ***
    return_flag=.false. ! initialize flag
 
@@ -770,7 +707,58 @@ subroutine opSplittin(&
        end do
      end do
    end if
-  end subroutine judge_solution
+  end subroutine assess_solution
+
+  subroutine try_other_solution_methods 
+   ! *** if solution failed to converge, try other splitting methods *** 
+   ! initialize flags
+   cycle_coupling=.false.
+   cycle_stateThenDomain=.false.
+   cycle_solution=.false.
+
+   ! try the fully split solution if failed to converge with a minimum time step in the coupled solution
+   if (ixCoupling==fullyCoupled .and. failure) then; cycle_coupling=.true.; return; end if! return required to execute cycle statement in opSplittin
+
+   ! try the scalar solution if failed to converge with a minimum time step in the split solution
+   if (ixCoupling/=fullyCoupled) then
+     select case(ixStateThenDomain)
+       case(fullDomain); if (failure) cycle_stateThenDomain=.true.; return ! return required to execute cycle statement in opSplittin
+       case(subDomain);  if (failure) cycle_solution=.true.; return
+       case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
+     end select
+   end if
+  end subroutine try_other_solution_methods 
+
+  subroutine update_stateFilter
+   ! *** Get the mask for the state subset ***
+   return_flag=.false. ! initialize flag
+   call initialize_stateFilter
+   call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
+   call finalize_stateFilter
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
+  end subroutine update_stateFilter
+
+  subroutine validate_split 
+   ! *** Verify that the split is valid ***
+   ! initialize flags
+   cycle_domainSplit=.false.
+   cycle_solution=.false.
+   return_flag=.false.
+   ! check that state variables exist
+   if (nSubset==0) then; cycle_domainSplit=.true.; return; end if
+
+   ! avoid redundant case where vector solution is of length 1
+   if (ixSolution==vector .and. count(stateMask)==1) then; cycle_solution=.true.; return; end if
+
+   ! check that we do not attempt the scalar solution for the fully coupled case
+   if (ixCoupling==fullyCoupled .and. ixSolution==scalar) then
+     message=trim(message)//'only apply the scalar solution to the fully split coupling strategy'
+     err=20; return_flag=.true.; return
+   end if
+
+   ! reset the flag for the first flux call
+   if (.not.firstSuccess) firstFluxCall=.true.
+  end subroutine validate_split 
 
   subroutine save_recover
    ! save/recover copies of prognostic variables
@@ -804,6 +792,45 @@ subroutine opSplittin(&
    end do
   end subroutine save_recover
 
+  subroutine get_split_indices
+   ! *** Get indices for a given split ***
+   return_flag=.false. ! initialize flag
+   call initialize_indexSplit
+   call indexSplit(in_indexSplit,stateMask,indx_data,out_indexSplit)
+   call finalize_indexSplit
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+  end subroutine get_split_indices
+
+  subroutine confirm_variable_updates
+   ! *** check that state variables updated ***
+   return_flag=.false. ! set flag
+   ! check that state variables updated
+   where(stateMask) stateCheck = stateCheck+1
+   if (any(stateCheck>1)) then
+     message=trim(message)//'state variable updated more than once!'
+     err=20; return_flag=.true.; return
+   end if
+  end subroutine confirm_variable_updates
+
+  subroutine success_check
+   ! initialize flags
+   return_flag=.false.
+   exit_stateThenDomain=.false.
+   exit_solution=.false.
+   ! success = exit solution
+   if (.not.failure) then
+     ! sum the mean steps for the successful solution type
+     mean_step_solution = mean_step_solution + (dt/nSubsteps)/nStateSplit
+     select case(ixStateThenDomain)
+       case(fullDomain); if (iStateSplit==nStateSplit) exit_stateThenDomain=.true. ! exit stateThenDomain
+       case(subDomain);  if (iStateSplit==nStateSplit) exit_solution=.true. ! exit solution
+       case default; err=20; message=trim(message)//'unknown ixStateThenDomain case'
+     end select
+   else ! failure
+     call check_failure; return_flag=.true.; return ! check reason for failure and return
+   end if  ! success check
+  end subroutine success_check
+
   subroutine check_failure
    ! *** Analyze reason for failure ***
    if (ixSolution==scalar) then ! check that we did not fail for the scalar solution (last resort)
@@ -816,7 +843,9 @@ subroutine opSplittin(&
   end subroutine check_failure
 
   subroutine update_fluxMask
-   ! *** update the fluxMask data structure *** 
+   ! *** update the fluxMask data structure ***
+   return_flag=.false. ! initialize flag
+ 
    do iVar=1,size(flux_meta) ! loop through flux variables
 
     if (ixCoupling==fullyCoupled) then ! * identify flux mask for the fully coupled solution
@@ -841,7 +870,7 @@ subroutine opSplittin(&
       select case(iStateTypeSplit) ! identify the flux mask for a given state split
        case(nrgSplit);  desiredFlux = any(ixStateType_subset==flux2state_orig(iVar)%state1) .or. any(ixStateType_subset==flux2state_orig(iVar)%state2)
        case(massSplit); desiredFlux = any(ixStateType_subset==flux2state_liq(iVar)%state1)  .or. any(ixStateType_subset==flux2state_liq(iVar)%state2)
-       case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
+       case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
       end select
      end associate
 
@@ -865,7 +894,7 @@ subroutine opSplittin(&
           fluxMask%var(iVar)%dat(:1) = desiredFlux
           if (ixStateThenDomain>1 .and. iStateTypeSplit/=nrgSplit) then
            message=trim(message)//'only expect a vector solution for the vegetation domain for energy'
-           err=20; return
+           err=20; return_flag=.true.; return
           end if
          else                         ! scalar solution
           fluxMask%var(iVar)%dat(:1) = desiredFlux
@@ -904,11 +933,11 @@ subroutine opSplittin(&
 
            end if    ! if the layer is active
           end associate
-         end do   ! looping through layers
+         end do   ! end looping through layers
 
         case(aquiferSplit) ! fluxes through aquifer
          fluxMask%var(iVar)%dat(:) = desiredFlux ! only would be firstFluxCall variables, no aquifer fluxes
-        case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return ! check
+        case default; err=20; message=trim(message)//'unable to identify split based on domain type'; return_flag=.true.; return ! check
        end select  ! domain split
       end if  ! end if flux is desired
      end if  ! end if domain splitting
@@ -923,6 +952,7 @@ subroutine opSplittin(&
    end do  ! end looping through fluxes
 
   end subroutine update_fluxMask
+
 end subroutine opSplittin
 
 
