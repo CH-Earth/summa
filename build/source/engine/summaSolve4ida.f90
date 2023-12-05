@@ -60,7 +60,6 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
@@ -115,7 +114,6 @@ subroutine summaSolve4ida(                         &
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
-                      lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -189,7 +187,6 @@ subroutine summaSolve4ida(                         &
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -251,15 +248,6 @@ subroutine summaSolve4ida(                         &
   real(rkind),allocatable           :: fluxVecPrev(:)                ! previous value for fluxes
   real(rkind),allocatable           :: resVecPrev(:)                 ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)         ! previous derivative value soil compression
-  ! enthalpy derivatives, not used here since only required for Jacobian updates
-  real(rkind)                       :: scalarDeriv_unused1 
-  real(rkind)                       :: scalarDeriv_unused2 
-  real(rkind)                       :: scalarDeriv_unused3 
-  real(rkind)                       :: scalarDeriv_unused4 
-  real(rkind),allocatable           :: mLayerDeriv_unused1(:)
-  real(rkind),allocatable           :: mLayerDeriv_unused2(:) 
-  real(rkind),allocatable           :: mLayerDeriv_unused3(:) 
-  real(rkind),allocatable           :: mLayerDeriv_unused4(:) 
   ! flags
   logical(lgt)                      :: use_fdJac                     ! flag to use finite difference Jacobian, controlled by decision fDerivMeth
   logical(lgt),parameter            :: offErrWarnMessage = .true.    ! flag to turn IDA warnings off, default true
@@ -306,7 +294,6 @@ subroutine summaSolve4ida(                         &
     eqns_data%firstSubStep            = firstSubStep
     eqns_data%computeVegFlux          = computeVegFlux
     eqns_data%scalarSolution          = scalarSolution
-    eqns_data%lookup_data             = lookup_data
     eqns_data%type_data               = type_data
     eqns_data%attr_data               = attr_data
     eqns_data%mpar_data               = mpar_data
@@ -356,10 +343,6 @@ subroutine summaSolve4ida(                         &
     allocate( eqns_data%resSink(nState) )
     allocate( fluxVecPrev(nState) )
     allocate( resVecPrev(nState) )
-    allocate( mLayerDeriv_unused1(nLayers) )
-    allocate( mLayerDeriv_unused2(nLayers) )
-    allocate( mLayerDeriv_unused3(nLayers) )
-    allocate( mLayerDeriv_unused4(nLayers) )
     
     ! need the following values for the first substep
     eqns_data%scalarCanopyTempPrev     = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
@@ -558,7 +541,6 @@ subroutine summaSolve4ida(                         &
                           eqns_data%diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                           eqns_data%mpar_data,                   & ! intent(in):  parameter data structure
                           eqns_data%indx_data,                   & ! intent(in):  model indices
-                          eqns_data%lookup_data,                 & ! intent(in):  lookup table data structure
                           ! input: state variables for the vegetation canopy
                           eqns_data%scalarCanairTempPrime,       & ! intent(in):  prime value of canopy air temperature (K)
                           eqns_data%scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
@@ -574,19 +556,10 @@ subroutine summaSolve4ida(                         &
                           eqns_data%mLayerMatricHeadPrime,       & ! intent(in):  prime total water matric potential of each snow+soil layer (m)
                           ! input: pre-computed derivatives
                           deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,  & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
-                          deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat,& ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                           ! output: enthalpy
                           eqns_data%scalarCanairEnthalpyPrime,   & ! intent(out):  prime enthalpy of the canopy air space (J m-3)
                           eqns_data%scalarCanopyEnthalpyPrime,   & ! intent(out):  prime enthalpy of the vegetation canopy (J m-3)
                           eqns_data%mLayerEnthalpyPrime,         & ! intent(out):  prime enthalpy of each snow+soil layer (J m-3)
-                          scalarDeriv_unused1,                   & ! intent(out):  will not be used, derivatives
-                          scalarDeriv_unused2,                   & ! intent(out):  will not be used, derivatives
-                          mLayerDeriv_unused1,                   & ! intent(out):  will not be used, derivatives
-                          mLayerDeriv_unused2,                   & ! intent(out):  will not be used, derivatives
-                          scalarDeriv_unused3,                   & ! intent(out):  will not be used, derivatives
-                          scalarDeriv_unused4,                   & ! intent(out):  will not be used, derivatives
-                          mLayerDeriv_unused3,                   & ! intent(out):  will not be used, derivatives
-                          mLayerDeriv_unused4,                   & ! intent(out):  will not be used, derivatives
                           ! output: error control
                           err,cmessage)                  ! intent(out): error control
            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -708,10 +681,6 @@ subroutine summaSolve4ida(                         &
     deallocate( mLayerMatricHeadPrimePrev )
     deallocate( mLayerEnthalpyPrimePrev )
     deallocate( dCompress_dPsiPrev )
-    deallocate( mLayerDeriv_unused1 )
-    deallocate( mLayerDeriv_unused2 )
-    deallocate( mLayerDeriv_unused3 )
-    deallocate( mLayerDeriv_unused4 )
     deallocate( eqns_data%fluxVec )
     deallocate( eqns_data%resVec )
     deallocate( eqns_data%resSink )

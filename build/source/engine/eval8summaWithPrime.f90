@@ -21,7 +21,6 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zlookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -68,7 +67,6 @@ subroutine eval8summaWithPrime(&
                       sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,               & ! intent(in):    model decisions
-                      lookup_data,                   & ! intent(in):    lookup data
                       type_data,                     & ! intent(in):    type of vegetation and soil
                       attr_data,                     & ! intent(in):    spatial attributes
                       mpar_data,                     & ! intent(in):    model parameters
@@ -148,7 +146,6 @@ subroutine eval8summaWithPrime(&
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp            ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)              ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data                     ! lookup tables
   type(var_i),        intent(in)  :: type_data                       ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data                       ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                       ! model parameters
@@ -210,15 +207,6 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyLiqPrime            ! prime value for liquid water storage in the canopy (kg m-2 s-1)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime           ! prime vector for volumetric liquid water content (s-1)
   real(rkind)                     :: scalarAquiferStoragePrime       ! prime value of storage of water in the aquifer (m s-1)
-  ! enthalpy derivatives
-  real(rkind)                     :: dCanEnthalpyPrime_dTk           ! derivatives in prime canopy enthalpy w.r.t. temperature
-  real(rkind)                     :: dCanEnthalpyPrime_dWat          ! derivatives in prime canopy enthalpy w.r.t. water state
-  real(rkind),dimension(nLayers)  :: dEnthalpyPrime_dTk              ! derivatives in prime layer enthalpy w.r.t. temperature
-  real(rkind),dimension(nLayers)  :: dEnthalpyPrime_dWat             ! derivatives in prime layer enthalpy w.r.t. water state
-  real(rkind)                     :: dCanEnthalpyPrime_dTkPrime      ! derivatives in prime canopy enthalpy w.r.t. prime temperature
-  real(rkind)                     :: dCanEnthalpyPrime_dWatPrime     ! derivatives in prime canopy enthalpy w.r.t. prime water state
-  real(rkind),dimension(nLayers)  :: dEnthalpyPrime_dTkPrime         ! derivatives in prime layer enthalpy w.r.t. prime temperature
-  real(rkind),dimension(nLayers)  :: dEnthalpyPrime_dWatPrime        ! derivatives in prime layer enthalpy w.r.t. prime water state
   ! other local variables
   integer(i4b)                    :: iLayer                          ! index of model layer in the snow+soil domain
   integer(i4b)                    :: jState(1)                       ! index of model state for the scalar solution within the soil domain
@@ -254,7 +242,6 @@ subroutine eval8summaWithPrime(&
     ! derivatives
     dTheta_dTkCanopy          => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)           ,& ! intent(in):  [dp]     derivative of volumetric liquid water content w.r.t. temperature
     dVolTot_dPsi0             => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat                 ,& ! intent(in):  [dp(:)]  derivative in total water content w.r.t. total water matric potential
-    d2VolTot_dPsi02           => deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat               ,& ! intent(in):  [dp(:)]  second derivative in total water content w.r.t. total water matric potential
     dCompress_dPsi            => deriv_data%var(iLookDERIV%dCompress_dPsi)%dat                ,& ! intent(in):  [dp(:)]  derivative in compressibility w.r.t. matric head (m-1)
     mLayerdTheta_dTk          => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat              ,& ! intent(in):  [dp(:)]  derivative of volumetric liquid water content w.r.t. temperature
     dVolHtCapBulk_dPsi0       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0)%dat           ,& ! intent(out): [dp(:)]  derivative in bulk heat capacity w.r.t. matric potential
@@ -262,11 +249,6 @@ subroutine eval8summaWithPrime(&
     dVolHtCapBulk_dCanWat     => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)      ,& ! intent(out): [dp]     derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dTk         => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk)%dat             ,& ! intent(out): [dp(:)]  derivative in bulk heat capacity w.r.t. temperature
     dVolHtCapBulk_dTkCanopy   => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1)    ,& ! intent(out): [dp]     derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dPsi0Prime  => deriv_data%var(iLookDERIV%dVolHtCapBulk_dPsi0Prime)%dat      ,& ! intent(out): [dp(:)]  derivative in bulk heat capacity w.r.t. prime matric potential
-    dVolHtCapBulk_dThetaPrime => deriv_data%var(iLookDERIV%dVolHtCapBulk_dThetaPrime)%dat     ,& ! intent(out): [dp(:)]  derivative in bulk heat capacity w.r.t. prime volumetric water content
-    dVolHtCapBulk_dCanWatPrime=> deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWatPrime)%dat(1) ,& ! intent(out): [dp]     derivative in bulk heat capacity w.r.t. prime volumetric water content
-    dVolHtCapBulk_dTkPrime    => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkPrime)%dat        ,& ! intent(out): [dp(:)]  derivative in bulk heat capacity w.r.t. prime temperature
-    dVolHtCapBulk_dTkCanPrime => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanPrime)%dat(1)  ,& ! intent(out): [dp]     derivative in bulk heat capacity w.r.t. prime temperature       
     dThermalC_dWatAbove       => deriv_data%var(iLookDERIV%dThermalC_dWatAbove)%dat           ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dWatBelow       => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat           ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dTempAbove      => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat          ,& ! intent(out): [dp(:)]  derivative in the thermal conductivity w.r.t. energy state in the layer above
@@ -440,7 +422,6 @@ subroutine eval8summaWithPrime(&
                         diag_data,                         & ! intent(in):   model diagnostic variables for a local HRU
                         mpar_data,                         & ! intent(in):   parameter data structure
                         indx_data,                         & ! intent(in):   model indices
-                        lookup_data,                       & ! intent(in):   lookup table data structure
                         ! input: state variables for the vegetation canopy   
                         scalarCanairTempPrime,             & ! intent(in):   prime value of canopy air temperature (K)
                         scalarCanopyTempTrial,             & ! intent(in):   trial value of canopy temperature (K)
@@ -453,22 +434,13 @@ subroutine eval8summaWithPrime(&
                         mLayerMatricHeadTrial,             & ! intent(in):   trial vector of total water matric potential (m)
                         mLayerTempPrime,                   & ! intent(in):   prime vector of layer temperature (K)
                         mLayerVolFracWatPrime,             & ! intent(in):   prime vector of volumetric total water content (-)
-                        mLayerMatricHeadPrime,             & ! intent(in):   prime vector of total water matric potential (m)  
+                        mLayerMatricHeadPrime,             & ! intent(in):   prime vector of total water matric potential (m) 
                         ! input: pre-computed derivatives
-                        dVolTot_dPsi0,                     & ! intent(in):   derivative in total water content w.r.t. total water matric potential (m-1)
-                        d2VolTot_dPsi02,                   & ! intent(in):   second derivative in total water content w.r.t. total water matric potential (m-2)
-                        ! output: enthalpy prime and derivatives
+                        dVolTot_dPsi0,                     & ! intent(in):   derivative in total water content w.r.t. total water matric potential (m-1) 
+                        ! output: enthalpy prime
                         scalarCanairEnthalpyPrime,         & ! intent(out):  prime enthalpy of the canopy air space (J m-3)
                         scalarCanopyEnthalpyPrime,         & ! intent(out):  prime enthalpy of the vegetation canopy (J m-3)
                         mLayerEnthalpyPrime,               & ! intent(out):  prime enthalpy of each snow+soil layer (J m-3)
-                        dCanEnthalpyPrime_dTk,             & ! intent(out):  derivatives in prime canopy enthalpy w.r.t. temperature
-                        dCanEnthalpyPrime_dWat,            & ! intent(out):  derivatives in prime canopy enthalpy w.r.t. water state
-                        dEnthalpyPrime_dTk,                & ! intent(out):  derivatives in prime layer enthalpy w.r.t. temperature
-                        dEnthalpyPrime_dWat,               & ! intent(out):  derivatives in prime layer enthalpy w.r.t. water state
-                        dCanEnthalpyPrime_dTkPrime,        & ! intent(out):  derivatives in prime canopy enthalpy w.r.t. prime temperature
-                        dCanEnthalpyPrime_dWatPrime,       & ! intent(out):  derivatives in prime canopy enthalpy w.r.t. prime water state
-                        dEnthalpyPrime_dTkPrime,           & ! intent(out):  derivatives in prime layer enthalpy w.r.t. prime temperature
-                        dEnthalpyPrime_dWatPrime,          & ! intent(out):  derivatives in prime layer enthalpy w.r.t. prime water state
                         ! output: error control
                         err,cmessage)                        ! intent(out):  error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -501,14 +473,6 @@ subroutine eval8summaWithPrime(&
                             mLayerdTheta_dTk,           & ! intent(in):    derivative of volumetric liquid water content w.r.t. temperature (K-1)
                             mLayerFracLiqSnow,          & ! intent(in):    fraction of liquid water (-)
                             dVolTot_dPsi0,              & ! intent(in):    derivative in total water content w.r.t. total water matric potential (m-1)
-                            dCanEnthalpyPrime_dTk,      & ! intent(in):    derivatives in prime canopy enthalpy w.r.t. temperature
-                            dCanEnthalpyPrime_dWat,     & ! intent(in):    derivatives in prime canopy enthalpy w.r.t. water state
-                            dEnthalpyPrime_dTk,         & ! intent(in):    derivatives in prime layer enthalpy w.r.t. temperature
-                            dEnthalpyPrime_dWat,        & ! intent(in):    derivatives in prime layer enthalpy w.r.t. water state
-                            dCanEnthalpyPrime_dTkPrime, & ! intent(in):    derivatives in prime canopy enthalpy w.r.t. prime temperature
-                            dCanEnthalpyPrime_dWatPrime,& ! intent(in):    derivatives in prime canopy enthalpy w.r.t. prime water state
-                            dEnthalpyPrime_dTkPrime,    & ! intent(in):    derivatives in prime layer enthalpy w.r.t. prime temperature
-                            dEnthalpyPrime_dWatPrime,   & ! intent(in):    derivatives in prime layer enthalpy w.r.t. prime water state       
                             ! output
                             heatCapVegTrial,            & ! intent(out):   volumetric heat capacity of vegetation canopy
                             mLayerHeatCapTrial,         & ! intent(out):   heat capacity for snow and soil
@@ -517,11 +481,6 @@ subroutine eval8summaWithPrime(&
                             dVolHtCapBulk_dCanWat,      & ! intent(out):   derivative in bulk heat capacity w.r.t. volumetric water content
                             dVolHtCapBulk_dTk,          & ! intent(out):   derivative in bulk heat capacity w.r.t. temperature
                             dVolHtCapBulk_dTkCanopy,    & ! intent(out):   derivative in bulk heat capacity w.r.t. temperature                  
-                            dVolHtCapBulk_dPsi0Prime,   & ! intent(out):   derivative in bulk heat capacity w.r.t. prime matric potential
-                            dVolHtCapBulk_dThetaPrime,  & ! intent(out):   derivative in bulk heat capacity w.r.t. prime volumetric water content
-                            dVolHtCapBulk_dCanWatPrime, & ! intent(out):   derivative in bulk heat capacity w.r.t. prime volumetric water content
-                            dVolHtCapBulk_dTkPrime,     & ! intent(out):   derivative in bulk heat capacity w.r.t. prime temperature
-                            dVolHtCapBulk_dTkCanPrime,  & ! intent(out):   derivative in bulk heat capacity w.r.t. prime temperature       
                             ! output: error control
                             err,cmessage)                    ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -559,12 +518,6 @@ subroutine eval8summaWithPrime(&
                           ! output: error control
                           err,cmessage)                  ! intent(out):  error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-        ! set derivatives to 0 for closed form
-        dVolHtCapBulk_dPsi0Prime   = 0._rkind
-        dVolHtCapBulk_dThetaPrime  = 0._rkind
-        dVolHtCapBulk_dCanWatPrime = 0._rkind
-        dVolHtCapBulk_dTkPrime     = 0._rkind
-        dVolHtCapBulk_dTkCanPrime  = 0._rkind
       endif !(choice of how compute heat capacity)
 
       ! compute multiplier of state vector
@@ -616,11 +569,6 @@ subroutine eval8summaWithPrime(&
       dVolHtCapBulk_dCanWat      = 0._rkind
       dVolHtCapBulk_dTk          = 0._rkind
       dVolHtCapBulk_dTkCanopy    = 0._rkind
-      dVolHtCapBulk_dPsi0Prime   = 0._rkind
-      dVolHtCapBulk_dThetaPrime  = 0._rkind
-      dVolHtCapBulk_dCanWatPrime = 0._rkind
-      dVolHtCapBulk_dTkPrime     = 0._rkind
-      dVolHtCapBulk_dTkCanPrime  = 0._rkind
       dThermalC_dWatAbove        = 0._rkind
       dThermalC_dWatBelow        = 0._rkind
       dThermalC_dTempAbove       = 0._rkind
@@ -836,7 +784,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
                 eqns_data%model_decisions,               & ! intent(in):    model decisions
-                eqns_data%lookup_data,                   & ! intent(in):    lookup data
                 eqns_data%type_data,                     & ! intent(in):    type of vegetation and soil
                 eqns_data%attr_data,                     & ! intent(in):    spatial attributes
                 eqns_data%mpar_data,                     & ! intent(in):    model parameters

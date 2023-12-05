@@ -100,7 +100,6 @@ subroutine eval8summa(&
                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
-                      lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -158,7 +157,6 @@ subroutine eval8summa(&
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -202,10 +200,6 @@ subroutine eval8summa(&
   ! enthalpy
   real(rkind)                        :: scalarCanopyEnthalpyTrial ! trial value for enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial       ! trial vector of enthalpy for snow+soil layers (J m-3)
-  real(rkind)                        :: dCanEnthalpy_dTk          ! derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind)                        :: dCanEnthalpy_dWat         ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind),dimension(nLayers)     :: dEnthalpy_dTk             ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind),dimension(nLayers)     :: dEnthalpy_dWat            ! derivatives in layer enthalpy w.r.t. water state
   ! other local variables
   logical(lgt)                       :: checkLWBalance            ! flag to check longwave balance
   integer(i4b)                       :: iLayer                    ! index of model layer in the snow+soil domain
@@ -394,7 +388,6 @@ subroutine eval8summa(&
                         diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                         mpar_data,                   & ! intent(in):  parameter data structure
                         indx_data,                   & ! intent(in):  model indices
-                        lookup_data,                 & ! intent(in):  lookup table data structure
                         ! input: state variables for the vegetation canopy
                         scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
                         scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
@@ -403,16 +396,10 @@ subroutine eval8summa(&
                         mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
                         mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                         mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                        ! input: pre-computed derivatives
-                        dVolTot_dPsi0,               & ! intent(in):  derivative in total water content w.r.t. total water matric potential (m-1)
                         ! output: enthalpy
                         scalarCanairEnthalpy,        & ! intent(out): enthalpy of the canopy air space (J m-3)
                         scalarCanopyEnthalpyTrial,   & ! intent(out): enthalpy of the vegetation canopy (J m-3)
                         mLayerEnthalpyTrial,         & ! intent(out): enthalpy of each snow+soil layer (J m-3)
-                        dCanEnthalpy_dTk,            & ! intent(out): derivatives in canopy enthalpy w.r.t. temperature
-                        dCanEnthalpy_dWat,           & ! intent(out): derivatives in canopy enthalpy w.r.t. water state
-                        dEnthalpy_dTk,               & ! intent(out): derivatives in layer enthalpy w.r.t. temperature
-                        dEnthalpy_dWat,              & ! intent(out): derivatives in layer enthalpy w.r.t. water state
                         ! output: error control
                         err,cmessage)                  ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -447,10 +434,6 @@ subroutine eval8summa(&
                             mLayerdTheta_dTk,          & ! intent(in):    derivative of volumetric liquid water content w.r.t. temperature (K-1)
                             mLayerFracLiqSnow,         & ! intent(in):    fraction of liquid water (-)
                             dVolTot_dPsi0,             & ! intent(in):    derivative in total water content w.r.t. total water matric potential (m-1)
-                            dCanEnthalpy_dTk,          & ! intent(in):    derivatives in canopy enthalpy w.r.t. temperature
-                            dCanEnthalpy_dWat,         & ! intent(in):    derivatives in canopy enthalpy w.r.t. water state
-                            dEnthalpy_dTk,             & ! intent(in):    derivatives in layer enthalpy w.r.t. temperature
-                            dEnthalpy_dWat,            & ! intent(in):    derivatives in layer enthalpy w.r.t. water state
                             ! output
                             heatCapVegTrial,           & ! intent(out):   volumetric heat capacity of vegetation canopy
                             mLayerHeatCapTrial,        & ! intent(out):   heat capacity for snow and soil
@@ -770,7 +753,6 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
                 eqns_data%model_decisions,         & ! intent(in):    model decisions
-                eqns_data%lookup_data,             & ! intent(in):    lookup data
                 eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
                 eqns_data%attr_data,               & ! intent(in):    spatial attributes
                 eqns_data%mpar_data,               & ! intent(in):    model parameters

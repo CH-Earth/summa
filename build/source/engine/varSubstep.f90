@@ -47,7 +47,6 @@ USE data_types,only:&
                     var_flagVec,        & ! data vector with variable length dimension (i4b)
                     var_ilength,        & ! data vector with variable length dimension (i4b)
                     var_dlength,        & ! data vector with variable length dimension (rkind)
-                    zLookup,            & ! lookup tables
                     model_options,      & ! defines the model decisions
                     in_type_varSubstep, & ! class for intent(in) arguments
                     io_type_varSubstep, & ! class for intent(inout) arguments
@@ -104,7 +103,6 @@ subroutine varSubstep(&
                       io_varSubstep,     & ! intent(inout) : model control
                       ! input/output: data structures
                       model_decisions,   & ! intent(in)    : model decisions
-                      lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
                       attr_data,         & ! intent(in)    : spatial attributes
                       forc_data,         & ! intent(in)    : model forcing data
@@ -136,7 +134,6 @@ subroutine varSubstep(&
   type(io_type_varSubstep),intent(inout) :: io_varSubstep             ! model control
   ! input/output: data structures
   type(model_options),intent(in)         :: model_decisions(:)        ! model decisions
-  type(zLookup),intent(in)               :: lookup_data               ! lookup tables
   type(var_i),intent(in)                 :: type_data                 ! type of vegetation and soil
   type(var_d),intent(in)                 :: attr_data                 ! spatial attributes
   type(var_d),intent(in)                 :: forc_data                 ! model forcing data
@@ -347,7 +344,6 @@ subroutine varSubstep(&
                       checkMassBalance,  & ! intent(in):    flag to check mass balance
                       checkNrgBalance,   & ! intent(in):    flag to check energy balance
                       ! input/output: data structures
-                      lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
                       attr_data,         & ! intent(in):    spatial attributes
                       forc_data,         & ! intent(in):    model forcing data
@@ -441,7 +437,7 @@ subroutine varSubstep(&
       ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                     & ! input: states
                       doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,ixHowHeatCap == enthalpyFD,   & ! input: model control
-                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,   & ! input-output: data structures
+                      model_decisions,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,               & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                         ! output: balances, flags, and error control
       if(err/=0)then
         message=trim(message)//trim(cmessage)
@@ -616,10 +612,10 @@ end subroutine varSubstep
 ! **********************************************************************************************************
 ! private subroutine updateProg: update prognostic variables
 ! **********************************************************************************************************
-subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                            & ! input: states
-                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,use_enthalpyFD,               & ! input: model control
-                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,   & ! input-output: data structures
-                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                         ! input-output: balances, flags, and error control
+subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                & ! input: states
+                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,use_enthalpyFD,   & ! input: model control
+                      model_decisions,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,   & ! input-output: data structures
+                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)             ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
   USE updateVarsWithPrime_module,only:updateVarsWithPrime           ! update prognostic variables
@@ -643,7 +639,6 @@ USE getVectorz_module,only:varExtract                             ! extract vari
   logical(lgt)     ,intent(in)    :: use_enthalpyFD                 ! flag that using enthalpy finite difference and need to update
   ! data structures
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
-  type(zLookup),intent(in)        :: lookup_data                    ! lookup tables
   type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
   type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
   type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
@@ -710,13 +705,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
   real(rkind)                     :: scalarCanopyIcePrime           ! trial value for mass of ice on the vegetation canopy (kg m-2)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime          ! trial vector for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime          ! trial vector for volumetric fraction of ice (-)
-  ! enthalpy derivatives
-  real(rkind)                     :: dCanEnthalpy_dTk_unused        ! will not be used, derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind)                     :: dCanEnthalpy_dWat_unused       ! will not be used, derivatives in canopy enthalpy w.r.t. water state
-  real(rkind),dimension(nLayers)  :: dEnthalpy_dTk_unused           ! will not be used, derivatives in layer enthalpy w.r.t. temperature
-  real(rkind),dimension(nLayers)  :: dEnthalpy_dWat_unused          ! will not be used, derivatives in layer enthalpy w.r.t. water state
   ! -------------------------------------------------------------------------------------------------------------------
-
   ! -------------------------------------------------------------------------------------------------------------------
   ! point to flux variables in the data structure
   associate(&
@@ -773,8 +762,6 @@ USE getVectorz_module,only:varExtract                             ! extract vari
     scalarCanairEnthalpy      => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the canopy air space (J m-3)
     scalarCanopyEnthalpy      => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)       ,& ! intent(inout): [dp]     enthalpy of the vegetation canopy (J m-3)
     mLayerEnthalpy            => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat                ,& ! intent(inout): [dp(:)]  enthalpy of the snow+soil layers (J m-3)
-    ! derivatives, diagnositic for enthalpy
-    dVolTot_dPsi0             => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat               ,& ! intent(in):    [dp(:)]  derivative in total water content w.r.t. total water matric potential
     ! model state variables (aquifer)
     scalarAquiferStorage      => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)       ,& ! intent(inout): [dp(:)]  storage of water in the aquifer (m)
     ! error tolerance
@@ -961,25 +948,18 @@ USE getVectorz_module,only:varExtract                             ! extract vari
                   diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                   mpar_data,                   & ! intent(in):  parameter data structure
                   indx_data,                   & ! intent(in):  model indices
-                  lookup_data,                 & ! intent(in):  lookup table data structure
                   ! input: state variables for the vegetation canopy
                   scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
                   scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
                   scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
-                   ! input: variables for the snow-soil domain
+                  ! input: variables for the snow-soil domain
                   mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
                   mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                   mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                  ! input: pre-computed derivatives
-                  dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                   ! output: enthalpy
                   scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
                   scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
                   mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
-                  dCanEnthalpy_dTk_unused,     & ! intent(out):  will not be used, derivatives in canopy enthalpy w.r.t. temperature
-                  dCanEnthalpy_dWat_unused,    & ! intent(out):  will not be used, derivatives in canopy enthalpy w.r.t. water state
-                  dEnthalpy_dTk_unused,        & ! intent(out):  will not be used, derivatives in layer enthalpy w.r.t. temperature
-                  dEnthalpy_dWat_unused,       & ! intent(out):  will not be used, derivatives in layer enthalpy w.r.t. water state
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

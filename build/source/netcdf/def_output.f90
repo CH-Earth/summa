@@ -165,8 +165,7 @@ contains
     case('diag'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,diag_meta, outputPrecision, err,cmessage)  ! model diagnostic variables
     case('flux'  ); call def_variab(ncid(iFreq),iFreq,needHRU,needTime,flux_meta, outputPrecision, err,cmessage)  ! model fluxes
     case('bvar'  ); call def_variab(ncid(iFreq),iFreq,needGRU,needTime,bvar_meta, outputPrecision, err,cmessage)  ! basin-average variables
-    case('id'    ); cycle                                                                                         ! ids -- see write_hru_info()
-    case('lookup'); cycle                                                                                         ! ids -- see write_hru_info()
+    case('id'    ); cycle                                                                                         ! ids -- see write_hru_info()                                                                                    ! ids -- see write_hru_info()
     case default; err=20; message=trim(message)//'unable to identify lookup structure';
    end select
    ! error handling

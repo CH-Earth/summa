@@ -34,7 +34,6 @@ USE globalData,only:prog_meta,diag_meta,flux_meta,id_meta   ! metadata structure
 USE globalData,only:mpar_meta,indx_meta                     ! metadata structures
 USE globalData,only:bpar_meta,bvar_meta                     ! metadata structures
 USE globalData,only:averageFlux_meta                        ! metadata for time-step average fluxes
-USE globalData,only:lookup_meta
 
 ! statistics metadata structures
 USE globalData,only:statForc_meta                           ! child metadata for stats
@@ -248,7 +247,6 @@ subroutine summa_initialize(summa1_struc, err, message)
         case('flux'  ); call allocGlobal(flux_meta,    fluxStruct,    err, cmessage)   ! model fluxes
         case('bpar'  ); call allocGlobal(bpar_meta,    bparStruct,    err, cmessage)   ! basin-average parameters
         case('bvar'  ); call allocGlobal(bvar_meta,    bvarStruct,    err, cmessage)   ! basin-average variables
-        case('lookup'); call allocGlobal(lookup_meta,  lookupStruct,  err, cmessage)   ! basin-average variables
         case('deriv' ); cycle
         case default; err=20; message='unable to find structure name: '//trim(structInfo(iStruct)%structName)
       end select

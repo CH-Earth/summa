@@ -1081,7 +1081,6 @@ contains
    case ('bpar' );  vDex = get_ixBpar(trim(varName))
    case ('bvar' );  vDex = get_ixBvar(trim(varName))
    case ('deriv');  vDex = get_ixDeriv(trim(varName))
-   case ('lookup'); vDex = get_ixLookup(trim(varName))
   end select
   if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; end if
  end do

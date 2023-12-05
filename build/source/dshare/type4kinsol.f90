@@ -28,7 +28,6 @@ type data4kinsol
   logical(lgt)                    :: computeVegFlux               ! flag to indicate if computing fluxes over vegetation
   logical(lgt)                    :: scalarSolution               ! flag to denote if implementing the scalar solution
   type(model_options),allocatable :: model_decisions(:)           ! model decisions
-  type(zLookup)                   :: lookup_data                  ! lookup tables
   type(var_i)                     :: type_data                    ! type of vegetation and soil
   type(var_d)                     :: attr_data                    ! spatial attributes
   type(var_dlength)               :: mpar_data                    ! model parameters

@@ -53,7 +53,6 @@ MODULE globalData
   USE var_lookup,only:maxvarBpar      ! basin-average parameters: maximum number variables
   USE var_lookup,only:maxvarDecisions ! maximum number of decisions
   USE var_lookup,only:maxvarFreq      ! maximum number of output files
-  USE var_lookup,only:maxvarLookup    ! maximum number of variables in the lookup
   implicit none
   private
 
@@ -138,8 +137,7 @@ MODULE globalData
                    struct_info('prog',  'PROG',  maxvarProg ), &                    ! the prognostic (state) variable data structure
                    struct_info('diag',  'DIAG' , maxvarDiag ), &                    ! the diagnostic variable data structure
                    struct_info('flux',  'FLUX' , maxvarFlux ), &                    ! the flux data structure
-                   struct_info('deriv', 'DERIV', maxvarDeriv), &                    ! the model derivative data structure
-                   struct_info('lookup','LOOKUP',maxvarLookup)  /)                  ! the lookup table data structure
+                   struct_info('deriv', 'DERIV', maxvarDeriv)   /)                  ! the model derivative data structure
   ! fixed model decisions
   logical(lgt)          , parameter, public   :: overwriteRSMIN=.false.             ! flag to overwrite RSMIN
   integer(i4b)          , parameter, public   :: maxSoilLayers=10000                ! Maximum Number of Soil Layers
@@ -165,7 +163,6 @@ MODULE globalData
   type(var_info),save,public                  :: diag_meta(maxvarDiag)        ! local diagnostic variables for each HRU
   type(var_info),save,public                  :: flux_meta(maxvarFlux)        ! local model fluxes for each HRU
   type(var_info),save,public                  :: deriv_meta(maxvarDeriv)      ! local model derivatives for each HRU
-  type(var_info),save,public                  :: lookup_meta(maxvarLookup)    ! local lookup tables for each HRU
   type(var_info),save,public                  :: bpar_meta(maxvarBpar)        ! basin parameters for aggregated processes
   type(var_info),save,public                  :: bvar_meta(maxvarBvar)        ! basin variables for aggregated processes
   ! ancillary metadata structures

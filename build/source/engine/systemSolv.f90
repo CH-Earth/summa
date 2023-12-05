@@ -75,7 +75,6 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of heat capacity computation
@@ -124,7 +123,6 @@ subroutine systemSolv(&
                       checkMassBalance,  & ! intent(in):    flag to check mass balance
                       checkNrgBalance,   & ! intent(in):    flag to check energy balance
                       ! input/output: data structures
-                      lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
                       attr_data,         & ! intent(in):    spatial attributes
                       forc_data,         & ! intent(in):    model forcing data
@@ -186,7 +184,6 @@ subroutine systemSolv(&
   logical(lgt),intent(in)         :: checkMassBalance              ! flag to check mass balance
   logical(lgt),intent(in)         :: checkNrgBalance               ! flag to check energy balance
   ! input/output: data structures
-  type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
   type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
   type(var_d),intent(in)          :: attr_data                     ! spatial attributes
   type(var_d),intent(in)          :: forc_data                     ! model forcing data
@@ -260,11 +257,6 @@ subroutine systemSolv(&
   integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution numrec
   logical(lgt)                    :: converged                     ! convergence flag numrec
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
-  ! enthalpy derivatives
-  real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind)                     :: dEnthalpy_dTk(nLayers)        ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind)                     :: dEnthalpy_dWat(nLayers)       ! derivatives in layer enthalpy w.r.t. water state
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -280,7 +272,6 @@ subroutine systemSolv(&
     mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out): [dp(:)] enthalpy of the snow+soil layers (J m-3)
     ! derivatives, diagnostic for enthalpy
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in): [dp]    derivative of volumetric liquid water content w.r.t. temperature
-    dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,& ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
     mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
     scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(in): [dp]    fraction of liquid water on vegetation (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
@@ -405,7 +396,6 @@ subroutine systemSolv(&
                     diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                     mpar_data,                   & ! intent(in):  parameter data structure
                     indx_data,                   & ! intent(in):  model indices
-                    lookup_data,                 & ! intent(in):  lookup table data structure
                     ! input: state variables for the vegetation canopy
                     scalarCanairTemp,            & ! intent(in):  value of canopy air temperature (K)
                     scalarCanopyTemp,            & ! intent(in):  value of canopy temperature (K)
@@ -414,16 +404,10 @@ subroutine systemSolv(&
                     mLayerTemp,                  & ! intent(in):  vector of layer temperature (K)
                     mLayerVolFracWat,            & ! intent(in):  vector of volumetric total water content (-)
                     mLayerMatricHead,            & ! intent(in):  vector of total water matric potential (m)
-                    ! input: pre-computed derivatives
-                    dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                     ! output: enthalpy
                     scalarCanairEnthalpy,        & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthalpy,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
                     mLayerEnthalpy,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
-                    dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
-                    dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
-                    dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
-                    dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -451,7 +435,6 @@ subroutine systemSolv(&
                     sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                     ! input: data structures
                     model_decisions,         & ! intent(in):    model decisions
-                    lookup_data,             & ! intent(in):    lookup tables
                     type_data,               & ! intent(in):    type of vegetation and soil
                     attr_data,               & ! intent(in):    spatial attributes
                     mpar_data,               & ! intent(in):    model parameters
@@ -551,7 +534,6 @@ subroutine systemSolv(&
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
-                          lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
@@ -628,7 +610,6 @@ subroutine systemSolv(&
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
-                          lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
@@ -703,7 +684,6 @@ subroutine systemSolv(&
                           fOld,                          & ! intent(in):    old function evaluation
                           ! input: data structures
                           model_decisions,               & ! intent(in):    model decisions
-                          lookup_data,                   & ! intent(in):    lookup tables
                           type_data,                     & ! intent(in):    type of vegetation and soil
                           attr_data,                     & ! intent(in):    spatial attributes
                           mpar_data,                     & ! intent(in):    model parameters

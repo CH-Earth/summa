@@ -107,10 +107,6 @@ subroutine computHeatCap(&
                      mLayerdTheta_dTk,            & ! intent(in):    derivative of volumetric liquid water content w.r.t. temperature (K-1)
                      mLayerFracLiqSnow,           & ! intent(in):    fraction of liquid water (-)
                      dVolTot_dPsi0,               & ! intent(in):    derivative in total water content w.r.t. total water matric potential (m-1)
-                     dCanEnthalpy_dTk,            & ! intent(in):    derivatives in canopy enthalpy w.r.t. temperature
-                     dCanEnthalpy_dWat,           & ! intent(in):    derivatives in canopy enthalpy w.r.t. water state
-                     dEnthalpy_dTk,               & ! intent(in):    derivatives in layer enthalpy w.r.t. temperature
-                     dEnthalpy_dWat,              & ! intent(in):    derivatives in layer enthalpy w.r.t. water state
                      ! output
                      heatCapVeg,                  & ! intent(out):   heat capacity for canopy
                      mLayerHeatCap,               & ! intent(out):   heat capacity for snow and soil
@@ -153,10 +149,6 @@ subroutine computHeatCap(&
   real(rkind),intent(in)          :: mLayerdTheta_dTk(:)       ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   real(rkind),intent(in)          :: mLayerFracLiqSnow(:)      ! fraction of liquid water (-)
   real(rkind),intent(in)          :: dVolTot_dPsi0(:)          ! derivative in total water content w.r.t. total water matric potential (m-1)
-  real(rkind),intent(in)          :: dCanEnthalpy_dTk          ! derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind),intent(in)          :: dCanEnthalpy_dWat         ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind),intent(in)          :: dEnthalpy_dTk(:)          ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind),intent(in)          :: dEnthalpy_dWat(:)         ! derivatives in layer enthalpy w.r.t. water state
   ! output:
   real(qp),intent(out)            :: heatCapVeg                ! heat capacity for canopy
   real(qp),intent(out)            :: mLayerHeatCap(:)          ! heat capacity for snow and soil
@@ -202,22 +194,21 @@ subroutine computHeatCap(&
         heatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
                      Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
                      Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
-
-        ! derivatives
-        fLiq = scalarFracLiqVeg
-        dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
-        if(scalarCanopyTempTrial < Tfreeze)then
-          dVolHtCapBulk_dTkCanopy = iden_water * (-Cp_ice + Cp_water) * dTheta_dTkCanopy ! no derivative in air
-        else
-          dVolHtCapBulk_dTkCanopy = 0._rkind
-        endif
-
       else
         delEnt = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpyPrev
         heatCapVeg = delEnt / delT
         ! derivatives
         dVolHtCapBulk_dCanWat = dCanEnthalpy_dWat / delT
         dVolHtCapBulk_dTkCanopy = ( dCanEnthalpy_dTk - delEnt/delT ) / delT
+      endif
+
+      ! derivatives for Jacobian are from analytical solution
+      fLiq = scalarFracLiqVeg
+      dVolHtCapBulk_dCanWat = ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq )/canopyDepth !this is iden_water/(iden_water*canopyDepth)
+      if(scalarCanopyTempTrial < Tfreeze)then
+        dVolHtCapBulk_dTkCanopy = iden_water * (-Cp_ice + Cp_water) * dTheta_dTkCanopy ! no derivative in air
+      else
+        dVolHtCapBulk_dTkCanopy = 0._rkind
       endif
     endif
 
@@ -234,45 +225,41 @@ subroutine computHeatCap(&
                                       iden_ice         * Cp_ice   * mLayerVolFracIce(iLayer)        + & ! ice component
                                       iden_water       * Cp_water * mLayerVolFracLiq(iLayer)        + & ! liquid water component
                                       iden_air         * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
-             ! derivatives
-             dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
-             Tcrit = crit_soilT( mLayerMatricHeadTrial(iSoil) )
-             if( mLayerTempTrial(iLayer) < Tcrit)then
-               dVolHtCapBulk_dPsi0(iSoil) = (iden_ice * Cp_ice   - iden_air * Cp_air) * dVolTot_dPsi0(iSoil)
-               dVolHtCapBulk_dTk(iLayer) = (-iden_ice * Cp_ice + iden_water * Cp_water) * mLayerdTheta_dTk(iLayer)
-             else
-               dVolHtCapBulk_dPsi0(iSoil) = (iden_water*Cp_water - iden_air * Cp_air) * dVolTot_dPsi0(iSoil)
-               dVolHtCapBulk_dTk(iLayer) = 0._rkind
-             endif
-
             case(iname_snow)
               mLayerHeatCap(iLayer) = iden_ice         * Cp_ice   * mLayerVolFracIce(iLayer)     + & ! ice component
                                       iden_water       * Cp_water * mLayerVolFracLiq(iLayer)     + & ! liquid water component
                                       iden_air         * Cp_air   * ( 1._rkind - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )   ! air component
-              ! derivatives
-              fLiq = mLayerFracLiqSnow(iLayer)
-              dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
-              if( mLayerTempTrial(iLayer) < Tfreeze)then
-                dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
-              else
-                dVolHtCapBulk_dTk(iLayer) = 0._rkind
-              endif
-
            case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
           end select
       else
         delEnt = mLayerEnthalpyTrial(iLayer) - mLayerEnthalpyPrev(iLayer)
         mLayerHeatCap(iLayer) = delEnt / delT
-        ! derivatives
-        if(iLayer>nSnow)then
-          iSoil = iLayer-nSnow
-          dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
-          dVolHtCapBulk_dPsi0(iSoil) = dEnthalpy_dWat(iLayer) / delT
-        else
-          dVolHtCapBulk_dTheta(iLayer) = dEnthalpy_dWat(iLayer) / delT
-        endif
-        dVolHtCapBulk_dTk(iLayer) = ( dEnthalpy_dTk(iLayer) - delEnt/delT ) / delT
       endif
+
+      ! derivatives for Jacobian are from analytical solution
+      select case(layerType(iLayer))
+        ! * soil
+        case(iname_soil)
+          dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
+          Tcrit = crit_soilT( mLayerMatricHeadTrial(iSoil) )
+          if( mLayerTempTrial(iLayer) < Tcrit)then
+            dVolHtCapBulk_dPsi0(iSoil) = (iden_ice * Cp_ice   - iden_air * Cp_air) * dVolTot_dPsi0(iSoil)
+            dVolHtCapBulk_dTk(iLayer) = (-iden_ice * Cp_ice + iden_water * Cp_water) * mLayerdTheta_dTk(iLayer)
+          else
+            dVolHtCapBulk_dPsi0(iSoil) = (iden_water*Cp_water - iden_air * Cp_air) * dVolTot_dPsi0(iSoil)
+            dVolHtCapBulk_dTk(iLayer) = 0._rkind
+          endif
+        ! * snow
+        case(iname_snow)
+          fLiq = mLayerFracLiqSnow(iLayer)
+          dVolHtCapBulk_dTheta(iLayer) = iden_water * ( -Cp_ice*( fLiq-1._rkind ) + Cp_water*fLiq ) + iden_air * ( ( fLiq-1._rkind )*iden_water/iden_ice - fLiq ) * Cp_air
+          if( mLayerTempTrial(iLayer) < Tfreeze)then
+            dVolHtCapBulk_dTk(iLayer) = ( iden_water * (-Cp_ice + Cp_water) + iden_air * (iden_water/iden_ice - 1._rkind) * Cp_air ) * mLayerdTheta_dTk(iLayer)
+          else
+            dVolHtCapBulk_dTk(iLayer) = 0._rkind
+          endif
+        end select
+
     end do  ! looping through layers
 
   end associate

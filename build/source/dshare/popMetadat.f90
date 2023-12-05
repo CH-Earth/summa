@@ -31,8 +31,7 @@ subroutine popMetadat(err,message)
   USE globalData, only: diag_meta           ! data structure for local diagnostic variables
   USE globalData, only: flux_meta           ! data structure for local flux variables
   USE globalData, only: deriv_meta          ! data structure for local flux derivatives
-  USE globalData, only: lookup_meta         ! data structure for lookup tables
-  ! structures of named variables
+   ! structures of named variables
   USE var_lookup, only: iLookTIME           ! named variables for time data structure
   USE var_lookup, only: iLookFORCE          ! named variables for forcing data structure
   USE var_lookup, only: iLookTYPE           ! named variables for categorical attribute data structure
@@ -46,7 +45,6 @@ subroutine popMetadat(err,message)
   USE var_lookup, only: iLookDIAG           ! named variables for local diagnostic variables
   USE var_lookup, only: iLookFLUX           ! named variables for local flux variables
   USE var_lookup, only: iLookDERIV          ! named variables for local flux derivatives
-  USE var_lookup, only: iLookLOOKUP         ! named variables for lookup tables
   USE var_lookup, only: maxvarFreq          ! number of output frequencies
   USE var_lookup, only: maxvarStat          ! number of statistics
   USE get_ixName_module,only:get_ixVarType  ! to turn vartype strings to integers
@@ -599,11 +597,6 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%dVolHtCapBulk_dCanWat)         = var_info('dVolHtCapBulk_dCanWat'        , 'derivative in bulk heat capacity w.r.t. canopy volumetric water content', 'J m-3 K-1'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dVolHtCapBulk_dTk)             = var_info('dVolHtCapBulk_dTk'            , 'derivative in bulk heat capacity w.r.t. temperature'                  , 'J m-3 K-2'      , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dVolHtCapBulk_dTkCanopy)       = var_info('dVolHtCapBulk_dTkCanopy'      , 'derivative in bulk heat capacity w.r.t. canopy temperature'           , 'J m-3 K-2'      , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dPsi0Prime)      = var_info('dVolHtCapBulk_dPsi0Prime'     , 'derivative in bulk heat capacity w.r.t. prime matric potential'       , 'J s m-4 K-1'    , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dThetaPrime)     = var_info('dVolHtCapBulk_dThetaPrime'    , 'derivative in bulk heat capacity w.r.t. prime volumetric water content', 'J s m-3 K-1'   , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dCanWatPrime)    = var_info('dVolHtCapBulk_dCanWatPrime'   , 'derivative in bulk heat capacity w.r.t. prime canopy volumetric water content','J s m-3 K-1',get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dTkPrime)        = var_info('dVolHtCapBulk_dTkPrime'       , 'derivative in bulk heat capacity w.r.t. prime temperature'            , 'J s m-3 K-2'    , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%dVolHtCapBulk_dTkCanPrime)     = var_info('dVolHtCapBulk_dTkCanPrime'    , 'derivative in bulk heat capacity w.r.t. prime canopy temperature'     , 'J s m-3 K-2'    , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dTempAbove)          = var_info('dThermalC_dTempAbove'         , 'derivative in the thermal conductivity w.r.t. energy in the layer above','J m-2 s-1 K-1' , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dTempBelow)          = var_info('dThermalC_dTempBelow'         , 'derivative in the thermal conductivity w.r.t. energy in the layer above','J m-2 s-1 K-1' , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dThermalC_dWatAbove)           = var_info('dThermalC_dWatAbove'          , 'derivative in the thermal conductivity w.r.t. water in the layer above', 'unknown'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
@@ -671,12 +664,6 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                   , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  ! -----
-  ! * temperature and enthalpy lookup tables...
-  ! -------------------------------------------
-  lookup_meta(iLookLOOKUP%temperature)        = var_info('temperature'          , 'value of temperature in the lookup table'                  , 'K'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  lookup_meta(iLookLOOKUP%enthalpy)           = var_info('enthalpy'             , 'value of enthalpy in the lookup table'                     , 'J m-3' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  lookup_meta(iLookLOOKUP%deriv2)             = var_info('deriv2'               , 'second derivatives of the interpolating function'          , 'mixed' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * model indices...
   ! ------------------
