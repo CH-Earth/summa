@@ -90,14 +90,15 @@ USE var_lookup,only:nFlux=>maxvarFlux ! number of model flux variables
 USE data_types,only:&
                     var_i,                                                     & ! data vector (i4b)
                     var_d,                                                     & ! data vector (rkind)
-                    var_flagVec,                                               & ! data vector with variable length dimension (i4b)
+                    var_flagVec,                                               & ! data vector with variable length dimension (lgt)
                     var_ilength,                                               & ! data vector with variable length dimension (i4b)
                     var_dlength,                                               & ! data vector with variable length dimension (rkind)
                     zLookup,                                                   & ! lookup tables
                     model_options,                                             & ! defines the model decisions
                     in_type_statefilter,out_type_statefilter,                  & ! classes for stateFilter objects
                     in_type_indexSplit,out_type_indexSplit,                    & ! classes for indexSplit objects
-                    in_type_varSubstep,io_type_varSubstep,out_type_varSubstep    ! classes for varSubstep objects
+                    in_type_varSubstep,io_type_varSubstep,out_type_varSubstep, & ! classes for varSubstep objects
+                    split_select_type                                            ! classs  for selecting operator splitting methods
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
@@ -300,7 +301,8 @@ subroutine opSplittin(&
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
   type(in_type_indexSplit)  :: in_indexSplit;                                             type(out_type_indexSplit)  :: out_indexSplit;  ! indexSplit arguments
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
-  ! ---------------------------------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------------------------------------------
+  type(split_select_type),allocatable :: split_select(:) ! class object for selecting operator splitting methods
 
   call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
   coupling: do ixCoupling=1,nCoupling                          ! loop through different coupling strategies
