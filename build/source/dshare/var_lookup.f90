@@ -845,6 +845,15 @@ MODULE var_lookup
  endtype iLook_freq
 
  ! ***********************************************************************************************************
+ ! (16) structure for looking up lookup tables
+ ! ***********************************************************************************************************
+ type, public :: iLook_vLookup
+  integer(i4b)    :: temperature = integerMissing ! temperature (K)
+  integer(i4b)    :: enthalpy    = integerMissing ! enthalpy (J m-3)
+  integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
+ endtype iLook_vLookup
+
+ ! ***********************************************************************************************************
  ! (X) define data structures and maximum number of variables of each type
  ! ***********************************************************************************************************
 
@@ -936,6 +945,8 @@ MODULE var_lookup
  type(iLook_stat),    public,parameter :: iLookStat     =ilook_stat    (  1,  2,  3,  4,  5,  6,  7)
  ! number of possible output frequencies
  type(iLook_freq),    public,parameter :: iLookFreq     =ilook_freq    (  1,  2,  3,  4)
+ ! named variables in the lookup table structure
+ type(iLook_vLookup), public,parameter :: iLookLOOKUP   =ilook_vLookup (  1,  2,  3)
  ! define maximum number of variables of each type
  integer(i4b),parameter,public :: maxvarDecisions = storage_size(iLookDECISIONS)/iLength
  integer(i4b),parameter,public :: maxvarTime      = storage_size(iLookTIME)/iLength

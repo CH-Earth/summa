@@ -31,12 +31,16 @@ USE multiconst, only: gravity, &                          ! gravitational accele
 USE nrtype
 USE data_types,only:var_iLength                    ! var(:)%dat(:)
 USE data_types,only:var_dLength                    ! var(:)%dat(:)
+USE data_types,only:zLookup                        ! z(:)%var(:)%lookup(:)
 
 ! indices within parameter structure
 USE var_lookup,only:iLookPARAM                     ! named variables to define structure element
 USE var_lookup,only:iLookINDEX                     ! named variables to define structure element
 USE var_lookup,only:iLookLOOKUP                    ! named variables to define structure element
 USE var_lookup,only:iLookDIAG                      ! named variables for structure elements
+
+! data dimensions
+USE var_lookup,only:maxvarLookup                   ! maximum number of variables in the lookup tables
 
 ! domain types
 USE globalData,only:iname_cas                      ! named variables for canopy air space
@@ -57,11 +61,181 @@ USE globalData,only:realMissing                    ! missing real number
 ! privacy
 implicit none
 private
+public::T2E_lookup
 public::t2enthalpy
 public::t2enthalpy_addphase
-public::
 
+! define the look-up table used to compute temperature based on enthalpy
 contains
+
+
+! ************************************************************************************************************************
+! public subroutine T2E_lookup: define a look-up table to compute enthalpy based on temperature
+! ************************************************************************************************************************
+subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of soil layers
+                      mpar_data,                   &  ! intent(in):    parameter data structure
+                      lookup_data,                 &  ! intent(inout): lookup table data structure
+                      err,message)
+  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
+  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
+  USE soil_utils_module,only:volFracLiq                 ! use to compute the volumetric fraction of liquid water
+  implicit none
+  ! declare dummy variables
+  integer(i4b),intent(in)       :: nSoil
+  type(var_dlength),intent(in)  :: mpar_data            ! model parameters
+  type(zLookup),intent(inout)   :: lookup_data          ! lookup tables
+  integer(i4b),intent(out)      :: err                  ! error code
+  character(*),intent(out)      :: message              ! error message
+  ! declare local variables
+  character(len=128)            :: cmessage             ! error message in downwind routine
+  logical(lgt),parameter        :: doTest=.false.       ! flag to test
+  integer(i4b),parameter        :: nLook=100            ! number of elements in the lookup table
+  integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
+  real(rkind),parameter         :: T_lower=260.0_rkind  ! lowest temperature value where all liquid water is assumed frozen (K)
+  real(rkind),dimension(nLook)  :: xTemp                ! temporary vector
+  real(rkind)                   :: xIncr                ! temporary increment
+  real(rkind)                   :: T_incr               ! temperature increment
+  real(rkind),parameter         :: T_test=272.9742_rkind   ! test value for temperature (K)
+  real(rkind)                   :: E_test               ! test value for enthalpy (J m-3)
+  real(rkind)                   :: dE                   ! derivative of enthalpy with temperature at T_test
+  integer(i4b)                  :: iVar                 ! loop through variables
+  integer(i4b)                  :: iSoil                ! loop through soil layers
+  integer(i4b)                  :: iLook                ! loop through lookup table
+  integer(i4b)                  :: jIntegr8             ! index for numerical integration
+  logical(lgt)                  :: check                ! flag to check allocation
+  real(rkind)                   :: vGn_m                ! van Genuchten "m" parameter (-)
+  real(rkind)                   :: vFracLiq             ! volumetric fraction of liquid water (-)
+  real(rkind)                   :: volFracIce            ! volumetric fraction of ice (-)
+  real(rkind)                   :: matricHead           ! matric head (m)
+  ! initialize error control
+  err=0; message="T2E_lookup/"
+
+  ! get the values of temperature for the lookup table
+  xIncr = 1._rkind/real(nLook-1, kind(rkind))
+  xTemp = T_lower + (Tfreeze - T_lower)*sqrt(sqrt(arth(0._rkind,xIncr,nLook))) ! use sqrt(sqrt()) to give more values near freezing
+
+  ! -----
+  ! * allocate space for the lookup table...
+  ! ----------------------------------------
+
+  ! initialize checks
+  check=.false.
+
+  ! allocate space for soil layers
+  if(allocated(lookup_data%z))then; check=.true.; else; allocate(lookup_data%z(nSoil), stat=err); endif
+  if(check) then; err=20; message=trim(message)//'lookup table z dimension was unexpectedly allocated already'; return; end if
+  if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table z dimension dimension'; return; end if
+
+  ! allocate space for the variables in the lookup table
+  do iSoil=1,nSoil
+    if(allocated(lookup_data%z(iSoil)%var))then; check=.true.; else; allocate(lookup_data%z(iSoil)%var(maxvarLookup), stat=err); endif
+    if(check) then; err=20; message=trim(message)//'lookup table var dimension was unexpectedly allocated already'; return; end if
+    if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table var dimension dimension'; return; end if
+
+    ! allocate space for the values in the lookup table
+    do iVar=1,maxvarLookup
+      if(allocated(lookup_data%z(iSoil)%var(iVar)%lookup))then; check=.true.; else; allocate(lookup_data%z(iSoil)%var(iVar)%lookup(nLook), stat=err); endif
+      if(check) then; err=20; message=trim(message)//'lookup table value dimension was unexpectedly allocated already'; return; end if
+      if(err/=0)then; err=20; message=trim(message)//'problem allocating lookup table vaule dimension dimension'; return; end if
+
+    end do ! (looping through variables)
+  end do ! (looping through soil layers)
+
+  ! loop through soil layers
+  do iSoil=1,nSoil
+
+    ! -----
+    ! * make association to variables in the data structures...
+    ! ---------------------------------------------------------
+
+    associate(&
+
+      ! associate model parameters
+      snowfrz_scale  => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)           , & ! scaling parameter for freezing     (K-1)
+      soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(iSoil)      , & ! intrinsic soil density             (kg m-3)
+      theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(iSoil)           , & ! soil porosity                      (-)
+      theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(iSoil)           , & ! volumetric residual water content  (-)
+      vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(iSoil)           , & ! van Genuchten "alpha" parameter    (m-1)
+      vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(iSoil)               , & ! van Genuchten "n" parameter        (-)
+
+      ! associate values in the lookup table
+      Tk            => lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
+      Ey            => lookup_data%z(iSoil)%var(iLookLOOKUP%enthalpy)%lookup     , & ! enthalpy (J m-3)
+      E2            => lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
+
+      ) ! end associate statement
+
+      ! compute vGn_m
+      vGn_m = 1._rkind - 1._rkind/vGn_n
+
+      ! -----
+      ! * populate the lookup table...
+      ! ------------------------------
+
+      ! initialize temperature and enthalpy
+      Tk(nLook) = Tfreeze
+      Ey(nLook) = 0._rkind
+
+      ! loop through lookup table
+      do iLook=(nLook-1),1,-1
+
+        ! update temperature and enthalpy
+        Tk(iLook) = Tk(iLook+1)
+        Ey(iLook) = Ey(iLook+1)
+
+        ! get the temperature increment for the numerical integration
+        T_incr = (xTemp(iLook)-xTemp(iLook+1))/real(nIntegr8, kind(rkind))
+
+        ! numerical integration between different values of the lookup table
+        do jIntegr8=1,nIntegr8
+
+          ! update temperature
+          Tk(iLook)  = Tk(iLook) + T_incr
+
+          ! compute the volumetric liquid water and ice content
+          ! NOTE: assume saturation
+          matricHead = (LH_fus/gravity)*(Tk(iLook) - Tfreeze)/Tfreeze
+          vFracLiq   = volFracLiq(matricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+          volFracIce   = theta_sat - vFracLiq
+
+          ! compute enthalpy
+          ! NOTE: assume intrrinsic density of ice is the intrinsic density of water
+          ! NOTE: kg m-3 J kg-1 K-1 K
+          Ey(iLook)  = Ey(iLook) + iden_water * Cp_water*vFracLiq*T_incr + iden_water * Cp_ice*volFracIce*T_incr
+
+        end do  ! numerical integration
+
+      end do  ! loop through lookup table
+
+      ! use cubic spline interpolation to obtain enthalpy values at the desired values of temperature
+      call spline(Tk,Ey,1.e30_rkind,1.e30_rkind,E2,err,cmessage)  ! get the second derivatives
+      if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+      ! test
+      if(doTest)then
+
+        ! calculate enthalpy
+        call splint(Tk,Ey,E2,T_test,E_test,dE,err,cmessage)
+        if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+        ! write values
+        print*, 'doTest    = ', doTest
+        print*, 'T_test    = ', T_test    ! temperature (K)
+        print*, 'E_test    = ', E_test    ! enthalpy (J m-3)
+        print*, 'theta_sat = ', theta_sat ! soil porosity                      (-)
+        print*, 'theta_res = ', theta_res ! volumetric residual water content  (-)
+        print*, 'vGn_alpha = ', vGn_alpha ! van Genuchten "alpha" parameter    (m-1)
+        print*, 'vGn_n     = ', vGn_n     ! van Genuchten "n" parameter        (-)
+        print*, trim(message)//'PAUSE: Set doTest=.false. to complete simulations'
+        read(*,*)
+
+      endif  ! if testing
+
+    ! end asssociation to variables in the data structures
+    end associate
+
+  end do  ! (looping through soil layers)
+end subroutine T2E_lookup
 
 
 ! ************************************************************************************************************************
@@ -72,6 +246,7 @@ subroutine t2enthalpy(&
                       diag_data,                         & ! intent(in):  model diagnostic variables for a local HRU
                       mpar_data,                         & ! intent(in):  parameter data structure
                       indx_data,                         & ! intent(in):  model indices
+                      lookup_data,                       & ! intent(in):  lookup table data structure
                       ! input: state variables for the vegetation canopy
                       scalarCanairTempTrial,             & ! intent(in):  trial value of canopy air temperature (K)
                       scalarCanopyTempTrial,             & ! intent(in):  trial value of canopy temperature (K)
@@ -90,6 +265,7 @@ subroutine t2enthalpy(&
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
   USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
+  USE spline_int_module,only:splint         ! use for cubic spline interpolation
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -97,6 +273,7 @@ subroutine t2enthalpy(&
   type(var_dlength),intent(in)     :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)     :: mpar_data                 ! model parameters
   type(var_ilength),intent(in)     :: indx_data                 ! model indices
+  type(zLookup),intent(in)         :: lookup_data               ! lookup tables
   ! input: state variables for the vegetation canopy
   real(rkind),intent(in)           :: scalarCanairTempTrial     ! trial value of canopy air temperature (K)
   real(rkind),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
@@ -105,16 +282,10 @@ subroutine t2enthalpy(&
   real(rkind),intent(in)           :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
   real(rkind),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
   real(rkind),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
-  real(rkind),intent(in)           :: mLayerMatricHeadLiqTrial(:)! trial vector of liquid water matric potential (m)
   ! output: enthalpy
   real(rkind),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
   real(rkind),intent(out)          :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
   real(rkind),intent(out)          :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
-  ! output: derivatives
-  real(rkind),intent(out)          :: dCanEnthalpy_dTk          ! derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind),intent(out)          :: dCanEnthalpy_dWat         ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind),intent(out)          :: dEnthalpy_dTk(:)          ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind),intent(out)          :: dEnthalpy_dWat(:)         ! derivatives in layer enthalpy w.r.t. water state
   ! output: error control
   integer(i4b),intent(out)         :: err                       ! error code
   character(*),intent(out)         :: message                   ! error message
@@ -132,8 +303,12 @@ subroutine t2enthalpy(&
   real(rkind)                      :: diffT                     ! temperature difference from Tfreeze
   real(rkind)                      :: integral                  ! integral of snow freezing curve
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
+  real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
+  real(rkind)                      :: dEcrit                    ! derivative of enthalpy with temperature at critical temperature
   real(rkind)                      :: arg                       ! argument of hypergeometric function
   real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
+  real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
+  real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
   ! enthalpy
   real(rkind)                      :: enthVeg                   ! enthalpy of the vegetation (J m-3)
   real(rkind)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
@@ -145,6 +320,8 @@ subroutine t2enthalpy(&
   real(rkind)                      :: enthTcrit                 ! enthalpy at the critical temperature where all water is unfrozen (J m-3)
   real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
   real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
+  logical(lgt),parameter           :: use_lookup=.true.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
+  logical(lgt),parameter           :: quick_hyper=.false.       ! flag to use a quick hypergeometric function, currently no difference between quick and slow hypergeometric functions
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
@@ -160,7 +337,7 @@ subroutine t2enthalpy(&
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):  [i4b(:)] index of the control volume for different domains (veg, snow, soil)
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat               & ! intent(in):  [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ) ! end associate statement
-    ! --------------------------------------------------------------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
     err=0; message="t2enthalpy/"
@@ -198,10 +375,10 @@ subroutine t2enthalpy(&
           case(iname_veg)
             ! association to necessary variables for vegetation
             vegVars: associate(&
-              canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),         & ! intent(in): [dp]      canopy depth (m)
-              specificHeatVeg         => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),          & ! intent(in): specific heat of vegetation (J kg-1 K-1)
-              maxMassVegetation       => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),        & ! intent(in): maximum mass of vegetation (kg m-2)
-              snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
+              canopyDepth       => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1),   & ! canopy depth                                   (m)
+              specificHeatVeg   => mpar_data%var(iLookPARAM%specificHeatVeg)%dat(1),    & ! specific heat of vegetation                    (J kg-1 K-1)
+              maxMassVegetation => mpar_data%var(iLookPARAM%maxMassVegetation)%dat(1),  & ! maximum mass of vegetation                     (kg m-2)
+              snowfrz_scale     => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)       & ! scaling parameter for the snow freezing curve  (K-1)
               )
 
               diffT = scalarCanopyTempTrial - Tfreeze
@@ -224,7 +401,7 @@ subroutine t2enthalpy(&
 
             ! association to necessary variables for snow
             snowVars: associate(&
-              snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
+              snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
               )
 
               diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
@@ -238,17 +415,17 @@ subroutine t2enthalpy(&
             end associate snowVars
 
           case(iname_soil)
-
-            ! make association to variables in the data structures...
+            ! make association to variables for soil
             soilVars: associate(&
-
-              ! associate model parameters
               soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(ixControlIndex)      , & ! intrinsic soil density             (kg m-3)
               theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(ixControlIndex)           , & ! soil porosity                      (-)
               theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(ixControlIndex)           , & ! volumetric residual water content  (-)
               vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(ixControlIndex)           , & ! van Genuchten "alpha" parameter    (m-1)
               vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)               , & ! van Genuchten "n" parameter        (-)
-
+              ! associate values in the lookup table
+              Tk            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
+              Ey            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%enthalpy)%lookup     , & ! enthalpy (J m-3)
+              E2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
               ) ! end associate statement
 
               ! diagnostic variables
@@ -268,12 +445,35 @@ subroutine t2enthalpy(&
                 enthIce = iden_ice * Cp_ice * volFracWat * (mLayerTempTrial(iLayer) - Tcrit) 
 
                 ! compute enthalpy of the mixed region, liquid+ice
-                arg = (-vGn_alpha * mLayerMatricHeadLiqTrial(ixControlIndex))**vGn_n
-                gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                enthTemp = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) 
-                arg = (-vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
-                gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                enthTcrit = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                if(use_lookup)then !cubic spline interpolation
+                  ! calculate enthalpy at the temperature
+                  call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),enthTemp,dE,err,cmessage)
+                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+                  ! calculate enthalpy at the critical temperature 
+                  call splint(Tk,Ey,E2,Tcrit,enthTcrit,dEcrit,err,cmessage)
+                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+                else ! hypergeometric function
+                  ! calculate enthalpy at the temperature
+                   ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
+                  !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
+                  xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+                  mLayerPsiLiq  = xConst*(mLayerTempTrial(iLayer) - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
+                  arg = (-vGn_alpha * mLayerPsiLiq)**vGn_n
+                  if(quick_hyper)then
+                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  else
+                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  endif
+                  enthTemp = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) 
+                  ! calculate enthalpy at the critical temperature 
+                  arg = (-vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
+                  if(quick_hyper)then
+                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  else
+                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  endif
+                  enthTcrit = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                endif
 
                 ! calculate the enthalpy of water
                 enthMix   = enthTemp - enthTcrit ! enthalpy of the liquid+ice mix
@@ -327,27 +527,27 @@ subroutine t2enthalpy_addphase(&
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
-  type(var_dlength),intent(in)     :: diag_data                 ! diagnostic variables for a local HRU
-  type(var_ilength),intent(in)     :: indx_data                 ! model indices
+  type(var_dlength),intent(in)     :: diag_data             ! diagnostic variables for a local HRU
+  type(var_ilength),intent(in)     :: indx_data             ! model indices
   ! input: state variables for the vegetation canopy
-  real(rkind),intent(in)           :: scalarCanopyIce           ! value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
+  real(rkind),intent(in)           :: scalarCanopyIce       ! value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
   ! input: variables for the snow-soil domain
-  real(rkind),intent(in)           :: mLayerVolFracIce     (:)  ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
+  real(rkind),intent(in)           :: mLayerVolFracIce(:)   ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
   ! input output: enthalpy
-  real(rkind),intent(inout)        :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
-  real(rkind),intent(inout)        :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: scalarCanopyEnthalpy  ! enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: mLayerEnthalpy(:)     ! enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
   ! output: error control
-  integer(i4b),intent(out)         :: err                       ! error code
-  character(*),intent(out)         :: message                   ! error message
+  integer(i4b),intent(out)         :: err                   ! error code
+  character(*),intent(out)         :: message               ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
-  character(len=128)               :: cmessage                  ! error message in downwind routine
-  integer(i4b)                     :: iState                    ! index of model state variable
-  integer(i4b)                     :: iLayer                    ! index of model layer
-  integer(i4b)                     :: ixFullVector              ! index within full state vector
-  integer(i4b)                     :: ixDomainType              ! name of a given model domain
-  integer(i4b)                     :: ixControlIndex            ! index within a given model domain
-   ! --------------------------------------------------------------------------------------------------------------------------------
+  character(len=128)               :: cmessage              ! error message in downwind routine
+  integer(i4b)                     :: iState                ! index of model state variable
+  integer(i4b)                     :: iLayer                ! index of model layer
+  integer(i4b)                     :: ixFullVector          ! index within full state vector
+  integer(i4b)                     :: ixDomainType          ! name of a given model domain
+  integer(i4b)                     :: ixControlIndex        ! index within a given model domain
+   ! ------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
     ! number of model layers, and layer type
@@ -362,7 +562,7 @@ subroutine t2enthalpy_addphase(&
     ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):  [i4b(:)] index of the control volume for different domains (veg, snow, soil)
     ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat               & ! intent(in):  [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
     ) ! end associate statement
-    ! --------------------------------------------------------------------------------------------------------------------------------
+    ! -----------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
     err=0; message="t2enthalpy_addphase/"
@@ -399,7 +599,7 @@ subroutine t2enthalpy_addphase(&
           case(iname_veg)
             ! association to necessary variables for vegetation
             vegVars: associate(&
-              canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          & ! intent(in): [dp]      canopy depth (m)
+              canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          & ! canopy depth (m)
               )
               scalarCanopyEnthalpy = scalarCanopyEnthalpy - LH_fus * scalarCanopyIce / canopyDepth
 

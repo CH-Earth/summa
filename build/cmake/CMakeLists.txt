@@ -274,7 +274,8 @@ set(NRUTIL
 
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
-    ${ENGINE_DIR}/expIntegral.f90)
+    ${ENGINE_DIR}/expIntegral.f90
+    ${ENGINE_DIR}/spline_int.f90)
 
 # Hook-up modules
 set(HOOKUP
@@ -323,6 +324,7 @@ set(PRELIM
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/conv_funcs.f90
+    ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90
@@ -383,7 +385,6 @@ set(SOLVER_NOT_ACTORS
     ${ENGINE_DIR}/run_oneGRU.f90
     ${ENGINE_DIR}/run_oneHRU.f90)
 set(SOLVER_SUNDIALS
-    ${ENGINE_DIR}/computHeatCapWithPrime.f90
     ${ENGINE_DIR}/computJacobWithPrime.f90
     ${ENGINE_DIR}/computResidWithPrime.f90
     ${ENGINE_DIR}/eval8summaWithPrime.f90

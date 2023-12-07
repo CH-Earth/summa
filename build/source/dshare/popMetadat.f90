@@ -31,6 +31,7 @@ subroutine popMetadat(err,message)
   USE globalData, only: diag_meta           ! data structure for local diagnostic variables
   USE globalData, only: flux_meta           ! data structure for local flux variables
   USE globalData, only: deriv_meta          ! data structure for local flux derivatives
+  USE globalData, only: lookup_meta         ! data structure for lookup tables
    ! structures of named variables
   USE var_lookup, only: iLookTIME           ! named variables for time data structure
   USE var_lookup, only: iLookFORCE          ! named variables for forcing data structure
@@ -45,6 +46,7 @@ subroutine popMetadat(err,message)
   USE var_lookup, only: iLookDIAG           ! named variables for local diagnostic variables
   USE var_lookup, only: iLookFLUX           ! named variables for local flux variables
   USE var_lookup, only: iLookDERIV          ! named variables for local flux derivatives
+  USE var_lookup, only: iLookLOOKUP         ! named variables for lookup tables
   USE var_lookup, only: maxvarFreq          ! number of output frequencies
   USE var_lookup, only: maxvarStat          ! number of statistics
   USE get_ixName_module,only:get_ixVarType  ! to turn vartype strings to integers
@@ -664,6 +666,12 @@ subroutine popMetadat(err,message)
   bvar_meta(iLookBVAR%routingFractionFuture)   = var_info('routingFractionFuture'  , 'fraction of runoff in future time steps'                , '-'     , get_ixVarType('routing'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageInstantRunoff)    = var_info('averageInstantRunoff'   , 'instantaneous runoff'                                   , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   bvar_meta(iLookBVAR%averageRoutedRunoff)     = var_info('averageRoutedRunoff'    , 'routed runoff'                                          , 'm s-1' , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! -----
+  ! * temperature and enthalpy lookup tables...
+  ! -------------------------------------------
+  lookup_meta(iLookLOOKUP%temperature)        = var_info('temperature'          , 'value of temperature in the lookup table'                  , 'K'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  lookup_meta(iLookLOOKUP%enthalpy)           = var_info('enthalpy'             , 'value of enthalpy in the lookup table'                     , 'J m-3' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  lookup_meta(iLookLOOKUP%deriv2)             = var_info('deriv2'               , 'second derivatives of the interpolating function'          , 'mixed' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * model indices...
   ! ------------------

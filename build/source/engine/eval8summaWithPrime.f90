@@ -21,6 +21,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zlookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -67,6 +68,7 @@ subroutine eval8summaWithPrime(&
                       sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,               & ! intent(in):    model decisions
+                      lookup_data,                   & ! intent(in):    lookup data
                       type_data,                     & ! intent(in):    type of vegetation and soil
                       attr_data,                     & ! intent(in):    spatial attributes
                       mpar_data,                     & ! intent(in):    model parameters
@@ -116,10 +118,10 @@ subroutine eval8summaWithPrime(&
   USE getVectorz_module, only:varExtract                         ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                          ! check feasibility of state vector
   USE updateVarsWithPrime_module, only:updateVarsWithPrime       ! update variables
-  USE t2enthalpyAddPrime_module, only:t2enthalpyPrime            ! compute enthalpy prime and derivatives                     
+  USE t2enthalpyAddPrime_module, only:t2enthalpyPrime            ! compute enthalpy prime                    
   USE computFlux_module, only:soilCmpresPrime                    ! compute soil compression
   USE computFlux_module, only:computFlux                         ! compute fluxes given a state vector
-  USE computHeatCapWithPrime_module,only:computHeatCapWithPrime  ! recompute heat capacity (Cp) and derivatives
+  USE computHeatCap_module,only:computHeatCap                    ! recompute enthalpy finite difference heat capacity (Cp) and derivatives
   USE computHeatCap_module,only:computHeatCapAnalytic            ! recompute closed form heat capacity (Cp) and derivatives
   USE computHeatCap_module,only:computCm                         ! compute Cm and derivatives
   USE computHeatCap_module, only:computStatMult                  ! recompute state multiplier
@@ -146,6 +148,7 @@ subroutine eval8summaWithPrime(&
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp            ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)              ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data                     ! lookup tables
   type(var_i),        intent(in)  :: type_data                       ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data                       ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data                       ! model parameters
@@ -422,6 +425,7 @@ subroutine eval8summaWithPrime(&
                         diag_data,                         & ! intent(in):   model diagnostic variables for a local HRU
                         mpar_data,                         & ! intent(in):   parameter data structure
                         indx_data,                         & ! intent(in):   model indices
+                        lookup_data,                       & ! intent(in):   lookup table data structure
                         ! input: state variables for the vegetation canopy   
                         scalarCanairTempPrime,             & ! intent(in):   prime value of canopy air temperature (K)
                         scalarCanopyTempTrial,             & ! intent(in):   trial value of canopy temperature (K)
@@ -446,7 +450,7 @@ subroutine eval8summaWithPrime(&
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         ! *** compute volumetric heat capacity C_p = dH_T/dT
-        call computHeatCapWithPrime(&
+        call computHeatCap(&
                             ! input: control variables
                             nLayers,                    & ! intent(in):    number of layers (soil+snow)
                             computeVegFlux,             & ! intent(in):    flag to denote if computing the vegetation flux
@@ -784,6 +788,7 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
                 eqns_data%model_decisions,               & ! intent(in):    model decisions
+                eqns_data%lookup_data,                   & ! intent(in):    lookup data
                 eqns_data%type_data,                     & ! intent(in):    type of vegetation and soil
                 eqns_data%attr_data,                     & ! intent(in):    spatial attributes
                 eqns_data%mpar_data,                     & ! intent(in):    model parameters

@@ -75,6 +75,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of heat capacity computation
@@ -123,6 +124,7 @@ subroutine systemSolv(&
                       checkMassBalance,  & ! intent(in):    flag to check mass balance
                       checkNrgBalance,   & ! intent(in):    flag to check energy balance
                       ! input/output: data structures
+                      lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
                       attr_data,         & ! intent(in):    spatial attributes
                       forc_data,         & ! intent(in):    model forcing data
@@ -184,6 +186,7 @@ subroutine systemSolv(&
   logical(lgt),intent(in)         :: checkMassBalance              ! flag to check mass balance
   logical(lgt),intent(in)         :: checkNrgBalance               ! flag to check energy balance
   ! input/output: data structures
+  type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
   type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
   type(var_d),intent(in)          :: attr_data                     ! spatial attributes
   type(var_d),intent(in)          :: forc_data                     ! model forcing data
@@ -396,6 +399,7 @@ subroutine systemSolv(&
                     diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                     mpar_data,                   & ! intent(in):  parameter data structure
                     indx_data,                   & ! intent(in):  model indices
+                    lookup_data,                 & ! intent(in):  lookup table data structure
                     ! input: state variables for the vegetation canopy
                     scalarCanairTemp,            & ! intent(in):  value of canopy air temperature (K)
                     scalarCanopyTemp,            & ! intent(in):  value of canopy temperature (K)
@@ -435,6 +439,7 @@ subroutine systemSolv(&
                     sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                     ! input: data structures
                     model_decisions,         & ! intent(in):    model decisions
+                    lookup_data,             & ! intent(in):    lookup tables
                     type_data,               & ! intent(in):    type of vegetation and soil
                     attr_data,               & ! intent(in):    spatial attributes
                     mpar_data,               & ! intent(in):    model parameters
@@ -534,6 +539,7 @@ subroutine systemSolv(&
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
+                          lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
@@ -610,6 +616,7 @@ subroutine systemSolv(&
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
+                          lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
@@ -684,6 +691,7 @@ subroutine systemSolv(&
                           fOld,                          & ! intent(in):    old function evaluation
                           ! input: data structures
                           model_decisions,               & ! intent(in):    model decisions
+                          lookup_data,                   & ! intent(in):    lookup tables
                           type_data,                     & ! intent(in):    type of vegetation and soil
                           attr_data,                     & ! intent(in):    spatial attributes
                           mpar_data,                     & ! intent(in):    model parameters

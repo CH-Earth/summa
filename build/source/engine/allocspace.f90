@@ -46,7 +46,9 @@ USE data_types,only:&
                     gru_hru_int8,        & ! x%gru(:)%hru(:)%var(:)     integer(8)
                     gru_hru_double,      & ! x%gru(:)%hru(:)%var(:)     (rkind)
                     gru_hru_intVec,      & ! x%gru(:)%hru(:)%var(:)%dat (i4b)
-                    gru_hru_doubleVec      ! x%gru(:)%hru(:)%var(:)%dat (rkind)
+                    gru_hru_doubleVec,   & ! x%gru(:)%hru(:)%var(:)%dat (rkind)
+                    ! gru+hru+z dimension
+                    gru_hru_z_vLookup      ! x%gru(:)%hru(:)%z(:)%var(:)%lookup (rkind)
 
 ! metadata structure
 USE data_types,only:var_info               ! data type for metadata

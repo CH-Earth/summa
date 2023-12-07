@@ -100,6 +100,7 @@ subroutine eval8summa(&
                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
+                      lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -129,7 +130,7 @@ subroutine eval8summa(&
   USE t2enthalpy_module, only:t2enthalpy                ! compute enthalpy
   USE computFlux_module, only:soilCmpres                ! compute soil compression
   USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
-  USE computHeatCap_module,only:computHeatCap           ! recompute heat capacity (Cp) and derivatives
+  USE computHeatCap_module,only:computHeatCap           ! recompute enthalpy finite difference heat capacity (Cp) and derivatives
   USE computHeatCap_module,only:computHeatCapAnalytic   ! recompute closed form heat capacity (Cp) and derivatives
   USE computHeatCap_module,only:computCm                ! compute Cm and derivatives
   USE computHeatCap_module, only:computStatMult         ! recompute state multiplier
@@ -157,6 +158,7 @@ subroutine eval8summa(&
   real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp   ! state vector multiplier (used in the residual calculations)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -388,6 +390,7 @@ subroutine eval8summa(&
                         diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                         mpar_data,                   & ! intent(in):  parameter data structure
                         indx_data,                   & ! intent(in):  model indices
+                        lookup_data,                 & ! intent(in):  lookup table data structure
                         ! input: state variables for the vegetation canopy
                         scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
                         scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
@@ -418,15 +421,13 @@ subroutine eval8summa(&
                             scalarCanopyIceTrial,      & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
                             scalarCanopyLiqTrial,      & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                             scalarCanopyTempTrial,     & ! intent(in):    trial value of canopy temperature (K)
-                            scalarCanopyTemp,          & ! intent(in):    previous value of canopy temperature (K)
-                            scalarCanopyEnthalpyTrial, & ! intent(in):    trial enthalpy of the vegetation canopy (J m-3)
-                            scalarCanopyEnthalpy,      & ! intent(in):    previous enthalpy of the vegetation canopy (J m-3)
+             scalarCanopyTempTrial - scalarCanopyTemp, & ! intent(in):    delta value of canopy temperature (K)
+     scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy, & ! intent(in):    delta enthalpy of the vegetation canopy (J m-3)
                             mLayerVolFracIceTrial,     & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
                             mLayerVolFracLiqTrial,     & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
                             mLayerTempTrial,           & ! intent(in):    trial temperature
-                            mLayerTemp,                & ! intent(in):    previous temperature
-                            mLayerEnthalpyTrial,       & ! intent(in):    trial enthalpy for snow and soil
-                            mLayerEnthalpy,            & ! intent(in):    previous enthalpy for snow and soil
+                         mLayerTempTrial - mLayerTemp, & ! intent(in):    delta temperature
+                 mLayerEnthalpyTrial - mLayerEnthalpy, & ! intent(in):    delta enthalpy for snow and soil
                             mLayerMatricHeadTrial,     & ! intent(in):    trial total water matric potential (m)
                             ! input: pre-computed derivatives   
                             dTheta_dTkCanopy,          & ! intent(in):    derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
@@ -753,6 +754,7 @@ integer(c_int) function eval8summa4kinsol(sunvec_y, sunvec_r, user_data) &
                 eqns_data%sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                 ! input: data structures
                 eqns_data%model_decisions,         & ! intent(in):    model decisions
+                eqns_data%lookup_data,             & ! intent(in):    lookup data
                 eqns_data%type_data,               & ! intent(in):    type of vegetation and soil
                 eqns_data%attr_data,               & ! intent(in):    spatial attributes
                 eqns_data%mpar_data,               & ! intent(in):    model parameters

@@ -70,6 +70,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of groundwater parameterization
@@ -117,6 +118,7 @@ contains
                        fOld,                    & ! intent(in):    old function evaluation
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
+                       lookup_data,             & ! intent(in):    lookup tables
                        type_data,               & ! intent(in):    type of vegetation and soil
                        attr_data,               & ! intent(in):    spatial attributes
                        mpar_data,               & ! intent(in):    model parameters
@@ -170,6 +172,7 @@ contains
  real(rkind),intent(in)          :: fOld                     ! old function evaluation
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
+ type(zLookup),      intent(in)  :: lookup_data              ! lookup tables
  type(var_i),        intent(in)  :: type_data                ! type of vegetation and soil
  type(var_d),        intent(in)  :: attr_data                ! spatial attributes
  type(var_dlength),  intent(in)  :: mpar_data                ! model parameters
@@ -951,6 +954,7 @@ contains
                   sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                   ! input: data structures
                   model_decisions,         & ! intent(in):    model decisions
+                  lookup_data,             & ! intent(in):    lookup tables
                   type_data,               & ! intent(in):    type of vegetation and soil
                   attr_data,               & ! intent(in):    spatial attributes
                   mpar_data,               & ! intent(in):    model parameters

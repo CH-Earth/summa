@@ -774,11 +774,6 @@ contains
   case('dVolHtCapBulk_dCanWat'          ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWat          ! derivative in bulk heat capacity w.r.t. canopy volumetric water content
   case('dVolHtCapBulk_dTk'              ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTk              ! derivative in bulk heat capacity w.r.t. temperature
   case('dVolHtCapBulk_dTkCanopy'        ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanopy        ! derivative in bulk heat capacity w.r.t. canopy temperature
-  case('dVolHtCapBulk_dPsi0Prime'       ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dPsi0Prime       ! derivative in bulk heat capacity w.r.t. prime matric potential
-  case('dVolHtCapBulk_dThetaPrime'      ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dThetaPrime      ! derivative in bulk heat capacity w.r.t. prime volumetric water content
-  case('dVolHtCapBulk_dCanWatPrime'     ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dCanWatPrime     ! derivative in bulk heat capacity w.r.t. prime volumetric water content
-  case('dVolHtCapBulk_dTkPrime'         ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkPrime         ! derivative in bulk heat capacity w.r.t. prime temperature
-  case('dVolHtCapBulk_dTkCanPrime'      ); get_ixderiv = iLookDERIV%dVolHtCapBulk_dTkCanPrime      ! derivative in bulk heat capacity w.r.t. prime temperature
   case('dThermalC_dTempAbove'           ); get_ixderiv = iLookDERIV%dThermalC_dTempAbove           ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   case('dThermalC_dTempBelow'           ); get_ixderiv = iLookDERIV%dThermalC_dTempBelow           ! derivative in the thermal conductivity w.r.t. energy state in the layer above
   case('dThermalC_dWatAbove'            ); get_ixderiv = iLookDERIV%dThermalC_dWatAbove            ! derivative in the thermal conductivity w.r.t. water state in the layer above
@@ -1081,6 +1076,7 @@ contains
    case ('bpar' );  vDex = get_ixBpar(trim(varName))
    case ('bvar' );  vDex = get_ixBvar(trim(varName))
    case ('deriv');  vDex = get_ixDeriv(trim(varName))
+   case ('lookup'); vDex = get_ixLookup(trim(varName))
   end select
   if (vDex>0) then; typeName=trim(structInfo(iStruc)%structName); return; end if
  end do

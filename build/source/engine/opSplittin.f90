@@ -93,6 +93,7 @@ USE data_types,only:&
                     var_flagVec,                                               & ! data vector with variable length dimension (i4b)
                     var_ilength,                                               & ! data vector with variable length dimension (i4b)
                     var_dlength,                                               & ! data vector with variable length dimension (rkind)
+                    zLookup,                                                   & ! lookup tables
                     model_options,                                             & ! defines the model decisions
                     in_type_statefilter,out_type_statefilter,                  & ! classes for stateFilter objects
                     in_type_indexSplit,out_type_indexSplit,                    & ! classes for indexSplit objects
@@ -175,6 +176,7 @@ subroutine opSplittin(&
                       diag_data,            & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,            & ! intent(inout): model fluxes for a local HRU
                       bvar_data,            & ! intent(in):    model variables for the local basin
+                      lookup_data,          & ! intent(in):    lookup tables
                       model_decisions,      & ! intent(in):    model decisions
                       ! output: model control
                       dtMultiplier,         & ! intent(out):   substep multiplier (-)
@@ -214,6 +216,7 @@ subroutine opSplittin(&
   type(var_dlength),intent(inout) :: diag_data                      ! diagnostic variables for a local HRU
   type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
   type(var_dlength),intent(in)    :: bvar_data                      ! model variables for the local basin
+  type(zLookup),    intent(in)    :: lookup_data                    ! lookup tables
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
   ! output: model control
   real(rkind),intent(out)         :: dtMultiplier                   ! substep multiplier (-)
@@ -662,7 +665,7 @@ subroutine opSplittin(&
    ! solve variable subset for one full time step
    call initialize_varSubstep
    call varSubstep(in_varSubstep,io_varSubstep,&                                            ! intent(inout): class objects for model control
-                   model_decisions,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
+                   model_decisions,lookup_data,type_data,attr_data,forc_data,mpar_data,&    ! intent(inout): data structures for model properties
                    indx_data,prog_data,diag_data,flux_data,flux_mean,deriv_data,bvar_data,&
                    out_varSubstep)                                                          ! intent(out): class object for model control
    call finalize_varSubstep

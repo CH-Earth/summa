@@ -40,11 +40,13 @@ contains
  USE globalData,only:prog_meta,diag_meta,flux_meta,deriv_meta         ! metadata structures
  USE globalData,only:mpar_meta,indx_meta                              ! metadata structures
  USE globalData,only:bpar_meta,bvar_meta                              ! metadata structures
+ USE globalData,only:lookup_meta                                      ! metadata structures
   ! named variables defining strructure elements
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV         ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPARAM,iLookINDEX                            ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookBPAR,iLookBVAR                              ! named variables showing the elements of each data structure
+ USE var_lookup,only:iLookLOOKUP                                      ! named variables showing the elements of each data structure
  implicit none
  ! dummy variables
  integer(i4b),intent(out)             :: err         ! error code
@@ -83,6 +85,7 @@ contains
    case('diag');   write(longString,*) iLookDIAG
    case('flux');   write(longString,*) iLookFLUX
    case('deriv');  write(longString,*) iLookDERIV
+   case('lookup'); write(longString,*) iLookLOOKUP
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   ! check that the length of the lookup structure matches the number of variables in the data structure
@@ -120,6 +123,7 @@ contains
    case('diag');   call checkPopulated(iStruct,diag_meta,err,cmessage)
    case('flux');   call checkPopulated(iStruct,flux_meta,err,cmessage)
    case('deriv');  call checkPopulated(iStruct,deriv_meta,err,cmessage)
+   case('lookup'); call checkPopulated(iStruct,lookup_meta,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify lookup structure'; return
   end select
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)

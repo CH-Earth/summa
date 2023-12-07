@@ -91,15 +91,13 @@ subroutine computHeatCap(&
                      scalarCanopyIce,             & ! intent(in):    trial value for mass of ice on the vegetation canopy (kg m-2)
                      scalarCanopyLiquid,          & ! intent(in):    trial value for the liquid water on the vegetation canopy (kg m-2)
                      scalarCanopyTempTrial,       & ! intent(in):    trial value of canopy temperature (K)
-                     scalarCanopyTempPrev,        & ! intent(in):    previous value of canopy temperature (K)
-                     scalarCanopyEnthalpyTrial,   & ! intent(in):    trial enthalpy of the vegetation canopy (J m-3)
-                     scalarCanopyEnthalpyPrev,    & ! intent(in):    previous enthalpy of the vegetation canopy (J m-3)
+                     scalarCanopyTempDelta,       & ! intent(in):    delta value of canopy temperature (prime or trial-prev)
+                     scalarCanopyEnthalpyDelta,   & ! intent(in):    delta enthalpy of the vegetation canopy (prime or trial-prev)
                      mLayerVolFracIce,            & ! intent(in):    volumetric fraction of ice at the start of the sub-step (-)
                      mLayerVolFracLiq,            & ! intent(in):    volumetric fraction of liquid water at the start of the sub-step (-)
                      mLayerTempTrial,             & ! intent(in):    trial temperature
-                     mLayerTempPrev,              & ! intent(in):    previous temperature
-                     mLayerEnthalpyTrial,         & ! intent(in):    trial enthalpy for snow and soil
-                     mLayerEnthalpyPrev,          & ! intent(in):    previous enthalpy for snow and soil
+                     mLayerTempDelta,             & ! intent(in):    delta temperature (prime or trial-prev)
+                     mLayerEnthalpyDelta,         & ! intent(in):    delta enthalpy for snow and soil (prime or trial-prev)
                      mLayerMatricHeadTrial,       & ! intent(in):    trial total water matric potential (m)
                      ! input: pre-computed derivatives
                      dTheta_dTkCanopy,            & ! intent(in):    derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
@@ -133,15 +131,13 @@ subroutine computHeatCap(&
   real(rkind),intent(in)          :: scalarCanopyIce           ! trial value of canopy ice content (kg m-2)
   real(rkind),intent(in)          :: scalarCanopyLiquid        ! trial value for the liquid water on the vegetation canopy (kg m-2)
   real(rkind),intent(in)          :: scalarCanopyTempTrial     ! trial value of canopy temperature
-  real(rkind),intent(in)          :: scalarCanopyEnthalpyTrial ! trial enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)          :: scalarCanopyEnthalpyPrev  ! intent(in):  previous enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)          :: scalarCanopyTempPrev      ! Previous value of canopy temperature
+  real(rkind),intent(in)          :: scalarCanopyEnthalpyDelta ! delta enthalpy of the vegetation canopy (prime or trial-prev)
+  real(rkind),intent(in)          :: scalarCanopyTempDelta     ! delta of canopy temperature (prime or trial-prev)
   real(rkind),intent(in)          :: mLayerVolFracLiq(:)       ! trial vector of volumetric liquid water content (-)
   real(rkind),intent(in)          :: mLayerVolFracIce(:)       ! trial vector of volumetric ice water content (-)
-  real(rkind),intent(in)          :: mLayerTempTrial(:)        ! trial temperature
-  real(rkind),intent(in)          :: mLayerTempPrev(:)         ! previous temperature
-  real(rkind),intent(in)          :: mLayerEnthalpyTrial(:)    ! trial enthalpy for snow and soil
-  real(rkind),intent(in)          :: mLayerEnthalpyPrev(:)     ! previous enthalpy for snow and soil
+  real(rkind),intent(in)          :: mLayerTempTrial(:)        ! trial temperature (prime or trial-prev)
+  real(rkind),intent(in)          :: mLayerTempDelta(:)        ! delta temperature
+  real(rkind),intent(in)          :: mLayerEnthalpyDelta(:)    ! delta enthalpy for snow and soil (prime or trial-prev)
   real(rkind),intent(in)          :: mLayerMatricHeadTrial(:)  ! vector of total water matric potential (m)
   ! input: pre-computed derivatives
   real(rkind),intent(in)          :: dTheta_dTkCanopy          ! derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
@@ -189,17 +185,12 @@ subroutine computHeatCap(&
 
     ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
     if(computeVegFlux)then
-      delT = scalarCanopyTempTrial - scalarCanopyTempPrev
-      if(abs(delT) <= 1e-2_rkind)then
+      if(abs(scalarCanopyTempDelta) <= 1e-2_rkind)then
         heatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
                      Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
                      Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
       else
-        delEnt = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpyPrev
-        heatCapVeg = delEnt / delT
-        ! derivatives
-        dVolHtCapBulk_dCanWat = dCanEnthalpy_dWat / delT
-        dVolHtCapBulk_dTkCanopy = ( dCanEnthalpy_dTk - delEnt/delT ) / delT
+        heatCapVeg = scalarCanopyEnthalpyDelta / scalarCanopyTempDelta
       endif
 
       ! derivatives for Jacobian are from analytical solution
@@ -214,10 +205,10 @@ subroutine computHeatCap(&
 
     ! loop through layers
     do iLayer=1,nLayers
-      delT = mLayerTempTrial(iLayer) - mLayerTempPrev(iLayer)
-      if(abs(delT) <= 1e-2_rkind)then
-        ! get the soil layer
-        if(iLayer>nSnow) iSoil = iLayer-nSnow
+      ! get the soil layer
+      if(iLayer>nSnow) iSoil = iLayer-nSnow
+      
+      if(abs(mLayerTempDelta(iLayer)) <= 1e-2_rkind)then
           select case(layerType(iLayer))
             ! * soil
             case(iname_soil)
@@ -232,8 +223,7 @@ subroutine computHeatCap(&
            case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute olumetric heat capacity'; return
           end select
       else
-        delEnt = mLayerEnthalpyTrial(iLayer) - mLayerEnthalpyPrev(iLayer)
-        mLayerHeatCap(iLayer) = delEnt / delT
+        mLayerHeatCap(iLayer) = mLayerEnthalpyDelta(iLayer) / mLayerTempDelta(iLayer)
       endif
 
       ! derivatives for Jacobian are from analytical solution

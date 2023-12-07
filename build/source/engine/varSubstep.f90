@@ -47,6 +47,7 @@ USE data_types,only:&
                     var_flagVec,        & ! data vector with variable length dimension (i4b)
                     var_ilength,        & ! data vector with variable length dimension (i4b)
                     var_dlength,        & ! data vector with variable length dimension (rkind)
+                    zLookup,            & ! lookup tables
                     model_options,      & ! defines the model decisions
                     in_type_varSubstep, & ! class for intent(in) arguments
                     io_type_varSubstep, & ! class for intent(inout) arguments
@@ -103,6 +104,7 @@ subroutine varSubstep(&
                       io_varSubstep,     & ! intent(inout) : model control
                       ! input/output: data structures
                       model_decisions,   & ! intent(in)    : model decisions
+                      lookup_data,       & ! intent(in)    : lookup tables
                       type_data,         & ! intent(in)    : type of vegetation and soil
                       attr_data,         & ! intent(in)    : spatial attributes
                       forc_data,         & ! intent(in)    : model forcing data
@@ -134,6 +136,7 @@ subroutine varSubstep(&
   type(io_type_varSubstep),intent(inout) :: io_varSubstep             ! model control
   ! input/output: data structures
   type(model_options),intent(in)         :: model_decisions(:)        ! model decisions
+  type(zLookup),intent(in)               :: lookup_data               ! lookup tables
   type(var_i),intent(in)                 :: type_data                 ! type of vegetation and soil
   type(var_d),intent(in)                 :: attr_data                 ! spatial attributes
   type(var_d),intent(in)                 :: forc_data                 ! model forcing data
@@ -344,6 +347,7 @@ subroutine varSubstep(&
                       checkMassBalance,  & ! intent(in):    flag to check mass balance
                       checkNrgBalance,   & ! intent(in):    flag to check energy balance
                       ! input/output: data structures
+                      lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
                       attr_data,         & ! intent(in):    spatial attributes
                       forc_data,         & ! intent(in):    model forcing data
@@ -437,7 +441,7 @@ subroutine varSubstep(&
       ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                     & ! input: states
                       doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,ixHowHeatCap == enthalpyFD,   & ! input: model control
-                      model_decisions,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,               & ! input-output: data structures
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,   & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                         ! output: balances, flags, and error control
       if(err/=0)then
         message=trim(message)//trim(cmessage)
@@ -477,13 +481,13 @@ subroutine varSubstep(&
       if(ixCasNrg/=integerMissing) sumBalance(ixCasNrg) = sumBalance(ixCasNrg) + dtSubstep*balance(ixCasNrg)
       if(ixVegNrg/=integerMissing) sumBalance(ixVegNrg) = sumBalance(ixVegNrg) + dtSubstep*balance(ixVegNrg)
       if(nSnowSoilNrg>0) then
-        do ixLayer=1,nSnowSoilNrg
+        do concurrent (ixLayer=1:nLayers,ixSnowSoilNrg(ixLayer)/=integerMissing)
           if(ixSnowSoilNrg(ixLayer)/=integerMissing) sumBalance(ixSnowSoilNrg(ixLayer)) = sumBalance(ixSnowSoilNrg(ixLayer)) + dtSubstep*balance(ixSnowSoilNrg(ixLayer))
         end do
       endif
       if(ixVegHyd/=integerMissing) sumBalance(ixVegHyd) = sumBalance(ixVegHyd) + dtSubstep*balance(ixVegHyd)
       if(nSnowSoilHyd>0) then
-        do ixLayer=1,nSnowSoilHyd
+        do concurrent (ixLayer=1:nLayers,ixSnowSoilHyd(ixLayer)/=integerMissing)
           if(ixSnowSoilHyd(ixLayer)/=integerMissing) sumBalance(ixSnowSoilHyd(ixLayer)) = sumBalance(ixSnowSoilHyd(ixLayer)) + dtSubstep*balance(ixSnowSoilHyd(ixLayer))
         end do
       endif
@@ -587,14 +591,14 @@ subroutine varSubstep(&
     if(ixCasNrg/=integerMissing) diag_data%var(iLookDIAG%balanceCasNrg)%dat(1) = sumBalance(ixCasNrg)/dt
     if(ixVegNrg/=integerMissing) diag_data%var(iLookDIAG%balanceVegNrg)%dat(1) = sumBalance(ixVegNrg)/dt
     if(nSnowSoilNrg>0) then
-      do ixLayer=1,nSnowSoilNrg
-        if(ixSnowSoilNrg(ixLayer)/=integerMissing) diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSnowSoilNrg(ixLayer))/dt
+      do concurrent (ixLayer=1:nLayers,ixSnowSoilNrg(ixLayer)/=integerMissing)
+        diag_data%var(iLookDIAG%balanceLayerNrg)%dat(ixLayer) = sumBalance(ixSnowSoilNrg(ixLayer))/dt
       end do
     endif
     if(ixVegHyd/=integerMissing) diag_data%var(iLookDIAG%balanceVegMass)%dat(1) = sumBalance(ixVegHyd)/dt
     if(nSnowSoilHyd>0) then
-      do ixLayer=1,nSnowSoilHyd
-        if(ixSnowSoilHyd(ixLayer)/=integerMissing) diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSnowSoilHyd(ixLayer))/dt
+      do concurrent (ixLayer=1:nLayers,ixSnowSoilHyd(ixLayer)/=integerMissing)
+        diag_data%var(iLookDIAG%balanceLayerMass)%dat(ixLayer) = sumBalance(ixSnowSoilHyd(ixLayer))/dt
       end do
     endif 
     if(ixAqWat/=integerMissing) diag_data%var(iLookDIAG%balanceAqMass)%dat(1) = sumBalance(ixAqWat)/dt
@@ -614,7 +618,7 @@ end subroutine varSubstep
 ! **********************************************************************************************************
 subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                & ! input: states
                       doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,use_enthalpyFD,   & ! input: model control
-                      model_decisions,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,   & ! input-output: data structures
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,   & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)             ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
@@ -639,6 +643,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
   logical(lgt)     ,intent(in)    :: use_enthalpyFD                 ! flag that using enthalpy finite difference and need to update
   ! data structures
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
+  type(zLookup),intent(in)        :: lookup_data                    ! lookup tables
   type(var_dlength),intent(in)    :: mpar_data                      ! model parameters
   type(var_ilength),intent(in)    :: indx_data                      ! indices for a local HRU
   type(var_dlength),intent(inout) :: flux_data                      ! model fluxes for a local HRU
@@ -948,6 +953,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
                   diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                   mpar_data,                   & ! intent(in):  parameter data structure
                   indx_data,                   & ! intent(in):  model indices
+                  lookup_data,                 & ! intent(in):  lookup table data structure
                   ! input: state variables for the vegetation canopy
                   scalarCanairTempTrial,       & ! intent(in):  trial value of canopy air temperature (K)
                   scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
@@ -991,7 +997,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
           !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg) ! should be equivalent to above, use for debugging
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy - fluxVec(ixVegNrg)*dt
           if(nSnowSoilNrg>0)then
-            do i=1,nSnowSoilNrg
+            do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
               balance(ixSnowSoilNrg(i)) = mLayerEnthalpyTrial(i) - mLayerEnthalpy(i) - fluxVec(ixSnowSoilNrg(i))*dt
             enddo
           endif
@@ -1106,8 +1112,8 @@ USE getVectorz_module,only:varExtract                             ! extract vari
           ! resVec is the residual vector from the solver over dt
           if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)
           if(nSnowSoilHyd>0)then
-            do i=1,nSnowSoilHyd
-              if(ixSnowSoilHyd(i)/=integerMissing) balance(ixSnowSoilHyd(i)) = resVec(ixSnowSoilHyd(i))
+            do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)
+              balance(ixSnowSoilHyd(i)) = resVec(ixSnowSoilHyd(i))
             end do
           endif
           if(ixAqWat/=integerMissing) balance(ixAqWat) = resVec(ixAqWat)
