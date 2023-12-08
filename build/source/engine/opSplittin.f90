@@ -296,6 +296,9 @@ subroutine opSplittin(&
   ! loop control
   logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
   logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
+  ! debug testing
+  logical(lgt), parameter         :: test_flag=.false.              ! to create test output
+  logical(lgt)                    :: stop_flag                      ! to control stopping
   ! ------------------------ classes for subroutine arguments (classes defined in data_types module) ------------------------
   !      ** intent(in) arguments **         ||       ** intent(inout) arguments **        ||      ** intent(out) arguments **
   type(in_type_stateFilter) :: in_stateFilter;                                            type(out_type_stateFilter) :: out_stateFilter; ! stateFilter arguments
@@ -303,6 +306,12 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type),allocatable :: split_select(:) ! class object for selecting operator splitting methods
+
+  ! *** Initialize Split Selector Object ***
+  stop_flag=.false.
+  if (test_flag.eqv..true.) then
+   call initialize_split_select
+  end if
 
   call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
   coupling: do ixCoupling=1,nCoupling                          ! loop through different coupling strategies
@@ -321,7 +330,14 @@ subroutine opSplittin(&
 
             call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
             stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
-
+!!SJT
+!              if (ixSolution==nSolutions) then
+!               write(*,*) "nStateSplit=",nStateSplit
+!               write(*,*) ixCoupling,iStateTypeSplit,ixStateThenDomain,iDomainSplit,ixSolution,iStateSplit,nState 
+!               stop_flag=.true.
+!               if (stop_flag.eqv..true.) stop
+!              end if
+!!End SJT
               ! define state subsets for a given split...
               call update_stateFilter; if (return_flag.eqv..true.) return ! get the mask for the state subset - return for a non-zero error code
               call validate_split ! verify that the split is valid
@@ -377,7 +393,10 @@ subroutine opSplittin(&
    call get_nCoupling;                                 if (return_flag.eqv..true.) return ! get nCoupling value
    call get_nStateTypeSplit_tryDomainSplit(nCoupling); if (return_flag.eqv..true.) return ! get nStateTypeSplit and tryDomainSplit values
    call get_nDomainSplit(1+tryDomainSplit);            if (return_flag.eqv..true.) return ! get nDomainSplit value
-   nSplit=nCoupling*nStateTypeSplit*(1+tryDomainSplit)*nDomainSplit*nSolutions*nStateSplit
+! add update to stateMask here
+!   call get_nStateSplit(nSolutions);                   if (return_flag.eqv..true.) return ! get nStateSplit value     
+!   nSplit=nCoupling*nStateTypeSplit*(1+tryDomainSplit)*nDomainSplit*nSolutions*nStateSplit
+   if (test_flag.eqv..true.) print *, "Test Ouput: ",nCoupling,nStateTypeSplit,tryDomainSplit,nDomainSplit
 
 !   ! opSplittin loop structure
 !   call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
@@ -717,14 +736,6 @@ subroutine opSplittin(&
    if (.not.firstInnerStep) firstFluxCall=.false.
 
    call get_nStateSplit(ixSolution); if (return_flag.eqv..true.) return ! get nStateSplit value -- return if error occurs
-!   ! get the number of split layers
-!   select case(ixSolution)
-!    case(vector); nStateSplit=1
-!    case(scalar); nStateSplit=count(stateMask)
-!    case default; err=20; message=trim(message)//'unknown solution method'; 
-!     return_flag=.true. ! return statement required in opSplittin
-!     return
-!   end select
   end subroutine initialize_stateSplit
 
   subroutine get_nStateSplit(ixSolution_value)
