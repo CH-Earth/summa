@@ -1088,81 +1088,65 @@ end subroutine opSplittin
 ! **********************************************************************************************************
 subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
 
-  USE indexState_module,only:indxSubset                               ! get state indices
-  implicit none
-  ! input
-  type(in_type_stateFilter),intent(in)   :: in_stateFilter            ! indices
-  type(var_ilength),intent(inout)        :: indx_data                 ! indices for a local HRU
-  ! output
-  logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
-  type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
-  ! local
-  integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
-  character(len=256)                     :: cmessage                  ! error message
-  ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  ! data structures
-  associate(&
-    ! indices for splitting methods
-    ixCoupling        => in_stateFilter %  ixCoupling              ,& ! intent(in): [i4b] index of coupling method (1,2)
-    ixSolution        => in_stateFilter %  ixSolution              ,& ! intent(in): [i4b] index of solution method (1,2)
-    ixStateThenDomain => in_stateFilter %  ixStateThenDomain       ,& ! intent(in): [i4b] switch between full domain and sub domains
-    iStateTypeSplit   => in_stateFilter %  iStateTypeSplit         ,& ! intent(in): [i4b] index of the state type split
-    iDomainSplit      => in_stateFilter %  iDomainSplit            ,& ! intent(in): [i4b] index of the domain split
-    iStateSplit       => in_stateFilter %  iStateSplit             ,& ! intent(in): [i4b] index of the layer split
-    ! indices of model state variables
-    ixStateType  => indx_data%var(iLookINDEX%ixStateType)%dat      ,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
-    ixNrgCanair  => indx_data%var(iLookINDEX%ixNrgCanair)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
-    ixNrgCanopy  => indx_data%var(iLookINDEX%ixNrgCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
-    ixHydCanopy  => indx_data%var(iLookINDEX%ixHydCanopy)%dat      ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
-    ixNrgLayer   => indx_data%var(iLookINDEX%ixNrgLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
-    ixHydLayer   => indx_data%var(iLookINDEX%ixHydLayer)%dat       ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
-    ixWatAquifer => indx_data%var(iLookINDEX%ixWatAquifer)%dat     ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for water storage in the aquifer
-    ixAllState   => indx_data%var(iLookINDEX%ixAllState)%dat       ,& ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
-    ! number of layers
-    nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)         ,& ! intent(in): [i4b]    number of snow layers
-    nSoil        => indx_data%var(iLookINDEX%nSoil)%dat(1)         ,& ! intent(in): [i4b]    number of soil layers
-    nLayers      => indx_data%var(iLookINDEX%nLayers)%dat(1)       ,& ! intent(in): [i4b]    total number of layers
-    ! output
-    nSubset      => out_stateFilter % nSubset                      ,& ! intent(out): number of selected state variables for a given split
-    err          => out_stateFilter % err                          ,& ! intent(out): error code
-    message      => out_stateFilter % cmessage                       & ! intent(out): error message
-    ) ! data structures
-    ! --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    ! initialize error control
-    err=0; message='stateFilter/'
+ USE indexState_module,only:indxSubset                               ! get state indices
+ implicit none
+ ! input
+ type(in_type_stateFilter),intent(in)   :: in_stateFilter            ! indices
+ type(var_ilength),intent(inout)        :: indx_data                 ! indices for a local HRU
+ ! output
+ logical(lgt),intent(out)               :: stateMask(:)              ! mask defining desired state variables
+ type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
+ ! local
+ integer(i4b),allocatable               :: ixSubset(:)               ! list of indices in the state subset
+ character(len=256)                     :: cmessage                  ! error message
+ logical(lgt)                           :: return_flag               ! flag to indicate a return 
+ ! ----------------------------------------------------------------------------------------------------------------------------------------------------
+ ! data structures
+ associate(&
+   ! indices for splitting methods
+   ixCoupling        => in_stateFilter % ixCoupling              ,& ! intent(in): [i4b] index of coupling method (1,2)
+   ixStateThenDomain => in_stateFilter % ixStateThenDomain        ) ! intent(in): [i4b] switch between full domain and sub domains
+   ! -------------------------------------------------------------------------------------------------------------------------------------------------
+   
+   associate(err     => out_stateFilter % err      ,& ! intent(out): error code
+             message => out_stateFilter % cmessage  ) ! intent(out): error message
+    err=0; message='stateFilter/' ! initialize error control
+   end associate
 
-    ! identify splitting option
-    select case(ixCoupling)
+   ! identify splitting option
+   select case(ixCoupling)
 
-      ! -----
-      ! - fully coupled...
-      ! ------------------
+     ! *** fully coupled ***
+     case(fullyCoupled)
+       call get_fullyCoupled_stateMask 
 
-      ! use all state variables
-      case(fullyCoupled); stateMask(:) = .true.
+     ! *** splitting by state type ***
+     case(stateTypeSplit) ! initial split by state type
 
-      ! -----
-      ! - splitting by state type...
-      ! ----------------------------
+       ! switch between full domain and sub domains
+       select case(ixStateThenDomain)
 
-      ! initial split by state type
-      case(stateTypeSplit)
+         ! split into energy and mass
+         case(fullDomain)
+           call get_fullDomain_stateMask; if (return_flag.eqv..true.) return
 
-        ! switch between full domain and sub domains
-        select case(ixStateThenDomain)
+         ! split into vegetation, snow, and soil
+         case(subDomain)
 
-          ! split into energy and mass
-          case(fullDomain)
-            select case(iStateTypeSplit)
-              case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
-              case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer .or. ixStateType==iname_watAquifer)
-              case default; err=20; message=trim(message)//'unable to identify split based on state type'; return
-            end select
-
-          ! split into vegetation, snow, and soil
-          case(subDomain)
-
-            ! define state mask
+           ! define state mask
+           associate(&
+                     iStateTypeSplit => in_stateFilter % iStateTypeSplit          ,& ! intent(in): [i4b] index of the state type split
+                     iDomainSplit    => in_stateFilter % iDomainSplit             ,& ! intent(in): [i4b] index of the domain split
+                     nSnow           => indx_data%var(iLookINDEX%nSnow)%dat(1)    ,& ! intent(in): [i4b] number of snow layers
+                     nLayers         => indx_data%var(iLookINDEX%nLayers)%dat(1)  ,& ! intent(in): [i4b] total number of layers
+                     ixNrgCanair     => indx_data%var(iLookINDEX%ixNrgCanair)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in canopy air space domain
+                     ixNrgCanopy     => indx_data%var(iLookINDEX%ixNrgCanopy)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the canopy domain
+                     ixHydCanopy     => indx_data%var(iLookINDEX%ixHydCanopy)%dat ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the canopy domain
+                     ixNrgLayer      => indx_data%var(iLookINDEX%ixNrgLayer)%dat  ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for energy states in the snow+soil domain
+                     ixHydLayer      => indx_data%var(iLookINDEX%ixHydLayer)%dat  ,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for hydrology states in the snow+soil domain
+                     ixWatAquifer    => indx_data%var(iLookINDEX%ixWatAquifer)%dat,& ! intent(in): [i4b(:)] indices IN THE FULL VECTOR for water storage in the aquifer
+                     err             => out_stateFilter % err                     ,& ! intent(out): error code
+                     message         => out_stateFilter % cmessage                 ) ! intent(out): error message
             stateMask=.false. ! (initialize state mask)
             select case(iStateTypeSplit)
 
@@ -1170,10 +1154,10 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
               case(nrgSplit)
                 select case(iDomainSplit)
                   case(vegSplit)
-                    if(ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
-                    if(ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
+                    if (ixNrgCanair(1)/=integerMissing) stateMask(ixNrgCanair) = .true.  ! energy of the canopy air space
+                    if (ixNrgCanopy(1)/=integerMissing) stateMask(ixNrgCanopy) = .true.  ! energy of the vegetation canopy
                     stateMask(ixNrgLayer(1)) = .true.  ! energy of the upper-most layer in the snow+soil domain
-                  case(snowSplit);   if(nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
+                  case(snowSplit);   if (nSnow>1) stateMask(ixNrgLayer(2:nSnow)) = .true.    ! NOTE: (2:) because the top layer in the snow+soil domain included in vegSplit
                   case(soilSplit);   stateMask(ixNrgLayer(max(2,nSnow+1):nLayers)) = .true. ! NOTE: max(2,nSnow+1) gives second layer unless more than 2 snow layers
                   case(aquiferSplit) ! do nothing: no energy state variable for the aquifer domain
                   case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
@@ -1182,50 +1166,96 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
               ! define mask for water
               case(massSplit)
                 select case(iDomainSplit)
-                  case(vegSplit);     if(ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
+                  case(vegSplit);     if (ixHydCanopy(1)/=integerMissing) stateMask(ixHydCanopy) = .true.  ! hydrology of the vegetation canopy
                   case(snowSplit);    stateMask(ixHydLayer(1:nSnow)) = .true.  ! snow hydrology
                   case(soilSplit);    stateMask(ixHydLayer(nSnow+1:nLayers)) = .true.  ! soil hydrology
-                  case(aquiferSplit); if(ixWatAquifer(1)/=integerMissing) stateMask(ixWatAquifer) = .true.  ! aquifer storage
+                  case(aquiferSplit); if (ixWatAquifer(1)/=integerMissing) stateMask(ixWatAquifer) = .true.  ! aquifer storage
                   case default; err=20; message=trim(message)//'unable to identify model sub-domain'; return
                 end select
 
               ! check
               case default; err=20; message=trim(message)//'unable to identify the state type'; return
             end select  ! (split based on state type)
+           end associate
 
-          ! check
-          case default; err=20; message=trim(message)//'unable to identify the switch between full domains and sub domains'; return
-        end select ! (switch between full domains and sub domains)
+         ! check
+         case default
+          associate(err     => out_stateFilter % err      ,& ! intent(out): error code
+                    message => out_stateFilter % cmessage  ) ! intent(out): error message
+          
+           err=20; message=trim(message)//'unable to identify the switch between full domains and sub domains'; return
+          end associate
+       end select ! (switch between full domains and sub domains)
 
-        ! check
-      case default; err=20; message=trim(message)//'unable to identify coupling method'; return
-    end select  ! (selecting solution method)
+       ! check
+     case default
+      associate(err     => out_stateFilter % err      ,& ! intent(out): error code
+                message => out_stateFilter % cmessage  ) ! intent(out): error message
+       err=20; message=trim(message)//'unable to identify coupling method'; return
+      end associate
+   end select  ! (selecting solution method)
 
-    ! identify scalar solutions
-    if(ixSolution==scalar)then
+   call identify_scalar_solutions; if (return_flag.eqv..true.) return ! identify scalar solutions -- return if error occurs
 
-      ! get the subset of indices
-      call indxSubset(ixSubset, ixAllState, stateMask, err, cmessage)
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-
-      ! get the mask
-      stateMask(:) = .false.
-      stateMask( ixSubset(iStateSplit) ) = .true.
-
-      ! check
-      if(count(stateMask)/=1)then
-        message=trim(message)//'expect size=1 (scalar)'
-        err=20; return
-      endif
-
-    endif
-
-    ! get the number of selected state variables
+   ! get the number of selected state variables
+   associate(nSubset => out_stateFilter % nSubset) ! intent(out): number of selected state variables for a given split
     nSubset = count(stateMask)
+   end associate
 
-    ! end associations
+   ! end associations
+ end associate
+
+contains
+
+ subroutine get_fullyCoupled_stateMask
+  ! *** Get fully coupled stateMask ***
+  stateMask(:) = .true. ! use all state variables
+ end subroutine get_fullyCoupled_stateMask
+
+ subroutine get_fullDomain_stateMask
+  ! *** Get full domain stateMask ***
+  return_flag=.false. ! initialize flag
+  associate(ixStateType     => indx_data%var(iLookINDEX%ixStateType)%dat ,& ! intent(in): [i4b(:)] indices defining the type of the state (ixNrgState...)
+            iStateTypeSplit => in_stateFilter % iStateTypeSplit          ,& ! intent(in): [i4b] index of the state type split
+            err             => out_stateFilter % err                     ,& ! intent(out): error code
+            message         => out_stateFilter % cmessage                 ) ! intent(out): error message
+   select case(iStateTypeSplit)
+     case(nrgSplit);  stateMask = (ixStateType==iname_nrgCanair .or. ixStateType==iname_nrgCanopy .or. ixStateType==iname_nrgLayer)
+     case(massSplit); stateMask = (ixStateType==iname_liqCanopy .or. ixStateType==iname_liqLayer  .or. ixStateType==iname_lmpLayer .or. ixStateType==iname_watAquifer)
+     case default; err=20; message=trim(message)//'unable to identify split based on state type'; return_flag=.true.; return
+   end select
+  end associate
+ end subroutine get_fullDomain_stateMask
+
+ subroutine identify_scalar_solutions
+  ! *** Identify scalar solutions ***
+  return_flag=.false. ! initialize flag
+  associate(ixAllState  => indx_data%var(iLookINDEX%ixAllState)%dat ,& ! intent(in): [i4b(:)] list of indices for all model state variables (1,2,3,...nState)
+            ixSolution  => in_stateFilter % ixSolution              ,& ! intent(in): [i4b] index of solution method (1,2)
+            iStateSplit => in_stateFilter % iStateSplit             ,& ! intent(in): [i4b] index of the layer split
+            err         => out_stateFilter % err                    ,& ! intent(out): error code
+            message     => out_stateFilter % cmessage                ) ! intent(out): error message
+   if (ixSolution==scalar) then
+
+    ! get the subset of indices
+    call indxSubset(ixSubset, ixAllState, stateMask, err, cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+
+    ! get the mask
+    stateMask(:) = .false.
+    stateMask( ixSubset(iStateSplit) ) = .true.
+
+    ! check
+    if (count(stateMask)/=1) then
+     message=trim(message)//'expect size=1 (scalar)'
+     err=20; return_flag=.true.; return
+    end if
+
+   end if
   end associate
 
+ end subroutine identify_scalar_solutions
+ 
 end subroutine stateFilter
 
 end module opSplittin_module
