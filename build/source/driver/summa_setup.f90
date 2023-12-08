@@ -43,12 +43,13 @@ USE globalData,only:urbanVegCategory    ! vegetation category for urban areas
 USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
 ! look-up values for the choice of heat capacity computation
-USE mDecisions_module,only:  &
- enthalpyFD                             ! heat capacity using enthalpy
+USE mDecisions_module,only:&
+  closedForm,&                          ! heat capacity using closed form, not using enthalpy
+  enthalpyFD                            ! heat capacity using enthalpy
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
-  sameRulesAllLayers, &                 ! SNTHERM option: same combination/sub-dividion rules applied to all layers
+  sameRulesAllLayers,&                  ! SNTHERM option: same combination/sub-dividion rules applied to all layers
   rulesDependLayerIndex                 ! CLM option: combination/sub-dividion rules depend on layer index
 
 ! named variables to define LAI decisions
@@ -120,6 +121,7 @@ contains
  integer(i4b)                          :: jHRU,kHRU          ! HRU indices
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
+ logical                               :: needLookup         ! logical to decide if computing enthalpy lookup tables
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -149,6 +151,13 @@ contains
  ! ---------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summa_paramSetup/'
+
+ ! decide if computing enthalpy lookup tables, if need enthalpy and not using hypergeometric function
+ ! NOTE: this should be replaced by a parameter of if want lookup table enthalpy, but for now it is hard-coded
+ !       need enthalpy if checkNrgBalance in varSubstep is turned on or using howHeatCap=enthalpyFD
+ !       then, need lookups if use_lookup=.true. in t2enthalpy (numrec or kin) or t2enthalpyPrime (ida)
+ needLookup = .true.
+ !if (model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD) needLookup = .true.
 
  ! initialize the start of the initialization
  call date_and_time(values=startSetup)
@@ -306,14 +315,14 @@ contains
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table to compute enthalpy from temperature, need for enthalpyFD or if checkNrgBalance is true
-   !if(model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD)then
+   ! calculate a lookup table to compute enthalpy from temperature
+   if(needLookup)then
      call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
                      mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
                      lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
                      err,cmessage)                              ! intent(out):   error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-   !endif
+   endif
 
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)

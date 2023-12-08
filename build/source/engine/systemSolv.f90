@@ -79,8 +79,10 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of heat capacity computation
-USE mDecisions_module,only:&
-                    enthalpyFD     ! heat capacity using enthalpy
+ USE mDecisions_module,only:      &
+                    closedForm,   & ! heat capacity using closed form, not using enthalpy
+                    enthalpyFD      ! heat capacity using enthalpy
+                   
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&

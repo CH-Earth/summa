@@ -154,25 +154,25 @@ subroutine varSubstep(&
   ! * general local variables
   ! ---------------------------------------------------------------------------------------
   ! error control
-  character(LEN=256)                 :: cmessage                      ! error message of downwind routine
+  character(LEN=256)                 :: cmessage                               ! error message of downwind routine
   ! general local variables
-  integer(i4b)                       :: iVar                          ! index of variables in data structures
-  integer(i4b)                       :: iSoil                         ! index of soil layers
-  integer(i4b)                       :: ixLayer                       ! index in a given domain
-  integer(i4b),dimension(1)          :: ixMin,ixMax                   ! bounds of a given flux vector
+  integer(i4b)                       :: iVar                                   ! index of variables in data structures
+  integer(i4b)                       :: iSoil                                  ! index of soil layers
+  integer(i4b)                       :: ixLayer                                ! index in a given domain
+  integer(i4b),dimension(1)          :: ixMin,ixMax                            ! bounds of a given flux vector
   ! time stepping
-  real(rkind)                        :: dtSum                         ! sum of time from successful steps (seconds)
-  real(rkind)                        :: dt_wght                       ! weight given to a given flux calculation
-  real(rkind)                        :: dtSubstep                     ! length of a substep (s)
-  real(rkind)                        :: maxstep                       ! maximum time step length (seconds)
-  integer(i4b)                       :: nSteps                        ! number of time steps taken in solver
+  real(rkind)                        :: dtSum                                  ! sum of time from successful steps (seconds)
+  real(rkind)                        :: dt_wght                                ! weight given to a given flux calculation
+  real(rkind)                        :: dtSubstep                              ! length of a substep (s)
+  real(rkind)                        :: maxstep                                ! maximum time step length (seconds)
+  integer(i4b)                       :: nSteps                                 ! number of time steps taken in solver
   ! adaptive sub-stepping for the solution
-  logical(lgt)                       :: failedSubstep                 ! flag to denote success of substepping for a given split
-  integer(i4b)                       :: niter                         ! number of iterations taken
-  integer(i4b),parameter             :: n_inc=5                       ! minimum number of iterations to increase time step
-  integer(i4b),parameter             :: n_dec=15                      ! maximum number of iterations to decrease time step
-  real(rkind),parameter              :: F_inc = 1.25_rkind            ! factor used to increase time step
-  real(rkind),parameter              :: F_dec = 0.90_rkind            ! factor used to decrease time step
+  logical(lgt)                       :: failedSubstep                          ! flag to denote success of substepping for a given split
+  integer(i4b)                       :: niter                                  ! number of iterations taken
+  integer(i4b),parameter             :: n_inc=5                                ! minimum number of iterations to increase time step
+  integer(i4b),parameter             :: n_dec=15                               ! maximum number of iterations to decrease time step
+  real(rkind),parameter              :: F_inc = 1.25_rkind                     ! factor used to increase time step
+  real(rkind),parameter              :: F_dec = 0.90_rkind                     ! factor used to decrease time step
   ! state and flux vectors (Note: nstate = in_varSubstep % nSubset)
   real(rkind)                        :: untappedMelt(in_varSubstep % nSubset)  ! un-tapped melt energy (J m-3 s-1)
   real(rkind)                        :: stateVecInit(in_varSubstep % nSubset)  ! initial state vector (mixed units)
@@ -180,23 +180,24 @@ subroutine varSubstep(&
   real(rkind)                        :: stateVecPrime(in_varSubstep % nSubset) ! trial state vector (mixed units)
   type(var_dlength)                  :: flux_temp                              ! temporary model fluxes
   ! flags
-  logical(lgt)                       :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
-  logical(lgt)                       :: waterBalanceError             ! flag to denote that there is a water balance error
-  logical(lgt)                       :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
+  logical(lgt)                       :: firstSplitOper                         ! flag to indicate if we are processing the first flux call in a splitting operation
+  logical(lgt)                       :: waterBalanceError                      ! flag to denote that there is a water balance error
+  logical(lgt)                       :: nrgFluxModified                        ! flag to denote that the energy fluxes were modified
   ! energy fluxes
-  real(rkind)                        :: sumCanopyEvaporation          ! sum of canopy evaporation/condensation (kg m-2 s-1)
-  real(rkind)                        :: sumLatHeatCanopyEvap          ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
-  real(rkind)                        :: sumSenHeatCanopy              ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
-  real(rkind)                        :: sumSoilCompress               ! sum of total soil compression
-  real(rkind),allocatable            :: sumLayerCompress(:)           ! sum of soil compression by layer
+  real(rkind)                        :: sumCanopyEvaporation                   ! sum of canopy evaporation/condensation (kg m-2 s-1)
+  real(rkind)                        :: sumLatHeatCanopyEvap                   ! sum of latent heat flux for evaporation from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: sumSenHeatCanopy                       ! sum of sensible heat flux from the canopy to the canopy air space (W m-2)
+  real(rkind)                        :: sumSoilCompress                        ! sum of total soil compression
+  real(rkind),allocatable            :: sumLayerCompress(:)                    ! sum of soil compression by layer
   ! balances and residual vectors
-  real(rkind)                        :: fluxVec(in_varSubstep % nSubset) ! substep flux vector (mixed units)
-  real(rkind)                        :: resSink(in_varSubstep % nSubset) ! substep sink terms on the RHS of the state equation
-  real(qp)                           :: resVec(in_varSubstep % nSubset)  ! substep residual vector
-  real(rkind)                        :: balance(in_varSubstep % nSubset) ! substep balance 
-  real(rkind)                        :: sumBalance(in_varSubstep % nSubset) ! sum of substeps balance
-  logical(lgt),parameter             :: checkMassBalance = .true.        ! flag to check the mass balance
-  logical(lgt),parameter             :: checkNrgBalance = .true.         ! flag to check the energy balance
+  real(rkind)                        :: fluxVec(in_varSubstep % nSubset)       ! substep flux vector (mixed units)
+  real(rkind)                        :: resSink(in_varSubstep % nSubset)       ! substep sink terms on the RHS of the state equation
+  real(qp)                           :: resVec(in_varSubstep % nSubset)        ! substep residual vector
+  real(rkind)                        :: balance(in_varSubstep % nSubset)       ! substep balance 
+  real(rkind)                        :: sumBalance(in_varSubstep % nSubset)    ! sum of substeps balance
+  logical(lgt),parameter             :: checkMassBalance = .true.              ! flag to check the mass balance
+  logical(lgt),parameter             :: checkNrgBalance = .true.               ! flag to check the energy balance
+  logical(lgt)                       :: computeEnthalpy                        ! flag to compute enthalpy regardless of the model decision
 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
@@ -271,6 +272,10 @@ subroutine varSubstep(&
 
     ! initialize flag for the success of the substepping
     failedMinimumStep=.false.
+
+    ! set the flag to compute enthalpy
+    computeEnthalpy = .false.
+    if(checkNrgBalance .or. ixHowHeatCap==enthalpyFD) computeEnthalpy = .true. ! need to get enthalpy regardles of other decisions
 
     ! initialize the length of the substep
     dtSubstep = dtInit
@@ -439,10 +444,10 @@ subroutine varSubstep(&
       endif
 
       ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
-      call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                     & ! input: states
-                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,ixHowHeatCap == enthalpyFD,   & ! input: model control
-                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,   & ! input-output: data structures
-                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                         ! output: balances, flags, and error control
+      call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                    & ! input: states
+                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,computeEnthalpy,             & ! input: model control
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,  & ! input-output: data structures
+                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                        ! output: balances, flags, and error control
       if(err/=0)then
         message=trim(message)//trim(cmessage)
         if(err>0) return
@@ -616,10 +621,10 @@ end subroutine varSubstep
 ! **********************************************************************************************************
 ! private subroutine updateProg: update prognostic variables
 ! **********************************************************************************************************
-subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                & ! input: states
-                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,use_enthalpyFD,   & ! input: model control
-                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,   & ! input-output: data structures
-                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)             ! input-output: balances, flags, and error control
+subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                           & ! input: states
+                      doAdjustTemp,computeVegFlux,checkMassBalance, checkNrgBalance,computeEnthalpy,             & ! input: model control
+                      model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,  & ! input-output: data structures
+                      fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                        ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                             ! extract variables from the state vector
 #ifdef SUNDIALS_ACTIVE
   USE updateVarsWithPrime_module,only:updateVarsWithPrime           ! update prognostic variables
@@ -640,7 +645,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
   real(rkind)      ,intent(in)    :: stateVecPrime(:)               ! trial state vector (mixed units)
   logical(lgt)     ,intent(in)    :: checkMassBalance               ! flag to check the mass balance
   logical(lgt)     ,intent(in)    :: checkNrgBalance                ! flag to check the energy balance
-  logical(lgt)     ,intent(in)    :: use_enthalpyFD                 ! flag that using enthalpy finite difference and need to update
+  logical(lgt)     ,intent(in)    :: computeEnthalpy                ! flag to compute enthalpy
   ! data structures
   type(model_options),intent(in)  :: model_decisions(:)             ! model decisions
   type(zLookup),intent(in)        :: lookup_data                    ! lookup tables
@@ -944,9 +949,9 @@ USE getVectorz_module,only:varExtract                             ! extract vari
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! ----
-    ! * check energy balance
+    ! * update enthalpy
     !------------------------
-    if(checkNrgBalance .or. use_enthalpyFD)then ! update diagnostic enthalpy variables, don't do if not checking energy balance and closed form enthalpy
+    if(computeEnthalpy)then ! update diagnostic enthalpy variables, don't do if not checking energy balance and closed form enthalpy
       ! compute enthalpy at t_{n+1}
       call t2enthalpy(&
                   ! input: data structures
@@ -1005,7 +1010,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
     endif  ! if checking energy balance
 
     ! save the trial values
-    if(checkNrgBalance .or. use_enthalpyFD)then
+    if(computeEnthalpy)then
       scalarCanairEnthalpy = scalarCanairEnthalpyTrial
       mLayerEnthalpy = mLayerEnthalpyTrial
       scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
@@ -1268,7 +1273,7 @@ USE getVectorz_module,only:varExtract                             ! extract vari
     endif  ! (if energy state variables exist)
 
     ! -----
-    ! * update enthalpy as a diagnostic variable...
+    ! * update enthalpy as a diagnostic variable... if computeEnthalpy is false this will not change
     ! --------------------------------
     scalarCanairEnthalpy = scalarCanairEnthalpyTrial
     scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial

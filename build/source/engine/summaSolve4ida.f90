@@ -63,16 +63,15 @@ USE data_types,only:&
                     zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
+USE mDecisions_module,only:&
+  closedForm,                     & ! heat capacity using closed form, not using enthalpy
+  enthalpyFD                        ! heat capacity using enthalpy
+
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
   qbaseTopmodel,                  & ! TOPMODEL-ish baseflow parameterization
   bigBucket,                      & ! a big bucket (lumped aquifer model)
   noExplicit                         ! no explicit groundwater parameterization
-
-! look-up values for the choice of heat capacity computation
-USE mDecisions_module,only:  &
-  closedForm,                & ! heat capacity using closed form, not using enthalpy
-  enthalpyFD                    ! heat capacity using enthalpy
  
 ! look-up values for method used to compute derivative
 USE mDecisions_module,only:       &
