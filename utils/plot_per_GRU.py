@@ -255,7 +255,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
-fig.suptitle('{} Hourly Statistics'.format(method_name), fontsize=40)
+fig.suptitle('{} Hourly Statistics'.format(method_name), fontsize=40,y=0.95)
 
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
@@ -286,15 +286,15 @@ def run_loop(i,var,the_max,f_x,f_y):
     bas_albers.plot(ax=axs[r,c], column=var, edgecolor='none', legend=False, cmap=my_cmap, norm=norm,zorder=0)
 
     if stat0 == 'rmse': stat_word = 'RMSE'
-    if stat0 == 'rmnz': stat_word = 'RMSE no 0s'
+    if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
     if stat0 == 'maxe': stat_word = 'max abs error'
     if stat0 == 'kgem': stat_word = 'KGE"'
     if stat0 == 'mean': stat_word = 'abs mean'
-    if stat0 == 'mnnz': stat_word = 'abs mean no 0s'
+    if stat0 == 'mnnz': stat_word = 'abs mean' # no 0s'
     if stat0 == 'amax': stat_word = 'abs max'
 
     if statr == 'mean_ben': statr_word = 'mean'
-    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s'
+    if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
 
     axs[r,c].set_title(plt_titl[i])
@@ -310,7 +310,8 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat == 'rmse' or stat == 'rmnz' or stat == 'mean': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[i]), labelpad=40, rotation=270)
     if stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titlm[i]), labelpad=40, rotation=270)
     if stat == 'kgem': cbr.ax.set_ylabel(stat_word, labelpad=40, rotation=270)
-    if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + ' rel to bench ' + statr_word, labelpad=40, rotation=270)
+    #if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + ' rel to bench ' + statr_word, labelpad=40, rotation=270)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
     #cbr.ax.yaxis.set_offset_position('right')
 

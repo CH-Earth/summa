@@ -27,15 +27,20 @@ use_eff = False # use efficiency in wall clock time
 do_rel = True # plot relative to the benchmark simulation
 
 testing = False
+do_hist = False # plot histogram instead of CDF
 if testing: 
     stat = 'rmnz'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1','sundials_1en6'] #maybe make this an argument
+    plt_name=['BE1','IDAe-6'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+    #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+    #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
+    method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+    plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Simulation statistics file locations
@@ -93,9 +98,11 @@ else:
     plt.rcParams.update({'font.size': 100})
 
 if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(3,2,figsize=(35,33))
+    fig,axs = plt.subplots(3,2,figsize=(31,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
+#fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40)
+fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
     
 def run_loop(i,var,mx):
     r = i//2
@@ -161,31 +168,42 @@ def run_loop(i,var,mx):
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         range = (0,mx)
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
-        np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+        if (do_hist): 
+            np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
+        else: #cdf
+            sorted_data = np.sort(np.fabs(s))
+            yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
+            axs[r,c].plot(sorted_data, yvals, zorder=0, label=m, linewidth=2.0)
+            axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
+
 
     if stat0 == 'rmse': stat_word = 'RMSE'
-    if stat0 == 'rmnz': stat_word = 'RMSE no 0s'
+    if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
     if stat0 == 'maxe': stat_word = 'max abs error'
     if stat0 == 'kgem': stat_word = 'KGE"'
     if stat0 == 'mean': stat_word = 'mean'
-    if stat0 == 'mnnz': stat_word = 'mean no 0s'
+    if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
-    fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40)
-
+    
     if statr == 'mean_ben': statr_word = 'mean'
-    if statr == 'mnnz_ben': statr_word = 'mean excluding 0s'
+    if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
         
     #if var == 'wallClockTime': axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
 
-    axs[r,c].legend()
+    axs[r,c].legend(plt_name)
     axs[r,c].set_title(plt_titl[i])
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + statr_word)
+    #if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + statr_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
-    axs[r,c].set_ylabel('GRU count')
+
+    if (do_hist): 
+        axs[r,c].set_ylabel('GRU count')
+    else:
+        axs[r,c].set_ylabel('cumulative distribution')
     if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
 
 
