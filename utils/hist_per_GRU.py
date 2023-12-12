@@ -58,8 +58,12 @@ plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Tota
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
 
-fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
-if do_rel: fig_fil = 'Hrly_diff_hist_{}_{}_zoom_rel_compressed.png'
+if do_hist:
+    fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
+    if do_rel: fig_fil = 'Hrly_diff_hist_{}_{}_zoom_rel_compressed.png'
+else:
+    fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_compressed.png'
+    if do_rel: fig_fil = 'Hrly_diff_cdf_{}_{}_zoom_rel_compressed.png'
 fig_fil = fig_fil.format(','.join(settings),stat)
 
 if stat == 'rmse': 
@@ -168,7 +172,7 @@ def run_loop(i,var,mx):
         if stat == 'maxe': s = np.fabs(s) # make absolute value norm
         range = (0,mx)
         if stat=='kgem' and var!='wallClockTime' : range = (mn,1)
-        if (do_hist): 
+        if do_hist: 
             np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
         else: #cdf
             sorted_data = np.sort(np.fabs(s))
@@ -199,8 +203,7 @@ def run_loop(i,var,mx):
     #if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + statr_word)
     if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
-
-    if (do_hist): 
+    if do_hist: 
         axs[r,c].set_ylabel('GRU count')
         if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
     else:
