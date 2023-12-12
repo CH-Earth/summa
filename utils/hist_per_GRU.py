@@ -202,10 +202,9 @@ def run_loop(i,var,mx):
 
     if (do_hist): 
         axs[r,c].set_ylabel('GRU count')
+        if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
     else:
         axs[r,c].set_ylabel('cumulative distribution')
-    if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
-
 
 for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
     run_loop(i,var,mx)
