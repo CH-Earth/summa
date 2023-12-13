@@ -43,6 +43,10 @@ else:
     plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
+# Define the power transformation function
+def power_transform(x):
+    return x ** 0.5  # Adjust the exponent as needed
+
 # Simulation statistics file locations
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 viz_fil = method_name.copy()
@@ -106,7 +110,8 @@ if 'compressed' in fig_fil:
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
 #fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40)
-fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+fig.subplots_adjust(hspace=0.28) # Adjust the bottom margin, vertical space, and horizontal space
+#fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
     
 def run_loop(i,var,mx):
     r = i//2
@@ -192,8 +197,6 @@ def run_loop(i,var,mx):
     if statr == 'mean_ben': statr_word = 'mean'
     if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
     if statr == 'amax_ben': statr_word = 'max'
-        
-    #if var == 'wallClockTime': axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
 
     axs[r,c].legend(plt_name)
     axs[r,c].set_title(plt_titl[i])
@@ -206,8 +209,14 @@ def run_loop(i,var,mx):
     if do_hist: 
         axs[r,c].set_ylabel('GRU count')
         if var != 'wallClockTime' and not testing: axs[r,c].set_ylim([0, 25000])
+        #if var == 'wallClockTime': axs[r,c].set_yscale('log') #log y axis for wall clock time to exaggerate peaks
+
     else:
         axs[r,c].set_ylabel('cumulative distribution')
+        axs[r,c].set_ylim([0.0, 1.0])
+        axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
+        if r == 0 and c == 1: # Rotate x-axis labels for axs[2, 1] subplot
+            axs[r, c].tick_params(axis='x', rotation=45)
 
 for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
     run_loop(i,var,mx)
