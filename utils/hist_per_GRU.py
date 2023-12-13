@@ -109,7 +109,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(31,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
-#fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40)
+#fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40,y=1.0)
 fig.subplots_adjust(hspace=0.28) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
     
