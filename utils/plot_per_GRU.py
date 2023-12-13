@@ -255,7 +255,7 @@ if 'compressed' in fig_fil:
     fig,axs = plt.subplots(3,2,figsize=(35,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
-fig.suptitle('{} Hourly Statistics'.format(method_name), fontsize=40,y=0.95)
+fig.suptitle('{} Hourly Statistics'.format(method_name), fontsize=40,y=1.05)
 
 plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
 
@@ -311,7 +311,7 @@ def run_loop(i,var,the_max,f_x,f_y):
     if stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titlm[i]), labelpad=40, rotation=270)
     if stat == 'kgem': cbr.ax.set_ylabel(stat_word, labelpad=40, rotation=270)
     #if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + ' rel to bench ' + statr_word, labelpad=40, rotation=270)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
+    if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('relative '+ stat_word)
 
     #cbr.ax.yaxis.set_offset_position('right')
 
