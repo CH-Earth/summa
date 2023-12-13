@@ -655,17 +655,6 @@ MODULE data_types
  end type out_type_varSubstep
  ! ** end varSubstep
 
- ! ***********************************************************************************************************
- ! Define classes used define operator splitting methods in opSplittin
- ! ***********************************************************************************************************
-
- type, public :: split_select_type  ! class for selecting operator splitting methods
-   type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
-   logical(lgt),allocatable :: stateMask(:)                      ! mask defining desired state variables
-  contains
-   !procedure :: initialize   => initialize_split_select ! currently under development in opSplittin
- end type split_select_type
-
 contains
  
  ! **** vegNrgFlux ****

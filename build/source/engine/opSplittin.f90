@@ -97,8 +97,7 @@ USE data_types,only:&
                     model_options,                                             & ! defines the model decisions
                     in_type_statefilter,out_type_statefilter,                  & ! classes for stateFilter objects
                     in_type_indexSplit,out_type_indexSplit,                    & ! classes for indexSplit objects
-                    in_type_varSubstep,io_type_varSubstep,out_type_varSubstep, & ! classes for varSubstep objects
-                    split_select_type                                            ! classs  for selecting operator splitting methods
+                    in_type_varSubstep,io_type_varSubstep,out_type_varSubstep    ! classes for varSubstep objects
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:       &
@@ -143,6 +142,22 @@ real(rkind),parameter   :: valueMissing=-9999._rkind     ! missing value
 real(rkind),parameter   :: verySmall=1.e-12_rkind        ! a very small number (used to check consistency)
 real(rkind),parameter   :: veryBig=1.e+20_rkind          ! a very big number
 real(rkind),parameter   :: dx = 1.e-8_rkind              ! finite difference increment
+
+! class definitions
+
+type, public :: split_select_type  ! class for selecting operator splitting methods
+  integer(i4b)             :: ixCoupling
+  integer(i4b)             :: ixSolution
+  integer(i4b)             :: ixStateThenDomain
+  integer(i4b)             :: iStateTypeSplit
+  integer(i4b)             :: iDomainSplit
+  integer(i4b)             :: iStateSplit
+  type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
+  logical(lgt),allocatable :: stateMask(:)                      ! mask defining desired state variables
+ contains
+  procedure :: get_stateMask  => compute_stateMask ! currently under development in opSplittin
+end type split_select_type
+
 
 contains
 
@@ -1082,6 +1097,33 @@ subroutine opSplittin(&
 
 end subroutine opSplittin
 
+subroutine compute_stateMask(split_select,in_stateFilter,indx_data,out_stateFilter,nSubset,err,cmessage,message,return_flag)
+ ! *** Get the mask for the state subset ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ type(in_type_stateFilter),intent(out)  :: in_stateFilter            ! indices
+ type(var_ilength),intent(inout)        :: indx_data                 ! indices for a local HRU
+ type(out_type_stateFilter),intent(out) :: out_stateFilter           ! number of selected state variables for a given split and error control
+ integer(i4b),intent(out)               :: nSubset           ! intent(out): number of selected state variables for a given split
+ integer(i4b),intent(out)               :: err               ! intent(out): error code
+ character(*),intent(out)               :: cmessage          ! intent(out): error message
+ character(*),intent(out)               :: message                        ! error message
+ logical(lgt),intent(out)               :: return_flag
+ return_flag=.false. ! initialize flag
+ associate(&
+  ixCoupling        => split_select % ixCoupling        ,& 
+  ixSolution        => split_select % ixSolution        ,&
+  ixStateThenDomain => split_select % ixStateThenDomain ,&
+  iStateTypeSplit   => split_select % iStateTypeSplit   ,&
+  iDomainSplit      => split_select % iDomainSplit      ,&
+  iStateSplit       => split_select % iStateSplit        )
+  call in_stateFilter % initialize(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
+ end associate
+ associate(stateMask => split_select % stateMask)
+  call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
+ end associate
+ call out_stateFilter % finalize(nSubset,err,cmessage)
+ if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
+end subroutine compute_stateMask
 
 ! **********************************************************************************************************
 ! private subroutine stateFilter: get a mask for the desired state variables
