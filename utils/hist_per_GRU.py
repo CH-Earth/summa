@@ -181,8 +181,9 @@ def run_loop(i,var,mx):
             np.fabs(s).plot.hist(ax=axs[r,c], bins=num_bins,histtype='step',zorder=0,label=m,linewidth=2.0,range=range)
         else: #cdf
             sorted_data = np.sort(np.fabs(s))
-            yvals = np.arange(len(sorted_data)) / float(len(sorted_data) - 1)
-            axs[r,c].plot(sorted_data, yvals, zorder=0, label=m, linewidth=2.0)
+            valid_data = sorted_data[~np.isnan(sorted_data)]
+            yvals = np.arange(len(valid_data)) / float(len(valid_data) - 1)
+            axs[r,c].plot(valid_data, yvals, zorder=0, label=m, linewidth=2.0)
             axs[r,c].set_xlim(range)  # Replace xmin and xmax with the desired limits
 
 
