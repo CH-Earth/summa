@@ -256,9 +256,9 @@ subroutine t2enthalpy(&
                       mLayerVolFracWatTrial,             & ! intent(in):  trial vector of volumetric total water content (-)
                       mLayerMatricHeadTrial,             & ! intent(in):  trial vector of total water matric potential (m)
                       ! output: enthalpy
-                      scalarCanairEnthalpy,              & ! intent(out):  enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpy,              & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpy,                    & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                      scalarCanairEnthalpy,              & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthalpy,              & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthalpy,                    & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
                       ! output: error control
                       err,message)                         ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -283,9 +283,9 @@ subroutine t2enthalpy(&
   real(rkind),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
   real(rkind),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
   ! output: enthalpy
-  real(rkind),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
-  real(rkind),intent(out)          :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(out)          :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(out)          :: scalarCanairEnthalpy      ! temperature component of enthalpy of the canopy air space (J m-3)
+  real(rkind),intent(out)          :: scalarCanopyEnthalpy      ! temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(out)          :: mLayerEnthalpy(:)         ! temperature component of enthalpy of each snow+soil layer (J m-3)
   ! output: error control
   integer(i4b),intent(out)         :: err                       ! error code
   character(*),intent(out)         :: message                   ! error message
@@ -530,12 +530,12 @@ subroutine t2enthalpy_addphase(&
   type(var_dlength),intent(in)     :: diag_data             ! diagnostic variables for a local HRU
   type(var_ilength),intent(in)     :: indx_data             ! model indices
   ! input: state variables for the vegetation canopy
-  real(rkind),intent(in)           :: scalarCanopyIce       ! value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
+  real(rkind),intent(in)           :: scalarCanopyIce       ! value for canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
   ! input: variables for the snow-soil domain
   real(rkind),intent(in)           :: mLayerVolFracIce(:)   ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
   ! input output: enthalpy
-  real(rkind),intent(inout)        :: scalarCanopyEnthalpy  ! enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
-  real(rkind),intent(inout)        :: mLayerEnthalpy(:)     ! enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: scalarCanopyEnthalpy  ! value for enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: mLayerEnthalpy(:)     ! vector of enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
   ! output: error control
   integer(i4b),intent(out)         :: err                   ! error code
   character(*),intent(out)         :: message               ! error message

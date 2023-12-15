@@ -508,9 +508,9 @@ contains
   case('mLayerThermalC'                 ); get_ixdiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('iLayerThermalC'                 ); get_ixdiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
-  case('scalarCanairEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
-  case('scalarCanopyEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
-  case('mLayerEnthalpy'                 ); get_ixdiag = iLookDIAG%mLayerEnthalpy                   ! enthalpy of the snow+soil layers (J m-3)
+  case('scalarCanairEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanairEnthalpy             ! temperature component of enthalpy of the canopy air space (J m-3)
+  case('scalarCanopyEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanopyEnthalpy             ! temperature component of enthalpy of the vegetation canopy (J m-3)
+  case('mLayerEnthalpy'                 ); get_ixdiag = iLookDIAG%mLayerEnthalpy                   ! temperature component of enthalpy of the snow+soil layers (J m-3)
   ! forcing
   case('scalarVPair'                    ); get_ixdiag = iLookDIAG%scalarVPair                      ! vapor pressure of the air above the vegetation canopy (Pa)
   case('scalarVP_CanopyAir'             ); get_ixdiag = iLookDIAG%scalarVP_CanopyAir               ! vapor pressure of the canopy air space (Pa)
