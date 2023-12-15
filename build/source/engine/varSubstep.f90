@@ -1009,13 +1009,6 @@ USE getVectorz_module,only:varExtract                             ! extract vari
       end select
     endif  ! if checking energy balance
 
-    ! save the trial values
-    if(computeEnthalpy)then
-      scalarCanairEnthalpy = scalarCanairEnthalpyTrial
-      mLayerEnthalpy = mLayerEnthalpyTrial
-      scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
-    endif
-
     ! -----
     ! * check mass balance...
     ! -----------------------

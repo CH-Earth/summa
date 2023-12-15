@@ -1078,7 +1078,7 @@ subroutine coupled_em(&
       innerBalanceLayerNrg(:) = innerBalanceLayerNrg(:) + diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:)*dt_wght
       innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght
 
-        ! save balance of energy and water per snow+soil layer after inner step, since can change nLayers with outer steps
+      ! save balance of energy and water per snow+soil layer after inner step, since can change nLayers with outer steps
       diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:) = innerBalanceLayerNrg(:)
       diag_data%var(iLookDIAG%balanceLayerMass)%dat(:) = innerBalanceLayerMass(:)
 
@@ -1097,8 +1097,10 @@ subroutine coupled_em(&
             diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)/nSoil
         end select
       end do
-      deallocate(innerBalanceLayerNrg)
-      deallocate(innerBalanceLayerMass)
+      if(do_outer)then
+        deallocate(innerBalanceLayerNrg)
+        deallocate(innerBalanceLayerMass)
+      endif
 
       ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub
