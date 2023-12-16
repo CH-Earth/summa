@@ -160,6 +160,10 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   procedure :: get_indices    => initialize_indices ! load operator splitting indices into class object
 end type split_select_type
 
+type, public :: split_index_type  ! class for operator splitting indices
+  integer(i4b)             :: ixCoupling
+ contains
+end type split_index_type
 
 contains
 
@@ -313,6 +317,7 @@ subroutine opSplittin(&
   ! loop control
   logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
   logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
+  integer(i4b)                    :: iSplit,nSplit
   ! debug testing
   logical(lgt), parameter         :: test_flag=.false.              ! to create test output
   logical(lgt)                    :: stop_flag                      ! to control stopping
@@ -323,12 +328,14 @@ subroutine opSplittin(&
   type(in_type_varSubstep)  :: in_varSubstep;  type(io_type_varSubstep) :: io_varSubstep; type(out_type_varSubstep)  :: out_varSubstep;  ! varSubstep arguments
   ! -------------------------------------------------------------------------------------------------------------------------
   type(split_select_type) :: split_select ! class object for selecting operator splitting methods
-  
+  type(split_index_type),allocatable  :: split_index(:)  ! class object for operator splitting indices 
+ 
   ! initialize debug flags
   stop_flag=.false.
 
   ! *** Initialize Split Selector Object ***
   call initialize_split_select
+  !split_select: do iSplit=1,nSplit
 
   call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
   coupling: do ixCoupling=1,nCoupling                          ! loop through different coupling strategies
@@ -405,11 +412,23 @@ subroutine opSplittin(&
   end do coupling        ! loop over coupling methods
   call finalize_coupling ! check variables and fluxes, and apply step halving if needed
 
+  !end do split_select
  contains
+
+  subroutine initialize_split
+   ! *** Initialize split ***
+   
+   call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
+
+   ! allocate split_index object
+   allocate(split_index(1:nSplit))
+
+   ! convert iSplit to ixCoupling
+   split_index(iSplit) % ixCoupling = iSplit
+  end subroutine initialize_split
 
   subroutine initialize_split_select
    ! *** Initialize split_select class object - currently under development ***
-   integer(i4b) ::  nSplit
 
    ! allocate data components
    allocate(split_select % stateMask(1:nState)) ! allocate split_select components
@@ -422,6 +441,7 @@ subroutine opSplittin(&
 ! add update to stateMask here
 !   call get_nStateSplit(nSolutions);                   if (return_flag.eqv..true.) return ! get nStateSplit value     
 !   nSplit=nCoupling*nStateTypeSplit*(1+tryDomainSplit)*nDomainSplit*nSolutions*nStateSplit
+   nSplit=nCoupling ! temporary definition -- adding one opSplittin loop at a time
    if (test_flag.eqv..true.) print *, "Test Ouput: ",nCoupling,nStateTypeSplit,tryDomainSplit,nDomainSplit
 
 
