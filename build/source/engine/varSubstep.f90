@@ -1005,7 +1005,8 @@ USE getVectorz_module,only:varExtract                                   ! extrac
                       ! output: error control
                       err,message)                         ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-     
+          print*, mLayerEnthalpyTrial(1),mLayerEnthalpy(1),mLayerEnthalpyTrial(1) - mLayerEnthalpy(1),mLayerEnthalpyDelta_addphase(1)
+
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixCasNrg)*dt
           !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg) ! should be equivalent to above, use for debugging
