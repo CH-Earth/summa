@@ -40,7 +40,7 @@ else:
     #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
     #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
     method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
-    plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
+    plt_name=['BE1','BE16','BE32','SUNDIALS'] #maybe make this an argument
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Define the power transformation function
