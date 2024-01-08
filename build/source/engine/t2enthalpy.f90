@@ -458,7 +458,7 @@ subroutine t2enthalpy(&
                   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
                   mLayerPsiLiq  = xConst*(mLayerTempTrial(iLayer) - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
-                  arg = (-vGn_alpha * mLayerPsiLiq)**vGn_n
+                  arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   if(quick_hyper)then
                     gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   else
@@ -466,7 +466,7 @@ subroutine t2enthalpy(&
                   endif
                   enthTemp = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) 
                   ! calculate enthalpy at the critical temperature 
-                  arg = (-vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
+                  arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
                   if(quick_hyper)then
                     gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   else
