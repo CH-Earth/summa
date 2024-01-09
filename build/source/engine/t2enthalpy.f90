@@ -199,7 +199,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
           volFracIce   = theta_sat - vFracLiq
 
           ! compute enthalpy
-          ! NOTE: assume intrrinsic density of ice is the intrinsic density of water
+          ! NOTE: assume intrinsic density of ice is the intrinsic density of water
           ! NOTE: kg m-3 J kg-1 K-1 K
           Ey(iLook)  = Ey(iLook) + iden_water * Cp_water*vFracLiq*T_incr + iden_water * Cp_ice*volFracIce*T_incr
 

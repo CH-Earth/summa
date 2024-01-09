@@ -185,7 +185,7 @@ subroutine computHeatCap(&
 
     ! compute the bulk volumetric heat capacity of vegetation (J m-3 K-1)
     if(computeVegFlux)then
-      if(abs(scalarCanopyTempDelta) <= 1e-2_rkind)then
+      if(abs(scalarCanopyTempDelta) <= 1e-14_rkind)then
         heatCapVeg = specificHeatVeg*maxMassVegetation/canopyDepth + & ! vegetation component
                      Cp_water*scalarCanopyLiquid/canopyDepth       + & ! liquid water component
                      Cp_ice*scalarCanopyIce/canopyDepth                ! ice component
@@ -208,7 +208,7 @@ subroutine computHeatCap(&
       ! get the soil layer
       if(iLayer>nSnow) iSoil = iLayer-nSnow
       
-      if(abs(mLayerTempDelta(iLayer)) <= 1e-2_rkind)then
+      if(abs(mLayerTempDelta(iLayer)) <= 1e-14_rkind)then
           select case(layerType(iLayer))
             ! * soil
             case(iname_soil)
@@ -627,11 +627,11 @@ subroutine computCm(&
         case(iname_snow)
           diffT = mLayerTemp(iLayer) - Tfreeze
           integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-          mLayerCm(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
+          mLayerCm(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( diffT - integral ) &
                   +  (iden_water * Cp_water - iden_air * Cp_air) * integral
           ! derivatives
           d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
-          dCm_dTk(iLayer) = (iden_ice * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind - d_integral_dTk ) &
+          dCm_dTk(iLayer) = (iden_water * Cp_ice - iden_air * Cp_air * iden_water/iden_ice) * ( 1._rkind - d_integral_dTk ) &
                   +  (iden_water * Cp_water - iden_air * Cp_air) * d_integral_dTk
 
         case default; err=20; message=trim(message)//'unable to identify type of layer (snow or soil) to compute Cm'; return
