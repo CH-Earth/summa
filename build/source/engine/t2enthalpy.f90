@@ -322,7 +322,6 @@ subroutine t2enthalpy(&
   real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
   real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
   logical(lgt),parameter           :: use_lookup=.true.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
-  logical(lgt),parameter           :: quick_hyper=.false.       ! flag to use a quick hypergeometric function, currently no difference between quick and slow hypergeometric functions
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
@@ -460,19 +459,11 @@ subroutine t2enthalpy(&
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
                   mLayerPsiLiq  = xConst*(mLayerTempTrial(iLayer) - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
-                  if(quick_hyper)then
                     gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  else
-                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  endif
                   enthTemp = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) 
                   ! calculate enthalpy at the critical temperature 
                   arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
-                  if(quick_hyper)then
                     gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  else
-                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  endif
                   enthTcrit = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
                 endif
 
