@@ -64,6 +64,7 @@ private
 public::T2E_lookup
 public::t2enthalpy
 public::t2enthalpy_addphase
+private::hyp_2F1_real
 
 ! define the look-up table used to compute temperature based on enthalpy
 contains
@@ -460,17 +461,17 @@ subroutine t2enthalpy(&
                   mLayerPsiLiq  = xConst*(mLayerTempTrial(iLayer) - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   if(quick_hyper)then
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   else
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   endif
                   enthTemp = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) 
                   ! calculate enthalpy at the critical temperature 
                   arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
                   if(quick_hyper)then
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   else
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   endif
                   enthTcrit = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
                 endif
@@ -622,37 +623,24 @@ subroutine t2enthalpy_addphase(&
 
 end subroutine t2enthalpy_addphase
 
-! ************************************************************************************************************************
-! private function hypergeometric: compute Gaussian hypergeometric function
-! ************************************************************************************************************************
-function hypergeometric(a, b, c, z)
+!----------------------------------------------------------------------
+! private function: compute hypergeometric function with real arguments into real result
+!----------------------------------------------------------------------
+function hyp_2F1_real(a_real, b_real, c_real, z_real)
+  !--------------------------------------------------------------------
+  USE hyp_2F1_module         ! use for hypergeometric function
   implicit none
-  real(rkind),intent(in) :: a, b, c, z      ! input parameters
-  real(rkind)            :: term, factorial ! local variables
-  real(rkind)            :: hypergeometric  ! output result
-  integer(i4b)           :: n, max_iter     ! iteration count variables
-
-  max_iter = 1000 ! maximum number of iterations
-
-  ! initialize
-  hypergeometric = 1._rkind
-  term = 1._rkind
-  factorial = 1._rkind
-
-  do n = 1, max_iter
-    factorial = factorial * n
-    term = term * (a + n - 1) * (b + n - 1) / ((c + n - 1) * factorial) * z
-    hypergeometric = hypergeometric + term
-
-    if (abs(term) < 1.e-6_rkind) exit ! convergence condition
-
-    if (n == max_iter) then
-      ! handle non-convergence
-      write(*, *) "Warning: Hypergeometric function did not converge within the maximum number of iterations."
-      exit
-    end if
-  end do
-
-end function hypergeometric
+  real(rkind),intent(in) :: a_real, b_real, c_real, z_real
+  complex(rkind)         :: a_complex, b_complex, c_complex, z_complex, result
+  real(rkind)            :: hyp_2F1_real
+  
+  a_complex = CMPLX(a_real, 0._rkind, rkind)
+  b_complex = CMPLX(b_real, 0._rkind, rkind)
+  c_complex = CMPLX(c_real, 0._rkind, rkind)
+  z_complex = CMPLX(z_real, 0._rkind, rkind)
+  result = HYP_2F1(a_complex, b_complex, c_complex, z_complex)
+  hyp_2F1_real = REAL(result, rkind)
+   
+end function hyp_2F1_real
 
 end module t2enthalpy_module

@@ -275,7 +275,8 @@ set(NRUTIL
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
     ${ENGINE_DIR}/expIntegral.f90
-    ${ENGINE_DIR}/spline_int.f90)
+    ${ENGINE_DIR}/spline_int.f90
+    ${ENGINE_DIR}/hyp_2F1.f90)
 
 # Hook-up modules
 set(HOOKUP
