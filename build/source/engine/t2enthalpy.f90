@@ -628,7 +628,7 @@ end subroutine t2enthalpy_addphase
 !----------------------------------------------------------------------
 function hyp_2F1_real(a_real, b_real, c_real, z_real)
   !--------------------------------------------------------------------
-  USE hyp_2F1_module         ! use for hypergeometric function
+  USE hyp_2F1_module,only:HYP_2F1 ! use for hypergeometric function
   implicit none
   real(rkind),intent(in) :: a_real, b_real, c_real, z_real
   complex(rkind)         :: a_complex, b_complex, c_complex, z_complex, result

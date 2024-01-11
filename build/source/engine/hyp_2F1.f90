@@ -6,25 +6,25 @@ USE nrtype
 ! privacy
 implicit none
 
-public::INF_NORM
-public::TANZ
-public::LOG1P
-public::EXPM1
-public::GAMMA_INV
-public::GAMMA_RATIO_DIFF_SMALL_EPS
-public::GAMMA_INV_DIFF_EPS
-public::A_SUM_INIT
-public::LOG_A_SUM_INIT
-public::B_SUM_INIT_PS_ONE
-public::B_SUM_INIT_PS_INFINITY
-public::CV_POLY_DER_CALC
-public::MIN_N_CALC
-public::HYP_PS_ZERO
-public::HYP_PS_ONE
-public::HYP_PS_INFINITY
-public::HYP_PS_COMPLEX_PLANE_REST
-public::HYP_2F1
+private::INF_NORM
+private::TANZ
+private::LOG1P
+private::EXPM1
+private::GAMMA_INV
+private::GAMMA_RATIO_DIFF_SMALL_EPS
+private::GAMMA_INV_DIFF_EPS
+private::A_SUM_INIT
+private::LOG_A_SUM_INIT
+private::B_SUM_INIT_PS_ONE
+private::B_SUM_INIT_PS_INFINITY
+private::CV_POLY_DER_CALC
+private::MIN_N_CALC
+private::HYP_PS_ZERO
+private::HYP_PS_ONE
+private::HYP_PS_INFINITY
+private::HYP_PS_COMPLEX_PLANE_REST
 private::TEST_2F1
+public::HYP_2F1
 
 ! constant parameters
 real(rkind),parameter :: EPS15=1.e-15_rkind
@@ -51,7 +51,7 @@ contains
  !               - renamed LOG_GAMMA to LOG_GAMMA_FUN to avoid name
  !                 clash with intrinsic function
  ! 11/01/2024    Modifications by Ashley Van Beusekom:
- !               - made one module
+ !               - made one module and removed functions as variable declarations
  !               - made precision rkind dependent
  !               - lowercase for readability
  !----------------------------------------------------------------------
@@ -268,10 +268,10 @@ contains
       X=REAL(Z,rkind); N=NINT(X)
       EPS=Z-N
       if(MOD(N,2).eq.0) then
-         RES=SIN(M_PI*EPS)*M_1_PI/GAMMA_INV (ONE-Z)
+         RES=SIN(M_PI*EPS)*M_1_PI/GAMMA_INV(ONE-Z)
          return
       else
-         RES=-SIN(M_PI*EPS)*M_1_PI/GAMMA_INV (ONE-Z)
+         RES=-SIN(M_PI*EPS)*M_1_PI/GAMMA_INV(ONE-Z)
          return
       endif
    endif
@@ -490,8 +490,7 @@ contains
    real(rkind)               :: X,EPS_PX,FACT
    real(rkind)               :: Z_NEG_INT_DISTANCE
    real(rkind)               :: EPS_PZ_NEG_INT_DISTANCE
-   complex(rkind)            :: GAMMA_INV_DIFF_EPS,EPS_PZ,GAMMA_INV
-   complex(rkind)            :: GAMMA_RATIO_DIFF_SMALL_EPS
+   complex(rkind)            :: GAMMA_INV_DIFF_EPS,EPS_PZ
    logical(lgt)              :: IS_Z_NEG_INT,IS_EPS_PZ_NEG_INT
  
    EPS_PZ=Z+EPS; X=REAL(Z,rkind); EPS_PX=REAL(EPS_PZ,rkind)
@@ -499,25 +498,25 @@ contains
    IS_Z_NEG_INT=(Z.eq.N).and.(N.le.0)
    IS_EPS_PZ_NEG_INT=(EPS_PZ.eq.M).and.(M.le.0)
    if(INF_NORM(EPS).gt.0.10_rkind) then
-      GAMMA_INV_DIFF_EPS = (GAMMA_INV (Z) - GAMMA_INV (EPS_PZ))/EPS
+      GAMMA_INV_DIFF_EPS = (GAMMA_INV(Z) - GAMMA_INV(EPS_PZ))/EPS
       return
    else if(EPS_PZ.ne.Z) then 
       if(IS_Z_NEG_INT) then
-         GAMMA_INV_DIFF_EPS = (-GAMMA_INV (EPS_PZ)/EPS)
+         GAMMA_INV_DIFF_EPS = (-GAMMA_INV(EPS_PZ)/EPS)
          return
       else if(IS_EPS_PZ_NEG_INT) then
-         GAMMA_INV_DIFF_EPS = (GAMMA_INV (Z)/EPS)
+         GAMMA_INV_DIFF_EPS = (GAMMA_INV(Z)/EPS)
          return
       else
          Z_NEG_INT_DISTANCE = INF_NORM (Z + ABS (N))
          EPS_PZ_NEG_INT_DISTANCE = INF_NORM (EPS_PZ + ABS (M))
          if(Z_NEG_INT_DISTANCE.lt.EPS_PZ_NEG_INT_DISTANCE) then
             GAMMA_INV_DIFF_EPS= &
-                 GAMMA_RATIO_DIFF_SMALL_EPS (Z,EPS)*GAMMA_INV (EPS_PZ)
+                 GAMMA_RATIO_DIFF_SMALL_EPS(Z,EPS)*GAMMA_INV(EPS_PZ)
             return
          else
             GAMMA_INV_DIFF_EPS= &
-                 GAMMA_RATIO_DIFF_SMALL_EPS (EPS_PZ,-EPS)*GAMMA_INV (Z)
+                 GAMMA_RATIO_DIFF_SMALL_EPS(EPS_PZ,-EPS)*GAMMA_INV(Z)
             return
          endif
       endif
@@ -531,7 +530,7 @@ contains
       return
    else
       GAMMA_INV_DIFF_EPS = &
-           GAMMA_RATIO_DIFF_SMALL_EPS (Z,EPS)*GAMMA_INV (EPS_PZ)
+           GAMMA_RATIO_DIFF_SMALL_EPS(Z,EPS)*GAMMA_INV(EPS_PZ)
       return
    endif
  end function GAMMA_INV_DIFF_EPS
@@ -630,7 +629,7 @@ contains
    complex(rkind),intent(in) :: EPS
    integer(i4b)              :: N
    real(rkind)               :: LOG_FACT
-   complex(rkind)            :: ONE_MEPS_MM,LOG_A_SUM_INIT,LOG_GAMMA_FUN
+   complex(rkind)            :: ONE_MEPS_MM,LOG_A_SUM_INIT
    !
    ONE_MEPS_MM=ONE-EPS-M
    if(ONE_MEPS_MM.ne.1-M) then
@@ -751,8 +750,8 @@ contains
    complex(rkind)            :: A_PM,B_SUM_INIT_PS_ONE,PI_EPS,GAMMA_INV_ONE_MEPS_MM
    complex(rkind)            :: B_PM,TMP1,TMP2
    complex(rkind)            :: Z_TERM,PROD1,PROD2,PROD3,ONE_MEPS,PI_EPS_PM
-   complex(rkind)            :: GAMMA_INV_A_PM,PROD_AB,GAMMA_INV,GAMMA_INV_B_PM
-   complex(rkind)            :: GAMMA_INV_DIFF_EPS,GAMMA_INV_EPS_PM_P1
+   complex(rkind)            :: GAMMA_INV_A_PM,PROD_AB,GAMMA_INV_B_PM
+   complex(rkind)            :: GAMMA_INV_EPS_PM_P1
    !       
    INF_NORM_EPS=INF_NORM(EPS); M_M1=M-1; A_PM=A+M; B_PM=B+M
    ONE_MEPS=ONE-EPS; PI_EPS=M_PI*EPS; PI_EPS_PM = M_PI*(EPS+M)
@@ -796,7 +795,7 @@ contains
            +GAMMA_INV_DIFF_EPS(TMP2,EPS))
       PROD2 = GAMMA_INV_EPS_PM_P1 &
            *(GAMMA_INV_EPS_PB_PM*GAMMA_INV_DIFF_EPS(A_PM,EPS) &
-           +GAMMA_INV_A_PM*GAMMA_INV_DIFF_EPS (B_PM,EPS))
+           +GAMMA_INV_A_PM*GAMMA_INV_DIFF_EPS(B_PM,EPS))
       PROD3 = GAMMA_INV_A_PM*GAMMA_INV_B_PM*GAMMA_INV_EPS_PM_P1*Z_TERM
       B_SUM_INIT_PS_ONE=GAMMA_C*PROD_AB*(PROD1-PROD2-PROD3)
       return
@@ -920,14 +919,14 @@ contains
    integer(i4b)              :: M_M1,I,N,N0,PHASE
    logical(lgt)              :: IS_N0_HERE,IS_EPS_NON_ZERO
    real(rkind)               :: INF_NORM_EPS,NP1,GAMMA_INV_MP1
-   complex(rkind)            :: B_SUM_INIT_PS_INFINITY,GAMMA_INV,TMP1
+   complex(rkind)            :: B_SUM_INIT_PS_INFINITY,TMP1
    complex(rkind)            :: CMA,A_MC_P1,A_MC_P1_PM,CMA_MEPS,EPS_PA_MC_P1,A_PM
    complex(rkind)            :: GAMMA_INV_EPS_PM_P1,GAMMA_INV_CMA_MEPS,PI_EPS
    complex(rkind)            :: PROD1,PROD2,A_PN,A_MC_P1_PN,ONE_MEPS
    complex(rkind)            :: PROD_A,PROD_A_MC_P1,PROD_EPS_PA_MC_P1_N0,PI_EPS_PM
    complex(rkind)            :: PROD_EPS_PA_MC_P1,SUM_N0,Z_TERM,SUM_TERM
    complex(rkind)            :: PROD_DIFF_EPS,GAMMA_INV_A_PM,GAMMA_PROD1
-   complex(rkind)            :: PROD_2A,PROD_2B,PROD_2C,GAMMA_INV_DIFF_EPS
+   complex(rkind)            :: PROD_2A,PROD_2B,PROD_2C
    complex(rkind)            :: EPS_PA_MC_P1_PN,GAMMA_INV_ONE_MEPS_MM
    !
    INF_NORM_EPS=INF_NORM(EPS); CMA=C-A; A_MC_P1=A-C+ONE
@@ -1166,11 +1165,10 @@ contains
    !--------------------------------------------------------------------
    implicit none
    complex(rkind),intent(in) :: A,B,C,Z
-   integer(i4b)              :: N,NA,NB,MIN_N,MIN_N_CALC
+   integer(i4b)              :: N,NA,NB,MIN_N
    complex(rkind)            :: HYP_PS_ZERO,TERM
    logical(lgt)              :: POSSIBLE_FALSE_CV
    real(rkind)               :: CV_POLY_DER_TAB(0:3)
-   real(rkind)               :: CV_POLY_DER_CALC
    !
    NA = ABS(NINT(REAL(A,rkind)))
    NB = ABS(NINT(REAL(B,rkind)))
@@ -1196,7 +1194,7 @@ contains
          HYP_PS_ZERO = HYP_PS_ZERO + TERM
          if(POSSIBLE_FALSE_CV.and.(N.gt.MIN_N)) then
             POSSIBLE_FALSE_CV = &
-                 (CV_POLY_DER_CALC (CV_POLY_DER_TAB,DBLE(N)).gt.ZERO)
+                 (CV_POLY_DER_CALC(CV_POLY_DER_TAB,DBLE(N)).gt.ZERO)
          endif
          N=N+1 
       enddo
@@ -1280,13 +1278,12 @@ contains
    !--------------------------------------------------------------------
    implicit none
    complex(rkind),intent(in) :: A,B,C,MZP1
-   integer(i4b)              :: N,M,PHASE,M_M2,MIN_N,MIN_N_CALC,M_P1
-   real(rkind)               :: B_PREC,N_P1,N_PM_P1,CV_POLY_DER_CALC 
+   integer(i4b)              :: N,M,PHASE,M_M2,MIN_N,M_P1
+   real(rkind)               :: B_PREC,N_P1,N_PM_P1 
    complex(rkind)            :: HYP_PS_ONE,EPS,EPS_PM,EPS_PM_P1,A_PM
    complex(rkind)            :: B_PM,ONE_MEPS_MM,EPS_PA,EPS_PB,PI_EPS,GAMMA_PROD
-   complex(rkind)            :: EPS_PA_PM,EPS_PB_PM,GAMMA_INV,B_SUM_INIT_PS_ONE
-   complex(rkind)            :: A_SUM_INIT,LOG_A_SUM_INIT,A_SUM,A_TERM,ONE_MEPS
-   complex(rkind)            :: B_EXTRA_TERM,B_TERM,B_SUM,GAMMA_C,LOG_GAMMA_FUN,RATIO
+   complex(rkind)            :: EPS_PA_PM,EPS_PB_PM, A_SUM,A_TERM,ONE_MEPS
+   complex(rkind)            :: B_EXTRA_TERM,B_TERM,B_SUM,GAMMA_C,RATIO
    complex(rkind)            :: A_PM_PN,B_PM_PN,EPS_PM_P1_PN,N_P1_MEPS
    complex(rkind)            :: PROD1,PROD2,PROD3
    complex(rkind)            :: EPS_PA_PM_PN,EPS_PB_PM_PN,EPS_PM_PN,PROD_B,POW_MZP1_M
@@ -1448,14 +1445,13 @@ contains
    !--------------------------------------------------------------------
    implicit none
    complex(rkind),intent(in) :: A,B,C,Z
-   integer(i4b)              :: N,M,PHASE,M_M2,MIN_N,MIN_N_CALC,M_P1
-   real(rkind)               :: B_PREC,N_P1,N_PM_P1,CV_POLY_DER_CALC
-   complex(rkind)            :: B_SUM_INIT_PS_INFINITY,LOG_GAMMA_FUN,POW_Z_INV_M
-   complex(rkind)            :: HYP_PS_INFINITY,Z_INV,GAMMA_INV,RATIO
+   integer(i4b)              :: N,M,PHASE,M_M2,MIN_N,M_P1
+   real(rkind)               :: B_PREC,N_P1,N_PM_P1
+   complex(rkind)            :: POW_Z_INV_M,HYP_PS_INFINITY,Z_INV,RATIO
    complex(rkind)            :: EPS,A_MC_P1,ONE_MEPS,ONE_MEPS_MM,A_PM,A_MC_P1_PM
    complex(rkind)            :: CMA,EPS_PA,EPS_PM_P1,EPS_PA_MC_P1_PM,PI_EPS
    complex(rkind)            :: EPS_PA_PM,EPS_PM,GAMMA_C,GAMMA_INV_CMA,POW_MZ_MA
-   complex(rkind)            :: A_SUM_INIT,LOG_A_SUM_INIT,A_SUM,A_TERM
+   complex(rkind)            :: A_SUM,A_TERM
    complex(rkind)            :: GAMMA_INV_EPS_PA_PM,GAMMA_INV_ONE_MEPS
    complex(rkind)            :: PROD_B,B_EXTRA_TERM,B_TERM,B_SUM,PROD1
    complex(rkind)            :: A_PM_PN,A_MC_P1_PM_PN,EPS_PM_P1_PN,N_P1_MEPS
@@ -1598,7 +1594,6 @@ contains
    complex(rkind)            :: HYP_PS_COMPLEX_PLANE_REST
    complex(rkind)            :: Z0,ZC,ZC_Z0_RATIO,Z0_TERM1,Z0_TERM2
    complex(rkind)            :: HYP_PS_Z0,DHYP_PS_Z0,AN,ANP1,ANP2
-   complex(rkind)            :: HYP_PS_ZERO,HYP_PS_INFINITY
    !
    ABS_Z=ABS(Z)
    if(ABS_Z.lt.ONE) then
@@ -1704,8 +1699,7 @@ contains
    integer(i4b)              :: NA,NB,NC,I
    real(rkind)               :: RE_A,RE_B,RE_C,ABS_Z,ABS_ZM1,ABS_Z_OVER_ZM1
    real(rkind)               :: ABS_ZM1_OVER_Z,ABS_ZM1_INV,R_TABLE(1:5),R,ABS_Z_INV
-   complex(rkind)            :: RES,HYP_PS_INFINITY,HYP_PS_ZERO,Z_SHIFT
-   complex(rkind)            :: HYP_PS_COMPLEX_PLANE_REST,HYP_PS_ONE,Z_OVER_ZM1,ZM1
+   complex(rkind)            :: RES,Z_SHIFT,Z_OVER_ZM1,ZM1
    logical(lgt)              :: IS_A_NEG_INT,IS_B_NEG_INT,IS_C_NEG_INT
    logical(lgt)              :: AB_CONDITION,CAB_CONDITION,ARE_A_CMB_C_SMALL
    logical(lgt)              :: IS_CMB_SMALL,ARE_AC_SMALL,ARE_ABC_SMALL
@@ -1781,7 +1775,7 @@ contains
    endif
    ABS_ZM1=ABS(ZM1)
    if(ABS_ZM1.lt.1.e-5_rkind) then 
-      RES=HYP_PS_ONE (A,B,C,-ZM1)
+      RES=HYP_PS_ONE(A,B,C,-ZM1)
       return
    endif
    ABS_Z=ABS(Z); ABS_Z_OVER_ZM1=ABS_Z/ABS_ZM1; ABS_Z_INV=ONE/ABS_Z
@@ -1794,34 +1788,34 @@ contains
    do I=1,5
       R=R_TABLE(I)
       if(ABS_Z.le.R) then 
-         RES=HYP_PS_ZERO (A,B,C,Z)
+         RES=HYP_PS_ZERO(A,B,C,Z)
          return
       endif
       if(IS_CMB_SMALL.and.(ABS_Z_OVER_ZM1.le.R)) then
-         RES=((-ZM1)**(-A))*HYP_PS_ZERO (A,C-B,C,Z/ZM1)
+         RES=((-ZM1)**(-A))*HYP_PS_ZERO(A,C-B,C,Z/ZM1)
          return
       endif
    enddo
    do I=1,5
       R=R_TABLE(I)
       if(ABS_Z_INV.le.R) then 
-         RES=HYP_PS_INFINITY (A,B,C,Z)
+         RES=HYP_PS_INFINITY(A,B,C,Z)
          return 
       endif
       if(IS_CMB_SMALL.and.(ABS_ZM1_OVER_Z.le.R)) then 
-         RES=((-ZM1)**(-A))*HYP_PS_INFINITY (A,C-B,C,Z/ZM1)
+         RES=((-ZM1)**(-A))*HYP_PS_INFINITY(A,C-B,C,Z/ZM1)
          return
       endif
       if(ARE_ABC_SMALL.and.(ABS_ZM1.le.R)) then 
-         RES=HYP_PS_ONE (A,B,C,-ZM1)
+         RES=HYP_PS_ONE(A,B,C,-ZM1)
          return
       endif
       if(ARE_A_CMB_C_SMALL.and.(ABS_ZM1_INV.le.R)) then 
-         RES=((-ZM1)**(-A))*HYP_PS_ONE (A,C-B,C,-ONE/ZM1)
+         RES=((-ZM1)**(-A))*HYP_PS_ONE(A,C-B,C,-ONE/ZM1)
          return
       endif
    enddo
-   RES=HYP_PS_COMPLEX_PLANE_REST (A,B,C,Z)
+   RES=HYP_PS_COMPLEX_PLANE_REST(A,B,C,Z)
    return
  end function HYP_2F1
  !
@@ -1855,7 +1849,7 @@ contains
    implicit none
    complex(rkind),intent(in) :: A,B,C,Z
    real(rkind)               :: TEST_2F1
-   complex(rkind)            :: F,DF,D2F,HYP_2F1  
+   complex(rkind)            :: F,DF,D2F  
    !
    if(Z.eq.ZERO) then
       TEST_2F1=INF_NORM(F-ONE)
