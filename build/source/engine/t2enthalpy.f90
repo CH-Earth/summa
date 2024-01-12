@@ -433,43 +433,41 @@ subroutine t2enthalpy(&
               Tcrit    = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
               volFracWat = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
               diffT = mLayerTempTrial(iLayer) - Tfreeze
-
               ! *** compute enthalpy of water for unfrozen conditions
               if(mlayerTempTrial(iLayer)>=Tcrit)then
                 enthWater = iden_water * Cp_water * volFracWat * diffT ! valid for temperatures below freezing also
 
               ! *** compute enthalpy of water for frozen conditions
               else
+                if(use_lookup)then 
+                  !cubic spline interpolation
                 ! compute enthalpy of unfrozen and frozen water
                 enthLiq = iden_water * Cp_water * volFracWat * (Tcrit - Tfreeze)
                 enthIce = iden_ice * Cp_ice * volFracWat * (mLayerTempTrial(iLayer) - Tcrit) 
 
                 ! compute enthalpy of the mixed region, liquid+ice
-                if(use_lookup)then !cubic spline interpolation
                   ! calculate enthalpy at the temperature
                   call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),enthTemp,dE,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
                   ! calculate enthalpy at the critical temperature 
                   call splint(Tk,Ey,E2,Tcrit,enthTcrit,dEcrit,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+                  ! calculate the enthalpy of water
+                  enthMix   = enthTemp - enthTcrit ! enthalpy of the liquid+ice mix
+                  enthWater = enthMix + enthLiq + enthIce
                 else ! hypergeometric function
-                  ! calculate enthalpy at the temperature
                    ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
                   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-                  mLayerPsiLiq  = xConst*(mLayerTempTrial(iLayer) - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
+                  mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                     gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  enthTemp = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) 
-                  ! calculate enthalpy at the critical temperature 
-                  arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
-                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  enthTcrit = (iden_water * Cp_water - iden_ice * Cp_ice) * diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  enthLiq = iden_water * Cp_water* diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  enthIce = iden_ice * Cp_ice * diffT * ( volFracWat -  (theta_sat - theta_res)*gauss_hg_T - theta_res ) 
+                  enthWater = enthLiq + enthIce
                 endif
 
-                ! calculate the enthalpy of water
-                enthMix   = enthTemp - enthTcrit ! enthalpy of the liquid+ice mix
-                enthWater = enthMix + enthLiq + enthIce
 
               endif ! (if frozen conditions)
 
