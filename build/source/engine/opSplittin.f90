@@ -146,23 +146,29 @@ real(rkind),parameter   :: dx = 1.e-8_rkind              ! finite difference inc
 ! class definitions
 
 type, public :: split_select_type  ! class for selecting operator splitting methods
+  ! opSplittin loop indices (in order)
   integer(i4b)             :: ixCoupling
-  integer(i4b)             :: ixSolution
-  integer(i4b)             :: ixStateThenDomain
   integer(i4b)             :: iStateTypeSplit
+  integer(i4b)             :: ixStateThenDomain           ! 1=state type split; 2=domain split within a given state type 
   integer(i4b)             :: iDomainSplit
+  integer(i4b)             :: ixSolution
   integer(i4b)             :: iStateSplit
+  ! variables for specifying the split
   integer(i4b)             :: nSubset                     ! number of selected state variables for a given split
   type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
   logical(lgt),allocatable :: stateMask(:)                ! mask defining desired state variables
+  ! flags for loop operations
+  logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit
  contains
-  procedure :: initialize_ixCoupling        => split_select_initialize_ixCoupling  ! initialize operator splitting indices
-  procedure :: initialize_iStateTypeSplit   => split_select_initialize_iStateTypeSplit  ! initialize operator splitting indices
-  procedure :: initialize_ixStateThenDomain => split_select_initialize_ixStateThenDomain
-  procedure :: get_stateMask                => split_select_compute_stateMask   ! compute stateMask and nSubset and load into class object
-  procedure :: get_indices                  => split_select_load_indices        ! load operator splitting indices into class object
-  procedure :: advance_ixCoupling           => split_select_advance_ixCoupling    ! advance coupling loop iterator
-  procedure :: advance_iStateTypeSplit      => split_select_advance_iStateTypeSplit    ! advance coupling loop iterator
+  procedure :: initialize_flags             => split_select_initialize_flags             ! initialize flags that control loop operations
+  procedure :: initialize_ixCoupling        => split_select_initialize_ixCoupling        ! initialize operator splitting indices
+  procedure :: initialize_iStateTypeSplit   => split_select_initialize_iStateTypeSplit   ! initialize operator splitting indices
+  procedure :: initialize_ixStateThenDomain => split_select_initialize_ixStateThenDomain ! initialize operator splitting indices
+  procedure :: initialize_iDomainSplit      => split_select_initialize_iDomainSplit      ! initialize operator splitting indices
+  procedure :: get_stateMask                => split_select_compute_stateMask            ! compute stateMask and nSubset and load into class object
+  procedure :: get_indices                  => split_select_load_indices                 ! load operator splitting indices into class object
+  procedure :: advance_ixCoupling           => split_select_advance_ixCoupling           ! advance coupling loop iterator
+  procedure :: advance_iStateTypeSplit      => split_select_advance_iStateTypeSplit      ! advance coupling loop iterator
   procedure :: advance_ixStateThenDomain    => split_select_advance_ixStateThenDomain    ! advance coupling loop iterator
 end type split_select_type
 
@@ -318,7 +324,6 @@ subroutine opSplittin(&
   ! loop control
   logical(lgt)                    :: exit_coupling,exit_stateTypeSplitting,exit_stateThenDomain,exit_domainSplit,exit_solution,exit_stateSplit
   logical(lgt)                    :: cycle_coupling,cycle_stateTypeSplitting,cycle_stateThenDomain,cycle_domainSplit,cycle_solution,cycle_stateSplit
-  logical(lgt)                    :: stateTypeSplitting_flag,stateThenDomain_flag
   integer(i4b)                    :: iSplit,nSplit,itest
   ! debug testing
   logical(lgt), parameter         :: test_flag=.false.              ! to create test output
@@ -338,34 +343,32 @@ subroutine opSplittin(&
   call initialize_split_select
   call split_select % initialize_ixCoupling
   call initialize_coupling; if (return_flag.eqv..true.) return ! select coupling options and allocate memory - return if error occurs
-  call initialize_flags ! initialize loop control flags 
+  call split_select % initialize_flags ! initialize loop control flags 
   split_select_loop: do iSplit=1,500
-    if (stateThenDomain_flag.eqv..false.) then
-     if (stateTypeSplitting_flag.eqv..false.) then 
+    if (split_select % stateThenDomain.eqv..false.) then
+     if (split_select % stateTypeSplitting.eqv..false.) then 
       ixCoupling=split_select % ixCoupling; if (ixCoupling.gt.nCoupling) exit split_select_loop ! exit if all splits are exhausted 
       call initialize_stateTypeSplitting; if (return_flag.eqv..true.) return ! setup steps for stateTypeSplitting loop - return if error occurs
-      call split_select % initialize_iStateTypeSplit; stateTypeSplitting_flag=.true.
+      call split_select % initialize_iStateTypeSplit; split_select % stateTypeSplitting=.true.
      end if 
-     if (stateTypeSplitting_flag.eqv..true.) then 
-       iStateTypeSplit=split_select % iStateTypeSplit; if (iStateTypeSplit.gt.nStateTypeSplit) stateTypeSplitting_flag=.false.
+     if (split_select % stateTypeSplitting.eqv..true.) then 
+       iStateTypeSplit=split_select % iStateTypeSplit; if (iStateTypeSplit.gt.nStateTypeSplit) split_select % stateTypeSplitting=.false.
      end if
     end if 
-    if (stateTypeSplitting_flag.eqv..true.) then 
-      if (stateThenDomain_flag.eqv..false.) then
+    if (split_select % stateTypeSplitting.eqv..true.) then 
+      if (split_select % stateThenDomain.eqv..false.) then
        ! first try the state type split, then try the domain split within a given state type
        call initialize_stateThenDomain ! setup steps for stateThenDomain loop -- identify state-specific variables for a given state split
-       call split_select % initialize_ixStateThenDomain; stateThenDomain_flag=.true.
+       call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.true.
       end if 
-      !stateThenDomain: do !ixStateThenDomain=1,1+tryDomainSplit ! 1=state type split; 2=domain split within a given state type
-      if (stateThenDomain_flag.eqv..true.) then
+      if (split_select % stateThenDomain.eqv..true.) then
         ixStateThenDomain=split_select % ixStateThenDomain 
         if (ixStateThenDomain.gt.(1+tryDomainSplit)) then
          ixStateThenDomain=ixStateThenDomain-1; split_select % ixStateThenDomain = ixStateThenDomain ! correct index needed after loop exit
-         stateThenDomain_flag=.false.
-!FIX -- probably take out         exit stateThenDomain
+         split_select % stateThenDomain=.false. ! eqivalent to exiting the stateThenDomain loop
         end if
       end if
-      if (stateThenDomain_flag.eqv..true.) then
+      if (split_select % stateThenDomain.eqv..true.) then
        call initialize_domainSplit; if (return_flag.eqv..true.) return ! setup steps for domainSplit loop - return if error occurs
        domainSplit: do iDomainSplit=1,nDomainSplit                     ! domain splitting loop
 
@@ -373,15 +376,6 @@ subroutine opSplittin(&
 
            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
            stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
-
-             if (test_flag.eqv..true.) then
-              if (ixSolution==nSolutions) then
-               write(*,*) "nStateSplit=",nStateSplit
-               write(*,*) ixCoupling,iStateTypeSplit,ixStateThenDomain,iDomainSplit,ixSolution,iStateSplit,nState 
-               stop_flag=.true.
-               if (stop_flag.eqv..true.) stop
-              end if
-             end if 
 
              ! define state subsets for a given split...
              call split_select % get_indices(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
@@ -405,7 +399,7 @@ subroutine opSplittin(&
 
              call try_other_solution_methods                  ! if solution failed to converge, try other splitting methods 
              if (cycle_coupling) then
-              call split_select % advance_ixCoupling; call initialize_flags; cycle split_select_loop ! cycle loops if necessary
+              call split_select % advance_ixCoupling; call split_select % initialize_flags; cycle split_select_loop ! cycle loops if necessary
              end if
              if (cycle_stateThenDomain) then; call split_select % advance_ixStateThenDomain; cycle split_select_loop; end if
              if (cycle_solution)        cycle solution
@@ -413,7 +407,7 @@ subroutine opSplittin(&
              call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
 
              call success_check ! check for success
-             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; stateThenDomain_flag=.false.; exit domainSplit; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations
+             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; exit domainSplit; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations
              if (exit_solution) exit solution
              if (return_flag.eqv..true.) return             ! return if error 
 
@@ -423,16 +417,15 @@ subroutine opSplittin(&
          call finalize_solution ! final steps following solution loop
 
        end do domainSplit ! domain type splitting loop
-       if (stateThenDomain_flag.eqv..true.) call split_select % advance_ixStateThenDomain
+       if (split_select % stateThenDomain.eqv..true.) call split_select % advance_ixStateThenDomain
       end if ! stateThenDomain
-      !end do stateThenDomain        ! switch between the state type and domain type splitting
-      if (stateThenDomain_flag.eqv..false.) then
+      if (split_select % stateThenDomain.eqv..false.) then
        call finalize_stateThenDomain; if (return_flag.eqv..true.) return ! final steps following the stateThenDomain loop
        call split_select % advance_iStateTypeSplit
       end if
-    end if !! end stateTypeSplitting
-    if (stateThenDomain_flag.eqv..false.) then 
-     if (stateTypeSplitting_flag.eqv..false.) then
+    end if ! stateTypeSplitting
+    if (split_select % stateThenDomain.eqv..false.) then 
+     if (split_select % stateTypeSplitting.eqv..false.) then
       call finalize_stateTypeSplitting 
       if (exit_coupling) then
        call split_select % initialize_ixCoupling; exit split_select_loop ! success = exit the coupling loop
@@ -446,11 +439,6 @@ subroutine opSplittin(&
 
  contains
 
-  subroutine initialize_flags
-   ! *** Initialize flags for opSplittin loops ***
-   stateTypeSplitting_flag=.false. 
-   stateThenDomain_flag=.false.
-  end subroutine initialize_flags
 
   subroutine initialize_split_select
    ! *** Initialize split_select class object - currently under development ***
@@ -1091,6 +1079,14 @@ end subroutine opSplittin
 
 ! ****** Class procedures for split_select_type class ******
 
+subroutine split_select_initialize_flags(split_select)
+ ! *** Initialize flags for opSplittin loops ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % stateTypeSplitting=.false. 
+ split_select % stateThenDomain=.false.
+ split_select % domainSplit=.false.
+end subroutine split_select_initialize_flags
+
 subroutine split_select_advance_ixCoupling(split_select)
  ! *** Advance index for coupling loop ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
@@ -1098,16 +1094,22 @@ subroutine split_select_advance_ixCoupling(split_select)
 end subroutine split_select_advance_ixCoupling
 
 subroutine split_select_advance_iStateTypeSplit(split_select)
- ! *** Advance index for coupling loop ***
+ ! *** Advance index for stateTypeSplit loop ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iStateTypeSplit = split_select % iStateTypeSplit + 1
 end subroutine split_select_advance_iStateTypeSplit
 
 subroutine split_select_advance_ixStateThenDomain(split_select)
- ! *** Advance index for coupling loop ***
+ ! *** Advance index for stateThenDomain loop ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixStateThenDomain = split_select % ixStateThenDomain + 1
 end subroutine split_select_advance_ixStateThenDomain
+
+subroutine split_select_advance_iDomainSplit(split_select)
+ ! *** Advance index for domainSplit loop ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % iDomainSplit = split_select % iDomainSplit + 1
+end subroutine split_select_advance_iDomainSplit
 
 subroutine split_select_load_indices(split_select,ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  ! *** load operator splitting indices for split_select_type class ***
@@ -1143,6 +1145,12 @@ subroutine split_select_initialize_ixStateThenDomain(split_select)
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixStateThenDomain        = 1       
 end subroutine split_select_initialize_ixStateThenDomain
+
+subroutine split_select_initialize_iDomainSplit(split_select)
+ ! *** initialize operator splitting indices for split_select_type class ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % iDomainSplit        = 1       
+end subroutine split_select_initialize_iDomainSplit
 
 subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,message,return_flag)
  ! *** Get the mask for the state subset ***
