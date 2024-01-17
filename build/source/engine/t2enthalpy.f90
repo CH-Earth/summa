@@ -64,7 +64,7 @@ private
 public::T2E_lookup
 public::t2enthalpy
 public::t2enthalpy_addphase
-public::hyp_2F1_real
+private::hyp_2F1_real
 
 ! define the look-up table used to compute temperature based on enthalpy
 contains
@@ -592,7 +592,7 @@ subroutine t2enthalpy_addphase(&
 end subroutine t2enthalpy_addphase
 
 !----------------------------------------------------------------------
-! public function: compute hypergeometric function with real arguments into real result
+! private function: compute hypergeometric function with real arguments into real result
 !----------------------------------------------------------------------
 function hyp_2F1_real(a_real, b_real, c_real, z_real)
   !--------------------------------------------------------------------
