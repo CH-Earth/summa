@@ -1098,7 +1098,7 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   case('temperature'); get_ixLookup = iLookLOOKUP%temperature     ! temperature (K)
-  case('enthalpy'   ); get_ixLookup = iLookLOOKUP%enthalpy        ! enthalpy (J m-3)
+  case('psiLiq_int' ); get_ixLookup = iLookLOOKUP%psiLiq_int      ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
   case('deriv2'     ); get_ixLookup = iLookLOOKUP%deriv2          ! secind derivative of the interpolating function
   ! get to here if cannot find the variable
   case default

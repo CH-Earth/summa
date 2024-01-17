@@ -147,27 +147,19 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
   real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
   real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
-  real(rkind)                      :: dEcrit                    ! derivative of enthalpy with temperature at critical temperature
-  real(rkind)                      :: arg                       ! argument of hypergeometric function
-  real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
+  real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
+  real(rkind)                      :: d_integral_psiLiq_dTk     ! derivative with temperature of integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
-  real(rkind)                      :: volFracPsiWat             ! volumetric fraction of liquid water (-)
   ! enthalpy
   real(rkind)                      :: enthVegP                  ! prime enthalpy of the vegetation (J m-3)
   real(rkind)                      :: enthSoilP                 ! prime enthalpy of soil particles (J m-3)
-  real(rkind)                      :: enthMixP                  ! prime enthalpy of the mixed region, liquid+ice (J m-3)
   real(rkind)                      :: enthLiqP                  ! prime enthalpy of the liquid region (J m-3)
   real(rkind)                      :: enthIceP                  ! prime enthalpy of the ice region (J m-3)
   real(rkind)                      :: enthAirP                  ! prime enthalpy of air (J m-3)
-  real(rkind)                      :: enthTemp                  ! enthalpy at the temperature of the control volume (J m-3)
-  real(rkind)                      :: enthTcrit                 ! enthalpy at the critical temperature where all water is unfrozen (J m-3)
-  real(rkind)                      :: enthTempP                 ! prime enthalpy at the temperature of the control volume (J m-3)
-  real(rkind)                      :: enthTcritP                ! prime enthalpy at the critical temperature where all water is unfrozen (J m-3)
   real(rkind)                      :: enthPhaseP                ! prime enthalpy associated with phase change (J m-3)
   real(rkind)                      :: enthWaterP                ! prime enthalpy of total water (J m-3)
   logical(lgt),parameter           :: use_lookup=.true.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
-  logical(lgt),parameter           :: quick_hyper=.false.       ! flag to use a quick hypergeometric function, currently no difference between quick and slow hypergeometric functions
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
@@ -253,13 +245,13 @@ subroutine t2enthalpyPrime(&
 
               diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b) ! Note: VolFracLiq = d_integral_dTk*VolFracWat
+              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
               enthLiqP = iden_water * Cp_water * ( mLayerVolFracWatPrime(iLayer)*integral &
                                                   + mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*d_integral_dTk )
               enthIceP = iden_water * Cp_ice * ( mLayerVolFracWatPrime(iLayer)*( diffT - integral ) &
                                                   + mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*( 1._rkind - d_integral_dTk ) )
               enthAirP = iden_air * Cp_air * ( mLayerTempPrime(iLayer)  - mLayerVolFracWatPrime(iLayer) * ( (iden_water/iden_ice)*( diffT - integral ) + integral )  &
-                                              - mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)* ( (iden_water/iden_ice)*( 1._rkind - d_integral_dTk ) + d_integral_dTk ) )
+                                              - mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*( (iden_water/iden_ice)*( 1._rkind - d_integral_dTk ) + d_integral_dTk ) )
 
               mLayerEnthalpyPrime(iLayer)      = enthLiqP + enthIceP + enthAirP
 
@@ -275,7 +267,7 @@ subroutine t2enthalpyPrime(&
               vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)               , & ! van Genuchten "n" parameter        (-)
               ! associate values in the lookup table
               Tk            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-              Ey            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%enthalpy)%lookup     , & ! enthalpy (J m-3)
+              Ey            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
               E2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
               ) ! end associate statement
 
@@ -286,7 +278,6 @@ subroutine t2enthalpyPrime(&
               diffT = mLayerTempTrial(iLayer) - Tfreeze
               dTcrit_dPsi0 = 0._rkind
               if (mLayerMatricHeadTrial(ixControlIndex)<0._rkind) dTcrit_dPsi0 = gravity * Tfreeze/LH_fus
-
               ! *** compute enthalpy prime of water for unfrozen conditions
               if(mlayerTempTrial(iLayer)>=Tcrit)then
                 enthWaterP = iden_water * Cp_water * ( mLayerMatricHeadPrime(ixControlIndex)*dVolTot_dPsi0(ixControlIndex)*diffT &
@@ -294,51 +285,26 @@ subroutine t2enthalpyPrime(&
 
               ! *** compute enthalpy prime of water for frozen conditions
               else
-                ! compute enthalpy of unfrozen and frozen water
-                enthLiqP = iden_water * Cp_water * mLayerMatricHeadPrime(ixControlIndex) * ( dVolTot_dPsi0(ixControlIndex)*(Tcrit - Tfreeze) + volFracWat*dTcrit_dPsi0 )
-                enthIceP = iden_ice * Cp_ice * mLayerMatricHeadPrime(ixControlIndex) * ( dVolTot_dPsi0(ixControlIndex)*(mLayerTempTrial(iLayer) - Tcrit) + volFracWat*(mLayerTempPrime(iLayer) - dTcrit_dPsi0) )
-
-                ! compute enthalpy of the mixed region, liquid+ice
-                if(use_lookup)then !cubic spline interpolation
-                  ! calculate enthalpy at the temperature
-                  call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),enthTemp,dE,err,cmessage)
+                if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
+                  call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),integral_psiLiq,dE,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-                  enthTempP = mlayerTempPrime(iLayer) * dE
-                  ! calculate enthalpy at the critical temperature 
-                  call splint(Tk,Ey,E2,Tcrit,enthTcrit,dEcrit,err,cmessage)
-                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-                  enthTcritP = mLayerMatricHeadPrime(ixControlIndex)* dTcrit_dPsi0 * dEcrit
-
-                else ! hypergeometric function
-                  ! calculate enthalpy at the temperature
+                  d_integral_psiLiq_dTk = dE
+                else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
                   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-                  mLayerPsiLiq  = xConst*(mLayerTempTrial(iLayer) - Tfreeze)   ! liquid water matric potential from the Clapeyron eqution
-                  volFracPsiWat = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-                  arg = (-vGn_alpha * mLayerPsiLiq)**vGn_n
-                  if(quick_hyper)then
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  else
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  endif
-                  volFracPsiWat = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-                  enthTempP = (iden_water * Cp_water - iden_ice * Cp_ice) * ( diffT * (theta_sat - theta_res)* volFracPsiWat * xConst*mLayerTempPrime(iLayer)&
-                                                 + mLayerTempPrime(iLayer) * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) )
-                  ! calculate enthalpy at the critical temperature 
-                  arg = (-vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
-                  if(quick_hyper)then
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  else
-                    gauss_hg_T = hypergeometric(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  endif
-                  enthTcritP = (iden_water * Cp_water - iden_ice * Cp_ice) * ( diffT * (theta_sat - theta_res)* volFracWat * mLayerMatricHeadPrime(ixControlIndex)  &
-                                                 + mLayerTempPrime(iLayer) * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) )
+                  mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
+                  ! NOTE: the following is the integral of mLayerPsiLiq from Tfreeze to layer temperature, it cancels out
+                  !arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
+                  !gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  !integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
                 endif
 
-                ! calculate the enthalpy of water
-                enthMixP   = enthTempP - enthTcritP ! enthalpy of the liquid+ice mix
-                enthWaterP = enthMixP + enthLiqP + enthIceP
+                enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*d_integral_psiLiq_dTk
+                enthIceP = iden_ice * Cp_ice * ( mLayerMatricHeadPrime(ixControlIndex)*dVolTot_dPsi0(ixControlIndex)*diffT &
+                                               + volFracWat*mLayerTempPrime(iLayer) ) - iden_ice * Cp_ice *  mLayerTempPrime(iLayer)* d_integral_psiLiq_dTk
+                enthWaterP = enthIceP + enthLiqP
 
               endif ! (if frozen conditions)
 

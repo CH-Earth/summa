@@ -670,7 +670,7 @@ subroutine popMetadat(err,message)
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------
   lookup_meta(iLookLOOKUP%temperature)        = var_info('temperature'          , 'value of temperature in the lookup table'                  , 'K'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  lookup_meta(iLookLOOKUP%enthalpy)           = var_info('enthalpy'             , 'value of enthalpy in the lookup table'                     , 'J m-3' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  lookup_meta(iLookLOOKUP%psiLiq_int)         = var_info('psiLiq_int'           , 'value of integral of mLayerPsiLiq in the lookup table'     , 'K'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   lookup_meta(iLookLOOKUP%deriv2)             = var_info('deriv2'               , 'second derivatives of the interpolating function'          , 'mixed' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * model indices...

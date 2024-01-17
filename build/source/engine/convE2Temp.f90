@@ -104,16 +104,16 @@ contains
  real(rkind),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
  real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
  real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
- integer(i4b),intent(out) :: err           ! error code
- character(*),intent(out) :: message       ! error message
+ integer(i4b),intent(out)    :: err           ! error code
+ character(*),intent(out)    :: message       ! error message
  ! declare local variables
  real(rkind),parameter       :: dx=1.d-8      ! finite difference increment (J kg-1)
  real(rkind),parameter       :: atol=1.d-12   ! convergence criteria (J kg-1)
  real(rkind)                 :: E_spec        ! specific enthalpy (J kg-1)
  real(rkind)                 :: E_incr        ! enthalpy increment
- integer(i4b)             :: niter=15      ! maximum number of iterations
- integer(i4b)             :: iter          ! iteration index
- integer(i4b)             :: i0            ! position in lookup table
+ integer(i4b)                :: niter=15      ! maximum number of iterations
+ integer(i4b)                :: iter          ! iteration index
+ integer(i4b)                :: i0            ! position in lookup table
  real(rkind)                 :: Tg0,Tg1       ! trial temperatures (K)
  real(rkind)                 :: Ht0,Ht1       ! specific enthalpy, based on the trial temperatures (J kg-1)
  real(rkind)                 :: f0,f1         ! function evaluations (difference between enthalpy guesses)
@@ -126,7 +126,7 @@ contains
  !write(*,'(a,1x,10(e20.10,1x))') 'E_spec, E_lookup(1)', E_spec, E_lookup(1)
 
  ! ***** get initial guess and derivative assuming all water is frozen
- if(E_spec<E_lookup(1))then ! process cases below the limit of the look-up tab;e
+ if(E_spec<E_lookup(1))then ! process cases below the limit of the look-up table
   ! get temperature guess
   Tg0 = (E_spec - E_lookup(1))/Cp_ice + T_lookup(1)
   Tg1 = Tg0+dx

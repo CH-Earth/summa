@@ -64,18 +64,18 @@ private
 public::T2E_lookup
 public::t2enthalpy
 public::t2enthalpy_addphase
-private::hyp_2F1_real
+public::hyp_2F1_real
 
 ! define the look-up table used to compute temperature based on enthalpy
 contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2E_lookup: define a look-up table to compute enthalpy based on temperature
+! public subroutine T2E_lookup: define a look-up table to compute integral of mLayerPsiLiq based on temperature
 ! ************************************************************************************************************************
-subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of soil layers
-                      mpar_data,                   &  ! intent(in):    parameter data structure
-                      lookup_data,                 &  ! intent(inout): lookup table data structure
+subroutine T2E_lookup(nSoil,                         &  ! intent(in):    number of soil layers
+                      mpar_data,                     &  ! intent(in):    parameter data structure
+                      lookup_data,                   &  ! intent(inout): lookup table data structure
                       err,message)
   USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
   USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
@@ -96,9 +96,9 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
   real(rkind),dimension(nLook)  :: xTemp                ! temporary vector
   real(rkind)                   :: xIncr                ! temporary increment
   real(rkind)                   :: T_incr               ! temperature increment
-  real(rkind),parameter         :: T_test=272.9742_rkind   ! test value for temperature (K)
-  real(rkind)                   :: E_test               ! test value for enthalpy (J m-3)
-  real(rkind)                   :: dE                   ! derivative of enthalpy with temperature at T_test
+  real(rkind),parameter         :: T_test=272.9742_rkind! test value for temperature (K)
+  real(rkind)                   :: E_test               ! test value for integral of mLayerPsiLiq from Tfreeze to T_test (K)
+  real(rkind)                   :: dE                   ! derivative of integral with temperature at T_test
   integer(i4b)                  :: iVar                 ! loop through variables
   integer(i4b)                  :: iSoil                ! loop through soil layers
   integer(i4b)                  :: iLook                ! loop through lookup table
@@ -106,7 +106,6 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
   logical(lgt)                  :: check                ! flag to check allocation
   real(rkind)                   :: vGn_m                ! van Genuchten "m" parameter (-)
   real(rkind)                   :: vFracLiq             ! volumetric fraction of liquid water (-)
-  real(rkind)                   :: volFracIce            ! volumetric fraction of ice (-)
   real(rkind)                   :: matricHead           ! matric head (m)
   ! initialize error control
   err=0; message="T2E_lookup/"
@@ -161,7 +160,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
 
       ! associate values in the lookup table
       Tk            => lookup_data%z(iSoil)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-      Ey            => lookup_data%z(iSoil)%var(iLookLOOKUP%enthalpy)%lookup     , & ! enthalpy (J m-3)
+      Ey            => lookup_data%z(iSoil)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
       E2            => lookup_data%z(iSoil)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
 
       ) ! end associate statement
@@ -173,14 +172,14 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
       ! * populate the lookup table...
       ! ------------------------------
 
-      ! initialize temperature and enthalpy
+      ! initialize temperature and integral
       Tk(nLook) = Tfreeze
       Ey(nLook) = 0._rkind
 
       ! loop through lookup table
       do iLook=(nLook-1),1,-1
 
-        ! update temperature and enthalpy
+        ! update temperature and integral
         Tk(iLook) = Tk(iLook+1)
         Ey(iLook) = Ey(iLook+1)
 
@@ -197,16 +196,14 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
           matricHead = (LH_fus/gravity)*(Tk(iLook) - Tfreeze - T_incr/2._rkind)/Tfreeze
           vFracLiq   = volFracLiq(matricHead,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
-          ! compute enthalpy
-          ! NOTE: assume intrinsic density of ice is the intrinsic density of water
-          ! NOTE: kg m-3 J kg-1 K-1 K
+          ! compute integral
           Ey(iLook)  = Ey(iLook) + vFracLiq*T_incr
   
         end do  ! numerical integration
 
       end do  ! loop through lookup table
 
-      ! use cubic spline interpolation to obtain enthalpy values at the desired values of temperature
+      ! use cubic spline interpolation to obtain integral values at the desired values of temperature
       call spline(Tk,Ey,1.e30_rkind,1.e30_rkind,E2,err,cmessage)  ! get the second derivatives
       if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
@@ -220,7 +217,7 @@ subroutine T2E_lookup(nSoil,                       &  ! intent(in):    number of
         ! write values
         print*, 'doTest    = ', doTest
         print*, 'T_test    = ', T_test    ! temperature (K)
-        print*, 'E_test    = ', E_test    ! enthalpy (J m-3)
+        print*, 'E_test    = ', E_test    ! integral (K)
         print*, 'theta_sat = ', theta_sat ! soil porosity                      (-)
         print*, 'theta_res = ', theta_res ! volumetric residual water content  (-)
         print*, 'vGn_alpha = ', vGn_alpha ! van Genuchten "alpha" parameter    (m-1)
@@ -305,7 +302,7 @@ subroutine t2enthalpy(&
   real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
   real(rkind)                      :: arg                       ! argument of hypergeometric function
   real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
-  real(rkind)                      :: theta_int                 ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
+  real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
   ! enthalpy
@@ -419,7 +416,7 @@ subroutine t2enthalpy(&
               vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)               , & ! van Genuchten "n" parameter        (-)
               ! associate values in the lookup table
               Tk            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-              Ey            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%enthalpy)%lookup     , & ! enthalpy (J m-3)
+              Ey            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
               E2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
               ) ! end associate statement
 
@@ -432,11 +429,10 @@ subroutine t2enthalpy(&
               if(mlayerTempTrial(iLayer)>=Tcrit)then
                 enthWater = iden_water * Cp_water * volFracWat * diffT ! valid for temperatures below freezing also
 
-              ! *** compute enthalpy of water for frozen and unfrozen conditions
+              ! *** compute enthalpy of water for frozen conditions
               else
-                if(use_lookup)then 
-                  ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),theta_int,dE,err,cmessage)
+                if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
+                  call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),integral_psiLiq,dE,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
                 else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
@@ -445,11 +441,11 @@ subroutine t2enthalpy(&
                   mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  theta_int = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
                 endif
 
-                enthLiq = iden_water * Cp_water * theta_int
-                enthIce = iden_ice * Cp_ice * diffT * volFracWat - iden_ice * Cp_ice * theta_int
+                enthLiq = iden_water * Cp_water * integral_psiLiq
+                enthIce = iden_ice * Cp_ice * diffT * volFracWat - iden_ice * Cp_ice * integral_psiLiq
                 enthWater = enthIce + enthLiq
 
               endif ! (if frozen conditions)
@@ -596,7 +592,7 @@ subroutine t2enthalpy_addphase(&
 end subroutine t2enthalpy_addphase
 
 !----------------------------------------------------------------------
-! private function: compute hypergeometric function with real arguments into real result
+! public function: compute hypergeometric function with real arguments into real result
 !----------------------------------------------------------------------
 function hyp_2F1_real(a_real, b_real, c_real, z_real)
   !--------------------------------------------------------------------

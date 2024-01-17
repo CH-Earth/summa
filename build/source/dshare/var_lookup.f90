@@ -849,7 +849,7 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_vLookup
   integer(i4b)    :: temperature = integerMissing ! temperature (K)
-  integer(i4b)    :: enthalpy    = integerMissing ! enthalpy (J m-3)
+  integer(i4b)    :: psiLiq_int  = integerMissing ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
   integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
  endtype iLook_vLookup
 
