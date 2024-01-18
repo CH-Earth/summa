@@ -62,6 +62,7 @@ USE globalData,only:realMissing                    ! missing real number
 implicit none
 private
 public::t2enthalpyPrime
+private::hyp_2F1_real
 
 contains
 
@@ -147,6 +148,8 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
   real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
   real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
+  real(rkind)                      :: arg                       ! argument of hypergeometric function
+  real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
   real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: d_integral_psiLiq_dTk     ! derivative with temperature of integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
@@ -294,11 +297,12 @@ subroutine t2enthalpyPrime(&
                   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
                   mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
-                  ! NOTE: the following is the integral of mLayerPsiLiq from Tfreeze to layer temperature, it cancels out
-                  !arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
-                  !gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  !integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
-                  d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+                  ! NOTE: the following is the integral of mLayerPsiLiq from Tfreeze to layer temperature
+                  arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
+                  gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  !integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) # NOTE: this is the integral of mLayerPsiLiq from Tfreeze to layer temperature
+                  d_integral_psiLiq_dTk = diffT*( volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) - theta_res) &
+                                          + ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
                 endif
 
                 enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*d_integral_psiLiq_dTk
@@ -330,37 +334,24 @@ subroutine t2enthalpyPrime(&
 
 end subroutine t2enthalpyPrime
 
-! ************************************************************************************************************************
-! private function hypergeometric: compute Gaussian hypergeometric function with iterative xpansion method.
-! ************************************************************************************************************************
-function hypergeometric(a, b, c, z)
+!----------------------------------------------------------------------
+! private function: compute hypergeometric function with real arguments into real result
+!----------------------------------------------------------------------
+function hyp_2F1_real(a_real, b_real, c_real, z_real)
+  !--------------------------------------------------------------------
+  USE hyp_2F1_module,only:HYP_2F1 ! use for hypergeometric function
   implicit none
-  real(rkind),intent(in) :: a, b, c, z      ! input parameters
-  real(rkind)            :: term, factorial ! local variables
-  real(rkind)            :: hypergeometric  ! output result
-  integer(i4b)           :: n, max_iter     ! iteration count variables
-
-  max_iter = 1000 ! maximum number of iterations
-
-  ! initialize
-  hypergeometric = 1._rkind
-  term = 1._rkind
-  factorial = 1._rkind
-
-  do n = 1, max_iter
-    factorial = factorial * n
-    term = term * (a + n - 1) * (b + n - 1) / ((c + n - 1) * factorial) * z
-    hypergeometric = hypergeometric + term
-
-    if (abs(term) < 1.e-6_rkind) exit ! convergence condition
-
-    if (n == max_iter) then
-      ! handle non-convergence
-      write(*, *) "Warning: Hypergeometric function did not converge within the maximum number of iterations."
-      exit
-    end if
-  end do
-
-end function hypergeometric
+  real(rkind),intent(in) :: a_real, b_real, c_real, z_real
+  complex(rkind)         :: a_complex, b_complex, c_complex, z_complex, result
+  real(rkind)            :: hyp_2F1_real
+  
+  a_complex = CMPLX(a_real, 0._rkind, rkind)
+  b_complex = CMPLX(b_real, 0._rkind, rkind)
+  c_complex = CMPLX(c_real, 0._rkind, rkind)
+  z_complex = CMPLX(z_real, 0._rkind, rkind)
+  result = HYP_2F1(a_complex, b_complex, c_complex, z_complex)
+  hyp_2F1_real = REAL(result, rkind)
+   
+end function hyp_2F1_real
 
 end module t2enthalpyAddPrime_module
