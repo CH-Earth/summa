@@ -160,8 +160,8 @@ subroutine systemSolv(&
   USE allocspace_module,only:allocLocal                   ! allocate local data structures
   ! state vector and solver
   USE getVectorz_module,only:getScaling                   ! get the scaling vectors
-  USE convE2Temp_module,only:temp2ethpy                   ! convert temperature to enthalpy
-  USE t2enthalpy_module, only:t2enthalpy                  ! compute enthalpy
+  USE enthalpyTemp_module,only:t2enthalpy_snow            ! convert temperature to enthalpy for a snow layer
+  USE enthalpyTemp_module,only:t2enthalpy                 ! compute enthalpy
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                      ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime ! get the fluxes and residuals
@@ -476,7 +476,7 @@ subroutine systemSolv(&
     if(nSnow>0)then
       ! compute the energy required to melt the top snow layer (J m-2)
       bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-      volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
+      volEnthalpy = t2enthalpy_snow(mLayerTemp(1),bulkDensity,snowfrz_scale)
       ! set flag and error codes for too much melt
       if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
         tooMuchMelt = .true.

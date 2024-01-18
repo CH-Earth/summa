@@ -127,7 +127,7 @@ subroutine eval8summa(&
   USE getVectorz_module, only:varExtract                ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                 ! check feasibility of state vector
   USE updateVars_module, only:updateVars                ! update prognostic variables
-  USE t2enthalpy_module, only:t2enthalpy                ! compute enthalpy
+  USE enthalpyTemp_module, only:t2enthalpy              ! compute enthalpy
   USE computFlux_module, only:soilCmpres                ! compute soil compression
   USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
   USE computHeatCap_module,only:computHeatCap           ! recompute enthalpy finite difference heat capacity (Cp) and derivatives

@@ -118,7 +118,7 @@ subroutine eval8summaWithPrime(&
   USE getVectorz_module, only:varExtract                         ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                          ! check feasibility of state vector
   USE updateVarsWithPrime_module, only:updateVarsWithPrime       ! update variables
-  USE t2enthalpyAddPrime_module, only:t2enthalpyPrime            ! compute enthalpy prime                    
+  USE enthalpyTempAddPrime_module, only:t2enthalpyPrime          ! compute enthalpy prime                    
   USE computFlux_module, only:soilCmpresPrime                    ! compute soil compression
   USE computFlux_module, only:computFlux                         ! compute fluxes given a state vector
   USE computHeatCap_module,only:computHeatCap                    ! recompute enthalpy finite difference heat capacity (Cp) and derivatives

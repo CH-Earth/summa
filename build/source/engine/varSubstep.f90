@@ -630,8 +630,8 @@ USE getVectorz_module,only:varExtract                                   ! extrac
   USE updateVarsWithPrime_module,only:updateVarsWithPrime               ! update prognostic variables
 #endif
   USE updateVars_module,only:updateVars                                 ! update prognostic variables
-  USE t2enthalpy_module,only:t2enthalpy                                 ! compute enthalpy
-  USE t2enthalpy_module,only:t2enthalpy_addphase                        ! add phase to enthalpy
+  USE enthalpyTemp_module,only:t2enthalpy                               ! compute enthalpy
+  USE enthalpyTemp_module,only:t2enthalpy_addphase                      ! add phase to enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                                 ! time step (s)

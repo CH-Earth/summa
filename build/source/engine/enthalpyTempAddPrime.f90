@@ -18,7 +18,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-module t2enthalpyAddPrime_module
+module enthalpyTempAddPrime_module
 
 ! constants
 USE multiconst, only: gravity, &                          ! gravitational acceleration (m s-1)
@@ -60,7 +60,6 @@ USE globalData,only:realMissing                    ! missing real number
 
 ! privacy
 implicit none
-private
 public::t2enthalpyPrime
 private::hyp_2F1_real
 
@@ -147,7 +146,7 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: integral                  ! integral of snow freezing curve
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
   real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
-  real(rkind)                      :: dE                        ! derivative of enthalpy with temperature at layer temperature
+  real(rkind)                      :: dL                        ! derivative of enthalpy with temperature at layer temperature
   real(rkind)                      :: arg                       ! argument of hypergeometric function
   real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
   real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
@@ -289,9 +288,9 @@ subroutine t2enthalpyPrime(&
               ! *** compute enthalpy prime of water for frozen conditions
               else
                 if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_psiLiq,dE,err,cmessage)
+                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_psiLiq,dL,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-                  d_integral_psiLiq_dTk = dE
+                  d_integral_psiLiq_dTk = dL
                 else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
                   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
@@ -354,4 +353,4 @@ function hyp_2F1_real(a_real, b_real, c_real, z_real)
    
 end function hyp_2F1_real
 
-end module t2enthalpyAddPrime_module
+end module enthalpyTempAddPrime_module

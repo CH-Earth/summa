@@ -158,8 +158,8 @@ subroutine summaSolve4ida(                         &
   USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
-  USE t2enthalpyAddPrime_module,only:t2enthalpyPrime          ! compute enthalpy
-  USE t2enthalpy_module,only:t2enthalpy_addphase              ! add phase to enthalpy
+  USE enthalpyTempAddPrime_module,only:t2enthalpyPrime        ! compute enthalpy
+  USE enthalpyTemp_module,only:t2enthalpy_addphase            ! add phase to enthalpy
 
   !======= Declarations =========
   implicit none
