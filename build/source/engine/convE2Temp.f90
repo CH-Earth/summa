@@ -35,7 +35,7 @@ USE var_lookup,only:iLookPARAM                     ! named variables to define s
 ! privacy
 implicit none
 private
-public::E2T_lookup
+public::T2E_lookup
 public::E2T_nosoil
 public::temp2ethpy
 
@@ -47,9 +47,9 @@ contains
 
 
  ! ************************************************************************************************************************
- ! public subroutine E2T_lookup: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
+ ! public subroutine T2E_lookup: define a look-up table to compute specific enthalpy based on temperature, assuming no soil
  ! ************************************************************************************************************************
- subroutine E2T_lookup(mpar_data,err,message)
+ subroutine T2E_lookup(mpar_data,err,message)
  USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
  USE spline_int_module,only:spline,splint              ! use for cubic spline interpolation
  implicit none
@@ -68,7 +68,7 @@ contains
  real(rkind)                   :: dT                   ! derivative of temperature with enthalpy at E_lookup
  integer(i4b)                  :: ilook                ! loop through lookup table
  ! initialize error control
- err=0; message="E2T_lookup/"
+ err=0; message="T2E_lookup/"
  ! associate
  associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
  ! define initial temperature vector
@@ -90,7 +90,7 @@ contains
   !write(*,'(i6,1x,2(f20.4,1x))') ilook, E_lookup(ilook), T_lookup(ilook)
  end do
  end associate
- end subroutine E2T_lookup
+ end subroutine T2E_lookup
 
 
  ! ************************************************************************************************************************

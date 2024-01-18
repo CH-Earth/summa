@@ -79,8 +79,8 @@ contains
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
  USE read_param_module,only:read_param                       ! module to read model parameter sets
- USE convE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
- USE t2enthalpy_module,only:T2L_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
+ USE convE2Temp_module,only:T2E_lookup                       ! module to calculate a look-up table for the snow temperature-enthalpy conversion
+ USE t2enthalpy_module,only:T2L_lookup                       ! module to calculate a look-up table for the soil temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
  ! global data structures
@@ -310,9 +310,9 @@ contains
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! calculate a look-up table for the temperature-enthalpy conversion: snow
-   ! NOTE1: this should eventually be replaced by the more general routine below
+   ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
    ! NOTE2: this does not actually need to be called for each HRU and GRU
-   call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+   call T2E_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! calculate a lookup table to compute integral of soil Clapeyron equation liquid water matric potential from temperature
