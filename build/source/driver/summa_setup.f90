@@ -80,7 +80,7 @@ contains
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
  USE read_param_module,only:read_param                       ! module to read model parameter sets
  USE convE2Temp_module,only:E2T_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
- USE t2enthalpy_module,only:T2E_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
+ USE t2enthalpy_module,only:T2L_lookup                       ! module to calculate a look-up table for the temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
  ! global data structures
@@ -315,9 +315,9 @@ contains
    call E2T_lookup(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-   ! calculate a lookup table to compute enthalpy from temperature
+   ! calculate a lookup table to compute integral of soil Clapeyron equation liquid water matric potential from temperature
    if(needLookup)then
-     call T2E_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
+     call T2L_lookup(gru_struc(iGRU)%hruInfo(iHRU)%nSoil,   &   ! intent(in):    number of soil layers
                      mparStruct%gru(iGRU)%hru(iHRU),        &   ! intent(in):    parameter data structure
                      lookupStruct%gru(iGRU)%hru(iHRU),      &   ! intent(inout): lookup table data structure
                      err,cmessage)                              ! intent(out):   error control

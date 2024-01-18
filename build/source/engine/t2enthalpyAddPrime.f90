@@ -270,8 +270,8 @@ subroutine t2enthalpyPrime(&
               vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)               , & ! van Genuchten "n" parameter        (-)
               ! associate values in the lookup table
               Tk            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-              Ey            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
-              E2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
+              Ly            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
+              L2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
               ) ! end associate statement
 
               ! diagnostic variables
@@ -289,7 +289,7 @@ subroutine t2enthalpyPrime(&
               ! *** compute enthalpy prime of water for frozen conditions
               else
                 if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  call splint(Tk,Ey,E2,mlayerTempTrial(iLayer),integral_psiLiq,dE,err,cmessage)
+                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_psiLiq,dE,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
                   d_integral_psiLiq_dTk = dE
                 else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
