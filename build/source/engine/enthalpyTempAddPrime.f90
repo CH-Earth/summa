@@ -149,6 +149,7 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: dL                        ! derivative of enthalpy with temperature at layer temperature
   real(rkind)                      :: arg                       ! argument of hypergeometric function
   real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
+  real(rkind)                      :: d_gauss_hg_T_dTk          ! derivative of hypergeometric function with temperature
   real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: d_integral_psiLiq_dTk     ! derivative with temperature of integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
@@ -300,8 +301,10 @@ subroutine t2enthalpyPrime(&
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   !integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) # NOTE: this is the integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  d_integral_psiLiq_dTk = diffT*( volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) - theta_res) &
-                                          + ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  d_gauss_hg_T_dTk = - vGn_n * vGn_alpha * (vGn_alpha * mLayerPsiLiq)**(vGn_n-1._rkind) * (vGn_m/(1._rkind + vGn_n)) &
+                                      * hyp_2F1_real(1._rkind + vGn_m,1._rkind + 1._rkind/vGn_n,2._rkind + 1._rkind/vGn_n,-arg)
+                  d_integral_psiLiq_dTk = diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk + (theta_sat - theta_res)*gauss_hg_T + theta_res
+                                        
                 endif
 
                 enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*d_integral_psiLiq_dTk
