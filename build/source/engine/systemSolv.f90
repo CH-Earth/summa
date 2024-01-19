@@ -541,7 +541,6 @@ subroutine systemSolv(&
                           dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
-                          lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters

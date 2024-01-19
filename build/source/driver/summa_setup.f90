@@ -155,7 +155,7 @@ contains
  ! decide if computing enthalpy lookup tables, if need enthalpy and not using hypergeometric function
  ! NOTE: this should be replaced by a parameter of if want lookup table enthalpy, but for now it is hard-coded
  !       need enthalpy if checkNrgBalance in varSubstep is turned on or using howHeatCap=enthalpyFD
- !       then, need lookups if use_lookup=.true. in t2enthalpy (numrec or kin) or t2enthalpyPrime (ida)
+ !       then, need lookups if use_lookup=.true. in t2enthalpy (numrec or kin)
  needLookup = .true.
  !if (model_decisions(iLookDECISIONS%howHeatCap)%iDecision == enthalpyFD) needLookup = .true.
 

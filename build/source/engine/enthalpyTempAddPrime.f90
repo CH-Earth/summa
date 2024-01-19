@@ -31,16 +31,12 @@ USE multiconst, only: gravity, &                          ! gravitational accele
 USE nrtype
 USE data_types,only:var_iLength                    ! var(:)%dat(:)
 USE data_types,only:var_dLength                    ! var(:)%dat(:)
-USE data_types,only:zLookup                        ! z(:)%var(:)%lookup(:)
 
 ! indices within parameter structure
 USE var_lookup,only:iLookPARAM                     ! named variables to define structure element
 USE var_lookup,only:iLookINDEX                     ! named variables to define structure element
 USE var_lookup,only:iLookLOOKUP                    ! named variables to define structure element
-USE var_lookup,only:iLookDIAG       ! named variables for structure elements
-
-! data dimensions
-USE var_lookup,only:maxvarLookup                   ! maximum number of variables in the lookup tables
+USE var_lookup,only:iLookDIAG                      ! named variables for structure elements
 
 ! domain types
 USE globalData,only:iname_cas                      ! named variables for canopy air space
@@ -73,7 +69,6 @@ subroutine t2enthalpyPrime(&
                       diag_data,                         & ! intent(in):   model diagnostic variables for a local HRU
                       mpar_data,                         & ! intent(in):   parameter data structure
                       indx_data,                         & ! intent(in):   model indices
-                      lookup_data,                       & ! intent(in):   lookup table data structure
                       ! input: state variables for the vegetation canopy
                       scalarCanairTempPrime,             & ! intent(in):   prime value of canopy air temperature (K)
                       scalarCanopyTempTrial,             & ! intent(in):   trial value of canopy temperature (K)
@@ -107,7 +102,6 @@ subroutine t2enthalpyPrime(&
   type(var_dlength),intent(in)     :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)     :: mpar_data                 ! model parameters
   type(var_ilength),intent(in)     :: indx_data                 ! model indices
-  type(zLookup),intent(in)         :: lookup_data               ! lookup tables
   ! input: state variables for the vegetation canopy
   real(rkind),intent(in)           :: scalarCanairTempPrime     ! prime value of canopy air temperature (K)
   real(rkind),intent(in)           :: scalarCanopyTempTrial     ! trial value of canopy temperature (K)
@@ -145,8 +139,6 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: integral                  ! integral of snow freezing curve
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
   real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
-  real(rkind)                      :: dL                        ! derivative of enthalpy with temperature at layer temperature
-  real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: d_integral_psiLiq_dTk     ! derivative with temperature of integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
@@ -158,8 +150,7 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: enthAirP                  ! prime enthalpy of air (J m-3)
   real(rkind)                      :: enthPhaseP                ! prime enthalpy associated with phase change (J m-3)
   real(rkind)                      :: enthWaterP                ! prime enthalpy of total water (J m-3)
-  logical(lgt),parameter           :: use_lookup=.true.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
-  ! --------------------------------------------------------------------------------------------------------------------------------
+   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
     ! number of model layers, and layer type
@@ -226,7 +217,7 @@ subroutine t2enthalpyPrime(&
                 enthIceP = 0._rkind
               else
                 integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b) ! Note: VolFracLiq = d_integral_dTk*VolFracWat
+                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b) ! Note: volFracLiq = d_integral_dTk*volFracWat
                 enthLiqP = Cp_water * ( scalarCanopyWatPrime*integral + scalarCanopyWatTrial*scalarCanopyTempPrime*d_integral_dTk )/ canopyDepth
                 enthIceP = Cp_ice * ( scalarCanopyWatPrime*( diffT - integral ) + scalarCanopyWatTrial*scalarCanopyTempPrime*( 1._rkind - d_integral_dTk ) ) / canopyDepth
               endif
@@ -244,7 +235,7 @@ subroutine t2enthalpyPrime(&
 
               diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b) ! Note: volFracLiq = d_integral_dTk*volFracWat
               enthLiqP = iden_water * Cp_water * ( mLayerVolFracWatPrime(iLayer)*integral &
                                                   + mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*d_integral_dTk )
               enthIceP = iden_water * Cp_ice * ( mLayerVolFracWatPrime(iLayer)*( diffT - integral ) &
@@ -263,11 +254,7 @@ subroutine t2enthalpyPrime(&
               theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(ixControlIndex)           , & ! soil porosity                      (-)
               theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(ixControlIndex)           , & ! volumetric residual water content  (-)
               vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(ixControlIndex)           , & ! van Genuchten "alpha" parameter    (m-1)
-              vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)               , & ! van Genuchten "n" parameter        (-)
-              ! associate values in the lookup table
-              Tk            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-              Ly            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
-              L2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
+              vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)                 & ! van Genuchten "n" parameter        (-)
               ) ! end associate statement
 
               ! diagnostic variables
@@ -284,17 +271,12 @@ subroutine t2enthalpyPrime(&
 
               ! *** compute enthalpy prime of water for frozen conditions
               else
-                if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_psiLiq,dL,err,cmessage)
-                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-                  d_integral_psiLiq_dTk = dL
-                else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
-                  !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
-                  xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-                  mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
-                  d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-                endif
+                ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
+                !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
+                xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
+                mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
+                ! NOTE: integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
 
                 enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*d_integral_psiLiq_dTk
                 enthIceP = iden_ice * Cp_ice * ( mLayerMatricHeadPrime(ixControlIndex)*dVolTot_dPsi0(ixControlIndex)*diffT &

@@ -60,7 +60,6 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 USE mDecisions_module,only:&
@@ -114,7 +113,6 @@ subroutine summaSolve4ida(                         &
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
-                      lookup_data,             & ! intent(in):    lookup tables
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -188,7 +186,6 @@ subroutine summaSolve4ida(                         &
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
-  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -298,7 +295,6 @@ subroutine summaSolve4ida(                         &
     eqns_data%firstSubStep            = firstSubStep
     eqns_data%computeVegFlux          = computeVegFlux
     eqns_data%scalarSolution          = scalarSolution
-    eqns_data%lookup_data             = lookup_data
     eqns_data%type_data               = type_data
     eqns_data%attr_data               = attr_data
     eqns_data%mpar_data               = mpar_data
@@ -551,7 +547,6 @@ subroutine summaSolve4ida(                         &
                           eqns_data%diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                           eqns_data%mpar_data,                   & ! intent(in):  parameter data structure
                           eqns_data%indx_data,                   & ! intent(in):  model indices
-                          eqns_data%lookup_data,                 & ! intent(in):  lookup table data structure
                           ! input: state variables for the vegetation canopy
                           eqns_data%scalarCanairTempPrime,       & ! intent(in):  prime value of canopy air temperature (K)
                           eqns_data%scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
