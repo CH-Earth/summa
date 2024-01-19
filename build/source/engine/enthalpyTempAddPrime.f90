@@ -301,10 +301,10 @@ subroutine t2enthalpyPrime(&
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
                   !integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) # NOTE: this is the integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  d_gauss_hg_T_dTk = - vGn_n * vGn_alpha * (vGn_alpha * mLayerPsiLiq)**(vGn_n-1._rkind) * (vGn_m/(1._rkind + vGn_n)) &
-                                      * hyp_2F1_real(1._rkind + vGn_m,1._rkind + 1._rkind/vGn_n,2._rkind + 1._rkind/vGn_n,-arg)
-                  d_integral_psiLiq_dTk = diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk + (theta_sat - theta_res)*gauss_hg_T + theta_res
-                                        
+                  !d_gauss_hg_T_dTk = - vGn_n * arg/diffT * (vGn_m/(1._rkind + vGn_n)) * hyp_2F1_real(1._rkind + vGn_m,1._rkind + 1._rkind/vGn_n,2._rkind + 1._rkind/vGn_n,-arg)
+                  !d_integral_psiLiq_dTk = diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk + (theta_sat - theta_res)*gauss_hg_T + theta_res
+                  !volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) - theta_res =  diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk                      
+                  d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) + (theta_sat - theta_res)*gauss_hg_T
                 endif
 
                 enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*d_integral_psiLiq_dTk
