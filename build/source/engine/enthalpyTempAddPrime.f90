@@ -149,7 +149,6 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: dL                        ! derivative of enthalpy with temperature at layer temperature
   real(rkind)                      :: arg                       ! argument of hypergeometric function
   real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
-  real(rkind)                      :: d_gauss_hg_T_dTk          ! derivative of hypergeometric function with temperature
   real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: d_integral_psiLiq_dTk     ! derivative with temperature of integral of soil mLayerPsiLiq from Tfreeze to layer temperature
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
@@ -297,13 +296,11 @@ subroutine t2enthalpyPrime(&
                   !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
                   mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
-                  ! NOTE: the following is the integral of mLayerPsiLiq from Tfreeze to layer temperature
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  !integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) # NOTE: this is the integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  !d_gauss_hg_T_dTk = - vGn_n * arg/diffT * (vGn_m/(1._rkind + vGn_n)) * hyp_2F1_real(1._rkind + vGn_m,1._rkind + 1._rkind/vGn_n,2._rkind + 1._rkind/vGn_n,-arg)
-                  !d_integral_psiLiq_dTk = diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk + (theta_sat - theta_res)*gauss_hg_T + theta_res
-                  !volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) - theta_res =  diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk                      
+                  ! NOTE:      integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  !  and thus: d_integral_psiLiq_dTk = diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk + (theta_sat - theta_res)*gauss_hg_T + theta_res
+                  !       but: volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) - theta_res =  diffT * (theta_sat - theta_res)* d_gauss_hg_T_dTk                      
                   d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m) + (theta_sat - theta_res)*gauss_hg_T
                 endif
 
