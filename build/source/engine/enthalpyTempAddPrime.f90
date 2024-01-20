@@ -235,7 +235,7 @@ subroutine t2enthalpyPrime(&
               )
 
               diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
-              integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+              integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT) ! Note: mLayerFracLiqSnow = d_integral_dTk*mLayerVolFracWatTrial
               enthLiqP = iden_water * Cp_water * ( mLayerVolFracWatPrime(iLayer)*integral + mLayerTempPrime(iLayer)*mLayerFracLiqSnow(iLayer) )
               enthIceP = iden_water * Cp_ice * ( mLayerVolFracWatPrime(iLayer)*( diffT - integral ) &
                                                + mLayerTempPrime(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerFracLiqSnow(iLayer) ) )
