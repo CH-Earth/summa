@@ -158,19 +158,21 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
   logical(lgt),allocatable :: stateMask(:)                ! mask defining desired state variables
   ! flags for loop operations
-  logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit
+  logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit,solution
  contains
   procedure :: initialize_flags             => split_select_initialize_flags             ! initialize flags that control loop operations
   procedure :: initialize_ixCoupling        => split_select_initialize_ixCoupling        ! initialize operator splitting indices
   procedure :: initialize_iStateTypeSplit   => split_select_initialize_iStateTypeSplit   ! initialize operator splitting indices
   procedure :: initialize_ixStateThenDomain => split_select_initialize_ixStateThenDomain ! initialize operator splitting indices
   procedure :: initialize_iDomainSplit      => split_select_initialize_iDomainSplit      ! initialize operator splitting indices
+  procedure :: initialize_ixSolution        => split_select_initialize_ixSolution        ! initialize operator splitting indices
   procedure :: get_stateMask                => split_select_compute_stateMask            ! compute stateMask and nSubset and load into class object
   procedure :: get_indices                  => split_select_load_indices                 ! load operator splitting indices into class object
   procedure :: advance_ixCoupling           => split_select_advance_ixCoupling           ! advance coupling loop iterator
   procedure :: advance_iStateTypeSplit      => split_select_advance_iStateTypeSplit      ! advance coupling loop iterator
   procedure :: advance_ixStateThenDomain    => split_select_advance_ixStateThenDomain    ! advance coupling loop iterator
   procedure :: advance_iDomainSplit         => split_select_advance_iDomainSplit         ! advance coupling loop iterator
+  procedure :: advance_ixSolution           => split_select_advance_ixSolution           ! advance coupling loop iterator
 end type split_select_type
 
 contains
@@ -370,7 +372,7 @@ subroutine opSplittin(&
        if (split_select % stateThenDomain.eqv..true.) then
          ixStateThenDomain=split_select % ixStateThenDomain 
 !write(*,*) "C:",ixStateThenDomain,split_select%stateTypeSplitting,split_select%stateThenDomain,split_select%domainSplit 
-         if (ixStateThenDomain.gt.(1+tryDomainSplit)) then
+         if (ixStateThenDomain > (1+tryDomainSplit)) then
           ixStateThenDomain=ixStateThenDomain-1; split_select % ixStateThenDomain = ixStateThenDomain ! correct index needed after loop exit
           split_select % stateThenDomain=.false. ! eqivalent to exiting the stateThenDomain loop
          end if
@@ -381,19 +383,21 @@ subroutine opSplittin(&
         call initialize_domainSplit; if (return_flag.eqv..true.) return ! setup steps for domainSplit loop - return if error occurs
         call split_select % initialize_iDomainSplit; split_select % domainSplit=.true.
        end if
-!!       domainSplit: do !iDomainSplit=1,nDomainSplit                     ! domain splitting loop
        if (split_select % domainSplit.eqv..true.) then
          iDomainSplit=split_select % iDomainSplit
 !write(*,*) "D:",iDomainSplit,split_select%stateTypeSplitting,split_select%stateThenDomain,split_select%domainSplit
          if (split_select % iDomainSplit > nDomainSplit) then
           split_select % domainSplit=.false.
-          !exit domainSplit
          end if
        end if
        if (split_select % domainSplit.eqv..true.) then
-       
-         solution: do ixSolution=1,nSolutions ! trial with the vector then scalar solution
-
+         call split_select % initialize_ixSolution; split_select % solution=.true.
+         solution: do !ixSolution=1,nSolutions ! trial with the vector then scalar solution
+           ixSolution=split_select % ixSolution
+           if (split_select % ixSolution > nsolutions) then
+            split_select % solution=.false.
+            exit solution            
+           end if
            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
            stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
 
@@ -405,7 +409,7 @@ subroutine opSplittin(&
              !call update_stateFilter; if (return_flag.eqv..true.) return ! get the mask for the state subset - return for a non-zero error code
              call validate_split ! verify that the split is valid
              if (cycle_domainSplit) then; call split_select % advance_iDomainSplit; cycle split_select_loop; end if
-             if (cycle_solution) cycle solution
+             if (cycle_solution) then; call split_select % advance_ixSolution; cycle solution; end if
              if (return_flag.eqv..true.) return ! return for a non-zero error code
              call save_recover ! save/recover copies of variables and fluxes
 
@@ -422,7 +426,7 @@ subroutine opSplittin(&
               call split_select % advance_ixCoupling; call split_select % initialize_flags; cycle split_select_loop ! cycle loops if necessary
              end if
              if (cycle_stateThenDomain) then; call split_select % advance_ixStateThenDomain; split_select % domainSplit=.false.; cycle split_select_loop; end if ! deactivate flags for inner loops
-             if (cycle_solution)        cycle solution
+             if (cycle_solution) then; call split_select % advance_ixSolution; cycle solution; end if
 
              call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
 
@@ -432,14 +436,13 @@ subroutine opSplittin(&
              if (return_flag.eqv..true.) return             ! return if error 
 
            end do stateSplit ! solution with split layers
-
+           call split_select % advance_ixSolution 
          end do solution        ! trial with the full layer solution then the split layer solution
          if (split_select % stateThenDomain.eqv..true.) then
           call finalize_solution ! final steps following solution loop
           call split_select % advance_iDomainSplit
          end if
        end if ! domainSplit
-!!       end do domainSplit ! domain type splitting loop
        if (split_select % domainSplit.eqv..false.) then
         if (split_select % stateThenDomain.eqv..true.) call split_select % advance_ixStateThenDomain
        end if
@@ -1140,6 +1143,12 @@ subroutine split_select_advance_iDomainSplit(split_select)
  split_select % iDomainSplit = split_select % iDomainSplit + 1
 end subroutine split_select_advance_iDomainSplit
 
+subroutine split_select_advance_ixSolution(split_select)
+ ! *** Advance index for solution loop ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % ixSolution = split_select % ixSolution + 1
+end subroutine split_select_advance_ixSolution
+
 subroutine split_select_load_indices(split_select,ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  ! *** load operator splitting indices for split_select_type class ***
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
@@ -1180,6 +1189,12 @@ subroutine split_select_initialize_iDomainSplit(split_select)
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % iDomainSplit        = 1       
 end subroutine split_select_initialize_iDomainSplit
+
+subroutine split_select_initialize_ixSolution(split_select)
+ ! *** initialize operator splitting indices for split_select_type class ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % ixSolution        = 1       
+end subroutine split_select_initialize_ixSolution
 
 subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,message,return_flag)
  ! *** Get the mask for the state subset ***
