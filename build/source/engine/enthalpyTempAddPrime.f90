@@ -83,6 +83,8 @@ subroutine t2enthalpyPrime(&
                       mLayerVolFracWatPrime,             & ! intent(in):   prime vector of volumetric total water content (-)
                       mLayerMatricHeadPrime,             & ! intent(in):   prime vector of total water matric potential (m)
                       ! input: pre-computed derivatives
+                      scalarFracLiqVeg,                  & ! intent(in):   fraction of canopy liquid water (-)
+                      mLayerFracLiqSnow,                 & ! intent(in):   fraction of liquid water (-)
                       dVolTot_dPsi0,                     & ! intent(in):   derivative in total water content w.r.t. total water matric potential (m-1)
                       ! output: enthalpy prime
                       scalarCanairEnthalpyPrime,         & ! intent(out):  prime enthalpy of the canopy air space (J m-3)
@@ -116,6 +118,8 @@ subroutine t2enthalpyPrime(&
   real(rkind),intent(in)           :: mLayerVolFracWatPrime(:)  ! prime vector of volumetric total water content (-)
   real(rkind),intent(in)           :: mLayerMatricHeadPrime(:)  ! prime vector of total water matric potential (m)
   ! input: pre-computed derivatives
+  real(rkind),intent(in)           :: scalarFracLiqVeg          ! fraction of canopy liquid water (-)
+  real(rkind),intent(in)           :: mLayerFracLiqSnow(:)      ! fraction of snow liquid water (-)
   real(rkind),intent(in)           :: dVolTot_dPsi0(:)          ! derivative in total water content w.r.t. total water matric potential (m-1)
    ! output: enthalpy prime
   real(rkind),intent(out)          :: scalarCanairEnthalpyPrime ! prime enthalpy of the canopy air space (J m-3)
@@ -137,9 +141,7 @@ subroutine t2enthalpyPrime(&
   real(rkind)                      :: volFracWat                ! volumetric fraction of total water, liquid+ice (-)
   real(rkind)                      :: diffT                     ! temperature difference from Tfreeze
   real(rkind)                      :: integral                  ! integral of snow freezing curve
-  real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
-  real(rkind)                      :: d_integral_dTk            ! derivative of integral with temperature
-  real(rkind)                      :: d_integral_psiLiq_dTk     ! derivative with temperature of integral of soil mLayerPsiLiq from Tfreeze to layer temperature
+  real(rkind)                      :: vFracLiq                  ! volumetric fraction of liquid water (-) in frozen soil
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
   ! enthalpy
@@ -216,10 +218,9 @@ subroutine t2enthalpyPrime(&
                 enthLiqP = Cp_water * ( scalarCanopyWatPrime * diffT + scalarCanopyWatTrial * scalarCanopyTempPrime )/ canopyDepth
                 enthIceP = 0._rkind
               else
-                integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-                d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b) ! Note: volFracLiq = d_integral_dTk*volFracWat
-                enthLiqP = Cp_water * ( scalarCanopyWatPrime*integral + scalarCanopyWatTrial*scalarCanopyTempPrime*d_integral_dTk )/ canopyDepth
-                enthIceP = Cp_ice * ( scalarCanopyWatPrime*( diffT - integral ) + scalarCanopyWatTrial*scalarCanopyTempPrime*( 1._rkind - d_integral_dTk ) ) / canopyDepth
+                integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT) ! Note: scalarFracLiqVeg = d_integral_dTk*scalarCanopyWatTrial
+                enthLiqP = Cp_water * ( scalarCanopyWatPrime*integral + scalarCanopyTempPrime * scalarFracLiqVeg)/ canopyDepth
+                enthIceP = Cp_ice * ( scalarCanopyWatPrime*( diffT - integral ) + scalarCanopyTempPrime*( scalarCanopyWatTrial - scalarFracLiqVeg ) ) / canopyDepth
               endif
 
               scalarCanopyEnthalpyPrime = enthVegP + enthLiqP + enthIceP
@@ -235,13 +236,12 @@ subroutine t2enthalpyPrime(&
 
               diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-              d_integral_dTk = 1._rkind / (1._rkind + (snowfrz_scale * diffT)**2_i4b) ! Note: volFracLiq = d_integral_dTk*volFracWat
-              enthLiqP = iden_water * Cp_water * ( mLayerVolFracWatPrime(iLayer)*integral &
-                                                  + mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*d_integral_dTk )
+              enthLiqP = iden_water * Cp_water * ( mLayerVolFracWatPrime(iLayer)*integral + mLayerTempPrime(iLayer)*mLayerFracLiqSnow(iLayer) )
               enthIceP = iden_water * Cp_ice * ( mLayerVolFracWatPrime(iLayer)*( diffT - integral ) &
-                                                  + mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*( 1._rkind - d_integral_dTk ) )
+                                               + mLayerTempPrime(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerFracLiqSnow(iLayer) ) )
               enthAirP = iden_air * Cp_air * ( mLayerTempPrime(iLayer)  - mLayerVolFracWatPrime(iLayer) * ( (iden_water/iden_ice)*( diffT - integral ) + integral )  &
-                                              - mLayerVolFracWatTrial(iLayer)*mLayerTempPrime(iLayer)*( (iden_water/iden_ice)*( 1._rkind - d_integral_dTk ) + d_integral_dTk ) )
+                                             - mLayerTempPrime(iLayer)*( (iden_water/iden_ice)*( mLayerVolFracWatTrial(iLayer) - mLayerFracLiqSnow(iLayer) ) &
+                                             + mLayerFracLiqSnow(iLayer) ) )
 
               mLayerEnthalpyPrime(iLayer)      = enthLiqP + enthIceP + enthAirP
 
@@ -262,8 +262,6 @@ subroutine t2enthalpyPrime(&
               Tcrit    = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
               volFracWat = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
               diffT = mLayerTempTrial(iLayer) - Tfreeze
-              dTcrit_dPsi0 = 0._rkind
-              if (mLayerMatricHeadTrial(ixControlIndex)<0._rkind) dTcrit_dPsi0 = gravity * Tfreeze/LH_fus
               ! *** compute enthalpy prime of water for unfrozen conditions
               if(mlayerTempTrial(iLayer)>=Tcrit)then
                 enthWaterP = iden_water * Cp_water * ( mLayerMatricHeadPrime(ixControlIndex)*dVolTot_dPsi0(ixControlIndex)*diffT &
@@ -275,12 +273,11 @@ subroutine t2enthalpyPrime(&
                 !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
                 xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
                 mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
-                ! NOTE: integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
-                d_integral_psiLiq_dTk = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
-
-                enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*d_integral_psiLiq_dTk
+                ! NOTE: integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res ) and d_integral_psiLiq_dTk = vFracLiq
+                vFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
+                enthLiqP = iden_water * Cp_water * mLayerTempPrime(iLayer)*vFracLiq
                 enthIceP = iden_ice * Cp_ice * ( mLayerMatricHeadPrime(ixControlIndex)*dVolTot_dPsi0(ixControlIndex)*diffT &
-                                               + volFracWat*mLayerTempPrime(iLayer) ) - iden_ice * Cp_ice *  mLayerTempPrime(iLayer)* d_integral_psiLiq_dTk
+                                               + volFracWat*mLayerTempPrime(iLayer) ) - iden_ice * Cp_ice *  mLayerTempPrime(iLayer) * vFracLiq
                 enthWaterP = enthIceP + enthLiqP
 
               endif ! (if frozen conditions)

@@ -229,10 +229,10 @@ subroutine eval8summaWithPrime(&
     ! soil parameters
     theta_sat                 => mpar_data%var(iLookPARAM%theta_sat)%dat                      ,& ! intent(in):  [dp(:)]  soil porosity (-)
     specificStorage           => mpar_data%var(iLookPARAM%specificStorage)%dat(1)             ,& ! intent(in):  [dp]     specific storage coefficient (m-1)
-      ! canopy and layer depth
+    ! canopy and layer depth
     canopyDepth               => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)            ,& ! intent(in):  [dp   ]  canopy depth (m)
     mLayerDepth               => prog_data%var(iLookPROG%mLayerDepth)%dat                     ,& ! intent(in):  [dp(:)]  depth of each layer in the snow-soil sub-domain (m)
-    ! model diagnostic variables from a previous solution
+    ! model diagnostic variables, will be updated before used
     scalarFracLiqVeg          => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)             ,& ! intent(in):  [dp]     fraction of liquid water on vegetation (-)
     scalarSfcMeltPond         => prog_data%var(iLookPROG%scalarSfcMeltPond)%dat(1)            ,& ! intent(in):  [dp]     ponded water caused by melt of the "snow without a layer" (kg m-2)
     mLayerFracLiqSnow         => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat               ,& ! intent(in):  [dp(:)]  fraction of liquid water in each snow layer (-)
@@ -436,6 +436,8 @@ subroutine eval8summaWithPrime(&
                         mLayerVolFracWatPrime,             & ! intent(in):   prime vector of volumetric total water content (-)
                         mLayerMatricHeadPrime,             & ! intent(in):   prime vector of total water matric potential (m) 
                         ! input: pre-computed derivatives
+                        scalarFracLiqVeg,                  & ! intent(in):   fraction of canopy liquid water (-)
+                        mLayerFracLiqSnow,                 & ! intent(in):   fraction of liquid water (-)
                         dVolTot_dPsi0,                     & ! intent(in):   derivative in total water content w.r.t. total water matric potential (m-1) 
                         ! output: enthalpy prime
                         scalarCanairEnthalpyPrime,         & ! intent(out):  prime value for temperature component of enthalpy of the canopy air space (J m-3)

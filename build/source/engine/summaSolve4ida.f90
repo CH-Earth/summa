@@ -544,28 +544,30 @@ subroutine summaSolve4ida(                         &
         if( model_decisions(iLookDECISIONS%howHeatCap)%iDecision == closedForm)then ! did not compute enthalpy without phase already
           call t2enthalpyPrime(&
                           ! input: data structures
-                          eqns_data%diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
-                          eqns_data%mpar_data,                   & ! intent(in):  parameter data structure
-                          eqns_data%indx_data,                   & ! intent(in):  model indices
+                          eqns_data%diag_data,                                        & ! intent(in):  model diagnostic variables for a local HRU
+                          eqns_data%mpar_data,                                        & ! intent(in):  parameter data structure
+                          eqns_data%indx_data,                                        & ! intent(in):  model indices
                           ! input: state variables for the vegetation canopy
-                          eqns_data%scalarCanairTempPrime,       & ! intent(in):  prime value of canopy air temperature (K)
-                          eqns_data%scalarCanopyTempTrial,       & ! intent(in):  trial value of canopy temperature (K)
-                          eqns_data%scalarCanopyWatTrial,        & ! intent(in):  trial value of canopy total water (kg m-2)
-                          eqns_data%scalarCanopyTempPrime,       & ! intent(in):  prime value of temperature of the vegetation canopy (K)
-                          eqns_data%scalarCanopyWatPrime,        & ! intent(in):  prime value of total water of the vegetation canopy (kg m-2)
+                          eqns_data%scalarCanairTempPrime,                            & ! intent(in):  prime value of canopy air temperature (K)
+                          eqns_data%scalarCanopyTempTrial,                            & ! intent(in):  trial value of canopy temperature (K)
+                          eqns_data%scalarCanopyWatTrial,                             & ! intent(in):  trial value of canopy total water (kg m-2)
+                          eqns_data%scalarCanopyTempPrime,                            & ! intent(in):  prime value of temperature of the vegetation canopy (K)
+                          eqns_data%scalarCanopyWatPrime,                             & ! intent(in):  prime value of total water of the vegetation canopy (kg m-2)
                            ! input: variables for the snow-soil domain
-                          eqns_data%mLayerTempTrial,             & ! intent(in):  trial vector of layer temperature (K)
-                          eqns_data%mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
-                          eqns_data%mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
-                          eqns_data%mLayerTempPrime,             & ! intent(in):  prime vector of temperature of each snow+soil layer (K)
-                          eqns_data%mLayerVolFracWatPrime,       & ! intent(in):  prime vector of volumetric total water content of each snow+soil layer (-)
-                          eqns_data%mLayerMatricHeadPrime,       & ! intent(in):  prime vector of total water matric potential of each snow+soil layer (m)
+                          eqns_data%mLayerTempTrial,                                  & ! intent(in):  trial vector of layer temperature (K)
+                          eqns_data%mLayerVolFracWatTrial,                            & ! intent(in):  trial vector of volumetric total water content (-)
+                          eqns_data%mLayerMatricHeadTrial,                            & ! intent(in):  trial vector of total water matric potential (m)
+                          eqns_data%mLayerTempPrime,                                  & ! intent(in):  prime vector of temperature of each snow+soil layer (K)
+                          eqns_data%mLayerVolFracWatPrime,                            & ! intent(in):  prime vector of volumetric total water content of each snow+soil layer (-)
+                          eqns_data%mLayerMatricHeadPrime,                            & ! intent(in):  prime vector of total water matric potential of each snow+soil layer (m)
                           ! input: pre-computed derivatives
-                          deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,  & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
+                          eqns_data%diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1), & ! intent(in):  fraction of canopy liquid water (-)
+                          eqns_data%diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat,   & ! intent(in):  fraction of liquid water (-)
+                          eqns_data%deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat,     & ! intent(in):  derivative in total water content w.r.t. total water matric potential (m-1)
                           ! output: enthalpy
-                          eqns_data%scalarCanairEnthalpyPrime,   & ! intent(out):  prime value for temperature component of enthalpy of the canopy air space (J m-3)
-                          eqns_data%scalarCanopyEnthalpyPrime,   & ! intent(out):  prime value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                          eqns_data%mLayerEnthalpyPrime,         & ! intent(out):  prime vector oftemperature component of enthalpy of each snow+soil layer (J m-3)
+                          eqns_data%scalarCanairEnthalpyPrime,                        & ! intent(out): prime value for temperature component of enthalpy of the canopy air space (J m-3)
+                          eqns_data%scalarCanopyEnthalpyPrime,                        & ! intent(out): prime value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                          eqns_data%mLayerEnthalpyPrime,                              & ! intent(out): prime vector oftemperature component of enthalpy of each snow+soil layer (J m-3)
                           ! output: error control
                           err,cmessage)                  ! intent(out): error control
            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
