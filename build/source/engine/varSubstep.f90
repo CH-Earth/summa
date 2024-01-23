@@ -1009,7 +1009,6 @@ USE getVectorz_module,only:varExtract                                   ! extrac
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixCasNrg)*dt
           !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg) ! should be equivalent to above, use for debugging
-          print*,balance(ixCasNrg),resVec(ixCasNrg),scalarCanairEnthalpyTrial, scalarCanairEnthalpy, fluxVec(ixCasNrg)*dt
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyEnthalpyDelta_addphase - fluxVec(ixVegNrg)*dt
           if(nSnowSoilNrg>0)then
             do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
