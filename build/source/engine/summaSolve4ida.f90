@@ -458,7 +458,7 @@ subroutine summaSolve4ida(                         &
     if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetStopTime'; return; endif
     
     ! Set solver parameters at end of setup
-    call setSolverParams(dt_cur, nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), ida_mem, retval)
+    call setSolverParams(dt_cur, ida_mem, retval)
     if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
     
     ! Disable error messages and warnings
@@ -748,7 +748,7 @@ end subroutine setInitialCondition
 ! ----------------------------------------------------------------
 ! setSolverParams: private routine to set parameters in IDA solver
 ! ----------------------------------------------------------------
-subroutine setSolverParams(dt_cur,fail_iter_param,ida_mem,retval)
+subroutine setSolverParams(dt_cur,ida_mem,retval)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
@@ -759,7 +759,6 @@ subroutine setSolverParams(dt_cur,fail_iter_param,ida_mem,retval)
 
   ! calling variables
   real(rkind),intent(in)      :: dt_cur             ! current whole time step
-  integer(i4b),intent(in)     :: fail_iter_param    ! maximum number of error test and convergence test failures, default 10, set in params
   type(c_ptr),intent(inout)   :: ida_mem            ! IDA memory
   integer(i4b),intent(out)    :: retval             ! return value
 
@@ -768,7 +767,7 @@ subroutine setSolverParams(dt_cur,fail_iter_param,ida_mem,retval)
   integer,parameter           :: max_order = 5      ! maximum BDF order,  default and max = 5
   real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
   integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
-  integer                     :: fail_iter          ! maximum number of error test and convergence test failures, default 10
+  integer,parameter           :: fail_iter = 10     ! maximum number of error test and convergence test failures, default 10
   real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
   real(qp),parameter          :: h_init = 0         ! initial stepsize
  
@@ -784,8 +783,6 @@ subroutine setSolverParams(dt_cur,fail_iter_param,ida_mem,retval)
   retval = FIDASetMaxNonlinIters(ida_mem, nonlin_iter)
   if (retval /= 0) return
 
-  ! fail_iter = fail_iter_param ! use SUMMA parameter
-  fail_iter = 10 ! default, maybe leave here
   !  Set maximum number of convergence test failures
   retval = FIDASetMaxConvFails(ida_mem, fail_iter)
   if (retval /= 0) return
