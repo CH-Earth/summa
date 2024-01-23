@@ -399,11 +399,13 @@ subroutine opSplittin(&
        if (split_select % domainSplit.eqv..true.) then
         if (split_select % solution.eqv..false.) then; call split_select % initialize_ixSolution; split_select % solution=.true.; end if
         if (split_select % solution.eqv..true.) then
-         solution: do !ixSolution=1,nSolutions ! trial with the vector then scalar solution
+!         solution: do !ixSolution=1,nSolutions ! trial with the vector then scalar solution
            ixSolution=split_select % ixSolution
            if (split_select % ixSolution > nsolutions) then
-            split_select % solution=.false.; exit solution            
+            split_select % solution=.false.            
            end if
+        end if
+        if (split_select % solution.eqv..true.) then
            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
            stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
 
@@ -415,7 +417,7 @@ subroutine opSplittin(&
              !call update_stateFilter; if (return_flag.eqv..true.) return ! get the mask for the state subset - return for a non-zero error code
              call validate_split ! verify that the split is valid
              if (cycle_domainSplit) then; call split_select % advance_iDomainSplit; split_select % solution=.false.; cycle split_select_loop; end if
-             if (cycle_solution) then; call split_select % advance_ixSolution; cycle solution; end if
+             if (cycle_solution) then; call split_select % advance_ixSolution; cycle split_select_loop; end if
              if (return_flag.eqv..true.) return ! return for a non-zero error code
              call save_recover ! save/recover copies of variables and fluxes
 
@@ -432,18 +434,22 @@ subroutine opSplittin(&
               call split_select % advance_ixCoupling; call split_select % initialize_flags; cycle split_select_loop ! cycle loops if necessary
              end if
              if (cycle_stateThenDomain) then; call split_select % advance_ixStateThenDomain; split_select % domainSplit=.false.; split_select % solution=.false.; cycle split_select_loop; end if ! deactivate flags for inner loops
-             if (cycle_solution) then; call split_select % advance_ixSolution; cycle solution; end if
+             if (cycle_solution) then; call split_select % advance_ixSolution; cycle split_select_loop; end if
 
              call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
 
              call success_check ! check for success
-             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; exit solution; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations -- deactivate inner loops
-             if (exit_solution) then; split_select % solution=.false.; exit solution; end if
+             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; exit stateSplit; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations -- deactivate inner loops
+             if (exit_solution) then; split_select % solution=.false.; exit stateSplit; end if
              if (return_flag.eqv..true.) return             ! return if error 
 
            end do stateSplit ! solution with split layers
-           call split_select % advance_ixSolution 
-         end do solution        ! trial with the full layer solution then the split layer solution
+           if (split_select % solution.eqv..true.) then
+            if (split_select % stateThenDomain.eqv..true.) then
+             call split_select % advance_ixSolution
+            end if
+           end if 
+!         end do solution        ! trial with the full layer solution then the split layer solution
         end if ! end solution loop
         if (split_select % solution.eqv..false.) then
          if (split_select % stateThenDomain.eqv..true.) then
