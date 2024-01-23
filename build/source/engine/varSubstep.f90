@@ -996,19 +996,20 @@ USE getVectorz_module,only:varExtract                                   ! extrac
                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
                       indx_data,                          & ! intent(in):    model indices
                       ! input: state variables for the ve getation canopy  
-                 scalarCanopyIceTrial - scalarCanopyIce,  & ! intent(in):    delta value for canopy ice content (kg m-2)
+                  scalarCanopyIceTrial - scalarCanopyIce, & ! intent(in):    delta value for canopy ice content (kg m-2)
                       ! input: variables for the snow-soil domain  
-               mLayerVolFracIceTrial - mLayerVolFracIce,  & ! intent(in):    delta vector of volumetric ice water content (-)
+                mLayerVolFracIceTrial - mLayerVolFracIce, & ! intent(in):    delta vector of volumetric ice water content (-)
                       ! input/output: enthalpy
                       scalarCanopyEnthalpyDelta_addphase, & ! intent(inout): delta value for enthalpy of the vegetation canopy (J m-3)
                       mLayerEnthalpyDelta_addphase,       & ! intent(inout): delta vector of enthalpy of each snow+soil layer (J m-3)
-                      ! output: error control
+                      ! output: error control      
                       err,message)                         ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixCasNrg)*dt
           !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg) ! should be equivalent to above, use for debugging
+          print*,balance(ixCasNrg),resVec(ixCasNrg),scalarCanairEnthalpyTrial, scalarCanairEnthalpy, fluxVec(ixCasNrg)*dt
           if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyEnthalpyDelta_addphase - fluxVec(ixVegNrg)*dt
           if(nSnowSoilNrg>0)then
             do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
@@ -1279,7 +1280,7 @@ USE getVectorz_module,only:varExtract                                   ! extrac
     ! --------------------------------
     scalarCanairEnthalpy = scalarCanairEnthalpyTrial
     scalarCanopyEnthalpy = scalarCanopyEnthalpyTrial
-    mLayerEnthalpy = mLayerEnthalpyTrial
+    mLayerEnthalpy       = mLayerEnthalpyTrial
 
     ! -----
     ! * update prognostic variables...
