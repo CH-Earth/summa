@@ -517,7 +517,7 @@ subroutine t2enthalpy(&
   real(rkind)                      :: enthAir                   ! enthalpy of air (J m-3)
   real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
   real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
-  logical(lgt),parameter           :: use_lookup=.true.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
+  logical(lgt),parameter           :: use_lookup=.false.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
