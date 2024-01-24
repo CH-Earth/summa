@@ -158,7 +158,7 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   type(var_flagVec)        :: fluxMask                    ! integer mask defining model fluxes
   logical(lgt),allocatable :: stateMask(:)                ! mask defining desired state variables
   ! flags for loop operations
-  logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit,solution
+  logical(lgt)             :: stateTypeSplitting,stateThenDomain,domainSplit,solution,stateSplit
  contains
   procedure :: initialize_flags             => split_select_initialize_flags             ! initialize flags that control loop operations
   procedure :: initialize_ixCoupling        => split_select_initialize_ixCoupling        ! initialize operator splitting indices
@@ -166,6 +166,7 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   procedure :: initialize_ixStateThenDomain => split_select_initialize_ixStateThenDomain ! initialize operator splitting indices
   procedure :: initialize_iDomainSplit      => split_select_initialize_iDomainSplit      ! initialize operator splitting indices
   procedure :: initialize_ixSolution        => split_select_initialize_ixSolution        ! initialize operator splitting indices
+  procedure :: initialize_iStateSplit       => split_select_initialize_iStateSplit       ! initialize operator splitting indices
   procedure :: get_stateMask                => split_select_compute_stateMask            ! compute stateMask and nSubset and load into class object
   procedure :: get_indices                  => split_select_load_indices                 ! load operator splitting indices into class object
   procedure :: advance_ixCoupling           => split_select_advance_ixCoupling           ! advance coupling loop iterator
@@ -173,6 +174,7 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   procedure :: advance_ixStateThenDomain    => split_select_advance_ixStateThenDomain    ! advance coupling loop iterator
   procedure :: advance_iDomainSplit         => split_select_advance_iDomainSplit         ! advance coupling loop iterator
   procedure :: advance_ixSolution           => split_select_advance_ixSolution           ! advance coupling loop iterator
+  procedure :: advance_iStateSplit          => split_select_advance_iStateSplit          ! advance coupling loop iterator
 end type split_select_type
 
 contains
@@ -399,7 +401,6 @@ subroutine opSplittin(&
        if (split_select % domainSplit.eqv..true.) then
         if (split_select % solution.eqv..false.) then; call split_select % initialize_ixSolution; split_select % solution=.true.; end if
         if (split_select % solution.eqv..true.) then
-!         solution: do !ixSolution=1,nSolutions ! trial with the vector then scalar solution
            ixSolution=split_select % ixSolution
            if (split_select % ixSolution > nsolutions) then
             split_select % solution=.false.            
@@ -407,7 +408,12 @@ subroutine opSplittin(&
         end if
         if (split_select % solution.eqv..true.) then
            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
-           stateSplit: do iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
+           call split_select % initialize_iStateSplit; split_select % stateSplit=.true.; ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
+           stateSplit: do !iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
+             iStateSplit=split_select % iStateSplit
+             if (split_select % iStateSplit > nStateSplit) then
+              split_select % stateSplit=.false.; exit stateSplit
+             end if 
 
              ! define state subsets for a given split...
              call split_select % get_indices(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit) ! may be able to remove this once all indices are fully handled by split_select
@@ -443,13 +449,13 @@ subroutine opSplittin(&
              if (exit_solution) then; split_select % solution=.false.; exit stateSplit; end if
              if (return_flag.eqv..true.) return             ! return if error 
 
+             call split_select % advance_iStateSplit
            end do stateSplit ! solution with split layers
            if (split_select % solution.eqv..true.) then
             if (split_select % stateThenDomain.eqv..true.) then
              call split_select % advance_ixSolution
             end if
            end if 
-!         end do solution        ! trial with the full layer solution then the split layer solution
         end if ! end solution loop
         if (split_select % solution.eqv..false.) then
          if (split_select % stateThenDomain.eqv..true.) then
@@ -1139,6 +1145,7 @@ subroutine split_select_initialize_flags(split_select)
  split_select % stateThenDomain=.false.
  split_select % domainSplit=.false.
  split_select % solution=.false.
+ split_select % stateSplit=.false.
 end subroutine split_select_initialize_flags
 
 subroutine split_select_advance_ixCoupling(split_select)
@@ -1170,6 +1177,12 @@ subroutine split_select_advance_ixSolution(split_select)
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixSolution = split_select % ixSolution + 1
 end subroutine split_select_advance_ixSolution
+
+subroutine split_select_advance_iStateSplit(split_select)
+ ! *** Advance index for stateSplit loop ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % iStateSplit = split_select % iStateSplit + 1
+end subroutine split_select_advance_iStateSplit
 
 subroutine split_select_load_indices(split_select,ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit)
  ! *** load operator splitting indices for split_select_type class ***
@@ -1217,6 +1230,12 @@ subroutine split_select_initialize_ixSolution(split_select)
  class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
  split_select % ixSolution        = 1       
 end subroutine split_select_initialize_ixSolution
+
+subroutine split_select_initialize_iStateSplit(split_select)
+ ! *** initialize operator splitting indices for split_select_type class ***
+ class(split_select_type),intent(inout) :: split_select               ! class object for operator splitting selector
+ split_select % iStateSplit        = 1       
+end subroutine split_select_initialize_iStateSplit
 
 subroutine split_select_compute_stateMask(split_select,indx_data,err,cmessage,message,return_flag)
  ! *** Get the mask for the state subset ***
