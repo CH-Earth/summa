@@ -631,7 +631,7 @@ USE getVectorz_module,only:varExtract                                   ! extrac
 #endif
   USE updateVars_module,only:updateVars                                 ! update prognostic variables
   USE enthalpyTemp_module,only:t2enthalpy                               ! compute enthalpy
-  USE enthalpyTemp_module,only:t2enthalpy_addphase                      ! add phase to enthalpy
+  USE enthalpyTemp_module,only:t2enthalpyChange_addphase                ! add phase to enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                                 ! time step (s)
@@ -991,7 +991,7 @@ USE getVectorz_module,only:varExtract                                   ! extrac
           mLayerEnthalpyDelta_addphase       = mLayerEnthalpyTrial - mLayerEnthalpy
           
           ! compute enthalpy with phase change for current values, do on delta value so only have to do once
-          call t2enthalpy_addphase(&
+          call t2enthalpyChange_addphase(&
                       ! input: data structures
                       diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
                       indx_data,                          & ! intent(in):    model indices

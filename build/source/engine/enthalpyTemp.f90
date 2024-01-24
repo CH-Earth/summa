@@ -66,7 +66,7 @@ public::T2L_lookup
 public::enthalpy2t_snow
 public::t2enthalpy_snow
 public::t2enthalpy
-public::t2enthalpy_addphase
+public::t2enthalpyChange_addphase
 private::hyp_2F1_real
 
 ! define the snow look-up table used to compute temperature based on enthalpy
@@ -677,21 +677,21 @@ end subroutine t2enthalpy
 
 
 ! ************************************************************************************************************************
-! public subroutine t2enthalpy_addphase: compute enthalpy or enthalpy prime with phase change from ice content
+! public subroutine t2enthalpyChange_addphase: compute change in enthalpy or enthalpy prime with phase change from ice content change
 ! ************************************************************************************************************************
-subroutine t2enthalpy_addphase(&
+subroutine t2enthalpyChange_addphase(&
                       ! input: data structures
                       diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
                       indx_data,                    & ! intent(in):    model indices
                       ! input: state variables for the vegetation canopy
-                      scalarCanopyIce,              & ! intent(in):    value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
+                      scalarCanopyIceDelta,         & ! intent(in):    value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
                       ! input: variables for the snow-soil domain
-                      mLayerVolFracIce,             & ! intent(in) :   vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
+                      mLayerVolFracIceDelta,        & ! intent(in) :   vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
                       ! input/output: enthalpy
-                      scalarCanopyEnthalpy,         & ! intent(inout): enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
-                      mLayerEnthalpy,               & ! intent(inout): enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
+                      scalarCanopyEnthalpyDelta,    & ! intent(inout): enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
+                      mLayerEnthalpyDelta,          & ! intent(inout): enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
                       ! output: error control
-                      err,message)                         ! intent(out): error control
+                      err,message)                    ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
@@ -700,18 +700,18 @@ subroutine t2enthalpy_addphase(&
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
-  type(var_dlength),intent(in)     :: diag_data             ! diagnostic variables for a local HRU
-  type(var_ilength),intent(in)     :: indx_data             ! model indices
+  type(var_dlength),intent(in)     :: diag_data                 ! diagnostic variables for a local HRU
+  type(var_ilength),intent(in)     :: indx_data                 ! model indices
   ! input: state variables for the vegetation canopy
-  real(rkind),intent(in)           :: scalarCanopyIce       ! value for canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
+  real(rkind),intent(in)           :: scalarCanopyIceDelta      ! value for canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
   ! input: variables for the snow-soil domain
-  real(rkind),intent(in)           :: mLayerVolFracIce(:)   ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
+  real(rkind),intent(in)           :: mLayerVolFracIceDelta(:)  ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
   ! input output: enthalpy
-  real(rkind),intent(inout)        :: scalarCanopyEnthalpy  ! value for enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
-  real(rkind),intent(inout)        :: mLayerEnthalpy(:)     ! vector of enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: scalarCanopyEnthalpyDelta ! value for enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: mLayerEnthalpyDelta(:)    ! vector of enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
   ! output: error control
-  integer(i4b),intent(out)         :: err                   ! error code
-  character(*),intent(out)         :: message               ! error message
+  integer(i4b),intent(out)         :: err                       ! error code
+  character(*),intent(out)         :: message                   ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
   character(len=128)               :: cmessage              ! error message in downwind routine
@@ -738,7 +738,7 @@ subroutine t2enthalpy_addphase(&
     ! -----------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message="t2enthalpy_addphase/"
+    err=0; message="t2enthalpyChange_addphase/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -774,15 +774,15 @@ subroutine t2enthalpy_addphase(&
             vegVars: associate(&
               canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          & ! canopy depth (m)
               )
-              scalarCanopyEnthalpy = scalarCanopyEnthalpy - LH_fus * scalarCanopyIce / canopyDepth
+              scalarCanopyEnthalpyDelta = scalarCanopyEnthalpyDelta - LH_fus * scalarCanopyIceDelta / canopyDepth
 
             end associate vegVars
 
           case(iname_snow)
-            mLayerEnthalpy(iLayer) = mLayerEnthalpy(iLayer) - iden_ice * LH_fus * mLayerVolFracIce(iLayer)
+            mLayerEnthalpyDelta(iLayer) = mLayerEnthalpyDelta(iLayer) - iden_ice * LH_fus * mLayerVolFracIceDelta(iLayer)
 
           case(iname_soil)
-            mLayerEnthalpy(iLayer) = mLayerEnthalpy(iLayer) - iden_water * LH_fus * mLayerVolFracIce(iLayer)
+            mLayerEnthalpyDelta(iLayer) = mLayerEnthalpyDelta(iLayer) - iden_water * LH_fus * mLayerVolFracIceDelta(iLayer)
 
           case(iname_aquifer); cycle ! aquifer: do nothing
           case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
@@ -793,7 +793,7 @@ subroutine t2enthalpy_addphase(&
 
   end associate generalVars
 
-end subroutine t2enthalpy_addphase
+end subroutine t2enthalpyChange_addphase
 
 !----------------------------------------------------------------------
 ! private function: compute hypergeometric function with real arguments into real result

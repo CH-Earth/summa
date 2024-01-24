@@ -157,7 +157,7 @@ subroutine summaSolve4ida(                         &
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
   USE enthalpyTempAddPrime_module,only:t2enthalpyPrime        ! compute enthalpy
-  USE enthalpyTemp_module,only:t2enthalpy_addphase            ! add phase to enthalpy
+  USE enthalpyTemp_module,only:t2enthalpyChange_addphase            ! add phase to enthalpy
 
   !======= Declarations =========
   implicit none
@@ -578,7 +578,7 @@ subroutine summaSolve4ida(                         &
         mLayerEnthalpyPrime_addPhase       = eqns_data%mLayerEnthalpyPrime
 
         ! compute enthalpy prime with phase change
-        call t2enthalpy_addphase(&
+        call t2enthalpyChange_addphase(&
                     ! input: data structures
                     eqns_data%diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
                     eqns_data%indx_data,                         & ! intent(in):    model indices
