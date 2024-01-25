@@ -271,32 +271,32 @@ subroutine summaSolve4kinsol(&
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
-  if (.not. associated(sunvec_y)) then; err=20; message='summaSolve4kinsol: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
 
   ! create the scaling vectors
   sunvec_fscale => FN_VMake_Serial(nState, fscale, sunctx)
-  if (.not. associated(sunvec_fscale)) then; err=20; message='summaSolve4kinsol: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_fscale)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
   sunvec_xscale => FN_VMake_Serial(nState, xscale, sunctx)
-  if (.not. associated(sunvec_xscale)) then; err=20; message='summaSolve4kinsol: sunvec = NULL'; return; endif
+  if (.not. associated(sunvec_xscale)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
 
   ! initialize solution vectors
   call setInitialCondition(nState, stateVecInit, sunvec_y)
 
   ! create memory
   kinsol_mem = FKINCreate(sunctx)
-  if (.not. c_associated(kinsol_mem)) then; err=20; message='summaSolve4kinsol: kinsol_mem = NULL'; return; endif
+  if (.not. c_associated(kinsol_mem)) then; err=20; message=trim(message)//'kinsol_mem = NULL'; return; endif
 
   ! Attach user data to memory
   retval = FKINSetUserData(kinsol_mem, c_loc(eqns_data))
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINSetUserData'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetUserData'; return; endif
 
   ! Set solver parameters before calling FKINInit
    call setSolverParams(nint(mpar_data%var(iLookPARAM%maxiter)%dat(1)), kinsol_mem, retval)
-   if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in setSolverParams'; return; endif
+   if (retval /= 0) then; err=20; message=trim(message)//'error in setSolverParams'; return; endif
 
   ! Set the function Kinsol will use to advance the state
   retval = FKINInit(kinsol_mem, c_funloc(eval8summa4kinsol), sunvec_y)
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINInit'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINInit'; return; endif
 
   ! define the form of the matrix
   select case(ixMatrix)
@@ -304,34 +304,34 @@ subroutine summaSolve4kinsol(&
       mu = ku; lu = kl;
       ! Create banded SUNMatrix for use in linear solves
       sunmat_A => FSUNBandMatrix(nState, mu, lu, sunctx)
-      if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4kinsol: sunmat = NULL'; return; endif
+      if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
 
       ! Create banded SUNLinearSolver object
       sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A, sunctx)
-      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4kinsol: sunlinsol = NULL'; return; endif
+      if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
 
     case(ixFullMatrix)
       ! Create dense SUNMatrix for use in linear solves
       sunmat_A => FSUNDenseMatrix(nState, nState, sunctx)
-      if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4kinsol: sunmat = NULL'; return; endif
+      if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
 
       ! Create dense SUNLinearSolver object
       sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
-      if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4kinsol: sunlinsol = NULL'; return; endif
+      if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
 
       ! check
-    case default;  err=20; message='summaSolve4kinsol: error in type of matrix'; return
+    case default;  err=20; message=trim(message)//'error in type of matrix'; return
 
   end select  ! form of matrix
 
   ! Attach the matrix and linear solver
   retval = FKINSetLinearSolver(kinsol_mem, sunlinsol_LS, sunmat_A);
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINSetLinearSolver'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetLinearSolver'; return; endif
 
   ! Set the user-supplied Jacobian routine
   if(.not.use_fdJac)then
     retval = FKINSetJacFn(kinsol_mem, c_funloc(computJacob4kinsol))
-  if (retval /= 0) then; err=20; message='summaSolve4kinsol: error in FKINSetJacFn'; return; endif
+  if (retval /= 0) then; err=20; message=trim(message)//'error in FKINSetJacFn'; return; endif
   endif    
 
   ! Disable error messages and warnings
@@ -397,13 +397,13 @@ subroutine summaSolve4kinsol(&
 
   call FKINFree(kinsol_mem)
   retval = FSUNLinSolFree(sunlinsol_LS)
-  if(retval /= 0)then; err=20; message='summaSolve4kinsol: unable to free the linear solver'; return; endif
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
   call FSUNMatDestroy(sunmat_A)
   call FN_VDestroy(sunvec_y)
   call FN_VDestroy(sunvec_xscale)
   call FN_VDestroy(sunvec_fscale)
   retval = FSUNContext_Free(sunctx)
-  if(retval /= 0)then; err=20; message='summaSolve4kinsol: unable to free the SUNDIALS context'; return; endif
+  if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
 
 end subroutine summaSolve4kinsol
 
