@@ -157,7 +157,7 @@ subroutine summaSolve4ida(                         &
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
   USE enthalpyTempAddPrime_module,only:t2enthalpyPrime        ! compute enthalpy
-  USE enthalpyTemp_module,only:t2enthalpyChange_addphase            ! add phase to enthalpy
+  USE enthalpyTemp_module,only:t2enthalpyChange_addphase      ! add phase to enthalpy
 
   !======= Declarations =========
   implicit none
@@ -257,19 +257,19 @@ subroutine summaSolve4ida(                         &
   ! link to the necessary variables
   associate(&
     ! number of state variables of a specific type
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1) ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
+    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1) ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
     ! model indices
-    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
-    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
-    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)               ,& ! intent(in): [i4b]    index of water storage in the aquifer
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
-    ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
-    ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
-    ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
-    layerType               => indx_data%var(iLookINDEX%layerType)%dat                 & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
+    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy air space energy state variable
+    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)      ,& ! intent(in): [i4b]    index of canopy energy state variable
+    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)      ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+    ixAqWat                 => indx_data%var(iLookINDEX%ixAqWat)%dat(1)       ,& ! intent(in): [i4b]    index of water storage in the aquifer
+    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow+soil subdomain
+    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the snow+soil subdomain
+    ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the snow subdomain
+    ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat    ,& ! intent(in): [i4b(:)] indices for energy states in the soil subdomain
+    ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat    ,& ! intent(in): [i4b(:)] indices for hydrology states in the soil subdomain
+    layerType               => indx_data%var(iLookINDEX%layerType)%dat         & ! intent(in): [i4b(:)] named variables defining the type of layer in snow+soil domain
     ) ! association to necessary variables for the residual computations
 
     ! initialize error control
@@ -286,26 +286,26 @@ subroutine summaSolve4ida(                         &
     idaSucceeds = .true.
     
     ! fill eqns_data which will be required later to call eval8summaWithPrime
-    eqns_data%dt                      = dt
-    eqns_data%nSnow                   = nSnow
-    eqns_data%nSoil                   = nSoil
-    eqns_data%nLayers                 = nLayers
-    eqns_data%nState                  = nState
-    eqns_data%ixMatrix                = ixMatrix
-    eqns_data%firstSubStep            = firstSubStep
-    eqns_data%computeVegFlux          = computeVegFlux
-    eqns_data%scalarSolution          = scalarSolution
-    eqns_data%type_data               = type_data
-    eqns_data%attr_data               = attr_data
-    eqns_data%mpar_data               = mpar_data
-    eqns_data%forc_data               = forc_data
-    eqns_data%bvar_data               = bvar_data
-    eqns_data%prog_data               = prog_data
-    eqns_data%indx_data               = indx_data
-    eqns_data%diag_data               = diag_data
-    eqns_data%flux_data               = flux_data
-    eqns_data%deriv_data              = deriv_data
-    eqns_data%ixSaturation            = ixSaturation
+    eqns_data%dt             = dt
+    eqns_data%nSnow          = nSnow
+    eqns_data%nSoil          = nSoil
+    eqns_data%nLayers        = nLayers
+    eqns_data%nState         = nState
+    eqns_data%ixMatrix       = ixMatrix
+    eqns_data%firstSubStep   = firstSubStep
+    eqns_data%computeVegFlux = computeVegFlux
+    eqns_data%scalarSolution = scalarSolution
+    eqns_data%type_data      = type_data
+    eqns_data%attr_data      = attr_data
+    eqns_data%mpar_data      = mpar_data
+    eqns_data%forc_data      = forc_data
+    eqns_data%bvar_data      = bvar_data
+    eqns_data%prog_data      = prog_data
+    eqns_data%indx_data      = indx_data
+    eqns_data%diag_data      = diag_data
+    eqns_data%flux_data      = flux_data
+    eqns_data%deriv_data     = deriv_data
+    eqns_data%ixSaturation   = ixSaturation
     
     ! allocate space and fill
     allocate( eqns_data%model_decisions(maxvarDecisions) ); eqns_data%model_decisions = model_decisions
@@ -512,14 +512,14 @@ subroutine summaSolve4ida(                         &
       feasible=.true.
       call checkFeas(&
                       ! input
-                      stateVec,                                  & ! intent(in):    model state vector (mixed units)
-                      eqns_data%mpar_data,                       & ! intent(in):    model parameters
-                      eqns_data%prog_data,                       & ! intent(in):    model prognostic variables for a local HRU
-                      eqns_data%indx_data,                       & ! intent(in):    indices defining model states and layers
+                      stateVec,            & ! intent(in):    model state vector (mixed units)
+                      eqns_data%mpar_data, & ! intent(in):    model parameters
+                      eqns_data%prog_data, & ! intent(in):    model prognostic variables for a local HRU
+                      eqns_data%indx_data, & ! intent(in):    indices defining model states and layers
                       ! output: feasibility
-                      feasible,                                  & ! intent(inout):   flag to denote the feasibility of the solution
+                      feasible,            & ! intent(inout):   flag to denote the feasibility of the solution
                     ! output: error control
-                      err,cmessage)                                 ! intent(out):   error control
+                      err,cmessage)           ! intent(out):   error control
     
       ! early return for non-feasible solutions, right now will just fail if goes infeasible
       if(.not.feasible)then
@@ -580,17 +580,17 @@ subroutine summaSolve4ida(                         &
         ! compute enthalpy prime with phase change
         call t2enthalpyChange_addphase(&
                     ! input: data structures
-                    eqns_data%diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
-                    eqns_data%indx_data,                         & ! intent(in):    model indices
+                    eqns_data%diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
+                    eqns_data%indx_data,                & ! intent(in):    model indices
                     ! input: state variables for the vegetation canopy
-                    eqns_data%scalarCanopyIcePrime,              & ! intent(in):    prime value for canopy ice content (kg m-2 s-1)
+                    eqns_data%scalarCanopyIcePrime,     & ! intent(in):    prime value for canopy ice content (kg m-2 s-1)
                     ! input: variables for the snow-soil domain
-                    eqns_data%mLayerVolFracIcePrime,             & ! intent(in):    prime vector of ice volume fraction (s-1)
+                    eqns_data%mLayerVolFracIcePrime,    & ! intent(in):    prime vector of ice volume fraction (s-1)
                     ! input/output: enthalpy
-                    scalarCanopyEnthalpyPrime_addphase,          & ! intent(inout): prime value for enthalpy of the vegetation canopy (J m-3 s-1)
-                    mLayerEnthalpyPrime_addPhase,                & ! intent(inout): prime vector of enthalpy of each snow+soil layer (J m-3 s-1)
+                    scalarCanopyEnthalpyPrime_addphase, & ! intent(inout): prime value for enthalpy of the vegetation canopy (J m-3 s-1)
+                    mLayerEnthalpyPrime_addPhase,       & ! intent(inout): prime vector of enthalpy of each snow+soil layer (J m-3 s-1)
                     ! output: error control
-                    err,message)                         ! intent(out): error control
+                    err,cmessage)                         ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
         ! compute energy balance mean
