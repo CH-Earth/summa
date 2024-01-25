@@ -269,12 +269,6 @@ subroutine varSubstep(&
     message           => out_varSubstep % cmessage                  & ! intent(out): error message
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
-<<<<<<< HEAD
-
-    ! initialize error control
-    err=0; message='varSubstep/'
-=======
->>>>>>> 61cc5073 (Merge pull request #31 from seantrim/develop_AVB_error_msg)
 
     ! initialize flag for the success of the substepping
     failedMinimumStep=.false.
