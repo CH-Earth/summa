@@ -315,9 +315,6 @@ subroutine varSubstep(&
     substeps: do
       dtSubstep = min(dtSubstep,maxstep)
 
-      ! initialize error control
-      err=0; message='varSubstep/'
-
       ! -----
       ! * populate state vectors...
       ! ---------------------------
