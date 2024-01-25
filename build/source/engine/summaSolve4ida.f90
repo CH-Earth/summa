@@ -315,8 +315,8 @@ subroutine summaSolve4ida(                         &
     allocate( eqns_data%dMat(nState) ); eqns_data%dMat = dMat
     
     ! allocate space for the to save previous fluxes
-    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,message)
-    if(err/=0)then; err=20; message=trim(message)//trim(message); return; endif
+    call allocLocal(flux_meta(:),flux_prev,nSnow,nSoil,err,cmessage)
+    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
     flux_prev                         = eqns_data%flux_data
     
     ! allocate space for other variables
@@ -366,29 +366,29 @@ subroutine summaSolve4ida(                         &
     
     ! create serial vectors
     sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
-    if (.not. associated(sunvec_y)) then; err=20; message='summaSolve4ida: sunvec = NULL'; return; endif
+    if (.not. associated(sunvec_y)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     sunvec_yp => FN_VMake_Serial(nState, stateVecPrime, sunctx)
-    if (.not. associated(sunvec_yp)) then; err=20; message='summaSolve4ida: sunvec = NULL'; return; endif
+    if (.not. associated(sunvec_yp)) then; err=20; message=trim(message)//'sunvec = NULL'; return; endif
     
     ! initialize solution vectors
     call setInitialCondition(nState, stateVecInit, sunvec_y, sunvec_yp)
     
     ! create memory
     ida_mem = FIDACreate(sunctx)
-    if (.not. c_associated(ida_mem)) then; err=20; message='summaSolve4ida: ida_mem = NULL'; return; endif
+    if (.not. c_associated(ida_mem)) then; err=20; message=trim(message)//'ida_mem = NULL'; return; endif
     
     ! Attach user data to memory
     retval = FIDASetUserData(ida_mem, c_loc(eqns_data))
-    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetUserData'; return; endif
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetUserData'; return; endif
     
     ! Set the function IDA will use to advance the state
     t0 = 0._rkind
     retval = FIDAInit(ida_mem, c_funloc(eval8summa4ida), t0, sunvec_y, sunvec_yp)
-    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAInit'; return; endif
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAInit'; return; endif
     
     ! set tolerances
     retval = FIDAWFtolerances(ida_mem, c_funloc(computWeight4ida))
-    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAWFtolerances'; return; endif
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAWFtolerances'; return; endif
     
     ! initialize rootfinding problem and allocate space, counting roots
     if(detect_events)then
@@ -409,7 +409,7 @@ subroutine summaSolve4ida(                         &
       allocate( rootdir(nRoot) )
       rootdir = 0
       retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
-      if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDARootInit'; return; endif
+      if (retval /= 0) then; err=20; message=trim(message)//'error in FIDARootInit'; return; endif
     else ! will not use, allocate at something
       nRoot = 1
       allocate( rootsfound(nRoot) )
@@ -422,44 +422,44 @@ subroutine summaSolve4ida(                         &
         mu = ku; lu = kl;
         ! Create banded SUNMatrix for use in linear solves
         sunmat_A => FSUNBandMatrix(nState, mu, lu, sunctx)
-        if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4ida: sunmat = NULL'; return; endif
+        if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
     
         ! Create banded SUNLinearSolver object
         sunlinsol_LS => FSUNLinSol_Band(sunvec_y, sunmat_A, sunctx)
-        if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4ida: sunlinsol = NULL'; return; endif
+        if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
     
       case(ixFullMatrix)
         ! Create dense SUNMatrix for use in linear solves
         sunmat_A => FSUNDenseMatrix(nState, nState, sunctx)
-        if (.not. associated(sunmat_A)) then; err=20; message='summaSolve4ida: sunmat = NULL'; return; endif
+        if (.not. associated(sunmat_A)) then; err=20; message=trim(message)//'sunmat = NULL'; return; endif
     
         ! Create dense SUNLinearSolver object
         sunlinsol_LS => FSUNLinSol_Dense(sunvec_y, sunmat_A, sunctx)
-        if (.not. associated(sunlinsol_LS)) then; err=20; message='summaSolve4ida: sunlinsol = NULL'; return; endif
+        if (.not. associated(sunlinsol_LS)) then; err=20; message=trim(message)//'sunlinsol = NULL'; return; endif
     
         ! check
-      case default;  err=20; message='summaSolve4ida: error in type of matrix'; return
+      case default;  err=20; message=trim(message)//'error in type of matrix'; return
     
     end select  ! form of matrix
     
     ! Attach the matrix and linear solver
     ! For the nonlinear solver, IDA uses a Newton SUNNonlinearSolver-- it is not necessary to create and attach it
     retval = FIDASetLinearSolver(ida_mem, sunlinsol_LS, sunmat_A);
-    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetLinearSolver'; return; endif
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetLinearSolver'; return; endif
     
     ! Set the user-supplied Jacobian routine
     if(.not.use_fdJac)then
       retval = FIDASetJacFn(ida_mem, c_funloc(computJacob4ida))
-      if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetJacFn'; return; endif
+      if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetJacFn'; return; endif
     endif
     
     ! Enforce the solver to stop at end of the time step
     retval = FIDASetStopTime(ida_mem, dt_cur)
-    if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetStopTime'; return; endif
+    if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetStopTime'; return; endif
     
     ! Set solver parameters at end of setup
     call setSolverParams(dt_cur, ida_mem, retval)
-    if (retval /= 0) then; err=20; message='summaSolve4ida: error in setSolverParams'; return; endif
+    if (retval /= 0) then; err=20; message=trim(message)//'error in setSolverParams'; return; endif
     
     ! Disable error messages and warnings
     if(offErrWarnMessage) then
@@ -479,7 +479,7 @@ subroutine summaSolve4ida(                         &
       if(detect_events .and. .not.tinystep)then
         call find_rootdir(eqns_data, rootdir)
         retval = FIDASetRootDirection(ida_mem, rootdir)
-        if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDASetRootDirection'; return; endif
+        if (retval /= 0) then; err=20; message=trim(message)//'error in FIDASetRootDirection'; return; endif
       endif
     
       eqns_data%firstFluxCall = .false. ! already called for initial
@@ -642,11 +642,11 @@ subroutine summaSolve4ida(                         &
         if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
           ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
           !retval = FIDAGetRootInfo(ida_mem, rootsfound)
-          !if (retval < 0) then; err=20; message='summaSolve4ida: error in FIDAGetRootInfo'; return; endif
+          !if (retval < 0) then; err=20; message=trim(message)//'error in FIDAGetRootInfo'; return; endif
           !print '(a,f15.7,2x,17(i2,2x))', "time, rootsfound[] = ", tret(1), rootsfound
           ! Reininitialize solver for running after discontinuity and restart
           retval = FIDAReInit(ida_mem, tret(1), sunvec_y, sunvec_yp)
-          if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDAReInit'; return; endif
+          if (retval /= 0) then; err=20; message=trim(message)//'error in FIDAReInit'; return; endif
           if(dt_last(1) < 0.1_rkind)then ! don't keep calling if step is small (more accurate with this tiny but getting hung up)
             retval = FIDARootInit(ida_mem, 0, c_funloc(layerDisCont4ida))
             tinystep = .true.
@@ -654,7 +654,7 @@ subroutine summaSolve4ida(                         &
             retval = FIDARootInit(ida_mem, nRoot, c_funloc(layerDisCont4ida))
             tinystep = .false.
           endif
-          if (retval /= 0) then; err=20; message='summaSolve4ida: error in FIDARootInit'; return; endif
+          if (retval /= 0) then; err=20; message=trim(message)//'error in FIDARootInit'; return; endif
         endif
       endif
     
@@ -702,12 +702,12 @@ subroutine summaSolve4ida(                         &
     
     call FIDAFree(ida_mem)
     retval = FSUNLinSolFree(sunlinsol_LS)
-    if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the linear solver'; return; endif
+    if(retval /= 0)then; err=20; message=trim(message)//'unable to free the linear solver'; return; endif
     call FSUNMatDestroy(sunmat_A)
     call FN_VDestroy(sunvec_y)
     call FN_VDestroy(sunvec_yp)
     retval = FSUNContext_Free(sunctx)
-    if(retval /= 0)then; err=20; message='summaSolve4ida: unable to free the SUNDIALS context'; return; endif
+    if(retval /= 0)then; err=20; message=trim(message)//'unable to free the SUNDIALS context'; return; endif
 
   end associate
 
