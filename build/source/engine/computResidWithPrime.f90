@@ -58,38 +58,41 @@ contains
 ! **********************************************************************************************************
 subroutine computResidWithPrime(&
                       ! input: model control
-                      dt,                        & ! intent(in):    length of the time step (seconds)
-                      nSnow,                     & ! intent(in):    number of snow layers
-                      nSoil,                     & ! intent(in):    number of soil layers
-                      nLayers,                   & ! intent(in):    total number of layers
+                      dt,                        & ! intent(in):  length of the time step (seconds)
+                      nSnow,                     & ! intent(in):  number of snow layers
+                      nSoil,                     & ! intent(in):  number of soil layers
+                      nLayers,                   & ! intent(in):  total number of layers
+                      useEnthalpy,               & ! intent(in):  flag to use enthalpy formulation
                       ! input: flux vectors
-                      sMul,                      & ! intent(in):    state vector multiplier (used in the residual calculations)
-                      fVec,                      & ! intent(in):    flux vector
+                      sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
+                      fVec,                      & ! intent(in):  flux vector
                       ! input: state variables (already disaggregated into scalars and vectors)
-                      scalarCanopyTempTrial,     & ! intent(in)::   trial value for the temperature of the vegetation canopy (K)
-                      mLayerTempTrial,           & ! intent(in):    trial value for the temperature of each snow and soil layer (K)
-                      scalarCanairTempPrime,     & ! intent(in):    Prime value for the temperature of the canopy air space (K s-1)
-                      scalarCanopyTempPrime,     & ! intent(in):    Prime value for the temperature of the vegetation canopy (K s-1)
-                      scalarCanopyWatPrime,      & ! intent(in):    Prime value for the water on the vegetation canopy (kg m-2 s-1)
-                      mLayerTempPrime,           & ! intent(in):    Prime value for the temperature of each snow and soil layer (K s-1)
-                      scalarAquiferStoragePrime, & ! intent(in):    Prime value of storage of water in the aquifer (m s-1)
+                      scalarCanairTempPrime,     & ! intent(in):  prime value for the temperature of the canopy air space (K s-1)
+                      scalarCanopyTempPrime,     & ! intent(in):  prime value for the temperature of the vegetation canopy (K s-1)
+                      scalarCanopyWatPrime,      & ! intent(in):  prime value for the water on the vegetation canopy (kg m-2 s-1)
+                      mLayerTempPrime,           & ! intent(in):  prime vector of the temperature of each snow and soil layer (K s-1)
+                      scalarAquiferStoragePrime, & ! intent(in):  prime value for storage of water in the aquifer (m s-1)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                      scalarCanopyIcePrime,      & ! intent(in):    Prime value for the ice on the vegetation canopy (kg m-2 s-1)
-                      scalarCanopyLiqPrime,      & ! intent(in):    Prime value for the liq on the vegetation canopy (kg m-2 s-1)
-                      mLayerVolFracIcePrime,     & ! intent(in):    Prime value for the volumetric ice in each snow and soil layer (s-1)
-                      mLayerVolFracWatPrime,     & ! intent(in):    Prime value for the volumetric water in each snow and soil layer (s-1)
-                      mLayerVolFracLiqPrime,     & ! intent(in):    Prime value for the volumetric liq in each snow and soil layer (s-1)
-                      scalarCanopyCmTrial,       & ! intent(in):    Cm of vegetation canopy (J kg K-1)
-                      mLayerCmTrial,             & ! intent(in):    Cm of each snow and soil layer (J kg K-1)
+                      scalarCanopyIcePrime,      & ! intent(in):  prime value for the ice on the vegetation canopy (kg m-2 s-1)
+                      scalarCanopyLiqPrime,      & ! intent(in):  prime value for the liq on the vegetation canopy (kg m-2 s-1)
+                      mLayerVolFracIcePrime,     & ! intent(in):  prime vector of the volumetric ice in each snow and soil layer (s-1)
+                      mLayerVolFracWatPrime,     & ! intent(in):  prime vector of the volumetric water in each snow and soil layer (s-1)
+                      mLayerVolFracLiqPrime,     & ! intent(in):  prime vector of the volumetric liq in each snow and soil layer (s-1)
+                      ! input: enthalpy terms
+                      scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
+                      mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (J kg K-1)
+                      scalarCanairEnthalpyPrime, & ! intent(in):  prime value for the temperature component of the enthalpy of the canopy air space (J m-2 s-1)
+                      scalarCanopyEnthalpyPrime, & ! intent(in):  prime value for the temperature component of the enthalpy of the vegetation canopy (J m-2 s-1)
+                      mLayerEnthalpyPrime,       & ! intent(in):  prime vector of the enthalpy of each snow and soil layer (J m-2 s-1)
                       ! input: data structures
-                      prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
-                      diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
-                      flux_data,                 & ! intent(in):    model fluxes for a local HRU
-                      indx_data,                 & ! intent(in):    index data
+                      prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
+                      diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
+                      flux_data,                 & ! intent(in):  model fluxes for a local HRU
+                      indx_data,                 & ! intent(in):  index data
                       ! output
-                      rAdd,                      & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                      rVec,                      & ! intent(out):   residual vector
-                      err,message)                 ! intent(out):   error control
+                      rAdd,                      & ! intent(out): additional (sink) terms on the RHS of the state equation
+                      rVec,                      & ! intent(out): residual vector
+                      err,message)                 ! intent(out): error control
   ! --------------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control
@@ -97,25 +100,28 @@ subroutine computResidWithPrime(&
   integer(i4b),intent(in)         :: nSnow                     ! number of snow layers
   integer(i4b),intent(in)         :: nSoil                     ! number of soil layers
   integer(i4b),intent(in)         :: nLayers                   ! total number of layers in the snow+soil domain
+  logical(lgt),intent(in)         :: useEnthalpy               ! flag to use enthalpy formulation
   ! input: flux vectors
   real(qp),intent(in)             :: sMul(:)   ! NOTE: qp      ! state vector multiplier (used in the residual calculations)
   real(rkind),intent(in)          :: fVec(:)                   ! flux vector
   ! input: state variables (already disaggregated into scalars and vectors)
-  real(rkind),intent(in)          :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
-  real(rkind),intent(in)          :: mLayerTempTrial(:)        ! trial value for the temperature of each snow and soil layer (K)
-  real(rkind),intent(in)          :: scalarCanairTempPrime     ! Prime value for temperature of the canopy air space (K s-1)
-  real(rkind),intent(in)          :: scalarCanopyTempPrime     ! Prime value for temperature of the vegetation canopy (K s-1)
-  real(rkind),intent(in)          :: scalarCanopyWatPrime      ! Prime value for canopy total water content (kg m-2 s-1)
-  real(rkind),intent(in)          :: mLayerTempPrime(:)        ! Prime value for temperature of each snow/soil layer (K s-1) content
-  real(rkind),intent(in)          :: scalarAquiferStoragePrime ! Prime value of aquifer storage (m s-1)
+  real(rkind),intent(in)          :: scalarCanairTempPrime     ! prime value for temperature of the canopy air space (K s-1)
+  real(rkind),intent(in)          :: scalarCanopyTempPrime     ! prime value for temperature of the vegetation canopy (K s-1)
+  real(rkind),intent(in)          :: scalarCanopyWatPrime      ! prime value for canopy total water content (kg m-2 s-1)
+  real(rkind),intent(in)          :: mLayerTempPrime(:)        ! prime vector of temperature of each snow/soil layer (K s-1) content
+  real(rkind),intent(in)          :: scalarAquiferStoragePrime ! prime value of aquifer storage (m s-1)
   ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-  real(rkind),intent(in)          :: scalarCanopyIcePrime      ! Prime value for mass of ice on the vegetation canopy (kg m-2 s-1)
-  real(rkind),intent(in)          :: scalarCanopyLiqPrime      ! Prime value for the liq on the vegetation canopy (kg m-2 s-1)
-  real(rkind),intent(in)          :: mLayerVolFracIcePrime(:)  ! Prime value for volumetric fraction of ice (s-1)
-  real(rkind),intent(in)          :: mLayerVolFracWatPrime(:)  ! Prime value for the volumetric water in each snow and soil layer (s-1)
-  real(rkind),intent(in)          :: mLayerVolFracLiqPrime(:)  ! Prime value for the volumetric water in each snow and soil layer (s-1)
+  real(rkind),intent(in)          :: scalarCanopyIcePrime      ! prime value for mass of ice on the vegetation canopy (kg m-2 s-1)
+  real(rkind),intent(in)          :: scalarCanopyLiqPrime      ! prime value for the liq on the vegetation canopy (kg m-2 s-1)
+  real(rkind),intent(in)          :: mLayerVolFracIcePrime(:)  ! prime vector of volumetric fraction of ice (s-1)
+  real(rkind),intent(in)          :: mLayerVolFracWatPrime(:)  ! prime vector of the volumetric water in each snow and soil layer (s-1)
+  real(rkind),intent(in)          :: mLayerVolFracLiqPrime(:)  ! prime vector of the volumetric water in each snow and soil layer (s-1)
+  ! input: enthalpy terms
   real(qp),intent(in)             :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
   real(qp),intent(in)             :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
+  real(rkind),intent(in)          :: scalarCanairEnthalpyPrime ! prime value for the temperature component of the enthalpy of the canopy air space (J m-2 s-1)
+  real(rkind),intent(in)          :: scalarCanopyEnthalpyPrime ! prime value for the temperature component of the enthalpy of the vegetation canopy (J m-2 s-1)
+  real(rkind),intent(in)          :: mLayerEnthalpyPrime(:)    ! prime vector of the enthalpy of each snow and soil layer (J m-2 s-1)
   ! input: data structures
   type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
   type(var_dlength),intent(in)    :: diag_data                 ! diagnostic variables for a local HRU
@@ -129,10 +135,10 @@ subroutine computResidWithPrime(&
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
-  integer(i4b)                     :: iLayer                    ! index of layer within the snow+soil domain
-  integer(i4b),parameter           :: ixVegVolume=1             ! index of the desired vegetation control volumne (currently only one veg layer)
-  real(rkind)                      :: scalarCanopyHydPrime      ! trial value for canopy water (kg m-2), either liquid water content or total water content
-  real(rkind),dimension(nLayers)   :: mLayerVolFracHydPrime     ! vector of volumetric water content (-), either liquid water content or total water content
+  integer(i4b)                     :: iLayer                   ! index of layer within the snow+soil domain
+  integer(i4b),parameter           :: ixVegVolume=1            ! index of the desired vegetation control volumne (currently only one veg layer)
+  real(rkind)                      :: scalarCanopyHydPrime     ! trial value for canopy water (kg m-2), either liquid water content or total water content
+  real(rkind),dimension(nLayers)   :: mLayerVolFracHydPrime    ! vector of volumetric water content (-), either liquid water content or total water content
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! link to the necessary variables for the residual computations
@@ -203,8 +209,14 @@ subroutine computResidWithPrime(&
     ! compute the residual vector for the vegetation canopy
     ! NOTE: sMul(ixVegHyd) = 1, but include as it converts all variables to quadruple precision
     ! --> energy balance
-    if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg) * scalarCanairTempPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-    if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+    if(useEnthalpy)then
+      if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = scalarCanairEnthalpyPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = scalarCanopyEnthalpyPrime - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+    else
+      if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg) * scalarCanairTempPrime - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg) * scalarCanopyTempPrime + scalarCanopyCmTrial * scalarCanopyWatPrime/canopyDepth &
+                                                   - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+    endif
     ! --> mass balance
     if(ixVegHyd/=integerMissing)then
       scalarCanopyHydPrime = merge(scalarCanopyWatPrime, scalarCanopyLiqPrime, (ixStateType( ixHydCanopy(ixVegVolume) )==iname_watCanopy) )
@@ -214,7 +226,12 @@ subroutine computResidWithPrime(&
     ! compute the residual vector for the snow and soil sub-domains for energy
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-       rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+        if(useEnthalpy)then
+          rVec( ixSnowSoilNrg(iLayer) ) = mLayerEnthalpyPrime(iLayer) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+        else
+          rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) ) * mLayerTempPrime(iLayer) + mLayerCmTrial(iLayer) * mLayerVolFracWatPrime(iLayer) &
+                                         - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+        endif
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 
