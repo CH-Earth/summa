@@ -420,11 +420,13 @@ subroutine opSplittin(&
            call split_select % initialize_iStateSplit; split_select % stateSplit=.true.; ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
           end if
           if (split_select % stateSplit.eqv..true.) then
-           stateSplit: do !iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
+!           stateSplit: do !iStateSplit=1,nStateSplit ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
              iStateSplit=split_select % iStateSplit
              if (split_select % iStateSplit > nStateSplit) then
-              split_select % stateSplit=.false.; exit stateSplit
-             end if 
+              split_select % stateSplit=.false.; !exit stateSplit
+             end if
+          end if 
+          if (split_select % stateSplit.eqv..true.) then
 
              ! define state subsets for a given split...
              call split_select % get_indices(ixCoupling,ixSolution,ixStateThenDomain,iStateTypeSplit,iDomainSplit,iStateSplit) ! may be able to remove this once all indices are fully handled by split_select
@@ -456,12 +458,16 @@ subroutine opSplittin(&
              call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
 
              call success_check ! check for success
-             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; exit stateSplit; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations -- deactivate inner loops
-             if (exit_solution) then; split_select % solution=.false.; split_select % stateSplit=.false.; exit stateSplit; end if
-             if (return_flag.eqv..true.) return             ! return if error 
+             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations -- deactivate inner loops
+             if (split_select % stateThenDomain.eqv..true.) then
+              if (exit_solution) then; split_select % solution=.false.; split_select % stateSplit=.false.; end if
+              if (split_select % solution.eqv..true.) then
+               if (return_flag.eqv..true.) return             ! return if error 
 
-             call split_select % advance_iStateSplit
-           end do stateSplit ! solution with split layers
+               call split_select % advance_iStateSplit
+              end if
+             end if
+!           end do stateSplit ! solution with split layers
           end if ! stateSplit
           if (split_select % stateSplit.eqv..false.) then
            if (split_select % solution.eqv..true.) then
