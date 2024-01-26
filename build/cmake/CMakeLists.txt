@@ -206,10 +206,10 @@ else()
             message(FATAL_ERROR "Did not find Actors directory, edit CMakeLists.txt to add path")
         endif()
         link_directories(${DIR_ACTORS}/lib)
-        set(INC_ACTORS ${DIR_ACTORS}/include 
-                       ${PARENT_DIR}/build/includes/global 
-                       ${PARENT_DIR}/build/includes/summa_actor  
-                       ${PARENT_DIR}/build/includes/job_actor 
+        set(INC_ACTORS ${DIR_ACTORS}/include
+                       ${PARENT_DIR}/build/includes/global
+                       ${PARENT_DIR}/build/includes/summa_actor
+                       ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
         set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io)
@@ -395,7 +395,7 @@ set(SOLVER_SUNDIALS
 set(DRIVER
     ${DRIVER_DIR}/summa_alarms.f90
     ${DRIVER_DIR}/summa_globalData.f90)
-    set(DRIVER_NOT_ACTORS
+set(DRIVER_NOT_ACTORS
     ${DRIVER_DIR}/summa_util.f90
     ${DRIVER_DIR}/summa_type.f90
     ${DRIVER_DIR}/summa_defineOutput.f90

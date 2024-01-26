@@ -187,6 +187,9 @@ subroutine varSubstep(&
   real(rkind)                        :: sumSoilCompress               ! sum of total soil compression
   real(rkind),allocatable            :: sumLayerCompress(:)           ! sum of soil compression by layer
   ! ---------------------------------------------------------------------------------------
+  ! initialize error control
+  out_varSubstep % err=0; out_varSubstep % cmessage='varSubstep/'
+  ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
   globalVars: associate(&
@@ -240,9 +243,6 @@ subroutine varSubstep(&
     message           => out_varSubstep % cmessage                  & ! intent(out): error message
     )  ! end association with variables in the data structures
     ! *********************************************************************************************************************************************************
-   
-    ! initialize error control
-    err=0; message='varSubstep/'
 
     ! initialize flag for the success of the substepping
     failedMinimumStep=.false.
@@ -281,9 +281,6 @@ subroutine varSubstep(&
     ! NOTE: continuous do statement with exit clause
     substeps: do
       dtSubstep = min(dtSubstep,maxstep)
-
-      ! initialize error control
-      err=0; message='varSubstep/'
 
       ! -----
       ! * populate state vectors...

@@ -48,19 +48,25 @@ def power_transform(x):
     return x ** 0.5  # Adjust the exponent as needed
 
 # Simulation statistics file locations
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+use_vars = [1,2,4,5]
+settings0= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings = [settings0[i] for i in use_vars]
+
 viz_fil = method_name.copy()
 eff_fil = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings))
+    viz_fil[i] = viz_fil[i].format(','.join(settings0))
     eff_fil[i] = 'eff_' + m + '.txt'
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['(a) Snow Water Equivalent','(b) Total soil water content','(c) Total evapotranspiration', '(d) Total water on the vegetation canopy','(e) Average routed runoff','(f) Wall clock time']
+plt_titl = ['Snow Water Equivalent','Total soil water content','Total evapotranspiration', 'Total water on the vegetation canopy','Average routed runoff','Wall clock time']
 leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
 leg_titlm= ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~h^{-1}$','$kg~m^{-2}$','$mm~h^{-1}$','$s$']
+plt_titl = [f"({chr(97+n)}) {plt_titl[i]}" for n,i in enumerate(use_vars)]
+leg_titl = [leg_titl[i] for i in use_vars]
+leg_titlm= [leg_titlm[i] for i in use_vars]
 
 if do_hist:
     fig_fil = 'Hrly_diff_hist_{}_{}_zoom_compressed.png'
@@ -71,17 +77,17 @@ else:
 fig_fil = fig_fil.format(','.join(settings),stat)
 
 if stat == 'rmse': 
-    maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
-    #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
+    maxes = [2,15,250,0.08,200,10e-3] 
     if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'rmnz': 
     maxes = [2,15,250,0.08,200,10e-3]
     if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
 if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
+    maxes = [15,25,0.8,2,0.3,0.2]
     if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
 if stat == 'kgem': 
     maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
+maxes = [maxes[i] for i in use_vars]
 
 summa = {}
 eff = {}
@@ -99,19 +105,17 @@ for i, m in enumerate(method_name):
     
 ##Figure
 
-# Set the font size: we need this to be huge so we can also make our plotting area huge, to avoid a gnarly plotting bug
 if 'compressed' in fig_fil:
     plt.rcParams.update({'font.size': 25})
 else:
     plt.rcParams.update({'font.size': 100})
 
 if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(3,2,figsize=(31,33))
+    fig,axs = plt.subplots(3,2,figsize=(35,38))
 else:
-    fig,axs = plt.subplots(3,2,figsize=(140,133))
+    fig,axs = plt.subplots(3,2,figsize=(140,160))
+fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Histograms of Hourly Statistics for each GRU', fontsize=40,y=1.0)
-fig.subplots_adjust(hspace=0.28) # Adjust the bottom margin, vertical space, and horizontal space
-#fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
     
 def run_loop(i,var,mx):
     r = i//2
@@ -216,7 +220,7 @@ def run_loop(i,var,mx):
         axs[r,c].set_ylabel('cumulative distribution')
         axs[r,c].set_ylim([0.0, 1.0])
         axs[r,c].set_xscale('function', functions=(power_transform, np.power)) #log x axis
-        if r == 0 and c == 1: # Rotate x-axis labels for axs[2, 1] subplot
+        if var=='scalarTotalSoilWat': # Rotate x-axis labels for axs[2, 1] subplot
             axs[r, c].tick_params(axis='x', rotation=45)
 
 for i,(var,mx) in enumerate(zip(plot_vars,maxes)): 
