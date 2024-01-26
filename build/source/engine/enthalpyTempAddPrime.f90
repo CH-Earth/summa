@@ -62,7 +62,7 @@ contains
 
 
 ! ************************************************************************************************************************
-! public subroutine t2enthalpyPrime: compute enthalpy prime from temperature and total water content
+! public subroutine t2enthalpyPrime: compute temperature component of enthalpy prime from temperature and total water content
 ! ************************************************************************************************************************
 subroutine t2enthalpyPrime(&
                       ! input: data structures
@@ -87,9 +87,9 @@ subroutine t2enthalpyPrime(&
                       mLayerFracLiqSnow,                 & ! intent(in):   fraction of liquid water (-)
                       dVolTot_dPsi0,                     & ! intent(in):   derivative in total water content w.r.t. total water matric potential (m-1)
                       ! output: enthalpy prime
-                      scalarCanairEnthalpyPrime,         & ! intent(out):  prime enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyPrime,         & ! intent(out):  prime enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyPrime,               & ! intent(out):  prime enthalpy of each snow+soil layer (J m-3)
+                      scalarCanairEnthalpyPrime,         & ! intent(out):  prime temperature component of enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthalpyPrime,         & ! intent(out):  prime temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthalpyPrime,               & ! intent(out):  prime temperature component of enthalpy of each snow+soil layer (J m-3)
                       ! output: error control
                       err,message)                         ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -122,9 +122,9 @@ subroutine t2enthalpyPrime(&
   real(rkind),intent(in)           :: mLayerFracLiqSnow(:)      ! fraction of snow liquid water (-)
   real(rkind),intent(in)           :: dVolTot_dPsi0(:)          ! derivative in total water content w.r.t. total water matric potential (m-1)
    ! output: enthalpy prime
-  real(rkind),intent(out)          :: scalarCanairEnthalpyPrime ! prime enthalpy of the canopy air space (J m-3)
-  real(rkind),intent(out)          :: scalarCanopyEnthalpyPrime ! prime enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(out)          :: mLayerEnthalpyPrime(:)    ! prime enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(out)          :: scalarCanairEnthalpyPrime ! prime temperature component of enthalpy of the canopy air space (J m-3)
+  real(rkind),intent(out)          :: scalarCanopyEnthalpyPrime ! prime temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(out)          :: mLayerEnthalpyPrime(:)    ! prime temperature component of enthalpy of each snow+soil layer (J m-3)
   ! output: error control
   integer(i4b),intent(out)         :: err                       ! error code
   character(*),intent(out)         :: message                   ! error message

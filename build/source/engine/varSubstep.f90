@@ -628,7 +628,7 @@ USE getVectorz_module,only:varExtract                                   ! extrac
 #endif
   USE updateVars_module,only:updateVars                                 ! update prognostic variables
   USE enthalpyTemp_module,only:t2enthalpy                               ! compute enthalpy
-  USE enthalpyTemp_module,only:t2enthalpyChange_addphase                ! add phase to enthalpy
+  USE enthalpyTemp_module,only:enthalpy2DeltaH                          ! add phase change terms to delta temperature component of enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                                 ! time step (s)
@@ -685,35 +685,35 @@ USE getVectorz_module,only:varExtract                                   ! extrac
   real(rkind)                     :: scalarCanairTempTrial              ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempTrial              ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatTrial               ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempTrial                    ! trial vector for temperature of layers in the snow and soil domains (K)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracWatTrial              ! trial vector for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadTrial              ! trial vector for total water matric potential (m)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial           ! trial vector for liquid water matric potential (m)
+  real(rkind),dimension(nLayers)  :: mLayerTempTrial                    ! trial vector of temperature of layers in the snow and soil domains (K)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracWatTrial              ! trial vector of volumetric fraction of total water (-)
+  real(rkind),dimension(nSoil)    :: mLayerMatricHeadTrial              ! trial vector of total water matric potential (m)
+  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial           ! trial vector of liquid water matric potential (m)
   real(rkind)                     :: scalarAquiferStorageTrial          ! trial value for storage of water in the aquifer (m)
-  real(rkind)                     :: scalarCanairEnthalpyTrial          ! trial value for enthalpy of the canopy air space (J m-3)
-  real(rkind)                     :: scalarCanopyEnthalpyTrial          ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial                ! trial vector for enthalpy of snow + soil (J m-3)
+  real(rkind)                     :: scalarCanairEnthalpyTrial          ! trial value for temperature component of enthalpy of the canopy air space (J m-3)
+  real(rkind)                     :: scalarCanopyEnthalpyTrial          ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial                ! trial vector of temperature component of enthalpy of snow + soil (J m-3)
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial               ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial               ! trial value for mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial              ! trial vector for volumetric fraction of liquid water (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial              ! trial vector for volumetric fraction of ice (-)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial              ! trial vector of volumetric fraction of liquid water (-)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial              ! trial vector of volumetric fraction of ice (-)
   ! derivative of state variables
   real(rkind)                     :: scalarCanairTempPrime              ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanopyTempPrime              ! trial value for temperature of the vegetation canopy (K)
   real(rkind)                     :: scalarCanopyWatPrime               ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerTempPrime                    ! trial vector for temperature of layers in the snow and soil domains (K)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracWatPrime              ! trial vector for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadPrime              ! trial vector for total water matric potential (m)
-  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime           ! trial vector for liquid water matric potential (m)
+  real(rkind),dimension(nLayers)  :: mLayerTempPrime                    ! trial vector of temperature of layers in the snow and soil domains (K)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracWatPrime              ! trial vector of volumetric fraction of total water (-)
+  real(rkind),dimension(nSoil)    :: mLayerMatricHeadPrime              ! trial vector of total water matric potential (m)
+  real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime           ! trial vector of liquid water matric potential (m)
   real(rkind)                     :: scalarAquiferStoragePrime          ! trial value for storage of water in the aquifer (m)
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqPrime               ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIcePrime               ! trial value for mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime              ! trial vector for volumetric fraction of liquid water (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime              ! trial vector for volumetric fraction of ice (-)
-  real(rkind)                     :: scalarCanopyEnthalpyDelta_addphase ! delta value for enthalpy of the vegetation canopy with change (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyDelta_addphase       ! delta vector of enthalpy of snow + soil with phase change (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime              ! trial vector of volumetric fraction of liquid water (-)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime              ! trial vector of volumetric fraction of ice (-)
+  real(rkind)                     :: scalarCanopyHmixDelta              ! delta value for mixture enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerHmixDelta                    ! delta vector of mixture enthalpy of snow + soil (J m-3)
 
   ! -------------------------------------------------------------------------------------------------------------------
   ! -------------------------------------------------------------------------------------------------------------------
@@ -968,9 +968,9 @@ USE getVectorz_module,only:varExtract                                   ! extrac
                   mLayerVolFracWatTrial,       & ! intent(in):  trial vector of volumetric total water content (-)
                   mLayerMatricHeadTrial,       & ! intent(in):  trial vector of total water matric potential (m)
                   ! output: enthalpy
-                  scalarCanairEnthalpyTrial,   & ! intent(out):  enthalpy of the canopy air space (J m-3)
-                  scalarCanopyEnthalpyTrial,   & ! intent(out):  enthalpy of the vegetation canopy (J m-3)
-                  mLayerEnthalpyTrial,         & ! intent(out):  enthalpy of each snow+soil layer (J m-3)
+                  scalarCanairEnthalpyTrial,   & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
+                  scalarCanopyEnthalpyTrial,   & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+                  mLayerEnthalpyTrial,         & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
                   ! output: error control
                   err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -983,35 +983,42 @@ USE getVectorz_module,only:varExtract                                   ! extrac
         case(ida); ! do nothing, already computed
         case(kinsol, numrec)
 
-          ! initialize delta enthalpy with phase change, no phase change in canopy air space
-          scalarCanopyEnthalpyDelta_addphase = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy
-          mLayerEnthalpyDelta_addphase       = mLayerEnthalpyTrial - mLayerEnthalpy
+          ! initialize delta mixture enthalpy to delta temperature component of enthalpy, no difference in canopy air space
+          scalarCanopyHmixDelta = scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy
+          mLayerHmixDelta       = mLayerEnthalpyTrial - mLayerEnthalpy
           
-          ! compute enthalpy with phase change for current values, do on delta value so only have to do once
-          call t2enthalpyChange_addphase(&
-                      ! input: data structures
-                      diag_data,                          & ! intent(in):    model diagnostic variables for a local HRU
-                      indx_data,                          & ! intent(in):    model indices
-                      ! input: state variables for the ve getation canopy  
-                  scalarCanopyIceTrial - scalarCanopyIce, & ! intent(in):    delta value for canopy ice content (kg m-2)
-                      ! input: variables for the snow-soil domain  
-                mLayerVolFracIceTrial - mLayerVolFracIce, & ! intent(in):    delta vector of volumetric ice water content (-)
-                      ! input/output: enthalpy
-                      scalarCanopyEnthalpyDelta_addphase, & ! intent(inout): delta value for enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyDelta_addphase,       & ! intent(inout): delta vector of enthalpy of each snow+soil layer (J m-3)
-                      ! output: error control      
-                      err,message)                         ! intent(out): error control
+          ! compute mixture enthalpy for current values, do on delta value so only have to do once
+          call enthalpy2DeltaH(&
+                         ! input: data structures
+                         diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
+                         indx_data,                    & ! intent(in):    model indices
+                         ! input: ice content change  
+               scalarCanopyIceTrial - scalarCanopyIce, & ! intent(in):    delta value for canopy ice content (kg m-2)
+             mLayerVolFracIceTrial - mLayerVolFracIce, & ! intent(in):    delta vector of volumetric ice water content (-)
+                         ! input/output: enthalpy
+                         scalarCanopyHmixDelta,        & ! intent(inout): delta value for mixture enthalpy of the vegetation canopy (J m-3)
+                         mLayerHmixDelta,              & ! intent(inout): delta vector of mixture enthalpy of each snow+soil layer (J m-3)
+                         ! output: error control    
+                         err,message)                    ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! compute energy balance, maybe should use to check for step reduction
           if(ixCasNrg/=integerMissing) balance(ixCasNrg) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixCasNrg)*dt
-          !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg) ! should be equivalent to above, use for debugging
-          if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyEnthalpyDelta_addphase - fluxVec(ixVegNrg)*dt
+          if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHmixDelta - fluxVec(ixVegNrg)*dt
           if(nSnowSoilNrg>0)then
             do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
-              balance(ixSnowSoilNrg(i)) = mLayerEnthalpyDelta_addphase(i) - fluxVec(ixSnowSoilNrg(i))*dt
+              balance(ixSnowSoilNrg(i)) = mLayerHmixDelta(i) - fluxVec(ixSnowSoilNrg(i))*dt
             enddo
           endif
+          ! should be equivalent to above, use for debugging
+          !!if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg)
+          !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = resVec(ixVegNrg)
+          !if(nSnowSoilNrg>0)then
+          !  do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
+          !    balance(ixSnowSoilNrg(i)) = resVec(ixSnowSoilNrg(i))
+          !  enddo
+          !endif
+
       end select
     endif  ! if checking energy balance
 

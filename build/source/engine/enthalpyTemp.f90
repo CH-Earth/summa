@@ -66,7 +66,7 @@ public::T2L_lookup
 public::enthalpy2t_snow
 public::t2enthalpy_snow
 public::t2enthalpy
-public::t2enthalpyChange_addphase
+public::enthalpy2DeltaH
 private::hyp_2F1_real
 
 ! define the snow look-up table used to compute temperature based on enthalpy
@@ -77,7 +77,7 @@ contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2E_lookup: define a look-up table to compute specific enthalpy based on temperature
+! public subroutine T2E_lookup: define a look-up table to compute temperature component of enthalpy based on temperature
 !                               appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
 subroutine T2E_lookup(mpar_data,                     &  ! intent(in):    parameter data structure
@@ -305,14 +305,15 @@ end subroutine T2L_lookup
 
 
 ! ************************************************************************************************************************
-! public subroutine enthalpy2t_snow: compute temperature based on specific enthalpy -- appropriate when no dry mass, as in snow
+! public subroutine enthalpy2t_snow: compute temperature based on specific temperature component of enthalpy 
+!                                    appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
 subroutine enthalpy2t_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
-  real(rkind),intent(in)      :: Ey            ! total enthalpy (J m-3)
+  real(rkind),intent(in)      :: Ey            ! total temperature component of enthalpy (J m-3)
   real(rkind),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
   real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
   real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
@@ -404,8 +405,8 @@ end subroutine enthalpy2t_snow
 
 
 ! ************************************************************************************************************************
-! public function t2enthalpy_snow: compute total enthalpy based on temperature and mass (J m-3) for a layer only
-!                                  where the layer has no dry mass, as in snow
+! public function t2enthalpy_snow: compute temperature component of enthalpy based on temperature and mass (J m-3) for a
+!                                  layer only where the layer has no dry mass, as in snow
 !                            NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
 ! ************************************************************************************************************************
 function t2enthalpy_snow(Tk,BulkDenWater,fc_param)
@@ -439,7 +440,7 @@ end function t2enthalpy_snow
 
 
 ! ************************************************************************************************************************
-! public subroutine t2enthalpy: compute enthalpy from temperature and total water content
+! public subroutine t2enthalpy: compute temperature component of enthalpy from temperature and total water content
 ! ************************************************************************************************************************
 subroutine t2enthalpy(&
                       ! input: data structures
@@ -677,68 +678,66 @@ end subroutine t2enthalpy
 
 
 ! ************************************************************************************************************************
-! public subroutine t2enthalpyChange_addphase: compute change in enthalpy or enthalpy prime with phase change from ice content change
+! public subroutine enthalpy2DeltaH: compute change in mixture enthalpy or mixture enthalpy prime by adding terms of
+!                                    phase change from ice content change (= delta H)
 ! ************************************************************************************************************************
-subroutine t2enthalpyChange_addphase(&
+subroutine enthalpy2DeltaH(&
                       ! input: data structures
-                      diag_data,                    & ! intent(in):    model diagnostic variables for a local HRU
-                      indx_data,                    & ! intent(in):    model indices
-                      ! input: state variables for the vegetation canopy
-                      scalarCanopyIceDelta,         & ! intent(in):    value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
-                      ! input: variables for the snow-soil domain
-                      mLayerVolFracIceDelta,        & ! intent(in) :   vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
+                      diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
+                      indx_data,                  & ! intent(in):    model indices
+                      ! input: ice content change
+                      scalarCanopyIceDelta,       & ! intent(in):    value of canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
+                      mLayerVolFracIceDelta,      & ! intent(in):    vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
                       ! input/output: enthalpy
-                      scalarCanopyEnthalpyDelta,    & ! intent(inout): enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
-                      mLayerEnthalpyDelta,          & ! intent(inout): enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
+                      scalarCanopyHmixDelta,      & ! intent(inout): mixture enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
+                      mLayerHmixDelta,            & ! intent(inout): mixture enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
                       ! output: error control
-                      err,message)                    ! intent(out): error control
+                      err,message)                   ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
-  ! downwind routines
-  USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
-  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
   ! input: data structures
-  type(var_dlength),intent(in)     :: diag_data                 ! diagnostic variables for a local HRU
-  type(var_ilength),intent(in)     :: indx_data                 ! model indices
-  ! input: state variables for the vegetation canopy
-  real(rkind),intent(in)           :: scalarCanopyIceDelta      ! value for canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
-  ! input: variables for the snow-soil domain
-  real(rkind),intent(in)           :: mLayerVolFracIceDelta(:)  ! vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
+  type(var_dlength),intent(in)     :: diag_data                  ! diagnostic variables for a local HRU
+  type(var_ilength),intent(in)     :: indx_data                  ! model indices
+  ! input: ice content change
+  real(rkind),intent(in)           :: scalarCanopyIceDelta       ! delta value for canopy ice content (kg m-2) or prime ice content (kg m-2 s-1)
+  real(rkind),intent(in)           :: mLayerVolFracIceDelta(:)   ! delta vector of volumetric fraction of ice (-) or prime volumetric fraction of ice (s-1)
   ! input output: enthalpy
-  real(rkind),intent(inout)        :: scalarCanopyEnthalpyDelta ! value for enthalpy of the vegetation canopy (J m-3) or enthalpy prime (J m-3 s-1)
-  real(rkind),intent(inout)        :: mLayerEnthalpyDelta(:)    ! vector of enthalpy of each snow+soil layer (J m-3) or enthalpy prime (J m-3 s-1)
+  real(rkind),intent(inout)        :: scalarCanopyHmixDelta      ! delta value for mixture enthalpy of the vegetation canopy (J m-3 s-1)
+  real(rkind),intent(inout)        :: mLayerHmixDelta(:)         ! delta vector of mixture enthalpy of each snow+soil layer (J m-3 s-1)
   ! output: error control
-  integer(i4b),intent(out)         :: err                       ! error code
-  character(*),intent(out)         :: message                   ! error message
+  integer(i4b),intent(out)         :: err                        ! error code
+  character(*),intent(out)         :: message                    ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
-  character(len=128)               :: cmessage              ! error message in downwind routine
-  integer(i4b)                     :: iState                ! index of model state variable
-  integer(i4b)                     :: iLayer                ! index of model layer
-  integer(i4b)                     :: ixFullVector          ! index within full state vector
-  integer(i4b)                     :: ixDomainType          ! name of a given model domain
-  integer(i4b)                     :: ixControlIndex        ! index within a given model domain
+  character(len=128)               :: cmessage                   ! error message in downwind routine
+  integer(i4b)                     :: iState                     ! index of model state variable
+  integer(i4b)                     :: iLayer                     ! index of model layer
+  integer(i4b)                     :: ixFullVector               ! index within full state vector
+  integer(i4b)                     :: ixDomainType               ! name of a given model domain
+  integer(i4b)                     :: ixControlIndex             ! index within a given model domain
    ! ------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
     ! number of model layers, and layer type
-    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):  [i4b]    total number of soil layers
-    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)               ,& ! intent(in):  [i4b]    total number of snow and soil layers
+    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)            ,& ! intent(in): [i4b]    total number of snow layers
+    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)            ,& ! intent(in): [i4b]    total number of soil layers
+    nLayers                 => indx_data%var(iLookINDEX%nLayers)%dat(1)          ,& ! intent(in): [i4b]    total number of snow and soil layers
     ! mapping between the full state vector and the state subset
-    ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):  [i4b(:)] list of indices in the state subset for each state in the full state vector
-    ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat         ,& ! intent(in):  [i4b(:)] [state subset] list of indices of the full state vector in the state subset
+    ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat    ,& ! intent(in): [i4b(:)] list of indices in the state subset for each state in the full state vector
+    ixMapSubset2Full        => indx_data%var(iLookINDEX%ixMapSubset2Full)%dat    ,& ! intent(in): [i4b(:)] [state subset] list of indices of the full state vector in the state subset
     ! type of domain, type of state variable, and index of control volume within domain
-    ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):  [i4b(:)] [state subset] id of domain for desired model state variables
-    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):  [i4b(:)] index of the control volume for different domains (veg, snow, soil)
-    ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat               & ! intent(in):  [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+    ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat ,& ! intent(in): [i4b(:)] [state subset] id of domain for desired model state variables
+    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat     ,& ! intent(in): [i4b(:)] index of the control volume for different domains (veg, snow, soil)
+    ixStateType             => indx_data%var(iLookINDEX%ixStateType)%dat         ,& ! intent(in): [i4b(:)] indices defining the type of the state (iname_nrgLayer...)
+   ! canopy depth
+    canopyDepth             => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)  & ! intent(in): [dp]     canopy depth (m)
     ) ! end associate statement
     ! -----------------------------------------------------------------------------------------------------------------------
 
     ! initialize error control
-    err=0; message="t2enthalpyChange_addphase/"
+    err=0; message="enthalpy2DeltaH/"
 
     ! loop through model state variables
     do iState=1,size(ixMapSubset2Full)
@@ -757,34 +756,16 @@ subroutine t2enthalpyChange_addphase(&
 
         ! get the layer index
         select case(ixDomainType)
-          case(iname_cas);     iLayer = integerMissing
-          case(iname_veg);     iLayer = integerMissing
-          case(iname_snow);    iLayer = ixControlIndex
-          case(iname_soil);    iLayer = ixControlIndex + nSnow
-          case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
-          case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
-        end select
-
-        ! identify domain
-        select case(ixDomainType)
-          case(iname_cas); cycle ! canopy air space: do nothing
- 
+          case(iname_cas);     cycle ! canopy air space: do nothing (no water stored in canopy air space)
           case(iname_veg)
-            ! association to necessary variables for vegetation
-            vegVars: associate(&
-              canopyDepth => diag_data%var(iLookDIAG%scalarCanopyDepth)%dat(1)          & ! canopy depth (m)
-              )
-              scalarCanopyEnthalpyDelta = scalarCanopyEnthalpyDelta - LH_fus * scalarCanopyIceDelta / canopyDepth
-
-            end associate vegVars
-
+            scalarCanopyHmixDelta = scalarCanopyHmixDelta  - LH_fus * scalarCanopyIceDelta / canopyDepth
           case(iname_snow)
-            mLayerEnthalpyDelta(iLayer) = mLayerEnthalpyDelta(iLayer) - iden_ice * LH_fus * mLayerVolFracIceDelta(iLayer)
-
+            iLayer = ixControlIndex
+            mLayerHmixDelta(iLayer) = mLayerHmixDelta(iLayer) - iden_ice   * LH_fus * mLayerVolFracIceDelta(iLayer)
           case(iname_soil)
-            mLayerEnthalpyDelta(iLayer) = mLayerEnthalpyDelta(iLayer) - iden_water * LH_fus * mLayerVolFracIceDelta(iLayer)
-
-          case(iname_aquifer); cycle ! aquifer: do nothing
+            iLayer = ixControlIndex + nSnow
+            mLayerHmixDelta(iLayer) = mLayerHmixDelta(iLayer) - iden_water * LH_fus * mLayerVolFracIceDelta(iLayer)
+          case(iname_aquifer); cycle ! aquifer: do nothing (no thermodynamics in the aquifer)
           case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil, iname_aquifer'; return
         end select
 
@@ -793,7 +774,7 @@ subroutine t2enthalpyChange_addphase(&
 
   end associate generalVars
 
-end subroutine t2enthalpyChange_addphase
+end subroutine enthalpy2DeltaH
 
 !----------------------------------------------------------------------
 ! private function: compute hypergeometric function with real arguments into real result

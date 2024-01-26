@@ -388,7 +388,7 @@ MODULE var_lookup
   integer(i4b)    :: mLayerThermalC                  = integerMissing ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
-  integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! enthalpy of the canopy air space (J m-3)
+  integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! temperature component of enthalpy of the canopy air space (J m-3)
   integer(i4b)    :: scalarCanopyEnthalpy            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
   integer(i4b)    :: mLayerEnthalpy                  = integerMissing ! temperature component of enthalpy of the snow+soil layers (J m-3)
   ! forcing

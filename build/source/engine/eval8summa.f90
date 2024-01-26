@@ -200,9 +200,9 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
   ! enthalpy
-  real(rkind)                        :: scalarCanairEnthalpyTrial ! trial value for enthalpy of the canopy air space (J m-3
-  real(rkind)                        :: scalarCanopyEnthalpyTrial ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial       ! trial vector of enthalpy for snow+soil layers (J m-3)
+  real(rkind)                        :: scalarCanairEnthalpyTrial ! trial value for temperature component of enthalpy of the canopy air space (J m-3
+  real(rkind)                        :: scalarCanopyEnthalpyTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial       ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
   ! other local variables
   logical(lgt)                       :: checkLWBalance            ! flag to check longwave balance
   integer(i4b)                       :: iLayer                    ! index of model layer in the snow+soil domain
@@ -401,9 +401,9 @@ subroutine eval8summa(&
                         mLayerVolFracWatTrial,     & ! intent(in):  trial vector of volumetric total water content (-)
                         mLayerMatricHeadTrial,     & ! intent(in):  trial vector of total water matric potential (m)
                         ! output: enthalpy
-                        scalarCanairEnthalpyTrial, & ! intent(out): trial value for enthalpy of the canopy air space (J m-3)
-                        scalarCanopyEnthalpyTrial, & ! intent(out): trial value for enthalpy of the vegetation canopy (J m-3)
-                        mLayerEnthalpyTrial,       & ! intent(out): trial vector of enthalpy of each snow+soil layer (J m-3)
+                        scalarCanairEnthalpyTrial, & ! intent(out): trial value for temperature component of enthalpy of the canopy air space (J m-3)
+                        scalarCanopyEnthalpyTrial, & ! intent(out): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                        mLayerEnthalpyTrial,       & ! intent(out): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
                         ! output: error control
                         err,cmessage)                ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif

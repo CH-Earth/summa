@@ -157,7 +157,7 @@ subroutine summaSolve4ida(                         &
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
   USE enthalpyTempAddPrime_module,only:t2enthalpyPrime        ! compute enthalpy
-  USE enthalpyTemp_module,only:t2enthalpyChange_addphase      ! add phase to enthalpy
+  USE enthalpyTemp_module,only:enthalpy2DeltaH                ! add phase change terms to delta temperature component of enthalpy
 
   !======= Declarations =========
   implicit none
@@ -241,11 +241,11 @@ subroutine summaSolve4ida(                         &
   type(var_dlength)                 :: flux_prev                              ! previous model fluxes for a local HRU
   character(LEN=256)                :: cmessage                               ! error message of downwind routine
   real(rkind),allocatable           :: mLayerMatricHeadPrimePrev(:)           ! previous derivative value for total water matric potential (m s-1)
-  real(rkind)                       :: scalarCanairEnthalpyPrimePrev          ! previous derivative value for canopy air enthalpy (J m-3)
-  real(rkind)                       :: scalarCanopyEnthalpyPrime_addphasePrev ! previous derivative value for canopy enthalpy (J m-3)
-  real(rkind),allocatable           :: mLayerEnthalpyPrime_addphase(:)        ! derivative value for total water enthalpy (J m-3)
-  real(rkind)                       :: scalarCanopyEnthalpyPrime_addphase     ! derivative value for canopy enthalpy (J m-3)
-  real(rkind),allocatable           :: mLayerEnthalpyPrime_addphasePrev(:)    ! previous derivative value for total water enthalpy (J m-3)
+  real(rkind)                       :: scalarCanairEnthalpyPrimePrev          ! previous derivative value for canopy air temperature component of enthalpy (J m-3)
+  real(rkind)                       :: scalarCanopyHmixPrimePrev              ! previous derivative value for canopy mixture enthalpy (J m-3)
+  real(rkind),allocatable           :: mLayerHmixPrime(:)                     ! derivative value for total water mixture enthalpy (J m-3)
+  real(rkind)                       :: scalarCanopyHmixPrime                  ! derivative value for canopy mixture enthalpy (J m-3)
+  real(rkind),allocatable           :: mLayerHmixPrimePrev(:)                 ! previous derivative value for total water enthalpy (J m-3)
   real(rkind),allocatable           :: fluxVecPrev(:)                         ! previous value for fluxes
   real(rkind),allocatable           :: resVecPrev(:)                          ! previous value for residuals
   real(rkind),allocatable           :: dCompress_dPsiPrev(:)                  ! previous derivative value soil compression
@@ -337,8 +337,8 @@ subroutine summaSolve4ida(                         &
     allocate( eqns_data%mLayerVolFracIcePrime(nLayers) )
     allocate( eqns_data%mLayerEnthalpyPrime(nLayers) )
     allocate( mLayerMatricHeadPrimePrev(nSoil) )
-    allocate( mLayerEnthalpyPrime_addphase(nLayers) )
-    allocate( mLayerEnthalpyPrime_addphasePrev(nLayers) )
+    allocate( mLayerHmixPrime(nLayers) )
+    allocate( mLayerHmixPrimePrev(nLayers) )
     allocate( dCompress_dPsiPrev(nSoil) )
     allocate( eqns_data%fluxVec(nState) )
     allocate( eqns_data%resVec(nState) )
@@ -347,20 +347,20 @@ subroutine summaSolve4ida(                         &
     allocate( resVecPrev(nState) )
     
     !initialize
-    scalarCanopyEnthalpyPrime_addphase = 0._rkind
-    mLayerEnthalpyPrime_addphase(:)    = 0._rkind
+    scalarCanopyHmixPrime = 0._rkind
+    mLayerHmixPrime(:)    = 0._rkind
 
     ! need the following values for the first substep
-    eqns_data%scalarCanopyTempPrev         = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
-    eqns_data%mLayerTempPrev(:)            = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
-    eqns_data%mLayerMatricHeadPrev(:)      = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
-    mLayerMatricHeadPrimePrev(:)           = 0._rkind
-    scalarCanairEnthalpyPrimePrev          = 0._rkind
-    scalarCanopyEnthalpyPrime_addphasePrev = 0._rkind
-    mLayerEnthalpyPrime_addphasePrev(:)    = 0._rkind
-    dCompress_dPsiPrev(:)                  = 0._rkind
-    fluxVecPrev(:)                         = 0._rkind
-    resVecPrev(:)                          = 0._rkind
+    eqns_data%scalarCanopyTempPrev    = prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)
+    eqns_data%mLayerTempPrev(:)       = prog_data%var(iLookPROG%mLayerTemp)%dat(:)
+    eqns_data%mLayerMatricHeadPrev(:) = prog_data%var(iLookPROG%mLayerMatricHead)%dat(:)
+    mLayerMatricHeadPrimePrev(:)      = 0._rkind
+    scalarCanairEnthalpyPrimePrev     = 0._rkind
+    scalarCanopyHmixPrimePrev         = 0._rkind
+    mLayerHmixPrimePrev(:)            = 0._rkind
+    dCompress_dPsiPrev(:)             = 0._rkind
+    fluxVecPrev(:)                    = 0._rkind
+    resVecPrev(:)                     = 0._rkind
     
     retval = FSUNContext_Create(c_null_ptr, sunctx)
     
@@ -567,44 +567,50 @@ subroutine summaSolve4ida(                         &
                           ! output: enthalpy
                           eqns_data%scalarCanairEnthalpyPrime,                        & ! intent(out): prime value for temperature component of enthalpy of the canopy air space (J m-3)
                           eqns_data%scalarCanopyEnthalpyPrime,                        & ! intent(out): prime value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                          eqns_data%mLayerEnthalpyPrime,                              & ! intent(out): prime vector oftemperature component of enthalpy of each snow+soil layer (J m-3)
+                          eqns_data%mLayerEnthalpyPrime,                              & ! intent(out): prime vector of temperature component of enthalpy of each snow+soil layer (J m-3)
                           ! output: error control
                           err,cmessage)                  ! intent(out): error control
            if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
         endif
 
-        ! initialize enthalpy prime with phase change, no phase change in canopy air space
-        scalarCanopyEnthalpyPrime_addphase = eqns_data%scalarCanopyEnthalpyPrime
-        mLayerEnthalpyPrime_addPhase       = eqns_data%mLayerEnthalpyPrime
+        ! initialize mixture enthalpy prime to temperature component of enthalpy, no difference in canopy air space
+        scalarCanopyHmixPrime = eqns_data%scalarCanopyEnthalpyPrime
+        mLayerHmixPrime       = eqns_data%mLayerEnthalpyPrime    
 
-        ! compute enthalpy prime with phase change
-        call t2enthalpyChange_addphase(&
+        ! compute mixture enthalpy prime
+        call enthalpy2DeltaH(&
                     ! input: data structures
-                    eqns_data%diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
-                    eqns_data%indx_data,                & ! intent(in):    model indices
-                    ! input: state variables for the vegetation canopy
-                    eqns_data%scalarCanopyIcePrime,     & ! intent(in):    prime value for canopy ice content (kg m-2 s-1)
-                    ! input: variables for the snow-soil domain
-                    eqns_data%mLayerVolFracIcePrime,    & ! intent(in):    prime vector of ice volume fraction (s-1)
-                    ! input/output: enthalpy
-                    scalarCanopyEnthalpyPrime_addphase, & ! intent(inout): prime value for enthalpy of the vegetation canopy (J m-3 s-1)
-                    mLayerEnthalpyPrime_addPhase,       & ! intent(inout): prime vector of enthalpy of each snow+soil layer (J m-3 s-1)
+                    eqns_data%diag_data,             & ! intent(in):    model diagnostic variables for a local HRU
+                    eqns_data%indx_data,             & ! intent(in):    model indices
+                    ! input: ice content change
+                    eqns_data%scalarCanopyIcePrime,  & ! intent(in):    prime value for canopy ice content (kg m-2 s-1)
+                    eqns_data%mLayerVolFracIcePrime, & ! intent(in):    prime vector of ice volume fraction (s-1)
+                      ! input/output: enthalpy
+                    scalarCanopyHmixPrime,           & ! intent(inout): prime value for mixture enthalpy of the vegetation canopy (J m-3 s-1)
+                    mLayerHmixPrime,                 & ! intent(inout): prime vector of mixture enthalpy of each snow+soil layer (J m-3 s-1)
                     ! output: error control
-                    err,cmessage)                         ! intent(out): error control
+                    err,cmessage)                      ! intent(out): error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
     
         ! compute energy balance mean
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%scalarCanairEnthalpyPrime - eqns_data%fluxVec(ixCasNrg) & 
-                                                                               + scalarCanairEnthalpyPrimePrev - fluxVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
-        !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt ! should be equivalent to above, use for debugging
-        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( scalarCanopyEnthalpyPrime_addphase - eqns_data%fluxVec(ixVegNrg) &
-                                                                               + scalarCanopyEnthalpyPrime_addphasePrev - fluxVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
+                                                                             + scalarCanairEnthalpyPrimePrev - fluxVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
+        if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( scalarCanopyHmixPrime - eqns_data%fluxVec(ixVegNrg) &
+                                                                             + scalarCanopyHmixPrimePrev - fluxVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then
           do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
-            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( mLayerEnthalpyPrime_addPhase(i) - eqns_data%fluxVec(ixSnowSoilNrg(i)) &
-                                                                                                           + mLayerEnthalpyPrime_addPhasePrev(i) - fluxVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
+            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( mLayerHmixPrime(i) - eqns_data%fluxVec(ixSnowSoilNrg(i)) &
+                                                                    + mLayerHmixPrimePrev(i) - fluxVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
           enddo
         endif
+        ! should be equivalent to above, use for debugging
+        !if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
+        !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
+        !if(nSnowSoilNrg>0)then
+        !  do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
+        !    balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
+        !  enddo
+        !endif
       endif
     
       ! ----
@@ -629,8 +635,8 @@ subroutine summaSolve4ida(                         &
       eqns_data%mLayerMatricHeadPrev(:)      = eqns_data%mLayerMatricHeadTrial(:)
       mLayerMatricHeadPrimePrev(:)           = eqns_data%mLayerMatricHeadPrime(:)
       scalarCanairEnthalpyPrimePrev          = eqns_data%scalarCanairEnthalpyPrime
-      scalarCanopyEnthalpyPrime_addphasePrev = scalarCanopyEnthalpyPrime_addphase
-      mLayerEnthalpyPrime_addphasePrev(:)    = mLayerEnthalpyPrime_addphase(:) 
+      scalarCanopyHmixPrimePrev = scalarCanopyHmixPrime
+      mLayerHmixPrimePrev(:)    = mLayerHmixPrime(:) 
       dCompress_dPsiPrev(:)                  = eqns_data%deriv_data%var(iLookDERIV%dCompress_dPsi)%dat(:)
       tretPrev                               = tret(1)
       flux_prev                              = eqns_data%flux_data
@@ -691,8 +697,8 @@ subroutine summaSolve4ida(                         &
     deallocate( eqns_data%mLayerVolFracIcePrime )
     deallocate( eqns_data%mLayerEnthalpyPrime )
     deallocate( mLayerMatricHeadPrimePrev )
-    deallocate( mLayerEnthalpyPrime_addphase )
-    deallocate( mLayerEnthalpyPrime_addphasePrev )
+    deallocate( mLayerHmixPrime )
+    deallocate( mLayerHmixPrimePrev )
     deallocate( dCompress_dPsiPrev )
     deallocate( eqns_data%fluxVec )
     deallocate( eqns_data%resVec )

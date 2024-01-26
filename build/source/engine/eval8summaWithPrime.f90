@@ -101,7 +101,7 @@ subroutine eval8summaWithPrime(&
                       ! output: enthalpy prime values    
                       scalarCanairEnthalpyPrime,     & ! intent(out):   prime value for temperature component of enthalpy of the canopy air space (J m-3 s-1)
                       scalarCanopyEnthalpyPrime,     & ! intent(out):   prime value for temperature component of enthalpy of the vegetation canopy (J m-3 s-1)
-                      mLayerEnthalpyPrime,           & ! intent(out):   prime vector for temperature component of enthalpy for snow+soil layers (J m-3 s-1)
+                      mLayerEnthalpyPrime,           & ! intent(out):   prime vector of temperature component of enthalpy for snow+soil layers (J m-3 s-1)
                       ! input-output: baseflow    
                       ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
                       dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -172,11 +172,11 @@ subroutine eval8summaWithPrime(&
   real(rkind),intent(out)         :: scalarCanopyTempPrime           ! prime value for temperature of the vegetation canopy (K s-1)
   real(rkind),intent(out)         :: scalarCanopyWatPrime            ! prime value for total water content of the vegetation canopy (kg m-2 s-1)
   real(rkind),intent(out)         :: scalarCanopyIcePrime            ! prime value for mass of ice on the vegetation canopy (kg m-2 s-1)
-  real(rkind),intent(out)         :: mLayerTempPrime(:)              ! prime vector for temperature of each snow and soil layer (K s-1)
-  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)        ! prime vector for matric head of each snow and soil layer (m s-1)
-  real(rkind),intent(out)         :: mLayerMatricHeadLiqPrime(:)     ! prime vector for liquid water matric potential (m s-1)
-  real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)        ! prime vector for volumetric total water content of each snow and soil layer (s-1)
-  real(rkind),intent(out)         :: mLayerVolFracIcePrime(:)        ! prime vector for volumetric fraction of ice (s-1)
+  real(rkind),intent(out)         :: mLayerTempPrime(:)              ! prime vector of temperature of each snow and soil layer (K s-1)
+  real(rkind),intent(out)         :: mLayerMatricHeadPrime(:)        ! prime vector of matric head of each snow and soil layer (m s-1)
+  real(rkind),intent(out)         :: mLayerMatricHeadLiqPrime(:)     ! prime vector of liquid water matric potential (m s-1)
+  real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each snow and soil layer (s-1)
+  real(rkind),intent(out)         :: mLayerVolFracIcePrime(:)        ! prime vector of volumetric fraction of ice (s-1)
   ! output: enthalpy prime values    
   real(rkind),intent(out)         :: scalarCanairEnthalpyPrime       ! prime value for temperature component of enthalpy of the canopy air space (J m-3 s-1)
   real(rkind),intent(out)         :: scalarCanopyEnthalpyPrime       ! prime value for temperature component of enthalpy of the vegetation canopy (J m-3 s-1)
@@ -205,15 +205,13 @@ subroutine eval8summaWithPrime(&
   real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial           ! trial vector for volumetric ice content (-)
   real(rkind)                     :: scalarAquiferStorageTrial       ! trial value of storage of water in the aquifer (m)
   real(rkind)                     :: scalarCanopyLiqPrime            ! prime value for liquid water storage in the canopy (kg m-2 s-1)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime           ! prime vector for volumetric liquid water content (s-1)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime           ! prime vector of volumetric liquid water content (s-1)
   real(rkind)                     :: scalarAquiferStoragePrime       ! prime value of storage of water in the aquifer (m s-1)
   ! other local variables
   integer(i4b)                    :: iLayer                          ! index of model layer in the snow+soil domain
   integer(i4b)                    :: jState(1)                       ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                     ! index of indices for the soil compression routine
   character(LEN=256)              :: cmessage                        ! error message of downwind routine
-  real(rkind)                     :: scalarCanopyCmTrial             ! trial value of Cm for the canopy
-  real(rkind),dimension(nLayers)  :: mLayerCmTrial                   ! trial vector of Cm for snow+soil
   logical(lgt),parameter          :: updateCp=.true.                 ! flag to indicate if we update Cp at each step
   logical(lgt),parameter          :: needCm=.true.                   ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
