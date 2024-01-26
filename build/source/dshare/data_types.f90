@@ -303,6 +303,8 @@ MODULE data_types
   type(hru_i),allocatable                :: gru(:)                        ! gru(:)%hru(:)
  endtype gru_i
 
+ integer(i4b),parameter :: len_msg=256 ! length of character string used in class definitions
+
  ! ***********************************************************************************************************
  ! Define classes used to simplify calls to the subrotuines in computFlux
  ! ***********************************************************************************************************
@@ -355,7 +357,7 @@ MODULE data_types
    real(rkind)              :: dCanopyNetFlux_dCanWat                  ! intent(out): derivative in net canopy fluxes w.r.t. canopy total water content (J kg-1 s-1)
    real(rkind)              :: dGroundNetFlux_dCanWat                  ! intent(out): derivative in net ground fluxes w.r.t. canopy total water content (J kg-1 s-1)
    integer(i4b)             :: err                                     ! intent(out): error code
-   character(:),allocatable :: cmessage                                ! intent(out): error message
+   character(len=len_msg)   :: cmessage                                ! intent(out): error message
   contains
    procedure :: finalize => finalize_out_vegNrgFlux
  end type out_type_vegNrgFlux
@@ -390,7 +392,7 @@ MODULE data_types
    real(rkind), allocatable :: dNrgFlux_dWatAbove(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer above (J m-2 s-1 K-1)
    real(rkind), allocatable :: dNrgFlux_dWatBelow(:)             ! intent(out): derivatives in the flux w.r.t. water state in the layer below (J m-2 s-1 K-1)
    integer(i4b)             :: err                               ! intent(out): error code
-   character(:),allocatable :: cmessage                          ! intent(out): error message
+   character(len=len_msg)   :: cmessage                          ! intent(out): error message
   contains
    procedure :: finalize   => finalize_out_ssdNrgFlux
  end type out_type_ssdNrgFlux
@@ -411,7 +413,7 @@ MODULE data_types
    real(rkind)              :: scalarThroughfallRainDeriv        ! intent(out): derivative in throughfall w.r.t. canopy liquid water (s-1)
    real(rkind)              :: scalarCanopyLiqDrainageDeriv      ! intent(out): derivative in canopy drainage w.r.t. canopy liquid water (s-1)
    integer(i4b)             :: err                               ! intent(out): error code
-   character(:),allocatable :: cmessage                          ! intent(out): error message
+   character(len=len_msg)   :: cmessage                          ! intent(out): error message
   contains
    procedure :: finalize => finalize_out_vegLiqFlux
  end type out_type_vegLiqFlux
@@ -439,7 +441,7 @@ MODULE data_types
 
  type, public :: out_type_snowLiqFlx ! class for intent(out) arguments in snowLiqFlx call
    integer(i4b)             :: err                               ! intent(out):   error code
-   character(:),allocatable :: cmessage                          ! intent(out):   error message
+   character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
    procedure :: finalize => finalize_out_snowLiqFlx
  end type out_type_snowLiqFlx
@@ -501,7 +503,7 @@ MODULE data_types
 
  type, public :: out_type_soilLiqFlx ! class for intent(out) arguments in soilLiqFlx call
    integer(i4b)             :: err                               ! intent(out):   error code
-   character(:),allocatable :: cmessage                          ! intent(out):   error message
+   character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
    procedure :: finalize   => finalize_out_soilLiqFlx
  end type out_type_soilLiqFlx
@@ -532,7 +534,7 @@ MODULE data_types
    real(rkind), allocatable :: mLayerBaseflow(:)                 ! intent(out):   baseflow from each soil layer (m s-1)
    real(rkind), allocatable :: dBaseflow_dMatric(:,:)            ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
    integer(i4b)             :: err                               ! intent(out):   error code
-   character(:),allocatable :: cmessage                          ! intent(out):   error message
+   character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
    procedure :: finalize => finalize_out_groundwatr
  end type out_type_groundwatr
@@ -567,7 +569,7 @@ MODULE data_types
    real(rkind)              :: scalarAquiferBaseflow             ! intent(out):   total baseflow from the aquifer (m s-1)
    real(rkind)              :: dBaseflow_dAquifer                ! intent(out):   change in baseflow flux w.r.t. aquifer storage (s-1)
    integer(i4b)             :: err                               ! intent(out):   error code
-   character(:),allocatable :: cmessage                          ! intent(out):   error message
+   character(len=len_msg)   :: cmessage                          ! intent(out):   error message
   contains
    procedure :: finalize   => finalize_out_bigAquifer
  end type out_type_bigAquifer
@@ -588,7 +590,7 @@ MODULE data_types
  type, public :: out_type_stateFilter ! class for intent(out) arguments in stateFilter call
    integer(i4b)             :: nSubset                     ! intent(out): number of selected state variables for a given split
    integer(i4b)             :: err                         ! intent(out): error code
-   character(:),allocatable :: cmessage                    ! intent(out): error message
+   character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
    procedure :: finalize   => finalize_out_stateFilter
  end type out_type_stateFilter
@@ -606,7 +608,7 @@ MODULE data_types
 
  type, public :: out_type_indexSplit ! class for intent(out) arguments in indexSplit call
    integer(i4b)             :: err                         ! intent(out): error code
-   character(:),allocatable :: cmessage                    ! intent(out): error message
+   character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
    procedure :: finalize   => finalize_out_indexSplit
  end type out_type_indexSplit
@@ -646,7 +648,7 @@ MODULE data_types
    logical(lgt)             :: reduceCoupledStep           ! intent(out): flag to reduce the length of the coupled step
    logical(lgt)             :: tooMuchMelt                 ! intent(out): flag to denote that ice is insufficient to support melt
    integer(i4b)             :: err                         ! intent(out): error code
-   character(:),allocatable :: cmessage                    ! intent(out): error message
+   character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
    procedure :: finalize   => finalize_out_varSubstep
  end type out_type_varSubstep
