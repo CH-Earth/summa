@@ -130,7 +130,6 @@ subroutine eval8summa(&
   USE enthalpyTemp_module, only:t2enthalpy              ! compute enthalpy
   USE computFlux_module, only:soilCmpres                ! compute soil compression
   USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
-  USE computHeatCap_module,only:computHeatCap           ! recompute enthalpy finite difference heat capacity (Cp) and derivatives
   USE computHeatCap_module,only:computHeatCapAnalytic   ! recompute closed form heat capacity (Cp) and derivatives
   USE computHeatCap_module,only:computCm                ! compute Cm and derivatives
   USE computHeatCap_module, only:computStatMult         ! recompute state multiplier
