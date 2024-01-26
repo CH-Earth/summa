@@ -109,7 +109,7 @@ subroutine summaSolve4ida(                         &
                       checkNrgBalance,         & ! intent(in):    flag to check energy balance
                       ! input: state vectors
                       stateVecInit,            & ! intent(in):    initial state vector
-                      sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
+                      sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
@@ -548,11 +548,11 @@ subroutine summaSolve4ida(                         &
                           eqns_data%mpar_data,                                        & ! intent(in):  parameter data structure
                           eqns_data%indx_data,                                        & ! intent(in):  model indices
                           ! input: state variables for the vegetation canopy
-                          eqns_data%scalarCanairTempPrime,                            & ! intent(in):  prime value of canopy air temperature (K)
-                          eqns_data%scalarCanopyTempTrial,                            & ! intent(in):  trial value of canopy temperature (K)
-                          eqns_data%scalarCanopyWatTrial,                             & ! intent(in):  trial value of canopy total water (kg m-2)
-                          eqns_data%scalarCanopyTempPrime,                            & ! intent(in):  prime value of temperature of the vegetation canopy (K)
-                          eqns_data%scalarCanopyWatPrime,                             & ! intent(in):  prime value of total water of the vegetation canopy (kg m-2)
+                          eqns_data%scalarCanairTempPrime,                            & ! intent(in):  prime value for canopy air temperature (K)
+                          eqns_data%scalarCanopyTempTrial,                            & ! intent(in):  trial value for canopy temperature (K)
+                          eqns_data%scalarCanopyWatTrial,                             & ! intent(in):  trial value for canopy total water (kg m-2)
+                          eqns_data%scalarCanopyTempPrime,                            & ! intent(in):  prime value for temperature of the vegetation canopy (K)
+                          eqns_data%scalarCanopyWatPrime,                             & ! intent(in):  prime value for total water of the vegetation canopy (kg m-2)
                            ! input: variables for the snow-soil domain
                           eqns_data%mLayerTempTrial,                                  & ! intent(in):  trial vector of layer temperature (K)
                           eqns_data%mLayerVolFracWatTrial,                            & ! intent(in):  trial vector of volumetric total water content (-)

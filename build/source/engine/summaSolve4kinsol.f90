@@ -101,7 +101,7 @@ subroutine summaSolve4kinsol(&
                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
                       ! input: state vectors
                       stateVecInit,            & ! intent(in):    initial state vector
-                      sMul,                    & ! intent(inout): state vector multiplier (USEd in the residual calculations)
+                      sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
