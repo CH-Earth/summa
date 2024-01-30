@@ -801,8 +801,6 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   real(rkind)                              :: scalarTemp                 ! temperature of an individual snow layer (K)
   real(rkind)                              :: scalarIce                  ! volumetric ice content of an individual layer (-)
   real(rkind)                              :: volFracLiq                 ! volumetric liquid water content of an individual layer (-)
-  logical(lgt),dimension(nSoil)            :: crosFlag                   ! flag to denote temperature crossing from unfrozen to frozen (or vice-versa)
-  logical(lgt)                             :: crosTempVeg                ! flag to denoote where temperature crosses the freezing point
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
   real(rkind)                              :: TcSoil                     ! critical point when soil begins to freeze (K)
   real(rkind)                              :: critDiff                   ! temperature difference from critical (K)
@@ -879,7 +877,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         small_delMatric     = .true.      ! flag to constain matric head change to be less than zMaxMatricIncrement
         zMaxMatricIncrement = 10._rkind   ! maximum matric head increment (m)
         detect_events       = .true.      ! flag to do freezing point event detection and cross-over with epsT, works best if on
-        epsT                = 1.e-3_rkind ! small interval above/below critical (K), works better if larger
+        epsT                = 1.e-7_rkind ! small interval above/below critical (K), works better if larger
         water_bounds        = .true.      ! flag to force water bounds, works best if on
       case(numrec)
         small_delTemp       = .true.      ! flag to constain temperature change to be less than zMaxTempIncrement
@@ -909,9 +907,10 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do iState=1,size(ixMatOnly)
           ! define index of the hydrology state variable within the state subset
           ixLiq = ixMatOnly(iState)
-          ! place constraint for matric head
+          ! place constraint for matric head, scale iterations
           if(xInc(ixLiq) > zMaxMatricIncrement .and. stateVecPrev(ixLiq) > 0._rkind)then
-            xInc(ixLiq) = zMaxMatricIncrement
+            xIncFactor = zMaxMatricIncrement/xInc(ixLiq)  ! scaling factor for the iteration increment (-)
+            xInc = zMaxMatricIncrement
           endif
         end do ! (loop through soil layers)
       endif
@@ -923,29 +922,23 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
       ! crossing freezing point event for vegetation
       if(ixVegNrg/=integerMissing)then
         ! initialize
-        critDiff    = Tfreeze - stateVecPrev(ixVegNrg)
-        crosTempVeg = .false.
+        critDiff = Tfreeze - stateVecPrev(ixVegNrg)
+        cInc = xInc(ixVegNrg)
         ! initially frozen (T < Tfreeze)
-        if(critDiff > 0._rkind)then
-          if(xInc(ixVegNrg) > critDiff)then
-            crosTempVeg = .true.
-            cInc        = critDiff + epsT  ! constrained temperature increment (K)
-          end if
+        if(critDiff > 0._rkind)then ! (check crossing above zero)
+          if(xInc(ixVegNrg) > critDiff) cInc = critDiff + epsT  ! constrained temperature increment (K)
         ! initially unfrozen (T > Tfreeze)
-        else
-          if(xInc(ixVegNrg) < critDiff)then
-            crosTempVeg = .true.
-            cInc        = critDiff - epsT  ! constrained temperature increment (K)
-          end if
-        end if  ! switch between frozen and unfrozen
+        else ! (check crossing below zero)
+          if(xInc(ixVegNrg) < critDiff) cInc = critDiff - epsT  ! constrained temperature increment (K)
+        end if  ! (switch between initially frozen and initially unfrozen)
         ! scale iterations
-        if(crosTempVeg)then
+        if(xInc(ixVegNrg).ne.0._rkind)then
           xIncFactor  = cInc/xInc(ixVegNrg) ! scaling factor for the iteration increment (-)
           xInc        = xIncFactor*xInc     ! scale iteration increments
         endif
       endif  ! if the state variable for canopy temperature is included within the state subset
 
-      ! crossing freezing point event for snow
+      ! crossing freezing point event for snow, keep it below freezing
       if(nSnowOnlyNrg > 0)then
         do iLayer=1,nSnow 
           ! check if energy state is included
@@ -979,21 +972,19 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           TcSoil = crit_soilT(xPsi00)
           ! get the difference from the current state and the crossing point (K)
           critDiff = TcSoil - stateVecPrev(ixNrg)
+          cInc = xInc(ixNrg)
           ! initially frozen (T < TcSoil)
-          if(critDiff > 0._rkind)then
-            ! (check crossing above zero)
-            if(xInc(ixNrg) > critDiff)then
-              crosFlag(iLayer) = .true.
-              xInc(ixNrg) = critDiff + epsT  ! set iteration increment to slightly above critical temperature
-            endif
+          if(critDiff > 0._rkind)then ! (check crossing above zero)
+            if(xInc(ixNrg) > critDiff) cInc = critDiff + epsT  ! set iteration increment to slightly above critical temperature
           ! initially unfrozen (T > TcSoil)
-          else 
-            ! (check crossing below zero)
-            if(xInc(ixNrg) < critDiff)then
-              crosFlag(iLayer) = .true.
-              xInc(ixNrg) = critDiff - epsT  ! set iteration increment to slightly below critical temperature
-            endif
+          else ! (check crossing below zero)
+            if(xInc(ixNrg) < critDiff) cInc = critDiff - epsT  ! set iteration increment to slightly below critical temperature
           endif ! (switch between initially frozen and initially unfrozen)
+          ! scale iterations
+          if(xInc(ixNrg).ne.0._rkind)then
+            xIncFactor  = cInc/xInc(ixNrg) ! scaling factor for the iteration increment (-)
+            xInc        = xIncFactor*xInc     ! scale iteration increments
+          endif
         end do ! (loop through soil layers)
       endif ! (if there are both energy and liquid water state variables)
 
@@ -1017,8 +1008,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
       if(nSnowOnlyHyd>0)then
         ! loop through snow layers
         do iLayer=1,nSnow
-          ! check if the layer is included
+           ! check if the layer is included
           if(ixSnowOnlyHyd(iLayer)==integerMissing) cycle
+          cInc = xInc(ixSnowOnlyHyd(iLayer))
           if(ixSnowOnlyNrg(iLayer)/=integerMissing)then
             ! get the layer temperature (from stateVecPrev if ixSnowOnlyNrg(iLayer) is within the state vector
             scalarTemp = stateVecPrev( ixSnowOnlyNrg(iLayer) )
@@ -1034,9 +1026,14 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           scalarIce = mLayerVolFracIce(iLayer)
           ! checking if drain more than what is available or add more than possible
           if(-xInc(ixSnowOnlyHyd(iLayer)) > volFracLiq)then 
-            xInc(ixSnowOnlyHyd(iLayer)) = -0.5_rkind*volFracLiq
+            cInc = -0.5_rkind*volFracLiq
           elseif(xInc(ixSnowOnlyHyd(iLayer)) > 1._rkind - scalarIce - volFracLiq)then
-            xInc(ixSnowOnlyHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - volFracLiq)
+            cInc = 0.5_rkind*(1._rkind - scalarIce - volFracLiq)
+          endif
+          ! scale iteration increment
+          if(xInc(ixSnowOnlyHyd(iLayer)).ne.0._rkind)then
+            xIncFactor  = cInc/xInc(ixSnowOnlyHyd(iLayer)) ! scaling factor for the iteration increment (-)
+            xInc        = xIncFactor*xInc                 ! new iteration increment
           endif
         end do ! (looping through snow layers)
       endif ! (if there are state variables for liquid water in the snow domain)
@@ -1047,17 +1044,23 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         do iLayer=1,nSoil
           ! check if the layer is included
           if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
+          cInc = xInc(ixSoilOnlyHyd(iLayer))
           if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
             ! get the volumetric fraction of liquid water
             volFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
             scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer+nSnow)==iname_watLayer)
             ! checking if drain more than what is available or add more than possible
             if(-xInc(ixSoilOnlyHyd(iLayer)) > volFracLiq - theta_res(iLayer))then 
-              xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(volFracLiq - theta_res(iLayer))
+              cInc = -0.5_rkind*(volFracLiq - theta_res(iLayer))
             elseif(xInc(ixSoilOnlyHyd(iLayer)) > theta_sat(iLayer) - scalarIce - volFracLiq)then
-              xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(theta_sat(iLayer) - scalarIce - volFracLiq)
+              cInc = -0.5_rkind*(theta_sat(iLayer) - scalarIce - volFracLiq)
             endif
           endif ! (if the state variable is not matric head)
+          ! scale iteration increment
+          if(xInc(ixSoilOnlyHyd(iLayer)).ne.0._rkind)then
+            xIncFactor  = cInc/xInc(ixSoilOnlyHyd(iLayer)) ! scaling factor for the iteration increment (-)
+            xInc        = xIncFactor*xInc                 ! new iteration increment
+          endif
         end do ! (looping through soil layers)
       endif ! (if there are state variables for liquid water in the soil domain)
 
