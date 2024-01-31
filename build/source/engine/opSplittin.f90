@@ -181,11 +181,13 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   procedure :: logic_exit_stateThenDomain    => split_select_logic_exit_stateThenDomain    ! get logical for branch
   procedure :: logic_exit_domainSplit        => split_select_logic_exit_domainSplit        ! get logical for branch
   procedure :: logic_exit_solution           => split_select_logic_exit_solution           ! get logical for branch
+  procedure :: logic_exit_stateSplit         => split_select_logic_exit_stateSplit         ! get logical for branch
 
   procedure :: logic_initialize_stateTypeSplitting => split_select_logic_initialize_stateTypeSplitting ! get logical for branch
   procedure :: logic_initialize_stateThenDomain    => split_select_logic_initialize_stateThenDomain    ! get logical for branch
   procedure :: logic_initialize_domainSplit        => split_select_logic_initialize_domainSplit        ! get logical for branch
   procedure :: logic_initialize_solution           => split_select_logic_initialize_solution           ! get logical for branch
+  procedure :: logic_initialize_stateSplit         => split_select_logic_initialize_stateSplit         ! get logical for branch
 
   procedure :: logic_finalize_stateTypeSplitting => split_select_logic_finalize_stateTypeSplitting     ! get logical for branch
   procedure :: logic_finalize_stateThenDomain    => split_select_logic_finalize_stateThenDomain        ! get logical for branch
@@ -404,12 +406,11 @@ subroutine opSplittin(&
          if (split_select % ixSolution > nsolutions) split_select % solution=.false.            
         end if
         if (split_select % solution.eqv..true.) then
-          !logic_initialize_stateSplit= !!! do we need this?
-          if (split_select % stateSplit.eqv..false.) then
+          if (split_select % logic_initialize_stateSplit()) then
            call initialize_stateSplit; if (return_flag.eqv..true.) return ! setup steps for stateSplit loop - return if error occurs
            call split_select % initialize_iStateSplit; split_select % stateSplit=.true.; ! loop through layers (NOTE: nStateSplit=1 for the vector solution, hence no looping)
           end if
-          if (split_select % stateSplit.eqv..true.) then ! stateSplit begins
+          if (split_select % logic_exit_stateSplit()) then ! stateSplit begins
              iStateSplit=split_select % iStateSplit
              if (split_select % iStateSplit > nStateSplit) split_select % stateSplit=.false.; !exit stateSplit
           end if 
@@ -1259,6 +1260,18 @@ logical(lgt) function split_select_logic_exit_solution(split_select)
  class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
  split_select_logic_exit_solution=(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..true.)
 end function split_select_logic_exit_solution
+
+logical(lgt) function split_select_logic_initialize_stateSplit(split_select)
+ ! *** Compute logical for branch in split_select loop ***
+ class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
+ split_select_logic_initialize_stateSplit=(split_select % stateSplit.eqv..false.)
+end function split_select_logic_initialize_stateSplit
+
+logical(lgt) function split_select_logic_exit_stateSplit(split_select)
+ ! *** Compute logical for branch in split_select loop ***
+ class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
+ split_select_logic_exit_stateSplit=(split_select % stateSplit.eqv..true.)
+end function split_select_logic_exit_stateSplit
 
 logical(lgt) function split_select_logic_finalize_stateSplit(split_select)
  ! *** Compute logical for branch in split_select loop ***
