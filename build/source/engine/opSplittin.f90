@@ -178,9 +178,9 @@ type, public :: split_select_type  ! class for selecting operator splitting meth
   procedure :: advance_iStateSplit          => split_select_advance_iStateSplit          ! advance coupling loop iterator
   
   procedure :: logic_exit_stateTypeSplitting => split_select_logic_exit_stateTypeSplitting ! get logical for branch
-  !procedure :: logic_exit_stateThenDomain    => split_select_logic_exit_stateThenDomain    ! get logical for branch
-  !procedure :: logic_exit_domainSplit        => split_select_logic_exit_domainSplit        ! get logical for branch
-  !procedure :: logic_exit_solution           => split_select_logic_exit_solution           ! get logical for branch
+  procedure :: logic_exit_stateThenDomain    => split_select_logic_exit_stateThenDomain    ! get logical for branch
+  procedure :: logic_exit_domainSplit        => split_select_logic_exit_domainSplit        ! get logical for branch
+  procedure :: logic_exit_solution           => split_select_logic_exit_solution           ! get logical for branch
 
   procedure :: logic_initialize_stateTypeSplitting => split_select_logic_initialize_stateTypeSplitting ! get logical for branch
   procedure :: logic_initialize_stateThenDomain    => split_select_logic_initialize_stateThenDomain    ! get logical for branch
@@ -368,11 +368,9 @@ subroutine opSplittin(&
   call split_select % initialize_flags ! initialize loop control flags 
   split_select_loop: do iSplit=1,500
     if (split_select % logic_initialize_stateTypeSplitting()) then
-     !if (split_select % stateTypeSplitting.eqv..false.) then 
       ixCoupling=split_select % ixCoupling; if (ixCoupling.gt.nCoupling) exit split_select_loop ! exit if all splits are exhausted 
       call initialize_stateTypeSplitting; if (return_flag.eqv..true.) return ! setup steps for stateTypeSplitting loop - return if error occurs
       call split_select % initialize_iStateTypeSplit; split_select % stateTypeSplitting=.true.
-     !end if
     end if
     if (split_select % logic_exit_stateTypeSplitting()) then 
        iStateTypeSplit=split_select % iStateTypeSplit; if (iStateTypeSplit.gt.nStateTypeSplit) split_select % stateTypeSplitting=.false.
@@ -1232,21 +1230,41 @@ logical(lgt) function split_select_logic_initialize_stateThenDomain(split_select
  ! *** Compute logical for branch in split_select loop ***
  class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
  split_select_logic_initialize_stateThenDomain=&
- &(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.).and.(split_select % domainSplit.eqv..false.)
+ &(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.).and.(split_select % domainSplit.eqv..false.).and.(split_select % stateThenDomain.eqv..false.)
 end function split_select_logic_initialize_stateThenDomain
+
+logical(lgt) function split_select_logic_exit_stateThenDomain(split_select)
+ ! *** Compute logical for branch in split_select loop ***
+ class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
+ split_select_logic_exit_stateThenDomain=&
+ &(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.).and.(split_select % domainSplit.eqv..false.).and.(split_select % stateThenDomain.eqv..true.)
+end function split_select_logic_exit_stateThenDomain
 
 logical(lgt) function split_select_logic_initialize_domainSplit(split_select)
  ! *** Compute logical for branch in split_select loop ***
  class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
  split_select_logic_initialize_domainSplit=&
- &(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.)
+ &(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.).and.(split_select % domainSplit.eqv..false.)
 end function split_select_logic_initialize_domainSplit
+
+logical(lgt) function split_select_logic_exit_domainSplit(split_select)
+ ! *** Compute logical for branch in split_select loop ***
+ class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
+ split_select_logic_exit_domainSplit=&
+ &(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.).and.(split_select % domainSplit.eqv..true.)
+end function split_select_logic_exit_domainSplit
 
 logical(lgt) function split_select_logic_initialize_solution(split_select)
  ! *** Compute logical for branch in split_select loop ***
  class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
- split_select_logic_initialize_solution=(split_select % stateSplit.eqv..false.)
+ split_select_logic_initialize_solution=(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..false.)
 end function split_select_logic_initialize_solution
+
+logical(lgt) function split_select_logic_exit_solution(split_select)
+ ! *** Compute logical for branch in split_select loop ***
+ class(split_select_type),intent(in)    :: split_select               ! class object for operator splitting selector
+ split_select_logic_exit_solution=(split_select % stateSplit.eqv..false.).and.(split_select % solution.eqv..true.)
+end function split_select_logic_exit_solution
 
 logical(lgt) function split_select_logic_finalize_stateSplit(split_select)
  ! *** Compute logical for branch in split_select loop ***
