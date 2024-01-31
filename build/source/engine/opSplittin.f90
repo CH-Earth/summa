@@ -377,37 +377,31 @@ subroutine opSplittin(&
     end if
     if (split_select % stateTypeSplitting.eqv..true.) then
       if (split_select % logic_initialize_stateThenDomain()) then 
-       if (split_select % stateThenDomain.eqv..false.) then
         ! first try the state type split, then try the domain split within a given state type
         call initialize_stateThenDomain ! setup steps for stateThenDomain loop -- identify state-specific variables for a given state split
         call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.true.
-       end if
-       if (split_select % stateThenDomain.eqv..true.) then ! stateThenDomain loop
-         ixStateThenDomain=split_select % ixStateThenDomain 
-         if (ixStateThenDomain > (1+tryDomainSplit)) then
-          ixStateThenDomain=ixStateThenDomain-1; split_select % ixStateThenDomain = ixStateThenDomain ! correct index needed after loop exit
-          split_select % stateThenDomain=.false. ! eqivalent to exiting the stateThenDomain loop
-         end if
-       end if
-      end if 
+      end if
+      if (split_select % logic_exit_stateThenDomain()) then ! stateThenDomain loop
+        ixStateThenDomain=split_select % ixStateThenDomain 
+        if (ixStateThenDomain > (1+tryDomainSplit)) then
+         ixStateThenDomain=ixStateThenDomain-1; split_select % ixStateThenDomain = ixStateThenDomain ! correct index needed after loop exit
+         split_select % stateThenDomain=.false. ! eqivalent to exiting the stateThenDomain loop
+        end if
+      end if
       if (split_select % stateThenDomain.eqv..true.) then 
        if (split_select % logic_initialize_domainSplit()) then
-         if (split_select % domainSplit.eqv..false.) then
-          call initialize_domainSplit; if (return_flag.eqv..true.) return ! setup steps for domainSplit loop - return if error occurs
-          call split_select % initialize_iDomainSplit; split_select % domainSplit=.true.
-         end if
-         if (split_select % domainSplit.eqv..true.) then
-           iDomainSplit=split_select % iDomainSplit
-           if (split_select % iDomainSplit > nDomainSplit) split_select % domainSplit=.false.
-         end if
+        call initialize_domainSplit; if (return_flag.eqv..true.) return ! setup steps for domainSplit loop - return if error occurs
+        call split_select % initialize_iDomainSplit; split_select % domainSplit=.true.
+       end if
+       if (split_select % logic_exit_domainSplit()) then
+         iDomainSplit=split_select % iDomainSplit
+         if (split_select % iDomainSplit > nDomainSplit) split_select % domainSplit=.false.
        end if
        if (split_select % domainSplit.eqv..true.) then
-        if (split_select % logic_initialize_solution()) then
-         if (split_select % solution.eqv..false.) then; call split_select % initialize_ixSolution; split_select % solution=.true.; end if
-         if (split_select % solution.eqv..true.) then
-          ixSolution=split_select % ixSolution
-          if (split_select % ixSolution > nsolutions) split_select % solution=.false.            
-         end if
+        if (split_select % logic_initialize_solution()) then; call split_select % initialize_ixSolution; split_select % solution=.true.; end if
+        if (split_select % logic_exit_solution()) then
+         ixSolution=split_select % ixSolution
+         if (split_select % ixSolution > nsolutions) split_select % solution=.false.            
         end if
         if (split_select % solution.eqv..true.) then
           !logic_initialize_stateSplit= !!! do we need this?
