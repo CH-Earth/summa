@@ -411,36 +411,17 @@ subroutine opSplittin(&
               end if
              end if
            end if ! stateSplit ends
-           if (split_select % logic_finalize_stateSplit()) then
-            call split_select % advance_ixSolution
-           end if
+           call finalize_split_stateSplit
          end if ! solution ends
-         if (split_select % logic_finalize_solution()) then
-          call finalize_solution ! final steps following solution loop
-          call split_select % advance_iDomainSplit
-         end if
+         call finalize_split_solution
         end if ! domainSplit ends
-        if (split_select % logic_finalize_domainSplit()) then
-         call split_select % advance_ixStateThenDomain
-        end if 
+        call finalize_split_domainSplit
       end if ! stateThenDomain ends
-      if (split_select % logic_finalize_stateThenDomain()) then
-       call finalize_stateThenDomain; if (return_flag) return ! final steps following the stateThenDomain loop
-       call split_select % advance_iStateTypeSplit
-      end if
+      call finalize_split_stateThenDomain; if (return_flag) return
     end if ! stateTypeSplitting ends
-    if (split_select % logic_finalize_stateTypeSplitting()) then
-     call finalize_stateTypeSplitting 
-     if (exit_coupling) then
-      call split_select % initialize_ixCoupling; exit split_select_loop ! success = exit the coupling loop
-     end if
-     call split_select % advance_ixCoupling
-    end if 
+    call finalize_split_stateTypeSplitting; if (exit_split_select) exit split_select_loop
   end do split_select_loop
-  if (iSplit.gt.maxSplit) then ! check for errors
-   err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
-  end if
-  call finalize_coupling ! check variables and fluxes, and apply step halving if needed
+  call finalize_split_coupling; if (return_flag) return
 
  contains
 
@@ -525,6 +506,55 @@ subroutine opSplittin(&
     if (split_select % iStateSplit > nStateSplit) split_select % stateSplit=.false.; !exit stateSplit
    end if
   end subroutine initialize_split_stateSplit
+
+  subroutine finalize_split_stateSplit
+   ! *** Finalize steps for stateSplit split method ***
+   if (split_select % logic_finalize_stateSplit()) then
+    call split_select % advance_ixSolution
+   end if
+  end subroutine finalize_split_stateSplit
+           
+  subroutine finalize_split_solution
+   ! *** Finalize steps for solution split method ***
+   if (split_select % logic_finalize_solution()) then
+    call finalize_solution ! final steps following solution loop
+    call split_select % advance_iDomainSplit
+   end if
+  end subroutine finalize_split_solution
+
+  subroutine finalize_split_domainSplit
+   ! *** Finalize steps for domainSplit split method ***
+   if (split_select % logic_finalize_domainSplit()) then
+    call split_select % advance_ixStateThenDomain
+   end if
+  end subroutine finalize_split_domainSplit
+
+  subroutine finalize_split_stateThenDomain 
+   ! *** Finalize steps for stateThenDomain split method ***
+   if (split_select % logic_finalize_stateThenDomain()) then
+    call finalize_stateThenDomain; if (return_flag) return ! final steps following the stateThenDomain loop
+    call split_select % advance_iStateTypeSplit
+   end if
+  end subroutine finalize_split_stateThenDomain 
+
+  subroutine finalize_split_stateTypeSplitting
+   ! *** Finalize steps for stateTypeSplitting split method ***
+   if (split_select % logic_finalize_stateTypeSplitting()) then
+    call finalize_stateTypeSplitting 
+    if (exit_coupling) then
+     call split_select % initialize_ixCoupling; exit_split_select=.true.; return ! success = exit the coupling loop
+    end if
+    call split_select % advance_ixCoupling
+   end if
+  end subroutine finalize_split_stateTypeSplitting
+
+  subroutine finalize_split_coupling
+   ! *** Finalize steps for coupling split method ***
+   if (iSplit.gt.maxSplit) then ! check for errors
+    err=20; message=trim(message)//'split_select loop exceeded max number of iterations'; return_flag=.true.; return 
+   end if
+   call finalize_coupling; if (return_flag) return ! check variables and fluxes, and apply step halving if needed
+  end subroutine finalize_split_coupling
 
   subroutine initialize_coupling
    ! *** initial steps for coupling loop ***
@@ -632,7 +662,7 @@ subroutine opSplittin(&
    ! check that all state variables were updated
    if (any(stateCheck==0)) then
     message=trim(message)//'some state variables were not updated!'
-    err=20; return
+    err=20; return_flag=.true.; return
    endif
 
    ! check that the desired fluxes were computed
@@ -640,7 +670,7 @@ subroutine opSplittin(&
     if (neededFlux(iVar) .and. any(fluxCount%var(iVar)%dat==0)) then
      print*, 'fluxCount%var(iVar)%dat = ', fluxCount%var(iVar)%dat
      message=trim(message)//'flux '//trim(flux_meta(iVar)%varname)//' was not computed'
-     err=20; return
+     err=20; return_flag=.true.; return
     end if
    end do
 
