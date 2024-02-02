@@ -501,13 +501,16 @@ subroutine t2enthalpy(&
   real(rkind)                      :: vGn_m                     ! van Genuchten "m" parameter (-)
   real(rkind)                      :: Tcrit                     ! temperature where all water is unfrozen (K)
   real(rkind)                      :: volFracWat                ! volumetric fraction of total water, liquid+ice (-)
-  real(rkind)                      :: diffT                     ! temperature difference from Tfreeze
+  real(rkind)                      :: diff0                     ! temperature difference of Tcrit from Tfreeze
+  real(rkind)                      :: diffT                     ! temperature difference of temp soil from Tfreeze
   real(rkind)                      :: integral                  ! integral of snow freezing curve
   real(rkind)                      :: dTcrit_dPsi0              ! derivative of temperature where all water is unfrozen (K) with matric head
   real(rkind)                      :: dL                        ! derivative of enthalpy with temperature at layer temperature
   real(rkind)                      :: arg                       ! argument of hypergeometric function
   real(rkind)                      :: gauss_hg_T                ! hypergeometric function result
-  real(rkind)                      :: integral_psiLiq           ! integral of soil mLayerPsiLiq from Tfreeze to layer temperature
+  real(rkind)                      :: integral_unf              ! integral of unfrozen soil water content (from Tfreeze to Tcrit)
+  real(rkind)                      :: integral_frz_low          ! lower limit of integral of frozen soil water content (from Tfreeze to Tcrit)
+  real(rkind)                      :: integral_frz_upp          ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
   ! enthalpy
@@ -630,27 +633,40 @@ subroutine t2enthalpy(&
               Tcrit    = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
               volFracWat = volFracLiq(mLayerMatricHeadTrial(ixControlIndex),vGn_alpha,theta_res,theta_sat,vGn_n,vGn_m)
               diffT = mLayerTempTrial(iLayer) - Tfreeze
+              diff0 = Tcrit - Tfreeze
               ! *** compute enthalpy of water for unfrozen conditions
               if(mlayerTempTrial(iLayer)>=Tcrit)then
                 enthWater = iden_water * Cp_water * volFracWat * diffT ! valid for temperatures below freezing also
 
               ! *** compute enthalpy of water for frozen conditions
               else
+                ! *** compute integral of mLayerPsiLiq from Tfreeze to layer temperature
+                ! get the unfrozen water content
+                integral_unf = ( Tcrit - Tfreeze ) * volFracWat
+
+                ! get the frozen  water content
                 if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_psiLiq,dL,err,cmessage)
+                  ! get the lower limit of the integral
+                  call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
+                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+                  ! get the upper limit of the integral
+                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_frz_upp,dL,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
                 else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  ! NOTE: mLayerPsiLiq is the liquid water matric potential from the Clapeyron equation, used to separate the total water into liquid water and ice
-                  !       mLayerPsiLiq is DIFFERENT from the liquid water matric potential used in the flux calculations
+                  ! get the lower limit of the integral
+                  arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
+                  gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                  integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  ! get the upper limit of the integral
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
-                  mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution
+                  mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
                   arg = (vGn_alpha * mLayerPsiLiq)**vGn_n
                   gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  integral_psiLiq = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  integral_frz_upp = diffT * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
                 endif
 
-                enthLiq = iden_water * Cp_water * integral_psiLiq
-                enthIce = iden_ice * Cp_ice * diffT * volFracWat - iden_ice * Cp_ice * integral_psiLiq
+                enthLiq = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
+                enthIce = iden_ice * Cp_ice * ( volFracWat * diffT - (integral_unf + integral_frz_upp - integral_frz_low) )
                 enthWater = enthIce + enthLiq
 
               endif ! (if frozen conditions)
