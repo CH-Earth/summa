@@ -401,15 +401,9 @@ subroutine opSplittin(&
 
              call confirm_variable_updates; if (return_flag) return ! check that state variables updated - return if error 
 
-             call success_check ! check for success
-             if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations -- deactivate inner loops
-             if (split_select % stateThenDomain) then
-              if (exit_solution) then; split_select % solution=.false.; split_select % stateSplit=.false.; end if
-              if (split_select % solution) then
-               if (return_flag) return             ! return if error 
-               call split_select % advance_iStateSplit
-              end if
-             end if
+             call success_check                                ! check for success
+             call check_exit_stateThenDomain                   ! check exit criterion for stateThenDomain split
+             call check_exit_solution; if (return_flag) return ! check exit criterion for solution split - return if error 
            end if ! stateSplit ends
            call finalize_split_stateSplit
          end if ! solution ends
@@ -506,6 +500,25 @@ subroutine opSplittin(&
     if (split_select % iStateSplit > nStateSplit) split_select % stateSplit=.false.; !exit stateSplit
    end if
   end subroutine initialize_split_stateSplit
+
+  subroutine check_exit_stateThenDomain
+   ! *** check exit criterion for stateThenDomain split ***
+   if (exit_stateThenDomain) then ! exit stateThenDomain split if necessary -- deactivate flags for inner splits 
+    call split_select % initialize_ixStateThenDomain 
+    split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false. 
+   end if 
+  end subroutine check_exit_stateThenDomain
+
+  subroutine check_exit_solution
+   ! *** Check exit criterion for solution split - return if needed ***
+   if (split_select % stateThenDomain) then
+    if (exit_solution) then; split_select % solution=.false.; split_select % stateSplit=.false.; end if
+    if (split_select % solution) then
+     if (return_flag) return             ! return if error 
+     call split_select % advance_iStateSplit
+    end if
+   end if
+  end subroutine check_exit_solution
 
   subroutine finalize_split_stateSplit
    ! *** Finalize steps for stateSplit split method ***
