@@ -374,23 +374,23 @@ subroutine opSplittin(&
            call initialize_split_stateSplit; if (return_flag) return 
            if (split_select % stateSplit) then
              ! define state subsets for a given split...
+             ! get the mask for the state subset - return for a non-zero error code
              call split_select % get_stateMask(indx_data,err,cmessage,message,return_flag)
              nSubset = split_select % nSubset; stateMask = split_select % stateMask 
-             if (return_flag.eqv..true.) return
-             !call update_stateFilter; if (return_flag.eqv..true.) return ! get the mask for the state subset - return for a non-zero error code
+             if (return_flag) return
              call validate_split ! verify that the split is valid
              if (cycle_domainSplit) then; call split_select % advance_iDomainSplit; split_select % solution=.false.; split_select % stateSplit=.false.; cycle split_select_loop; end if
              if (cycle_solution) then; call split_select % advance_ixSolution; split_select % stateSplit=.false.; cycle split_select_loop; end if
-             if (return_flag.eqv..true.) return ! return for a non-zero error code
+             if (return_flag) return ! return for a non-zero error code
              call save_recover ! save/recover copies of variables and fluxes
 
              ! assemble vectors for a given split...
-             call get_split_indices; if (return_flag.eqv..true.) return ! get indices for a given split - return for a non-zero error code
-             call update_fluxMask; if (return_flag.eqv..true.) return ! define the mask of the fluxes used - return for a non-zero error code
+             call get_split_indices; if (return_flag) return ! get indices for a given split - return for a non-zero error code
+             call update_fluxMask; if (return_flag) return ! define the mask of the fluxes used - return for a non-zero error code
 
-             call solve_subset; if (return_flag.eqv..true.) return ! solve variable subset for one time step - return for a positive error code
+             call solve_subset; if (return_flag) return ! solve variable subset for one time step - return for a positive error code
 
-             call assess_solution; if (return_flag.eqv..true.) return ! is solution a success or failure? - return for a recovering solution
+             call assess_solution; if (return_flag) return ! is solution a success or failure? - return for a recovering solution
 
              call try_other_solution_methods                  ! if solution failed to converge, try other splitting methods 
              if (cycle_coupling) then
@@ -399,14 +399,14 @@ subroutine opSplittin(&
              if (cycle_stateThenDomain) then; call split_select % advance_ixStateThenDomain; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; cycle split_select_loop; end if ! deactivate flags for inner loops
              if (cycle_solution) then; call split_select % advance_ixSolution; split_select % stateSplit=.false.; cycle split_select_loop; end if
 
-             call confirm_variable_updates; if (return_flag.eqv..true.) return ! check that state variables updated - return if error 
+             call confirm_variable_updates; if (return_flag) return ! check that state variables updated - return if error 
 
              call success_check ! check for success
              if (exit_stateThenDomain) then; call split_select % initialize_ixStateThenDomain; split_select % stateThenDomain=.false.; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; end if ! exit loops if necessary -- exit last available loop to avoid unnecessary operations -- deactivate inner loops
-             if (split_select % stateThenDomain.eqv..true.) then
+             if (split_select % stateThenDomain) then
               if (exit_solution) then; split_select % solution=.false.; split_select % stateSplit=.false.; end if
-              if (split_select % solution.eqv..true.) then
-               if (return_flag.eqv..true.) return             ! return if error 
+              if (split_select % solution) then
+               if (return_flag) return             ! return if error 
                call split_select % advance_iStateSplit
               end if
              end if
@@ -561,7 +561,7 @@ subroutine opSplittin(&
    ! initialize error control
    err=0; message="opSplittin/"
 
-   call get_nCoupling; if (return_flag.eqv..true.) return ! get nCoupling value -- return if error
+   call get_nCoupling; if (return_flag) return ! get nCoupling value -- return if error
 
    ! set the global print flag
    globalPrintFlag=.false.
@@ -587,7 +587,7 @@ subroutine opSplittin(&
 
    ! allocate local structures based on the number of snow and soil layers
    call allocate_memory
-   if (return_flag.eqv..true.) return ! return if an error occurs during memory allocation 
+   if (return_flag) return ! return if an error occurs during memory allocation 
 
    ! intialize the flux counter
    do iVar=1,size(flux_meta)  ! loop through fluxes
@@ -686,7 +686,7 @@ subroutine opSplittin(&
    dt_min = min(merge(dtmin_coupled, dtmin_split,   ixCoupling==fullyCoupled), dt) ! minimum time step
 
    ! get nStateTypeSplit and tryDomainSplit values
-   call get_nStateTypeSplit_tryDomainSplit(ixCoupling); if (return_flag.eqv..true.) return
+   call get_nStateTypeSplit_tryDomainSplit(ixCoupling); if (return_flag) return
 
    mean_step_dt = 0._rkind ! initialize mean step for the time step
    addFirstFlux = .true.     ! flag to add the first flux to the mask
@@ -776,7 +776,7 @@ subroutine opSplittin(&
     if (iStateTypeSplit==massSplit .and. ixStateThenDomain==subDomain) numberDomainSplitMass = numberDomainSplitMass + 1
    end associate
 
-   call get_nDomainSplit(ixStateThenDomain); if (return_flag.eqv..true.) return ! get nDomainSplit value -- return if error occurs
+   call get_nDomainSplit(ixStateThenDomain); if (return_flag) return ! get nDomainSplit value -- return if error occurs
 
    ! check that we haven't split the domain when we are fully coupled
    if (ixCoupling==fullyCoupled .and. nDomainSplit==nDomains) then
@@ -825,7 +825,7 @@ subroutine opSplittin(&
    firstFluxCall=.true.
    if (.not.firstInnerStep) firstFluxCall=.false.
 
-   call get_nStateSplit(ixSolution); if (return_flag.eqv..true.) return ! get nStateSplit value -- return if error occurs
+   call get_nStateSplit(ixSolution); if (return_flag) return ! get nStateSplit value -- return if error occurs
   end subroutine initialize_stateSplit
 
   subroutine get_nStateSplit(ixSolution_value)
@@ -1420,13 +1420,13 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
    case(fullyCoupled); call fullyCoupled_stateMask ! get stateMask for fully coupled method 
    ! *** splitting by state type ***
    case(stateTypeSplit) ! initial split by state type
-    call stateTypeSplit_stateMask; if (return_flag.eqv..true.) return ! get stateMask for state split method -- return if error
+    call stateTypeSplit_stateMask; if (return_flag) return ! get stateMask for state split method -- return if error
     ! check
    case default; err=20; message=trim(message)//'unable to identify coupling method'; return
   end select  ! selecting solution method
  end associate
 
- call identify_scalar_solutions; if (return_flag.eqv..true.) return ! identify scalar solutions -- return if error occurs
+ call identify_scalar_solutions; if (return_flag) return ! identify scalar solutions -- return if error occurs
 
  ! get the number of selected state variables
  associate(nSubset => out_stateFilter % nSubset) ! intent(out): number of selected state variables for a given split
@@ -1450,9 +1450,9 @@ contains
    message           => out_stateFilter % cmessage          ) ! intent(out): error message
    select case(ixStateThenDomain)
      ! split into energy and mass
-     case(fullDomain); call stateTypeSplit_fullDomain_stateMask; if (return_flag.eqv..true.) return
+     case(fullDomain); call stateTypeSplit_fullDomain_stateMask; if (return_flag) return
      ! split into vegetation, snow, and soil
-     case(subDomain); call stateTypeSplit_subDomain_stateMask; if (return_flag.eqv..true.) return
+     case(subDomain); call stateTypeSplit_subDomain_stateMask; if (return_flag) return
      ! check
      case default
        err=20; message=trim(message)//'unable to identify the switch between full domains and sub domains'; return_flag=.true.; return
@@ -1499,9 +1499,9 @@ contains
    stateMask=.false. ! initialize state mask
    select case(iStateTypeSplit)
     ! define mask for energy
-    case(nrgSplit); call stateTypeSplit_subDomain_nrgSplit_stateMask; if (return_flag.eqv..true.) return
+    case(nrgSplit); call stateTypeSplit_subDomain_nrgSplit_stateMask; if (return_flag) return
     ! define mask for water
-    case(massSplit); call stateTypeSplit_subDomain_massSplit_stateMask; if (return_flag.eqv..true.) return
+    case(massSplit); call stateTypeSplit_subDomain_massSplit_stateMask; if (return_flag) return
 
     ! check
     case default; err=20; message=trim(message)//'unable to identify the state type'; return_flag=.true.; return
