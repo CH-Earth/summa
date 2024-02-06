@@ -621,13 +621,9 @@ subroutine t2enthalpy(&
               theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(ixControlIndex)           , & ! soil porosity                      (-)
               theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(ixControlIndex)           , & ! volumetric residual water content  (-)
               vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(ixControlIndex)           , & ! van Genuchten "alpha" parameter    (m-1)
-              vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)               , & ! van Genuchten "n" parameter        (-)
-              ! associate values in the lookup table
-              Tk            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-              Ly            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
-              L2            => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
+              vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)                 & ! van Genuchten "n" parameter        (-)
               ) ! end associate statement
-
+              
               ! diagnostic variables
               vGn_m    = 1._rkind - 1._rkind/vGn_n
               Tcrit    = crit_soilT( mLayerMatricHeadTrial(ixControlIndex) )
@@ -647,15 +643,26 @@ subroutine t2enthalpy(&
                 ! get the frozen  water content
                 ! initialize for case Tcrit=Tfreeze, i.e. mLayerMatricHeadTrial(ixControlIndex)>0
                 integral_frz_low = 0._rkind 
+
                 if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
-                  ! get the lower limit of the integral
-                  if(diff0<0._rkind)then
-                    call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
+                  ! make associate to the the lookup table
+                  lookVars: associate(&
+                    Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
+                    Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
+                    L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
+                    ) ! end associate statement
+
+                    ! get the lower limit of the integral
+                    if(diff0<0._rkind)then
+                      call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
+                      if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+                    end if
+                    ! get the upper limit of the integral
+                    call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_frz_upp,dL,err,cmessage)
                     if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-                  end if
-                  ! get the upper limit of the integral
-                  call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_frz_upp,dL,err,cmessage)
-                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+
+                  end associate lookVars
+
                 else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! get the lower limit of the integral
                   if(diff0<0._rkind)then
