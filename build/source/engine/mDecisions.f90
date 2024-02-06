@@ -147,7 +147,7 @@ integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wi
 ! look-up values for the choice of snow unloading from the canopy
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
-! look-up values for the choice of energy equation
+! look-up values for the choice of energy conservation residual
 integer(i4b),parameter,public :: enthalpyFD           = 323    ! enthalpyFD
 integer(i4b),parameter,public :: closedForm           = 324    ! closedForm
 ! -----------------------------------------------------------------------------------------------------------

@@ -34,8 +34,8 @@ USE var_lookup,only:iLookDERIV                   ! named variables for structure
 
 ! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:  &
- closedForm,                 & ! heat capacity using closed form, not using enthalpy
- enthalpyFD                    ! heat capacity using enthalpy
+ closedForm,                 & ! heat capacity closed form in backward Euler residual
+ enthalpyFD                    ! enthalpy finite difference in backward Euler residual
 
 implicit none
 private

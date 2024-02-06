@@ -44,8 +44,8 @@ USE globalData,only:mpar_meta,bpar_meta ! parameter metadata structures
 
 ! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:&
-  closedForm,&                          ! heat capacity using closed form, not using enthalpy
-  enthalpyFD                            ! heat capacity using enthalpy
+  closedForm,&                          ! heat capacity closed form in backward Euler residual
+  enthalpyFD                            ! enthalpy finite difference in backward Euler residual
 
 ! named variables to define the decisions for snow layers
 USE mDecisions_module,only:&
@@ -154,9 +154,9 @@ contains
 
  ! decide if computing enthalpy lookup tables, if need enthalpy and not using hypergeometric function
  ! NOTE: this should be replaced by a parameter of if want lookup table enthalpy, but for now it is hard-coded
- !       need enthalpy if checkNrgBalance in varSubstep is turned on or using nrgConserv=enthalpyFD
- !       then, need lookups if use_lookup=.true. in t2enthalpy (numrec or kin)
- needLookup = .true.
+ !       needLookup=.true. if checkNrgBalance in varSubstep is turned on or using nrgConserv=enthalpyFD
+ !       AND use_lookup=.true. in t2enthalpy
+ needLookup = .false.
  !if (model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFD) needLookup = .true.
 
  ! initialize the start of the initialization
