@@ -67,9 +67,6 @@ type data4ida
   real(rkind), allocatable        :: mLayerMatricHeadLiqPrime(:)     ! prime vector of liquid matric head of each snow and soil layer (m s-1)
   real(rkind), allocatable        :: mLayerVolFracWatPrime(:)        ! prime vector of volumetric total water content of each snow and soil layer (s-1)
   real(rkind), allocatable        :: mLayerVolFracIcePrime(:)        ! prime vector of volumetric fraction of ice (s-1)
-  real(rkind)                     :: scalarCanairEnthalpyPrime       ! prime value for temperature component of enthalpy of the canopy air space (J m-3 s-1)
-  real(rkind)                     :: scalarCanopyEnthalpyPrime       ! prime value for temperature component of enthalpy of the vegetation canopy (J m-3 s-1)
-  real(rkind), allocatable        :: mLayerEnthalpyPrime(:)          ! prime vector of temperature component of enthalpy for snow+soil layers (J m-3 s-1)
  end type data4ida
 
 

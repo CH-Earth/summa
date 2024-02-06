@@ -185,34 +185,36 @@ subroutine eval8summa(&
   ! local variables
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! state variables
-  real(rkind)                        :: scalarCanairTempTrial     ! trial value for temperature of the canopy air space (K)
-  real(rkind)                        :: scalarCanopyTempTrial     ! trial value for temperature of the vegetation canopy (K)
-  real(rkind)                        :: scalarCanopyWatTrial      ! trial value for liquid water storage in the canopy (kg m-2)
-  real(rkind),dimension(nLayers)     :: mLayerTempTrial           ! trial value for temperature of layers in the snow and soil domains (K)
-  real(rkind),dimension(nLayers)     :: mLayerVolFracWatTrial     ! trial value for volumetric fraction of total water (-)
-  real(rkind),dimension(nSoil)       :: mLayerMatricHeadTrial     ! trial value for total water matric potential (m)
-  real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqTrial  ! trial value for liquid water matric potential (m)
-  real(rkind)                        :: scalarAquiferStorageTrial ! trial value of storage of water in the aquifer (m)
+  real(rkind)                        :: scalarCanairTempTrial      ! trial value for temperature of the canopy air space (K)
+  real(rkind)                        :: scalarCanopyTempTrial      ! trial value for temperature of the vegetation canopy (K)
+  real(rkind)                        :: scalarCanopyWatTrial       ! trial value for liquid water storage in the canopy (kg m-2)
+  real(rkind),dimension(nLayers)     :: mLayerTempTrial            ! trial value for temperature of layers in the snow and soil domains (K)
+  real(rkind),dimension(nLayers)     :: mLayerVolFracWatTrial      ! trial value for volumetric fraction of total water (-)
+  real(rkind),dimension(nSoil)       :: mLayerMatricHeadTrial      ! trial value for total water matric potential (m)
+  real(rkind),dimension(nSoil)       :: mLayerMatricHeadLiqTrial   ! trial value for liquid water matric potential (m)
+  real(rkind)                        :: scalarAquiferStorageTrial  ! trial value of storage of water in the aquifer (m)
   ! diagnostic variables
-  real(rkind)                        :: scalarCanopyLiqTrial      ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
-  real(rkind)                        :: scalarCanopyIceTrial      ! trial value for mass of ice on the vegetation canopy (kg m-2)
-  real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial     ! trial value for volumetric fraction of liquid water (-)
-  real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial     ! trial value for volumetric fraction of ice (-)
+  real(rkind)                        :: scalarCanopyLiqTrial       ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
+  real(rkind)                        :: scalarCanopyIceTrial       ! trial value for mass of ice on the vegetation canopy (kg m-2)
+  real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial      ! trial value for volumetric fraction of liquid water (-)
+  real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial      ! trial value for volumetric fraction of ice (-)
   ! enthalpy
-  real(rkind)                        :: scalarCanairEnthalpyTrial ! trial value for temperature component of enthalpy of the canopy air space (J m-3
-  real(rkind)                        :: scalarCanopyEnthalpyTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial       ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
+  real(rkind)                        :: scalarCanairEnthalpyTrial  ! trial value for temperature component of enthalpy of the canopy air space (J m-3
+  real(rkind)                        :: scalarCanopyEnthalpyTrial  ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial        ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
   ! other local variables
-  logical(lgt)                       :: checkLWBalance            ! flag to check longwave balance
-  integer(i4b)                       :: iLayer                    ! index of model layer in the snow+soil domain
-  integer(i4b)                       :: jState(1)                 ! index of model state for the scalar solution within the soil domain
-  integer(i4b)                       :: ixBeg,ixEnd               ! index of indices for the soil compression routine
-  real(rkind),dimension(nState)      :: rVecScaled                ! scaled residual vector
-  character(LEN=256)                 :: cmessage                  ! error message of downwind routine
-  real(rkind)                        :: scalarCanopyCmTrial       ! trial value of Cm for the canopy
-  real(rkind),dimension(nLayers)     :: mLayerCmTrial             ! trial vector of Cm for snow+soil
-  logical(lgt)                       :: updateCp                  ! flag to indicate if we update Cp at each step
-  logical(lgt)                       :: needCm                    ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  logical(lgt)                       :: checkLWBalance             ! flag to check longwave balance
+  integer(i4b)                       :: iLayer                     ! index of model layer in the snow+soil domain
+  integer(i4b)                       :: jState(1)                  ! index of model state for the scalar solution within the soil domain
+  integer(i4b)                       :: ixBeg,ixEnd                ! index of indices for the soil compression routine
+  real(rkind),dimension(nState)      :: rVecScaled                 ! scaled residual vector
+  character(LEN=256)                 :: cmessage                   ! error message of downwind routine
+  real(rkind)                        :: scalarCanopyCmTrial        ! trial value of Cm for the canopy
+  real(rkind),dimension(nLayers)     :: mLayerCmTrial              ! trial vector of Cm for snow+soil
+  logical(lgt)                       :: updateCp                   ! flag to indicate if we update Cp at each step, set with nrgConserv choice and updateCp_closedForm flag
+  logical(lgt)                       :: needCm                     ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m,, set with nrgConserv choice and needCm_closedForm flag
+  logical(lgt),parameter             :: updateCp_closedForm=.true. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
+  logical(lgt),parameter             :: needCm_closedForm=.true.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
@@ -220,7 +222,7 @@ subroutine eval8summa(&
   associate(&
     ! model decisions
     ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in):  [i4b]   choice of numerical solver
-    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision       ,& ! intent(in):  [i4b]   heat capacity computation, with or without enthalpy
+    ixNrgConserv            => model_decisions(iLookDECISIONS%nrgConserv)%iDecision       ,& ! intent(in):  [i4b]   choice of variable in energy conservation backward Euler residual
     ixRichards              => model_decisions(iLookDECISIONS%f_Richards)%iDecision       ,& ! intent(in):  [i4b]   index of the form of Richards' equation
     ! snow parameters
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)             ,& ! intent(in):  [dp]    scaling parameter for the snow freezing curve (K-1)
@@ -308,14 +310,14 @@ subroutine eval8summa(&
       end if
     end if ! ( feasibility check )
 
-    if(ixHowHeatCap == enthalpyFD)then
+    if(ixNrgConserv == enthalpyFD)then
       updateCp = .true.
       needCm   = .true.
-    else if(ixHowHeatCap == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on
-      updateCp = .true.
-      needCm   = .true.
+    else if(ixNrgConserv == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on
+      updateCp = updateCp_closedForm
+      needCm   = needCm_closedForm
     else
-      message=trim(message)//'unknown heat capacity computation'
+      message=trim(message)//'unknown choice of variable in energy conservation backward Euler residual'
       err=1; return
     end if
 
@@ -507,7 +509,7 @@ subroutine eval8summa(&
       dCm_dTkCanopy = 0._rkind
     endif ! needCm
 
-    if(ixHowHeatCap == enthalpyFD)then ! use residual as enthalpy_delta - (phase change)_delta
+    if(ixNrgConserv == enthalpyFD)then ! use residual as enthalpy_delta - (phase change)_delta
       ! compute temperature component of enthalpy
       call t2enthalpy(&
                        ! input: data structures
@@ -531,7 +533,7 @@ subroutine eval8summa(&
                       err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    else if(ixHowHeatCap == closedForm)then ! use residual as (Cp*DeltaTemp + Cm*DeltaTheta)_delta - (phase change)_delta
+    else if(ixNrgConserv == closedForm)then ! use residual as (Cp*DeltaTemp + Cm*DeltaTheta)_delta - (phase change)_delta
       scalarCanairEnthalpyTrial = realMissing
       scalarCanopyEnthalpyTrial = realMissing
       mLayerEnthalpyTrial       = realMissing
@@ -620,7 +622,7 @@ subroutine eval8summa(&
                       nSnow,                     & ! intent(in):  number of snow layers
                       nSoil,                     & ! intent(in):  number of soil layers
                       nLayers,                   & ! intent(in):  total number of layers
-                      ixHowHeatCap==enthalpyFD,  & ! intent(in):  flag to use enthalpy form of residual
+                      ixNrgConserv==enthalpyFD,  & ! intent(in):  flag to use enthalpy form of residual
                       ! input: flux vectors
                       sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
                       fluxVec,                   & ! intent(in):  flux vector

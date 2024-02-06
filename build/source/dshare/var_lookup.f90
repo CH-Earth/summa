@@ -74,7 +74,7 @@ MODULE var_lookup
   integer(i4b)    :: spatial_gw = integerMissing     ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting = integerMissing     ! choice of method for sub-grid routing
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
-  integer(i4b)    :: howHeatCap = integerMissing     ! how to compute heat capacity in energy equation
+  integer(i4b)    :: nrgConserv = integerMissing     ! choice of variable in energy conservation backward Euler residual
  endtype iLook_decision
 
  ! ***********************************************************************************************************

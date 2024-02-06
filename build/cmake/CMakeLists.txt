@@ -352,7 +352,6 @@ set(MODRUN
 set(MODRUN_NOT_ACTORS
     ${ENGINE_DIR}/read_force.f90)
 set(MODRUN_SUNDIALS
-    ${ENGINE_DIR}/enthalpyTempAddPrime.f90
     ${ENGINE_DIR}/tol4ida.f90
     ${ENGINE_DIR}/updateVarsWithPrime.f90)
 

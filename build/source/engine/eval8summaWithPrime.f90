@@ -98,10 +98,6 @@ subroutine eval8summaWithPrime(&
                       mLayerMatricHeadLiqPrime,      & ! intent(out):   prime vector of liquid water matric potential (m s-1)
                       mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
                       mLayerVolFracIcePrime,         & ! intent(out):   prime vector of volumetric fraction of ice (s-1)
-                      ! output: enthalpy prime values    
-                      scalarCanairEnthalpyPrime,     & ! intent(out):   prime value for temperature component of enthalpy of the canopy air space (J m-3 s-1)
-                      scalarCanopyEnthalpyPrime,     & ! intent(out):   prime value for temperature component of enthalpy of the vegetation canopy (J m-3 s-1)
-                      mLayerEnthalpyPrime,           & ! intent(out):   prime vector of temperature component of enthalpy for snow+soil layers (J m-3 s-1)
                       ! input-output: baseflow    
                       ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
                       dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)
@@ -116,7 +112,6 @@ subroutine eval8summaWithPrime(&
   USE getVectorz_module, only:varExtract                    ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                     ! check feasibility of state vector
   USE updateVarsWithPrime_module, only:updateVarsWithPrime  ! update variables
-  USE enthalpyTempAddPrime_module, only:t2enthalpyPrime     ! compute enthalpy prime                    
   USE computFlux_module, only:soilCmpresPrime               ! compute soil compression
   USE computFlux_module, only:computFlux                    ! compute fluxes given a state vector
   USE computHeatCap_module,only:computHeatCapAnalytic       ! recompute closed form heat capacity (Cp) and derivatives
@@ -176,10 +171,6 @@ subroutine eval8summaWithPrime(&
   real(rkind),intent(out)         :: mLayerMatricHeadLiqPrime(:) ! prime vector of liquid water matric potential (m s-1)
   real(rkind),intent(out)         :: mLayerVolFracWatPrime(:)    ! prime vector of volumetric total water content of each snow and soil layer (s-1)
   real(rkind),intent(out)         :: mLayerVolFracIcePrime(:)    ! prime vector of volumetric fraction of ice (s-1)
-  ! output: enthalpy prime values    
-  real(rkind),intent(out)         :: scalarCanairEnthalpyPrime   ! prime value for temperature component of enthalpy of the canopy air space (J m-3 s-1)
-  real(rkind),intent(out)         :: scalarCanopyEnthalpyPrime   ! prime value for temperature component of enthalpy of the vegetation canopy (J m-3 s-1)
-  real(rkind),intent(out)         :: mLayerEnthalpyPrime(:)      ! prime vector of temperature component of enthalpy for snow+soil layers (J m-3 s-1)
   ! input-output: baseflow    
   integer(i4b),intent(inout)      :: ixSaturation                ! index of the lowest saturated layer
   real(rkind),intent(out)         :: dBaseflow_dMatric(:,:)      ! derivative in baseflow w.r.t. matric head (s-1)
@@ -211,15 +202,17 @@ subroutine eval8summaWithPrime(&
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
   integer(i4b)                    :: ixBeg,ixEnd                 ! index of indices for the soil compression routine
   character(LEN=256)              :: cmessage                    ! error message of downwind routine
-  logical(lgt)                    :: updateCp                    ! flag to indicate if we update Cp at each step
-  logical(lgt)                    :: needCm                      ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  logical(lgt)                    :: updateCp                    ! flag to indicate if we update Cp at each step, set with nrgConserv choice and updateCp_closedForm flag
+  logical(lgt)                    :: needCm                      ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m,, set with nrgConserv choice and needCm_closedForm flag
+  logical(lgt),parameter          :: updateCp_closedForm=.true.  ! nrgConserv = closedForm flag to indicate if we update Cp at each step
+  logical(lgt),parameter          :: needCm_closedForm=.true.    ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   ! --------------------------------------------------------------------------------------------------------------------------------
   associate(&
     ! model decisions
-    ixHowHeatCap              => model_decisions(iLookDECISIONS%howHeatCap)%iDecision      ,& ! intent(in):  [i4b]    heat capacity computation, with or without enthalpy
+    ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision      ,& ! intent(in):  [i4b]    choice of variable in energy conservation backward Euler residual
     ixRichards                => model_decisions(iLookDECISIONS%f_Richards)%iDecision      ,& ! intent(in):  [i4b]    index of the form of Richards' equation
     ! snow parameters
     snowfrz_scale             => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)            ,& ! intent(in):  [dp]     scaling parameter for the snow freezing curve (K-1)
@@ -289,14 +282,14 @@ subroutine eval8summaWithPrime(&
       end if
     end if ! ( feasibility check )
 
-    if(ixHowHeatCap == enthalpyFD)then
+    if(ixNrgConserv == enthalpyFD)then
       updateCp = .true.
       needCm   = .true.
-    else if(ixHowHeatCap == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on
-      updateCp = .true.
-      needCm   = .true.
+    else if(ixNrgConserv == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on
+      updateCp = updateCp_closedForm
+      needCm   = needCm_closedForm
     else
-      message=trim(message)//'unknown heat capacity computation'
+      message=trim(message)//'unknown choice of variable in energy conservation backward Euler residual'
       err=1; return
     end if
 
@@ -537,43 +530,6 @@ subroutine eval8summaWithPrime(&
       dCm_dTkCanopy = 0._rkind
     endif ! needCm
 
-    if(ixHowHeatCap == enthalpyFD)then ! use residual as enthalpy_prime - (phase change)_prime
-      ! compute temperature component of enthalpy prime
-      call t2enthalpyPrime(&
-                      ! input: data structures
-                      diag_data,                 & ! intent(in):   model diagnostic variables for a local HRU
-                      mpar_data,                 & ! intent(in):   parameter data structure
-                      indx_data,                 & ! intent(in):   model indices
-                      ! input: state variables for the vegetation canopy   
-                      scalarCanairTempPrime,     & ! intent(in):   prime value for canopy air temperature (K)
-                      scalarCanopyTempTrial,     & ! intent(in):   trial value for canopy temperature (K)
-                      scalarCanopyWatTrial,      & ! intent(in):   trial value for canopy total water (kg m-2)                         
-                      scalarCanopyTempPrime,     & ! intent(in):   prime value for canopy temperature (K)
-                      scalarCanopyWatPrime,      & ! intent(in):   prime value for canopy total water (kg m-2)
-                       ! input: variables for the snow-soil domain
-                      mLayerTempTrial,           & ! intent(in):   trial vector of layer temperature (K)
-                      mLayerVolFracWatTrial,     & ! intent(in):   trial vector of volumetric total water content (-)
-                      mLayerMatricHeadTrial,     & ! intent(in):   trial vector of total water matric potential (m)
-                      mLayerTempPrime,           & ! intent(in):   prime vector of layer temperature (K)
-                      mLayerVolFracWatPrime,     & ! intent(in):   prime vector of volumetric total water content (-)
-                      mLayerMatricHeadPrime,     & ! intent(in):   prime vector of total water matric potential (m) 
-                      ! input: pre-computed derivatives
-                      scalarFracLiqVeg,          & ! intent(in):   fraction of canopy liquid water (-)
-                      mLayerFracLiqSnow,         & ! intent(in):   fraction of liquid water (-)
-                      dVolTot_dPsi0,             & ! intent(in):   derivative in total water content w.r.t. total water matric potential (m-1) 
-                      ! output: enthalpy prime
-                      scalarCanairEnthalpyPrime, & ! intent(out):  prime value for temperature component of enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyPrime, & ! intent(out):  prime vector of temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyPrime,       & ! intent(out):  prime vector of temperature component of enthalpy of each snow+soil layer (J m-3)
-                      ! output: error control
-                      err,cmessage)                        ! intent(out):  error control
-      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
-    else if(ixHowHeatCap == closedForm)then ! use residual as (Cp*DeltaTemp + Cm*DeltaTheta)_delta - (phase change)_delta
-      scalarCanairEnthalpyPrime = realMissing
-      scalarCanopyEnthalpyPrime = realMissing
-      mLayerEnthalpyPrime       = realMissing
-    endif !(choice of how compute heat capacity)
-
     ! save the number of flux calls per time step
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
 
@@ -655,7 +611,6 @@ subroutine eval8summaWithPrime(&
                       nSnow,                     & ! intent(in):  number of snow layers
                       nSoil,                     & ! intent(in):  number of soil layers
                       nLayers,                   & ! intent(in):  total number of layers
-                      ixHowHeatCap==enthalpyFD,  & ! intent(in):  flag to use enthalpy form of residual
                       ! input: flux vectors
                       sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
                       fluxVec,                   & ! intent(in):  flux vector
@@ -674,9 +629,6 @@ subroutine eval8summaWithPrime(&
                       ! input: enthalpy terms
                       canopyCmTrial,             & ! intent(in):  Cm of vegetation canopy (-)
                       mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (-)
-                      scalarCanairEnthalpyPrime, & ! intent(in):  prime value for the temperature component of the enthalpy of the canopy air space (J m-2 s-1)
-                      scalarCanopyEnthalpyPrime, & ! intent(in):  prime value for the temperature component of the enthalpy of the vegetation canopy (J m-2 s-1)
-                      mLayerEnthalpyPrime,       & ! intent(in):  prime vector of the temperature component of the enthalpy of each snow and soil layer (J m-2 s-1)
                       ! input: data structures
                       prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
@@ -792,10 +744,6 @@ integer(c_int) function eval8summa4ida(tres, sunvec_y, sunvec_yp, sunvec_r, user
                 eqns_data%mLayerMatricHeadLiqPrime,      & ! intent(out):   prime vector of liquid water matric potential (m s-1)
                 eqns_data%mLayerVolFracWatPrime,         & ! intent(out):   prime vector of volumetric total water content of each snow and soil layer (s-1)
                 eqns_data%mLayerVolFracIcePrime,         & ! intent(out):   prime vector of volumetric fraction of ice (s-1)
-                ! output: enthalpy prime values    
-                eqns_data%scalarCanairEnthalpyPrime,     & ! intent(out):   prime value for temperature component of enthalpy of the canopy air space (J m-3 s-1)
-                eqns_data%scalarCanopyEnthalpyPrime,     & ! intent(out):   prime value for temperature component of enthalpy of the vegetation canopy (J m-3 s-1)
-                eqns_data%mLayerEnthalpyPrime,           & ! intent(out):   prime vector of temperature component of enthalpy for snow+soil layers (J m-3 s-1)
                 ! input-output: baseflow
                 eqns_data%ixSaturation,                  & ! intent(inout): index of the lowest saturated layer
                 eqns_data%dBaseflow_dMatric,             & ! intent(out):   derivative in baseflow w.r.t. matric head (s-1)

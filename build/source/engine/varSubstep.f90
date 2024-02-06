@@ -223,7 +223,7 @@ subroutine varSubstep(&
     ixSaturation   => io_varSubstep % ixSaturation,   & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
     ! model decisions
     ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in):    [i4b]    choice of numerical solver
-    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
+    ixNrgConserv            => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& ! intent(in):    [i4b]    choice of variable in energy conservation backward Euler residual
     ! number of layers
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                 ,& ! intent(in):    [i4b]    number of soil layers
@@ -275,7 +275,7 @@ subroutine varSubstep(&
 
     ! set the flag to compute enthalpy
     computeEnthalpy = .false.
-    if(checkNrgBalance .or. ixHowHeatCap==enthalpyFD) computeEnthalpy = .true. ! need to get enthalpy regardles of other decisions
+    if(checkNrgBalance .or. ixNrgConserv==enthalpyFD) computeEnthalpy = .true. ! need to get enthalpy regardles of other decisions
 
     ! initialize the length of the substep
     dtSubstep = dtInit
@@ -1010,7 +1010,7 @@ USE getVectorz_module,only:varExtract                                   ! extrac
               balance(ixSnowSoilNrg(i)) = mLayerHmixDelta(i) - fluxVec(ixSnowSoilNrg(i))*dt
             enddo
           endif
-          ! should be equivalent to above, use for debugging
+          ! This is equivalent to above if, and only if, ixNrgConserv = enthalpyFD
           !!if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg)
           !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = resVec(ixVegNrg)
           !if(nSnowSoilNrg>0)then

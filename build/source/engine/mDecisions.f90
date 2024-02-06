@@ -411,15 +411,16 @@ subroutine mDecisions(err,message)
   endif
 #endif
 
-  ! how to compute heat capacity in energy equation, choice enthalpyFD has better coincidence of energy conservation with IDA tolerance.
-  select case(trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision))
-    case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! heat capacity using enthalpy
-    case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! heat capacity using closed form, not using enthalpy
+  ! choice of variable in energy conservation backward Euler residual, choice enthalpyFD has changes the residual computation and has better coincidence of energy conservation for backward Euler solution  
+  ! NOTE: choice does not change the residual for the IDA solution, as they are equivalent
+  select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
+    case('enthalpyFD'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFD        ! enthalpy finite difference in backward Euler residual
+    case('closedForm'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm        ! heat capacity closed form in backward Euler residual
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
-        model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm ! included for backwards compatibility
+        model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
       else
-        err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
+        err=10; message=trim(message)//"unknown choice of variable in energy conservation backward Euler residual [option="//trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision)//"]"; return
       endif
   end select
 
