@@ -36,7 +36,7 @@ thCondSnow                      jrdn1991        ! (26) choice of thermal conduct
 thCondSoil                      mixConstit      ! (27) choice of thermal conductivity representation for soil
 spatial_gw                      localColumn     ! (28) choice of method for the spatial representation of groundwater
 subRouting                      timeDlay        ! (29) choice of method for sub-grid routing
-nrgConserv                      closedForm      ! (30) choice of variable in energy conservation residual
+nrgConserv                      closedForm      ! (30) choice of variable in energy conservation backward Euler residual
 ! ***********************************************************************************************
 ! ***** description of the options available -- nothing below this point is read ****************
 ! ***********************************************************************************************
