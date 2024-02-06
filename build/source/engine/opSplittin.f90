@@ -373,15 +373,12 @@ subroutine opSplittin(&
          if (split_select % solution) then
            call initialize_split_stateSplit; if (return_flag) return 
            if (split_select % stateSplit) then
-             ! define state subsets for a given split...
-             ! get the mask for the state subset - return for a non-zero error code
-             call split_select % get_stateMask(indx_data,err,cmessage,message,return_flag)
-             nSubset = split_select % nSubset; stateMask = split_select % stateMask 
-             if (return_flag) return
-             call validate_split ! verify that the split is valid
-             if (cycle_domainSplit) then; call split_select % advance_iDomainSplit; split_select % solution=.false.; split_select % stateSplit=.false.; cycle split_select_loop; end if
-             if (cycle_solution) then; call split_select % advance_ixSolution; split_select % stateSplit=.false.; cycle split_select_loop; end if
+             call update_stateMask; if (return_flag) return ! get the mask for the state subset - return for a non-zero error code
+             call validate_split                            ! verify that the split is valid
+             if (cycle_domainSplit) cycle split_select_loop ! if needed, proceed to next iteration of domainSplit method 
+             if (cycle_solution) cycle split_select_loop    ! if needed, proceed to next iteration of solution method 
              if (return_flag) return ! return for a non-zero error code
+             
              call save_recover ! save/recover copies of variables and fluxes
 
              ! assemble vectors for a given split...
@@ -396,8 +393,14 @@ subroutine opSplittin(&
              if (cycle_coupling) then
               call split_select % advance_ixCoupling; call split_select % initialize_flags; cycle split_select_loop ! cycle loops if necessary
              end if
-             if (cycle_stateThenDomain) then; call split_select % advance_ixStateThenDomain; split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; cycle split_select_loop; end if ! deactivate flags for inner loops
-             if (cycle_solution) then; call split_select % advance_ixSolution; split_select % stateSplit=.false.; cycle split_select_loop; end if
+             if (cycle_stateThenDomain) then 
+              call split_select % advance_ixStateThenDomain 
+              split_select % domainSplit=.false.; split_select % solution=.false.; split_select % stateSplit=.false.; 
+              cycle split_select_loop 
+             end if ! deactivate flags for inner loops
+             if (cycle_solution) then 
+              call split_select % advance_ixSolution; split_select % stateSplit=.false.; cycle split_select_loop; 
+             end if
 
              call confirm_variable_updates; if (return_flag) return ! check that state variables updated - return if error 
 
@@ -959,14 +962,12 @@ subroutine opSplittin(&
    end if
   end subroutine try_other_solution_methods 
 
-  subroutine update_stateFilter
+  subroutine update_stateMask
    ! *** Get the mask for the state subset ***
-   return_flag=.false. ! initialize flag
-   call initialize_stateFilter
-   call stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
-   call finalize_stateFilter
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! error control
-  end subroutine update_stateFilter
+   call split_select % get_stateMask(indx_data,err,cmessage,message,return_flag)
+   nSubset = split_select % nSubset; stateMask = split_select % stateMask 
+   if (return_flag) return
+  end subroutine update_stateMask
 
   subroutine validate_split 
    ! *** Verify that the split is valid ***
@@ -974,11 +975,22 @@ subroutine opSplittin(&
    cycle_domainSplit=.false.
    cycle_solution=.false.
    return_flag=.false.
+
    ! check that state variables exist
-   if (nSubset==0) then; cycle_domainSplit=.true.; return; end if
+   if (nSubset==0) then
+    call split_select % advance_iDomainSplit 
+    split_select % solution=.false.; split_select % stateSplit=.false. 
+    cycle_domainSplit=.true. 
+    return 
+   end if
 
    ! avoid redundant case where vector solution is of length 1
-   if (ixSolution==vector .and. count(stateMask)==1) then; cycle_solution=.true.; return; end if
+   if (ixSolution==vector .and. count(stateMask)==1) then
+    call split_select % advance_ixSolution; 
+    split_select % stateSplit=.false.; 
+    cycle_solution=.true. 
+    return 
+   end if
 
    ! check that we do not attempt the scalar solution for the fully coupled case
    if (ixCoupling==fullyCoupled .and. ixSolution==scalar) then
