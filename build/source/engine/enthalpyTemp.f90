@@ -645,18 +645,24 @@ subroutine t2enthalpy(&
                 integral_unf = ( Tcrit - Tfreeze ) * volFracWat
 
                 ! get the frozen  water content
+                ! initialize for case Tcrit=Tfreeze, i.e. mLayerMatricHeadTrial(ixControlIndex)>0
+                integral_frz_low = 0._rkind 
                 if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! get the lower limit of the integral
-                  call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
-                  if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+                  if(diff0<0._rkind)then
+                    call splint(Tk,Ly,L2,Tcrit,integral_frz_low,dL,err,cmessage)
+                    if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
+                  end if
                   ! get the upper limit of the integral
                   call splint(Tk,Ly,L2,mlayerTempTrial(iLayer),integral_frz_upp,dL,err,cmessage)
                   if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
                 else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! get the lower limit of the integral
-                  arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
-                  gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
-                  integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  if(diff0<0._rkind)then
+                    arg = (vGn_alpha * mLayerMatricHeadTrial(ixControlIndex))**vGn_n
+                    gauss_hg_T = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
+                    integral_frz_low = diff0 * ( (theta_sat - theta_res)*gauss_hg_T + theta_res )
+                  end if
                   ! get the upper limit of the integral
                   xConst        = LH_fus/(gravity*Tfreeze)        ! m K-1 (NOTE: J = kg m2 s-2)
                   mLayerPsiLiq  = xConst*diffT   ! liquid water matric potential from the Clapeyron eqution, DIFFERENT from the liquid water matric potential used in the flux calculations
