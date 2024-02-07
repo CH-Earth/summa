@@ -575,6 +575,9 @@ MODULE data_types
  end type out_type_bigAquifer
  ! ** end bigAquifer
 
+ ! ***********************************************************************************************************
+ ! Define classes used to simplify calls to the subrotuines in opSplittin
+ ! ***********************************************************************************************************
  ! ** stateFilter
  type, public :: in_type_stateFilter  ! class for intent(in) arguments in stateFilter call
    integer(i4b)             :: ixCoupling                  ! intent(in): index of coupling method (1,2)
