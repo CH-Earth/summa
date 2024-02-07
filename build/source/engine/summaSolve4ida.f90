@@ -324,6 +324,7 @@ subroutine summaSolve4ida(                         &
     allocate( eqns_data%mLayerVolFracIcePrime(nLayers) )
     allocate( mLayerMatricHeadPrimePrev(nSoil) )
     allocate( dCompress_dPsiPrev(nSoil) )
+    allocate( eqns_data%fluxVec(nState) )
     allocate( eqns_data%resVec(nState) )
     allocate( eqns_data%resSink(nState) )
     allocate( resVecPrev(nState) )
@@ -520,7 +521,7 @@ subroutine summaSolve4ida(                         &
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then
           do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing) 
-            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
+            balance(ixSnowSoilNrg(i)) = balance(ixSnowSoilNrg(i)) + ( eqns_data%resVec(ixSnowSoilNrg(i)) + resVecPrev(ixSnowSoilNrg(i)) )*dt_diff/2._rkind/dt
           enddo
         endif
       endif
