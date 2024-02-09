@@ -79,10 +79,10 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of heat capacity computation
- USE mDecisions_module,only:      &
+USE mDecisions_module,only:       &
                     closedForm,   & ! heat capacity closed form in backward Euler residual
-                    enthalpyFD      ! enthalpy finite difference in backward Euler residual
-                   
+                    enthalpyFDlu, & ! enthalpy with lookup tables finite difference in backward Euler residual
+                    enthalpyFD      ! enthalpy with hypergeometric function finite difference in backward Euler residual
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
@@ -97,9 +97,9 @@ USE mDecisions_module,only:  &
 
  ! look-up values for the numerical method
 USE mDecisions_module,only:&
-                    numrec       ,&  ! home-grown backward Euler solution using free versions of Numerical recipes
-                    kinsol       ,&  ! SUNDIALS backward Euler solution using Kinsol
-                    ida              ! SUNDIALS solution using IDA
+                    numrec       ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
+                    ida             ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -394,9 +394,10 @@ subroutine systemSolv(&
     ! initialize the trial state vectors
     stateVecTrial = stateVecInit
 
-    if(ixNrgConserv == enthalpyFD .and. ixNumericalMethod .ne. ida)then
-      ! compute H_T at the beginning of the data step
+    if((ixNrgConserv.ne.closedForm .or. checkNrgBalance) .and. ixNumericalMethod.ne.ida)then
+      ! will need enthalpy change, compute H_T at the beginning of the data step
       call t2enthalpy(&
+                    ixNrgConserv==enthalpyFDlu,  & ! intent(in):  flag to use the lookup table for soil enthalpy
                     ! input: data structures
                     diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                     mpar_data,                   & ! intent(in):  parameter data structure

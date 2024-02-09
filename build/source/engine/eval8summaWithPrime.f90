@@ -35,7 +35,8 @@ USE var_lookup,only:iLookDERIV                   ! named variables for structure
 ! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:  &
  closedForm,                 & ! heat capacity closed form in backward Euler residual
- enthalpyFD                    ! enthalpy finite difference in backward Euler residual
+ enthalpyFDlu,               & ! enthalpy with lookup tables finite difference in backward Euler residual
+ enthalpyFD                    ! enthalpy with hypergeometric function finite difference in backward Euler residual
 
 implicit none
 private
@@ -282,7 +283,7 @@ subroutine eval8summaWithPrime(&
       end if
     end if ! ( feasibility check )
 
-    if(ixNrgConserv == enthalpyFD)then
+    if(ixNrgConserv == enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then
       updateCp = .true.
       needCm   = .true.
     else if(ixNrgConserv == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on

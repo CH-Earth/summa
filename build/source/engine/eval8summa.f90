@@ -58,7 +58,8 @@ USE var_lookup,only:iLookDERIV                   ! named variables for structure
 ! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:  &
  closedForm,                 & ! heat capacity closed form in backward Euler residual
- enthalpyFD                    ! enthalpy finite difference in backward Euler residual
+ enthalpyFDlu,               & ! enthalpy with lookup tables finite difference in backward Euler residual
+ enthalpyFD                    ! enthalpy with hypergeometric function finite difference in backward Euler residual
 
 ! look-up values for the numerical method
 USE mDecisions_module,only:  &
@@ -310,7 +311,7 @@ subroutine eval8summa(&
       end if
     end if ! ( feasibility check )
 
-    if(ixNrgConserv == enthalpyFD)then
+    if(ixNrgConserv == enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then
       updateCp = .true.
       needCm   = .true.
     else if(ixNrgConserv == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on
@@ -509,26 +510,27 @@ subroutine eval8summa(&
       dCm_dTkCanopy = 0._rkind
     endif ! needCm
 
-    if(ixNrgConserv == enthalpyFD)then ! use residual as enthalpy_delta - (phase change)_delta
+    if(ixNrgConserv.ne.closedForm)then ! use residual as enthalpy_delta - (phase change)_delta
       ! compute temperature component of enthalpy
       call t2enthalpy(&
+                      ixNrgConserv==enthalpyFDlu, & ! intent(in):  flag to use the lookup table for soil enthalpy
                        ! input: data structures
-                      diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
-                      mpar_data,                 & ! intent(in):  parameter data structure
-                      indx_data,                 & ! intent(in):  model indices
-                      lookup_data,               & ! intent(in):  lookup table data structure
+                      diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
+                      mpar_data,                  & ! intent(in):  parameter data structure
+                      indx_data,                  & ! intent(in):  model indices
+                      lookup_data,                & ! intent(in):  lookup table data structure
                       ! input: state variables for the vegetation canopy
-                      scalarCanairTempTrial,     & ! intent(in):  trial value for canopy air temperature (K)
-                      scalarCanopyTempTrial,     & ! intent(in):  trial value for canopy temperature (K)
-                      scalarCanopyWatTrial,      & ! intent(in):  trial value for canopy total water (kg m-2)
+                      scalarCanairTempTrial,      & ! intent(in):  trial value for canopy air temperature (K)
+                      scalarCanopyTempTrial,      & ! intent(in):  trial value for canopy temperature (K)
+                      scalarCanopyWatTrial,       & ! intent(in):  trial value for canopy total water (kg m-2)
                       ! input: variables for the snow-soil domain
-                      mLayerTempTrial,           & ! intent(in):  trial vector of layer temperature (K)
-                      mLayerVolFracWatTrial,     & ! intent(in):  trial vector of volumetric total water content (-)
-                      mLayerMatricHeadTrial,     & ! intent(in):  trial vector of total water matric potential (m)
+                      mLayerTempTrial,            & ! intent(in):  trial vector of layer temperature (K)
+                      mLayerVolFracWatTrial,      & ! intent(in):  trial vector of volumetric total water content (-)
+                      mLayerMatricHeadTrial,      & ! intent(in):  trial vector of total water matric potential (m)
                       ! output: enthalpy
-                      scalarCanairEnthalpyTrial, & ! intent(out): trial value for temperature component of enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyTrial, & ! intent(out): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyTrial,       & ! intent(out): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
+                      scalarCanairEnthalpyTrial,  & ! intent(out): trial value for temperature component of enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthalpyTrial,  & ! intent(out): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthalpyTrial,        & ! intent(out): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
                       ! output: error control
                       err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -618,41 +620,41 @@ subroutine eval8summa(&
     ! compute the residual vector
     call computResid(&
                       ! input: model control
-                      dt_cur,                    & ! intent(in):  length of the time step (seconds)
-                      nSnow,                     & ! intent(in):  number of snow layers
-                      nSoil,                     & ! intent(in):  number of soil layers
-                      nLayers,                   & ! intent(in):  total number of layers
-                      ixNrgConserv==enthalpyFD,  & ! intent(in):  flag to use enthalpy form of residual
+                      dt_cur,                     & ! intent(in):  length of the time step (seconds)
+                      nSnow,                      & ! intent(in):  number of snow layers
+                      nSoil,                      & ! intent(in):  number of soil layers
+                      nLayers,                    & ! intent(in):  total number of layers
+                      ixNrgConserv.ne.closedForm, & ! intent(in):  flag to use enthalpy form of residual
                       ! input: flux vectors
-                      sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
-                      fluxVec,                   & ! intent(in):  flux vector
-                      ! input: state variables (already disaggregated into scalars and vectors)
-                      scalarCanairTempTrial,     & ! intent(in):  trial value for the temperature of the canopy air space (K)
-                      scalarCanopyTempTrial,     & ! intent(in):  trial value for the temperature of the vegetation canopy (K)
-                      scalarCanopyWatTrial,      & ! intent(in):  trial value for the water on the vegetation canopy (kg m-2)
-                      mLayerTempTrial,           & ! intent(in):  trial value for the temperature of each snow and soil layer (K)
-                      scalarAquiferStorageTrial, & ! intent(in):  trial value of storage of water in the aquifer (m)
-                      ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                      scalarCanopyIceTrial,      & ! intent(in):  trial value for the ice on the vegetation canopy (kg m-2)
-                      scalarCanopyLiqTrial,      & ! intent(in):  trial value for the liq on the vegetation canopy (kg m-2)
-                      mLayerVolFracIceTrial,     & ! intent(in):  trial value for the volumetric ice in each snow and soil layer (-)
-                      mLayerVolFracWatTrial,     & ! intent(in):  trial value for the volumetric water in each snow and soil layer (-)
-                      mLayerVolFracLiqTrial,     & ! intent(in):  trial value for the volumetric liq in each snow and soil layer (-)
+                      sMul,                       & ! intent(in):  state vector multiplier (used in the residual calculations)
+                      fluxVec,                    & ! intent(in):  flux vector
+                      ! input: state variables (a lready disaggregated into scalars and vectors)
+                      scalarCanairTempTrial,      & ! intent(in):  trial value for the temperature of the canopy air space (K)
+                      scalarCanopyTempTrial,      & ! intent(in):  trial value for the temperature of the vegetation canopy (K)
+                      scalarCanopyWatTrial,       & ! intent(in):  trial value for the water on the vegetation canopy (kg m-2)
+                      mLayerTempTrial,            & ! intent(in):  trial value for the temperature of each snow and soil layer (K)
+                      scalarAquiferStorageTrial,  & ! intent(in):  trial value of storage of water in the aquifer (m)
+                      ! input: diagnostic variabl es defining the liquid water and ice content (function of state variables)
+                      scalarCanopyIceTrial,       & ! intent(in):  trial value for the ice on the vegetation canopy (kg m-2)
+                      scalarCanopyLiqTrial,       & ! intent(in):  trial value for the liq on the vegetation canopy (kg m-2)
+                      mLayerVolFracIceTrial,      & ! intent(in):  trial value for the volumetric ice in each snow and soil layer (-)
+                      mLayerVolFracWatTrial,      & ! intent(in):  trial value for the volumetric water in each snow and soil layer (-)
+                      mLayerVolFracLiqTrial,      & ! intent(in):  trial value for the volumetric liq in each snow and soil layer (-)
                       ! input: enthalpy terms
-                      canopyCmTrial,             & ! intent(in):  Cm of vegetation canopy (-)
-                      mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (-)
-                      scalarCanairEnthalpyTrial, & ! intent(in):  trial value for temperature component of enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyTrial, & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
+                      canopyCmTrial,              & ! intent(in):  Cm of vegetation canopy (-)
+                      mLayerCmTrial,              & ! intent(in):  Cm of each snow and soil layer (-)
+                      scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthalpyTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthalpyTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
                       ! input: data structures
-                      prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
-                      diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
-                      flux_data,                 & ! intent(in):  model fluxes for a local HRU
-                      indx_data,                 & ! intent(in):  index data
+                      prog_data,                  & ! intent(in):  model prognostic variables for a local HRU
+                      diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
+                      flux_data,                  & ! intent(in):  model fluxes for a local HRU
+                      indx_data,                  & ! intent(in):  index data
                       ! output
-                      resSink,                   & ! intent(out): additional (sink) terms on the RHS of the state equation
-                      resVec,                    & ! intent(out): residual vector
-                      err,cmessage)                ! intent(out): error control
+                      resSink,                    & ! intent(out): additional (sink) terms on the RHS of the state equation
+                      resVec,                     & ! intent(out): residual vector
+                      err,cmessage)                 ! intent(out): error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     ! compute the function evaluation

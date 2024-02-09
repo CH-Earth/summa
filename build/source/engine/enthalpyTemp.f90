@@ -158,15 +158,12 @@ subroutine T2L_lookup(nSoil,                         &  ! intent(in):    number 
   character(*),intent(out)      :: message              ! error message
   ! declare local variables
   character(len=128)            :: cmessage             ! error message in downwind routine
-  logical(lgt),parameter        :: doTest=.false.       ! flag to test
-  integer(i4b),parameter        :: nLook=100            ! number of elements in the lookup table
+  integer(i4b),parameter        :: nLook=500            ! number of elements in the lookup table
   integer(i4b),parameter        :: nIntegr8=10000       ! number of points used in the numerical integration
   real(rkind),parameter         :: T_lower=260.0_rkind  ! lowest temperature value where all liquid water is assumed frozen (K)
   real(rkind),dimension(nLook)  :: xTemp                ! temporary vector
   real(rkind)                   :: xIncr                ! temporary increment
   real(rkind)                   :: T_incr               ! temperature increment
-  real(rkind),parameter         :: T_test=272.9742_rkind! test value for temperature (K)
-  real(rkind)                   :: L_test               ! test value for integral of mLayerPsiLiq from Tfreeze to T_test (K)
   real(rkind)                   :: dL                   ! derivative of integral with temperature at T_test
   integer(i4b)                  :: iVar                 ! loop through variables
   integer(i4b)                  :: iSoil                ! loop through soil layers
@@ -276,26 +273,6 @@ subroutine T2L_lookup(nSoil,                         &  ! intent(in):    number 
       ! use cubic spline interpolation to obtain integral values at the desired values of temperature
       call spline(Tk,Ly,1.e30_rkind,1.e30_rkind,L2,err,cmessage)  ! get the second derivatives
       if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-      ! test
-      if(doTest)then
-
-        ! calculate enthalpy
-        call splint(Tk,Ly,L2,T_test,L_test,dL,err,cmessage)
-        if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
-
-        ! write values
-        print*, 'doTest    = ', doTest
-        print*, 'T_test    = ', T_test    ! temperature (K)
-        print*, 'L_test    = ', L_test    ! integral (K)
-        print*, 'theta_sat = ', theta_sat ! soil porosity                      (-)
-        print*, 'theta_res = ', theta_res ! volumetric residual water content  (-)
-        print*, 'vGn_alpha = ', vGn_alpha ! van Genuchten "alpha" parameter    (m-1)
-        print*, 'vGn_n     = ', vGn_n     ! van Genuchten "n" parameter        (-)
-        print*, trim(message)//'PAUSE: Set doTest=.false. to complete simulations'
-        read(*,*)
-
-      endif  ! if testing
 
     ! end asssociation to variables in the data structures
     end associate
@@ -443,6 +420,7 @@ end function t2enthalpy_snow
 ! public subroutine t2enthalpy: compute temperature component of enthalpy from temperature and total water content
 ! ************************************************************************************************************************
 subroutine t2enthalpy(&
+                      use_lookup,                        & ! intent(in):  flag to use the lookup table for soil enthalpy
                       ! input: data structures
                       diag_data,                         & ! intent(in):  model diagnostic variables for a local HRU
                       mpar_data,                         & ! intent(in):  parameter data structure
@@ -470,6 +448,7 @@ subroutine t2enthalpy(&
   implicit none
   ! delare dummy variables
   ! -------------------------------------------------------------------------------------------------------------------------
+  logical(lgt),intent(in)          :: use_lookup                ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
   ! input: data structures
   type(var_dlength),intent(in)     :: diag_data                 ! diagnostic variables for a local HRU
   type(var_dlength),intent(in)     :: mpar_data                 ! model parameters
@@ -521,7 +500,7 @@ subroutine t2enthalpy(&
   real(rkind)                      :: enthAir                   ! enthalpy of air (J m-3)
   real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
   real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
-  logical(lgt),parameter           :: use_lookup=.false.        ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
+  logical(lgt),parameter           :: doTest=.false.            ! flag to run unit test
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   generalVars: associate(&
@@ -681,6 +660,21 @@ subroutine t2enthalpy(&
                 enthLiq = iden_water * Cp_water * (integral_unf + integral_frz_upp - integral_frz_low)
                 enthIce = iden_ice * Cp_ice * ( volFracWat * diffT - (integral_unf + integral_frz_upp - integral_frz_low) )
                 enthWater = enthIce + enthLiq
+
+                if(doTest)then
+          
+                  ! write values
+                  print*, 'doTest    = ', doTest
+                  print*, 'T,Tcrit   = ', mlayerTempTrial(iLayer),Tcrit    ! temperature (K)
+                  print*, 'integral unf,frz_upp,frz_low = ', integral_unf, integral_frz_upp, integral_frz_low    ! integral (K)
+                  print*, 'theta_sat = ', theta_sat ! soil porosity                      (-)
+                  print*, 'theta_res = ', theta_res ! volumetric residual water content  (-)
+                  print*, 'vGn_alpha = ', vGn_alpha ! van Genuchten "alpha" parameter    (m-1)
+                  print*, 'vGn_n     = ', vGn_n     ! van Genuchten "n" parameter        (-)
+                  print*, trim(message)//'PAUSE: Set doTest=.false. to complete simulations'
+                  read(*,*)
+          
+                endif  ! if testing
 
               endif ! (if frozen conditions)
 
