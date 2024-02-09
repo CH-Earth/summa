@@ -222,8 +222,6 @@ contains
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! --------------------------------------------------------------------------------------------------------------------------------
- ! associations to information in data structures
- associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summaSolve4numrec/'
@@ -249,41 +247,43 @@ contains
  ! NOTE: The derivatives were computed in the previous call to computFlux
  !       This occurred either at the call to eval8summa at the start of systemSolv
  !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
- call computJacob(&
-                  ! input: model control
-                  dt_cur,                         & ! intent(in):    length of the time step (seconds)
-                  nSnow,                          & ! intent(in):    number of snow layers
-                  nSoil,                          & ! intent(in):    number of soil layers
-                  nLayers,                        & ! intent(in):    total number of layers
-                  computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                  (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
-                  ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                  ! input: data structures
-                  indx_data,                      & ! intent(in):    index data
-                  prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
-                  diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
-                  deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                  dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
-                  ! input-output: Jacobian and its diagonal
-                  dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
-                  aJac,                           & ! intent(out):   Jacobian matrix
-                  ! output: error control
-                  err,cmessage)                     ! intent(out):   error code and error message
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization
+  call computJacob(&
+                   ! input: model control
+                   dt_cur,                         & ! intent(in):    length of the time step (seconds)
+                   nSnow,                          & ! intent(in):    number of snow layers
+                   nSoil,                          & ! intent(in):    number of soil layers
+                   nLayers,                        & ! intent(in):    total number of layers
+                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                   (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
+                   ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
+                   ! input: data structures
+                   indx_data,                      & ! intent(in):    index data
+                   prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
+                   diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
+                   deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                   dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                   ! input-output: Jacobian and its diagonal
+                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
+                   aJac,                           & ! intent(out):   Jacobian matrix
+                   ! output: error control
+                   err,cmessage)                     ! intent(out):   error code and error message
+ end associate ! end association to info in data structures
+ if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the numerical Jacobian matrix
- if(doNumJacobian)then
+ if (doNumJacobian) then
   globalPrintFlag=.false.
   call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
   globalPrintFlag=globalPrintFlagInit
- endif
+ end if
 
  ! test the band diagonal matrix
- if(testBandDiagonal)then
+ if (testBandDiagonal) then
   call testBandMat(check=.true.,err=err,message=cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- endif
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ end if
 
  ! -----
  ! * solve linear system...
@@ -294,9 +294,9 @@ contains
 
  ! scale matrices
  call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- if(globalPrintFlag .and. ixMatrix==ixBandMatrix)then
+ if (globalPrintFlag .and. ixMatrix==ixBandMatrix) then
   print*, '** SCALED banded analytical Jacobian:'
   write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
   do iLayer=kl+1,nBands
@@ -309,10 +309,9 @@ contains
 
  ! compute the newton step: use the lapack routines to solve the linear system A.X=B
  call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- if(globalPrintFlag)&
- write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
+ if (globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
 
  ! -----
  ! * update, evaluate, and refine the state vector...
@@ -324,7 +323,7 @@ contains
  ! * case 1: state vector
  ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
  ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
- if(size(stateVecTrial)>1)then
+ if (size(stateVecTrial)>1) then
 
   ! try to backtrack
   select case(ixStepRefinement)
@@ -335,21 +334,20 @@ contains
 
   ! check warnings: negative error code = warning; in this case back-tracked to the original value
   ! NOTE: Accept the full newton step if back-tracked to the original value
-  if(err<0)then
-   doRefine=.false.;    call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+  if (err<0) then
+   doRefine=.false.;    
+   call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
   end if
 
  ! * case 2: scalar
  else
   call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  endif
 
  ! check errors
- if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
- ! end association to info in data structures
- end associate
 
  contains
 
