@@ -1031,6 +1031,8 @@ subroutine coupled_em(&
               err=20; return
             endif
             ! try again, restart step (at end inner step)
+            deallocate(innerBalanceLayerNrg)
+            deallocate(innerBalanceLayerMass)
             cycle substeps
           endif
 
