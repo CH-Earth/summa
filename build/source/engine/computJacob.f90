@@ -25,9 +25,11 @@ USE nrtype
 
 ! derived types to define the data structures
 USE data_types,only:&
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    model_options   ! defines the model decisions
+                    var_ilength,         & ! data vector with variable length dimension (i4b)
+                    var_dlength,         & ! data vector with variable length dimension (rkind)
+                    model_options,       & ! defines the model decisions
+                    in_type_computJacob, & ! class for computJacob arguments
+                    out_type_computJacob   ! class for computJacob arguments
 
 ! named variables for structure elements
 USE var_lookup,only:iLookDECISIONS  ! named variables for elements of the decision structure

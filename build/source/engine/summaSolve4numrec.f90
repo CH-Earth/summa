@@ -66,12 +66,14 @@ USE multiconst,only:&
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
-                    model_options   ! defines the model decisions
+                    var_i,               & ! data vector (i4b)
+                    var_d,               & ! data vector (rkind)
+                    var_ilength,         & ! data vector with variable length dimension (i4b)
+                    var_dlength,         & ! data vector with variable length dimension (rkind)
+                    zLookup,             & ! lookup tables
+                    model_options,       & ! defines the model decisions
+                    in_type_computJacob, & ! class for computJacob arguments
+                    out_type_computJacob   ! class for computJacob arguments
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
