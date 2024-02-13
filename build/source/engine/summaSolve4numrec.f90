@@ -395,7 +395,7 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='lineSearchRefinement/'
-  converged=.false.
+  converged =.false.
 
   ! check the need to compute the line search
   if(doLineSearch)then
@@ -550,7 +550,7 @@ contains
 
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='trustRegionRefinement/'
-  converged=.false.
+  converged =.false.
 
   ! check the need to refine the step
   if(doTrustRefinement)then
@@ -619,6 +619,7 @@ contains
   real(rkind),parameter          :: delX=1._rkind            ! trial increment
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='safeRootfinder/'
+  converged = .false.
 
   ! check scalar
   if(size(stateVecTrial)/=1 .or. size(rVecScaled)/=1 .or. size(newtStepScaled)/=1)then
