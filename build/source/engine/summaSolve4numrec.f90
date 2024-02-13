@@ -990,26 +990,26 @@ contains
   function checkConv(rVec,xInc,xVec)
   implicit none
   ! dummies
-  real(rkind),intent(in)       :: rVec(:)                ! residual vector (mixed units)
-  real(rkind),intent(in)       :: xInc(:)                ! iteration increment (mixed units)
-  real(rkind),intent(in)       :: xVec(:)                ! state vector (mixed units)
-  logical(lgt)              :: checkConv              ! flag to denote convergence
+  real(rkind),intent(in)       :: rVec(:)                 ! residual vector (mixed units)
+  real(rkind),intent(in)       :: xInc(:)                 ! iteration increment (mixed units)
+  real(rkind),intent(in)       :: xVec(:)                 ! state vector (mixed units)
+  logical(lgt)                 :: checkConv               ! flag to denote convergence
   ! locals
-  real(rkind),dimension(mSoil) :: psiScale               ! scaling factor for matric head
-  real(rkind),parameter        :: xSmall=1.e-0_rkind        ! a small offset
-  real(rkind),parameter        :: scalarTighten=0.1_rkind   ! scaling factor for the scalar solution
-  real(rkind)                  :: soilWatbalErr          ! error in the soil water balance
-  real(rkind)                  :: canopy_max             ! absolute value of the residual in canopy water (kg m-2)
-  real(rkind),dimension(1)     :: energy_max             ! maximum absolute value of the energy residual (J m-3)
-  real(rkind),dimension(1)     :: liquid_max             ! maximum absolute value of the volumetric liquid water content residual (-)
-  real(rkind),dimension(1)     :: matric_max             ! maximum absolute value of the matric head iteration increment (m)
-  real(rkind)                  :: aquifer_max            ! absolute value of the residual in aquifer water (m)
-  logical(lgt)              :: canopyConv             ! flag for canopy water balance convergence
-  logical(lgt)              :: watbalConv             ! flag for soil water balance convergence
-  logical(lgt)              :: liquidConv             ! flag for residual convergence
-  logical(lgt)              :: matricConv             ! flag for matric head convergence
-  logical(lgt)              :: energyConv             ! flag for energy convergence
-  logical(lgt)              :: aquiferConv            ! flag for aquifer water balance convergence
+  real(rkind),dimension(mSoil) :: psiScale                ! scaling factor for matric head
+  real(rkind),parameter        :: xSmall=1.e-0_rkind      ! a small offset
+  real(rkind),parameter        :: scalarTighten=0.1_rkind ! scaling factor for the scalar solution
+  real(rkind)                  :: soilWatbalErr           ! error in the soil water balance
+  real(rkind)                  :: canopy_max              ! absolute value of the residual in canopy water (kg m-2)
+  real(rkind),dimension(1)     :: energy_max              ! maximum absolute value of the energy residual (J m-3)
+  real(rkind),dimension(1)     :: liquid_max              ! maximum absolute value of the volumetric liquid water content residual (-)
+  real(rkind),dimension(1)     :: matric_max              ! maximum absolute value of the matric head iteration increment (m)
+  real(rkind)                  :: aquifer_max             ! absolute value of the residual in aquifer water (m)
+  logical(lgt)                 :: canopyConv              ! flag for canopy water balance convergence
+  logical(lgt)                 :: watbalConv              ! flag for soil water balance convergence
+  logical(lgt)                 :: liquidConv              ! flag for residual convergence
+  logical(lgt)                 :: matricConv              ! flag for matric head convergence
+  logical(lgt)                 :: energyConv              ! flag for energy convergence
+  logical(lgt)                 :: aquiferConv             ! flag for aquifer water balance convergence
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
   associate(&

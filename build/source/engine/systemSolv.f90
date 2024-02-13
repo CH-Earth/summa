@@ -123,8 +123,8 @@ subroutine systemSolv(&
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                       computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                       scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
-                      checkMassBalance,  & ! intent(in):    flag to check mass balance
-                      checkNrgBalance,   & ! intent(in):    flag to check energy balance
+                      computMassBalance, & ! intent(in):    flag to compute mass balance
+                      computNrgBalance,  & ! intent(in):    flag to compute energy balance
                       ! input/output: data structures
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
@@ -185,8 +185,8 @@ subroutine systemSolv(&
   logical(lgt),intent(inout)      :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution
-  logical(lgt),intent(in)         :: checkMassBalance              ! flag to check mass balance
-  logical(lgt),intent(in)         :: checkNrgBalance               ! flag to check energy balance
+  logical(lgt),intent(in)         :: computMassBalance             ! flag to compute mass balance
+  logical(lgt),intent(in)         :: computNrgBalance              ! flag to compute energy balance
   ! input/output: data structures
   type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
   type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
@@ -394,7 +394,7 @@ subroutine systemSolv(&
     ! initialize the trial state vectors
     stateVecTrial = stateVecInit
 
-    if((ixNrgConserv.ne.closedForm .or. checkNrgBalance) .and. ixNumericalMethod.ne.ida)then
+    if((ixNrgConserv.ne.closedForm .or. computNrgBalance) .and. ixNumericalMethod.ne.ida)then
       ! will need enthalpy change, compute H_T at the beginning of the data step
       call t2enthalpy(&
                     ixNrgConserv==enthalpyFDlu,  & ! intent(in):  flag to use the lookup table for soil enthalpy
@@ -534,12 +534,12 @@ subroutine systemSolv(&
                           firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                           computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                           scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                          checkMassBalance,        & ! intent(in):    flag to check mass balance
-                          checkNrgBalance,         & ! intent(in):    flag to check energy balance
+                          computMassBalance,       & ! intent(in):    flag to compute mass balance
+                          computNrgBalance,        & ! intent(in):    flag to compute energy balance
                           ! input: state vector
                           stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
                           sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
-                          dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
+                          dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
                           type_data,               & ! intent(in):    type of vegetation and soil

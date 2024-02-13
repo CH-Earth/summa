@@ -196,8 +196,8 @@ subroutine varSubstep(&
   real(qp)                           :: resVec(in_varSubstep % nSubset)        ! substep residual vector
   real(rkind)                        :: balance(in_varSubstep % nSubset)       ! substep balance 
   real(rkind)                        :: sumBalance(in_varSubstep % nSubset)    ! sum of substeps balance
-  logical(lgt),parameter             :: checkMassBalance = .true.              ! flag to check the mass balance
-  logical(lgt),parameter             :: checkNrgBalance = .true.               ! flag to check the energy balance
+  logical(lgt),parameter             :: computMassBalance = .true.             ! flag to compute the mass balance, will affect step length, default true
+  logical(lgt),parameter             :: computNrgBalance = .true.              ! flag to compute the energy balance, will not effect solution but will not compute nrg balance if false (saves expense)
   logical(lgt)                       :: computeEnthalpy                        ! flag to compute enthalpy regardless of the model decision
   logical(lgt)                       :: use_lookup                             ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
 
@@ -278,7 +278,7 @@ subroutine varSubstep(&
     ! set the flag to compute enthalpy, may want to have this true always if want to output enthalpy
     computeEnthalpy = .false.
     use_lookup = .false. ! with or without lookup tables
-    if((ixNrgConserv .ne. closedForm .or. checkNrgBalance) .and. ixNumericalMethod .ne. ida) computeEnthalpy = .true.
+    if((ixNrgConserv .ne. closedForm .or. computNrgBalance) .and. ixNumericalMethod .ne. ida) computeEnthalpy = .true.
     if (ixNrgConserv==enthalpyFDlu) use_lookup = .true.
 
     ! initialize the length of the substep
@@ -350,8 +350,8 @@ subroutine varSubstep(&
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                       computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                       scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
-                      checkMassBalance,  & ! intent(in):    flag to check mass balance
-                      checkNrgBalance,   & ! intent(in):    flag to check energy balance
+                      computMassBalance, & ! intent(in):    flag to compute mass balance
+                      computNrgBalance,  & ! intent(in):    flag to compute energy balance
                       ! input/output: data structures
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
@@ -446,7 +446,7 @@ subroutine varSubstep(&
 
       ! update prognostic variables, update balances, and check them for possible step reduction if numrec or kinsol
       call updateProg(dtSubstep,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                    & ! input: states
-                      doAdjustTemp,computeVegFlux,checkMassBalance,checkNrgBalance,computeEnthalpy,use_lookup,   & ! input: model control
+                      doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthalpy,use_lookup,   & ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_temp,prog_data,diag_data,deriv_data,  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                        ! output: balances, flags, and error control
       if(err/=0)then
@@ -623,7 +623,7 @@ end subroutine varSubstep
 ! private subroutine updateProg: update prognostic variables
 ! **********************************************************************************************************
 subroutine updateProg(dt,nSnow,nSoil,nLayers,untappedMelt,stateVecTrial,stateVecPrime,                           & ! input: states
-                      doAdjustTemp,computeVegFlux,checkMassBalance,checkNrgBalance,computeEnthalpy,use_lookup,   & ! input: model control
+                      doAdjustTemp,computeVegFlux,computMassBalance,computNrgBalance,computeEnthalpy,use_lookup,   & ! input: model control
                       model_decisions,lookup_data,mpar_data,indx_data,flux_data,prog_data,diag_data,deriv_data,  & ! input-output: data structures
                       fluxVec,resVec,balance,waterBalanceError,nrgFluxModified,err,message)                        ! input-output: balances, flags, and error control
 USE getVectorz_module,only:varExtract                              ! extract variables from the state vector
@@ -644,8 +644,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)      ,intent(in)    :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
   real(rkind)      ,intent(in)    :: stateVecTrial(:)              ! trial state vector (mixed units)
   real(rkind)      ,intent(in)    :: stateVecPrime(:)              ! trial state vector (mixed units)
-  logical(lgt)     ,intent(in)    :: checkMassBalance              ! flag to check the mass balance
-  logical(lgt)     ,intent(in)    :: checkNrgBalance               ! flag to check the energy balance
+  logical(lgt)     ,intent(in)    :: computMassBalance              ! flag to check the mass balance
+  logical(lgt)     ,intent(in)    :: computNrgBalance               ! flag to check the energy balance
   logical(lgt)     ,intent(in)    :: computeEnthalpy               ! flag to compute enthalpy
   logical(lgt)     ,intent(in)    :: use_lookup                    ! flag to use the lookup table for soil enthalpy, otherwise use hypergeometric function
  
@@ -984,7 +984,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
       
     endif
 
-    if(checkNrgBalance)then
+    if(computNrgBalance)then
       ! compute energy balance if didn't do inside solver substeps
       select case(ixNumericalMethod)
         case(ida); ! do nothing, already computed
@@ -1027,6 +1027,14 @@ USE getVectorz_module,only:varExtract                              ! extract var
           !endif
 
       end select
+    else ! if not checking energy balance set balance to missing
+      if(ixCasNrg/=integerMissing) balance(ixCasNrg) = realMissing
+      if(ixVegNrg/=integerMissing) balance(ixVegNrg) = realMissing
+      if(nSnowSoilNrg>0)then
+        do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
+          balance(ixSnowSoilNrg(i)) = realMissing
+        enddo
+      endif
     endif  ! if checking energy balance
 
     ! -----
@@ -1035,7 +1043,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
     ! NOTE: currently this will only fail with kinsol solver, since mass balance is checked in the numrec solver and not checked for ida solver
     !   Negative error code will mean step will be failed and retried with smaller step size
-    if(checkMassBalance)then
+    if(computMassBalance)then
 
       if(ixVegHyd/=integerMissing)then ! check for complete drainage
 
@@ -1137,6 +1145,14 @@ USE getVectorz_module,only:varExtract                              ! extract var
           if(ixAqWat/=integerMissing) balance(ixAqWat) = resVec(ixAqWat)
 
       end select
+    else ! if not checking mass balance set balance to missing
+      if(ixVegHyd/=integerMissing) balance(ixVegHyd) = realMissing
+      if(nSnowSoilHyd>0)then
+        do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)
+          balance(ixSnowSoilHyd(i)) = realMissing
+        end do
+      endif
+      if(ixAqWat/=integerMissing) balance(ixAqWat) = realMissing
     endif  ! if checking the mass balance
 
     ! -----

@@ -101,8 +101,8 @@ subroutine summaSolve4ida(                         &
                       firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                       computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                      checkMassBalance,        & ! intent(in):    flag to check mass balance
-                      checkNrgBalance,         & ! intent(in):    flag to check energy balance
+                      computMassBalance,       & ! intent(in):    flag to compute mass balance
+                      computNrgBalance,        & ! intent(in):    flag to compute energy balance
                       ! input: state vectors
                       stateVecInit,            & ! intent(in):    initial state vector
                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
@@ -171,8 +171,8 @@ subroutine summaSolve4ida(                         &
   logical(lgt),intent(in)         :: firstSubStep           ! flag to indicate if we are processing the first sub-step
   logical(lgt),intent(in)         :: computeVegFlux         ! flag to indicate if computing fluxes over vegetation
   logical(lgt),intent(in)         :: scalarSolution         ! flag to denote if implementing the scalar solution
-  logical(lgt),intent(in)         :: checkMassBalance       ! flag to check mass balance
-  logical(lgt),intent(in)         :: checkNrgBalance        ! flag to check energy balance
+  logical(lgt),intent(in)         :: computMassBalance      ! flag to compute mass balance
+  logical(lgt),intent(in)         :: computNrgBalance       ! flag to compute energy balance
   ! input: state vectors
   real(rkind),intent(in)          :: stateVecInit(:)        ! model state vector
   real(qp),intent(in)             :: sMul(:)                ! state vector multiplier (used in the residual calculations)
@@ -511,10 +511,10 @@ subroutine summaSolve4ida(                         &
                                                       + dCompress_dPsiPrev(:)  * mLayerMatricHeadPrimePrev(:) ) * dt_diff/2._rkind
     
       ! ----
-      ! * check energy balance, from residuals
+      ! * compute energy balance, from residuals
       !  formulation with prime variables would cancel to closedForm version, so does not matter which formulation is used
       !------------------------
-      if(checkNrgBalance)then    
+      if(computNrgBalance)then    
     
         ! compute energy balance mean, resVec is the instanteous residual vector from the solver
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
@@ -527,9 +527,9 @@ subroutine summaSolve4ida(                         &
       endif
     
       ! ----
-      ! * check mass balance, from residuals
+      ! * compute mass balance, from residuals
       !------------------------
-      if(checkMassBalance)then
+      if(computMassBalance)then
     
         ! compute mass balance mean, resVec is the instanteous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_diff/2._rkind/dt

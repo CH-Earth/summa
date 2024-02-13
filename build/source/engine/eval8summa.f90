@@ -314,7 +314,7 @@ subroutine eval8summa(&
     if(ixNrgConserv == enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then
       updateCp = .true.
       needCm   = .true.
-    else if(ixNrgConserv == closedForm)then ! have a choice, should update if checkNrgBalance in varSubstep is turned on
+    else if(ixNrgConserv == closedForm)then ! have a choice
       updateCp = updateCp_closedForm
       needCm   = needCm_closedForm
     else
