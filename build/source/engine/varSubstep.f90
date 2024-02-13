@@ -1006,7 +1006,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
                          scalarCanopyHmixDelta,        & ! intent(inout): delta value for mixture enthalpy of the vegetation canopy (J m-3)
                          mLayerHmixDelta,              & ! intent(inout): delta vector of mixture enthalpy of each snow+soil layer (J m-3)
                          ! output: error control    
-                         err,message)                    ! intent(out): error control
+                         err,cmessage)                    ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! compute energy balance, maybe should use to check for step reduction
