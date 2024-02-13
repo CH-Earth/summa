@@ -665,6 +665,7 @@ subroutine systemSolv(&
         !---------------------------
         ! iterate and update trial state vector, fluxes, and derivatives
         do iter=1,localMaxIter
+          converged = .false.
           ! keep track of the number of iterations
           niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
           call summaSolve4numrec(&
