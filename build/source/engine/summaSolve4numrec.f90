@@ -395,6 +395,7 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   ! initialize error control
   err=0; message='lineSearchRefinement/'
+  converged=.false.
 
   ! check the need to compute the line search
   if(doLineSearch)then
@@ -549,6 +550,7 @@ contains
 
   ! --------------------------------------------------------------------------------------------------------
   err=0; message='trustRegionRefinement/'
+  converged=.false.
 
   ! check the need to refine the step
   if(doTrustRefinement)then
