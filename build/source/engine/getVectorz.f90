@@ -459,29 +459,40 @@ subroutine checkFeas(&
     feasible=.true.
     ! check that the canopy air space temperature is reasonable
     if(ixCasNrg/=integerMissing)then
-      if(stateVec(ixCasNrg) > canopyTempMax) feasible=.false.
-      if(stateVec(ixCasNrg) > canopyTempMax) message=trim(message)//'canopy air space temp high,'
-      !if(stateVec(ixCasNrg) > canopyTempMax) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
+      if(stateVec(ixCasNrg) > canopyTempMax) then 
+        feasible=.false.
+        message=trim(message)//'canopy air space temp high'
+        !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixCasNrg )', feasible, canopyTempMax, stateVec(ixCasNrg)
+      endif
     endif
 
     ! check that the canopy air space temperature is reasonable
     if(ixVegNrg/=integerMissing)then
-      if(stateVec(ixVegNrg) > canopyTempMax) feasible=.false.
-      !if(stateVec(ixVegNrg) > canopyTempMax) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
+      if(stateVec(ixVegNrg) > canopyTempMax)then
+        feasible=.false.
+        message=trim(message)//'canopy temp high'
+        !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, max, stateVec( ixVegNrg )', feasible, canopyTempMax, stateVec(ixVegNrg)
+      endif
     endif
 
     ! check canopy liquid water is not negative
     if(ixVegHyd/=integerMissing)then
-      if(stateVec(ixVegHyd) < 0._rkind) feasible=.false.
-      !if(stateVec(ixVegHyd) < 0._rkind) write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
-    end if
+      if(stateVec(ixVegHyd) < 0._rkind)then 
+        feasible=.false.
+        message=trim(message)//'canopy liq water neg'
+        !write(*,'(a,1x,L1,1x,10(f20.10,1x))') 'feasible, min, stateVec( ixVegHyd )', feasible, 0._rkind, stateVec(ixVegHyd)
+      endif
+    endif
 
     ! check snow temperature is below freezing
     if(count(ixSnowOnlyNrg/=integerMissing)>0)then
-      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze)) feasible=.false.
-      !do iLayer=1,nSnow
-      !  if(stateVec(ixSnowOnlyNrg(iLayer)) > Tfreeze) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
-      !enddo
+      if(any(stateVec( pack(ixSnowOnlyNrg,ixSnowOnlyNrg/=integerMissing) ) > Tfreeze))then
+        feasible=.false.
+        message=trim(message)//'snow temp high'
+        !do iLayer=1,nSnow
+        !  if(stateVec(ixSnowOnlyNrg(iLayer)) > Tfreeze) write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, max, stateVec( ixSnowOnlyNrg(iLayer) )', iLayer, feasible, Tfreeze, stateVec( ixSnowOnlyNrg(iLayer) )
+        !enddo
+      endif
     endif
 
     ! loop through non-missing hydrology state variables in the snow+soil domain
@@ -502,12 +513,17 @@ subroutine checkFeas(&
           case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         end select
-
+        if(iLayer==1)then
+          write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+          print*,layerType(iLayer),iname_snow,mLayerVolFracIce(iLayer),iLayer, ixHydType(iLayer)==iname_watLayer
+        endif
         ! --> check
-        if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) feasible=.false.
-        !if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) &
-        !write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
-     
+        if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)then 
+          feasible=.false.
+          message=trim(message)//'layer water out of bounds'
+          if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) &
+          write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+        endif
       endif  ! if water states
 
     end do  ! loop through non-missing hydrology state variables in the snow+soil domain
