@@ -223,6 +223,8 @@ contains
  integer(i4b)                    :: jLayer                   ! column index
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
+ ! class objects for subroutine arguments
+ type(out_type_computJacob)      :: out_computJacob
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -269,8 +271,11 @@ contains
                    dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
                    aJac,                           & ! intent(out):   Jacobian matrix
                    ! output: error control
-                   err,cmessage)                     ! intent(out):   error code and error message
+                   out_computJacob)
+                   !err,cmessage)                     ! intent(out):   error code and error message
  end associate ! end association to info in data structures
+ call finalize_computJacob_summaSolve4numrec(err,cmessage)
+ !err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the numerical Jacobian matrix
@@ -852,6 +857,8 @@ contains
   real(rkind)                        :: bandJac(nLeadDim,nState) ! band Jacobian matrix
   integer(i4b)                    :: iState,jState            ! indices of the state vector
   character(LEN=256)              :: cmessage                 ! error message of downwind routine
+  ! class objects for subroutine arguments
+  type(out_type_computJacob)      :: out_computJacob
   ! initialize error control
   err=0; message='testBandMat/'
 
@@ -882,7 +889,10 @@ contains
                    dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
                    fullJac,                        & ! intent(out):   full Jacobian matrix
                    ! output: error control
-                   err,cmessage)                     ! intent(out):   error code and error message
+                   out_computJacob)
+                   !err,cmessage)                     ! intent(out):   error code and error message
+  call finalize_computJacob_testBandMat(err,cmessage)
+  !err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
   ! initialize band matrix
@@ -908,6 +918,19 @@ contains
 
   end subroutine testBandMat
 
+  subroutine finalize_computJacob_testBandMat(err,cmessage)
+   ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
+   integer(i4b),intent(out)        :: err                      ! error code
+   character(*),intent(out)        :: cmessage                 ! error message of downwind routine
+   err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
+  end subroutine finalize_computJacob_testBandMat
+ 
+  subroutine finalize_computJacob_summaSolve4numrec(err,cmessage)
+   ! *** Transfer data from out_computJacob class object to local variables in summaSolve4numrec ***
+   integer(i4b),intent(out)        :: err                      ! error code
+   character(*),intent(out)        :: cmessage                 ! error message of downwind routine
+   err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
+  end subroutine finalize_computJacob_summaSolve4numrec
 
   ! *********************************************************************************************************
   ! * internal subroutine eval8summa_wrapper: compute the right-hand-side vector
