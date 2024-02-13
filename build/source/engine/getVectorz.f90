@@ -433,6 +433,7 @@ subroutine checkFeas(&
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,&  ! intent(in): [dp(:)]  soil porosity (-)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,&  ! intent(in): [dp(:)]  residual volumetric water content (-)
     ! model diagnostic variables from the previous solution
+    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):  [dp(:)]  volumetric fraction of ice (-)
     ! number of model layers, and layer type
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):  [i4b]    total number of snow layers
@@ -510,19 +511,16 @@ subroutine checkFeas(&
 
         ! --> maximum
         select case( layerType(iLayer) )
-          case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          case(iname_snow); xMax = merge((iden_ice/iden_water)*mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer),  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         end select
-        if(iLayer==1)then
-          write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
-          print*,layerType(iLayer),iname_snow,mLayerVolFracIce(iLayer),iLayer, ixHydType(iLayer)==iname_watLayer
-        endif
+
         ! --> check
         if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax)then 
           feasible=.false.
           message=trim(message)//'layer water out of bounds'
-          if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) &
-          write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
+          !if(stateVec( ixSnowSoilHyd(iLayer) ) < xMin .or. stateVec( ixSnowSoilHyd(iLayer) ) > xMax) &
+          !write(*,'(a,1x,i4,1x,L1,1x,10(f20.10,1x))') 'iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax = ', iLayer, feasible, stateVec( ixSnowSoilHyd(iLayer) ), xMin, xMax
         endif
       endif  ! if water states
 
