@@ -511,7 +511,7 @@ subroutine checkFeas(&
 
         ! --> maximum
         select case( layerType(iLayer) )
-          case(iname_snow); xMax = merge((iden_ice/iden_water)*mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer),  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          case(iname_snow); xMax = merge(1._rkind, 1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
         end select
 
