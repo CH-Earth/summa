@@ -224,6 +224,7 @@ contains
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
+ type(in_type_computJacob)       :: in_computJacob
  type(out_type_computJacob)      :: out_computJacob
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -251,31 +252,9 @@ contains
  ! NOTE: The derivatives were computed in the previous call to computFlux
  !       This occurred either at the call to eval8summa at the start of systemSolv
  !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
- associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization
-  call computJacob(&
-                   ! input: model control
-                   dt_cur,                         & ! intent(in):    length of the time step (seconds)
-                   nSnow,                          & ! intent(in):    number of snow layers
-                   nSoil,                          & ! intent(in):    number of soil layers
-                   nLayers,                        & ! intent(in):    total number of layers
-                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                   (ixGroundwater==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
-                   ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                   ! input: data structures
-                   indx_data,                      & ! intent(in):    index data
-                   prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
-                   deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                   dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
-                   ! input-output: Jacobian and its diagonal
-                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
-                   aJac,                           & ! intent(out):   Jacobian matrix
-                   ! output: error control
-                   out_computJacob)
-                   !err,cmessage)                     ! intent(out):   error code and error message
- end associate ! end association to info in data structures
- call finalize_computJacob_summaSolve4numrec(err,cmessage)
- !err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
+ call initialize_computJacob_summaSolve4numrec
+ call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
+ call finalize_computJacob_summaSolve4numrec
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
  ! compute the numerical Jacobian matrix
@@ -858,6 +837,7 @@ contains
   integer(i4b)                    :: iState,jState            ! indices of the state vector
   character(LEN=256)              :: cmessage                 ! error message of downwind routine
   ! class objects for subroutine arguments
+  type(in_type_computJacob)       :: in_computJacob
   type(out_type_computJacob)      :: out_computJacob
   ! initialize error control
   err=0; message='testBandMat/'
@@ -870,29 +850,9 @@ contains
   endif
 
   ! compute the full Jacobian matrix
-  call computJacob(&
-                   ! input: model control
-                   dt_cur,                         & ! intent(in):    length of the time step (seconds)
-                   nSnow,                          & ! intent(in):    number of snow layers
-                   nSoil,                          & ! intent(in):    number of soil layers
-                   nLayers,                        & ! intent(in):    total number of layers
-                   computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                   .false.,                        & ! intent(in):    flag to indicate if we need to compute baseflow
-                   ixFullMatrix,                   & ! intent(in):    force full Jacobian matrix
-                   ! input: data structures
-                   indx_data,                      & ! intent(in):    index data
-                   prog_data,                      & ! intent(in):    model prognostic variables for a local HRU
-                   diag_data,                      & ! intent(in):    model diagnostic variables for a local HRU
-                   deriv_data,                     & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                   dBaseflow_dMatric,              & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
-                   ! input-output: Jacobian and its diagonal
-                   dMat,                           & ! intent(inout): diagonal of the Jacobian matrix
-                   fullJac,                        & ! intent(out):   full Jacobian matrix
-                   ! output: error control
-                   out_computJacob)
-                   !err,cmessage)                     ! intent(out):   error code and error message
+  call initialize_computJacob_testBandMat
+  call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,fullJac,out_computJacob)
   call finalize_computJacob_testBandMat(err,cmessage)
-  !err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
   ! initialize band matrix
@@ -918,18 +878,29 @@ contains
 
   end subroutine testBandMat
 
+  subroutine initialize_computJacob_testBandMat
+   ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
+   call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,.false.,ixFullMatrix)
+  end subroutine initialize_computJacob_testBandMat
+
   subroutine finalize_computJacob_testBandMat(err,cmessage)
    ! *** Transfer data from out_computJacob class object to local variables in testBandMat ***
+   ! Note: subroutine arguments are needed because testBandMat is an internal procedure 
    integer(i4b),intent(out)        :: err                      ! error code
    character(*),intent(out)        :: cmessage                 ! error message of downwind routine
-   err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
+   call out_computJacob % finalize(err,cmessage)
   end subroutine finalize_computJacob_testBandMat
  
-  subroutine finalize_computJacob_summaSolve4numrec(err,cmessage)
+  subroutine initialize_computJacob_summaSolve4numrec
+   ! *** Transfer data to in_computJacob class object from local variables in summaSolve4numrec ***
+   associate(ixGroundwater => model_decisions(iLookDECISIONS%groundwatr)%iDecision)  ! intent(in): [i4b] groundwater parameterization
+    call in_computJacob % initialize(dt_cur,nSnow,nSoil,nLayers,computeVegFlux,(ixGroundwater==qbaseTopmodel),ixMatrix)
+   end associate
+  end subroutine initialize_computJacob_summaSolve4numrec
+
+  subroutine finalize_computJacob_summaSolve4numrec
    ! *** Transfer data from out_computJacob class object to local variables in summaSolve4numrec ***
-   integer(i4b),intent(out)        :: err                      ! error code
-   character(*),intent(out)        :: cmessage                 ! error message of downwind routine
-   err = out_computJacob % err; cmessage = out_computJacob % cmessage ! finalize
+   call out_computJacob % finalize(err,cmessage) 
   end subroutine finalize_computJacob_summaSolve4numrec
 
   ! *********************************************************************************************************
