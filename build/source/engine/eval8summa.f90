@@ -34,8 +34,11 @@ USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water 
 
 ! constants
 USE multiconst,only:&
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
+                    LH_fus,     & ! latent heat of fusion                (J kg-1)
+                    iden_water, & ! intrinsic density of liquid water    (kg m-3)
+                    gravity,    & ! gravitational acceleration           (m s-2)
+                    Tfreeze       ! freezing point of pure water         (K)
+
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
@@ -781,8 +784,11 @@ end function eval8summa4kinsol
 subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, stateVec, stateVecPrev,&
     nState, nSoil, nSnow, message, err)
   ! external functions
-  USE snow_utils_module,only:fracliquid                           ! compute the fraction of liquid water at a given temperature (snow)
-  USE soil_utils_module,only:crit_soilT                           ! compute the critical temperature below which ice exists
+  USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water at a given temperature (snow)
+  USE soil_utils_module,only:crit_soilT     ! compute the critical temperature below which ice exists
+  USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
+  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
+
   implicit none
   
   type(model_options),intent(in)           :: model_decisions(:)  ! model decisions
@@ -804,13 +810,16 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   integer(i4b)                             :: iMax(1)                    ! index of maximum temperature
   real(rkind)                              :: scalarTemp                 ! temperature of an individual snow layer (K)
   real(rkind)                              :: scalarIce                  ! volumetric ice content of an individual layer (-)
-  real(rkind)                              :: volFracLiq                 ! volumetric liquid water content of an individual layer (-)
+  real(rkind)                              :: vFracLiq                   ! volumetric liquid water content of an individual layer (-)
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
   real(rkind)                              :: TcSoil                     ! critical point when soil begins to freeze (K)
   real(rkind)                              :: critDiff                   ! temperature difference from critical (K)
   real(rkind)                              :: epsT                       ! small interval above/below critical (K)
   real(rkind)                              :: zMaxTempIncrement          ! maximum temperature increment (K)
   real(rkind)                              :: zMaxMatricIncrement        ! maximum matric head increment (m)
+  real(rkind)                              :: xConst                     ! constant in the freezing curve function (m K-1)
+  real(rkind)                              :: mLayerPsiLiq               ! liquid water matric potential (m)
+  real(rkind)                              :: vGn_m(nSoil)               ! van Genutchen "m" parameter (-)
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
   integer(i4b)                             :: ixNrg,ixLiq                ! index of energy and mass state variables in full state vector
@@ -860,6 +869,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   ! soil parameters
     theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in): [dp(:)]  soil porosity (-)
     theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
+    vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):  [dp(:)]  van Genutchen "n" parameter (-)
+    vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):  [dp(:)]  van Genutchen "alpha" parameter (m-1)
     ! state variables at the start of the time step
     mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat           & ! intent(in): [dp(:)] volumetric fraction of ice (-)
@@ -893,7 +904,9 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
         water_bounds        = .true.      ! flag to force water bounds
       case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
     end select
-   
+    
+    vGn_m = 1._rkind - 1._rkind/vGn_n
+
     ! ** limit temperature increment to zMaxTempIncrement
     ! NOTE: this can cause problems especially from a cold start when far from the solution
     if(small_delTemp)then
@@ -968,7 +981,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           ixLiq = ixSoilOnlyHyd(iLayer)
           ! get the matric potential of total water
           if(ixLiq/=integerMissing)then
-            xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq)
+            xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
           else
             xPsi00 = mLayerMatricHead(iLayer)
           endif
@@ -1023,16 +1036,16 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
-            case(iname_watLayer); volFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecPrev(ixSnowOnlyHyd(iLayer))
-            case(iname_liqLayer); volFracLiq = stateVecPrev(ixSnowOnlyHyd(iLayer))
+            case(iname_watLayer); vFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecPrev(ixSnowOnlyHyd(iLayer))
+            case(iname_liqLayer); vFracLiq = stateVecPrev(ixSnowOnlyHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow hydrology'; return
           end select
-          scalarIce = mLayerVolFracIce(iLayer)
+          scalarIce = merge(stateVecPrev(ixSnowOnlyHyd(iLayer)) - vFracLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible
-          if(-xInc(ixSnowOnlyHyd(iLayer)) > volFracLiq)then 
-            cInc = -0.5_rkind*volFracLiq
-          elseif(xInc(ixSnowOnlyHyd(iLayer)) > 1._rkind - scalarIce - volFracLiq)then
-            cInc = 0.5_rkind*(1._rkind - scalarIce - volFracLiq)
+          if(-xInc(ixSnowOnlyHyd(iLayer)) > vFracLiq)then 
+            cInc = -0.5_rkind*vFracLiq
+          elseif(xInc(ixSnowOnlyHyd(iLayer)) > 1._rkind - scalarIce - vFracLiq)then
+            cInc = 0.5_rkind*(1._rkind - scalarIce - vFracLiq)
           endif
           ! scale iteration increment
           if(xInc(ixSnowOnlyHyd(iLayer)).ne.0._rkind)then
@@ -1050,14 +1063,34 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
           cInc = xInc(ixSoilOnlyHyd(iLayer))
           if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
-            ! get the volumetric fraction of liquid water
-            volFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
-            scalarIce = merge(0._rkind, mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer+nSnow)==iname_watLayer)
+          ! get the volumetric fraction of liquid water and ice
+            select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
+              case(iname_watLayer)
+                xPsi00 = matricHead(stateVecPrev(ixSoilOnlyHyd(iLayer)),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                if(ixSoilOnlyNrg(iLayer)/=integerMissing)then
+                  ! get the layer temperature (from stateVecPrev if ixSnowOnlyNrg(iLayer) is within the state vector
+                  scalarTemp = stateVecPrev( ixSoilOnlyNrg(iLayer) )
+                else ! get the layer temperature from the last update
+                  scalarTemp = prog_data%var(iLookPROG%mLayerTemp)%dat(iLayer+nSnow)
+                endif
+                ! identify the critical point when soil begins to freeze (TcSoil)
+                TcSoil = crit_soilT(xPsi00)
+                if(scalarTemp < TcSoil)then
+                  xConst       = LH_fus/(gravity*Tfreeze)
+                  mLayerPsiLiq = xConst*(scalarTemp - Tfreeze)
+                  vFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                else !( mLayerTemp >= TcSoil, all water is unfrozen, mLayerPsiLiq = mLayerMatricHead )
+                  vFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
+                end if  ! (check if soil is partially frozen)
+              case(iname_liqLayer); vFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
+            end select
+            scalarIce = merge(stateVecPrev(ixSnowOnlyHyd(iLayer)) - vFracLiq,mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer)==iname_watLayer)
+
             ! checking if drain more than what is available or add more than possible
-            if(-xInc(ixSoilOnlyHyd(iLayer)) > volFracLiq - theta_res(iLayer))then 
-              cInc = -0.5_rkind*(volFracLiq - theta_res(iLayer))
-            elseif(xInc(ixSoilOnlyHyd(iLayer)) > theta_sat(iLayer) - scalarIce - volFracLiq)then
-              cInc = -0.5_rkind*(theta_sat(iLayer) - scalarIce - volFracLiq)
+            if(-xInc(ixSoilOnlyHyd(iLayer)) > vFracLiq - theta_res(iLayer))then 
+              cInc = -0.5_rkind*(vFracLiq - theta_res(iLayer))
+            elseif(xInc(ixSoilOnlyHyd(iLayer)) > theta_sat(iLayer) - scalarIce - vFracLiq)then
+              cInc = 0.5_rkind*(theta_sat(iLayer) - scalarIce - vFracLiq)
             endif
           endif ! (if the state variable is not matric head)
           ! scale iteration increment
