@@ -1452,6 +1452,10 @@ subroutine stateFilter(in_stateFilter,indx_data,stateMask,out_stateFilter)
    case default; err=20; message=trim(message)//'unable to identify coupling method'; return
   end select  ! selecting solution method
  end associate
+ 
+ ! initialize ixSubset
+ allocate(ixSubset(1_i4b))
+ ixSubset = 0._rkind
 
  call identify_scalar_solutions; if (return_flag) return ! identify scalar solutions -- return if error occurs
 
