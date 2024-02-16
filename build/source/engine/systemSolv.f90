@@ -38,11 +38,6 @@ USE globalData,only: ixBandMatrix   ! named variable for the band diagonal matri
 USE globalData,only: iJac1          ! first layer of the Jacobian to print
 USE globalData,only: iJac2          ! last layer of the Jacobian to print
 
-! domain types
-USE globalData,only:iname_veg       ! named variables for vegetation
-USE globalData,only:iname_snow      ! named variables for snow
-USE globalData,only:iname_soil      ! named variables for soil
-
 ! state variable type
 USE globalData,only:iname_nrgCanair ! named variable defining the energy of the canopy air space
 USE globalData,only:iname_nrgCanopy ! named variable defining the energy of the vegetation canopy
@@ -84,8 +79,10 @@ USE data_types,only:&
                     model_options   ! defines the model decisions
 
 ! look-up values for the choice of heat capacity computation
-USE mDecisions_module,only:&
-                    enthalpyFD     ! heat capacity using enthalpy
+USE mDecisions_module,only:       &
+                    closedForm,   & ! heat capacity closed form in backward Euler residual
+                    enthalpyFDlu, & ! enthalpy with lookup tables finite difference in backward Euler residual
+                    enthalpyFD      ! enthalpy with hypergeometric function finite difference in backward Euler residual
 
 ! look-up values for the choice of groundwater representation (local-column, or single-basin)
 USE mDecisions_module,only:&
@@ -100,9 +97,9 @@ USE mDecisions_module,only:  &
 
  ! look-up values for the numerical method
 USE mDecisions_module,only:&
-                    numrec       ,&  ! home-grown backward Euler solution using free versions of Numerical recipes
-                    kinsol       ,&  ! SUNDIALS backward Euler solution using Kinsol
-                    ida              ! SUNDIALS solution using IDA
+                    numrec       ,& ! home-grown backward Euler solution using free versions of Numerical recipes
+                    kinsol       ,& ! SUNDIALS backward Euler solution using Kinsol
+                    ida             ! SUNDIALS solution using IDA
 
 ! safety: set private unless specified otherwise
 implicit none
@@ -126,6 +123,8 @@ subroutine systemSolv(&
                       firstSplitOper,    & ! intent(inout): flag to indicate if we are processing the first flux call in a splitting operation
                       computeVegFlux,    & ! intent(in):    flag to denote if computing energy flux over vegetation
                       scalarSolution,    & ! intent(in):    flag to denote if implementing the scalar solution
+                      computMassBalance, & ! intent(in):    flag to compute mass balance
+                      computNrgBalance,  & ! intent(in):    flag to compute energy balance
                       ! input/output: data structures
                       lookup_data,       & ! intent(in):    lookup tables
                       type_data,         & ! intent(in):    type of vegetation and soil
@@ -144,7 +143,13 @@ subroutine systemSolv(&
                       ixSaturation,      & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                       stateVecTrial,     & ! intent(out):   updated state vector
                       stateVecPrime,     & ! intent(out):   updated state vector if need the prime space (ida)
+                      fluxVec,           & ! intent(out):   new flux vector
+                      resSink,           & ! intent(out):   additional (sink) terms on the RHS of the state equa
+                      resVec,            & ! intent(out):   new residual vector
                       untappedMelt,      & ! intent(out):   un-tapped melt energy (J m-3 s-1)
+                      ! output: balances (only computed at this level for ida)
+                      balance,           & ! intent(out):   balance of energy per state
+                      ! output: model control
                       niter,             & ! intent(out):   number of iterations taken (numrec)
                       nSteps,            & ! intent(out):   number of time steps taken in solver
                       reduceCoupledStep, & ! intent(out):   flag to reduce the length of the coupled step
@@ -152,19 +157,19 @@ subroutine systemSolv(&
                       err,message)         ! intent(out):   error code and error message
   ! ---------------------------------------------------------------------------------------
   ! structure allocations
-  USE allocspace_module,only:allocLocal                ! allocate local data structures
+  USE allocspace_module,only:allocLocal                   ! allocate local data structures
   ! state vector and solver
-  USE getVectorz_module,only:getScaling                ! get the scaling vectors
-  USE convE2Temp_module,only:temp2ethpy                ! convert temperature to enthalpy
-  USE t2enthalpy_module, only:t2enthalpy               ! compute enthalpy
+  USE getVectorz_module,only:getScaling                   ! get the scaling vectors
+  USE enthalpyTemp_module,only:t2enthalpy_snow            ! convert temperature to enthalpy for a snow layer
+  USE enthalpyTemp_module,only:t2enthalpy                 ! compute enthalpy
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                      ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime ! get the fluxes and residuals
   USE summaSolve4ida_module,only:summaSolve4ida           ! solve DAE by IDA
   USE summaSolve4kinsol_module,only:summaSolve4kinsol     ! solve DAE by KINSOL
 #endif
-  USE eval8summa_module,only:eval8summa                ! get the fluxes and residuals
-  USE summaSolve4numrec_module,only:summaSolve4numrec  ! solve DAE by numerical recipes
+  USE eval8summa_module,only:eval8summa                   ! get the fluxes and residuals
+  USE summaSolve4numrec_module,only:summaSolve4numrec     ! solve DAE by numerical recipes
 
   implicit none
   ! ---------------------------------------------------------------------------------------
@@ -180,6 +185,8 @@ subroutine systemSolv(&
   logical(lgt),intent(inout)      :: firstSplitOper                ! flag to indicate if we are processing the first flux call in a splitting operation
   logical(lgt),intent(in)         :: computeVegFlux                ! flag to indicate if we are computing fluxes over vegetation (.false. means veg is buried with snow)
   logical(lgt),intent(in)         :: scalarSolution                ! flag to denote if implementing the scalar solution
+  logical(lgt),intent(in)         :: computMassBalance             ! flag to compute mass balance
+  logical(lgt),intent(in)         :: computNrgBalance              ! flag to compute energy balance
   ! input/output: data structures
   type(zLookup),intent(in)        :: lookup_data                   ! lookup tables
   type(var_i),intent(in)          :: type_data                     ! type of vegetation and soil
@@ -193,16 +200,22 @@ subroutine systemSolv(&
   type(var_dlength),intent(in)    :: bvar_data                     ! model variables for the local basin
   type(model_options),intent(in)  :: model_decisions(:)            ! model decisions
   real(rkind),intent(in)          :: stateVecInit(:)               ! initial state vector (mixed units)
-  ! output: model control
+  ! output
   type(var_dlength),intent(inout) :: deriv_data                    ! derivatives in model fluxes w.r.t. relevant state variables
   integer(i4b),intent(inout)      :: ixSaturation                  ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
-  real(rkind),intent(out)         :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
   real(rkind),intent(out)         :: stateVecTrial(:)              ! trial state vector (mixed units)
   real(rkind),intent(out)         :: stateVecPrime(:)              ! trial state vector (mixed units)
+  real(rkind),intent(out)         :: fluxVec(nState)               ! flux vector (mixed units)
+  real(rkind),intent(out)         :: resSink(nState)               ! additional terms in the residual vector numrec
+  real(qp),intent(out)            :: resVec(nState)    ! NOTE: qp  ! residual vector
+  real(rkind),intent(out)         :: untappedMelt(:)               ! un-tapped melt energy (J m-3 s-1)
+  ! output: balances (only computed at this level for ida)
+  real(rkind),intent(out)         :: balance(nState)               ! balance per state
+  ! output: model control
+  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
+  integer(i4b),intent(out)        :: nSteps                        ! number of time steps taken in solver
   logical(lgt),intent(out)        :: reduceCoupledStep             ! flag to reduce the length of the coupled step
   logical(lgt),intent(out)        :: tooMuchMelt                   ! flag to denote that there was too much melt
-  integer(i4b),intent(out)        :: nSteps                        ! number of time steps taken in solver
-  integer(i4b),intent(out)        :: niter                         ! number of iterations taken
   integer(i4b),intent(out)        :: err                           ! error code
   character(*),intent(out)        :: message                       ! error message
   ! ---------------------------------------------------------------------------------------
@@ -229,7 +242,6 @@ subroutine systemSolv(&
   real(rkind)                     :: fluxVec0(nState)              ! flux vector (mixed units)
   real(rkind)                     :: dMat(nState)                  ! diagonal matrix (excludes flux derivatives)
   real(qp)                        :: sMul(nState)    ! NOTE: qp    ! multiplier for state vector for the residual calculations
-  real(qp)                        :: rVec(nState)    ! NOTE: qp    ! residual vector
   real(rkind)                     :: rAdd(nState)                  ! additional terms in the residual vector
   logical(lgt)                    :: feasible                      ! feasibility flag
   logical(lgt)                    :: sunSucceeds                   ! flag to indicate if SUNDIALS successfully solved the problem in current data step
@@ -241,51 +253,43 @@ subroutine systemSolv(&
   ! kinsol and numrec variables
   real(rkind)                     :: fScale(nState)                ! characteristic scale of the function evaluations (mixed units)
   real(rkind)                     :: xScale(nState)                ! characteristic scale of the state vector (mixed units)
-   ! numrec variables
+  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector numrec
+  ! numrec variables
   real(rkind)                     :: fOld,fNew                     ! function values (-); NOTE: dimensionless because scaled numrec
   real(rkind)                     :: xMin,xMax                     ! state minimum and maximum (mixed units) numrec
   integer(i4b)                    :: maxiter                       ! maximum number of iterations numrec
   integer(i4b)                    :: localMaxIter                  ! maximum number of iterations (depends on solution type) numrec
   integer(i4b), parameter         :: scalarMaxIter=100             ! maximum number of iterations for the scalar solution numrec
   logical(lgt)                    :: converged                     ! convergence flag numrec
-  real(rkind)                     :: resSinkNew(nState)            ! additional terms in the residual vector numrec
-  real(rkind)                     :: fluxVecNew(nState)            ! new flux vector numrec
-  real(qp)                        :: resVecNew(nState)  ! NOTE: qp ! new residual vector numrec
   logical(lgt), parameter         :: post_massCons=.false.         ! “perfectly” conserve mass by pushing the errors into the states, turn off for now to agree with SUNDIALS
-  ! enthalpy derivatives
-  real(rkind)                     :: dCanEnthalpy_dTk              ! derivatives in canopy enthalpy w.r.t. temperature
-  real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
-  real(rkind)                     :: dEnthalpy_dTk(nLayers)         ! derivatives in layer enthalpy w.r.t. temperature
-  real(rkind)                     :: dEnthalpy_dWat(nLayers)        ! derivatives in layer enthalpy w.r.t. water state
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
   globalVars: associate(&
     ! model decisions
     ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical solver
-    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
-    ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
-    ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
+    ixNrgConserv            => model_decisions(iLookDECISIONS%nrgConserv)%iDecision   ,& ! intent(in):    [i4b]   choice of variable in energy conservation backward Euler residual
+    ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]   groundwater parameterization
+    ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]   spatial representation of groundwater (local-column or single-basin)
     ! enthalpy
-    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out): [dp(:)] enthalpy of the snow+soil layers (J m-3)
+    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out):  [dp]    temperature component of enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
+    mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out):  [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
     ! derivatives, diagnostic for enthalpy
-    dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in): [dp]    derivative of volumetric liquid water content w.r.t. temperature
-    dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,& ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
-    mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(in): [dp]    fraction of liquid water on vegetation (-)
-    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
-    ! model state variables
-    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the canopy air space (K)
-    scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the vegetation canopy (K)
-    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp]     mass of ice on the vegetation canopy (kg m-2)
-    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in): [dp]     mass of total water on the vegetation canopy (kg m-2)
-    ! model state variables (snow and soil domains)
-    mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)]  temperature of each snow/soil layer (K)
-    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of ice (-)
-    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
-    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of total water (-)
+    dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in):    [dp]    derivative of volumetric liquid water content w.r.t. temperature
+    mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in):    [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
+    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(in):    [dp]    fraction of liquid water on vegetation (-)
+    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(in):    [dp(:)] fraction of liquid water in each snow layer (-)
+    ! model state variables   
+    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in):    [dp]     temperature of the canopy air space (K)
+    scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in):    [dp]     temperature of the vegetation canopy (K)
+    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in):    [dp]     mass of ice on the vegetation canopy (kg m-2)
+    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in):    [dp]     mass of total water on the vegetation canopy (kg m-2)
+    ! model state variables (snow and soil domains)   
+    mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in):    [dp(:)]  temperature of each snow/soil layer (K)
+    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of ice (-)
+    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of liquid water (-)
+    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in):    [dp(:)]  volumetric fraction of total water (-)
     mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)]  matric head (m)
     ! check the need to merge snow layers
     snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
@@ -303,6 +307,12 @@ subroutine systemSolv(&
     ! initialize error control
     err=0; message="systemSolv/"
     nSteps = 0 ! initialize number of time steps taken in solver
+
+    ! initialize the residual parts and balances
+    fluxVec = 0._rkind
+    resSink = 0._rkind
+    resVec  = 0._rkind
+    balance = 0._rkind
 
     ! *****
     ! (0) PRELIMINARIES...
@@ -384,10 +394,10 @@ subroutine systemSolv(&
     ! initialize the trial state vectors
     stateVecTrial = stateVecInit
 
-    if(ixHowHeatCap == enthalpyFD)then
-      ! compute H_T at the beginning of the data step without phase change
+    if((ixNrgConserv.ne.closedForm .or. computNrgBalance) .and. ixNumericalMethod.ne.ida)then
+      ! will need enthalpy change, compute H_T at the beginning of the data step
       call t2enthalpy(&
-                    .false.,                     & ! intent(in): logical flag to not include phase change in enthalpy
+                    ixNrgConserv==enthalpyFDlu,  & ! intent(in):  flag to use the lookup table for soil enthalpy
                     ! input: data structures
                     diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
                     mpar_data,                   & ! intent(in):  parameter data structure
@@ -397,26 +407,14 @@ subroutine systemSolv(&
                     scalarCanairTemp,            & ! intent(in):  value of canopy air temperature (K)
                     scalarCanopyTemp,            & ! intent(in):  value of canopy temperature (K)
                     scalarCanopyWat,             & ! intent(in):  value of canopy total water (kg m-2)
-                    scalarCanopyIce,             & ! intent(in):  value for canopy ice content (kg m-2)
                     ! input: variables for the snow-soil domain
                     mLayerTemp,                  & ! intent(in):  vector of layer temperature (K)
                     mLayerVolFracWat,            & ! intent(in):  vector of volumetric total water content (-)
                     mLayerMatricHead,            & ! intent(in):  vector of total water matric potential (m)
-                    mLayerVolFracIce,            & ! intent(in):  vector of volumetric fraction of ice (-)
-                    ! input: pre-computed derivatives
-                    dTheta_dTkCanopy,            & ! intent(in): derivative in canopy volumetric liquid water content w.r.t. temperature (K-1)
-                    scalarFracLiqVeg,            & ! intent(in): fraction of canopy liquid water (-)
-                    mLayerdTheta_dTk,            & ! intent(in): derivative of volumetric liquid water content w.r.t. temperature (K-1)
-                    mLayerFracLiqSnow,           & ! intent(in): fraction of liquid water (-)
-                    dVolTot_dPsi0,               & ! intent(in): derivative in total water content w.r.t. total water matric potential (m-1)
                     ! output: enthalpy
                     scalarCanairEnthalpy,        & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthalpy,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
                     mLayerEnthalpy,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
-                    dCanEnthalpy_dTk,            & ! intent(out):  derivatives in canopy enthalpy w.r.t. temperature
-                    dCanEnthalpy_dWat,           & ! intent(out):  derivatives in canopy enthalpy w.r.t. water state
-                    dEnthalpy_dTk,               & ! intent(out):  derivatives in layer enthalpy w.r.t. temperature
-                    dEnthalpy_dWat,              & ! intent(out):  derivatives in layer enthalpy w.r.t. water state
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -463,7 +461,7 @@ subroutine systemSolv(&
                     feasible,                & ! intent(out):   flag to denote the feasibility of the solution
                     fluxVec0,                & ! intent(out):   flux vector
                     rAdd,                    & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                    rVec,                    & ! intent(out):   residual vector
+                    resVec,                  & ! intent(out):   residual vector
                     fOld,                    & ! intent(out):   function evaluation
                     err,cmessage)              ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
@@ -479,7 +477,7 @@ subroutine systemSolv(&
     if(nSnow>0)then
       ! compute the energy required to melt the top snow layer (J m-2)
       bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-      volEnthalpy = temp2ethpy(mLayerTemp(1),bulkDensity,snowfrz_scale)
+      volEnthalpy = t2enthalpy_snow(mLayerTemp(1),bulkDensity,snowfrz_scale)
       ! set flag and error codes for too much melt
       if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
         tooMuchMelt = .true.
@@ -536,13 +534,14 @@ subroutine systemSolv(&
                           firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
                           computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
                           scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                          computMassBalance,       & ! intent(in):    flag to compute mass balance
+                          computNrgBalance,        & ! intent(in):    flag to compute energy balance
                           ! input: state vector
                           stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
                           sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
-                          dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
+                          dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                           ! input: data structures
                           model_decisions,         & ! intent(in):    model decisions
-                          lookup_data,             & ! intent(in):    lookup tables
                           type_data,               & ! intent(in):    type of vegetation and soil
                           attr_data,               & ! intent(in):    spatial attributes
                           mpar_data,               & ! intent(in):    model parameters
@@ -561,8 +560,9 @@ subroutine systemSolv(&
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
                           nSteps,                  & ! intent(out):   number of time steps taken in solver
-                          stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
-                          stateVecPrime,           & ! intent(out):   derivative of model state vector (y') at the end of the data time step
+                          stateVecNew,             & ! intent(inout): model state vector (y) at the end of the data time step
+                          stateVecPrime,           & ! intent(inout): derivative of model state vector (y') at the end of the data time step
+                          balance,                 & ! intent(inout): balance per state
                           err,cmessage)              ! intent(out):   error control
         ! check if IDA is successful, only fail outright in the case of a non-recoverable error
         if( .not.sunSucceeds )then
@@ -634,6 +634,9 @@ subroutine systemSolv(&
                           ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
                           stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
+                          fluxVec,                 & ! intent(out):   new flux vector
+                          resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                          resVec,                  & ! intent(out):   new residual vector       
                           err,cmessage)              ! intent(out):   error control
         ! check if KINSOL is successful, only fail outright in the case of a non-recoverable error
         if( .not.sunSucceeds )then
@@ -684,7 +687,7 @@ subroutine systemSolv(&
                           xMin,xMax,                     & ! intent(inout): state maximum and minimum
                           fScale,                        & ! intent(in):    characteristic scale of the function evaluations
                           xScale,                        & ! intent(in):    characteristic scale of the state vector
-                          rVec,                          & ! intent(in):    residual vector
+                          resVec,                        & ! intent(in):    residual vector
                           sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                           dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
                           fOld,                          & ! intent(in):    old function evaluation
@@ -707,8 +710,8 @@ subroutine systemSolv(&
                           dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
                           ! output
                           stateVecNew,                   & ! intent(out):   new state vector
-                          fluxVecNew,                    & ! intent(out):   new flux vector
-                          resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
+                          fluxVec,                       & ! intent(out):   new flux vector
+                          resSink,                       & ! intent(out):   additional (sink) terms on the RHS of the state equa
                           resVecNew,                     & ! intent(out):   new residual vector
                           fNew,                          & ! intent(out):   new function evaluation
                           converged,                     & ! intent(out):   convergence flag
@@ -717,7 +720,7 @@ subroutine systemSolv(&
  
           ! save the computed functions, residuals, and solution
           fOld          = fNew
-          rVec          = resVecNew
+          resVec        = resVecNew
           stateVecTrial = stateVecNew
           stateVecPrime = stateVecTrial  !prime values not used here, dummy
           nSteps = 1 ! number of time steps taken in solver
@@ -732,7 +735,7 @@ subroutine systemSolv(&
           endif
               
         end do  ! iterating
-
+      
         ! -----
         ! * update states...
         ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
@@ -750,8 +753,9 @@ subroutine systemSolv(&
             ! update temperatures (ensure new temperature is consistent with the fluxes)
             if(nSnowSoilNrg>0)then
               do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-              iState = ixSnowSoilNrg(iLayer)
-              stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))/real(sMul(iState), rkind)
+                iState = ixSnowSoilNrg(iLayer)
+                stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))/real(sMul(iState), rkind)
+                resVec(iState) = 0._qp
               end do  ! looping through non-missing energy state variables in the snow+soil domain
             endif
             
@@ -759,8 +763,9 @@ subroutine systemSolv(&
             ! NOTE: for soil water balance is constrained within the iteration loop
             if(nSnowSoilHyd>0)then
               do concurrent (iLayer=1:nSnow,ixSnowSoilHyd(iLayer)/=integerMissing)   ! (loop through non-missing water state variables in the snow domain)
-              iState = ixSnowSoilHyd(iLayer)
-              stateVecTrial(iState) = stateVecInit(iState) + (fluxVecNew(iState)*dt_cur + resSinkNew(iState))
+                iState = ixSnowSoilHyd(iLayer)
+                stateVecTrial(iState) = stateVecInit(iState) + (fluxVec(iState)*dt_cur + resSink(iState))
+                resVec(iState) = 0._qp
               end do  ! looping through non-missing water state variables in the soil domain
             endif
           end associate layerVars

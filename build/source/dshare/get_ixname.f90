@@ -95,7 +95,7 @@ contains
   case('subRouting'      ); get_ixdecisions=iLookDECISIONS%subRouting  ! choice of method for sub-grid routing
   case('snowDenNew'      ); get_ixdecisions=iLookDECISIONS%snowDenNew  ! choice of method for new snow density
   case('snowUnload'      ); get_ixdecisions=iLookDECISIONS%snowUnload  ! choice of parameterization for snow unloading from canopy
-  case('howHeatCap'      ); get_ixdecisions=iLookDECISIONS%howHeatCap  ! how to compute heat capacity in energy equation
+  case('nrgConserv'      ); get_ixdecisions=iLookDECISIONS%nrgConserv  ! choice of variable in energy conservation backward Euler residual
   ! get to here if cannot find the variable
   case default
    get_ixdecisions = integerMissing
@@ -381,7 +381,7 @@ contains
   case('maxstep'                  ); get_ixparam = iLookPARAM%maxstep                ! maximum length of the time step numrec
   case('be_steps'                 ); get_ixparam = iLookPARAM%be_steps               ! minimum number of substeps to take in a maxstep numrec
   case('wimplicit'                ); get_ixparam = iLookPARAM%wimplicit              ! weight assigned to start-of-step fluxes numrec, not currently used
-  case('maxiter'                  ); get_ixparam = iLookPARAM%maxiter                ! maximum number of iterations numrec, kinsol, or nonlinear iterations ida
+  case('maxiter'                  ); get_ixparam = iLookPARAM%maxiter                ! maximum number of iterations numrec and kinsol
   case('relConvTol_liquid'        ); get_ixparam = iLookPARAM%relConvTol_liquid      ! relative convergence tolerance for vol frac liq water (-) numrec
   case('absConvTol_liquid'        ); get_ixparam = iLookPARAM%absConvTol_liquid      ! absolute convergence tolerance for vol frac liq water (-) numrec
   case('relConvTol_matric'        ); get_ixparam = iLookPARAM%relConvTol_matric      ! relative convergence tolerance for matric head (-) numrec
@@ -508,9 +508,9 @@ contains
   case('mLayerThermalC'                 ); get_ixdiag = iLookDIAG%mLayerThermalC                   ! thermal conductivity at the mid-point of each layer (W m-1 K-1)
   case('iLayerThermalC'                 ); get_ixdiag = iLookDIAG%iLayerThermalC                   ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
-  case('scalarCanairEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanairEnthalpy             ! enthalpy of the canopy air space (J m-3)
-  case('scalarCanopyEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanopyEnthalpy             ! enthalpy of the vegetation canopy (J m-3)
-  case('mLayerEnthalpy'                 ); get_ixdiag = iLookDIAG%mLayerEnthalpy                   ! enthalpy of the snow+soil layers (J m-3)
+  case('scalarCanairEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanairEnthalpy             ! temperature component of enthalpy of the canopy air space (J m-3)
+  case('scalarCanopyEnthalpy'           ); get_ixdiag = iLookDIAG%scalarCanopyEnthalpy             ! temperature component of enthalpy of the vegetation canopy (J m-3)
+  case('mLayerEnthalpy'                 ); get_ixdiag = iLookDIAG%mLayerEnthalpy                   ! temperature component of enthalpy of the snow+soil layers (J m-3)
   ! forcing
   case('scalarVPair'                    ); get_ixdiag = iLookDIAG%scalarVPair                      ! vapor pressure of the air above the vegetation canopy (Pa)
   case('scalarVP_CanopyAir'             ); get_ixdiag = iLookDIAG%scalarVP_CanopyAir               ! vapor pressure of the canopy air space (Pa)
@@ -586,6 +586,17 @@ contains
   case('numFluxCalls'                   ); get_ixdiag = iLookDIAG%numFluxCalls                     ! number of flux calls (-)
   case('wallClockTime'                  ); get_ixdiag = iLookDIAG%wallClockTime                    ! wall clock time (s)
   case('meanStepSize'                   ); get_ixdiag = iLookDIAG%meanStepSize                     ! mean time step size (s) over data window
+  ! balances
+  case('balanceCasNrg'                  ); get_ixdiag = iLookDIAG%balanceCasNrg                    ! balance of energy in the canopy air space
+  case('balanceVegNrg'                  ); get_ixdiag = iLookDIAG%balanceVegNrg                    ! balance of energy in the vegetation
+  case('balanceLayerNrg'                ); get_ixdiag = iLookDIAG%balanceLayerNrg                  ! balance of energy in each snow+soil layer
+  case('balanceSnowNrg'                 ); get_ixdiag = iLookDIAG%balanceSnowNrg                   ! balance of energy in the snow
+  case('balanceSoilNrg'                 ); get_ixdiag = iLookDIAG%balanceSoilNrg                   ! balance of energy in the soil
+  case('balanceVegMass'                 ); get_ixdiag = iLookDIAG%balanceVegMass                   ! balance of water in the vegetation
+  case('balanceLayerMass'               ); get_ixdiag = iLookDIAG%balanceLayerMass                 ! balance of water in each snow+soil layer
+  case('balanceSnowMass'                ); get_ixdiag = iLookDIAG%balanceSnowMass                  ! balance of water in the snow
+  case('balanceSoilMass'                ); get_ixdiag = iLookDIAG%balanceSoilMass                  ! balance of water in the soil
+  case('balanceAqMass'                  ); get_ixdiag = iLookDIAG%balanceAqMass                    ! balance of water in the aquifer
   ! get to here if cannot find the variable
   case default
    get_ixdiag = integerMissing
@@ -779,7 +790,7 @@ contains
   case('iLayerLiqFluxSnowDeriv'         ); get_ixderiv = iLookDERIV%iLayerLiqFluxSnowDeriv         ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   case('dVolTot_dPsi0'                  ); get_ixderiv = iLookDERIV%dVolTot_dPsi0                  ! derivative in total water content w.r.t. total water matric potential (m-1)
-  case('d2VolTot_d2Psi0'                ); get_ixderiv = iLookDERIV%d2VolTot_d2Psi0                ! second derivative in total water content w.r.t. total water matric potential
+  case('d2VolTot_dPsi02'                ); get_ixderiv = iLookDERIV%d2VolTot_dPsi02                ! second derivative in total water content w.r.t. total water matric potential
   case('dq_dHydStateAbove'              ); get_ixderiv = iLookDERIV%dq_dHydStateAbove              ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   case('dq_dHydStateBelow'              ); get_ixderiv = iLookDERIV%dq_dHydStateBelow              ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   case('dq_dHydStateLayerSurfVec'       ); get_ixderiv = iLookDERIV%dq_dHydStateLayerSurfVec       ! change in the flux in soil surface interface w.r.t. state variables in layer above and below
@@ -1087,7 +1098,7 @@ contains
  ! get the index of the named variables
  select case(trim(varName))
   case('temperature'); get_ixLookup = iLookLOOKUP%temperature     ! temperature (K)
-  case('enthalpy'   ); get_ixLookup = iLookLOOKUP%enthalpy        ! enthalpy (J m-3)
+  case('psiLiq_int' ); get_ixLookup = iLookLOOKUP%psiLiq_int      ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
   case('deriv2'     ); get_ixLookup = iLookLOOKUP%deriv2          ! secind derivative of the interpolating function
   ! get to here if cannot find the variable
   case default

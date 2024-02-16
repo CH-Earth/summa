@@ -210,7 +210,7 @@ subroutine coupled_em(&
   logical(lgt)                         :: doLayerMerge           ! flag to denote the need to merge snow layers
   logical(lgt)                         :: pauseFlag              ! flag to pause execution
   logical(lgt),parameter               :: backwardsCompatibility=.true.  ! flag to denote a desire to ensure backwards compatibility with previous branches
-  logical(lgt)                         :: checkMassBalance       ! flag to check the mass balance
+  logical(lgt)                         :: checkMassBalance_ds    ! flag to check the mass balance over the data step
   type(var_ilength)                    :: indx_temp              ! temporary model index variables saved only on outer loop
   type(var_ilength)                    :: indx_temp0             ! temporary model index variables saved every time
   type(var_dlength)                    :: prog_temp              ! temporary model prognostic variables
@@ -256,6 +256,10 @@ subroutine coupled_em(&
   real(rkind)                          :: balanceSoilET          ! output from the soil zone
   real(rkind)                          :: balanceAquifer0        ! total aquifer storage at the start of the step (kg m-2)
   real(rkind)                          :: balanceAquifer1        ! total aquifer storage at the end of the step (kg m-2)
+  real(rkind)                          :: innerBalance(4)        ! inner step balances for domain with one layer
+  real(rkind)                          :: meanBalance(8)         ! timestep-average balances for domain with one layer
+  real(rkind),allocatable              :: innerBalanceLayerMass(:) ! inner step balances for domain with multiple layers
+  real(rkind),allocatable              :: innerBalanceLayerNrg(:)  ! inner step balances for domain with multiple layers
   ! test balance checks
   logical(lgt), parameter              :: printBalance=.false.   ! flag to print the balance checks
   real(rkind), allocatable             :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
@@ -363,6 +367,9 @@ subroutine coupled_em(&
     allocate(meanSoilCompress(nSoil))
     allocate(innerSoilCompress(nSoil))
     meanSoilCompress = 0._rkind ! mean total soil compression
+
+    ! initialize the balance checks
+    meanBalance = 0._rkind
 
     ! associate local variables with information in the data structures
     associate(&
@@ -839,6 +846,9 @@ subroutine coupled_em(&
         end do
         innerEffRainfall  = 0._rkind ! mean total effective rainfall over snow
         innerSoilCompress = 0._rkind ! mean total soil compression
+        innerBalance = 0._rkind ! mean total balance
+        allocate(innerBalanceLayerNrg(nLayers)); innerBalanceLayerNrg = 0._rkind ! mean total balance of energy in layers
+        allocate(innerBalanceLayerMass(nLayers)); innerBalanceLayerMass = 0._rkind ! mean total balance of mass in layers
         sumStepSize= 0._rkind ! initialize the sum of the step sizes
 
       endif ! (do_outer loop)
@@ -905,6 +915,8 @@ subroutine coupled_em(&
         endif
         ! try again, restart step
         deallocate(mLayerVolFracIceInit)
+        deallocate(innerBalanceLayerNrg)
+        deallocate(innerBalanceLayerMass)
         cycle substeps
       endif
 
@@ -1019,6 +1031,8 @@ subroutine coupled_em(&
               err=20; return
             endif
             ! try again, restart step (at end inner step)
+            deallocate(innerBalanceLayerNrg)
+            deallocate(innerBalanceLayerMass)
             cycle substeps
           endif
 
@@ -1058,6 +1072,38 @@ subroutine coupled_em(&
       innerSoilCompress(:) = innerSoilCompress(:) + diag_data%var(iLookDIAG%mLayerCompress)%dat(:)*dt_wght
       if (nSnow>0) innerEffRainfall = innerEffRainfall + ( flux_data%var(iLookFLUX%scalarThroughfallRain)%dat(1) + flux_data%var(iLookFLUX%scalarCanopyLiqDrainage)%dat(1) )*dt_wght
 
+      ! sum the balance of energy and water per state
+      innerBalance(1) = innerBalance(1) + diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)*dt_wght
+      innerBalance(2) = innerBalance(2) + diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)*dt_wght
+      innerBalance(3) = innerBalance(3) + diag_data%var(iLookDIAG%balanceVegMass)%dat(1)*dt_wght
+      innerBalance(4) = innerBalance(4) + diag_data%var(iLookDIAG%balanceAqMass)%dat(1)*dt_wght
+      innerBalanceLayerNrg(:) = innerBalanceLayerNrg(:) + diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:)*dt_wght
+      innerBalanceLayerMass(:) = innerBalanceLayerMass(:) + diag_data%var(iLookDIAG%balanceLayerMass)%dat(:)*dt_wght
+
+      ! save balance of energy and water per snow+soil layer after inner step, since can change nLayers with outer steps
+      diag_data%var(iLookDIAG%balanceLayerNrg)%dat(:) = innerBalanceLayerNrg(:)
+      diag_data%var(iLookDIAG%balanceLayerMass)%dat(:) = innerBalanceLayerMass(:)
+
+      ! compute the mean balance of energy and water per entire snow and soil domain
+      diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) = 0._rkind
+      diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1) = 0._rkind
+      diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = 0._rkind
+      diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = 0._rkind
+      do iLayer=1,nLayers
+        select case (indx_data%var(iLookINDEX%layerType)%dat(iLayer))
+          case (iname_snow)
+            diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) + innerBalanceLayerNrg(iLayer)/nSnow
+            diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + innerBalanceLayerMass(iLayer)/nSnow
+          case (iname_soil)
+            diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1) + innerBalanceLayerNrg(iLayer)/nSoil
+            diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)/nSoil
+        end select
+      end do
+      if(do_outer)then
+        deallocate(innerBalanceLayerNrg)
+        deallocate(innerBalanceLayerMass)
+      endif
+
       ! increment sub-step accepted step
       dt_solvInner = dt_solvInner + dt_sub
       dt_solv = dt_solv + dt_sub
@@ -1076,6 +1122,15 @@ subroutine coupled_em(&
         meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/data_step
         meanSenHeatCanopy     = meanSenHeatCanopy     + sumSenHeatCanopy/data_step
         meanSoilCompress(:) = meanSoilCompress(:) + innerSoilCompress(:)*dt_wght
+        meanBalance(1) = meanBalance(1) + innerBalance(1)*dt_wght
+        meanBalance(2) = meanBalance(2) + innerBalance(2)*dt_wght
+        meanBalance(3) = meanBalance(3) + innerBalance(3)*dt_wght
+        meanBalance(4) = meanBalance(4) + innerBalance(4)*dt_wght
+        meanBalance(5) = meanBalance(5) + diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)*dt_wght
+        meanBalance(6) = meanBalance(6) + diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)*dt_wght
+        meanBalance(7) = meanBalance(7) + diag_data%var(iLookDIAG%balanceSnowMass)%dat(1)*dt_wght
+        meanBalance(8) = meanBalance(8) + diag_data%var(iLookDIAG%balanceSoilMass)%dat(1)*dt_wght
+
         effRainfall = effRainfall + innerEffRainfall*dt_wght
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarCanopySublimation))%dat(1) = meanCanopySublimation
         flux_mean%var(childFLUX_MEAN(iLookFLUX%scalarLatHeatCanopyEvap))%dat(1) = meanLatHeatCanopyEvap
@@ -1164,6 +1219,16 @@ subroutine coupled_em(&
     deallocate(innerSoilCompress)
     deallocate(meanSoilCompress)
 
+    ! save balance of energy and water per single layer domain
+    diag_data%var(iLookDIAG%balanceCasNrg)%dat(1)   = meanBalance(1)
+    diag_data%var(iLookDIAG%balanceVegNrg)%dat(1)   = meanBalance(2)
+    diag_data%var(iLookDIAG%balanceVegMass)%dat(1)  = meanBalance(3)
+    diag_data%var(iLookDIAG%balanceAqMass)%dat(1)   = meanBalance(4)
+    diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = meanBalance(5)
+    diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = meanBalance(6)
+    diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = meanBalance(7)
+    diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = meanBalance(8)
+
     ! ***********************************************************************************************************************************
     ! ---
     ! *** balance checks...
@@ -1211,8 +1276,8 @@ subroutine coupled_em(&
 
       ! identify the need to check the mass balance, both methods should work if tolerance coarse enough
       select case(ixNumericalMethod)
-        case(ida);            checkMassBalance = .false. ! IDA balance agreement levels are controlled by set tolerances
-        case(kinsol, numrec); checkMassBalance = .true.  ! KINSOL or numrec give finite difference dt_sub fluxes and were summed for an average flux
+        case(ida);            checkMassBalance_ds = .false. ! IDA balance agreement levels are controlled by set tolerances
+        case(kinsol, numrec); checkMassBalance_ds = .true.  ! KINSOL or numrec give finite difference dt_sub fluxes and were summed for an average flux
         case default; err=20; message=trim(message)//'expect num_method to be ida, kinsol, or numrec (or itertive, which is numrec)'; return
       end select
 
@@ -1229,7 +1294,7 @@ subroutine coupled_em(&
         ! NOTE: need to put the balance checks in the sub-step loop so that we can recompute if necessary
         scalarCanopyWatBalError = balanceCanopyWater1 - (balanceCanopyWater0 + (scalarSnowfall - averageThroughfallSnow)*data_step + (scalarRainfall - averageThroughfallRain)*data_step &
                                   - averageCanopySnowUnloading*data_step - averageCanopyLiqDrainage*data_step + averageCanopySublimation*data_step + averageCanopyEvaporation*data_step)
-        if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
+        if(abs(scalarCanopyWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           write(*,'(a,1x,f20.10)') 'data_step                    = ', data_step
           write(*,'(a,1x,f20.10)') 'balanceCanopyWater0          = ', balanceCanopyWater0
           write(*,'(a,1x,f20.10)') 'balanceCanopyWater1          = ', balanceCanopyWater1
@@ -1273,7 +1338,7 @@ subroutine coupled_em(&
         newSWE      = prog_data%var(iLookPROG%scalarSWE)%dat(1)
         delSWE      = newSWE - (oldSWE - sfcMeltPond)
         massBalance = delSWE - (effSnowfall + effRainfall + averageSnowSublimation - averageSnowDrainage*iden_water)*data_step
-        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then
+        if(abs(massBalance) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then
           print*,                  'nSnow       = ', nSnow
           print*,                  'nSub        = ', nSub
           write(*,'(a,1x,f20.10)') 'data_step   = ', data_step
@@ -1328,7 +1393,7 @@ subroutine coupled_em(&
 
       ! check the soil water balance
       scalarSoilWatBalError  = balanceSoilWater1 - (balanceSoilWater0 + (balanceSoilInflux + balanceSoilET - balanceSoilBaseflow - balanceSoilDrainage - balanceSoilCompress) )
-      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
+      if(abs(scalarSoilWatBalError) > absConvTol_liquid*iden_water*10._rkind .and. checkMassBalance_ds)then  ! NOTE: kg m-2, so need coarse tolerance to account for precision issues
         write(*,*)               'solution method       = ', ixSolution
         write(*,'(a,1x,f20.10)') 'data_step             = ', data_step
         write(*,'(a,1x,f20.10)') 'balanceSoilCompress   = ', balanceSoilCompress

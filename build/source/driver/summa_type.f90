@@ -54,7 +54,7 @@ private
 ! ************************************************************************
 ! * master summa data type
 ! *****************************************************************************
-type, public :: summa1_type_dec
+type, public :: summa1_type_dec    
     ! define the lookup tables
     type(gru_hru_z_vLookup)          :: lookupStruct               ! x%gru(:)%hru(:)%z(:)%var(:)%lookup(:) -- lookup tables
     

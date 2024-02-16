@@ -275,7 +275,8 @@ set(NRUTIL
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
     ${ENGINE_DIR}/expIntegral.f90
-    ${ENGINE_DIR}/spline_int.f90)
+    ${ENGINE_DIR}/spline_int.f90
+    ${ENGINE_DIR}/hyp_2F1.f90)
 
 # Hook-up modules
 set(HOOKUP
@@ -324,7 +325,6 @@ set(PRELIM
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/conv_funcs.f90
-    ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90
@@ -337,6 +337,7 @@ set(PRELIM
 set(MODRUN
     ${ENGINE_DIR}/canopySnow.f90
     ${ENGINE_DIR}/derivforce.f90
+    ${ENGINE_DIR}/enthalpyTemp.f90
     ${ENGINE_DIR}/getVectorz.f90
     ${ENGINE_DIR}/indexState.f90
     ${ENGINE_DIR}/layerMerge.f90
@@ -344,7 +345,6 @@ set(MODRUN
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
-    ${ENGINE_DIR}/t2enthalpy.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updateVars.f90
     ${ENGINE_DIR}/var_derive.f90
@@ -358,7 +358,6 @@ set(MODRUN_SUNDIALS
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
-    ${ENGINE_DIR}/computEnthalpy.f90
     ${ENGINE_DIR}/computFlux.f90
     ${ENGINE_DIR}/computHeatCap.f90
     ${ENGINE_DIR}/computJacob.f90

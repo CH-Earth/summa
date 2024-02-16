@@ -32,7 +32,7 @@ subroutine popMetadat(err,message)
   USE globalData, only: flux_meta           ! data structure for local flux variables
   USE globalData, only: deriv_meta          ! data structure for local flux derivatives
   USE globalData, only: lookup_meta         ! data structure for lookup tables
-  ! structures of named variables
+   ! structures of named variables
   USE var_lookup, only: iLookTIME           ! named variables for time data structure
   USE var_lookup, only: iLookFORCE          ! named variables for forcing data structure
   USE var_lookup, only: iLookTYPE           ! named variables for categorical attribute data structure
@@ -258,7 +258,7 @@ subroutine popMetadat(err,message)
   mpar_meta(iLookPARAM%maxstep)                        = var_info('maxstep'                        , 'maximum length of the time step numrec'                           , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%be_steps)                       = var_info('be_steps'                       , 'minimum number of substeps to take in a maxstep numrec'           , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%wimplicit)                      = var_info('wimplicit'                      , 'weight assigned to the start-of-step fluxes ,numrec, not currently used',  '-'        , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  mpar_meta(iLookPARAM%maxiter)                        = var_info('maxiter'                        , 'maximum number of iterations numrec, kinsol, or nonlinear iterations ida', '-'        , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  mpar_meta(iLookPARAM%maxiter)                        = var_info('maxiter'                        , 'maximum number of iterations numrec and kinsol'                   , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%relConvTol_liquid)              = var_info('relConvTol_liquid'              , 'relative convergence tolerance for vol frac liq water numrec'     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%absConvTol_liquid)              = var_info('absConvTol_liquid'              , 'absolute convergence tolerance for vol frac liq water numrec'     , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   mpar_meta(iLookPARAM%relConvTol_matric)              = var_info('relConvTol_matric'              , 'relative convergence tolerance for matric head numrec'            , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -363,9 +363,9 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%mLayerThermalC)                  = var_info('mLayerThermalC'                 , 'thermal conductivity at the mid-point of each layer'              , 'W m-1 K-1'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%iLayerThermalC)                  = var_info('iLayerThermalC'                 , 'thermal conductivity at the interface of each layer'              , 'W m-1 K-1'       , get_ixVarType('ifcToto'), iMissVec, iMissVec, .false.)
   ! enthalpy
-  diag_meta(iLookDIAG%scalarCanairEnthalpy)            = var_info('scalarCanairEnthalpy'           , 'enthalpy of the canopy air space'                                 , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%scalarCanopyEnthalpy)            = var_info('scalarCanopyEnthalpy'           , 'enthalpy of the vegetation canopy'                                , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  diag_meta(iLookDIAG%mLayerEnthalpy)                  = var_info('mLayerEnthalpy'                 , 'enthalpy of the snow+soil layers'                                 , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarCanairEnthalpy)            = var_info('scalarCanairEnthalpy'           , 'temperature component of enthalpy of the canopy air space'        , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%scalarCanopyEnthalpy)            = var_info('scalarCanopyEnthalpy'           , 'temperature component of enthalpy of the vegetation canopy'       , 'J m-3'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%mLayerEnthalpy)                  = var_info('mLayerEnthalpy'                 , 'temperature component of enthalpy of the snow+soil layers'        , 'J m-3'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! forcing
   diag_meta(iLookDIAG%scalarVPair)                     = var_info('scalarVPair'                    , 'vapor pressure of the air above the vegetation canopy'            , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%scalarVP_CanopyAir)              = var_info('scalarVP_CanopyAir'             , 'vapor pressure of the canopy air space'                           , 'Pa'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
@@ -441,6 +441,17 @@ subroutine popMetadat(err,message)
   diag_meta(iLookDIAG%numFluxCalls)                    = var_info('numFluxCalls'                   , 'number of flux calls'                                             , '-'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%wallClockTime)                   = var_info('wallClockTime'                  , 'wall clock time'                                                  , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   diag_meta(iLookDIAG%meanStepSize)                    = var_info('meanStepSize'                   , 'mean time step size over data window'                             , 's'               , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! balances
+  diag_meta(iLookDIAG%balanceCasNrg)                   = var_info('balanceCasNrg'                  , 'balance of energy in the canopy air space on data window'         , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceVegNrg)                   = var_info('balanceVegNrg'                  , 'balance of energy in the vegetation on data window'               , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceLayerNrg)                 = var_info('balanceLayerNrg'                , 'balance of energy in each snow+soil layer on substep'             , 'W m-2'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceSnowNrg)                  = var_info('balanceSnowNrg'                 , 'balance of energy in the snow on data window'                     , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceSoilNrg)                  = var_info('balanceSoilNrg'                 , 'balance of energy in the soil on data window'                     , 'W m-2'           , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceVegMass)                  = var_info('balanceVegMass'                 , 'balance of water in the vegetation on data window'                , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceLayerMass)                = var_info('balanceLayerMass'               , 'balance of water in each snow+soil layer on substep'              , 'kg m-2'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceSnowMass)                 = var_info('balanceSnowMass'                , 'balance of water in the snow on data window'                      , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceSoilMass)                 = var_info('balanceSoilMass'                , 'balance of water in the soil on data window'                      , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  diag_meta(iLookDIAG%balanceAqMass)                   = var_info('balanceAqMass'                  , 'balance of water in the aquifer on data window'                   , 'kg m-2'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
   ! -----
   ! * local model fluxes...
   ! -----------------------
@@ -605,7 +616,7 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%iLayerLiqFluxSnowDeriv)        = var_info('iLayerLiqFluxSnowDeriv'       , 'derivative in vertical liquid water flux at layer interfaces'         , 'm s-1'          , get_ixVarType('ifcSnow'), iMissVec, iMissVec, .false.)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   deriv_meta(iLookDERIV%dVolTot_dPsi0)                 = var_info('dVolTot_dPsi0'                , 'derivative in total water content w.r.t. total water matric potential', 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%d2VolTot_d2Psi0)               = var_info('d2VolTot_d2Psi0'              , 'second derivative in total water content w.r.t. total water matric potential', 'm-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%d2VolTot_dPsi02)               = var_info('d2VolTot_dPsi02'              , 'second derivative in total water content w.r.t. total water matric potential', 'm-1'     , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%dCompress_dPsi)                = var_info('dCompress_dPsi'               , 'derivative in compressibility w.r.t matric head'                      , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdTheta_dPsi)             = var_info('mLayerdTheta_dPsi'            , 'derivative in the soil water characteristic w.r.t. psi'               , 'm-1'            , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerdPsi_dTheta)             = var_info('mLayerdPsi_dTheta'            , 'derivative in the soil water characteristic w.r.t. theta'             , 'm'              , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
@@ -659,7 +670,7 @@ subroutine popMetadat(err,message)
   ! * temperature and enthalpy lookup tables...
   ! -------------------------------------------
   lookup_meta(iLookLOOKUP%temperature)        = var_info('temperature'          , 'value of temperature in the lookup table'                  , 'K'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
-  lookup_meta(iLookLOOKUP%enthalpy)           = var_info('enthalpy'             , 'value of enthalpy in the lookup table'                     , 'J m-3' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
+  lookup_meta(iLookLOOKUP%psiLiq_int)         = var_info('psiLiq_int'           , 'value of integral of mLayerPsiLiq in the lookup table'     , 'K'     , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   lookup_meta(iLookLOOKUP%deriv2)             = var_info('deriv2'               , 'second derivatives of the interpolating function'          , 'mixed' , get_ixVarType('unknown'), iMissVec, iMissVec, .false.)
   ! -----
   ! * model indices...
