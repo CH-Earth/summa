@@ -219,8 +219,8 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)     :: mLayerCmTrial              ! trial vector of Cm for snow+soil
   logical(lgt)                       :: updateCp                   ! flag to indicate if we update Cp at each step, set with nrgConserv choice and updateCp_closedForm flag
   logical(lgt)                       :: needCm                     ! flag to indicate if the energy equation contains Cm = dH_T/dTheta_m,, set with nrgConserv choice and needCm_closedForm flag
-  logical(lgt),parameter             :: updateCp_closedForm=.true. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
-  logical(lgt),parameter             :: needCm_closedForm=.true.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
+  logical(lgt),parameter             :: updateCp_closedForm=.false. ! nrgConserv = closedForm flag to indicate if we update Cp at each step
+  logical(lgt),parameter             :: needCm_closedForm=.false.   ! nrgConserv = closedForm flag to indicate if the energy equation contains Cm = dH_T/dTheta_m
 
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! association to variables in the data structures
