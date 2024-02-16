@@ -66,14 +66,15 @@ USE multiconst,only:&
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,               & ! data vector (i4b)
-                    var_d,               & ! data vector (rkind)
-                    var_ilength,         & ! data vector with variable length dimension (i4b)
-                    var_dlength,         & ! data vector with variable length dimension (rkind)
-                    zLookup,             & ! lookup tables
-                    model_options,       & ! defines the model decisions
-                    in_type_computJacob, & ! class for computJacob arguments
-                    out_type_computJacob   ! class for computJacob arguments
+                    var_i,                      & ! data vector (i4b)
+                    var_d,                      & ! data vector (rkind)
+                    var_ilength,                & ! data vector with variable length dimension (i4b)
+                    var_dlength,                & ! data vector with variable length dimension (rkind)
+                    zLookup,                    & ! lookup tables
+                    model_options,              & ! defines the model decisions
+                    in_type_computJacob,        & ! class for computJacob arguments
+                    out_type_computJacob,       & ! class for computJacob arguments
+                    out_type_lineSearchRefinement ! class for lineSearchRefinement arguments
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
@@ -224,8 +225,9 @@ contains
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
- type(in_type_computJacob)       :: in_computJacob
- type(out_type_computJacob)      :: out_computJacob
+ type(in_type_computJacob)           :: in_computJacob
+ type(out_type_computJacob)          :: out_computJacob
+ type(out_type_lineSearchRefinement) :: out_LSR
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -313,8 +315,11 @@ contains
 
   ! try to backtrack
   select case(ixStepRefinement)
-   case(ixLineSearch);  call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-   case(ixTrustRegion); call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+   case(ixLineSearch)  
+    call lineSearchRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+    call out_LSR % finalize(fNew,converged,err,cmessage)
+   case(ixTrustRegion) 
+    call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
   end select
 
@@ -322,7 +327,8 @@ contains
   ! NOTE: Accept the full newton step if back-tracked to the original value
   if (err<0) then
    doRefine=.false.;    
-   call lineSearchRefinement( doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+   call lineSearchRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+   call out_LSR % finalize(fNew,converged,err,cmessage)
   end if
 
  ! * case 2: scalar
@@ -340,7 +346,7 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
   ! *********************************************************************************************************
-  subroutine lineSearchRefinement(doLineSearch,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  subroutine lineSearchRefinement(doLineSearch,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,out_LSR)
   ! provide access to the matrix routines
   USE matrixOper_module, only: computeGradient
   implicit none
@@ -355,10 +361,7 @@ contains
   real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
   real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
   real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  real(rkind),intent(out)        :: fNew                     ! new function evaluation
-  logical(lgt),intent(out)       :: converged                ! convergence flag
-  integer(i4b),intent(out)       :: err                      ! error code
-  character(*),intent(out)       :: message                  ! error message
+  type(out_type_lineSearchRefinement),intent(out) :: out_LSR ! class object for intent(out) arguments
   ! --------------------------------------------------------------------------------------------------------
   ! local
   character(len=256)             :: cmessage                 ! error message of downwind routine
@@ -377,129 +380,136 @@ contains
   real(rkind)                    :: xLambdaPrev              ! previous lambda value (used in the cubic)
   real(rkind)                    :: fPrev                    ! previous function evaluation (used in the cubic)
   ! --------------------------------------------------------------------------------------------------------
-  ! initialize error control
-  err=0; message='lineSearchRefinement/'
-  converged =.false.
+  associate(&
+  fNew      => out_LSR % fNew                  ,&   ! new function evaluation
+  converged => out_LSR % converged             ,&   ! convergence flag
+  err       => out_LSR % err                   ,&   ! error code
+  message   => out_LSR % message                &   ! error message
+  &)
+   ! initialize error control
+   err=0; message='lineSearchRefinement/'
+   converged =.false.
 
-  ! check the need to compute the line search
-  if(doLineSearch)then
+   ! check the need to compute the line search
+   if(doLineSearch)then
 
-   ! compute the gradient of the function vector
-   call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    ! compute the gradient of the function vector
+    call computeGradient(ixMatrix,nState,aJacScaled,rVecScaled,gradScaled,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-   ! compute the initial slope
-   slopeInit = dot_product(gradScaled,newtStepScaled)
+    ! compute the initial slope
+    slopeInit = dot_product(gradScaled,newtStepScaled)
 
-  end if  ! if computing the line search
+   end if  ! if computing the line search
 
-  ! initialize lambda
-  xLambda=1._rkind
+   ! initialize lambda
+   xLambda=1._rkind
 
-  ! ***** LINE SEARCH LOOP...
-  lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by shrinking the step size
+   ! ***** LINE SEARCH LOOP...
+   lineSearch: do iLine=1,maxLineSearch  ! try to refine the function by shrinking the step size
 
-   ! back-track along the search direction
-   ! NOTE: start with back-tracking the scaled step
-   xInc(:) = xLambda*newtStepScaled(:)
+    ! back-track along the search direction
+    ! NOTE: start with back-tracking the scaled step
+    xInc(:) = xLambda*newtStepScaled(:)
 
-   ! re-scale the iteration increment
-   xInc(:) = xInc(:)*xScale(:)
+    ! re-scale the iteration increment
+    xInc(:) = xInc(:)*xScale(:)
 
-   ! if enthalpy, then need to convert the iteration increment to temperature
-   !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
+    ! if enthalpy, then need to convert the iteration increment to temperature
+    !if(nrgFormulation==ix_enthalpy) xInc(ixNrgOnly) = xInc(ixNrgOnly)/dMat(ixNrgOnly)
 
-   ! state vector with proposed iteration increment
-   stateVecNew = stateVecTrial + xInc
+    ! state vector with proposed iteration increment
+    stateVecNew = stateVecTrial + xInc
 
-   ! impose solution constraints adjusting state vector and iteration increment
-   ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
-   call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   xInc = stateVecNew - stateVecTrial
+    ! impose solution constraints adjusting state vector and iteration increment
+    ! NOTE: We may not need to do this (or at least, do ALL of this), as we can probably rely on the line search here
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    xInc = stateVecNew - stateVecTrial
 
-   ! compute the residual vector and function
-   ! NOTE: This calls eval8summa in an internal subroutine which has access to all data
-   !       Hence, we only need to include the variables of interest in lineSearch
-   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+    ! compute the residual vector and function
+    ! NOTE: This calls eval8summa in an internal subroutine which has access to all data
+    !       Hence, we only need to include the variables of interest in lineSearch
+    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
-   ! check line search
-   if(globalPrintFlag)then
-    write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
-    write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
-    write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
-    write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(min(iJac1,nState):min(iJac2,nState))
-    write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(min(iJac1,nState):min(iJac2,nState))
-   end if
-
-   ! check feasibility
-   if(.not.feasible) cycle ! go back and impose constraints again
-
-   ! check convergence
-   ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
-   converged = checkConv(resVecNew,newtStepScaled*xScale,stateVecNew)
-   if(converged) return
-
-   ! early return if not computing the line search
-   if(.not.doLineSearch) return
-
-   ! check if the function is accepted
-   if(fNew < fold + alpha*slopeInit*xLambda) return
-
-   ! ***
-   ! *** IF GET TO HERE WE BACKTRACK
-   !      --> all remaining code simply computes the restricted step multiplier (xLambda)
-
-   ! first backtrack: use quadratic
-   if(iLine==1)then
-    xLambdaTemp = -slopeInit / (2._rkind*(fNew - fOld - slopeInit) )
-    if(xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp = 0.5_rkind*xLambda
-
-   ! subsequent backtracks: use cubic
-   else
-
-    ! check that we did not back-track all the way back to the original value
-    if(iLine==maxLineSearch)then
-     message=trim(message)//'backtracked all the way back to the original value'
-     err=-20; return
+    ! check line search
+    if(globalPrintFlag)then
+     write(*,'(a,1x,i4,1x,e17.10)' ) 'iLine, xLambda                 = ', iLine, xLambda
+     write(*,'(a,1x,10(e17.10,1x))') 'fOld,fNew                      = ', fOld,fNew
+     write(*,'(a,1x,10(e17.10,1x))') 'fold + alpha*slopeInit*xLambda = ', fold + alpha*slopeInit*xLambda
+     write(*,'(a,1x,10(e17.10,1x))') 'resVecNew                      = ', resVecNew(min(iJac1,nState):min(iJac2,nState))
+     write(*,'(a,1x,10(e17.10,1x))') 'xInc                           = ', xInc(min(iJac1,nState):min(iJac2,nState))
     end if
 
-    ! define rhs
-    rhs1 = fNew - fOld - xLambda*slopeInit
-    rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
+    ! check feasibility
+    if(.not.feasible) cycle ! go back and impose constraints again
 
-    ! define coefficients
-    aCoef = (rhs1/(xLambda*xLambda) - rhs2/(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
-    bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
+    ! check convergence
+    ! NOTE: some efficiency gains possible by scaling the full newton step outside the line search loop
+    converged = checkConv(resVecNew,newtStepScaled*xScale,stateVecNew)
+    if(converged) return
 
-    ! check if a quadratic
-    if(aCoef==0._rkind)then
-     xLambdaTemp = -slopeInit/(2._rkind*bCoef)
+    ! early return if not computing the line search
+    if(.not.doLineSearch) return
 
-    ! calculate cubic
+    ! check if the function is accepted
+    if(fNew < fold + alpha*slopeInit*xLambda) return
+
+    ! ***
+    ! *** IF GET TO HERE WE BACKTRACK
+    !      --> all remaining code simply computes the restricted step multiplier (xLambda)
+
+    ! first backtrack: use quadratic
+    if(iLine==1)then
+     xLambdaTemp = -slopeInit / (2._rkind*(fNew - fOld - slopeInit) )
+     if(xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp = 0.5_rkind*xLambda
+
+    ! subsequent backtracks: use cubic
     else
-     disc = bCoef*bCoef - 3._rkind*aCoef*slopeInit
-     if(disc < 0._rkind)then
-      xLambdaTemp = 0.5_rkind*xLambda
-     else
-      xLambdaTemp = (-bCoef + sqrt(disc))/(3._rkind*aCoef)
+
+     ! check that we did not back-track all the way back to the original value
+     if(iLine==maxLineSearch)then
+      message=trim(message)//'backtracked all the way back to the original value'
+      err=-20; return
      end if
-    end if  ! calculating cubic
 
-    ! constrain to <= 0.5*xLambda
-    if(xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp=0.5_rkind*xLambda
+     ! define rhs
+     rhs1 = fNew - fOld - xLambda*slopeInit
+     rhs2 = fPrev - fOld - xLambdaPrev*slopeInit
 
-   end if  ! subsequent backtracks
+     ! define coefficients
+     aCoef = (rhs1/(xLambda*xLambda) - rhs2/(xLambdaPrev*xLambdaPrev))/(xLambda - xLambdaPrev)
+     bCoef = (-xLambdaPrev*rhs1/(xLambda*xLambda) + xLambda*rhs2/(xLambdaPrev*xLambdaPrev)) / (xLambda - xLambdaPrev)
 
-   ! save results
-   xLambdaPrev = xLambda
-   fPrev = fNew
+     ! check if a quadratic
+     if(aCoef==0._rkind)then
+      xLambdaTemp = -slopeInit/(2._rkind*bCoef)
 
-   ! constrain lambda
-   xLambda = max(xLambdaTemp, 0.1_rkind*xLambda)
+     ! calculate cubic
+     else
+      disc = bCoef*bCoef - 3._rkind*aCoef*slopeInit
+      if(disc < 0._rkind)then
+       xLambdaTemp = 0.5_rkind*xLambda
+      else
+       xLambdaTemp = (-bCoef + sqrt(disc))/(3._rkind*aCoef)
+      end if
+     end if  ! calculating cubic
 
-  end do lineSearch  ! backtrack loop
+     ! constrain to <= 0.5*xLambda
+     if(xLambdaTemp > 0.5_rkind*xLambda) xLambdaTemp=0.5_rkind*xLambda
+
+    end if  ! subsequent backtracks
+
+    ! save results
+    xLambdaPrev = xLambda
+    fPrev = fNew
+
+    ! constrain lambda
+    xLambda = max(xLambdaTemp, 0.1_rkind*xLambda)
+
+   end do lineSearch  ! backtrack loop
+  end associate
 
   end subroutine lineSearchRefinement
 

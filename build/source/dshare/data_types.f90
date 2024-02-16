@@ -660,7 +660,7 @@ MODULE data_types
  ! Define classes used to simplify calls to the subrotuines in summaSolve4numrec
  ! ***********************************************************************************************************
 
- type, public :: in_type_computJacob  ! class for intent(in) arguments in computFlux call
+ type, public :: in_type_computJacob  ! class for intent(in) arguments in computJacob call
    ! input: model control
    real(rkind)              :: dt                          ! intent(in): length of the time step (seconds)
    integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
@@ -673,13 +673,23 @@ MODULE data_types
    procedure :: initialize => initialize_in_computJacob
  end type in_type_computJacob
 
- type, public :: out_type_computJacob  ! class for intent(in) arguments in computFlux call
+ type, public :: out_type_computJacob  ! class for intent(out) arguments in computJacob call
    ! output: error control
    integer(i4b)             :: err                         ! intent(out): error code
    character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
    procedure :: finalize => finalize_out_computJacob
  end type out_type_computJacob
+
+ type, public :: out_type_lineSearchRefinement  ! class for intent(out) arguments in lineSearchRefinement call
+   real(rkind)              :: fNew                        ! intent(out): new function evaluation
+   logical(lgt)             :: converged                   ! intent(out): convergence flag
+   ! output: error control
+   integer(i4b)             :: err                         ! intent(out): error code
+   character(len=len_msg)   :: message                     ! intent(out): error message
+  contains
+   procedure :: finalize => finalize_out_lineSearchRefinement
+ end type out_type_lineSearchRefinement
 
 contains
  
@@ -1472,5 +1482,18 @@ contains
   err               = out_computJacob % err                           ! intent(out): error code
   cmessage          = out_computJacob % cmessage                      ! intent(out): error message                                          
  end subroutine finalize_out_computJacob
+
+ ! **** lineSearchRefinement ****
+ subroutine finalize_out_lineSearchRefinement(out_lineSearchRefinement,fNew,converged,err,message)
+  class(out_type_lineSearchRefinement),intent(in) :: out_lineSearchRefinement   ! class object for intent(out) computJacob arguments
+  real(rkind)              :: fNew                                    ! intent(out): new function evaluation
+  logical(lgt)             :: converged                               ! intent(out): convergence flag
+  integer(i4b)             :: err                                     ! intent(out): error code
+  character(len=len_msg)   :: message                                 ! intent(out): error message
+  fNew      = out_lineSearchRefinement % fNew                         ! intent(out): new function evaluation
+  converged = out_lineSearchRefinement % converged                    ! intent(out): convergence flag
+  err       = out_lineSearchRefinement % err                          ! intent(out): error code
+  message   = out_lineSearchRefinement % message                      ! intent(out): error message
+ end subroutine finalize_out_lineSearchRefinement
 
 END MODULE data_types
