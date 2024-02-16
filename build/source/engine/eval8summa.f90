@@ -31,6 +31,8 @@ USE globalData,only:quadMissing     ! missing quadruple precision number
 ! named variables to describe the state variable type
 USE globalData,only:iname_watLayer  ! named variable defining the total water state variable for snow+soil layers
 USE globalData,only:iname_liqLayer  ! named variable defining the liquid  water state variable for snow+soil layers
+USE globalData,only:iname_matLayer  ! named variable defining the total water matric potential state variable for soil layers
+USE globalData,only:iname_lmpLayer  ! named variable defining the liquid water matric potential state variable for soil layers
 
 ! constants
 USE multiconst,only:&
@@ -807,7 +809,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   real(qp),dimension(nState)               :: xInc                       ! iteration increment
   real(rkind)                              :: scalarTemp                 ! temperature of an individual snow layer (K)
   real(rkind)                              :: scalarIce                  ! volumetric ice content of an individual layer (-)
-  real(rkind)                              :: vFracLiq                   ! volumetric liquid water content of an individual layer (-)
+  real(rkind)                              :: scalarLiq                  ! volumetric liquid water content of an individual layer (-)
   real(rkind)                              :: xPsi00                     ! matric head after applying the iteration increment (m)
   real(rkind)                              :: TcSoil                     ! critical point when soil begins to freeze (K)
   real(rkind)                              :: critDiff                   ! temperature difference from critical (K)
@@ -817,6 +819,8 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   real(rkind)                              :: xConst                     ! constant in the freezing curve function (m K-1)
   real(rkind)                              :: mLayerPsiLiq               ! liquid water matric potential (m)
   real(rkind)                              :: vGn_m(nSoil)               ! van Genutchen "m" parameter (-)
+  real(rkind)                              :: effSat                     ! effective saturation (-)
+  real(rkind)                              :: avPore                     ! available pore space (-)
   ! indices of model state variables
   integer(i4b)                             :: iState                     ! index of state within a specific variable type
   integer(i4b)                             :: ixNrg,ixLiq                ! index of energy and mass state variables in full state vector
@@ -832,45 +836,45 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
   ! association to variables in the data structures
   associate(&
     ! model decisions
-    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in):  [i4b]   choice of numerical solver
+    ixNumericalMethod  => model_decisions(iLookDECISIONS%num_method)%iDecision ,& ! intent(in):  [i4b]   choice of numerical solver
     ! indices of model state variables
-    ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
-    ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
-    ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
-    ixMassOnly              => indx_data%var(iLookINDEX%ixMassOnly)%dat               ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
-    ixHydType               => indx_data%var(iLookINDEX%ixHydType)%dat                ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
-    ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
+    ixNrgOnly          => indx_data%var(iLookINDEX%ixNrgOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for energy states
+    ixHydOnly          => indx_data%var(iLookINDEX%ixHydOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for hydrology states
+    ixMatOnly          => indx_data%var(iLookINDEX%ixMatOnly)%dat              ,& ! intent(in): [i4b(:)] list of indices in the state subset for matric head states
+    ixMassOnly         => indx_data%var(iLookINDEX%ixMassOnly)%dat             ,& ! intent(in): [i4b(:)] list of indices in the state subset for canopy storage states
+    ixHydType          => indx_data%var(iLookINDEX%ixHydType)%dat              ,& ! intent(in): [i4b(:)] index of the type of hydrology states in snow+soil domain
+    ixStateType_subset => indx_data%var(iLookINDEX%ixStateType_subset)%dat     ,& ! intent(in): [i4b(:)] named variables defining the states in the subset
     ! indices for specific state variables
-    ixCasNrg                => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy air space energy state variable
-    ixVegNrg                => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)              ,& ! intent(in): [i4b]    index of canopy energy state variable
-    ixVegHyd                => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)              ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
-    ixTopNrg                => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
-    ixTopHyd                => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)              ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
+    ixCasNrg           => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy air space energy state variable
+    ixVegNrg           => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)            ,& ! intent(in): [i4b]    index of canopy energy state variable
+    ixVegHyd           => indx_data%var(iLookINDEX%ixVegHyd)%dat(1)            ,& ! intent(in): [i4b]    index of canopy hydrology state variable (mass)
+    ixTopNrg           => indx_data%var(iLookINDEX%ixTopNrg)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most energy state in the snow-soil subdomain
+    ixTopHyd           => indx_data%var(iLookINDEX%ixTopHyd)%dat(1)            ,& ! intent(in): [i4b]    index of upper-most hydrology state in the snow-soil subdomain
     ! vector of energy indices for the snow and soil domains
     ! NOTE: states not in the subset are equal to integerMissing
-    ixSnowSoilNrg           => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
-    ixSnowOnlyNrg           => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
-    ixSoilOnlyNrg           => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
+    ixSnowSoilNrg      => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
+    ixSnowOnlyNrg      => indx_data%var(iLookINDEX%ixSnowOnlyNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow domain
+    ixSoilOnlyNrg      => indx_data%var(iLookINDEX%ixSoilOnlyNrg)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the soil domain
     ! vector of hydrology indices for the snow and soil domains
     ! NOTE: states not in the subset are equal to integerMissing
-    ixSnowSoilHyd           => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
-    ixSnowOnlyHyd           => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
-    ixSoilOnlyHyd           => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat            ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
+    ixSnowSoilHyd      => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
+    ixSnowOnlyHyd      => indx_data%var(iLookINDEX%ixSnowOnlyHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow domain
+    ixSoilOnlyHyd      => indx_data%var(iLookINDEX%ixSoilOnlyHyd)%dat          ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the soil domain
     ! number of state variables of a specific type
-    nSnowSoilNrg            => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
-    nSnowOnlyNrg            => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
-    nSoilOnlyNrg            => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)         ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
-    nSnowSoilHyd            => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
-    nSnowOnlyHyd            => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
-    nSoilOnlyHyd            => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)         ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
+    nSnowSoilNrg       => indx_data%var(iLookINDEX%nSnowSoilNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the snow+soil domain
+    nSnowOnlyNrg       => indx_data%var(iLookINDEX%nSnowOnlyNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the snow domain
+    nSoilOnlyNrg       => indx_data%var(iLookINDEX%nSoilOnlyNrg )%dat(1)       ,& ! intent(in): [i4b]    number of energy state variables in the soil domain
+    nSnowSoilHyd       => indx_data%var(iLookINDEX%nSnowSoilHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the snow+soil domain
+    nSnowOnlyHyd       => indx_data%var(iLookINDEX%nSnowOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the snow domain
+    nSoilOnlyHyd       => indx_data%var(iLookINDEX%nSoilOnlyHyd )%dat(1)       ,& ! intent(in): [i4b]    number of hydrology variables in the soil domain
   ! soil parameters
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat                ,& ! intent(in): [dp(:)]  soil porosity (-)
-    theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat                ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
-    vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat                    ,& ! intent(in):  [dp(:)]  van Genutchen "n" parameter (-)
-    vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat                ,& ! intent(in):  [dp(:)]  van Genutchen "alpha" parameter (m-1)
+    theta_sat          => mpar_data%var(iLookPARAM%theta_sat)%dat              ,& ! intent(in): [dp(:)]  soil porosity (-)
+    theta_res          => mpar_data%var(iLookPARAM%theta_res)%dat              ,& ! intent(in): [dp(:)]  residual volumetric water content (-)
+    vGn_n              => mpar_data%var(iLookPARAM%vGn_n)%dat                  ,& ! intent(in):  [dp(:)]  van Genutchen "n" parameter (-)
+    vGn_alpha          => mpar_data%var(iLookPARAM%vGn_alpha)%dat              ,& ! intent(in):  [dp(:)]  van Genutchen "alpha" parameter (m-1)
     ! state variables at the start of the time step
-    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(in): [dp(:)] matric head (m)
-    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat           & ! intent(in): [dp(:)] volumetric fraction of ice (-)
+    mLayerMatricHead   => prog_data%var(iLookPROG%mLayerMatricHead)%dat        ,& ! intent(in): [dp(:)] matric head (m)
+    mLayerVolFracIce   => prog_data%var(iLookPROG%mLayerVolFracIce)%dat         & ! intent(in): [dp(:)] volumetric fraction of ice (-)
     ) ! associating variables with indices of model state variables
     ! -----------------------------------------------------------------------------------------------------
 
@@ -969,7 +973,18 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           ixLiq = ixSoilOnlyHyd(iLayer)
           ! get the matric potential of total water
           if(ixLiq/=integerMissing)then
-            xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
+            select case( ixStateType_subset( ixSoilOnlyHyd(iLayer) ) )     
+              case(iname_lmpLayer)
+                effSat = volFracLiq(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),0._rkind,1._rkind,vGn_n(iLayer),vGn_m(iLayer))  ! effective saturation
+                avPore = theta_sat(iLayer) - mLayerVolFracIce(iLayer+nSnow) - theta_res(iLayer)  ! available pore space
+                scalarLiq = effSat*avPore + theta_res(iLayer)
+                xPsi00 = matricHead(scalarLiq + mLayerVolFracIce(iLayer+nSnow),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+              case(iname_matLayer); xPsi00 = stateVecPrev(ixLiq) + xInc(ixLiq) ! only true if using iname_matLayer, otherwise may want to fix this
+              case(iname_watLayer); xPsi00 = matricHead(stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+              case(iname_liqLayer) 
+                xPsi00 = matricHead(mLayerVolFracIce(iLayer+nSnow) + stateVecPrev(ixLiq) + xInc(ixLiq),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+              case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_matLayer, iname_lmpLayer, iname_watLayer, or iname_liqLayer for soil hydrology'; return
+            end select
           else
             xPsi00 = mLayerMatricHead(iLayer)
           endif
@@ -1012,16 +1027,16 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           endif
           ! get the volumetric fraction of liquid water and ice
           select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
-            case(iname_watLayer); vFracLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecPrev(ixSnowOnlyHyd(iLayer))
-            case(iname_liqLayer); vFracLiq = stateVecPrev(ixSnowOnlyHyd(iLayer))
+            case(iname_watLayer); scalarLiq = fracliquid(scalarTemp,mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)) * stateVecPrev(ixSnowOnlyHyd(iLayer))
+            case(iname_liqLayer); scalarLiq = stateVecPrev(ixSnowOnlyHyd(iLayer))
             case default; err=20; message=trim(message)//'expect ixStateType_subset to be iname_watLayer or iname_liqLayer for snow hydrology'; return
           end select
-          scalarIce = merge(stateVecPrev(ixSnowOnlyHyd(iLayer)) - vFracLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+          scalarIce = merge(stateVecPrev(ixSnowOnlyHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
           ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-          if(-xInc(ixSnowOnlyHyd(iLayer)) > vFracLiq) then
-            xInc(ixSnowOnlyHyd(iLayer)) = -0.5_rkind*vFracLiq
-          elseif(xInc(ixSnowOnlyHyd(iLayer)) > 1._rkind - scalarIce - vFracLiq)then
-            xInc(ixSnowOnlyHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - vFracLiq)
+          if(-xInc(ixSnowOnlyHyd(iLayer)) > scalarLiq) then
+            xInc(ixSnowOnlyHyd(iLayer)) = -0.5_rkind*scalarLiq
+          elseif(xInc(ixSnowOnlyHyd(iLayer)) > 1._rkind - scalarIce - scalarLiq)then
+            xInc(ixSnowOnlyHyd(iLayer)) = 0.5_rkind*(1._rkind - scalarIce - scalarLiq)
           endif
         end do ! (looping through snow layers)
       endif ! (if there are state variables for liquid water in the snow domain)
@@ -1034,7 +1049,7 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
           if(ixSoilOnlyHyd(iLayer)==integerMissing) cycle
           if(ixHydType(iLayer+nSnow)==iname_watLayer .or. ixHydType(iLayer+nSnow)==iname_liqLayer)then
             ! get the volumetric fraction of liquid water and ice
-            select case( ixStateType_subset( ixSnowOnlyHyd(iLayer) ) )
+            select case( ixStateType_subset( ixSoilOnlyHyd(iLayer) ) )
               case(iname_watLayer)
                 xPsi00 = matricHead(stateVecPrev(ixSoilOnlyHyd(iLayer)),vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
                 ! get the layer temperature
@@ -1049,18 +1064,18 @@ subroutine imposeConstraints(model_decisions,indx_data, prog_data, mpar_data, st
                 if(scalarTemp < TcSoil)then 
                   xConst       = LH_fus/(gravity*Tfreeze)
                   mLayerPsiLiq = xConst*(scalarTemp - Tfreeze)
-                  vFracLiq = volFracLiq(mLayerPsiLiq,vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
+                  scalarLiq = volFracLiq(mLayerPsiLiq,vGn_alpha(iLayer),theta_res(iLayer),theta_sat(iLayer),vGn_n(iLayer),vGn_m(iLayer))
                 else
-                  vFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
+                  scalarLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
                 end if  ! (check if soil is partially frozen)
-              case(iname_liqLayer); vFracLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
+              case(iname_liqLayer); scalarLiq = stateVecPrev(ixSoilOnlyHyd(iLayer))
             end select
-            scalarIce = merge(stateVecPrev(ixSnowOnlyHyd(iLayer)) - vFracLiq,mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer)==iname_watLayer)
+            scalarIce = merge(stateVecPrev(ixSoilOnlyHyd(iLayer)) - scalarLiq,mLayerVolFracIce(iLayer+nSnow), ixHydType(iLayer)==iname_watLayer)
             ! checking if drain more than what is available or add more than possible, constrained iteration increment -- simplified bi-section
-            if(-xInc(ixSoilOnlyHyd(iLayer)) > vFracLiq - theta_res(iLayer))then 
-              xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(vFracLiq - theta_res(iLayer))
-            elseif(xInc(ixSoilOnlyHyd(iLayer)) > theta_sat(iLayer) - scalarIce - vFracLiq)then
-              xInc(ixSoilOnlyHyd(iLayer)) = 0.5_rkind*(theta_sat(iLayer) - scalarIce - vFracLiq)
+            if(-xInc(ixSoilOnlyHyd(iLayer)) > scalarLiq - theta_res(iLayer))then 
+              xInc(ixSoilOnlyHyd(iLayer)) = -0.5_rkind*(scalarLiq - theta_res(iLayer))
+            elseif(xInc(ixSoilOnlyHyd(iLayer)) > theta_sat(iLayer) - scalarIce - scalarLiq)then
+              xInc(ixSoilOnlyHyd(iLayer)) = 0.5_rkind*(theta_sat(iLayer) - scalarIce - scalarLiq)
             endif
           endif ! (if the state variable is not matric head)
         end do ! (looping through soil layers)
