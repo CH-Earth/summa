@@ -617,7 +617,6 @@ MODULE data_types
  end type out_type_indexSplit
  ! ** end indexSplit
 
-
  ! ** varSubstep
  type, public :: in_type_varSubstep  ! class for intent(in) arguments in varSubstep call
    real(rkind)              :: dt                          ! intent(in): time step (s)
@@ -656,6 +655,31 @@ MODULE data_types
    procedure :: finalize   => finalize_out_varSubstep
  end type out_type_varSubstep
  ! ** end varSubstep
+
+ ! ***********************************************************************************************************
+ ! Define classes used to simplify calls to the subrotuines in summaSolve4numrec
+ ! ***********************************************************************************************************
+
+ type, public :: in_type_computJacob  ! class for intent(in) arguments in computFlux call
+   ! input: model control
+   real(rkind)              :: dt                          ! intent(in): length of the time step (seconds)
+   integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
+   integer(i4b)             :: nSoil                       ! intent(in): number of soil layers
+   integer(i4b)             :: nLayers                     ! intent(in): total number of layers in the snow+soil domain
+   logical(lgt)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
+   logical(lgt)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
+   integer(i4b)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix
+  contains
+   procedure :: initialize => initialize_in_computJacob
+ end type in_type_computJacob
+
+ type, public :: out_type_computJacob  ! class for intent(in) arguments in computFlux call
+   ! output: error control
+   integer(i4b)             :: err                         ! intent(out): error code
+   character(len=len_msg)   :: cmessage                    ! intent(out): error message
+  contains
+   procedure :: finalize => finalize_out_computJacob
+ end type out_type_computJacob
 
 contains
  
@@ -1418,5 +1442,35 @@ contains
   cmessage          = out_varSubstep % cmessage           ! intent(out): error message                                          
  end subroutine finalize_out_varSubstep
  ! **** end varSubstep ****
+
+ ! **** computJacob ****
+ subroutine initialize_in_computJacob(in_computJacob,dt,nSnow,nSoil,nLayers,computeVegFlux,computeBaseflow,ixMatrix)
+  class(in_type_computJacob),intent(out) :: in_computJacob           ! class object for intent(in) computJacob arguments
+  real(rkind),intent(in)              :: dt                          ! intent(in): length of the time step (seconds)
+  integer(i4b),intent(in)             :: nSnow                       ! intent(in): number of snow layers
+  integer(i4b),intent(in)             :: nSoil                       ! intent(in): number of soil layers
+  integer(i4b),intent(in)             :: nLayers                     ! intent(in): total number of layers in the snow+soil domain
+  logical(lgt),intent(in)             :: computeVegFlux              ! intent(in): flag to indicate if computing fluxes over vegetation
+  logical(lgt),intent(in)             :: computeBaseflow             ! intent(in): flag to indicate if computing baseflow
+  integer(i4b),intent(in)             :: ixMatrix                    ! intent(in): form of the Jacobian matrix                         
+ 
+  ! intent(in) arguments
+  in_computJacob % dt               =  dt                            ! intent(in): length of the time step (seconds)                    
+  in_computJacob % nSnow            =  nSnow                         ! intent(in): number of snow layers
+  in_computJacob % nSoil            =  nSoil                         ! intent(in): number of soil layers
+  in_computJacob % nLayers          =  nLayers                       ! intent(in): total number of layers in the snow+soil domain
+  in_computJacob % computeVegFlux   =  computeVegFlux                ! intent(in): flag to indicate if computing fluxes over vegetation
+  in_computJacob % computeBaseflow  =  computeBaseflow               ! intent(in): flag to indicate if computing baseflow
+  in_computJacob % ixMatrix         =  ixMatrix                      ! intent(in): form of the Jacobian matrix                         
+ end subroutine initialize_in_computJacob
+
+ subroutine finalize_out_computJacob(out_computJacob,err,cmessage)
+  class(out_type_computJacob),intent(in) :: out_computJacob           ! class object for intent(out) computJacob arguments
+  integer(i4b),intent(out)               :: err                       ! intent(out): error code
+  character(*),intent(out)               :: cmessage                  ! intent(out): error message
+  ! intent(out) arguments
+  err               = out_computJacob % err                           ! intent(out): error code
+  cmessage          = out_computJacob % cmessage                      ! intent(out): error message                                          
+ end subroutine finalize_out_computJacob
 
 END MODULE data_types
