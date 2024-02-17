@@ -66,15 +66,16 @@ USE multiconst,only:&
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,                      & ! data vector (i4b)
-                    var_d,                      & ! data vector (rkind)
-                    var_ilength,                & ! data vector with variable length dimension (i4b)
-                    var_dlength,                & ! data vector with variable length dimension (rkind)
-                    zLookup,                    & ! lookup tables
-                    model_options,              & ! defines the model decisions
-                    in_type_computJacob,        & ! class for computJacob arguments
-                    out_type_computJacob,       & ! class for computJacob arguments
-                    out_type_lineSearchRefinement ! class for lineSearchRefinement arguments
+                    var_i,                        & ! data vector (i4b)
+                    var_d,                        & ! data vector (rkind)
+                    var_ilength,                  & ! data vector with variable length dimension (i4b)
+                    var_dlength,                  & ! data vector with variable length dimension (rkind)
+                    zLookup,                      & ! lookup tables
+                    model_options,                & ! defines the model decisions
+                    in_type_computJacob,          & ! class for computJacob arguments
+                    out_type_computJacob,         & ! class for computJacob arguments
+                    in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
+                    out_type_lineSearchRefinement   ! class for lineSearchRefinement arguments
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
@@ -227,6 +228,7 @@ contains
  ! class objects for subroutine arguments
  type(in_type_computJacob)           :: in_computJacob
  type(out_type_computJacob)          :: out_computJacob
+ type(in_type_lineSearchRefinement)  :: in_LSR
  type(out_type_lineSearchRefinement) :: out_LSR
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -316,7 +318,8 @@ contains
   ! try to backtrack
   select case(ixStepRefinement)
    case(ixLineSearch)  
-    call lineSearchRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+    call in_LSR % initialize(doRefine,fOld)    
+    call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
     call out_LSR % finalize(fNew,converged,err,cmessage)
    case(ixTrustRegion) 
     call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
@@ -326,8 +329,9 @@ contains
   ! check warnings: negative error code = warning; in this case back-tracked to the original value
   ! NOTE: Accept the full newton step if back-tracked to the original value
   if (err<0) then
-   doRefine=.false.;    
-   call lineSearchRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+   doRefine=.false.;
+   call in_LSR % initialize(doRefine,fOld)    
+   call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
    call out_LSR % finalize(fNew,converged,err,cmessage)
   end if
 
@@ -346,17 +350,16 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
   ! *********************************************************************************************************
-  subroutine lineSearchRefinement(doLineSearch,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+  subroutine lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
   ! provide access to the matrix routines
   USE matrixOper_module, only: computeGradient
   implicit none
   ! input
-  logical(lgt),intent(in)        :: doLineSearch             ! flag to do the line search
+  type(in_type_lineSearchRefinement),intent(in)  :: in_LSR   ! class object for intent(in) arguments
   real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
   real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
   real(rkind),intent(in)         :: aJacScaled(:,:)          ! scaled jacobian matrix
   real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
-  real(rkind),intent(in)         :: fOld                     ! old function value
   ! output
   real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
   real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
@@ -381,6 +384,10 @@ contains
   real(rkind)                    :: fPrev                    ! previous function evaluation (used in the cubic)
   ! --------------------------------------------------------------------------------------------------------
   associate(&
+  ! intent(in) variables
+  doLineSearch => in_LSR % doLineSearch        ,&   ! flag to do the line search
+  fOld         => in_LSR % fOld                ,&   ! old function value
+  ! intent(out) variables
   fNew      => out_LSR % fNew                  ,&   ! new function evaluation
   converged => out_LSR % converged             ,&   ! convergence flag
   err       => out_LSR % err                   ,&   ! error code

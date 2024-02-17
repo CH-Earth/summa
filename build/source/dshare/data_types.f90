@@ -681,6 +681,13 @@ MODULE data_types
    procedure :: finalize => finalize_out_computJacob
  end type out_type_computJacob
 
+ type, public :: in_type_lineSearchRefinement  ! class for intent(in) arguments in lineSearchRefinement call
+   logical(lgt)             :: doLineSearch                ! intent(in): flag to do the line search
+   real(rkind)              :: fOld                        ! intent(in): old function value
+  contains
+   procedure :: initialize => initialize_in_lineSearchRefinement
+ end type in_type_lineSearchRefinement
+
  type, public :: out_type_lineSearchRefinement  ! class for intent(out) arguments in lineSearchRefinement call
    real(rkind)              :: fNew                        ! intent(out): new function evaluation
    logical(lgt)             :: converged                   ! intent(out): convergence flag
@@ -1484,12 +1491,20 @@ contains
  end subroutine finalize_out_computJacob
 
  ! **** lineSearchRefinement ****
+ subroutine initialize_in_lineSearchRefinement(in_lineSearchRefinement,doLineSearch,fOld)
+  class(in_type_lineSearchRefinement),intent(out) :: in_lineSearchRefinement   ! class object for intent(out) computJacob arguments
+  logical(lgt),intent(in)                         :: doLineSearch              ! intent(in): flag to do the line search
+  real(rkind) ,intent(in)                         :: fOld                      ! intent(in): old function value
+  in_lineSearchRefinement % doLineSearch = doLineSearch              ! intent(in): flag to do the line search
+  in_lineSearchRefinement % fOld         = fOld                      ! intent(in): old function value
+ end subroutine initialize_in_lineSearchRefinement
+ 
  subroutine finalize_out_lineSearchRefinement(out_lineSearchRefinement,fNew,converged,err,message)
   class(out_type_lineSearchRefinement),intent(in) :: out_lineSearchRefinement   ! class object for intent(out) computJacob arguments
-  real(rkind)              :: fNew                                    ! intent(out): new function evaluation
-  logical(lgt)             :: converged                               ! intent(out): convergence flag
-  integer(i4b)             :: err                                     ! intent(out): error code
-  character(len=len_msg)   :: message                                 ! intent(out): error message
+  real(rkind) ,intent(out)   :: fNew                                  ! intent(out): new function evaluation
+  logical(lgt),intent(out)   :: converged                             ! intent(out): convergence flag
+  integer(i4b),intent(out)   :: err                                   ! intent(out): error code
+  character(*),intent(out)   :: message                               ! intent(out): error message
   fNew      = out_lineSearchRefinement % fNew                         ! intent(out): new function evaluation
   converged = out_lineSearchRefinement % converged                    ! intent(out): convergence flag
   err       = out_lineSearchRefinement % err                          ! intent(out): error code
