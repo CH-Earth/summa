@@ -10,5 +10,5 @@ export INCLUDES_DIRS='/opt/local/include;/opt/local/lib'      # directories for 
 export LIBRARY_LINKS='-llapack;-lgfortran;-lnetcdff;-lnetcdf' # list of library links (cmake uses semicolons as separators)
 #export FLAGS_OPT="-flto=1"                                   # -flto=1 is slow to compile, but might want to use
 
-cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials_Debug
+cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials
 cmake --build ../cmake_build --target all
