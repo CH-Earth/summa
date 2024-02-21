@@ -221,12 +221,12 @@ contains
    mLayerTemp(1)        = min(maxFrozenSnowTemp,surfaceLayerSoilTemp)    ! snow temperature  (K)
 
    ! compute the fraction of liquid water associated with the layer temperature
-   fracLiq      = fracliquid(mLayerTemp(1),fc_param)
+   fracLiq = fracliquid(mLayerTemp(1),fc_param)
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
    mLayerVolFracIce(1) = (1._rkind - fracLiq)*volFracWater*(iden_water/iden_ice)   ! volumetric fraction of ice (-)
-   mLayerVolFracLiq(1) =          fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
+   mLayerVolFracLiq(1) =             fracLiq *volFracWater                         ! volumetric fraction of liquid water (-)
 
    ! end association with local variables to the information in the data structures)
    end associate
@@ -330,8 +330,8 @@ contains
   layerType(nSnow+2:nLayers+1) = iname_soil
 
   ! identify the number of snow and soil layers, and check all is a-OK
-  nSnow   = count(layerType==iname_snow)
-  nSoil   = count(layerType==iname_soil)
+  nSnow   = count(layerType(1:nLayers+1)==iname_snow)
+  nSoil   = count(layerType(1:nLayers+1)==iname_soil)
   nLayers = nSnow + nSoil
 
   ! re-set coordinate variables
@@ -432,8 +432,8 @@ contains
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_rkind(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_rkind(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(ivar)%dat(1:ix_divide) = tempVec_rkind(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1) = tempVec_rkind(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
        dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_rkind(ix_divide+1:ix_upper)  ! copy data
@@ -462,8 +462,8 @@ contains
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_i4b(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(ivar)%dat(1:ix_divide) = tempVec_i4b(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1) = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
        dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_i4b(ix_divide+1:ix_upper)  ! copy data

@@ -462,7 +462,7 @@ contains
    end do ! (looping through future time steps)
 
    ! check that we have enough bins
-   sumFrac  = sum(fractionFuture)
+   sumFrac  = sum(fractionFuture(1:nTDH))
    if(abs(1._rkind - sumFrac) > tolerFrac)then
     write(*,*) 'WARNING: The fraction of basin runoff histogram being accounted for by time delay vector is ', sumFrac
     write(*,*) 'This is less than allowed by tolerFrac = ', tolerFrac
@@ -473,7 +473,7 @@ contains
     write(*,*) '       -- note that nTimeDelay defines the number of time steps in the time delay histogram'
    end if
    ! ensure the fraction sums to one
-   fractionFuture = fractionFuture/sumFrac
+   fractionFuture(1:nTDH) = fractionFuture(1:nTDH)/sumFrac
 
   ! ** error checking
   case default; err=20; message=trim(message)//'cannot find option for sub-grid routing'; return

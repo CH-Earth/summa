@@ -116,8 +116,8 @@ contains
  heightCanopyTop        => mpar_data%var(iLookPARAM%heightCanopyTop)%dat(1),   & ! intent(in): [dp] height at the top of the vegetation canopy (m)
  heightCanopyBottom     => mpar_data%var(iLookPARAM%heightCanopyBottom)%dat(1),& ! intent(in): [dp] height at the bottom of the vegetation canopy (m)
  ! transpiration
- critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting)%dat,      & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
- critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire)%dat,    & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
+ critSoilWilting        => mpar_data%var(iLookPARAM%critSoilWilting)%dat(1),   & ! intent(in): [dp] critical vol. liq. water content when plants are wilting (-)
+ critSoilTranspire      => mpar_data%var(iLookPARAM%critSoilTranspire)%dat(1), & ! intent(in): [dp] critical vol. liq. water content when transpiration is limited (-)
  ! soil properties
  fieldCapacity          => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in): [dp]    field capacity (-)
  theta_sat              => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in): [dp(:)] soil porosity (-)
@@ -161,7 +161,7 @@ contains
  end if
 
  ! check transpiration
- if( any(critSoilTranspire < critSoilWilting) )then
+ if( critSoilTranspire < critSoilWilting )then
   write(message,'(a,i0,a)') trim(message)//'critical point for transpiration is less than the wilting point'
   err=20; return
  endif

@@ -304,8 +304,8 @@ contains
 
    ! --> maximum
    select case( layerType(iLayer) )
-    case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
-    case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+     case(iname_snow); xMax = merge(iden_ice,  1._rkind - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
+     case(iname_soil); xMax = merge(theta_sat(iLayer-nSnow), theta_sat(iLayer-nSnow) - mLayerVolFracIce(iLayer), ixHydType(iLayer)==iname_watLayer)
    end select
 
    ! --> check
@@ -483,7 +483,7 @@ contains
  endif
 
  ! snow+soil domain: get the correct water states (total water, or liquid water, depending on the state type)
- mLayerVolFracHydTrial = merge(mLayerVolFracWatTrial, mLayerVolFracLiqTrial, (ixHydType==iname_watLayer .or. ixHydType==iname_matLayer) )
+ mLayerVolFracHydTrial = merge(mLayerVolFracWatTrial, mLayerVolFracLiqTrial, (ixHydType(1:nLayers)==iname_watLayer .or. ixHydType(1:nLayers)==iname_matLayer) )
 
  ! compute the residual vector
  call computResid(&
