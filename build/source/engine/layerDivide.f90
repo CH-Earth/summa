@@ -432,8 +432,8 @@ contains
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide) =          tempVec_rkind(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1) =          tempVec_rkind(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_rkind(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_rkind(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
        dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_rkind(ix_divide+1:ix_upper)  ! copy data
@@ -462,8 +462,8 @@ contains
     if(stateVariable)then
      if(ix_upper > 0)then  ! (only copy data if the vector exists -- can be a variable for snow, with no layers)
       if(ix_divide > 0)then
-       dataStruct%var(ivar)%dat(1:ix_divide) =          tempVec_i4b(1:ix_divide)  ! copy data
-       dataStruct%var(ivar)%dat(ix_divide+1) =          tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
+       dataStruct%var(ivar)%dat(1:ix_divide)            = tempVec_i4b(1:ix_divide)  ! copy data
+       dataStruct%var(ivar)%dat(ix_divide+1)            = tempVec_i4b(ix_divide)    ! repeat data for the sub-divided layer
       end if
       if(ix_upper > ix_divide) &
        dataStruct%var(ivar)%dat(ix_divide+2:ix_upper+1) = tempVec_i4b(ix_divide+1:ix_upper)  ! copy data
