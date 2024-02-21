@@ -221,7 +221,7 @@ contains
    mLayerTemp(1)        = min(maxFrozenSnowTemp,surfaceLayerSoilTemp)    ! snow temperature  (K)
 
    ! compute the fraction of liquid water associated with the layer temperature
-   fracLiq =      fracliquid(mLayerTemp(1),fc_param)
+   fracLiq      = fracliquid(mLayerTemp(1),fc_param)
 
    ! compute volumeteric fraction of liquid water and ice
    volFracWater = (scalarSWE/scalarSnowDepth)/iden_water  ! volumetric fraction of total water (liquid and ice)
