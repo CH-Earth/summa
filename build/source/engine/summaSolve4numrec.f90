@@ -230,6 +230,8 @@ contains
  type(out_type_computJacob)          :: out_computJacob
  type(in_type_lineSearchRefinement)  :: in_LSR
  type(out_type_lineSearchRefinement) :: out_LSR
+ type(in_type_lineSearchRefinement)  :: in_TRR
+ type(out_type_lineSearchRefinement) :: out_TRR
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -321,8 +323,11 @@ contains
     call in_LSR % initialize(doRefine,fOld)    
     call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
     call out_LSR % finalize(fNew,converged,err,cmessage)
-   case(ixTrustRegion) 
-    call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
+   case(ixTrustRegion)
+    call in_TRR % initialize(doRefine,fOld)
+    call trustRegionRefinement(in_TRR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
+    call out_TRR % finalize(fNew,converged,err,cmessage)
+    !call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
    case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
   end select
 
@@ -385,7 +390,7 @@ contains
   ! --------------------------------------------------------------------------------------------------------
   associate(&
   ! intent(in) variables
-  doLineSearch => in_LSR % doLineSearch        ,&   ! flag to do the line search
+  doLineSearch => in_LSR % doSearch            ,&   ! flag to do the line search
   fOld         => in_LSR % fOld                ,&   ! old function value
   ! intent(out) variables
   fNew      => out_LSR % fNew                  ,&   ! new function evaluation
@@ -524,65 +529,74 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine trustRegionRefinement: refine the iteration increment using trust regions
   ! *********************************************************************************************************
-  subroutine trustRegionRefinement(doTrustRefinement,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  subroutine trustRegionRefinement(in_TRR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
   ! provide access to the matrix routines
   USE matrixOper_module, only: lapackSolv
   USE matrixOper_module, only: computeGradient
   implicit none
   ! input
-  logical(lgt),intent(in)        :: doTrustRefinement        ! flag to refine using trust regions
-  real(rkind),intent(in)         :: stateVecTrial(:)         ! trial state vector
-  real(rkind),intent(in)         :: newtStepScaled(:)        ! scaled newton step
-  real(rkind),intent(in)         :: aJacScaled(:,:)          ! scaled jacobian matrix
-  real(rkind),intent(in)         :: rVecScaled(:)            ! scaled residual vector
-  real(rkind),intent(in)         :: fOld                     ! old function value
+  type(in_type_lineSearchRefinement),intent(in) :: in_TRR            ! object for scalar intent(in) arguments -- reusing line search class
+  real(rkind),intent(in)                        :: stateVecTrial(:)  ! trial state vector
+  real(rkind),intent(in)                        :: newtStepScaled(:) ! scaled newton step
+  real(rkind),intent(in)                        :: aJacScaled(:,:)   ! scaled jacobian matrix
+  real(rkind),intent(in)                        :: rVecScaled(:)     ! scaled residual vector
   ! output
-  real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
-  real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
-  real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  real(rkind),intent(out)        :: fNew                     ! new function evaluation
-  logical(lgt),intent(out)       :: converged                ! convergence flag
-  integer(i4b),intent(out)       :: err                      ! error code
-  character(*),intent(out)       :: message                  ! error message
+  real(rkind),intent(out)                       :: stateVecNew(:)    ! new state vector
+  real(rkind),intent(out)                       :: fluxVecNew(:)     ! new flux vector
+  real(qp),intent(out)                          :: resVecNew(:)      ! NOTE: qp  ! new residual vector
+  type(out_type_lineSearchRefinement)           :: out_TRR           ! object for scalar intent(in) arguments -- reusing line search class
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
 
   ! .. needed ..
 
   ! --------------------------------------------------------------------------------------------------------
-  err=0; message='trustRegionRefinement/'
-  converged =.false.
+  associate(&
+   ! input
+   doTrustRefinement => in_TRR % doSearch          ,&    ! flag to refine using trust regions
+   fOld              => in_TRR % fOld              ,&    ! old function value
+   ! output
+   fNew      => out_TRR % fNew                     ,&    ! new function evaluation
+   converged => out_TRR % converged                ,&    ! convergence flag
+   err       => out_TRR % err                      ,&    ! error code
+   message   => out_TRR % message                   &    ! error message
+  &)
 
-  ! check the need to refine the step
-  if(doTrustRefinement)then
+   err=0; message='trustRegionRefinement/'
+   converged =.false.
 
-   ! (check vectors)
-   if(size(stateVecTrial)/=nState .or. size(newtStepScaled)/=nState .or. size(rVecScaled)/=nState)then
-    message=trim(message)//'unexpected size of input vectors'
-    err=20; return
-   endif
+   ! check the need to refine the step
+   if (doTrustRefinement) then
 
-   ! (check matrix)
-   if(size(aJacScaled,1)/=nState .or. size(aJacScaled,2)/=nState)then
-    message=trim(message)//'unexpected size of Jacobian matrix'
-    err=20; return
-   endif
+    ! (check vectors)
+    if (size(stateVecTrial)/=nState .or. size(newtStepScaled)/=nState .or. size(rVecScaled)/=nState)then
+     message=trim(message)//'unexpected size of input vectors'
+     err=20; return
+    end if
 
-   ! dummy check for the function
-   if(fold==realMissing) print*, 'missing'
+    ! (check matrix)
+    if (size(aJacScaled,1)/=nState .or. size(aJacScaled,2)/=nState) then
+     message=trim(message)//'unexpected size of Jacobian matrix'
+     err=20; return
+    end if
 
-   ! dummy
-   stateVecNew = realMissing
-   fluxVecNew  = realMissing
-   resVecNew   = quadMissing
-   fNew        = realMissing
-   converged   = .true.
+    ! dummy check for the function
+    if (fold==realMissing) print*, 'missing'
+
+    ! dummy
+    stateVecNew = realMissing
+    fluxVecNew  = realMissing
+    resVecNew   = quadMissing
+    fNew        = realMissing
+    converged   = .true.
 
 
-  endif  ! if doing the trust region refinement
+   end if  ! if doing the trust region refinement
 
-  message=trim(message)//'routine not implemented yet'
-  err=20; return
+   message=trim(message)//'routine not implemented yet'
+   err=20; return
+
+  end associate
 
   end subroutine trustRegionRefinement
 

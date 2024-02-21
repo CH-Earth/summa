@@ -682,7 +682,7 @@ MODULE data_types
  end type out_type_computJacob
 
  type, public :: in_type_lineSearchRefinement  ! class for intent(in) arguments in lineSearchRefinement call
-   logical(lgt)             :: doLineSearch                ! intent(in): flag to do the line search
+   logical(lgt)             :: doSearch                ! intent(in): flag to do the line search
    real(rkind)              :: fOld                        ! intent(in): old function value
   contains
    procedure :: initialize => initialize_in_lineSearchRefinement
@@ -1491,11 +1491,11 @@ contains
  end subroutine finalize_out_computJacob
 
  ! **** lineSearchRefinement ****
- subroutine initialize_in_lineSearchRefinement(in_lineSearchRefinement,doLineSearch,fOld)
+ subroutine initialize_in_lineSearchRefinement(in_lineSearchRefinement,doSearch,fOld)
   class(in_type_lineSearchRefinement),intent(out) :: in_lineSearchRefinement   ! class object for intent(out) computJacob arguments
-  logical(lgt),intent(in)                         :: doLineSearch              ! intent(in): flag to do the line search
+  logical(lgt),intent(in)                         :: doSearch                  ! intent(in): flag to do the line search
   real(rkind) ,intent(in)                         :: fOld                      ! intent(in): old function value
-  in_lineSearchRefinement % doLineSearch = doLineSearch              ! intent(in): flag to do the line search
+  in_lineSearchRefinement % doSearch     = doSearch                  ! intent(in): flag to do the line search
   in_lineSearchRefinement % fOld         = fOld                      ! intent(in): old function value
  end subroutine initialize_in_lineSearchRefinement
  
