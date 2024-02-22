@@ -226,12 +226,13 @@ contains
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
- type(in_type_computJacob)           :: in_computJacob
- type(out_type_computJacob)          :: out_computJacob
- type(in_type_lineSearchRefinement)  :: in_LSR
- type(out_type_lineSearchRefinement) :: out_LSR
- type(in_type_lineSearchRefinement)  :: in_TRR
- type(out_type_lineSearchRefinement) :: out_TRR
+ type(in_type_computJacob)           :: in_computJacob  ! computJacob
+ type(out_type_computJacob)          :: out_computJacob ! computJacob 
+ type(in_type_lineSearchRefinement)  :: in_LSR  ! lineSearchRefinement
+ type(out_type_lineSearchRefinement) :: out_LSR ! lineSearchRefinement 
+ type(in_type_lineSearchRefinement)  :: in_TRR  ! trustRegionRefinement
+ type(out_type_lineSearchRefinement) :: out_TRR ! trustRegionRefinement
+ type(out_type_lineSearchRefinement) :: out_SRF ! safeRootFinder
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
@@ -342,12 +343,13 @@ contains
 
  ! * case 2: scalar
  else
-  call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
+  call out_SRF % finalize(fNew,converged,err,cmessage)
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
  endif
 
  ! check errors
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
 
  contains
@@ -604,7 +606,7 @@ contains
   ! *********************************************************************************************************
   ! * internal subroutine safeRootfinder: refine the 1-d iteration increment using brackets
   ! *********************************************************************************************************
-  subroutine safeRootfinder(stateVecTrial,rVecscaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,message)
+  subroutine safeRootfinder(stateVecTrial,rVecscaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
   USE,intrinsic :: ieee_arithmetic,only:ieee_is_nan          ! IEEE arithmetic (check NaN)
   USE globalData,only:dNaN                                   ! double precision NaN
   implicit none
@@ -616,10 +618,7 @@ contains
   real(rkind),intent(out)        :: stateVecNew(:)           ! new state vector
   real(rkind),intent(out)        :: fluxVecNew(:)            ! new flux vector
   real(qp),intent(out)           :: resVecNew(:) ! NOTE: qp  ! new residual vector
-  real(rkind),intent(out)        :: fNew                     ! new function evaluation
-  logical(lgt),intent(out)       :: converged                ! convergence flag
-  integer(i4b),intent(out)       :: err                      ! error code
-  character(*),intent(out)       :: message                  ! error message
+  type(out_type_lineSearchRefinement),intent(out) :: out_SRF ! object for scalar intent(out) arguments (reusing lineSearchRefinement class)
   ! --------------------------------------------------------------------------------------------------------
   ! local variables
   character(len=256)             :: cmessage                 ! error message of downwind routine
@@ -633,78 +632,87 @@ contains
   integer(i4b),parameter         :: nCheck=100               ! number of times to check the model state variables
   real(rkind),parameter          :: delX=1._rkind            ! trial increment
   ! --------------------------------------------------------------------------------------------------------
-  err=0; message='safeRootfinder/'
-  converged = .false.
+  associate(&
+   fNew      => out_SRF % fNew       ,&            ! new function evaluation
+   converged => out_SRF % converged  ,&            ! convergence flag
+   err       => out_SRF % err        ,&            ! error code
+   message   => out_SRF % message     &            ! error message
+  &)
 
-  ! check scalar
-  if(size(stateVecTrial)/=1 .or. size(rVecScaled)/=1 .or. size(newtStepScaled)/=1)then
-   message=trim(message)//'unexpected size of input vectors'
-   err=20; return
-  endif
+   err=0; message='safeRootfinder/'
+   converged = .false.
 
-  ! initialize brackets to rkind precision NaN
-  if(iter==1)then
-   xMax = dNaN
-   xMin = dNaN
-  endif
+   ! check scalar
+   if (size(stateVecTrial)/=1 .or. size(rVecScaled)/=1 .or. size(newtStepScaled)/=1) then
+    message=trim(message)//'unexpected size of input vectors'
+    err=20; return
+   end if
 
-  ! get the residual vector
-  rVec = real(rVecScaled, rkind)*real(fScale, rkind)
+   ! initialize brackets to rkind precision NaN
+   if (iter==1) then
+    xMax = dNaN
+    xMin = dNaN
+   end if
 
-  ! update brackets
-  if(rVec(1)<0._rkind)then
-   xMin = stateVecTrial(1)
-  else
-   xMax = stateVecTrial(1)
-  endif
+   ! get the residual vector
+   rVec = real(rVecScaled, rkind)*real(fScale, rkind)
 
-  ! get the iteration increment
-  xInc = newtStepScaled*xScale
+   ! update brackets
+   if (rVec(1)<0._rkind) then
+    xMin = stateVecTrial(1)
+   else
+    xMax = stateVecTrial(1)
+   end if
 
-  ! *****
-  ! * case 1: the iteration increment is the same sign as the residual vector
-  if(xInc(1)*rVec(1) > 0._rkind)then
+   ! get the iteration increment
+   xInc = newtStepScaled*xScale
 
-   ! get brackets if they do not exist
-   if( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) )then
-    call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,cmessage)
-    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   endif
+   ! *****
+   ! * case 1: the iteration increment is the same sign as the residual vector
+   if (xInc(1)*rVec(1) > 0._rkind) then
 
-   ! use bi-section
-   stateVecNew(1) = 0.5_rkind*(xMin + xMax)
+    ! get brackets if they do not exist
+    if ( ieee_is_nan(xMin) .or. ieee_is_nan(xMax) ) then
+     call getBrackets(stateVecTrial,stateVecNew,xMin,xMax,err,cmessage)
+     if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+    end if
 
-  ! *****
-  ! * case 2: the iteration increment is the correct sign
-  else
+    ! use bi-section
+    stateVecNew(1) = 0.5_rkind*(xMin + xMax)
 
-   ! state vector with proposed iteration increment
-   stateVecNew = stateVecTrial + xInc
-    
-   ! impose solution constraints adjusting state vector and iteration increment
-   call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-   xInc = stateVecNew - stateVecTrial
+   ! *****
+   ! * case 2: the iteration increment is the correct sign
+   else
 
-  endif  ! if the iteration increment is the same sign as the residual vector
+    ! state vector with proposed iteration increment
+    stateVecNew = stateVecTrial + xInc
+     
+    ! impose solution constraints adjusting state vector and iteration increment
+    call imposeConstraints(model_decisions,indx_data,prog_data,mpar_data,stateVecNew,stateVecTrial,nState,nSoil,nSnow,cmessage,err)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+    xInc = stateVecNew - stateVecTrial
 
-  ! bi-section
-  bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
-  if(bracketsDefined)then
-   xTolerance  = relTolerance*(xMax-xMin)
-   doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
-   if(doBisection) stateVecNew(1) = 0.5_rkind*(xMin+xMax)
-  endif
+   end if  ! if the iteration increment is the same sign as the residual vector
 
-  ! evaluate summa
-  call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
-  if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+   ! bi-section
+   bracketsDefined = ( .not.ieee_is_nan(xMin) .and. .not.ieee_is_nan(xMax) )  ! check that the brackets are defined
+   if (bracketsDefined) then
+    xTolerance  = relTolerance*(xMax-xMin)
+    doBisection = (stateVecNew(1)<xMin+xTolerance .or. stateVecNew(1)>xMax-xTolerance)
+    if (doBisection) stateVecNew(1) = 0.5_rkind*(xMin+xMax)
+   end if
 
-  ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
-  if(.not.feasible)then; err=20; message=trim(message)//'state vector not feasible'; return; endif
+   ! evaluate summa
+   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
-  ! check convergence
-  converged = checkConv(resVecNew,xInc,stateVecNew)
+   ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
+   if (.not.feasible) then; err=20; message=trim(message)//'state vector not feasible'; return; end if
+
+   ! check convergence
+   converged = checkConv(resVecNew,xInc,stateVecNew)
+
+  end associate
 
   end subroutine safeRootfinder
 
