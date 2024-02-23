@@ -224,6 +224,7 @@ contains
  integer(i4b)                    :: iLayer                   ! row index
  integer(i4b)                    :: jLayer                   ! column index
  logical(lgt)                    :: globalPrintFlagInit      ! initial global print flag
+ logical(lgt)                    :: return_flag              ! flag that controls execution of return statements
  character(LEN=256)              :: cmessage                 ! error message of downwind routine
  ! class objects for subroutine arguments
  type(in_type_computJacob)           :: in_computJacob  ! computJacob
@@ -237,6 +238,7 @@ contains
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! initialize error control
  err=0; message='summaSolve4numrec/'
+ return_flag=.false. ! initialize return flag
 
 ! choose Jacobian type
  select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
@@ -278,81 +280,85 @@ contains
   if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
  end if
 
- ! -----
- ! * solve linear system...
- ! ------------------------
+ call solve_linear_system; if (return_flag) return ! solve the linear system for the Newton step
 
- ! scale the residual vector
- rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
-
- ! scale matrices
- call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
- if (globalPrintFlag .and. ixMatrix==ixBandMatrix) then
-  print*, '** SCALED banded analytical Jacobian:'
-  write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-  do iLayer=kl+1,nBands
-   write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
-  end do
- end if
-
- ! copy the scaled matrix, since it is decomposed in lapackSolv
- aJacScaledTemp = aJacScaled
-
- ! compute the newton step: use the lapack routines to solve the linear system A.X=B
- call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-
- if (globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
-
- ! -----
- ! * update, evaluate, and refine the state vector...
- ! --------------------------------------------------
-
- ! initialize the flag for step refinement
- doRefine=.true.
-
- ! * case 1: state vector
- ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
- ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
- if (size(stateVecTrial)>1) then
-
-  ! try to backtrack
-  select case(ixStepRefinement)
-   case(ixLineSearch)  
-    call in_LSR % initialize(doRefine,fOld)    
-    call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
-    call out_LSR % finalize(fNew,converged,err,cmessage)
-   case(ixTrustRegion)
-    call in_TRR % initialize(doRefine,fOld)
-    call trustRegionRefinement(in_TRR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
-    call out_TRR % finalize(fNew,converged,err,cmessage)
-    !call trustRegionRefinement(doRefine,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,fOld,stateVecNew,fluxVecNew,resVecNew,fNew,converged,err,cmessage)
-   case default; err=20; message=trim(message)//'unable to identify numerical solution'; return
-  end select
-
-  ! check warnings: negative error code = warning; in this case back-tracked to the original value
-  ! NOTE: Accept the full newton step if back-tracked to the original value
-  if (err<0) then
-   doRefine=.false.;
-   call in_LSR % initialize(doRefine,fOld)    
-   call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
-   call out_LSR % finalize(fNew,converged,err,cmessage)
-  end if
-
- ! * case 2: scalar
- else
-  call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
-  call out_SRF % finalize(fNew,converged,err,cmessage)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
- endif
+ call refine_Newton_step; if (return_flag) return ! if needed, refine Newton step -- return if error
 
  ! check errors
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
-
  contains
+
+  subroutine solve_linear_system
+   ! *** Solve the linear system for the Newton step using LAPACK routines ***
+
+   ! scale the residual vector
+   rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
+  
+   ! scale matrices
+   call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+ 
+   ! debug statement for scaled Jacobian 
+   if (globalPrintFlag .and. ixMatrix==ixBandMatrix) then
+    print*, '** SCALED banded analytical Jacobian:'
+    write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+    do iLayer=kl+1,nBands
+     write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
+    end do
+   end if
+  
+   ! copy the scaled matrix, since it is decomposed in lapackSolv
+   aJacScaledTemp = aJacScaled
+  
+   ! compute the newton step: use the lapack routines to solve the linear system A.X=B
+   call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+ 
+   ! debug statement for Newton step
+   if (globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
+  end subroutine solve_linear_system
+
+  subroutine refine_Newton_step  
+   ! *** Refine the Newton step if necessary ***  
+  
+   ! initialize the flag for step refinement
+   doRefine=.true.
+  
+   ! * case 1: state vector
+   ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
+   ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
+   if (size(stateVecTrial)>1) then
+  
+    ! try to backtrack
+    select case(ixStepRefinement)
+     case(ixLineSearch)  
+      call in_LSR % initialize(doRefine,fOld)    
+      call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+      call out_LSR % finalize(fNew,converged,err,cmessage)
+     case(ixTrustRegion)
+      call in_TRR % initialize(doRefine,fOld)
+      call trustRegionRefinement(in_TRR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
+      call out_TRR % finalize(fNew,converged,err,cmessage)
+     case default; err=20; message=trim(message)//'unable to identify numerical solution'; return_flag=.true.; return
+    end select
+  
+    ! check warnings: negative error code = warning; in this case back-tracked to the original value
+    ! NOTE: Accept the full newton step if back-tracked to the original value
+    if (err<0) then
+     doRefine=.false.;
+     call in_LSR % initialize(doRefine,fOld)    
+     call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+     call out_LSR % finalize(fNew,converged,err,cmessage)
+    end if
+  
+   ! * case 2: scalar
+   else
+    call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
+    call out_SRF % finalize(fNew,converged,err,cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+   end if
+  end subroutine refine_Newton_step  
 
   ! *********************************************************************************************************
   ! * internal subroutine lineSearchRefinement: refine the iteration increment using line searches
