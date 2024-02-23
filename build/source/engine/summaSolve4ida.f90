@@ -674,7 +674,7 @@ subroutine setSolverParams(dt_cur,ida_mem,retval)
   integer,parameter           :: max_order = 5      ! maximum BDF order,  default and max = 5
   real(qp),parameter          :: coef_nonlin = 0.33 ! coefficient in the nonlinear convergence test, default = 0.33
   integer(c_long),parameter   :: max_step = 999999  ! maximum number of steps,  default = 500
-  integer,parameter           :: fail_iter = 10     ! maximum number of error test and convergence test failures, default 10
+  integer,parameter           :: fail_iter = 50     ! maximum number of error test and convergence test failures, default 10
   real(qp)                    :: h_max              ! maximum stepsize,  default = infinity
   real(qp),parameter          :: h_init = 0         ! initial stepsize
  
