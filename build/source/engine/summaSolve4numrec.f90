@@ -236,61 +236,75 @@ contains
  type(out_type_lineSearchRefinement) :: out_SRF ! safeRootFinder
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! --------------------------------------------------------------------------------------------------------------------------------
- ! initialize error control
- err=0; message='summaSolve4numrec/'
- return_flag=.false. ! initialize return flag
 
-! choose Jacobian type
- select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
-   case(numerical); err=20; message=trim(message)//'numerical derivatives are not implemented for BE numerical Recipes solver'; return
-   case(analytical); ! this is fine
-   case default; err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian'; return
- end select
+ ! ***** Compute the Newton Step *****
 
- ! get the number of soil layers in the solution vector
- mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
+ call initialize_summaSolve4numrec; if (return_flag) return ! initial setup -- return if error
 
- ! initialize the global print flag
- globalPrintFlagInit=globalPrintFlag
+ call update_Jacobian;              if (return_flag) return ! compute Jacobian for Newton step -- return if error
 
- ! -----
- ! * compute the Jacobian matrix...
- ! --------------------------------
+ call solve_linear_system;          if (return_flag) return ! solve the linear system for the Newton step -- return if error
 
- ! compute the analytical Jacobian matrix
- ! NOTE: The derivatives were computed in the previous call to computFlux
- !       This occurred either at the call to eval8summa at the start of systemSolv
- !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
- call initialize_computJacob_summaSolve4numrec
- call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
- call finalize_computJacob_summaSolve4numrec
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+ call refine_Newton_step;           if (return_flag) return ! refine Newton step if needed -- return if error
 
- ! compute the numerical Jacobian matrix
- if (doNumJacobian) then
-  globalPrintFlag=.false.
-  call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
-  globalPrintFlag=globalPrintFlagInit
- end if
-
- ! test the band diagonal matrix
- if (testBandDiagonal) then
-  call testBandMat(check=.true.,err=err,message=cmessage)
-  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
- end if
-
- call solve_linear_system; if (return_flag) return ! solve the linear system for the Newton step
-
- call refine_Newton_step; if (return_flag) return ! if needed, refine Newton step -- return if error
-
- ! check errors
  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
 
  contains
 
+  subroutine initialize_summaSolve4numrec
+   ! *** Initial steps for the summaSolve4numrec algorithm (computing the Newton step) ***
+
+   ! initialize error control
+   err=0; message='summaSolve4numrec/'
+   return_flag=.false. ! initialize return flag
+  
+   ! choose Jacobian type
+   select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
+    case(numerical)
+     err=20; message=trim(message)//'numerical derivatives are not implemented for BE numerical Recipes solver';
+     return_flag=.true.; return
+    case(analytical); ! this is fine
+    case default
+     err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian';
+     return_flag=.true.; return
+   end select
+  
+   ! get the number of soil layers in the solution vector
+   mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
+  
+   ! initialize the global print flag
+   globalPrintFlagInit=globalPrintFlag
+  end subroutine initialize_summaSolve4numrec
+
+  subroutine update_Jacobian
+   ! *** Update Jacobian used for Newton step ***
+  
+   ! compute the analytical Jacobian matrix
+   ! NOTE: The derivatives were computed in the previous call to computFlux
+   !       This occurred either at the call to eval8summa at the start of systemSolv
+   !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
+   call initialize_computJacob_summaSolve4numrec
+   call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
+   call finalize_computJacob_summaSolve4numrec
+   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
+  
+   ! compute the numerical Jacobian matrix
+   if (doNumJacobian) then
+    globalPrintFlag=.false.
+    call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
+    globalPrintFlag=globalPrintFlagInit
+   end if
+  end subroutine update_Jacobian
+
   subroutine solve_linear_system
    ! *** Solve the linear system for the Newton step using LAPACK routines ***
+
+   ! test the band diagonal matrix
+   if (testBandDiagonal) then
+    call testBandMat(check=.true.,err=err,message=cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
+   end if
 
    ! scale the residual vector
    rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
