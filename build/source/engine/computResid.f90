@@ -99,9 +99,9 @@ subroutine computResid(&
                       ! input: enthalpy terms
                       scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
                       mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (J kg K-1)
-                      scalarCanairEnthalpyTrial, & ! intent(in):  trial value for temperature component of enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyTrial, & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
+                      scalarCanairEnthalpyTrial, & ! intent(in):  trial value for  enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthTempTrial, & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTempTrial,       & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
                       ! input: data structures
                       prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
@@ -137,9 +137,9 @@ subroutine computResid(&
   ! input: enthalpy terms
   real(qp),intent(in)                :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
   real(qp),intent(in)                :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
-  real(rkind),intent(in)             :: scalarCanairEnthalpyTrial ! trial value for temperature component of enthalpy of the canopy air space (J m-3)
-  real(rkind),intent(in)             :: scalarCanopyEnthalpyTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)             :: mLayerEnthalpyTrial(:)    ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(in)             :: scalarCanairEnthalpyTrial ! trial value for enthalpy of the canopy air space (J m-3)
+  real(rkind),intent(in)             :: scalarCanopyEnthTempTrial ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(in)             :: mLayerEnthTempTrial(:)    ! trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
   ! input: data structures
   type(var_dlength),intent(in)       :: prog_data                 ! prognostic variables for a local HRU
   type(var_dlength),intent(in)       :: diag_data                 ! diagnostic variables for a local HRU
@@ -175,9 +175,9 @@ subroutine computResid(&
     mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
     mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of total water (-)
     ! enthalpy terms
-    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,& ! intent(in): [dp]     temperature component of enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,& ! intent(in): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,& ! intent(in): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
+    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,& ! intent(in): [dp]     enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthTemp    => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)   ,& ! intent(in): [dp]     temperature component of enthalpy of the vegetation canopy (J m-3)
+    mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat            ,& ! intent(in): [dp(:)]  temperature component of enthalpy of the snow+soil layers (J m-3)
     ! model state variables (aquifer)
     scalarAquiferStorage    => prog_data%var(iLookPROG%scalarAquiferStorage)%dat(1)   ,& ! intent(in): [dp]     storage of water in the aquifer (m)
     ! canopy and layer depth
@@ -249,7 +249,7 @@ subroutine computResid(&
     ! --> energy balance
     if(useEnthalpy)then
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = ( scalarCanairEnthalpyTrial - scalarCanairEnthalpy ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
-      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = ( scalarCanopyEnthalpyTrial - scalarCanopyEnthalpy ) - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
+      if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = ( scalarCanopyEnthTempTrial - scalarCanopyEnthTemp ) - ( fVec(ixVegNrg)*dt + rAdd(ixVegNrg) )
     else
       if(ixCasNrg/=integerMissing) rVec(ixCasNrg) = sMul(ixCasNrg)*( scalarCanairTempTrial - scalarCanairTemp ) - ( fVec(ixCasNrg)*dt + rAdd(ixCasNrg) )
       if(ixVegNrg/=integerMissing) rVec(ixVegNrg) = sMul(ixVegNrg)*( scalarCanopyTempTrial - scalarCanopyTemp ) + scalarCanopyCmTrial*( scalarCanopyWatTrial - scalarCanopyWat )/canopyDepth &
@@ -266,7 +266,7 @@ subroutine computResid(&
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
         if(useEnthalpy)then
-          rVec( ixSnowSoilNrg(iLayer) ) = ( mLayerEnthalpyTrial(iLayer) - mLayerEnthalpy(iLayer) ) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
+          rVec( ixSnowSoilNrg(iLayer) ) = ( mLayerEnthTempTrial(iLayer) - mLayerEnthTemp(iLayer) ) - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )
         else
           rVec( ixSnowSoilNrg(iLayer) ) = sMul( ixSnowSoilNrg(iLayer) )*( mLayerTempTrial(iLayer) - mLayerTemp(iLayer) ) + mLayerCmTrial(iLayer)*( mLayerVolFracWatTrial(iLayer) - mLayerVolFracWat(iLayer) ) &
                                          - ( fVec( ixSnowSoilNrg(iLayer) )*dt + rAdd( ixSnowSoilNrg(iLayer) ) )

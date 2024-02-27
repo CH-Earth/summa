@@ -133,7 +133,7 @@ subroutine eval8summa(&
   USE getVectorz_module, only:varExtract                ! extract variables from the state vector
   USE getVectorz_module, only:checkFeas                 ! check feasibility of state vector
   USE updateVars_module, only:updateVars                ! update prognostic variables
-  USE enthalpyTemp_module, only:t2enthalpy              ! compute enthalpy
+  USE enthalpyTemp_module, only:T2enthTemp              ! compute enthalpy
   USE computFlux_module, only:soilCmpres                ! compute soil compression
   USE computFlux_module, only:computFlux                ! compute fluxes given a state vector
   USE computHeatCap_module,only:computHeatCapAnalytic   ! recompute closed form heat capacity (Cp) and derivatives
@@ -205,9 +205,9 @@ subroutine eval8summa(&
   real(rkind),dimension(nLayers)     :: mLayerVolFracLiqTrial      ! trial value for volumetric fraction of liquid water (-)
   real(rkind),dimension(nLayers)     :: mLayerVolFracIceTrial      ! trial value for volumetric fraction of ice (-)
   ! enthalpy
-  real(rkind)                        :: scalarCanairEnthalpyTrial  ! trial value for temperature component of enthalpy of the canopy air space (J m-3
-  real(rkind)                        :: scalarCanopyEnthalpyTrial  ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),dimension(nLayers)     :: mLayerEnthalpyTrial        ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
+  real(rkind)                        :: scalarCanairEnthalpyTrial  ! trial value for enthalpy of the canopy air space (J m-3
+  real(rkind)                        :: scalarCanopyEnthTempTrial  ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)     :: mLayerEnthTempTrial        ! trial vector of temperature component of enthalpy for snow+soil layers (J m-3)
   ! other local variables
   logical(lgt)                       :: checkLWBalance             ! flag to check longwave balance
   integer(i4b)                       :: iLayer                     ! index of model layer in the snow+soil domain
@@ -256,9 +256,9 @@ subroutine eval8summa(&
     mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat             ,& ! intent(in):  [dp(:)] volumetric fraction of ice (-)
     mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat            ,& ! intent(in):  [dp(:)] fraction of liquid water in each snow layer (-)
     ! enthalpy from the previous solution
-    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)      ,& ! intent(in):  [dp]    temperature component of enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)      ,& ! intent(in):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat               ,& ! intent(in):  [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
+    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)      ,& ! intent(in):  [dp]    enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthTemp    => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)      ,& ! intent(in):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
+    mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat               ,& ! intent(in):  [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
     ! soil compression
     scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)        ,& ! intent(in):  [dp]    total change in storage associated with compression of the soil matrix (kg m-2 s-1)
     mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat               ,& ! intent(in):  [dp(:)] change in volumetric water content due to compression of soil (s-1)
@@ -271,7 +271,7 @@ subroutine eval8summa(&
     dVolHtCapBulk_dTheta    => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTheta)%dat       ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dCanWat   => deriv_data%var(iLookDERIV%dVolHtCapBulk_dCanWat)%dat(1)   ,& ! intent(out): [dp]    derivative in bulk heat capacity w.r.t. volumetric water content
     dVolHtCapBulk_dTk       => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTk)%dat          ,& ! intent(out): [dp(:)] derivative in bulk heat capacity w.r.t. temperature
-    dVolHtCapBulk_dTkCanopy => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1) ,&!intent(out): [dp]    derivative in bulk heat capacity w.r.t. temperature
+    dVolHtCapBulk_dTkCanopy => deriv_data%var(iLookDERIV%dVolHtCapBulk_dTkCanopy)%dat(1) ,& ! intent(out): [dp]    derivative in bulk heat capacity w.r.t. temperature
     dThermalC_dWatAbove     => deriv_data%var(iLookDERIV%dThermalC_dWatAbove)%dat        ,& ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dWatBelow     => deriv_data%var(iLookDERIV%dThermalC_dWatBelow)%dat        ,& ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. water state in the layer above
     dThermalC_dTempAbove    => deriv_data%var(iLookDERIV%dThermalC_dTempAbove)%dat       ,& ! intent(out): [dp(:)] derivative in the thermal conductivity w.r.t. energy state in the layer above
@@ -517,7 +517,7 @@ subroutine eval8summa(&
 
     if(ixNrgConserv.ne.closedForm)then ! use residual as enthalpy_delta - (phase change)_delta
       ! compute temperature component of enthalpy
-      call t2enthalpy(&
+      call T2enthTemp(&
                       ixNrgConserv==enthalpyFDlu, & ! intent(in):  flag to use the lookup table for soil enthalpy
                        ! input: data structures
                       diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
@@ -533,17 +533,17 @@ subroutine eval8summa(&
                       mLayerVolFracWatTrial,      & ! intent(in):  trial vector of volumetric total water content (-)
                       mLayerMatricHeadTrial,      & ! intent(in):  trial vector of total water matric potential (m)
                       ! output: enthalpy
-                      scalarCanairEnthalpyTrial,  & ! intent(out): trial value for temperature component of enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyTrial,  & ! intent(out): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyTrial,        & ! intent(out): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
+                      scalarCanairEnthalpyTrial,  & ! intent(out): trial value for enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthTempTrial,  & ! intent(out): trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTempTrial,        & ! intent(out): trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
                       ! output: error control
                       err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     else if(ixNrgConserv == closedForm)then ! use residual as (Cp*DeltaTemp + Cm*DeltaTheta)_delta - (phase change)_delta
       scalarCanairEnthalpyTrial = realMissing
-      scalarCanopyEnthalpyTrial = realMissing
-      mLayerEnthalpyTrial       = realMissing
+      scalarCanopyEnthTempTrial = realMissing
+      mLayerEnthTempTrial       = realMissing
     endif !(choice of how compute heat capacity)
 
     ! save the number of flux calls per time step
@@ -648,9 +648,9 @@ subroutine eval8summa(&
                       ! input: enthalpy terms
                       canopyCmTrial,              & ! intent(in):  Cm of vegetation canopy (-)
                       mLayerCmTrial,              & ! intent(in):  Cm of each snow and soil layer (-)
-                      scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthalpyTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthalpyTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
+                      scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthTempTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTempTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)  
                       ! input: data structures
                       prog_data,                  & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU

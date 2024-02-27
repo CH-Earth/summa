@@ -160,8 +160,8 @@ subroutine systemSolv(&
   USE allocspace_module,only:allocLocal                   ! allocate local data structures
   ! state vector and solver
   USE getVectorz_module,only:getScaling                   ! get the scaling vectors
-  USE enthalpyTemp_module,only:t2enthalpy_snow            ! convert temperature to enthalpy for a snow layer
-  USE enthalpyTemp_module,only:t2enthalpy                 ! compute enthalpy
+  USE enthalpyTemp_module,only:T2enthTemp_snow            ! convert temperature to enthalpy for a snow layer
+  USE enthalpyTemp_module,only:T2enthTemp                 ! compute enthalpy
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                      ! populate tolerances
   USE eval8summaWithPrime_module,only:eval8summaWithPrime ! get the fluxes and residuals
@@ -272,9 +272,9 @@ subroutine systemSolv(&
     ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]   groundwater parameterization
     ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]   spatial representation of groundwater (local-column or single-basin)
     ! enthalpy
-    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out):  [dp]    temperature component of enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out):  [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
+    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out):  [dp]    enthalpy of the canopy air space (J m-3)
+    scalarCanopyEnthTemp    => diag_data%var(iLookDIAG%scalarCanopyEnthTemp)%dat(1)   ,&  ! intent(out):  [dp]    temperature component of enthalpy of the vegetation canopy (J m-3)
+    mLayerEnthTemp          => diag_data%var(iLookDIAG%mLayerEnthTemp)%dat            ,&  ! intent(out):  [dp(:)] temperature component of enthalpy of the snow+soil layers (J m-3)
     ! derivatives, diagnostic for enthalpy
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in):    [dp]    derivative of volumetric liquid water content w.r.t. temperature
     mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in):    [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
@@ -396,7 +396,7 @@ subroutine systemSolv(&
 
     if((ixNrgConserv.ne.closedForm .or. computNrgBalance) .and. ixNumericalMethod.ne.ida)then
       ! will need enthalpy change, compute H_T at the beginning of the data step
-      call t2enthalpy(&
+      call T2enthTemp(&
                     ixNrgConserv==enthalpyFDlu,  & ! intent(in):  flag to use the lookup table for soil enthalpy
                     ! input: data structures
                     diag_data,                   & ! intent(in):  model diagnostic variables for a local HRU
@@ -412,9 +412,9 @@ subroutine systemSolv(&
                     mLayerVolFracWat,            & ! intent(in):  vector of volumetric total water content (-)
                     mLayerMatricHead,            & ! intent(in):  vector of total water matric potential (m)
                     ! output: enthalpy
-                    scalarCanairEnthalpy,        & ! intent(out): temperature component of enthalpy of the canopy air space (J m-3)
-                    scalarCanopyEnthalpy,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                    mLayerEnthalpy,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
+                    scalarCanairEnthalpy,        & ! intent(out): enthalpy of the canopy air space (J m-3)
+                    scalarCanopyEnthTemp,        & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
+                    mLayerEnthTemp,              & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
                     ! output: error control
                     err,cmessage)                  ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
@@ -477,7 +477,7 @@ subroutine systemSolv(&
     if(nSnow>0)then
       ! compute the energy required to melt the top snow layer (J m-2)
       bulkDensity = mLayerVolFracIce(1)*iden_ice + mLayerVolFracLiq(1)*iden_water
-      volEnthalpy = t2enthalpy_snow(mLayerTemp(1),bulkDensity,snowfrz_scale)
+      volEnthalpy = T2enthTemp_snow(mLayerTemp(1),bulkDensity,snowfrz_scale)
       ! set flag and error codes for too much melt
       if(-volEnthalpy < flux_init%var(iLookFLUX%mLayerNrgFlux)%dat(1)*dt_cur)then
         tooMuchMelt = .true.
