@@ -56,14 +56,15 @@ des_fl2 = method_name + '_hrly_diff_steps_{}_{}.nc'
 des_fl3 = method_name + '_hrly_diff_bals_{}_{}.nc'
 settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
 stepsets= ['numberStateSplit','numberDomainSplitNrg','numberDomainSplitMass','numberScalarSolutions','meanStepSize']
-balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc',
+'scaledBalanceCasNrg','scaledBalanceVegNrg','scaledBalanceSnowNrg','scaledBalanceSoilNrg','scaledBalanceVegMass','scaledBalanceSnowMass','scaledBalanceSoilMass','scaledBalanceAqMass']
 
 viz_fil = method_name + '_hrly_diff_stats_{}.nc'
 viz_fil = viz_fil.format(','.join(settings))
 viz_fl2 = method_name + '_hrly_diff_steps_{}.nc'
 viz_fl2 = viz_fl2.format(','.join(stepsets))
 viz_fl3 = method_name + '_hrly_diff_bals_{}.nc'
-viz_fl3 = viz_fl2.format(','.join(balssets))
+viz_fl3 = viz_fl3.format(','.join(['balance','scaledBalance']))
 
 # Make sure we're dealing with the right kind of inputs
 src_dir = Path(src_dir)

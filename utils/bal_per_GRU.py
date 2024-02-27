@@ -31,32 +31,37 @@ else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    method_name=['be1','be1en','be1ln'] #maybe make this an argument
+    method_name=['be1','be1en','be1lu'] #maybe make this an argument
 
 # Simulation statistics file locations
-balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc',
+'scaledBalanceCasNrg','scaledBalanceVegNrg','scaledBalanceSnowNrg','scaledBalanceSoilNrg','scaledBalanceVegMass','scaledBalanceSnowMass','scaledBalanceSoilMass','scaledBalanceAqMass']
 
 viz_fil = method_name.copy()
 viz_fl2 = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
-    viz_fl2[i] = viz_fl2[i].format(','.join(balssets))
+    viz_fl2 = viz_fl2.format(','.join(['balance','scaledBalance']))
 
 # Specify variables of interest
-plot_vars = ['balanceVegNrg','balanceSnowNrg','balanceSoilNrg','wallClockTime','balanceCasNrg']
-plot_vars2 = ['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass']
+plot_vars = ['scaledBalanceCasNrg','scaledBalanceVegNrg','scaledBalanceSnowNrg','scaledBalanceSoilNrg','wallClockTime']
+plot_vars2 =['scaledBalanceVegMass','scaledBalanceSnowMass','scaledBalanceSoilMass','scaledBalanceAqMass']
+comp_vars = ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','numberFluxCald']
+comp_vars2 =['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass']
 
-plt_titl = ['(a) Vegetation Energy Balance','(b) Snow Energy Balance','(c) Soil Energy Balance', '(d) Wall Clock Time','e) Canopy Air Space Energy Balance']
+plt_titl =  ['(a) Canopy Air Space Energy Balance','(b) Vegetation Energy Balance','(c) Snow Energy Balance','(d) Soil Energy Balance', '(e) Wall Clock Time',]
 plt_titl2 = ['(a) Vegetation Mass Balance','(b) Snow Mass Balance','(c) Soil Mass Balance', '(d) Aquifer Mass Balance']
-leg_titl = ['$W~m^{-2}$', '$W~m^{-2}$','$W~m^{-2}$','$s$','$W~m^{-2}$']
-leg_titl2 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}$','$kg~m^{-2}$']
-leg_titl0 = ['$W~m^{-2}$', '$W~m^{-2}$','$W~m^{-2}$','$num$','$W~m^{-2}$']
-leg_titl20 = ['$kg~m^{-2}$', '$kg~m^{-2}$','$kg~m^{-2}$','$kg~m^{-2}$']
+leg_titl0 = ['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$','$s$']
+leg_titl20 =['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$']
+leg_titl0 = ['$W~m^{-3}$','$W~m^{-3}$','$W~m^{-3}$','$W~m^{-3}$','$num$']
+leg_titl20 =['$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$']
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
-fig_fil = 'Balance_scat_{}_compressed.png'
+fig_fil = 'BalanceNrg_scat_{}_compressed.png'
 fig_fil = fig_fil.format(stat)
+fig_fil2 ='BalanceMass_scat_{}_compressed.png'
+fig_fil2 =fig_fil2.format(stat)
 
 summa = {}
 wall = {}
@@ -78,22 +83,22 @@ else:
 fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
-def run_loop(i,var):
+def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
     r = i//2
     c = i-r*2
 
     # Data
     for m in method_name:
-        s = summa[m][var].sel(stat='mean')
+        s = summa[m][var].sel(stat=stat)
+        s0 = summa[m][comp].sel(stat=stat)
 
         if var == 'wallClockTime':
-            s0 = summa[m]['numberFluxCalc'].sel(stat='mean')
-            stat0_word = 'Mean Number Flux Calculations'
-            stat_word = 'Mean Wallclock Time'
+            stat0_word = 'Number flux calculations'
+            stat_word = 'Wallclock time'
         else:
             s0 = summa[m]['var'].sel(stat='amax')
-            stat0_word = 'Max Absolute Value'
-            stat_word = 'Mean Absolute Value'
+            stat0_word = 'Absolute value'
+            stat_word = 'Scaled by state (absolute value)'
 
         axs[r,c].scatter(x=s.values,y=s0.values,s=10,zorder=0,label=m)        
  
@@ -103,13 +108,19 @@ def run_loop(i,var):
     lgnd = axs[r,c].legend()
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
-    axs[r,c].set_title(plt_titl[i])
-    axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_titl[i]))
-    axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_titl0[i]))
+    axs[r,c].set_title(plt_t)
+    axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
+    axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
 
-for i,var in enumerate(plot_vars): 
-    run_loop(i,var)
+for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl0,leg_titl0,plt_titl)): 
+    run_loop(i,var,comp,leg_t,leg_t0,plt_t)
 
 # Save
 plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
+
+for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars2,comp_vars2,leg_titl20,leg_titl20,plt_titl2)): 
+    run_loop(i,var,comp,leg_t,leg_t0,plt_t)
+
+# Save
+plt.savefig(viz_dir/fig_fil2, bbox_inches='tight', transparent=False)
