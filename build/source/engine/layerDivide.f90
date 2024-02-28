@@ -330,8 +330,8 @@ contains
   layerType(nSnow+2:nLayers+1) = iname_soil
 
   ! identify the number of snow and soil layers, and check all is a-OK
-  nSnow   = count(layerType==iname_snow)
-  nSoil   = count(layerType==iname_soil)
+  nSnow   = count(layerType(1:nLayers+1)==iname_snow)
+  nSoil   = count(layerType(1:nLayers+1)==iname_soil)
   nLayers = nSnow + nSoil
 
   ! re-set coordinate variables
