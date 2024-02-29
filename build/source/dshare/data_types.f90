@@ -1553,24 +1553,72 @@ contains
 
  ! **** summaSolve4numrec ****
 
- subroutine initialize_in_summaSolve4numrec(in_SS4NR)
+ subroutine initialize_in_summaSolve4numrec(in_SS4NR,dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
   class(in_type_summaSolve4numrec),intent(out)    :: in_SS4NR   ! class object for intent(out) arguments
+  real(rkind) ,intent(in) :: dt_cur                   ! intent(in): current stepsize
+  real(rkind) ,intent(in) :: dt                       ! intent(in): entire time step for drainage pond rate
+  integer(i4b),intent(in) :: iter                     ! intent(in): iteration index
+  integer(i4b),intent(in) :: nSnow                    ! intent(in): number of snow layers
+  integer(i4b),intent(in) :: nSoil                    ! intent(in): number of soil layers
+  integer(i4b),intent(in) :: nLayers                  ! intent(in): total number of layers
+  integer(i4b),intent(in) :: nLeadDim                 ! intent(in): length of the leading dimension of the Jacobian matrix (nBands or nState)
+  integer(i4b),intent(in) :: nState                   ! intent(in): total number of state variables
+  integer(i4b),intent(in) :: ixMatrix                 ! intent(in): type of matrix (full or band diagonal)
+  logical(lgt),intent(in) :: firstSubStep             ! intent(in): flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(in) :: computeVegFlux           ! intent(in): flag to indicate if computing fluxes over vegetation
+  logical(lgt),intent(in) :: scalarSolution           ! intent(in): flag to denote if implementing the scalar solution
+  real(rkind) ,intent(in) :: fOld                     ! intent(in): old function evaluation
 
+  in_SS4NR % dt_cur         = dt_cur        
+  in_SS4NR % dt             = dt            
+  in_SS4NR % iter           = iter          
+  in_SS4NR % nSnow          = nSnow         
+  in_SS4NR % nSoil          = nSoil         
+  in_SS4NR % nLayers        = nLayers       
+  in_SS4NR % nLeadDim       = nLeadDim      
+  in_SS4NR % nState         = nState        
+  in_SS4NR % ixMatrix       = ixMatrix      
+  in_SS4NR % firstSubStep   = firstSubStep  
+  in_SS4NR % computeVegFlux = computeVegFlux 
+  in_SS4NR % scalarSolution = scalarSolution
+  in_SS4NR % fOld           = fOld            
  end subroutine initialize_in_summaSolve4numrec
 
- subroutine initialize_io_summaSolve4numrec(io_SS4NR)
+ subroutine initialize_io_summaSolve4numrec(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
   class(io_type_summaSolve4numrec),intent(out)    :: io_SS4NR   ! class object for intent(inout) arguments
+  logical(lgt),intent(in) :: firstFluxCall ! intent(inout): flag to indicate if we are processing the first flux call
+  real(rkind) ,intent(in) :: xMin,xMax     ! intent(inout): brackets of the root
+  integer(i4b),intent(in) :: ixSaturation  ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
 
+  io_SS4NR % firstFluxCall = firstFluxCall
+  io_SS4NR % xMin          = xMin    
+  io_SS4NR % xMax          = xMax    
+  io_SS4NR % ixSaturation  = ixSaturation 
  end subroutine initialize_io_summaSolve4numrec
 
- subroutine finalize_io_summaSolve4numrec(io_SS4NR)
+ subroutine finalize_io_summaSolve4numrec(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
   class(io_type_summaSolve4numrec),intent(in)    :: io_SS4NR   ! class object for intent(inout) arguments
+  logical(lgt),intent(out) :: firstFluxCall ! intent(inout): flag to indicate if we are processing the first flux call
+  real(rkind) ,intent(out) :: xMin,xMax     ! intent(inout): brackets of the root
+  integer(i4b),intent(out) :: ixSaturation  ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
 
+  firstFluxCall = io_SS4NR % firstFluxCall
+  xMin          = io_SS4NR % xMin    
+  xMax          = io_SS4NR % xMax    
+  ixSaturation  = io_SS4NR % ixSaturation 
  end subroutine finalize_io_summaSolve4numrec
 
- subroutine finalize_out_summaSolve4numrec(out_SS4NR)
-  class(out_type_summaSolve4numrec),intent(in)    :: out_SS4NR   ! class object for intent(inout) arguments
+ subroutine finalize_out_summaSolve4numrec(out_SS4NR,fNew,converged,err,message)
+  class(out_type_summaSolve4numrec),intent(in)    :: out_SS4NR   ! class object for intent(out) arguments
+  real(rkind) ,intent(out) :: fNew      ! intent(out): new function evaluation
+  logical(lgt),intent(out) :: converged ! intent(out): convergence flag
+  integer(i4b),intent(out) :: err       ! intent(out): error code
+  character(*),intent(out) :: message   ! intent(out): error message
 
+  fNew      = out_SS4NR % fNew       
+  converged = out_SS4NR % converged
+  err       = out_SS4NR % err      
+  message   = out_SS4NR % message  
  end subroutine finalize_out_summaSolve4numrec
 
 END MODULE data_types
