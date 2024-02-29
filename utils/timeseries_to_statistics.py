@@ -38,7 +38,7 @@ do_balance = True
 
 if testing: 
     top_fold    = '/Users/amedin/Research/USask/test_py/'
-    method_name='be1'
+    method_name='be1lu'
     not_parallel = True
 else:
     import sys

@@ -24,9 +24,9 @@ viz_dir = Path('/home/avanb/scratch/statistics')
 
 testing = False
 if testing: 
-    stat = 'amax'
+    stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1'] #maybe make this an argument
+    method_name=['be1lu'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
@@ -41,12 +41,12 @@ viz_fil = method_name.copy()
 viz_fl2 = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
-    viz_fl2 = viz_fl2.format(','.join(['balance','scaledBalance']))
+    viz_fl2[i] = viz_fl2[i].format(','.join(['balance','scaledBalance']))
 
 # Specify variables of interest
 plot_vars = ['scaledBalanceCasNrg','scaledBalanceVegNrg','scaledBalanceSnowNrg','scaledBalanceSoilNrg','wallClockTime']
 plot_vars2 =['scaledBalanceVegMass','scaledBalanceSnowMass','scaledBalanceSoilMass','scaledBalanceAqMass']
-comp_vars = ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','numberFluxCald']
+comp_vars = ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','numberFluxCalc']
 comp_vars2 =['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass']
 
 plt_titl =  ['(a) Canopy Air Space Energy Balance','(b) Vegetation Energy Balance','(c) Snow Energy Balance','(d) Soil Energy Balance', '(e) Wall Clock Time',]
@@ -71,18 +71,6 @@ for i, m in enumerate(method_name):
     
 ##Figure
 
-if 'compressed' in fig_fil:
-    plt.rcParams.update({'font.size': 25})
-else:
-    plt.rcParams.update({'font.size': 100})
-
-if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(3,2,figsize=(35,38))
-else:
-    fig,axs = plt.subplots(3,2,figsize=(140,160))
-fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
-#fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
-    
 def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
     r = i//2
     c = i-r*2
@@ -96,7 +84,6 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
             stat0_word = 'Number flux calculations'
             stat_word = 'Wallclock time'
         else:
-            s0 = summa[m]['var'].sel(stat='amax')
             stat0_word = 'Absolute value'
             stat_word = 'Scaled by state (absolute value)'
 
@@ -112,13 +99,37 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
     axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
+if 'compressed' in fig_fil:
+    plt.rcParams.update({'font.size': 25})
+else:
+    plt.rcParams.update({'font.size': 100})
 
+if 'compressed' in fig_fil:
+    fig,axs = plt.subplots(3,2,figsize=(35,38))
+else:
+    fig,axs = plt.subplots(3,2,figsize=(140,160))
+fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+#fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
+    
 for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl0,leg_titl0,plt_titl)): 
     run_loop(i,var,comp,leg_t,leg_t0,plt_t)
 
 # Save
 plt.savefig(viz_dir/fig_fil, bbox_inches='tight', transparent=False)
 
+
+if 'compressed' in fig_fil:
+    plt.rcParams.update({'font.size': 25})
+else:
+    plt.rcParams.update({'font.size': 100})
+
+if 'compressed' in fig_fil:
+    fig,axs = plt.subplots(3,2,figsize=(35,38))
+else:
+    fig,axs = plt.subplots(3,2,figsize=(140,160))
+fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+#fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
+    
 for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars2,comp_vars2,leg_titl20,leg_titl20,plt_titl2)): 
     run_loop(i,var,comp,leg_t,leg_t0,plt_t)
 
