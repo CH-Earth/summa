@@ -134,17 +134,13 @@ subroutine summaSolve4ida(                         &
 
   !======= Inclusions ===========
   USE fida_mod                                                ! Fortran interface to IDA
-  USE fsundials_context_mod                                   ! Fortran interface to SUNContext
+  USE fsundials_core_mod                                      ! Fortran interface to SUNContext
   USE fnvector_serial_mod                                     ! Fortran interface to serial N_Vector
-  USE fsundials_nvector_mod                                   ! Fortran interface to generic N_Vector
   USE fsunmatrix_dense_mod                                    ! Fortran interface to dense SUNMatrix
   USE fsunmatrix_band_mod                                     ! Fortran interface to banded SUNMatrix
-  USE fsundials_matrix_mod                                    ! Fortran interface to generic SUNMatrix
   USE fsunlinsol_dense_mod                                    ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                                     ! Fortran interface to banded SUNLinearSolver
-  USE fsundials_linearsolver_mod                              ! Fortran interface to generic SUNLinearSolver
   USE fsunnonlinsol_newton_mod                                ! Fortran interface to Newton SUNNonlinearSolver
-  USE fsundials_nonlinearsolver_mod                           ! Fortran interface to generic SUNNonlinearSolver
   USE allocspace_module,only:allocLocal                       ! allocate local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
@@ -336,7 +332,7 @@ subroutine summaSolve4ida(                         &
     dCompress_dPsiPrev(:)             = 0._rkind
     resVecPrev(:)                     = 0._rkind
     
-    retval = FSUNContext_Create(c_null_ptr, sunctx)
+    retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
     
     ! create serial vectors
     sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
@@ -437,7 +433,8 @@ subroutine summaSolve4ida(                         &
     
     ! Disable error messages and warnings
     if(offErrWarnMessage) then
-      retval = FIDASetErrFile(ida_mem, c_null_ptr)
+      retval = FSUNLogger_SetErrorFilename(ida_mem, c_null_char)
+      retval = FSUNLogger_SetWarningFilename(ida_mem, c_null_char)
       retval = FIDASetNoInactiveRootWarn(ida_mem)
     endif
     
@@ -627,7 +624,7 @@ subroutine setInitialCondition(neq, y, sunvec_u, sunvec_up)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
-  USE fsundials_nvector_mod
+  USE fsundials_core_mod
   USE fnvector_serial_mod
 
   !======= Declarations =========
@@ -722,7 +719,7 @@ subroutine find_rootdir(eqns_data,rootdir)
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
-  use fsundials_nvector_mod
+  use fsundials_core_mod
   use fnvector_serial_mod
   use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
   use globalData,only:integerMissing     ! missing integer
@@ -805,7 +802,7 @@ integer(c_int) function layerDisCont4ida(t, sunvec_u, sunvec_up, gout, user_data
 
   !======= Inclusions ===========
   use, intrinsic :: iso_c_binding
-  use fsundials_nvector_mod
+  use fsundials_core_mod
   use fnvector_serial_mod
   use soil_utils_module,only:crit_soilT  ! compute the critical temperature below which ice exists
   use globalData,only:integerMissing     ! missing integer

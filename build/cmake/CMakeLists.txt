@@ -213,7 +213,7 @@ endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Sundials)
     message("\nUsing SUNDIALS libraries for IDA and Kinsol, should have been installed previously")
-    set(LIB_SUNDIALS -lsundials_fida_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod -lsundials_fkinsol_mod -lsundials_fsunnonlinsolnewton_mod)
+    set(LIB_SUNDIALS -lsundials_fcore_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod -lsundials_fida_mod -lsundials_fsunnonlinsolnewton_mod -lsundials_fkinsol_mod)
 elseif(CMAKE_BUILD_TYPE MATCHES BE)
     message("\nUsing Backward Euler based off free versions of Numerical Recipes only")
 else()

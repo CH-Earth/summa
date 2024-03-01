@@ -129,15 +129,12 @@ subroutine summaSolve4kinsol(&
   !======= Inclusions ===========
 
   USE fkinsol_mod                                 ! Fortran interface to KINSOL
-  USE fsundials_context_mod                       ! Fortran interface to SUNContext
+  USE fsundials_core_mod                          ! Fortran interface to SUNContext
   USE fnvector_serial_mod                         ! Fortran interface to serial N_Vector
-  USE fsundials_nvector_mod                       ! Fortran interface to generic N_Vector
   USE fsunmatrix_dense_mod                        ! Fortran interface to dense SUNMatrix
   USE fsunmatrix_band_mod                         ! Fortran interface to banded SUNMatrix
-  USE fsundials_matrix_mod                        ! Fortran interface to generic SUNMatrix
   USE fsunlinsol_dense_mod                        ! Fortran interface to dense SUNLinearSolver
   USE fsunlinsol_band_mod                         ! Fortran interface to banded SUNLinearSolver
-  USE fsundials_linearsolver_mod                  ! Fortran interface to generic SUNLinearSolver
   USE allocspace_module,only:allocLocal           ! allocate local data structures
   USE getVectorz_module,only:checkFeas            ! check feasibility of state vector
   USE eval8summa_module,only:eval8summa4kinsol    ! DAE/ODE functions
@@ -273,7 +270,7 @@ subroutine summaSolve4kinsol(&
   allocate( eqns_data%resVec(nState) )
   allocate( eqns_data%resSink(nState) )
   
-  retval = FSUNContext_Create(c_null_ptr, sunctx)
+  retval = FSUNContext_Create(SUN_COMM_NULL, sunctx)
 
   ! create serial vectors
   sunvec_y => FN_VMake_Serial(nState, stateVec, sunctx)
@@ -342,7 +339,8 @@ subroutine summaSolve4kinsol(&
 
   ! Disable error messages and warnings
   if(offErrWarnMessage) then
-    retval = FKINSetErrFile(kinsol_mem, c_null_ptr)
+    retval = FSUNLogger_SetErrorFilename(kinsol_mem, c_null_char)
+    retval = FSUNLogger_SetWarningFilename(kinsol_mem, c_null_char)
   endif
 
   !****************************** Main Solver **********************************************
@@ -424,7 +422,7 @@ subroutine setInitialCondition(neq, y, sunvec_u)
 
   !======= Inclusions ===========
   USE, intrinsic :: iso_c_binding
-  USE fsundials_nvector_mod
+  USE fsundials_core_mod
   USE fnvector_serial_mod
 
   !======= Declarations =========
