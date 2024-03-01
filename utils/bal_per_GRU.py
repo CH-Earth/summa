@@ -22,11 +22,11 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = False
+testing = True
 if testing: 
     stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1lu'] #maybe make this an argument
+    method_name=['be1cm','be1en','be1lu'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
@@ -51,10 +51,10 @@ comp_vars2 =['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass
 
 plt_titl =  ['(a) Canopy Air Space Energy Balance','(b) Vegetation Energy Balance','(c) Snow Energy Balance','(d) Soil Energy Balance', '(e) Wall Clock Time',]
 plt_titl2 = ['(a) Vegetation Mass Balance','(b) Snow Mass Balance','(c) Soil Mass Balance', '(d) Aquifer Mass Balance']
-leg_titl0 = ['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$','$s$']
-leg_titl20 =['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$']
 leg_titl0 = ['$W~m^{-3}$','$W~m^{-3}$','$W~m^{-3}$','$W~m^{-3}$','$num$']
-leg_titl20 =['$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$']
+leg_titl02 =['$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$']
+leg_titl = ['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$','$s$']
+leg_titl2 =['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$']
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
@@ -96,6 +96,8 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_t)
+    axs[r,c].set_xscale('log')
+    axs[r,c].set_yscale('log')
     axs[r,c].set_xlabel(stat_word  + word + ' [{}]'.format(leg_t))
     axs[r,c].set_ylabel(stat0_word + word + ' [{}]'.format(leg_t0))
 
@@ -111,7 +113,7 @@ else:
 fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
-for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl0,leg_titl0,plt_titl)): 
+for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars,comp_vars,leg_titl,leg_titl0,plt_titl)): 
     run_loop(i,var,comp,leg_t,leg_t0,plt_t)
 
 # Save
@@ -130,7 +132,7 @@ else:
 fig.subplots_adjust(hspace=0.24, wspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
 #fig.suptitle('Scatterplot of Hourly Statistics for each GRU', fontsize=40,y=1.0)
     
-for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars2,comp_vars2,leg_titl20,leg_titl20,plt_titl2)): 
+for i,(var,comp,leg_t,leg_t0,plt_t) in enumerate(zip(plot_vars2,comp_vars2,leg_titl2,leg_titl02,plt_titl2)): 
     run_loop(i,var,comp,leg_t,leg_t0,plt_t)
 
 # Save

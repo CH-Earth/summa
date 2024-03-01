@@ -38,7 +38,7 @@ do_balance = True
 
 if testing: 
     top_fold    = '/Users/amedin/Research/USask/test_py/'
-    method_name='be1lu'
+    method_name='be1en'
     not_parallel = True
 else:
     import sys
@@ -134,7 +134,7 @@ def run_loop(file,bench,processed_files_path):
         import multiprocessing as mp
         lock = mp.Lock()
         with lock:
-            dat = xr.open_dataset(file), 
+            dat = xr.open_dataset(file)
             if do_vars: ben = xr.open_dataset(bench)
          
     # sometimes gives -9999 the whole run (non-compute), make these nan and plot as lowest value 0 in geographic
