@@ -76,12 +76,15 @@ USE var_lookup,only:iLookDERIV      ! named variables for structure elements
 
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
-                    var_i,        & ! data vector (i4b)
-                    var_d,        & ! data vector (rkind)
-                    var_ilength,  & ! data vector with variable length dimension (i4b)
-                    var_dlength,  & ! data vector with variable length dimension (rkind)
-                    zLookup,      & ! lookup tables
-                    model_options   ! defines the model decisions
+                    var_i,                     & ! data vector (i4b)
+                    var_d,                     & ! data vector (rkind)
+                    var_ilength,               & ! data vector with variable length dimension (i4b)
+                    var_dlength,               & ! data vector with variable length dimension (rkind)
+                    zLookup,                   & ! lookup tables
+                    model_options,             & ! defines the model decisions
+                    in_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
+                    io_type_summaSolve4numrec, & ! class for summaSolve4numrec arguments
+                    out_type_summaSolve4numrec   ! class for summaSolve4numrec arguments
 
 ! look-up values for the choice of heat capacity computation
 USE mDecisions_module,only:&
@@ -257,6 +260,10 @@ subroutine systemSolv(&
   real(rkind)                     :: dCanEnthalpy_dWat             ! derivatives in canopy enthalpy w.r.t. water state
   real(rkind)                     :: dEnthalpy_dTk(nLayers)         ! derivatives in layer enthalpy w.r.t. temperature
   real(rkind)                     :: dEnthalpy_dWat(nLayers)        ! derivatives in layer enthalpy w.r.t. water state
+  ! class objects for call to summaSolve4numrec
+  type(in_type_summaSolve4numrec)  :: in_SS4NR  ! object for intent(in) summaSolve4numrec arguments
+  type(io_type_summaSolve4numrec)  :: io_SS4NR  ! object for intent(io) summaSolve4numrec arguments
+  type(out_type_summaSolve4numrec) :: out_SS4NR ! object for intent(out) summaSolve4numrec arguments
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -710,9 +717,11 @@ subroutine systemSolv(&
                           fluxVecNew,                    & ! intent(out):   new flux vector
                           resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
                           resVecNew,                     & ! intent(out):   new residual vector
-                          fNew,                          & ! intent(out):   new function evaluation
-                          converged,                     & ! intent(out):   convergence flag
-                          err,cmessage)                    ! intent(out):   error control
+                          out_SS4NR)
+                          !fNew,                          & ! intent(out):   new function evaluation
+                          !converged,                     & ! intent(out):   convergence flag
+                          !err,cmessage)                    ! intent(out):   error control
+          call out_SS4NR % finalize(fNew,converged,err,cmessage)                
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
  
           ! save the computed functions, residuals, and solution

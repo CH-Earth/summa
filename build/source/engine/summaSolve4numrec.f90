@@ -75,7 +75,11 @@ USE data_types,only:&
                     in_type_computJacob,          & ! class for computJacob arguments
                     out_type_computJacob,         & ! class for computJacob arguments
                     in_type_lineSearchRefinement, & ! class for lineSearchRefinement arguments
-                    out_type_lineSearchRefinement   ! class for lineSearchRefinement arguments
+                    out_type_lineSearchRefinement,& ! class for lineSearchRefinement arguments
+                    in_type_summaSolve4numrec,    & ! class for summaSolve4numrec arguments
+                    io_type_summaSolve4numrec,    & ! class for summaSolve4numrec arguments
+                    out_type_summaSolve4numrec      ! class for summaSolve4numrec arguments
+
 
 ! look-up values for the choice of groundwater parameterization
 USE mDecisions_module,only:       &
@@ -142,15 +146,15 @@ contains
                        fluxVecNew,              & ! intent(out):   new flux vector
                        resSinkNew,              & ! intent(out):   additional (sink) terms on the RHS of the state equation
                        resVecNew,               & ! intent(out):   new residual vector
-                       fNew,                    & ! intent(out):   new function evaluation
-                       converged,               & ! intent(out):   convergence flag
-                       err,message)               ! intent(out):   error control
+                       out_SS4NR)                 ! intent(out):   new function evaluation, convergence flag, and error control  
  USE computJacob_module, only: computJacob
  USE eval8summa_module,  only: imposeConstraints
  USE matrixOper_module,  only: lapackSolv
  USE matrixOper_module,  only: scaleMatrices
  implicit none
  ! --------------------------------------------------------------------------------------------------------------------------------
+ type(in_type_summaSolve4numrec)  :: in_SS4NR  ! model control variables and previous function evaluation
+ type(io_type_summaSolve4numrec)  :: io_SS4NR  ! first flux call flag and baseflow variables
  ! input: model control
  real(rkind),intent(in)          :: dt_cur                   ! current stepsize
  real(rkind),intent(in)          :: dt                       ! entire time step for drainage pond rate
@@ -196,11 +200,7 @@ contains
  real(rkind),intent(out)         :: fluxVecNew(:)            ! new flux vector
  real(rkind),intent(out)         :: resSinkNew(:)            ! sink terms on the RHS of the flux equation
  real(qp),intent(out)            :: resVecNew(:) ! NOTE: qp  ! new residual vector
- real(rkind),intent(out)         :: fNew                     ! new function evaluation
- logical(lgt),intent(out)        :: converged                ! convergence flag
- ! output: error control
- integer(i4b),intent(out)        :: err                      ! error code
- character(*),intent(out)        :: message                  ! error message
+ type(out_type_summaSolve4numrec),intent(out)  :: out_SS4NR  ! new function evaluation, convergence flag, and error control
  ! --------------------------------------------------------------------------------------------------------------------------------
  ! local variables
  ! --------------------------------------------------------------------------------------------------------------------------------
@@ -247,28 +247,36 @@ contains
 
  call refine_Newton_step;           if (return_flag) return ! refine Newton step if needed -- return if error
 
- if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+ associate(err => out_SS4NR % err,message   => out_SS4NR % message)
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+ end associate
 
  contains
 
   subroutine initialize_summaSolve4numrec
    ! *** Initial steps for the summaSolve4numrec algorithm (computing the Newton step) ***
 
-   ! initialize error control
-   err=0; message='summaSolve4numrec/'
-   return_flag=.false. ! initialize return flag
+   associate(&
+    err       => out_SS4NR % err      ,& 
+    message   => out_SS4NR % message   &     
+   &)
+    ! initialize error control
+    err=0; message='summaSolve4numrec/'
+    return_flag=.false. ! initialize return flag
+   
+    ! choose Jacobian type
+    select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
+     case(numerical)
+      err=20; message=trim(message)//'numerical derivatives are not implemented for BE numerical Recipes solver';
+      return_flag=.true.; return
+     case(analytical); ! this is fine
+     case default
+      err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian';
+      return_flag=.true.; return
+    end select
   
-   ! choose Jacobian type
-   select case(model_decisions(iLookDECISIONS%fDerivMeth)%iDecision) 
-    case(numerical)
-     err=20; message=trim(message)//'numerical derivatives are not implemented for BE numerical Recipes solver';
-     return_flag=.true.; return
-    case(analytical); ! this is fine
-    case default
-     err=20; message=trim(message)//'expect choice numericl or analytic to calculate derivatives for Jacobian';
-     return_flag=.true.; return
-   end select
-  
+   end associate
+ 
    ! get the number of soil layers in the solution vector
    mSoil = size(indx_data%var(iLookINDEX%ixMatOnly)%dat)
   
@@ -283,51 +291,62 @@ contains
    ! NOTE: The derivatives were computed in the previous call to computFlux
    !       This occurred either at the call to eval8summa at the start of systemSolv
    !        or in the call to eval8summa in the previous iteration (within lineSearchRefinement or trustRegionRefinement)
-   call initialize_computJacob_summaSolve4numrec
-   call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
-   call finalize_computJacob_summaSolve4numrec
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-  
-   ! compute the numerical Jacobian matrix
-   if (doNumJacobian) then
-    globalPrintFlag=.false.
-    call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
+   associate(&
+    err       => out_SS4NR % err      ,& 
+    message   => out_SS4NR % message   &     
+   &)
+    call initialize_computJacob_summaSolve4numrec
+    call computJacob(in_computJacob,indx_data,prog_data,diag_data,deriv_data,dBaseflow_dMatric,dMat,aJac,out_computJacob)
+    call finalize_computJacob_summaSolve4numrec
     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-    globalPrintFlag=globalPrintFlagInit
-   end if
+  
+    ! compute the numerical Jacobian matrix
+    if (doNumJacobian) then
+     globalPrintFlag=.false.
+     call numJacobian(stateVecTrial,dMat,nJac,err,cmessage)
+     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
+     globalPrintFlag=globalPrintFlagInit
+    end if
+   end associate
   end subroutine update_Jacobian
 
   subroutine solve_linear_system
    ! *** Solve the linear system for the Newton step using LAPACK routines ***
 
-   ! test the band diagonal matrix
-   if (testBandDiagonal) then
-    call testBandMat(check=.true.,err=err,message=cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
-   end if
-
-   ! scale the residual vector
-   rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
-  
-   ! scale matrices
-   call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+   associate(&
+    err       => out_SS4NR % err      ,& 
+    message   => out_SS4NR % message   &     
+   &)
+    ! test the band diagonal matrix
+    if (testBandDiagonal) then
+     call testBandMat(check=.true.,err=err,message=cmessage)
+     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! (check for errors)
+    end if
  
-   ! debug statement for scaled Jacobian 
-   if (globalPrintFlag .and. ixMatrix==ixBandMatrix) then
-    print*, '** SCALED banded analytical Jacobian:'
-    write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
-    do iLayer=kl+1,nBands
-     write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
-    end do
-   end if
+    ! scale the residual vector
+    rVecScaled(1:nState) = fScale(:)*real(rVec(:), rkind)   ! NOTE: residual vector is in quadruple precision
+   
+    ! scale matrices
+    call scaleMatrices(ixMatrix,nState,aJac,fScale,xScale,aJacScaled,err,cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
   
-   ! copy the scaled matrix, since it is decomposed in lapackSolv
-   aJacScaledTemp = aJacScaled
-  
-   ! compute the newton step: use the lapack routines to solve the linear system A.X=B
-   call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
-   if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+    ! debug statement for scaled Jacobian 
+    if (globalPrintFlag .and. ixMatrix==ixBandMatrix) then
+     print*, '** SCALED banded analytical Jacobian:'
+     write(*,'(a4,1x,100(i17,1x))') 'xCol', (iLayer, iLayer=iJac1,iJac2)
+     do iLayer=kl+1,nBands
+      write(*,'(i4,1x,100(e17.10,1x))') iLayer, (aJacScaled(iLayer,jLayer),jLayer=min(iJac1,nState),min(iJac2,nState))
+     end do
+    end if
+   
+    ! copy the scaled matrix, since it is decomposed in lapackSolv
+    aJacScaledTemp = aJacScaled
+   
+    ! compute the newton step: use the lapack routines to solve the linear system A.X=B
+    call lapackSolv(ixMatrix,nState,aJacScaledTemp,-rVecScaled,newtStepScaled,err,cmessage)
+    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+ 
+   end associate
  
    ! debug statement for Newton step
    if (globalPrintFlag) write(*,'(a,1x,10(e17.10,1x))') 'newtStepScaled = ', newtStepScaled(min(iJac1,nState):min(iJac2,nState))
@@ -342,36 +361,44 @@ contains
    ! * case 1: state vector
    ! compute the flux vector and the residual, and (if necessary) refine the iteration increment
    ! NOTE: in 99.9% of cases newtStep will be used (no refinement)
-   if (size(stateVecTrial)>1) then
+
+   associate(&
+    fnew      => out_SS4NR % fnew     ,& 
+    converged => out_SS4NR % converged,&
+    err       => out_SS4NR % err      ,& 
+    message   => out_SS4NR % message   &     
+   &)  
+    if (size(stateVecTrial)>1) then
+
+     ! try to backtrack
+     select case(ixStepRefinement)
+      case(ixLineSearch)  
+       call in_LSR % initialize(doRefine,fOld)    
+       call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
+       call out_LSR % finalize(fNew,converged,err,cmessage)
+      case(ixTrustRegion)
+       call in_TRR % initialize(doRefine,fOld)
+       call trustRegionRefinement(in_TRR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
+       call out_TRR % finalize(fNew,converged,err,cmessage)
+      case default; err=20; message=trim(message)//'unable to identify numerical solution'; return_flag=.true.; return
+     end select
   
-    ! try to backtrack
-    select case(ixStepRefinement)
-     case(ixLineSearch)  
+     ! check warnings: negative error code = warning; in this case back-tracked to the original value
+     ! NOTE: Accept the full newton step if back-tracked to the original value
+     if (err<0) then
+      doRefine=.false.;
       call in_LSR % initialize(doRefine,fOld)    
       call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
       call out_LSR % finalize(fNew,converged,err,cmessage)
-     case(ixTrustRegion)
-      call in_TRR % initialize(doRefine,fOld)
-      call trustRegionRefinement(in_TRR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_TRR)
-      call out_TRR % finalize(fNew,converged,err,cmessage)
-     case default; err=20; message=trim(message)//'unable to identify numerical solution'; return_flag=.true.; return
-    end select
+     end if
   
-    ! check warnings: negative error code = warning; in this case back-tracked to the original value
-    ! NOTE: Accept the full newton step if back-tracked to the original value
-    if (err<0) then
-     doRefine=.false.;
-     call in_LSR % initialize(doRefine,fOld)    
-     call lineSearchRefinement(in_LSR,stateVecTrial,newtStepScaled,aJacScaled,rVecScaled,stateVecNew,fluxVecNew,resVecNew,out_LSR)
-     call out_LSR % finalize(fNew,converged,err,cmessage)
+    ! * case 2: scalar
+    else
+     call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
+     call out_SRF % finalize(fNew,converged,err,cmessage)
+     if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
     end if
-  
-   ! * case 2: scalar
-   else
-    call safeRootfinder(stateVecTrial,rVecScaled,newtStepScaled,stateVecNew,fluxVecNew,resVecNew,out_SRF)
-    call out_SRF % finalize(fNew,converged,err,cmessage)
-    if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
-   end if
+   end associate
   end subroutine refine_Newton_step  
 
   ! *********************************************************************************************************
@@ -777,7 +804,9 @@ contains
    xIncrement = stateVecNew - stateVecPrev
 
    ! evaluate summa
-   call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+   associate(fnew => out_SS4NR % fnew)
+    call eval8summa_wrapper(stateVecNew,fluxVecNew,resVecNew,fNew,feasible,err,cmessage)
+   end associate
    if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
    ! check feasibility (should be feasible because of the call to imposeConstraints, except if canopyTemp>canopyTempMax (500._rkind)) 
@@ -962,7 +991,9 @@ contains
 
   subroutine finalize_computJacob_summaSolve4numrec
    ! *** Transfer data from out_computJacob class object to local variables in summaSolve4numrec ***
-   call out_computJacob % finalize(err,cmessage) 
+   associate(err => out_SS4NR % err)
+    call out_computJacob % finalize(err,cmessage)
+   end associate 
   end subroutine finalize_computJacob_summaSolve4numrec
 
   ! *********************************************************************************************************
@@ -1080,8 +1111,8 @@ contains
   ixNrgOnly               => indx_data%var(iLookINDEX%ixNrgOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all energy states
   ixHydOnly               => indx_data%var(iLookINDEX%ixHydOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for all hydrology states
   ixMatOnly               => indx_data%var(iLookINDEX%ixMatOnly)%dat                ,&  ! intent(in): [i4b(:)] list of indices for matric head state variables in the state vector
-  ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat              &  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
-
+  ixMatricHead            => indx_data%var(iLookINDEX%ixMatricHead)%dat             ,&  ! intent(in): [i4b(:)] list of indices for matric head in the soil vector
+  fnew                    => out_SS4NR % fnew                                        &  ! intent(in): [dp] new function evaluations
   ) ! making associations with variables in the data structures
   ! -------------------------------------------------------------------------------------------------------------------------------------------------
 
