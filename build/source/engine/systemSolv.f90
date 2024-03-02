@@ -671,21 +671,11 @@ subroutine systemSolv(&
         do iter=1,localMaxIter
           ! keep track of the number of iterations
           niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
+          call in_SS4NR % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
           call summaSolve4numrec(&
+                          in_SS4NR,&
                           ! input: model control
-                          dt_cur,                        & ! intent(in):    current stepsize
-                          dt,                            & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
-                          iter,                          & ! intent(in):    iteration index
-                          nSnow,                         & ! intent(in):    number of snow layers
-                          nSoil,                         & ! intent(in):    number of soil layers
-                          nLayers,                       & ! intent(in):    total number of layers
-                          nLeadDim,                      & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState)
-                          nState,                        & ! intent(in):    total number of state variables
-                          ixMatrix,                      & ! intent(in):    type of matrix (full or band diagonal)
-                          firstSubStep,                  & ! intent(in):    flag to indicate if we are processing the first sub-step
                           firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
-                          computeVegFlux,                & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                          scalarSolution,                & ! intent(in):    flag to indicate the scalar solution
                           ! input: state vectors
                           stateVecTrial,                 & ! intent(in):    trial state vector
                           xMin,xMax,                     & ! intent(inout): state maximum and minimum
@@ -694,7 +684,6 @@ subroutine systemSolv(&
                           rVec,                          & ! intent(in):    residual vector
                           sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
                           dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
-                          fOld,                          & ! intent(in):    old function evaluation
                           ! input: data structures
                           model_decisions,               & ! intent(in):    model decisions
                           lookup_data,                   & ! intent(in):    lookup tables
@@ -718,9 +707,6 @@ subroutine systemSolv(&
                           resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
                           resVecNew,                     & ! intent(out):   new residual vector
                           out_SS4NR)
-                          !fNew,                          & ! intent(out):   new function evaluation
-                          !converged,                     & ! intent(out):   convergence flag
-                          !err,cmessage)                    ! intent(out):   error control
           call out_SS4NR % finalize(fNew,converged,err,cmessage)                
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
  
