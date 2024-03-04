@@ -47,11 +47,16 @@ else:
     import sys
     # The first input argument specifies the run where the files are
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
-    ibatch = sys.argv[2] 
-    nbatch = sys.argv[3] 
+    ibatch = int(sys.argv[2])
+    nbatch = int(sys.argv[3])
     top_fold    = '/home/avanb/scratch/'
 
-des_dir =  top_fold + 'statistics_temp'
+des_dir =  top_fold + 'statistics_temp_' + method_name
+# Check if the directory exists
+if not os.path.exists(des_dir):
+    # If not, create the directory
+    os.mkdir(des_dir)
+
 fnl_dir =  top_fold + 'statistics'
 src_dir =  top_fold + 'summa-' + method_name
 ben_dir =  top_fold + 'summa-' + bench_name
@@ -126,7 +131,7 @@ def covariance(x,y,dims=None):
 def correlation(x,y,dims=None):
     return (covariance(x,y,dims)) / (x.std(dims) * y.std(dims))
 
-def run_loop(file,bench,processed_files_path):
+def run_loop(file,bench,processed_files_path0):
 
     # extract the subset IDs
     subset = file.split('/')[-1].split('_')[1]
@@ -344,10 +349,10 @@ else:
             # -- no parallel processing
             if do_vars:
                 for (file, bench) in zip(src_files,ben_files):
-                    run_loop(file,bench,processed_files_path)
+                    run_loop(file,bench,processed_files_path0)
             else:
                 for (file, bench) in zip(src_files,src_files):
-                    run_loop(file,bench,processed_files_path)
+                    run_loop(file,bench,processed_files_path0)
             # -- end no parallel processing
 
         else:
@@ -356,11 +361,11 @@ else:
             if __name__ == "__main__":
                 import multiprocessing as mp
                 pool = mp.Pool(processes=ncpus)
-                with open(processed_files_path, 'a') as f:
+                with open(processed_files_path0, 'a') as f:
                     if do_vars:
-                        results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, ben_files)]
+                        results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path0)) for (file, bench) in zip(src_files, ben_files)]
                     else:
-                        results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, src_files)]
+                        results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path0)) for (file, bench) in zip(src_files, src_files)]
                     for r in results:
                         try:
                             r.get()

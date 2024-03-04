@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=1GB
+#SBATCH --mem-per-cpu=12GB
 #SBATCH --time=0-01:00
 #SBATCH --job-name=STATB
 #SBATCH --mail-user=gwu479@usask.ca
@@ -22,9 +22,7 @@ module load geo-stack
 virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 
-ibatch=$SLURM_ARRAY_TASK_ID
-
-python timeseries_to_statistics.py sundials_1en6 ibatch 100
-python timeseries_to_statistics.py be1 ibatch 200
-python timeseries_to_statistics.py be32 ibatch 200
-python timeseries_to_statistics.py be16 ibatch 200
+python timeseries_to_statistics.py sundials_1en6 $SLURM_ARRAY_TASK_ID 200
+python timeseries_to_statistics.py be1 $SLURM_ARRAY_TASK_ID 200
+python timeseries_to_statistics.py be32 $SLURM_ARRAY_TASK_ID 200
+python timeseries_to_statistics.py be16 $SLURM_ARRAY_TASK_ID 200
