@@ -113,7 +113,7 @@ subroutine summaSolve4kinsol(&
                       bvar_data,               & ! intent(in):    average model variables for the entire basin
                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
                       ! input-output: data structures
-                      indx_data,               & ! intent(inout): index data                      diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                      indx_data,               & ! intent(inout): index data
                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
                       flux_data,               & ! intent(inout): model fluxes for a local HRU
                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables

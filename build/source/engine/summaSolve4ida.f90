@@ -88,7 +88,7 @@ contains
 ! ************************************************************************************
 ! * public subroutine summaSolve4ida: solve F(y,y') = 0 by IDA (y is the state vector)
 ! ************************************************************************************
-subroutine summaSolve4ida(                         &
+subroutine summaSolve4ida(&
                       dt_cur,                  & ! intent(in):    current stepsize
                       dt,                      & ! intent(in):    data time step
                       atol,                    & ! intent(in):    absolute tolerance
