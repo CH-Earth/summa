@@ -14,7 +14,8 @@
 # This results in KGE values that range between -1 and 1, with lower KGE values indicating larger differences from bench.
 
 # Run:
-# python timeseries_to_statistics.py sundials_1en6
+# python timeseries_to_statistics.py sundials_1en6 [1-101] 100
+# and run 100 times with different batch numbers 1-100, and then merge the files with 101
 
 import os
 import glob
@@ -28,7 +29,7 @@ warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 
 # Settings
 bench_name  = 'sundials_1en8'
 
-not_parallel = False # should usually be false, runs faster
+not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sundials_1en6 1 1` for single batch, and `python timeseries_to_statistics.py sundials_1en6 2 1` to merge
 testing = False
 
 # which statistics to compute
@@ -36,14 +37,18 @@ do_vars = False
 do_steps = False
 do_balance = True
 
-if testing: 
+if testing:
+    not_parallel = True 
+    method_name ='be1en'
+    ibatch = 1
+    nbatch = 2
     top_fold    = '/Users/amedin/Research/USask/test_py/'
-    method_name='be1en'
-    not_parallel = True
 else:
     import sys
     # The first input argument specifies the run where the files are
     method_name = sys.argv[1] # sys.argv values are strings by default so this is fine (sundials_1en6 or be1)
+    ibatch = sys.argv[2] 
+    nbatch = sys.argv[3] 
     top_fold    = '/home/avanb/scratch/'
 
 des_dir =  top_fold + 'statistics_temp'
@@ -77,6 +82,7 @@ des_dir.mkdir(parents=True, exist_ok=True)
 
 # Construct the path to the processed_files.txt file
 processed_files_path = os.path.join(des_dir, 'processed_files.txt')
+processed_files_path0 = os.path.join(des_dir, 'processed_files' + str(ibatch) + '.txt')
 
 # Get the names of all inputs, assuming folders have same splits of domains and same file names
 src_files = glob.glob(str( src_dir / src_pat ))
@@ -85,7 +91,6 @@ if do_vars:
     ben_files = glob.glob(str( ben_dir / src_pat ))
     ben_files.sort()
 
-
 # Load the list of files that have already been processed
 if os.path.exists(processed_files_path):
     with open(processed_files_path, 'r') as f:
@@ -93,17 +98,9 @@ if os.path.exists(processed_files_path):
 else:
     processed_files = []
 
-
 # Filter out the files that have already been processed
 src_files = [f for f in src_files if f not in processed_files]
 if do_vars: ben_files = [f for f in ben_files if f not in processed_files]
-
-# definitions for KGE computation
-def covariance(x,y,dims=None):
-    return xr.dot(x-x.mean(dims), y-y.mean(dims), dims=dims) / x.count(dims)
-
-def correlation(x,y,dims=None):
-    return (covariance(x,y,dims)) / (x.std(dims) * y.std(dims))
 
 if do_vars: 
     assert len(ben_files) == len(src_files), \
@@ -121,6 +118,14 @@ if do_vars:
     #        print('Error opening file:', file, bench)
 
 # -- functions
+
+# definitions for KGE computation
+def covariance(x,y,dims=None):
+    return xr.dot(x-x.mean(dims), y-y.mean(dims), dims=dims) / x.count(dims)
+
+def correlation(x,y,dims=None):
+    return (covariance(x,y,dims)) / (x.std(dims) * y.std(dims))
+
 def run_loop(file,bench,processed_files_path):
 
     # extract the subset IDs
@@ -179,13 +184,11 @@ def run_loop(file,bench,processed_files_path):
             mnnz_ben = datnz.mean(dim='time')
             mnnz_ben = mnnz_ben.expand_dims("stat").assign_coords(stat=("stat",["mnnz_ben"]))
 
-            na_mx = np.fabs(dat[var]).max()+1
-            amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
+            amx = np.fabs(dat[var]).fillna(-1).argmax(dim=['time']) # fill nan with neg value so will not choose
             amax = dat[var].isel(amx).drop_vars('time')
             amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
 
-            na_mx = np.fabs(ben[var]).max()+1
-            amx = np.fabs(ben[var].fillna(na_mx)).argmax(dim=['time'])
+            amx = np.fabs(ben[var]).fillna(-1).argmax(dim=['time']) # fill nan with neg value so will not choose
             amax_ben = ben[var].isel(amx).drop_vars('time')
             amax_ben = amax_ben.expand_dims("stat").assign_coords(stat=("stat",["amax_ben"]))
 
@@ -196,8 +199,7 @@ def run_loop(file,bench,processed_files_path):
             rmnz = (np.square(diffnz).mean(dim='time'))**(1/2)
             rmnz = rmnz.expand_dims("stat").assign_coords(stat=("stat",["rmnz"]))
 
-            na_mx = np.fabs(diff[var]).max()+1
-            amx = np.fabs(diff[var].fillna(na_mx)).argmax(dim=['time'])
+            amx = np.fabs(diff[var]).fillna(-1).argmax(dim=['time']) # fill nan with neg value so will not choose
             maxe = diff[var].isel(amx).drop_vars('time')
             maxe = maxe.expand_dims("stat").assign_coords(stat=("stat",["maxe"]))
 
@@ -222,8 +224,7 @@ def run_loop(file,bench,processed_files_path):
             mean = dat[var].mean(dim='time')
             mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
 
-            na_mx = np.fabs(dat[var]).max()+1
-            amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
+            amx = np.fabs(dat[var]).fillna(-1).argmax(dim=['time']) # fill nan with neg value so will not choose
             amax = dat[var].isel(amx).drop_vars('time')
             amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
 
@@ -235,28 +236,25 @@ def run_loop(file,bench,processed_files_path):
             mean = np.fabs(dat[var]).mean(dim='time') # this is actually absolute value mean
             mean = mean.expand_dims("stat").assign_coords(stat=("stat",["mean"]))
 
-            na_mx = np.fabs(dat[var]).max()+1
-            amx = np.fabs(dat[var].fillna(na_mx)).argmax(dim=['time'])
+            amx = np.fabs(dat[var]).fillna(-1).argmax(dim=['time']) # fill nan with neg value so will not choose
             amax = dat[var].isel(amx).drop_vars('time')
             amax = amax.expand_dims("stat").assign_coords(stat=("stat",["amax"]))
 
             new = xr.merge([mean,amax])
             new.to_netcdf(des_dir / des_fl3.format(var,subset))
 
-
-   # write the name of the processed file to the file list, acquire the lock before opening the file
+    # write the name of the processed file to the file list, acquire the lock before opening the file
     if not_parallel:
-        with open(processed_files_path, 'a') as filew:
+        with open(processed_files_path0, 'a') as filew:
             filew.write(file + '\n')
             if do_vars: filew.write(bench + '\n')
     else:
         import multiprocessing as mp
         lock = mp.Lock()
         with lock:
-            with open(processed_files_path, 'a') as filew:
+            with open(processed_files_path0, 'a') as filew:
                 filew.write(file + '\n')
                 if do_vars: filew.write(bench + '\n')
-    filew.close()  # close the file after writing to it
 
     return #nothing
 
@@ -278,49 +276,98 @@ def merge_subsets_into_one(src,pattern,des,name):
     return #nothing
 # -- end functions
 
+# do batches
+nf = len(src_files)
+start = min((int(ibatch)-1)*np.ceil(nf/nbatch), nf)
+end = min(int(ibatch)*np.ceil(nf/nbatch), nf)
+do_f = range(int(start), int(end))
+if ibatch == nbatch:
+    do_f = range(int(start), nf)
 
-if not_parallel:
-    # -- no parallel processing
-    if do_vars:
-        for (file, bench) in zip(src_files,ben_files):
-            run_loop(file,bench,processed_files_path)
+if ibatch > nbatch:
+    print('Batch number greater than number of batches, doing file merge')
+    # Initialize an empty list to store the file contents
+    contents = []
+
+    # Loop over the batch numbers
+    for iibatch in range(1, nbatch + 1):
+        # Construct the file path
+        processed_files_path0 = os.path.join(des_dir, 'processed_files' + str(iibatch) + '.txt')
+    
+        # Check if the file exists
+        if os.path.exists(processed_files_path0):
+            # Open the file and read its contents
+            with open(processed_files_path0, 'r') as file:
+                contents.append(file.read())
+
+    # Join the contents into a single string
+    contents = '\n'.join(contents)
+
+    # Append the contents to processed_files_path
+    with open(processed_files_path, 'a') as filew:
+        filew.write(contents + '\n')
+
+    with open(processed_files_path, 'r') as f:
+        processed_files = f.read().splitlines()
+
+    # Filter out the files that have already been processed
+    src_files = [f for f in src_files if f not in processed_files]
+    if do_vars: ben_files = [f for f in ben_files if f not in processed_files]
+
+    # merge the individual files into one for further vizualization
+    # remove the individual files for cleanliness
+    if len(src_files) != 0:
+        print('Some files have not been processed')
+        print(src_files)
+        exit()
     else:
-        for (file, bench) in zip(src_files,src_files):
-            run_loop(file,bench,processed_files_path)
-    # -- end no parallel processing
+        if do_vars: 
+            merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
+            for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):
+                os.remove(file)
+        if do_steps: 
+            merge_subsets_into_one(des_dir,des_fl2.replace('{}','*'),fnl_dir,viz_fl2)
+            for file in glob.glob(str(des_dir / des_fl2.replace('{}','*'))):
+                os.remove(file)
+        if do_balance: 
+            merge_subsets_into_one(des_dir,des_fl3.replace('{}','*'),fnl_dir,viz_fl3)
+            for file in glob.glob(str(des_dir / des_fl3.replace('{}','*'))):
+                os.remove(file)
 
 else:
-    # -- start parallel processing
-    ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
-    if __name__ == "__main__":
-        import multiprocessing as mp
-        pool = mp.Pool(processes=ncpus)
-        with open(processed_files_path, 'a') as f:
+    # do the batch
+    src_files = [src_files[i] for i in do_f]
+    if do_vars: ben_files = [ben_files[i] for i in do_f]
+
+    if len(do_f) > 0:
+        if not_parallel:
+            # -- no parallel processing
             if do_vars:
-                results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, ben_files)]
+                for (file, bench) in zip(src_files,ben_files):
+                    run_loop(file,bench,processed_files_path)
             else:
-                results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, src_files)]
-            for r in results:
-                try:
-                    r.get()
-                except Exception as e:
-                    print(f"Error processing file: {e}")
-                    raise e
-        pool.close()
-    # -- end parallel processing
+                for (file, bench) in zip(src_files,src_files):
+                    run_loop(file,bench,processed_files_path)
+            # -- end no parallel processing
 
+        else:
+            # -- start parallel processing
+            ncpus = int(os.environ.get('SLURM_CPUS_PER_TASK',default=1))
+            if __name__ == "__main__":
+                import multiprocessing as mp
+                pool = mp.Pool(processes=ncpus)
+                with open(processed_files_path, 'a') as f:
+                    if do_vars:
+                        results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, ben_files)]
+                    else:
+                        results = [pool.apply_async(run_loop, args=(file,bench,processed_files_path)) for (file, bench) in zip(src_files, src_files)]
+                    for r in results:
+                        try:
+                            r.get()
+                        except Exception as e:
+                            print(f"Error processing file: {e}")
+                            raise e
+                pool.close()
+            # -- end parallel processing
 
-# merge the individual files into one for further vizualization
-# remove the individual files for cleanliness
-if do_vars: 
-    merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
-    for file in glob.glob(str(des_dir / des_fil.replace('{}','*'))):
-        os.remove(file)
-if do_steps: 
-    merge_subsets_into_one(des_dir,des_fl2.replace('{}','*'),fnl_dir,viz_fl2)
-    for file in glob.glob(str(des_dir / des_fl2.replace('{}','*'))):
-        os.remove(file)
-if do_balance: 
-    merge_subsets_into_one(des_dir,des_fl3.replace('{}','*'),fnl_dir,viz_fl3)
-    for file in glob.glob(str(des_dir / des_fl3.replace('{}','*'))):
-        os.remove(file)
+# -- end script

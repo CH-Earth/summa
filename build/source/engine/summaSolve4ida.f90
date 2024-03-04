@@ -144,7 +144,6 @@ subroutine summaSolve4ida(                         &
   USE allocspace_module,only:allocLocal                       ! allocate local data structures
   USE getVectorz_module, only:checkFeas                       ! check feasibility of state vector
   USE eval8summaWithPrime_module,only:eval8summa4ida          ! DAE/ODE functions
-  USE eval8summaWithPrime_module,only:eval8summaWithPrime     ! residual of DAE
   USE computJacobWithPrime_module,only:computJacob4ida        ! system Jacobian
   USE tol4ida_module,only:computWeight4ida                    ! weight required for tolerances
   USE var_lookup,only:maxvarDecisions                         ! maximum number of decisions
@@ -268,7 +267,7 @@ subroutine summaSolve4ida(                         &
     nState = nStat ! total number of state variables in SUNDIALS type
     idaSucceeds = .true.
     
-    ! fill eqns_data which will be required later to call eval8summaWithPrime
+    ! fill eqns_data which will be required later to call eval8summa4ida
     eqns_data%dt             = dt
     eqns_data%nSnow          = nSnow
     eqns_data%nSoil          = nSoil
@@ -513,7 +512,7 @@ subroutine summaSolve4ida(                         &
       !------------------------
       if(computNrgBalance)then    
     
-        ! compute energy balance mean, resVec is the instanteous residual vector from the solver
+        ! compute energy balance mean, resVec is the instantaneous residual vector from the solver
         if(ixCasNrg/=integerMissing) balance(ixCasNrg) = balance(ixCasNrg) + ( eqns_data%resVec(ixCasNrg) + resVecPrev(ixCasNrg) )*dt_diff/2._rkind/dt
         if(ixVegNrg/=integerMissing) balance(ixVegNrg) = balance(ixVegNrg) + ( eqns_data%resVec(ixVegNrg) + resVecPrev(ixVegNrg) )*dt_diff/2._rkind/dt
         if(nSnowSoilNrg>0)then
@@ -528,7 +527,7 @@ subroutine summaSolve4ida(                         &
       !------------------------
       if(computMassBalance)then
     
-        ! compute mass balance mean, resVec is the instanteous residual vector from the solver
+        ! compute mass balance mean, resVec is the instantaneous residual vector from the solver
         if(ixVegHyd/=integerMissing) balance(ixVegHyd) = balance(ixVegHyd) + ( eqns_data%resVec(ixVegHyd) + resVecPrev(ixVegHyd) )*dt_diff/2._rkind/dt
         if(nSnowSoilHyd>0)then
           do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing) 
@@ -549,7 +548,7 @@ subroutine summaSolve4ida(                         &
     
       ! Restart for where vegetation and layers cross freezing point
       if(detect_events)then
-        if (retvalr .eq. IDA_ROOT_RETURN) then !IDASolve succeeded and found one or more roots at tret(1)
+        if (retvalr .eq. IDA_ROOT_RETURN) then ! IDASolve succeeded and found one or more roots at tret(1)
           ! rootsfound[i]= +1 indicates that gi is increasing, -1 g[i] decreasing, 0 no root
           !retval = FIDAGetRootInfo(ida_mem, rootsfound)
           !if (retval < 0) then; err=20; message=trim(message)//'error in FIDAGetRootInfo'; return; endif

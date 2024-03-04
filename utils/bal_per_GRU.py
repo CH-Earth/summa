@@ -22,7 +22,7 @@ import pandas as pd
 
 viz_dir = Path('/home/avanb/scratch/statistics')
 
-testing = True
+testing = False
 if testing: 
     stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
