@@ -304,13 +304,17 @@ if ibatch > nbatch:
             # Open the file and read its contents
             with open(processed_files_path0, 'r') as file:
                 contents.append(file.read())
+            os.remove(processed_files_path0)
 
     # Join the contents into a single string
     contents = '\n'.join(contents)
 
+    # Remove blank lines
+    contents = '\n'.join(line for line in contents.split('\n') if line.strip())
+
     # Append the contents to processed_files_path
     with open(processed_files_path, 'a') as filew:
-        filew.write(contents + '\n')
+        filew.write(contents)
 
     with open(processed_files_path, 'r') as f:
         processed_files = f.read().splitlines()
@@ -324,7 +328,7 @@ if ibatch > nbatch:
     if len(src_files) != 0:
         print('Some files have not been processed')
         print(src_files)
-        exit()
+
     else:
         if do_vars: 
             merge_subsets_into_one(des_dir,des_fil.replace('{}','*'),fnl_dir,viz_fil)
