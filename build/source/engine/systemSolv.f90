@@ -672,13 +672,14 @@ subroutine systemSolv(&
           ! keep track of the number of iterations
           niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
           call in_SS4NR % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+          call io_SS4NR % initialize(firstFluxCall,xMin,xMax,ixSaturation)
           call summaSolve4numrec(&
                           in_SS4NR,&
                           ! input: model control
-                          firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
+                          !firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
                           ! input: state vectors
                           stateVecTrial,                 & ! intent(in):    trial state vector
-                          xMin,xMax,                     & ! intent(inout): state maximum and minimum
+                          !xMin,xMax,                     & ! intent(inout): state maximum and minimum
                           fScale,                        & ! intent(in):    characteristic scale of the function evaluations
                           xScale,                        & ! intent(in):    characteristic scale of the state vector
                           rVec,                          & ! intent(in):    residual vector
@@ -699,14 +700,16 @@ subroutine systemSolv(&
                           flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
                           deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                           ! input-output: baseflow
-                          ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                          !ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                           dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
+                          io_SS4NR,&
                           ! output
                           stateVecNew,                   & ! intent(out):   new state vector
                           fluxVecNew,                    & ! intent(out):   new flux vector
                           resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
                           resVecNew,                     & ! intent(out):   new residual vector
                           out_SS4NR)
+          call io_SS4NR % finalize(firstFluxCall,xMin,xMax,ixSaturation)
           call out_SS4NR % finalize(fNew,converged,err,cmessage)                
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
  

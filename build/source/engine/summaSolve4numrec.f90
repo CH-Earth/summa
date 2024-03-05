@@ -103,28 +103,15 @@ contains
  subroutine summaSolve4numrec(&
                         in_SS4NR,               & ! intent(in): model control and previous function value
                        ! input: model control
-                      ! dt_cur,                  & ! intent(in):    current stepsize
-                      ! dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
-                      ! iter,                    & ! intent(in):    iteration index
-                      ! nSnow,                   & ! intent(in):    number of snow layers
-                      ! nSoil,                   & ! intent(in):    number of soil layers
-                      ! nLayers,                 & ! intent(in):    total number of layers
-                      ! nLeadDim,                & ! intent(in):    length of the leading dimension of the Jacobian matrix (either nBands or nState)
-                      ! nState,                  & ! intent(in):    total number of state variables
-                      ! ixMatrix,                & ! intent(in):    type of matrix (full or band diagonal)
-                      ! firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                       firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
-                      ! computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                      ! scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                       !firstFluxCall,           & ! intent(inout): flag to indicate if we are processing the first flux call
                        ! input: state vectors
                        stateVecTrial,           & ! intent(in):    trial state vector
-                       xMin,xMax,               & ! intent(inout): brackets of the root
+                       !xMin,xMax,               & ! intent(inout): brackets of the root
                        fScale,                  & ! intent(in):    characteristic scale of the function evaluations
                        xScale,                  & ! intent(in):    characteristic scale of the state vector
                        rVec,                    & ! intent(in):    residual vector
                        sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
                        dMat,                    & ! intent(inout): diagonal matrix (excludes flux derivatives)
-                      ! fOld,                    & ! intent(in):    old function evaluation
                        ! input: data structures
                        model_decisions,         & ! intent(in):    model decisions
                        lookup_data,             & ! intent(in):    lookup tables
@@ -140,8 +127,9 @@ contains
                        flux_data,               & ! intent(inout): model fluxes for a local HRU
                        deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
                        ! input-output: baseflow
-                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       !ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                        dBaseflow_dMatric,       & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
+                       io_SS4NR,                & ! intent(inout): first flux call flag, root brackets, index of lowest saturated layer
                        ! output
                        stateVecNew,             & ! intent(out):   new state vector
                        fluxVecNew,              & ! intent(out):   new flux vector
@@ -157,28 +145,15 @@ contains
  type(in_type_summaSolve4numrec),intent(in)  :: in_SS4NR  ! model control variables and previous function evaluation
  type(io_type_summaSolve4numrec)  :: io_SS4NR  ! first flux call flag and baseflow variables
  ! input: model control
-! real(rkind),intent(in)          :: dt_cur                   ! current stepsize
-! real(rkind),intent(in)          :: dt                       ! entire time step for drainage pond rate
-! integer(i4b),intent(in)         :: iter                     ! iteration index
-! integer(i4b),intent(in)         :: nSnow                    ! number of snow layers
-! integer(i4b),intent(in)         :: nSoil                    ! number of soil layers
-! integer(i4b),intent(in)         :: nLayers                  ! total number of layers
-! integer(i4b),intent(in)         :: nLeadDim                 ! length of the leading dimension of the Jacobian matrix (nBands or nState)
-! integer(i4b),intent(in)         :: nState                   ! total number of state variables
-! integer(i4b),intent(in)         :: ixMatrix                 ! type of matrix (full or band diagonal)
-! logical(lgt),intent(in)         :: firstSubStep             ! flag to indicate if we are processing the first sub-step
- logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
-! logical(lgt),intent(in)         :: computeVegFlux           ! flag to indicate if computing fluxes over vegetation
-! logical(lgt),intent(in)         :: scalarSolution           ! flag to denote if implementing the scalar solution
+! logical(lgt),intent(inout)      :: firstFluxCall            ! flag to indicate if we are processing the first flux call
  ! input: state vectors
  real(rkind),intent(in)          :: stateVecTrial(:)         ! trial state vector
- real(rkind),intent(inout)       :: xMin,xMax                ! brackets of the root
+! real(rkind),intent(inout)       :: xMin,xMax                ! brackets of the root
  real(rkind),intent(in)          :: fScale(:)                ! characteristic scale of the function evaluations
  real(rkind),intent(in)          :: xScale(:)                ! characteristic scale of the state vector
  real(qp),intent(in)             :: rVec(:)   ! NOTE: qp     ! residual vector
  real(qp),intent(inout)          :: sMul(:)   ! NOTE: qp     ! state vector multiplier (used in the residual calculations)
  real(rkind),intent(inout)       :: dMat(:)                  ! diagonal matrix (excludes flux derivatives)
-! real(rkind),intent(in)          :: fOld                     ! old function evaluation
  ! input: data structures
  type(model_options),intent(in)  :: model_decisions(:)       ! model decisions
  type(zLookup),      intent(in)  :: lookup_data              ! lookup tables
@@ -194,7 +169,7 @@ contains
  type(var_dlength),intent(inout) :: flux_data                ! model fluxes for a local HRU
  type(var_dlength),intent(inout) :: deriv_data               ! derivatives in model fluxes w.r.t. relevant state variables
  ! input-output: baseflow
- integer(i4b),intent(inout)      :: ixSaturation             ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
+! integer(i4b),intent(inout)      :: ixSaturation             ! index of the lowest saturated layer (NOTE: only computed on the first iteration)
  real(rkind),intent(inout)       :: dBaseflow_dMatric(:,:)   ! derivative in baseflow w.r.t. matric head (s-1)
  ! output: flux and residual vectors
  real(rkind),intent(out)         :: stateVecNew(:)           ! new state vector
@@ -694,6 +669,8 @@ contains
    nSnow          => in_SS4NR % nSnow          ,& ! intent(in): number of snow layers
    nSoil          => in_SS4NR % nSoil          ,& ! intent(in): number of soil layers
    nState         => in_SS4NR % nState         ,& ! intent(in): total number of state
+   xMin           => io_SS4NR % xMin           ,& ! intent(inout): bracket of the root   
+   xMax           => io_SS4NR % xMax           ,& ! intent(inout): bracket of the root  
    fNew           => out_SRF % fNew            ,& ! intent(out): new function evaluation
    converged      => out_SRF % converged       ,& ! intent(out): convergence flag
    err            => out_SRF % err             ,& ! intent(out): error code
@@ -1065,7 +1042,9 @@ contains
    nState         => in_SS4NR % nState         ,& ! intent(in): total number of state variables
    firstSubStep   => in_SS4NR % firstSubStep   ,& ! intent(in): flag to indicate if we are processing the first sub-step
    computeVegFlux => in_SS4NR % computeVegFlux ,& ! intent(in): flag to indicate if computing fluxes over vegetation
-   scalarSolution => in_SS4NR % scalarSolution  & ! intent(in): flag to denote if implementing the scalar solution
+   scalarSolution => in_SS4NR % scalarSolution ,& ! intent(in): flag to denote if implementing the scalar solution
+   firstFluxCall  => io_SS4NR % firstFluxCall  ,& ! intent(inout): flag to indicate if we are processing the first flux call  
+   ixSaturation   => io_SS4NR % ixSaturation    & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)    
   &)
   ! compute the flux and the residual vector for a given state vector
    call eval8summa(&
