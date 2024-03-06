@@ -264,6 +264,9 @@ subroutine systemSolv(&
   type(in_type_summaSolve4numrec)  :: in_SS4NR  ! object for intent(in) summaSolve4numrec arguments
   type(io_type_summaSolve4numrec)  :: io_SS4NR  ! object for intent(io) summaSolve4numrec arguments
   type(out_type_summaSolve4numrec) :: out_SS4NR ! object for intent(out) summaSolve4numrec arguments
+  ! flags
+  logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
+  logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
   ! ---------------------------------------------------------------------------------------
   ! point to variables in the data structures
   ! ---------------------------------------------------------------------------------------
@@ -309,6 +312,7 @@ subroutine systemSolv(&
     ! ---------------------------------------------------------------------------------------
     ! initialize error control
     err=0; message="systemSolv/"
+    return_flag=.false. ! initialize return flag
     nSteps = 0 ! initialize number of time steps taken in solver
 
     ! *****
@@ -668,68 +672,14 @@ subroutine systemSolv(&
         ! * solving F(y) = 0 by Backward Euler with free numerical recipes routines, y is the state vector 
         !---------------------------
         ! iterate and update trial state vector, fluxes, and derivatives
-        do iter=1,localMaxIter
-          ! keep track of the number of iterations
-          niter = iter+1  ! +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
-          call in_SS4NR % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
-          call io_SS4NR % initialize(firstFluxCall,xMin,xMax,ixSaturation)
-          call summaSolve4numrec(&
-                          in_SS4NR,&
-                          ! input: model control
-                          !firstFluxCall,                 & ! intent(inout): flag to indicate if we are processing the first flux call
-                          ! input: state vectors
-                          stateVecTrial,                 & ! intent(in):    trial state vector
-                          !xMin,xMax,                     & ! intent(inout): state maximum and minimum
-                          fScale,                        & ! intent(in):    characteristic scale of the function evaluations
-                          xScale,                        & ! intent(in):    characteristic scale of the state vector
-                          rVec,                          & ! intent(in):    residual vector
-                          sMul,                          & ! intent(inout): state vector multiplier (used in the residual calculations)
-                          dMat,                          & ! intent(inout): diagonal matrix (excludes flux derivatives)
-                          ! input: data structures
-                          model_decisions,               & ! intent(in):    model decisions
-                          lookup_data,                   & ! intent(in):    lookup tables
-                          type_data,                     & ! intent(in):    type of vegetation and soil
-                          attr_data,                     & ! intent(in):    spatial attributes
-                          mpar_data,                     & ! intent(in):    model parameters
-                          forc_data,                     & ! intent(in):    model forcing data
-                          bvar_data,                     & ! intent(in):    average model variables for the entire basin
-                          prog_data,                     & ! intent(in):    model prognostic variables for a local HRU
-                          ! input-output: data structures
-                          indx_data,                     & ! intent(inout): index data
-                          diag_data,                     & ! intent(inout): model diagnostic variables for a local HRU
-                          flux_temp,                     & ! intent(inout): model fluxes for a local HRU (temporary structure)
-                          deriv_data,                    & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                          ! input-output: baseflow
-                          !ixSaturation,                  & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                          dBaseflow_dMatric,             & ! intent(inout): derivative in baseflow w.r.t. matric head (s-1)
-                          io_SS4NR,&
-                          ! output
-                          stateVecNew,                   & ! intent(out):   new state vector
-                          fluxVecNew,                    & ! intent(out):   new flux vector
-                          resSinkNew,                    & ! intent(out):   additional (sink) terms on the RHS of the state equa
-                          resVecNew,                     & ! intent(out):   new residual vector
-                          out_SS4NR)
-          call io_SS4NR % finalize(firstFluxCall,xMin,xMax,ixSaturation)
-          call out_SS4NR % finalize(fNew,converged,err,cmessage)                
-          if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
- 
-          ! save the computed functions, residuals, and solution
-          fOld          = fNew
-          rVec          = resVecNew
-          stateVecTrial = stateVecNew
-          stateVecPrime = stateVecTrial  !prime values not used here, dummy
-          nSteps = 1 ! number of time steps taken in solver
-
-          ! exit iteration loop if converged
-          if(converged) exit
-              
-          ! check convergence
-          if(iter==localMaxiter)then
-            message=trim(message)//'failed to converge'
-            err=-20; return
-          endif
-              
-        end do  ! iterating
+        exit_flag=.false. ! initialize exit flag
+        do iter=1,localMaxIter ! begin Newton iterations
+          niter = iter+1                ! # of iterations -- +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
+          call Newton_step; if (return_flag) return ! compute Newton step -- return if error                
+          call check_Newton_convergence ! check current Newton step for convergence
+          if (exit_flag) exit           ! exit loop if convereged
+          if (return_flag) return       ! return if error
+        end do 
 
         ! -----
         ! * update states...
@@ -775,6 +725,49 @@ subroutine systemSolv(&
 
   ! end associate statements
   end associate globalVars
+
+contains
+
+ subroutine Newton_step
+  ! ** Compute the Newton step using numerical recipes ** 
+  associate(&
+   ! layer geometry
+   nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
+   nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                  & ! intent(in):    [i4b]    number of soil layers
+   )
+   call in_SS4NR % initialize(dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+   call io_SS4NR % initialize(firstFluxCall,xMin,xMax,ixSaturation)
+   call summaSolve4numrec(in_SS4NR,&                                                                                ! input: model control
+                         &stateVecTrial,fScale,xScale,rVec,sMul,dMat,&                                              ! input: state vectors
+                         &model_decisions,lookup_data,type_data,attr_data,mpar_data,forc_data,bvar_data,prog_data,& ! input: data structures
+                         &indx_data,diag_data,flux_temp,deriv_data,&                                                ! input-output: data structures
+                         &dBaseflow_dMatric,io_SS4NR,&                                                              ! input-output: baseflow
+                         &stateVecNew,fluxVecNew,resSinkNew,resVecNew,out_SS4NR)                                    ! output
+   call io_SS4NR % finalize(firstFluxCall,xMin,xMax,ixSaturation)
+   call out_SS4NR % finalize(fNew,converged,err,cmessage)                
+  end associate
+  if (err/=0) then; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if  ! check for errors
+ 
+  ! save the computed functions, residuals, and solution
+  fOld          = fNew
+  rVec          = resVecNew
+  stateVecTrial = stateVecNew
+  stateVecPrime = stateVecTrial  !prime values not used here, dummy
+  nSteps = 1 ! number of time steps taken in solver
+ end subroutine Newton_step
+
+ subroutine check_Newton_convergence
+  ! ** Check for convergence of current Newton step **    
+
+  ! exit iteration loop if converged
+  if (converged) then; exit_flag=.true.; return; end if
+      
+  ! check convergence
+  if (iter==localMaxiter) then
+    message=trim(message)//'failed to converge'
+    err=-20; return_flag=.true.; return
+  end if
+ end subroutine check_Newton_convergence    
 
 end subroutine systemSolv
 
