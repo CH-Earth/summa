@@ -314,7 +314,7 @@ if ibatch > nbatch:
 
     # Append the contents to processed_files_path
     with open(processed_files_path, 'a') as filew:
-        filew.write(contents)
+        filew.write('\n' + contents)
 
     with open(processed_files_path, 'r') as f:
         processed_files = f.read().splitlines()

@@ -32,49 +32,39 @@ import pandas as pd
 
 # plot all runs, pick statistic
 stat = sys.argv[1]
-method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
-plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE16','(c) SUMMA-BE32','(d) SUMMA-SUNDIALS'] #maybe make this an argument
+method_name=['be1','be1en','be1lu'] #maybe make this an argument
+plt_name=['(a) SUMMA-BE1','(b) SUMMA-BE1 with enthalpy','(c) SUMMA-BE1 with enthalpy lookup'] #maybe make this an argument
 
 # Simulation statistics file locations
-settings= ['scalarSWE','scalarTotalSoilWat','scalarTotalET','scalarCanopyWat','averageRoutedRunoff','wallClockTime']
+settings= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime']
+
 viz_dir = Path('/home/avanb/scratch/statistics')
 viz_fil = method_name.copy()
-eff_fil = method_name.copy()
 for i, m in enumerate(method_name):
-    viz_fil[i] = m + '_hrly_diff_stats_{}.nc'
-    viz_fil[i] = viz_fil[i].format(','.join(settings))
-    eff_fil[i] = 'eff_' + m + '.txt'
+    viz_fil[i] = m + '_hrly_diff_bals_{}.nc'
+    viz_fil[i] = viz_fil[i].format(','.join(['balance','scaledBalance']))
+do_rel = True # use scaled values
 nbatch_hrus = 518 # number of HRUs per batch
-use_eff = False # use efficiency in wall clock time
-do_rel = True # plot relative to the benchmark simulation
-if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Specify variables of interest
 plot_vars = settings.copy()
-plt_titl = ['Snow Water Equivalent','Total soil water content','Total evapotranspiration', 'Total water on the vegetation canopy','Average routed runoff','Wall clock time']
-leg_titl = ['$kg~m^{-2}$', '$kg~m^{-2}$','mm~y^{-1}$','$kg~m^{-2}$','$mm~y^{-1}$','$s$']
+plt_titl = ['Canopy Air Space Energy Balance','Vegetation Energy Balance','Snow Energy Balance','Soil Energy Balance','Vegetation Mass Balance','Snow Mass Balance','Soil Mass Balance','Aquifer Mass Balance', 'Wall Clock Time']
+leg_titl = ['$W~m^{-3}$'] * 4 +['$num$'] + ['$kg~m^{-2}~s^{-1}$'] * 4
 
 fig_fil= '_hrly_diff_stats_{}_compressed.png'
-if do_rel: fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
+if do_rel: 
+    fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
+    for i in range(8):
+        settings[i] = 'scaledB' + settings[i][1:]
+        plt_title[i] = 'Scaled ' + plt_title[i]
+    leg_titl = ['$s^{-1}$'] * 8 + ['$s$']
 
-if stat == 'rmse': 
-    maxes = [2,15,250,0.08,200,10e-3] #[2,15,8e-6,0.08,6e-9,10e-3]
-    #maxes = [0.25,2,30,0.01,30,2e-3] #[0.25,2,1e-6,0.01,1e-9,2e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
-if stat == 'rmnz': 
-    maxes = [2,15,250,0.08,200,10e-3]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,10e-3]
-if stat == 'maxe': 
-    maxes = [15,25,0.8,2,0.3,0.2] #[15,25,25e-5,2,1e-7,0.2]
-    if do_rel: maxes = [0.6,0.02,0.6,0.3,0.6,0.2]
-if stat == 'kgem': 
-    maxes = [0.9,0.9,0.9,0.9,0.9,10e-3]
 if stat == 'mean': 
-    maxes = [80,1500,1500,3000,10e-3] #[80,1500,5e-5,8,1e-7,10e-3]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,10e-3]
+    maxes = [1e-1,1e3,1e3,1e3]+[1e-9,1e-6,1e-6,1e-8] + [30]
+    if do_rel: maxes = [1e-2,1e0,1e-2,1e-3]+[1e-7,1e-7,1e-10,1e-7] + [3e-3]
 if stat == 'amax': 
-    maxes = [240,1800,3.5,25,7.5,0.2] #[240,1800,1e-3,25,2e-6,0.2]
-    if do_rel: maxes = [1.1,1.1,1.1,1.1,1.1,0.2]
+    maxes = [1e0,1e6,1e6,1e5]+[1e-8,1e-3,1e-4,1e-5] + [1e4]
+    if do_rel: maxes = [1e1,1e3,1e-1,1e1]+[1e-4,1e-5,1e-7,1e-3] + [1e0]
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -180,14 +170,6 @@ eff = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
-    if use_eff:
-        # Read the data from the eff.txt file into a DataFrame
-        eff[m] = pd.read_csv(viz_dir/eff_fil[i], sep=',', header=None, names=['CPU Efficiency', 'Array ID', 'Job Wall-clock time', 'Node Number'])
-        # Extract only the values after the ':' character in the 'CPU Efficiency', 'Job Wall-clock time', and 'Node Number' columns
-        eff[m]['CPU Efficiency'] = eff[m]['CPU Efficiency'].str.split(':').str[1].astype(float)
-        eff[m]['Array ID'] = eff[m]['Array ID'].str.split(':').str[1].astype(int)   
-        eff[m]['Job Wall-clock time'] = eff[m]['Job Wall-clock time'].str.split(':').str[1].astype(float)
-        eff[m]['Node Number'] = eff[m]['Node Number'].str.split(':').str[1].astype(int)
 
 # Match the accummulated values to the correct HRU IDs in the shapefile
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
@@ -206,25 +188,6 @@ for plot_var in plot_vars:
     if do_rel: s_rel = summa[method_name[0]][plot_var].sel(stat=statr)
     for m in method_name:
         s = summa[m][plot_var].sel(stat=stat0)
-        if do_rel and plot_var != 'wallClockTime': s = s/s_rel
-
-        if plot_var == 'wallClockTime' and use_eff:
-            batch = np.floor(np.arange(len(s.indexes['hru'])) /nbatch_hrus)
-            #basin_num = np.arange(len(s.indexes['hru'])) % nbatch_hrus #not currently using
-            # Create a dictionary to store the values for each batch
-            efficiency = {}
-            # Iterate over the rows in the data DataFrame
-            for index, row in eff.iterrows():
-                # Extract the values from the row
-                batch0 = int(row['Array ID'])
-                eff0 = row['CPU Efficiency']
-                # Store the value for the current batch in the dictionary
-                efficiency[batch0] = eff0
-            # Select the values for the current batch using boolean indexing
-            eff_batch = np.array([efficiency[b] for b in batch])
-            #node_batch = np.array([node[b] for b in batch]) #not currently using
-            # Multiply the s values by efficiency
-            s = s*eff_batch
 
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
@@ -232,12 +195,6 @@ for plot_var in plot_vars:
         # Replace inf values with NaN in the s DataArray
         s = s.where(~np.isinf(s), np.nan)
 
-        if plot_var == 'scalarTotalET' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' : s = s*31557600 # make annual total
-            if stat =='maxe': s = s*3600 # make hourly max
-        if plot_var == 'averageRoutedRunoff' and not do_rel:
-            if stat =='rmse' or stat =='rmnz' : s = s*31557600*1000 # make annual total
-            if stat =='maxe': s = s*3600*1000 # make hourly max    
         bas_albers[plot_var+m] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
@@ -254,36 +211,17 @@ if plot_lakes:
 
 def run_loop(j,var,the_max):
     stat0 = stat
-    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
-        if var == 'wallClockTime': stat0 = 'mean'
-        statr = 'mean_ben'
-    if stat == 'rmnz' or stat == 'mnnz':
-        if var == 'wallClockTime': stat0 = 'mnnz'
-        statr = 'mnnz_ben'
-    if stat == 'maxe' or stat == 'amax': 
-        if var == 'wallClockTime': stat0 = 'amax'
-        statr = 'amax_ben'
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
     vmin,vmax = 0, the_max
-    if stat =='mean' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 700, the_max
-    if stat =='amax' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 1000, the_max
-    if (stat == 'mean' or stat == 'mnnz' or stat == 'amax') and var!='wallClockTime' and do_rel: vmin,vmax = 0.9, the_max
+    #if stat =='mean' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 700, the_max
+    #if stat =='amax' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 1000, the_max
+    #if var!='wallClockTime' and do_rel: vmin,vmax = 0.9, the_max
  
     norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
-    if stat =='kgem' and var!='wallClockTime':
-        my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno')) # copy the default cmap
-        my_cmap.set_bad(color='white') #nan color white
-        vmin,vmax = the_max, 1.0
-        norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=1.5)
 
-    if stat0 == 'rmse': stat_word = 'RMSE'
-    if stat0 == 'rmnz': stat_word = 'RMSE' # no 0s'
-    if stat0 == 'maxe': stat_word = 'max abs error'
-    if stat0 == 'kgem': stat_word = 'KGE"'
     if stat0 == 'mean': stat_word = 'mean'
-    if stat0 == 'mnnz': stat_word = 'mean' # no 0s'
     if stat0 == 'amax': stat_word = 'max'
 
     if statr == 'mean_ben': statr_word = 'mean'
@@ -311,10 +249,8 @@ def run_loop(j,var,the_max):
         sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
         sm._A = []
         cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
-        if stat == 'rmse' or stat == 'rmnz' or stat == 'mean' or stat == 'maxe' or stat == 'amax': cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
-        if stat == 'kgem': cbr.ax.set_ylabel(stat_word, labelpad=40, rotation=270)
-        #if do_rel and var!='wallClockTime': cbr.ax.set_ylabel(stat_word + ' rel to bench ' + statr_word, labelpad=40, rotation=270)
-        if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('relative '+ stat_word, labelpad=40, rotation=270)
+        cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
+        if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('scaled '+ stat_word, labelpad=40, rotation=270)
 
         #cbr.ax.yaxis.set_offset_position('right')
 

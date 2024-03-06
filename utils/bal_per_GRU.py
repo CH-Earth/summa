@@ -34,9 +34,6 @@ else:
     method_name=['be1','be1en','be1lu'] #maybe make this an argument
 
 # Simulation statistics file locations
-balssets= ['balanceCasNrg','balanceVegNrg','balanceSnowNrg','balanceSoilNrg','balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass','wallClockTime', 'numberFluxCalc',
-'scaledBalanceCasNrg','scaledBalanceVegNrg','scaledBalanceSnowNrg','scaledBalanceSoilNrg','scaledBalanceVegMass','scaledBalanceSnowMass','scaledBalanceSoilMass','scaledBalanceAqMass']
-
 viz_fil = method_name.copy()
 viz_fl2 = method_name.copy()
 for i, m in enumerate(method_name):
@@ -51,10 +48,10 @@ comp_vars2 =['balanceVegMass','balanceSnowMass','balanceSoilMass','balanceAqMass
 
 plt_titl =  ['(a) Canopy Air Space Energy Balance','(b) Vegetation Energy Balance','(c) Snow Energy Balance','(d) Soil Energy Balance', '(e) Wall Clock Time',]
 plt_titl2 = ['(a) Vegetation Mass Balance','(b) Snow Mass Balance','(c) Soil Mass Balance', '(d) Aquifer Mass Balance']
-leg_titl0 = ['$W~m^{-3}$','$W~m^{-3}$','$W~m^{-3}$','$W~m^{-3}$','$num$']
-leg_titl02 =['$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$','$kg~m^{-2}~s^{-1}$']
-leg_titl = ['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$','$s$']
-leg_titl2 =['$s^{-1}$','$s^{-1}$','$s^{-1}$','$s^{-1}$']
+leg_titl0 = ['$W~m^{-3}$'] * 4 +['$num$']
+leg_titl02 =['$kg~m^{-2}~s^{-1}$'] * 4
+leg_titl = ['$s^{-1}$'] * 4 +['$s$']
+leg_titl2 =['$s^{-1}$'] * 4
 
 #fig_fil = '{}_hrly_diff_scat_{}_{}_compressed.png'
 #fig_fil = fig_fil.format(','.join(method_name),','.join(settings),stat)
