@@ -26,7 +26,7 @@ testing = False
 if testing: 
     stat = 'mean'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
-    method_name=['be1cm','be1en','be1lu'] #maybe make this an argument
+    method_name=['be1'] #cm','be1en','be1lu'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
@@ -74,8 +74,9 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
 
     # Data
     for m in method_name:
-        s = np.fabs(summa[m][var].sel(stat=stat))
-        s0 = np.fabs(summa[m][comp].sel(stat=stat))
+        # Get the statistics, remove 9999 (should be nan, but just in case)
+        s = np.fabs(summa[m][var].sel(stat=stat)).where(lambda x: x != 9999)
+        s0 = np.fabs(summa[m][comp].sel(stat=stat)).where(lambda x: x != 9999)
 
         if var == 'wallClockTime':
             stat0_word = 'Number flux calculations'

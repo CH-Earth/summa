@@ -30,7 +30,7 @@ warnings.simplefilter("ignore") #deal with correlation warnings from variance 0 
 bench_name  = 'sundials_1en8'
 
 not_parallel = True # run as true with batch mode, or false, with `python timeseries_to_statistics.py sundials_1en6 1 1` for single batch, and `python timeseries_to_statistics.py sundials_1en6 2 1` to merge
-testing = True
+testing = False
 
 # which statistics to compute
 do_vars = False

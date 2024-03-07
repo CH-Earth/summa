@@ -1096,11 +1096,11 @@ subroutine coupled_em(&
           case (iname_snow)
             lyr_wght = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) / prog_data%var(iLookPROG%scalarSnowDepth)%dat(1)
             diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSnowNrg)%dat(1) + innerBalanceLayerNrg(iLayer)*lyr_wght
-            diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + innerBalanceLayerMass(iLayer)
+            diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) = diag_data%var(iLookDIAG%balanceSnowMass)%dat(1) + innerBalanceLayerMass(iLayer)*lyr_wght
           case (iname_soil)
             lyr_wght = prog_data%var(iLookPROG%mLayerDepth)%dat(iLayer) / sum( prog_data%var(iLookPROG%mLayerDepth)%dat(nSnow+1:nLayers) )
             diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1)  = diag_data%var(iLookDIAG%balanceSoilNrg)%dat(1) + innerBalanceLayerNrg(iLayer)*lyr_wght
-            diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)
+            diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) = diag_data%var(iLookDIAG%balanceSoilMass)%dat(1) + innerBalanceLayerMass(iLayer)*lyr_wght
         end select
       end do
       if(do_outer)then

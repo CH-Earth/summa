@@ -181,9 +181,9 @@ for plot_var in plot_vars:
         # Make absolute value norm, not all positive
         s = np.fabs(s) 
 
-        # Replace inf values with NaN in the s DataArray
-        s = s.where(~np.isinf(s), np.nan)
-
+        # Replace inf and 9999 values with NaN in the s DataArray
+        s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
+        
         hru_ids = [hru_id for hru_id in hru_ids_shp.values if hru_id in s.hru.values] #if some missing
         bas_albers[plot_var+m] = s.sel(hru=hru_ids)
         #bas_albers[plot_var+m] = s.sel(hru=hru_ids_shp.values)
