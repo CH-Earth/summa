@@ -74,8 +74,8 @@ def run_loop(i,var,comp,leg_t,leg_t0,plt_t):
 
     # Data
     for m in method_name:
-        s = summa[m][var].sel(stat=stat)
-        s0 = summa[m][comp].sel(stat=stat)
+        s = np.fabs(summa[m][var].sel(stat=stat))
+        s0 = np.fabs(summa[m][comp].sel(stat=stat))
 
         if var == 'wallClockTime':
             stat0_word = 'Number flux calculations'

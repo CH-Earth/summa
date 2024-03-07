@@ -51,12 +51,12 @@ plot_vars = settings.copy()
 plt_titl = ['Canopy Air Space Energy Balance','Vegetation Energy Balance','Snow Energy Balance','Soil Energy Balance','Vegetation Mass Balance','Snow Mass Balance','Soil Mass Balance','Aquifer Mass Balance', 'Wall Clock Time']
 leg_titl = ['$W~m^{-3}$'] * 4 +['$num$'] + ['$kg~m^{-2}~s^{-1}$'] * 4
 
-fig_fil= '_hrly_diff_stats_{}_compressed.png'
+fig_fil= '_hrly_balance_{}_compressed.png'
 if do_rel: 
-    fig_fil = '_hrly_diff_stats_{}_rel_compressed.png'
+    fig_fil = '_hrly_scaledBalance_{}_rel_compressed.png'
     for i in range(8):
         settings[i] = 'scaledB' + settings[i][1:]
-        plt_title[i] = 'Scaled ' + plt_title[i]
+        plt_titl[i] = 'Scaled ' + plt_titl[i]
     leg_titl = ['$s^{-1}$'] * 8 + ['$s$']
 
 if stat == 'mean': 
@@ -166,7 +166,6 @@ if plot_lakes:
 ## Pre-processing, map SUMMA sims to catchment shapes
 # Get the aggregated statistics of SUMMA simulations
 summa = {}
-eff = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fil[i])
@@ -175,17 +174,7 @@ for i, m in enumerate(method_name):
 hru_ids_shp = bas_albers[hm_hruid].astype(int) # hru order in shapefile
 for plot_var in plot_vars:
     stat0 = stat
-    if stat == 'rmse' or stat == 'kgem' or stat == 'mean': 
-        if plot_var == 'wallClockTime': stat0 = 'mean'
-        statr = 'mean_ben'
-    if stat == 'rmnz' or stat == 'mnnz':
-        if plot_var == 'wallClockTime': stat0 = 'mnnz'
-        statr = 'mnnz_ben'
-    if stat == 'maxe' or stat == 'amax': 
-        if plot_var == 'wallClockTime': stat0 = 'amax'
-        statr = 'amax_ben'
 
-    if do_rel: s_rel = summa[method_name[0]][plot_var].sel(stat=statr)
     for m in method_name:
         s = summa[m][plot_var].sel(stat=stat0)
 
@@ -195,7 +184,9 @@ for plot_var in plot_vars:
         # Replace inf values with NaN in the s DataArray
         s = s.where(~np.isinf(s), np.nan)
 
-        bas_albers[plot_var+m] = s.sel(hru=hru_ids_shp.values)
+        hru_ids = [hru_id for hru_id in hru_ids_shp.values if hru_id in s.hru.values] #if some missing
+        bas_albers[plot_var+m] = s.sel(hru=hru_ids)
+        #bas_albers[plot_var+m] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
@@ -223,10 +214,6 @@ def run_loop(j,var,the_max):
 
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'amax': stat_word = 'max'
-
-    if statr == 'mean_ben': statr_word = 'mean'
-    if statr == 'mnnz_ben': statr_word = 'mean' # no 0s'
-    if statr == 'amax_ben': statr_word = 'max'
 
     # colorbar axes
     f_x_mat = [0.46,0.96,0.46,0.96]
