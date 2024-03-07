@@ -194,7 +194,7 @@ subroutine varSubstep(&
   real(rkind)                        :: fluxVec(in_varSubstep % nSubset)       ! substep flux vector (mixed units)
   real(rkind)                        :: resSink(in_varSubstep % nSubset)       ! substep sink terms on the RHS of the state equation
   real(qp)                           :: resVec(in_varSubstep % nSubset)        ! substep residual vector
-  real(rkind)                        :: balance(in_varSubstep % nSubset)       ! substep balance 
+  real(rkind)                        :: balance(in_varSubstep % nSubset)       ! substep balance per second
   real(rkind)                        :: sumBalance(in_varSubstep % nSubset)    ! sum of substeps balance
   logical(lgt),parameter             :: computMassBalance = .true.             ! flag to compute the mass balance, will affect step length, default true
   logical(lgt),parameter             :: computNrgBalance = .true.              ! flag to compute the energy balance, will not effect solution but will not compute nrg balance if false (saves expense)
@@ -661,7 +661,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   ! balances, flags, and error control
   real(rkind)      ,intent(in)    :: fluxVec(:)                    ! flux vector (mixed units)
   real(qp)         ,intent(in)    :: resVec(:)    ! NOTE: qp       ! residual vector
-  real(rkind)      ,intent(inout) :: balance(:)                    ! balance of energy per domain
+  real(rkind)      ,intent(inout) :: balance(:)                    ! balance of energy per domain per second
   logical(lgt)     ,intent(out)   :: waterBalanceError             ! flag to denote that there is a water balance error
   logical(lgt)     ,intent(out)   :: nrgFluxModified               ! flag to denote that the energy fluxes were modified
   integer(i4b)     ,intent(out)   :: err                           ! error code
@@ -1015,19 +1015,19 @@ USE getVectorz_module,only:varExtract                              ! extract var
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
           ! compute energy balance, maybe should use to check for step reduction
-          if(ixCasNrg/=integerMissing) balance(ixCasNrg) = scalarCanairEnthalpyTrial - scalarCanairEnthalpy - fluxVec(ixCasNrg)*dt
-          if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHDelta - fluxVec(ixVegNrg)*dt
+          if(ixCasNrg/=integerMissing) balance(ixCasNrg) = (scalarCanairEnthalpyTrial - scalarCanairEnthalpy)/dt - fluxVec(ixCasNrg)
+          if(ixVegNrg/=integerMissing) balance(ixVegNrg) = scalarCanopyHDelta/dt - fluxVec(ixVegNrg)
           if(nSnowSoilNrg>0)then
             do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
-              balance(ixSnowSoilNrg(i)) = mLayerHDelta(i) - fluxVec(ixSnowSoilNrg(i))*dt
+              balance(ixSnowSoilNrg(i)) = mLayerHDelta(i)/dt - fluxVec(ixSnowSoilNrg(i))
             enddo
           endif
           ! This is equivalent to above if, and only if, ixNrgConserv.ne.closedForm
-          !!if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg)
-          !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = resVec(ixVegNrg)
+          !!if(ixCasNrg/=integerMissing) balance(ixCasNrg) = resVec(ixCasNrg)/dt
+          !if(ixVegNrg/=integerMissing) balance(ixVegNrg) = resVec(ixVegNrg)/dt
           !if(nSnowSoilNrg>0)then
           !  do concurrent (i=1:nLayers,ixSnowSoilNrg(i)/=integerMissing)
-          !    balance(ixSnowSoilNrg(i)) = resVec(ixSnowSoilNrg(i))
+          !    balance(ixSnowSoilNrg(i)) = resVec(ixSnowSoilNrg(i))/dt
           !  enddo
           !endif
 
@@ -1141,13 +1141,13 @@ USE getVectorz_module,only:varExtract                              ! extract var
 
           ! compute mass balance, maybe should use to check for step reduction
           ! resVec is the residual vector from the solver over dt
-          if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)
+          if(ixVegHyd/=integerMissing) balance(ixVegHyd) = resVec(ixVegHyd)/dt
           if(nSnowSoilHyd>0)then
             do concurrent (i=1:nLayers,ixSnowSoilHyd(i)/=integerMissing)
-              balance(ixSnowSoilHyd(i)) = resVec(ixSnowSoilHyd(i))
+              balance(ixSnowSoilHyd(i)) = resVec(ixSnowSoilHyd(i))/dt
             end do
           endif
-          if(ixAqWat/=integerMissing) balance(ixAqWat) = resVec(ixAqWat)
+          if(ixAqWat/=integerMissing) balance(ixAqWat) = resVec(ixAqWat)/dt
 
       end select
     else ! if not checking mass balance set balance to missing

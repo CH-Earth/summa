@@ -60,11 +60,11 @@ if do_rel:
     leg_titl = ['$s^{-1}$'] * 8 + ['$s$']
 
 if stat == 'mean': 
-    maxes = [1e-1,1e3,1e3,1e3]+[1e-9,1e-6,1e-6,1e-8] + [30]
-    if do_rel: maxes = [1e-2,1e0,1e-2,1e-3]+[1e-7,1e-7,1e-10,1e-7] + [3e-3]
+    maxes = [1e-4,1e0,1e0,1e0]+[1e-12,1e-9,1e-9,1e-11] + [30]
+    if do_rel: maxes = [1e-5,1e-3,1e-5,1e-6]+[1e-10,1e-10,1e-13,1e-10] + [3e-3]
 if stat == 'amax': 
-    maxes = [1e0,1e6,1e6,1e5]+[1e-8,1e-3,1e-4,1e-5] + [1e4]
-    if do_rel: maxes = [1e1,1e3,1e-1,1e1]+[1e-4,1e-5,1e-7,1e-3] + [1e0]
+    maxes = [1e-3,1e3,1e3,1e2]+[1e-11,1e-6,1e-7,1e-8] + [1e4]
+    if do_rel: maxes = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [1e0]
 
 # Get the albers shapes
 main = Path('/home/avanb/projects/rpp-kshook/wknoben/CWARHM_data/domain_NorthAmerica/shapefiles/albers_projection')
@@ -184,8 +184,12 @@ for plot_var in plot_vars:
         # Replace inf and 9999 values with NaN in the s DataArray
         s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
         
+        bas_albers[plot_var+m] = np.nan
         hru_ids = [hru_id for hru_id in hru_ids_shp.values if hru_id in s.hru.values] #if some missing
-        bas_albers[plot_var+m] = s.sel(hru=hru_ids)
+        s_new = xr.DataArray(bas_albers[plot_var+m].values, coords=[bas_albers.index], dims=["hru"])
+        hru_ids = [hru_id for hru_id in hru_ids if hru_id in s_new.hru.values] #if some missing in s_new
+        s_new.loc[hru_ids] = s.sel(hru=hru_ids).values
+        bas_albers[plot_var+m] = s_new.values
         #bas_albers[plot_var+m] = s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting

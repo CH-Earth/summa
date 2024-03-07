@@ -1125,7 +1125,7 @@ subroutine coupled_em(&
         meanCanopySublimation = meanCanopySublimation + sumCanopySublimation/data_step
         meanLatHeatCanopyEvap = meanLatHeatCanopyEvap + sumLatHeatCanopyEvap/data_step
         meanSenHeatCanopy     = meanSenHeatCanopy     + sumSenHeatCanopy/data_step
-        meanSoilCompress(:) = meanSoilCompress(:) + innerSoilCompress(:)*dt_wght
+        meanSoilCompress(:)   = meanSoilCompress(:)   + innerSoilCompress(:)*dt_wght
         meanBalance(1) = meanBalance(1) + innerBalance(1)*dt_wght
         meanBalance(2) = meanBalance(2) + innerBalance(2)*dt_wght
         meanBalance(3) = meanBalance(3) + innerBalance(3)*dt_wght
