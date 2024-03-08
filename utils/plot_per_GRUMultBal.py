@@ -236,7 +236,7 @@ def run_loop(j,var,the_max):
         # Custom colorbar
         cax = fig.add_axes([f_x,f_y,0.02,0.375])
         sm = matplotlib.cm.ScalarMappable(cmap=my_cmap, norm=norm)
-        sm._A = []
+        sm.set_array([])
         cbr = fig.colorbar(sm, cax=cax) #, extend='max') #if max extend can't get title right
         cbr.ax.set_ylabel(stat_word + ' [{}]'.format(leg_titl[j]), labelpad=40, rotation=270)
         if do_rel and var!='wallClockTime': cbr.ax.set_ylabel('scaled '+ stat_word, labelpad=40, rotation=270)
