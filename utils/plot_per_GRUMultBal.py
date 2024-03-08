@@ -61,7 +61,7 @@ if do_rel:
 
 if stat == 'mean': 
     maxes = [1e-4,1e0,1e0,1e0]+[1e-12,1e-9,1e-9,1e-11] + [30]
-    if do_rel: maxes = [1e-5,1e-3,1e-5,1e-6]+[1e-10,1e-10,1e-13,1e-10] + [3e-3]
+    if do_rel: maxes = [1e-5,1e-3,1e-6,1e-6]+[1e-10,1e-10,1e-13,1e-10] + [3e-3]
 if stat == 'amax': 
     maxes = [1e-3,1e3,1e3,1e2]+[1e-11,1e-6,1e-7,1e-8] + [1e4]
     if do_rel: maxes = [1e-2,1e0,1e-4,1e-2]+[1e-7,1e-8,1e-10,1e-6] + [1e0]
@@ -207,12 +207,12 @@ def run_loop(j,var,the_max):
 
     my_cmap = copy.copy(matplotlib.cm.get_cmap('inferno_r')) # copy the default cmap
     my_cmap.set_bad(color='white') #nan color white
-    vmin,vmax = 0, the_max
+    vmin,vmax = 1e-16, the_max
     #if stat =='mean' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 700, the_max
     #if stat =='amax' and var=='scalarTotalSoilWat' and not do_rel: vmin,vmax = 1000, the_max
     #if var!='wallClockTime' and do_rel: vmin,vmax = 0.9, the_max
  
-    norm=matplotlib.colors.PowerNorm(vmin=vmin,vmax=vmax,gamma=0.5)
+    norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     if stat0 == 'mean': stat_word = 'mean'
     if stat0 == 'amax': stat_word = 'max'
@@ -258,6 +258,10 @@ for i,(var,the_max) in enumerate(zip(plot_vars,maxes)):
         fig,axs = plt.subplots(2,2,figsize=(35,28))
     else:
         fig,axs = plt.subplots(2,2,figsize=(140,133))
+
+    # Remove the fourth subplot
+    fig.delaxes(axs[1, 1])
+
     fig.suptitle('{} Hourly Statistics'.format(plt_titl[i]), fontsize=40,y=1.05)
 
     plt.rcParams['patch.antialiased'] = False # Prevents an issue with plotting distortion along the 0 degree latitude and longitude lines
