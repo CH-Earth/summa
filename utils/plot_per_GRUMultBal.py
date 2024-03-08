@@ -184,13 +184,11 @@ for plot_var in plot_vars:
         # Replace inf and 9999 values with NaN in the s DataArray
         s = s.where(~np.isinf(s), np.nan).where(lambda x: x != 9999, np.nan)
         
+        # Create a new column in the shapefile for each method, and fill it with the statistics
         bas_albers[plot_var+m] = np.nan
-        hru_ids = [hru_id for hru_id in hru_ids_shp.values if hru_id in s.hru.values] #if some missing
-        s_new = xr.DataArray(bas_albers[plot_var+m].values, coords=[bas_albers.index], dims=["hru"])
-        hru_ids = [hru_id for hru_id in hru_ids if hru_id in s_new.hru.values] #if some missing in s_new
-        s_new.loc[hru_ids] = s.sel(hru=hru_ids).values
-        bas_albers[plot_var+m] = s_new.values
-        #bas_albers[plot_var+m] = s.sel(hru=hru_ids_shp.values)
+        hru_ind = [i for i, hru_id in enumerate(hru_ids_shp.values) if hru_id in s.hru.values] # if some missing
+        bas_albers.loc[hru_ind, plot_var+m] = s.sel(hru=hru_ids_shp.values[hru_ind]).values 
+        #bas_albers[plot_var+m]= s.sel(hru=hru_ids_shp.values)
 
 # Select lakes of a certain size for plotting
 if plot_lakes:
