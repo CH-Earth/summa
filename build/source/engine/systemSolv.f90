@@ -319,57 +319,7 @@ subroutine systemSolv(&
     ! (0) PRELIMINARIES...
     ! ********************
 
-    ! check
-    if(dt_cur < tinyStep)then
-      message=trim(message)//'dt is tiny'
-      err=20; return
-    endif
-
-    ! initialize the flags
-    tooMuchMelt        = .false.   ! too much melt
-    reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
-  
-    ! modify the groundwater representation for this single-column implementation
-    select case(ixSpatialGroundwater)
-      case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
-      case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
-      case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; return
-    end select ! (modify the groundwater representation for this single-column implementation)
-
-    ! allocate space for the model fluxes at the start of the time step
-    call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
-    if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-    ! allocate space for mLayerCmpress_sum at the start of the time step
-    if(ixNumericalMethod==ida)then
-      allocate( mLayerCmpress_sum(nSoil) )
-    else
-      allocate( mLayerCmpress_sum(0) ) ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
-    end if
-
-    ! allocate space for the baseflow derivatives
-    ! NOTE: needs allocation because only used when baseflow sinks are active
-    if(ixGroundwater==qbaseTopmodel)then
-      allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err)  ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
-    else
-      allocate(dBaseflow_dMatric(0,0),stat=err)          ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
-    end if
-    if(err/=0)then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return; end if
-
-    ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
-    ! (the type of matrix used to solve the linear system A.X=B)
-    if(local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux)then
-      nLeadDim=nState         ! length of the leading dimension
-      ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
-    else
-      nLeadDim=nBands         ! length of the leading dimension
-      ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
-    endif
-
-    ! initialize the model fluxes (some model fluxes are not computed in the iterations)
-    do iVar=1,size(flux_temp%var)
-      flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
-    end do
+    call initialize_systemSolv; if (return_flag) return
 
     ! -----
     ! * get scaling vectors...
@@ -694,6 +644,80 @@ subroutine systemSolv(&
   call finalize_systemSolv ! set untapped melt to zero and deallocate arrays
 
 contains
+
+ subroutine initialize_systemSolv
+  ! *** Initial setup operations for the systemSolv subroutine ***
+  associate(&
+   ixSpatialGroundwater => model_decisions(iLookDECISIONS%spatial_gw)%iDecision,& ! intent(in): [i4b] spatial representation of groundwater (local-column or single-basin)
+   ixGroundwater        => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
+  &)
+
+   ! check time step size
+   if (dt_cur < tinyStep) then
+     message=trim(message)//'dt is tiny'
+     err=20; return_flag=.true.; return
+   end if
+
+   ! initialize the flags
+   tooMuchMelt        = .false.   ! too much melt
+   reduceCoupledStep  = .false.   ! need to reduce the length of the coupled step
+  
+   ! modify the groundwater representation for this single-column implementation
+   select case(ixSpatialGroundwater)
+     case(singleBasin); local_ixGroundwater = noExplicit    ! force no explicit representation of groundwater at the local scale
+     case(localColumn); local_ixGroundwater = ixGroundwater ! go with the specified decision
+     case default; err=20; message=trim(message)//'unable to identify spatial representation of groundwater'; 
+      return_flag=.true.; return
+   end select 
+
+   call allocate_memory; if (return_flag) return 
+
+   ! identify the matrix solution method, using the full matrix can be slow in many-layered systems
+   ! (the type of matrix used to solve the linear system A.X=B)
+   if (local_ixGroundwater==qbaseTopmodel .or. scalarSolution .or. forceFullMatrix .or. computeVegFlux) then
+     nLeadDim=nState         ! length of the leading dimension
+     ixMatrix=ixFullMatrix   ! named variable to denote the full Jacobian matrix
+   else
+     nLeadDim=nBands         ! length of the leading dimension
+     ixMatrix=ixBandMatrix   ! named variable to denote the band-diagonal matrix
+   end if
+
+   ! initialize the model fluxes (some model fluxes are not computed in the iterations)
+   do iVar=1,size(flux_temp%var)
+     flux_init%var(iVar)%dat(:) = flux_temp%var(iVar)%dat(:)
+   end do
+  end associate
+ end subroutine initialize_systemSolv
+
+ subroutine allocate_memory
+  ! ** Allocate arrays used in systemSolv subroutine **
+  associate(&
+   nSnow             => indx_data%var(iLookINDEX%nSnow)%dat(1)              ,& ! intent(in): [i4b] number of snow layers
+   nSoil             => indx_data%var(iLookINDEX%nSoil)%dat(1)              ,& ! intent(in): [i4b] number of soil layers
+   ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision,& ! intent(in): [i4b] choice of numerical solver
+   ixGroundwater     => model_decisions(iLookDECISIONS%groundwatr)%iDecision & ! intent(in): [i4b] groundwater parameterization
+  &)
+   ! allocate space for the model fluxes at the start of the time step
+   call allocLocal(flux_meta(:),flux_init,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return_flag=.true.; return; end if
+
+   ! allocate space for mLayerCmpress_sum at the start of the time step
+   if (ixNumericalMethod==ida) then
+     allocate( mLayerCmpress_sum(nSoil) )
+   else
+     allocate( mLayerCmpress_sum(0) ) ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
+   end if
+
+   ! allocate space for the baseflow derivatives
+   ! NOTE: needs allocation because only used when baseflow sinks are active
+   if (ixGroundwater==qbaseTopmodel) then
+    allocate(dBaseflow_dMatric(nSoil,nSoil),stat=err) ! baseflow depends on total storage in the soil column, hence on matric head in every soil layer
+   else
+    allocate(dBaseflow_dMatric(0,0),stat=err)         ! allocate zero-length dimnensions to avoid passing around an unallocated matrix
+   end if
+   if (err/=0) then; err=20; message=trim(message)//'unable to allocate space for the baseflow derivatives'; return_flag=.true.; return; end if
+  end associate
+ end subroutine allocate_memory
 
  subroutine Newton_step
   ! ** Compute the Newton step using numerical recipes ** 
