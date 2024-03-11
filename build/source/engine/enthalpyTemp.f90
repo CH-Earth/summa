@@ -63,25 +63,25 @@ USE globalData,only:realMissing                    ! missing real number
 implicit none
 public::T2H_lookup_snow
 public::T2L_lookup_soil
-public::enthTemp2T_snow
-public::T2enthTemp_snow
+public::H2T_snow
+public::T2H_snow
 public::T2enthTemp
 public::enthTemp2H
 private::hyp_2F1_real
 
 ! define the snow look-up table used to compute temperature based on enthalpy
 integer(i4b),parameter               :: nlook=10001       ! number of elements in the lookup table
-real(rkind),dimension(nlook),public  :: E_lookup          ! enthalpy values (J kg-1)
+real(rkind),dimension(nlook),public  :: H_lookup          ! enthalpy values (J kg-1)
 real(rkind),dimension(nlook),public  :: T_lookup          ! temperature values (K)
 contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2H_lookup_snow: define a look-up table to compute temperature component of enthalpy based on temperature
-!                               appropriate when no dry mass, as in snow
+! public subroutine T2H_lookup_snow:: define a look-up table to mixture enthalpy based on temperature
+!                                    appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
 subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    parameter data structure
-                      err,message)
+                           err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
   USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
@@ -95,12 +95,12 @@ subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    pa
   ! declare local variables
   character(len=128)            :: cmessage             ! error message in downwind routine
   real(rkind),parameter         :: T_start=260.0_rkind  ! start temperature value where all liquid water is assumed frozen (K)
-  real(rkind)                   :: T_incr,E_incr        ! temperature/enthalpy increments
+  real(rkind)                   :: T_incr,H_incr        ! temperature/enthalpy increments
   real(rkind),dimension(nlook)  :: Tk                   ! initial temperature vector
-  real(rkind),dimension(nlook)  :: Ey                   ! initial enthalpy vector
+  real(rkind),dimension(nlook)  :: Hy                   ! initial enthalpy vector
   real(rkind),parameter         :: waterWght=1._rkind   ! weight applied to total water (kg m-3) --- cancels out
-  real(rkind),dimension(nlook)  :: E2                   ! 2nd derivatives of the interpolating function at tabulated points
-  real(rkind)                   :: dT                   ! derivative of temperature with enthalpy at E_lookup
+  real(rkind),dimension(nlook)  :: H2                   ! 2nd derivatives of the interpolating function at tabulated points
+  real(rkind)                   :: dT                   ! derivative of temperature with enthalpy at H_lookup
   integer(i4b)                  :: ilook                ! loop through lookup table
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
@@ -115,19 +115,19 @@ subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    pa
     ! ***** compute specific enthalpy (NOTE: J m-3 --> J kg-1) *****
 
     do ilook=1,nlook
-      Ey(ilook) = T2enthTemp_snow(Tk(ilook),waterWght,snowfrz_scale)/waterWght  ! (J m-3 --> J kg-1)
+      Hy(ilook) = T2H_snow(Tk(ilook),waterWght,snowfrz_scale)/waterWght  ! (J m-3 --> J kg-1)
     end do
 
     ! define the final enthalpy vector
-    E_incr   = (-Ey(1)) / real(nlook-1, kind(rkind))  ! enthalpy increment
-    E_lookup = arth(Ey(1),E_incr,nlook)
+    H_incr   = (-Hy(1)) / real(nlook-1, kind(rkind))  ! enthalpy increment
+    H_lookup = arth(Hy(1),H_incr,nlook)
 
     ! use cubic spline interpolation to obtain temperature values at the desired values of enthalpy
-    call spline(Ey,Tk,1.e30_rkind,1.e30_rkind,E2,err,cmessage)  ! get the second derivatives
+    call spline(Hy,Tk,1.e30_rkind,1.e30_rkind,H2,err,cmessage)  ! get the second derivatives
     if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
 
     do ilook=1,nlook
-      call splint(Ey,Tk,E2,E_lookup(ilook),T_lookup(ilook),dT,err,cmessage)
+      call splint(Hy,Tk,H2,H_lookup(ilook),T_lookup(ilook),dT,err,cmessage)
       if(err/=0) then; message=trim(message)//trim(cmessage); return; end if
     end do
 
@@ -137,12 +137,12 @@ subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    pa
 
 ! ************************************************************************************************************************
 ! public subroutine T2L_lookup_soil: define a look-up table to compute integral of soil Clapeyron equation liquid water
-!                               matric potential from temperature
+!                                    matric potential from temperature
 ! ************************************************************************************************************************
 subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    number of soil layers
-                      mpar_data,                     &  ! intent(in):    parameter data structure
-                      lookup_data,                   &  ! intent(inout): lookup table data structure
-                      err,message)
+                           mpar_data,                     &  ! intent(in):    parameter data structure
+                           lookup_data,                   &  ! intent(inout): lookup table data structure
+                           err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines                    
   USE nr_utility_module,only:arth                       ! use to build vectors with regular increments
@@ -282,15 +282,15 @@ end subroutine T2L_lookup_soil
 
 
 ! ************************************************************************************************************************
-! public subroutine enthTemp2T_snow: compute temperature based on specific temperature component of enthalpy 
-!                                    appropriate when no dry mass, as in snow
+! public subroutine H2T_snow: compute temperature based on specific temperature component of enthalpy 
+!                             appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
-subroutine enthTemp2T_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
+subroutine H2T_snow(Hy,BulkDenWater,fc_param,Tk,err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
-  real(rkind),intent(in)      :: Ey            ! total temperature component of enthalpy (J m-3)
+  real(rkind),intent(in)      :: Hy            ! total temperature component of enthalpy (J m-3)
   real(rkind),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
   real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
   real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
@@ -299,8 +299,8 @@ subroutine enthTemp2T_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
   ! declare local variables
   real(rkind),parameter       :: dx=1.d-8      ! finite difference increment (J kg-1)
   real(rkind),parameter       :: atol=1.d-12   ! convergence criteria (J kg-1)
-  real(rkind)                 :: E_spec        ! specific enthalpy (J kg-1)
-  real(rkind)                 :: E_incr        ! enthalpy increment
+  real(rkind)                 :: H_spec        ! specific enthalpy (J kg-1)
+  real(rkind)                 :: H_incr        ! enthalpy increment
   integer(i4b)                :: niter=15      ! maximum number of iterations
   integer(i4b)                :: iter          ! iteration index
   integer(i4b)                :: i0            ! position in lookup table
@@ -311,30 +311,30 @@ subroutine enthTemp2T_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
   real(rkind)                 :: dT            ! temperature increment
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="enthTemp2T_snow/"
+  err=0; message="H2T_snow/"
   ! convert input of total enthalpy (J m-3) to total specific enthalpy (J kg-1)
-  E_spec = Ey/BulkDenWater ! (NOTE: no soil)
+  H_spec = Hy/BulkDenWater ! (NOTE: no soil)
  
   ! ***** get initial guess and derivative assuming all water is frozen
-  if(E_spec<E_lookup(1))then ! process cases below the limit of the look-up table
+  if(H_spec<H_lookup(1))then ! process cases below the limit of the look-up table
     ! get temperature guess
-    Tg0 = (E_spec - E_lookup(1))/Cp_ice + T_lookup(1)
+    Tg0 = (H_spec - H_lookup(1))/Cp_ice + T_lookup(1)
     Tg1 = Tg0+dx
     ! compute enthalpy
-    Ht0 = T2enthTemp_snow(Tg0,1._rkind,fc_param)
-    Ht1 = T2enthTemp_snow(Tg1,1._rkind,fc_param)
+    Ht0 = T2H_snow(Tg0,1._rkind,fc_param)
+    Ht1 = T2H_snow(Tg1,1._rkind,fc_param)
     ! compute function evaluations
-    f0  = Ht0 - E_spec
-    f1  = Ht1 - E_spec
+    f0  = Ht0 - H_spec
+    f1  = Ht1 - H_spec
 
   ! ***** get initial guess and derivative from the look-up table
   else
     ! get enthalpy increment
-    E_incr = E_lookup(2) - E_lookup(1)
+    H_incr = H_lookup(2) - H_lookup(1)
     ! get position in lookup table
-    i0 = ceiling( (E_spec - E_lookup(1)) / E_incr, kind(i4b) )
+    i0 = ceiling( (H_spec - H_lookup(1)) / H_incr, kind(i4b) )
     ! check found the appropriate value in the look-up table
-    if(E_spec < E_lookup(i0) .or. E_spec > E_lookup(i0+1) .or. &
+    if(H_spec < H_lookup(i0) .or. H_spec > H_lookup(i0+1) .or. &
        i0 < 1 .or. i0+1 > nlook)then
      err=10; message=trim(message)//'problem finding appropriate value in lookup table'; return
     end if
@@ -342,8 +342,8 @@ subroutine enthTemp2T_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
     Tg0 = T_lookup(i0)
     Tg1 = T_lookup(i0+1)
     ! compute function evaluations
-    f0  = E_lookup(i0) - E_spec
-    f1  = E_lookup(i0+1) - E_spec
+    f0  = H_lookup(i0) - H_spec
+    f1  = H_lookup(i0+1) - H_spec
   end if
 
   ! compute initial derivative
@@ -361,8 +361,8 @@ subroutine enthTemp2T_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
     ! comute new value of Tg
     Tg1 = Tg0+dT
     ! get new function evaluation
-    Ht1 = T2enthTemp_snow(Tg1,1._rkind,fc_param)
-    f1  = Ht1 - E_spec
+    Ht1 = T2H_snow(Tg1,1._rkind,fc_param)
+    f1  = Ht1 - H_spec
     ! compute derivative if dT
     dh  = (f1 - f0)/dT
     ! compute change in T
@@ -378,22 +378,22 @@ subroutine enthTemp2T_snow(Ey,BulkDenWater,fc_param,Tk,err,message)
     ! and check for convergence
     if(iter==niter)then; err=20; message=trim(message)//"failedToConverge"; return; end if
   end do  ! (iteration loop)
-end subroutine enthTemp2T_snow
+end subroutine H2T_snow
 
 
 ! ************************************************************************************************************************
-! public function T2enthTemp_snow: compute temperature component of enthalpy based on temperature and mass (J m-3) for a
-!                                  layer only where the layer has no dry mass, as in snow
-!                            NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
+! public function T2H_snow: compute liquid and ice mixture enthalpy based on temperature and mass (J m-3) for a
+!                           layer only where the layer has no dry mass, as in snow
+!                           NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
 ! ************************************************************************************************************************
-function T2enthTemp_snow(Tk,BulkDenWater,fc_param)
+function T2H_snow(Tk,BulkDenWater,fc_param)
   ! -------------------------------------------------------------------------------------------------------------------------
   implicit none
   ! declare dummy variables
   real(rkind),intent(in)  :: Tk              ! layer temperature (K)
   real(rkind),intent(in)  :: BulkDenWater    ! bulk density of water (kg m-3)
   real(rkind),intent(in)  :: fc_param        ! freezing curve parameter (K-1)
-  real(rkind)             :: T2enthTemp_snow ! return value of the function, total specific enthalpy (J m-3)
+  real(rkind)             :: T2H_snow        ! return value of the function, total specific enthalpy (J m-3)
   ! declare local variables
   real(rkind)             :: frac_liq        ! fraction of liquid water
   real(rkind)             :: enthTempWater   ! temperature component of specific enthalpy for total water (liquid and ice) (J kg-1)
@@ -404,7 +404,7 @@ function T2enthTemp_snow(Tk,BulkDenWater,fc_param)
 
   ! compute the temperature component of enthalpy for total water (J kg-1)
   ! NOTE: negative enthalpy means require energy to bring to Tfreeze
-  if(Tk< Tfreeze) enthTempWater =   Cp_ice*(Tk - Tfreeze) - (Cp_water - Cp_ice)*(atan(fc_param*(Tfreeze - Tk))/fc_param)
+  if(Tk< Tfreeze) enthTempWater = Cp_ice*(Tk - Tfreeze) - (Cp_water - Cp_ice)*(atan(fc_param*(Tfreeze - Tk))/fc_param)
   if(Tk>=Tfreeze) enthTempWater = Cp_water*(Tk - Tfreeze)
 
   ! compute the mass component of enthalpy -- energy required to melt ice (J kg-1)
@@ -412,8 +412,8 @@ function T2enthTemp_snow(Tk,BulkDenWater,fc_param)
   enthMass = -LH_fus*(1._rkind - frac_liq)
 
   ! finally, compute the total enthalpy (J m-3)
-  T2enthTemp_snow = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
-end function T2enthTemp_snow
+  T2H_snow = BulkDenWater*(enthTempWater + enthMass) !+ BulkDenSoil*enthTempSoil
+end function T2H_snow
 
 
 ! ************************************************************************************************************************
