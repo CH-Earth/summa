@@ -540,11 +540,11 @@ subroutine eval8summa(&
                       err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
-    else if(ixNrgConserv == closedForm)then ! use residual as (Cp*DeltaTemp + Cm*DeltaTheta)_delta - (phase change)_delta
+    else ! use residual as (Cp*DeltaTemp + Cm*DeltaTheta)_delta - (phase change)_delta
       scalarCanairEnthalpyTrial = realMissing
       scalarCanopyEnthTempTrial = realMissing
       mLayerEnthTempTrial       = realMissing
-    endif !(choice of how compute heat capacity)
+    endif !(choice of how conservation of energy is implemented)
 
     ! save the number of flux calls per time step
     indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) = indx_data%var(iLookINDEX%numberFluxCalc)%dat(1) + 1
