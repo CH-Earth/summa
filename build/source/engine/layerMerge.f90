@@ -297,7 +297,7 @@ contains
  USE data_types,only:var_d                                     ! data structures with fixed dimension
  ! provide access to external modules
  USE snow_utils_module,only:fracliquid                         ! compute fraction of liquid water
- USE enthalpyTemp_module,only:H2T_snow,T2H_snow  ! convert temperature to enthalpy for a snow layer
+ USE enthalpyTemp_module,only:H2T_snow,T2H_snow                ! convert temperature to enthalpy for a snow layer
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures

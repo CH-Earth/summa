@@ -160,7 +160,7 @@ subroutine systemSolv(&
   USE allocspace_module,only:allocLocal                   ! allocate local data structures
   ! state vector and solver
   USE getVectorz_module,only:getScaling                   ! get the scaling vectors
-  USE enthalpyTemp_module,only:T2H_snow            ! convert temperature to enthalpy for a snow layer
+  USE enthalpyTemp_module,only:T2H_snow                   ! convert temperature to enthalpy for a snow layer
   USE enthalpyTemp_module,only:T2enthTemp                 ! compute enthalpy
 #ifdef SUNDIALS_ACTIVE
   USE tol4ida_module,only:popTol4ida                      ! populate tolerances
