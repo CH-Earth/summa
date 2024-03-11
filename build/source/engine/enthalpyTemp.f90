@@ -61,8 +61,8 @@ USE globalData,only:realMissing                    ! missing real number
 ! privacy
 
 implicit none
-public::T2E_lookup
-public::T2L_lookup
+public::T2H_lookup_snow
+public::T2L_lookup_soil
 public::enthTemp2T_snow
 public::T2enthTemp_snow
 public::T2enthTemp
@@ -77,10 +77,10 @@ contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2E_lookup: define a look-up table to compute temperature component of enthalpy based on temperature
+! public subroutine T2H_lookup_snow: define a look-up table to compute temperature component of enthalpy based on temperature
 !                               appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
-subroutine T2E_lookup(mpar_data,                     &  ! intent(in):    parameter data structure
+subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    parameter data structure
                       err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
@@ -104,7 +104,7 @@ subroutine T2E_lookup(mpar_data,                     &  ! intent(in):    paramet
   integer(i4b)                  :: ilook                ! loop through lookup table
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="T2E_lookup/"
+  err=0; message="T2H_lookup_snow/"
 
   ! associate
   associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
@@ -133,13 +133,13 @@ subroutine T2E_lookup(mpar_data,                     &  ! intent(in):    paramet
 
   end associate
 
- end subroutine T2E_lookup
+ end subroutine T2H_lookup_snow
 
 ! ************************************************************************************************************************
-! public subroutine T2L_lookup: define a look-up table to compute integral of soil Clapeyron equation liquid water
+! public subroutine T2L_lookup_soil: define a look-up table to compute integral of soil Clapeyron equation liquid water
 !                               matric potential from temperature
 ! ************************************************************************************************************************
-subroutine T2L_lookup(nSoil,                         &  ! intent(in):    number of soil layers
+subroutine T2L_lookup_soil(nSoil,                         &  ! intent(in):    number of soil layers
                       mpar_data,                     &  ! intent(in):    parameter data structure
                       lookup_data,                   &  ! intent(inout): lookup table data structure
                       err,message)
@@ -175,7 +175,7 @@ subroutine T2L_lookup(nSoil,                         &  ! intent(in):    number 
   real(rkind)                   :: matricHead           ! matric head (m)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="T2L_lookup/"
+  err=0; message="T2L_lookup_soil/"
 
   ! get the values of temperature for the lookup table
   xIncr = 1._rkind/real(nLook-1, kind(rkind))
@@ -278,7 +278,7 @@ subroutine T2L_lookup(nSoil,                         &  ! intent(in):    number 
     end associate
 
   end do  ! (looping through soil layers)
-end subroutine T2L_lookup
+end subroutine T2L_lookup_soil
 
 
 ! ************************************************************************************************************************
