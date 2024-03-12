@@ -144,7 +144,7 @@ subroutine coupled_em(&
   USE tempAdjust_module,only:tempAdjust           ! adjust snow temperature associated with new snowfall
   USE var_derive_module,only:calcHeight           ! module to calculate height at layer interfaces and layer mid-point
   USE computSnowDepth_module,only:computSnowDepth ! compute snow depth
-  USE enthalpyTemp_module,only:enthTemp2H         ! add phase change terms to delta temperature component of enthalpy
+  USE enthalpyTemp_module,only:enthTemp2enthalpy  ! add phase change terms to delta temperature component of enthalpy
 
   implicit none
 
@@ -1474,7 +1474,7 @@ subroutine coupled_em(&
     mLayerEnthalpy       = mLayerEnthTemp
 
     ! compute enthalpy for current values
-    call enthTemp2H(&
+    call enthTemp2enthalpy(&
                     ! input: data structures
                     diag_data,             & ! intent(in):    model diagnostic variables for a local HRU
                     indx_data,             & ! intent(in):    model indices
