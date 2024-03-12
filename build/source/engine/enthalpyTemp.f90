@@ -78,7 +78,7 @@ contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2H_lookup_snow:: define a look-up table to mixture enthalpy based on temperature
+! public subroutine T2H_lookup_snow: define a look-up table to mixture enthalpy based on temperature
 !                                    appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
 subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    parameter data structure
@@ -284,7 +284,7 @@ end subroutine T2L_lookup_soil
 
 ! ************************************************************************************************************************
 ! public subroutine enthalpy2T_snow: compute temperature based on specific temperature component of enthalpy 
-!                             appropriate when no dry mass, as in snow
+!                                    appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
 subroutine enthalpy2T_snow(Hy,BulkDenWater,fc_param,Tk,err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -384,8 +384,8 @@ end subroutine enthalpy2T_snow
 
 ! ************************************************************************************************************************
 ! public function T2enthalpy_snow: compute liquid and ice mixture enthalpy based on temperature and mass (J m-3) for a
-!                           layer only where the layer has no dry mass, as in snow
-!                           NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
+!                                  layer only where the layer has no dry mass, as in snow
+!                                  NOTE: enthalpy is a relative value, defined as zero at Tfreeze where all water is liquid
 ! ************************************************************************************************************************
 function T2enthalpy_snow(Tk,BulkDenWater,fc_param)
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -976,18 +976,19 @@ subroutine enthalpy2T(&
                 ! Taylor-Maclaurin series for arctan
                 integral = (1._rkind/snowfrz_scale) * (snowfrz_scale * diffT - (snowfrz_scale * diffT)**3_i4b/3._rkind + (snowfrz_scale * diffT)**5_i4b/5._rkind - (snowfrz_scale * diffT)**7_i4b/7._rkind + (snowfrz_scale * diffT)**9_i4b/9._rkind)
               
+                fLiq =   1._rkind / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )
 
                 enthLiq = Cp_water * scalarCanopyWatTrial * integral / canopyDepth
                 enthIce = Cp_ice * scalarCanopyWatTrial * ( diffT - integral ) / canopyDepth
               endif
 
               ! diffT>=0._rkind 
-              scalarCanopyTempTrial = scalarCanopyEnthTemp * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial ) + Tfreeze
-              scalarCanopyTempPrime = scalarCanopyEnthTempPrime * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )
+              scalarCanopyTempTrial = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial ) + Tfreeze
+              scalarCanopyTempPrime = scalarCanopyEnthalpyPrime * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )
 
               ! diffT<0._rkind        
               scalarCanopyEnthalpy * canopyDepth = (specificHeatVeg * maxMassVegetation + Cp_ice * scalarCanopyWatTrial )* diffT + (Cp_water - Cp_ice)* scalarCanopyWatTrial * integral 
-                                                   + LH_fus * scalarCanopyIce
+                                                   + LH_fus * (1._rkind - fLiq) * scalarCanopyWatTrial
 
             end associate vegVars
 
