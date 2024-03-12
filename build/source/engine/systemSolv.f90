@@ -267,54 +267,19 @@ subroutine systemSolv(&
   ! flags
   logical(lgt) :: return_flag ! flag for handling systemSolv returns trigerred from internal subroutines 
   logical(lgt) :: exit_flag   ! flag for handling loop exit statements trigerred from internal subroutines 
-  ! ---------------------------------------------------------------------------------------
-  ! point to variables in the data structures
-  ! ---------------------------------------------------------------------------------------
+  ! -----------------------------------------------------------------------------------------------------------
+
+  call initialize_systemSolv; if (return_flag) return ! initialize variables and allocate arrays -- return if error
+
+  call initial_function_evaluations; if (return_flag) return ! initial function evaluations -- return if error
+
   globalVars: associate(&
     ! model decisions
     ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical solver
-    ixHowHeatCap            => model_decisions(iLookDECISIONS%howHeatCap)%iDecision   ,& ! intent(in):    [i4b]    heat capacity computation, with or without enthalpy
-    ixGroundwater           => model_decisions(iLookDECISIONS%groundwatr)%iDecision   ,& ! intent(in):    [i4b]    groundwater parameterization
-    ixSpatialGroundwater    => model_decisions(iLookDECISIONS%spatial_gw)%iDecision   ,& ! intent(in):    [i4b]    spatial representation of groundwater (local-column or single-basin)
-    ! enthalpy
-    scalarCanairEnthalpy    => diag_data%var(iLookDIAG%scalarCanairEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the canopy air space (J m-3)
-    scalarCanopyEnthalpy    => diag_data%var(iLookDIAG%scalarCanopyEnthalpy)%dat(1)   ,&  ! intent(out): [dp]    enthalpy of the vegetation canopy (J m-3)
-    mLayerEnthalpy          => diag_data%var(iLookDIAG%mLayerEnthalpy)%dat            ,&  ! intent(out): [dp(:)] enthalpy of the snow+soil layers (J m-3)
-    ! derivatives, diagnostic for enthalpy
-    dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(in): [dp]    derivative of volumetric liquid water content w.r.t. temperature
-    dVolTot_dPsi0           => deriv_data%var(iLookDERIV%dVolTot_dPsi0)%dat           ,& ! intent(in): [dp(:)] derivative in total water content w.r.t. total water matric potential
-    mLayerdTheta_dTk        => deriv_data%var(iLookDERIV%mLayerdTheta_dTk)%dat        ,& ! intent(in): [dp(:)] derivative of volumetric liquid water content w.r.t. temperature
-    scalarFracLiqVeg        => diag_data%var(iLookDIAG%scalarFracLiqVeg)%dat(1)       ,& ! intent(in): [dp]    fraction of liquid water on vegetation (-)
-    mLayerFracLiqSnow       => diag_data%var(iLookDIAG%mLayerFracLiqSnow)%dat         ,& ! intent(in): [dp(:)] fraction of liquid water in each snow layer (-)
-    ! model state variables
-    scalarCanairTemp        => prog_data%var(iLookPROG%scalarCanairTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the canopy air space (K)
-    scalarCanopyTemp        => prog_data%var(iLookPROG%scalarCanopyTemp)%dat(1)       ,& ! intent(in): [dp]     temperature of the vegetation canopy (K)
-    scalarCanopyIce         => prog_data%var(iLookPROG%scalarCanopyIce)%dat(1)        ,& ! intent(in): [dp]     mass of ice on the vegetation canopy (kg m-2)
-    scalarCanopyWat         => prog_data%var(iLookPROG%scalarCanopyWat)%dat(1)        ,& ! intent(in): [dp]     mass of total water on the vegetation canopy (kg m-2)
-    ! model state variables (snow and soil domains)
-    mLayerTemp              => prog_data%var(iLookPROG%mLayerTemp)%dat                ,& ! intent(in): [dp(:)]  temperature of each snow/soil layer (K)
-    mLayerVolFracIce        => prog_data%var(iLookPROG%mLayerVolFracIce)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of ice (-)
-    mLayerVolFracLiq        => prog_data%var(iLookPROG%mLayerVolFracLiq)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of liquid water (-)
-    mLayerVolFracWat        => prog_data%var(iLookPROG%mLayerVolFracWat)%dat          ,& ! intent(in): [dp(:)]  volumetric fraction of total water (-)
-    mLayerMatricHead        => prog_data%var(iLookPROG%mLayerMatricHead)%dat          ,& ! intent(inout): [dp(:)]  matric head (m)
-    ! check the need to merge snow layers
-    snowfrz_scale           => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)         ,& ! intent(in):    [dp]     scaling parameter for the snow freezing curve (K-1)
-    ! mapping from full domain to the sub-domain
-    ixMapFull2Subset        => indx_data%var(iLookINDEX%ixMapFull2Subset)%dat         ,& ! intent(in):    [i4b]    mapping of full state vector to the state subset
-    ixControlVolume         => indx_data%var(iLookINDEX%ixControlVolume)%dat          ,& ! intent(in):    [i4b]    index of control volume for different domains (veg, snow, soil)
-    ! type of state and domain for a given variable
-    ixStateType_subset      => indx_data%var(iLookINDEX%ixStateType_subset)%dat       ,& ! intent(in):    [i4b(:)] [state subset] type of desired model state variables
-    ixDomainType_subset     => indx_data%var(iLookINDEX%ixDomainType_subset)%dat      ,& ! intent(in):    [i4b(:)] [state subset] domain for desired model state variables
     ! layer geometry
     nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
     nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                  & ! intent(in):    [i4b]    number of soil layers
     )
-    ! ---------------------------------------------------------------------------------------
-
-    call initialize_systemSolv; if (return_flag) return ! initialize variables and allocate arrays -- return if error
-
-    call initial_function_evaluations; if (return_flag) return ! initial function evaluations -- retrun if error
-
 
     ! **************************
     ! * Solving the System
@@ -424,7 +389,7 @@ subroutine systemSolv(&
 
       case(kinsol)
         !---------------------------
-        ! * solving F(y) = 0 by Backward Euler with KINSOL, y is the state vector 
+        ! * solving F(y) = 0 from Backward Euler with KINSOL, y is the state vector 
         !---------------------------
         ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
         call summaSolve4kinsol(&
@@ -479,26 +444,7 @@ subroutine systemSolv(&
 
 #endif
       case(numrec)
-        ! define maximum number of iterations
-        maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
-
-        ! correct the number of iterations
-        localMaxIter = merge(scalarMaxIter, maxIter, scalarSolution)
-
-        !---------------------------
-        ! * solving F(y) = 0 by Backward Euler with free numerical recipes routines, y is the state vector 
-        !---------------------------
-        ! iterate and update trial state vector, fluxes, and derivatives
-        exit_flag=.false. ! initialize exit flag
-        do iter=1,localMaxIter ! begin Newton iterations
-          niter = iter+1                ! # of iterations -- +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
-          call Newton_step; if (return_flag) return ! compute Newton step -- return if error                
-          call check_Newton_convergence ! check current Newton step for convergence
-          if (exit_flag) exit           ! exit loop if convereged
-          if (return_flag) return       ! return if error
-        end do 
-
-        if (post_massCons) call enforce_mass_conservation ! enforce mass conservation if desired
+        call Newton_iterations_numrec; if (return_flag) return ! Newton iterations using numerical recipes -- return if error
     end select
 
   end associate globalVars ! end associate statements
@@ -817,6 +763,31 @@ contains
    end if
   end associate layerVars
  end subroutine enforce_mass_conservation
+
+ subroutine Newton_iterations_numrec
+  ! ** Compute the backward Euler solution using Newton iterations from numerical recipes **
+
+  ! define maximum number of iterations
+  maxiter = nint(mpar_data%var(iLookPARAM%maxiter)%dat(1))
+
+  ! correct the number of iterations
+  localMaxIter = merge(scalarMaxIter, maxIter, scalarSolution)
+
+  !---------------------------
+  ! * solving F(y) = 0 from Backward Euler with free numerical recipes routines, y is the state vector 
+  !---------------------------
+  ! iterate and update trial state vector, fluxes, and derivatives
+  exit_flag=.false. ! initialize exit flag
+  do iter=1,localMaxIter ! begin Newton iterations
+    niter = iter+1                ! # of iterations -- +1 because xFluxResid was moved outside the iteration loop (for backwards compatibility)
+    call Newton_step; if (return_flag) return ! compute Newton step -- return if error                
+    call check_Newton_convergence ! check current Newton step for convergence
+    if (exit_flag) exit           ! exit loop if convereged
+    if (return_flag) return       ! return if error
+  end do 
+
+  if (post_massCons) call enforce_mass_conservation ! enforce mass conservation if desired
+ end subroutine Newton_iterations_numrec
 
  subroutine finalize_systemSolv
   ! set untapped melt energy to zero
