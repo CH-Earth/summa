@@ -597,11 +597,11 @@ subroutine T2enthTemp(&
           case(iname_soil)
             ! make association to variables for soil
             soilVars: associate(&
-              soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(ixControlIndex)      , & ! intrinsic soil density             (kg m-3)
-              theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(ixControlIndex)           , & ! soil porosity                      (-)
-              theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(ixControlIndex)           , & ! volumetric residual water content  (-)
-              vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(ixControlIndex)           , & ! van Genuchten "alpha" parameter    (m-1)
-              vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)                 & ! van Genuchten "n" parameter        (-)
+              soil_dens_intr => mpar_data%var(iLookPARAM%soil_dens_intr)%dat(ixControlIndex),      & ! intrinsic soil density             (kg m-3)
+              theta_sat      => mpar_data%var(iLookPARAM%theta_sat)%dat(ixControlIndex),           & ! soil porosity                      (-)
+              theta_res      => mpar_data%var(iLookPARAM%theta_res)%dat(ixControlIndex),           & ! volumetric residual water content  (-)
+              vGn_alpha      => mpar_data%var(iLookPARAM%vGn_alpha)%dat(ixControlIndex),           & ! van Genuchten "alpha" parameter    (m-1)
+              vGn_n          => mpar_data%var(iLookPARAM%vGn_n)%dat(ixControlIndex)                & ! van Genuchten "n" parameter        (-)
               ) ! end associate statement
               
               ! diagnostic variables
@@ -627,9 +627,9 @@ subroutine T2enthTemp(&
                 if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
                   ! make associate to the the lookup table
                   lookVars: associate(&
-                    Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup  , & ! temperature (K)
-                    Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup   , & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
-                    L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup         & ! second derivative of the interpolating function
+                    Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup,  & ! temperature (K)
+                    Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup,   & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
+                    L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup        & ! second derivative of the interpolating function
                     ) ! end associate statement
 
                     ! get the lower limit of the integral
