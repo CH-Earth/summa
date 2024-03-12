@@ -120,6 +120,7 @@ subroutine eval8summaWithPrime(&
   USE computHeatCap_module, only:computStatMult             ! recompute state multiplier
   USE computResidWithPrime_module,only:computResidWithPrime ! compute residuals given a state vector
   USE computThermConduct_module,only:computThermConduct     ! recompute thermal conductivity and derivatives
+  USE enthalpyTemp_module,only:enthalpy2T                   ! compute temperature from enthalpy and water content
   implicit none
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! --------------------------------------------------------------------------------------------------------------------------------
@@ -190,14 +191,14 @@ subroutine eval8summaWithPrime(&
   ! state variables
   real(rkind)                     :: scalarCanairTempTrial       ! trial value for temperature of the canopy air space (K)
   real(rkind)                     :: scalarCanairEnthalpyTrial   ! trial value for enthalpy of the canopy air space (J m-3)
-  real(rkind)                     :: scalarCanopyEnthTempTrial   ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind)                     :: scalarCanopyEnthalpyTrial   ! trial value for enthalpy of the vegetation canopy (J m-3)
   real(rkind)                     :: scalarCanopyLiqTrial        ! trial value for liquid water storage in the canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial        ! trial value for ice storage in the canopy (kg m-2)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqTrial    ! trial value for liquid water matric potential (m)
-  real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial         ! trial vector of temperature component of enthalpy of each snow and soil layer (J m-3)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial       ! trial vector for volumetric liquid water content (-)
-  real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial       ! trial vector for volumetric ice content (-)
-  real(rkind)                     :: scalarAquiferStorageTrial   ! trial value of storage of water in the aquifer (m)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial         ! trial vector of enthalpy of each snow and soil layer (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial       ! trial vector of volumetric liquid water content (-)
+  real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial       ! trial vector of volumetric ice content (-)
+  real(rkind)                     :: scalarAquiferStorageTrial   ! trial value for storage of water in the aquifer (m)
   real(rkind)                     :: scalarCanopyLiqPrime        ! prime value for liquid water storage in the canopy (kg m-2 s-1)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime       ! prime vector of volumetric liquid water content (s-1)
   real(rkind)                     :: scalarAquiferStoragePrime   ! prime value of storage of water in the aquifer (m s-1)
@@ -310,12 +311,12 @@ subroutine eval8summaWithPrime(&
     ! Placeholder: if we decide to use splitting, we need to pass all the previous values of the state variables
     scalarCanairEnthalpyTrial = realMissing
     scalarCanairTempTrial     = realMissing
-    scalarCanopyEnthTempTrial = realMissing
+    scalarCanopyEnthalpyTrial = realMissing
     scalarCanopyTempTrial     = scalarCanopyTempPrev
     scalarCanopyWatTrial      = realMissing
     scalarCanopyLiqTrial      = realMissing
     scalarCanopyIceTrial      = realMissing
-    mLayerEnthTempTrial       = realMissing
+    mLayerEnthalpyTrial       = realMissing
     mLayerTempTrial           = mLayerTempPrev
     mLayerVolFracWatTrial     = realMissing
     mLayerVolFracLiqTrial     = realMissing
@@ -334,12 +335,12 @@ subroutine eval8summaWithPrime(&
                     ! output: variables for the vegetation canopy
                     scalarCanairEnthalpyTrial,& ! intent(inout): trial value of enthalpy of the canopy air space (J m-3)
                     scalarCanairTempTrial,    & ! intent(inout): trial value of canopy air temperature (K)
-                    scalarCanopyEnthTempTrial,& ! intent(inout): trial value of temperature component of enthalpy of the vegetation canopy (J m-3)
+                    scalarCanopyEnthalpyTrial,& ! intent(inout): trial value of enthalpy of the vegetation canopy (J m-3)
                     scalarCanopyTempTrial,    & ! intent(inout): trial value of canopy temperature (K)
                     scalarCanopyWatTrial,     & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqTrial,     & ! intent(inout): trial value of canopy liquid water (kg m-2)
                     ! output: variables for the snow-soil domain
-                    mLayerEnthTempTrial,      & ! intent(inout): trial vector of temperature component of enthalpy of each snow and soil layer (J m-3)
+                    mLayerEnthalpyTrial,      & ! intent(inout): trial vector of enthalpy of each snow and soil layer (J m-3)
                     mLayerTempTrial,          & ! intent(inout): trial vector of layer temperature (K)
                     mLayerVolFracWatTrial,    & ! intent(inout): trial vector of volumetric total water content (-)
                     mLayerVolFracLiqTrial,    & ! intent(inout): trial vector of volumetric liquid water content (-)
@@ -354,12 +355,12 @@ subroutine eval8summaWithPrime(&
     ! Placeholder: if we decide to use splitting, we need to pass all the previous values of the state variables
     scalarCanairEnthalpyPrime = realMissing
     scalarCanairTempPrime     = realMissing
-    scalarCanopyEnthTempPrime = realMissing
+    scalarCanopyEnthalpyPrime = realMissing
     scalarCanopyTempPrime     = realMissing
     scalarCanopyWatPrime      = realMissing
     scalarCanopyLiqPrime      = realMissing
     scalarCanopyIcePrime      = realMissing
-    mLayerEnthTempPrime       = realMissing
+    mLayerEnthalpyPrime       = realMissing
     mLayerTempPrime           = realMissing
     mLayerVolFracWatPrime     = realMissing
     mLayerVolFracLiqPrime     = realMissing
@@ -377,12 +378,12 @@ subroutine eval8summaWithPrime(&
                   ! output: variables for the vegetation canopy
                   scalarCanairEnthalpyPrime, & ! intent(inout): derivative of enthalpy of the canopy air space (W m-3)
                   scalarCanairTempPrime,     & ! intent(inout): derivative of canopy air temperature (K s-1)
-                  scalarCanopyEnthTempPrime, & ! intent(inout): derivative of temperature component of enthalpy of the vegetation canopy (W m-3)
+                  scalarCanopyEnthalpyPrime, & ! intent(inout): derivative of enthalpy of the vegetation canopy (W m-3)
                   scalarCanopyTempPrime,     & ! intent(inout): derivative of canopy temperature (K s-1)
                   scalarCanopyWatPrime,      & ! intent(inout): derivative of canopy total water (kg m-2 s-1)
                   scalarCanopyLiqPrime,      & ! intent(inout): derivative of canopy liquid water (kg m-2 s-1)
                   ! output: variables for the snow-soil domain
-                  mLayerEnthTempPrime,       & ! intent(inout): derivative of temperature component of enthalpy of each snow and soil layer (W m-3)
+                  mLayerEnthalpyPrime,       & ! intent(inout): derivative of enthalpy of each snow and soil layer (W m-3)
                   mLayerTempPrime,           & ! intent(inout): derivative of layer temperature (K s-1)
                   mLayerVolFracWatPrime,     & ! intent(inout): derivative of volumetric total water content (s-1)
                   mLayerVolFracLiqPrime,     & ! intent(inout): derivative of volumetric liquid water content (s-1)
@@ -398,37 +399,37 @@ subroutine eval8summaWithPrime(&
 
       NEED TO UPDATE WATER STATE FIRST TO MAKE SURE HAVE ALL THESE WATER STATE VARIABLES, SEE updateVarsWithPrime
       ! compute temperature component of enthalpy
-      call enthTemp2T(&
-                      ixNrgConserv==enthalpyFDlu, & ! intent(in):  flag to use the lookup table for soil enthalpy
-                       ! input: data structures
-                      diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
-                      mpar_data,                  & ! intent(in):  parameter data structure
-                      indx_data,                  & ! intent(in):  model indices
-                      lookup_data,                & ! intent(in):  lookup table data structure
-                      ! input: enthalpy state variables
-                      scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthTempTrial,  & ! intent(in):  trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthTempTrial,        & ! intent(in):  trial vector of temperature component of enthalpy of each snow+soil layer (J m-3)
-                      scalarCanairEnthalpyPrime,  & ! intent(in):  derivative of temperature component of enthalpy of the vegetation canopy (W m-3)
-                      scalarCanopyEnthTempPrime,  & ! intent(in):  derivative of temperature component of enthalpy of the vegetation canopy (W m-3)
-                      mLayerEnthTempPrime,        & ! intent(in):  derivative of temperature component of enthalpy of each snow+soil layer (W m-3)
-                      ! input: water state variables
-                      scalarCanopyWatTrial,       & ! intent(in):  trial value for canopy total water (kg m-2)
-                      mLayerVolFracWatTrial,      & ! intent(in):  trial vector of volumetric total water content (-)
-                      mLayerMatricHeadTrial,      & ! intent(in):  trial vector of total water matric potential (m)
-                      scalarCanopyWatPrime,       & ! intent(in):  derivative of canopy total water (kg m-2 s-1)
-                      mLayerVolFracWatPrime,      & ! intent(in):  derivative of volumetric total water content (s-1)
-                      mLayerMatricHeadPrime,      & ! intent(in):  derivative of total water matric potential (m s-1)
-                      ! output: temperature for the vegetation canopy
-                      scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
-                      scalarCanopyTempTrial,      & ! intent(out): trial value for canopy temperature (K)
-                      scalarCanairTempPrime,      & ! intent(out): derivative of canopy air temperature (K s-1)
-                      scalarCanopyTempPrime,      & ! intent(out): derivative of canopy temperature (K s-1)
-                      ! output: temperature for the snow-soil domain
-                      mLayerTempTrial,            & ! intent(out): trial vector of layer temperature (K)
-                      mLayerTempPrime,            & ! intent(out): derivative of layer temperature (K s-1)
-                      ! output: error control
-                      err,cmessage)                ! intent(out): error control
+      call enthalpy2T(&
+                   ixNrgConserv==enthalpyFDlu, & ! intent(in):  flag to use the lookup table for soil enthalpy
+                    ! input: data structures
+                   diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
+                   mpar_data,                  & ! intent(in):  parameter data structure
+                   indx_data,                  & ! intent(in):  model indices
+                   lookup_data,                & ! intent(in):  lookup table data structure
+                   ! input: enthalpy state variables
+                   scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
+                   scalarCanopyEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the vegetation canopy (J m-3)
+                   mLayerEnthalpyTrial,        & ! intent(in):  trial vector of enthalpy of each snow+soil layer (J m-3)
+                   scalarCanairEnthalpyPrime,  & ! intent(in):  derivative of enthalpy of the vegetation canopy (W m-3)
+                   scalarCanopyEnthalpyPrime,  & ! intent(in):  derivative of enthalpy of the vegetation canopy (W m-3)
+                   mLayerEnthalpyPrime,        & ! intent(in):  derivative of enthalpy of each snow+soil layer (W m-3)
+                   ! input: water state variables
+                   scalarCanopyWatTrial,       & ! intent(in):  trial value for canopy total water (kg m-2)
+                   mLayerVolFracWatTrial,      & ! intent(in):  trial vector of volumetric total water content (-)
+                   mLayerMatricHeadTrial,      & ! intent(in):  trial vector of total water matric potential (m)
+                   scalarCanopyWatPrime,       & ! intent(in):  derivative of canopy total water (kg m-2 s-1)
+                   mLayerVolFracWatPrime,      & ! intent(in):  derivative of volumetric total water content (s-1)
+                   mLayerMatricHeadPrime,      & ! intent(in):  derivative of total water matric potential (m s-1)
+                   ! output: temperature for the vegetation canopy
+                   scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
+                   scalarCanopyTempTrial,      & ! intent(out): trial value for canopy temperature (K)
+                   scalarCanairTempPrime,      & ! intent(out): derivative of canopy air temperature (K s-1)
+                   scalarCanopyTempPrime,      & ! intent(out): derivative of canopy temperature (K s-1)
+                   ! output: temperature for the snow-soil domain
+                   mLayerTempTrial,            & ! intent(out): trial vector of layer temperature (K)
+                   mLayerTempPrime,            & ! intent(out): derivative of layer temperature (K s-1)
+                   ! output: error control
+                   err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
     endif !(choice of how conservation of energy is implemented)

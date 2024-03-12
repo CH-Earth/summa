@@ -632,7 +632,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
 #endif
   USE updateVars_module,only:updateVars                            ! update prognostic variables
   USE enthalpyTemp_module,only:T2enthTemp                          ! compute enthalpy
-  USE enthalpyTemp_module,only:enthTemp2H                          ! add phase change terms to delta temperature component of enthalpy
+  USE enthalpyTemp_module,only:enthTemp2enthalpy                   ! add phase change terms to delta temperature component of enthalpy
   implicit none
   ! model control
   real(rkind)      ,intent(in)    :: dt                            ! time step (s)
@@ -1000,7 +1000,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
           mLayerHDelta       = mLayerEnthTempTrial - mLayerEnthTemp(1:nLayers)
           
           ! compute mixture enthalpy for current values, do on delta value so only have to do once
-          call enthTemp2H(&
+          call enthTemp2enthalpy(&
                             ! input: data structures
                             diag_data,             & ! intent(in):    model diagnostic variables for a local HRU
                             indx_data,             & ! intent(in):    model indices
