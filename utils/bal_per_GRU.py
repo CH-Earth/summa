@@ -34,7 +34,6 @@ else:
     method_name=['be1','be1en','be1lu'] #maybe make this an argument
 
 # Simulation statistics file locations
-viz_fil = method_name.copy()
 viz_fl2 = method_name.copy()
 for i, m in enumerate(method_name):
     viz_fl2[i] = m + '_hrly_diff_bals_{}.nc'
@@ -61,7 +60,6 @@ fig_fil2 ='BalanceMass_scat_{}_compressed.png'
 fig_fil2 =fig_fil2.format(stat)
 
 summa = {}
-wall = {}
 for i, m in enumerate(method_name):
     # Get the aggregated statistics of SUMMA simulations
     summa[m] = xr.open_dataset(viz_dir/viz_fl2[i])
