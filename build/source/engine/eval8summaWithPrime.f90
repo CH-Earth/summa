@@ -395,6 +395,8 @@ subroutine eval8summaWithPrime(&
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     if(ixNrgConserv.ne.closedForm)then ! use state variable as enthalpy, need to compute temperature
+
+      NEED TO UPDATE WATER STATE FIRST TO MAKE SURE HAVE ALL THESE WATER STATE VARIABLES, SEE updateVarsWithPrime
       ! compute temperature component of enthalpy
       call enthTemp2T(&
                       ixNrgConserv==enthalpyFDlu, & ! intent(in):  flag to use the lookup table for soil enthalpy
@@ -410,6 +412,13 @@ subroutine eval8summaWithPrime(&
                       scalarCanairEnthalpyPrime,  & ! intent(in):  derivative of temperature component of enthalpy of the vegetation canopy (W m-3)
                       scalarCanopyEnthTempPrime,  & ! intent(in):  derivative of temperature component of enthalpy of the vegetation canopy (W m-3)
                       mLayerEnthTempPrime,        & ! intent(in):  derivative of temperature component of enthalpy of each snow+soil layer (W m-3)
+                      ! input: water state variables
+                      scalarCanopyWatTrial,       & ! intent(in):  trial value for canopy total water (kg m-2)
+                      mLayerVolFracWatTrial,      & ! intent(in):  trial vector of volumetric total water content (-)
+                      mLayerMatricHeadTrial,      & ! intent(in):  trial vector of total water matric potential (m)
+                      scalarCanopyWatPrime,       & ! intent(in):  derivative of canopy total water (kg m-2 s-1)
+                      mLayerVolFracWatPrime,      & ! intent(in):  derivative of volumetric total water content (s-1)
+                      mLayerMatricHeadPrime,      & ! intent(in):  derivative of total water matric potential (m s-1)
                       ! output: temperature for the vegetation canopy
                       scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
                       scalarCanopyTempTrial,      & ! intent(out): trial value for canopy temperature (K)
