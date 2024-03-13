@@ -1,0 +1,38 @@
+Note, if you want to run with just BMI, not NexGen, do the following
+First install BMI. Download the latest release of BMI from https://github.com/csdms/bmi-fortran.git
+% git clone https://github.com/csdms/bmi-fortran.git
+% git fetch --all --tags --prune
+% git checkout tags/vX.Y.Z
+
+Make a directory outside the bmi-fortran folder and enter it, and make the install and build dirs, enter the build dir.
+% export BMIF_VERSION=2.0
+% mkdir bmi
+% cd bmi
+% mkdir instdir
+% mkdir buildir
+% cd /buildir
+
+The install directory needs to be set while running the cmake inside the builddir, using home directory as $(YOUR_HOME)
+% cmake ../../bmi-fortran/ -DCMAKE_INSTALL_PREFIX=$(YOUR_HOME)/bmi/instdir
+
+The default compiler is gfortran. To change it (it should be the same as the netcdf build and the later summa build), you could also add the following option to cmake with your $(YOUR_GFORTRAN)
+   -DCMAKE_Fortran_COMPILER=$(YOUR_GFORTRAN)
+
+You can do the last two steps by running from inside buildir:
+cp ../../summa/build/makefiles/build_cmakeBMI build_cmake
+./build_cmake
+
+If the above went well, staying in the buildir directory run:
+% make
+% make install
+
+To run a BMI interface, run the executable /bin/summa_bmi.exe
+To run as previously, run the executable /bin/summa_sundials.exe with appropriate command line arguments.
+
+All BMI files are in build/source/driver. The important ones are as following:
+
+summa_bmi.f90: this contains the code that was in summa_driver.f90 and adds to it the BMI functions. It is now a module and uses the BMI library.
+
+summa_driver.f90: this is the main program called by summa_sundials.exe that will call all other modules similar to previous editions of the code.
+
+summa_driverBMI.f90: this is the main program called by summa_bmi.exe that will call all other modules in the BMI interface mode.

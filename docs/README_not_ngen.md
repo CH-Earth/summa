@@ -32,13 +32,19 @@ or with Actors:
     cd summa/build/summa/build/cmake
 
 If you want to use Sundials IDA or BE Kinsol, set -DCMAKE_BUILD_TYPE=Sundials* in the build script instead of BE*.  Then, before summa can be built, Sundials needs to be installed. 
-Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software
+Download the latest release of IDA solver from SUNDIALS package in https://computing.llnl.gov/projects/sundials/sundials-software, using X.Y.Z as the latest version
 
-    wget "https://github.com/LLNL/sundials/releases/download/v6.3.0/sundials-6.3.0.tar.gz"
+    wget "https://github.com/LLNL/sundials/releases/download/vX.Y.Z/sundials-X.Y.Z.tar.gz"
 
-Extract the corresponding compressed file
+Extract the corresponding compressed file, rename
 
-    tar -xzf sundials-6.3.0.tar.gz
+    tar -xzf sundials-X.Y.Z.tar.gz && mv sundials-X.Y.Z sundials-software
+
+We suggest you periodically update to the latest version-- you can also install through github 
+    git clone https://github.com/LLNL/sundials.git sundials-software
+    cd sundials-software
+    git fetch --all --tags --prune
+    git checkout tags/vX.Y.Z
     
 An example build_cmake file is at summa/build/cmake_external/build_cmakeSundials.bash which you can copy to builddir as build_cmake. Then, enter the buildir and run
 

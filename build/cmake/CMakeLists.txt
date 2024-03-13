@@ -165,13 +165,6 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
 else()
     message("\nBuilding for personal computer")
 
-    #set(SDKROOT "$(xcrun --show-sdk-path)") # appears to be unused and specifically for MacOS so commented out
-
-    ## Original Block -- possibly for MacOS -- attempted to generalize things for additional platforms in the next block
-    #link_directories(/opt/local/lib)
-    #set(INCLUDES /opt/local/include /opt/local/lib)
-    #set(LIBRARIES SUMMA_NOAHMP -llapack -lgfortran -lnetcdff -lnetcdf)
-
     # Set Links and Libraries using Environment Variables
     set(LINK_DIRS $ENV{LINK_DIRS})         # set link directories from environment variable
     set(INCLUDES_DIRS $ENV{INCLUDES_DIRS}) # set directories for INCLUDES from environment variable
@@ -220,7 +213,7 @@ endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Sundials)
     message("\nUsing SUNDIALS libraries for IDA and Kinsol, should have been installed previously")
-    set(LIB_SUNDIALS -lsundials_fida_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod -lsundials_fkinsol_mod -lsundials_fsunnonlinsolnewton_mod)
+    set(LIB_SUNDIALS -lsundials_fcore_mod -lsundials_fnvecmanyvector_mod -lsundials_fnvecserial_mod -lsundials_fsunlinsoldense_mod -lsundials_fsunmatrixdense_mod -lsundials_fida_mod -lsundials_fsunnonlinsolnewton_mod -lsundials_fkinsol_mod)
 elseif(CMAKE_BUILD_TYPE MATCHES BE)
     message("\nUsing Backward Euler based off free versions of Numerical Recipes only")
 else()
@@ -275,7 +268,8 @@ set(NRUTIL
 # Free versions of numerical recipes procedures for SUMMA modules
 set(NRPROC
     ${ENGINE_DIR}/expIntegral.f90
-    ${ENGINE_DIR}/spline_int.f90)
+    ${ENGINE_DIR}/spline_int.f90
+    ${ENGINE_DIR}/hyp_2F1.f90)
 
 # Hook-up modules
 set(HOOKUP
@@ -324,7 +318,6 @@ set(PRELIM
     ${ENGINE_DIR}/checkStruc.f90
     ${ENGINE_DIR}/childStruc.f90
     ${ENGINE_DIR}/conv_funcs.f90
-    ${ENGINE_DIR}/convE2Temp.f90
     ${SUB_ENGINE_DIR}/ffile_info.f90
     ${ENGINE_DIR}/read_pinit.f90
     ${ENGINE_DIR}/read_attrb.f90
@@ -337,6 +330,7 @@ set(PRELIM
 set(MODRUN
     ${ENGINE_DIR}/canopySnow.f90
     ${ENGINE_DIR}/derivforce.f90
+    ${ENGINE_DIR}/enthalpyTemp.f90
     ${ENGINE_DIR}/getVectorz.f90
     ${ENGINE_DIR}/indexState.f90
     ${ENGINE_DIR}/layerMerge.f90
@@ -344,7 +338,6 @@ set(MODRUN
     ${ENGINE_DIR}/qTimeDelay.f90
     ${ENGINE_DIR}/snowAlbedo.f90
     ${ENGINE_DIR}/snwCompact.f90
-    ${ENGINE_DIR}/t2enthalpy.f90
     ${ENGINE_DIR}/tempAdjust.f90
     ${ENGINE_DIR}/updateVars.f90
     ${ENGINE_DIR}/var_derive.f90
@@ -358,7 +351,6 @@ set(MODRUN_SUNDIALS
 # Solver main modules
 set(SOLVER
     ${ENGINE_DIR}/bigAquifer.f90
-    ${ENGINE_DIR}/computEnthalpy.f90
     ${ENGINE_DIR}/computFlux.f90
     ${ENGINE_DIR}/computHeatCap.f90
     ${ENGINE_DIR}/computJacob.f90
