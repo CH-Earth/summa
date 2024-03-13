@@ -420,14 +420,20 @@ subroutine eval8summaWithPrime(&
                    scalarCanopyWatPrime,       & ! intent(in):  derivative of canopy total water (kg m-2 s-1)
                    mLayerVolFracWatPrime,      & ! intent(in):  derivative of volumetric total water content (s-1)
                    mLayerMatricHeadPrime,      & ! intent(in):  derivative of total water matric potential (m s-1)
-                   ! output: temperature for the vegetation canopy
+                  ! output: temperature 
                    scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
                    scalarCanopyTempTrial,      & ! intent(out): trial value for canopy temperature (K)
+                   mLayerTempTrial,            & ! intent(out): trial vector of layer temperature (K)
                    scalarCanairTempPrime,      & ! intent(out): derivative of canopy air temperature (K s-1)
                    scalarCanopyTempPrime,      & ! intent(out): derivative of canopy temperature (K s-1)
-                   ! output: temperature for the snow-soil domain
-                   mLayerTempTrial,            & ! intent(out): trial vector of layer temperature (K)
                    mLayerTempPrime,            & ! intent(out): derivative of layer temperature (K s-1)
+                   ! output: derivatives
+                   dCanairTemp_dEnthalpy,      & ! derivative of canopy air temperature with enthalpy
+                   dCanopyTemp_dEnthalpy,      & ! derivative of canopy temperature with enthalpy
+                   dTemp_dEnthalpy,            & ! derivative of layer temperature with enthalpy
+                   dTkCanairPrime_dEnthPrime,  & ! derivative of canopy air temperature prime with enthalpy prime
+                   dTkCanopyPrime_dEnthPrime,  & ! derivative of canopy temperature prime with enthalpy prime
+                   dTkPrime_dEnthPrime,        & ! derivative of layer temperature prime with enthalpy prime
                    ! output: error control
                    err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
