@@ -77,7 +77,7 @@ contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2H_lookup_snow:: define a look-up table to mixture enthalpy based on temperature
+! public subroutine T2H_lookup_snow: define a look-up table to mixture enthalpy based on temperature
 !                                    appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
 subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    parameter data structure
@@ -290,7 +290,7 @@ subroutine enthalpy2T_snow(Hy,BulkDenWater,fc_param,Tk,err,message)
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
-  real(rkind),intent(in)      :: Hy            ! total temperature component of enthalpy (J m-3)
+  real(rkind),intent(in)      :: Hy            ! total enthalpy (J m-3)
   real(rkind),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
   real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
   real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)

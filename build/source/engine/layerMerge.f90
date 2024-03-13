@@ -314,18 +314,18 @@ contains
  ! ------------------------------------------------------------------------------------------------------------
  ! local variables
  character(len=256)              :: cmessage                 ! error message for downwind routine
- real(rkind)                        :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
- real(rkind)                        :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
- real(rkind)                        :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(rkind)                        :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
- real(rkind)                        :: cTemp                    ! combined layer temperature
- real(rkind)                        :: cDepth                   ! combined layer depth
- real(rkind)                        :: cVolFracIce              ! combined layer volumetric fraction of ice
- real(rkind)                        :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
- real(rkind)                        :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
- real(rkind)                        :: cEnthalpy                ! combined layer enthalpy (J m-3)
- real(rkind)                        :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
- real(rkind),parameter              :: eTol=1.e-1_rkind            ! tolerance for the enthalpy-->temperature conversion (J m-3)
+ real(rkind)                     :: massIce(2)               ! mass of ice in the two layers identified for combination (kg m-2)
+ real(rkind)                     :: massLiq(2)               ! mass of liquid water in the two layers identified for combination (kg m-2)
+ real(rkind)                     :: bulkDenWat(2)            ! bulk density if total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(rkind)                     :: cBulkDenWat              ! combined bulk density of total water (liquid water plus ice) in the two layers identified for combination (kg m-3)
+ real(rkind)                     :: cTemp                    ! combined layer temperature
+ real(rkind)                     :: cDepth                   ! combined layer depth
+ real(rkind)                     :: cVolFracIce              ! combined layer volumetric fraction of ice
+ real(rkind)                     :: cVolFracLiq              ! combined layer volumetric fraction of liquid water
+ real(rkind)                     :: l1Enthalpy,l2Enthalpy    ! enthalpy in the two layers identified for combination (J m-3)
+ real(rkind)                     :: cEnthalpy                ! combined layer enthalpy (J m-3)
+ real(rkind)                     :: fLiq                     ! fraction of liquid water at the combined temperature cTemp
+ real(rkind),parameter           :: eTol=1.e-1_rkind         ! tolerance for the enthalpy-->temperature conversion (J m-3)
  integer(i4b)                    :: nSnow                    ! number of snow layers
  integer(i4b)                    :: nSoil                    ! number of soil layers
  integer(i4b)                    :: nLayers                  ! total number of layers
