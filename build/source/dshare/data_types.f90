@@ -660,7 +660,7 @@ MODULE data_types
  ! Define classes used to simplify calls to the subrotuines in summaSolve4numrec
  ! ***********************************************************************************************************
 
- type, public :: in_type_computJacob  ! class for intent(in) arguments in computFlux call
+ type, public :: in_type_computJacob  ! class for intent(in) arguments in computJacob call
    ! input: model control
    real(rkind)              :: dt                          ! intent(in): length of the time step (seconds)
    integer(i4b)             :: nSnow                       ! intent(in): number of snow layers
@@ -673,13 +673,70 @@ MODULE data_types
    procedure :: initialize => initialize_in_computJacob
  end type in_type_computJacob
 
- type, public :: out_type_computJacob  ! class for intent(in) arguments in computFlux call
+ type, public :: out_type_computJacob  ! class for intent(out) arguments in computJacob call
    ! output: error control
    integer(i4b)             :: err                         ! intent(out): error code
    character(len=len_msg)   :: cmessage                    ! intent(out): error message
   contains
    procedure :: finalize => finalize_out_computJacob
  end type out_type_computJacob
+
+ type, public :: in_type_lineSearchRefinement  ! class for intent(in) arguments in lineSearchRefinement call
+   logical(lgt)             :: doSearch                    ! intent(in): flag to do the line search
+   real(rkind)              :: fOld                        ! intent(in): old function value
+  contains
+   procedure :: initialize => initialize_in_lineSearchRefinement
+ end type in_type_lineSearchRefinement
+
+ type, public :: out_type_lineSearchRefinement  ! class for intent(out) arguments in lineSearchRefinement call
+   real(rkind)              :: fNew                        ! intent(out): new function evaluation
+   logical(lgt)             :: converged                   ! intent(out): convergence flag
+   ! output: error control
+   integer(i4b)             :: err                         ! intent(out): error code
+   character(len=len_msg)   :: message                     ! intent(out): error message
+  contains
+   procedure :: finalize => finalize_out_lineSearchRefinement
+ end type out_type_lineSearchRefinement
+
+ ! ***********************************************************************************************************
+ ! Define classes used to simplify calls to the subrotuines in systemSolv
+ ! ***********************************************************************************************************
+
+ type, public :: in_type_summaSolve4numrec  ! class for intent(in) arguments in summaSolve4numrec call
+   real(rkind)              :: dt_cur                   ! intent(in): current stepsize
+   real(rkind)              :: dt                       ! intent(in): entire time step for drainage pond rate
+   integer(i4b)             :: iter                     ! intent(in): iteration index
+   integer(i4b)             :: nSnow                    ! intent(in): number of snow layers
+   integer(i4b)             :: nSoil                    ! intent(in): number of soil layers
+   integer(i4b)             :: nLayers                  ! intent(in): total number of layers
+   integer(i4b)             :: nLeadDim                 ! intent(in): length of the leading dimension of the Jacobian matrix (nBands or nState)
+   integer(i4b)             :: nState                   ! intent(in): total number of state variables
+   integer(i4b)             :: ixMatrix                 ! intent(in): type of matrix (full or band diagonal)
+   logical(lgt)             :: firstSubStep             ! intent(in): flag to indicate if we are processing the first sub-step
+   logical(lgt)             :: computeVegFlux           ! intent(in): flag to indicate if computing fluxes over vegetation
+   logical(lgt)             :: scalarSolution           ! intent(in): flag to denote if implementing the scalar solution
+   real(rkind)              :: fOld                     ! intent(in): old function evaluation
+  contains
+   procedure :: initialize => initialize_in_summaSolve4numrec
+ end type in_type_summaSolve4numrec
+
+ type, public :: io_type_summaSolve4numrec  ! class for intent(inout) arguments in summaSolve4numrec call
+   logical(lgt)             :: firstFluxCall            ! intent(inout): flag to indicate if we are processing the first flux call
+   real(rkind)              :: xMin,xMax                ! intent(inout): brackets of the root
+   integer(i4b)             :: ixSaturation             ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+  contains
+   procedure :: initialize => initialize_io_summaSolve4numrec
+   procedure :: finalize   => finalize_io_summaSolve4numrec
+ end type io_type_summaSolve4numrec
+
+ type, public :: out_type_summaSolve4numrec  ! class for intent(out) arguments in summaSolve4numrec call
+   real(rkind)              :: fNew                     ! intent(out): new function evaluation
+   logical(lgt)             :: converged                ! intent(out): convergence flag
+   integer(i4b)             :: err                      ! intent(out): error code
+   character(len=len_msg)   :: message                  ! intent(out): error message
+  contains
+   procedure :: finalize => finalize_out_summaSolve4numrec
+ end type out_type_summaSolve4numrec
 
 contains
  
@@ -1472,5 +1529,96 @@ contains
   err               = out_computJacob % err                           ! intent(out): error code
   cmessage          = out_computJacob % cmessage                      ! intent(out): error message                                          
  end subroutine finalize_out_computJacob
+
+ ! **** lineSearchRefinement ****
+ subroutine initialize_in_lineSearchRefinement(in_lineSearchRefinement,doSearch,fOld)
+  class(in_type_lineSearchRefinement),intent(out) :: in_lineSearchRefinement   ! class object for intent(out) arguments
+  logical(lgt),intent(in)                         :: doSearch                  ! intent(in): flag to do the line search
+  real(rkind) ,intent(in)                         :: fOld                      ! intent(in): old function value
+  in_lineSearchRefinement % doSearch     = doSearch                  ! intent(in): flag to do the line search
+  in_lineSearchRefinement % fOld         = fOld                      ! intent(in): old function value
+ end subroutine initialize_in_lineSearchRefinement
+ 
+ subroutine finalize_out_lineSearchRefinement(out_lineSearchRefinement,fNew,converged,err,message)
+  class(out_type_lineSearchRefinement),intent(in) :: out_lineSearchRefinement   ! class object for intent(out) arguments
+  real(rkind) ,intent(out)   :: fNew                                  ! intent(out): new function evaluation
+  logical(lgt),intent(out)   :: converged                             ! intent(out): convergence flag
+  integer(i4b),intent(out)   :: err                                   ! intent(out): error code
+  character(*),intent(out)   :: message                               ! intent(out): error message
+  fNew      = out_lineSearchRefinement % fNew                         ! intent(out): new function evaluation
+  converged = out_lineSearchRefinement % converged                    ! intent(out): convergence flag
+  err       = out_lineSearchRefinement % err                          ! intent(out): error code
+  message   = out_lineSearchRefinement % message                      ! intent(out): error message
+ end subroutine finalize_out_lineSearchRefinement
+
+ ! **** summaSolve4numrec ****
+
+ subroutine initialize_in_summaSolve4numrec(in_SS4NR,dt_cur,dt,iter,nSnow,nSoil,nLayers,nLeadDim,nState,ixMatrix,firstSubStep,computeVegFlux,scalarSolution,fOld)
+  class(in_type_summaSolve4numrec),intent(out)    :: in_SS4NR   ! class object for intent(out) arguments
+  real(rkind) ,intent(in) :: dt_cur                   ! intent(in): current stepsize
+  real(rkind) ,intent(in) :: dt                       ! intent(in): entire time step for drainage pond rate
+  integer(i4b),intent(in) :: iter                     ! intent(in): iteration index
+  integer(i4b),intent(in) :: nSnow                    ! intent(in): number of snow layers
+  integer(i4b),intent(in) :: nSoil                    ! intent(in): number of soil layers
+  integer(i4b),intent(in) :: nLayers                  ! intent(in): total number of layers
+  integer(i4b),intent(in) :: nLeadDim                 ! intent(in): length of the leading dimension of the Jacobian matrix (nBands or nState)
+  integer(i4b),intent(in) :: nState                   ! intent(in): total number of state variables
+  integer(i4b),intent(in) :: ixMatrix                 ! intent(in): type of matrix (full or band diagonal)
+  logical(lgt),intent(in) :: firstSubStep             ! intent(in): flag to indicate if we are processing the first sub-step
+  logical(lgt),intent(in) :: computeVegFlux           ! intent(in): flag to indicate if computing fluxes over vegetation
+  logical(lgt),intent(in) :: scalarSolution           ! intent(in): flag to denote if implementing the scalar solution
+  real(rkind) ,intent(in) :: fOld                     ! intent(in): old function evaluation
+
+  in_SS4NR % dt_cur         = dt_cur        
+  in_SS4NR % dt             = dt            
+  in_SS4NR % iter           = iter          
+  in_SS4NR % nSnow          = nSnow         
+  in_SS4NR % nSoil          = nSoil         
+  in_SS4NR % nLayers        = nLayers       
+  in_SS4NR % nLeadDim       = nLeadDim      
+  in_SS4NR % nState         = nState        
+  in_SS4NR % ixMatrix       = ixMatrix      
+  in_SS4NR % firstSubStep   = firstSubStep  
+  in_SS4NR % computeVegFlux = computeVegFlux 
+  in_SS4NR % scalarSolution = scalarSolution
+  in_SS4NR % fOld           = fOld            
+ end subroutine initialize_in_summaSolve4numrec
+
+ subroutine initialize_io_summaSolve4numrec(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
+  class(io_type_summaSolve4numrec),intent(out)    :: io_SS4NR   ! class object for intent(inout) arguments
+  logical(lgt),intent(in) :: firstFluxCall ! intent(inout): flag to indicate if we are processing the first flux call
+  real(rkind) ,intent(in) :: xMin,xMax     ! intent(inout): brackets of the root
+  integer(i4b),intent(in) :: ixSaturation  ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+
+  io_SS4NR % firstFluxCall = firstFluxCall
+  io_SS4NR % xMin          = xMin    
+  io_SS4NR % xMax          = xMax    
+  io_SS4NR % ixSaturation  = ixSaturation 
+ end subroutine initialize_io_summaSolve4numrec
+
+ subroutine finalize_io_summaSolve4numrec(io_SS4NR,firstFluxCall,xMin,xMax,ixSaturation)
+  class(io_type_summaSolve4numrec),intent(in)    :: io_SS4NR   ! class object for intent(inout) arguments
+  logical(lgt),intent(out) :: firstFluxCall ! intent(inout): flag to indicate if we are processing the first flux call
+  real(rkind) ,intent(out) :: xMin,xMax     ! intent(inout): brackets of the root
+  integer(i4b),intent(out) :: ixSaturation  ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+
+  firstFluxCall = io_SS4NR % firstFluxCall
+  xMin          = io_SS4NR % xMin    
+  xMax          = io_SS4NR % xMax    
+  ixSaturation  = io_SS4NR % ixSaturation 
+ end subroutine finalize_io_summaSolve4numrec
+
+ subroutine finalize_out_summaSolve4numrec(out_SS4NR,fNew,converged,err,message)
+  class(out_type_summaSolve4numrec),intent(in)    :: out_SS4NR   ! class object for intent(out) arguments
+  real(rkind) ,intent(out) :: fNew      ! intent(out): new function evaluation
+  logical(lgt),intent(out) :: converged ! intent(out): convergence flag
+  integer(i4b),intent(out) :: err       ! intent(out): error code
+  character(*),intent(out) :: message   ! intent(out): error message
+
+  fNew      = out_SS4NR % fNew       
+  converged = out_SS4NR % converged
+  err       = out_SS4NR % err      
+  message   = out_SS4NR % message  
+ end subroutine finalize_out_summaSolve4numrec
 
 END MODULE data_types
