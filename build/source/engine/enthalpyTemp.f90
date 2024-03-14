@@ -291,7 +291,7 @@ subroutine enthalpy2T_snow(Hy,BulkDenWater,fc_param,Tk,err,message)
   implicit none
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare dummy variables
-  real(rkind),intent(in)      :: Hy            ! total temperature component of enthalpy (J m-3)
+  real(rkind),intent(in)      :: Hy            ! total enthalpy (J m-3)
   real(rkind),intent(in)      :: BulkDenWater  ! bulk density of water (kg m-3)
   real(rkind),intent(in)      :: fc_param      ! freezing curve parameter (K-1)
   real(rkind),intent(out)     :: Tk            ! initial temperature guess / final temperature value (K)
@@ -814,30 +814,21 @@ subroutine enthalpy2T(&
                       scalarCanairEnthalpyTrial,         & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
                       scalarCanopyEnthalpyTrial,         & ! intent(in):  trial value for enthalpy of the vegetation canopy (J m-3)
                       mLayerEnthalpyTrial,               & ! intent(in):  trial vector of enthalpy of each snow+soil layer (J m-3)
-                      scalarCanairEnthalpyPrime,         & ! intent(in):  derivative of enthalpy of the vegetation canopy (W m-3)
-                      scalarCanopyEnthalpyPrime,         & ! intent(in):  derivative of enthalpy of the vegetation canopy (W m-3)
-                      mLayerEnthalpyPrime,               & ! intent(in):  derivative of enthalpy of each snow+soil layer (W m-3)
                       ! input: water state variables
                       scalarCanopyWatTrial,              & ! intent(in):  trial value for canopy total water (kg m-2)
                       mLayerVolFracWatTrial,             & ! intent(in):  trial vector of volumetric total water content (-)
                       mLayerMatricHeadTrial,             & ! intent(in):  trial vector of total water matric potential (m)
-                      scalarCanopyWatPrime,              & ! intent(in):  derivative of canopy total water (kg m-2 s-1)
-                      mLayerVolFracWatPrime,             & ! intent(in):  derivative of volumetric total water content (s-1)
-                      mLayerMatricHeadPrime,             & ! intent(in):  derivative of total water matric potential (m s-1)
                       ! output: temperature 
                       scalarCanairTempTrial,             & ! intent(out): trial value for canopy air temperature (K)
                       scalarCanopyTempTrial,             & ! intent(out): trial value for canopy temperature (K)
                       mLayerTempTrial,                   & ! intent(out): trial vector of layer temperature (K)
-                      scalarCanairTempPrime,             & ! intent(out): derivative of canopy air temperature (K s-1)
-                      scalarCanopyTempPrime,             & ! intent(out): derivative of canopy temperature (K s-1)
-                      mLayerTempPrime,                   & ! intent(out): derivative of layer temperature (K s-1)
                       ! output: derivatives
-                      dCanairTemp_dEnthalpy,             & ! derivative of canopy air temperature with enthalpy
-                      dCanopyTemp_dEnthalpy,             & ! derivative of canopy temperature with enthalpy
-                      dTemp_dEnthalpy,                   & ! derivative of layer temperature with enthalpy
-                      dTkCanairPrime_dEnthPrime,         & ! derivative of canopy air temperature prime with enthalpy prime
-                      dTkCanopyPrime_dEnthPrime,         & ! derivative of canopy temperature prime with enthalpy prime
-                      dTkPrime_dEnthPrime,               & ! derivative of layer temperature prime with enthalpy prime
+                      dCanairTemp_dEnthalpy,             & ! intent(out): derivative of canopy air temperature with enthalpy
+                      dCanopyTemp_dEnthalpy,             & ! intent(out): derivative of canopy temperature with enthalpy
+                      dTemp_dEnthalpy,                   & ! intent(out): derivative of layer temperature with enthalpy
+                      dCanopyTemp_dCanWat,               & ! intent(out): derivative of canopy temperature with canopy water
+                      dTemp_dTheta,                      & ! intent(out): derivative of layer temperature with volumetric total water content
+                      dTemp_dPsi0,                       & ! intent(out): derivative of layer temperature with total water matric potential
                       ! output: error control
                       err,cmessage)                       ! intent(out): error control
   ! -------------------------------------------------------------------------------------------------------------------------
@@ -856,32 +847,23 @@ subroutine enthalpy2T(&
   type(zLookup),intent(in)         :: lookup_data               ! lookup tables
   ! output: enthalpy state variables
   real(rkind),intent(in)           :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
-  real(rkind),intent(in)           :: scalarCanopyEnthTemp      ! enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)           :: mLayerEnthTemp(:)         ! enthalpy of each snow+soil layer (J m-3)
-  real(rkind),intent(in)           :: scalarCanairEnthalpyPrime ! derivative of enthalpy of the vegetation canopy (W m-3)
-  real(rkind),intent(in)           :: scalarCanopyEnthalpyPrime ! derivative of enthalpy of the vegetation canopy (W m-3)
-  real(rkind),intent(in)           :: mLayerEnthalpyPrime(:)    ! derivative of enthalpy of each snow+soil layer (W m-3)
+  real(rkind),intent(in)           :: scalarCanopyEnthalpy      ! enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(in)           :: mLayerEnthalpy(:)         ! enthalpy of each snow+soil layer (J m-3)
   ! input: water state variables
   real(rkind),intent(in)           :: scalarCanopyWatTrial      ! trial value for canopy total water (kg m-2)
   real(rkind),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
   real(rkind),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
-  real(rkind),intent(in)           :: scalarCanopyWatPrime      ! derivative of canopy total water (kg m-2 s-1)
-  real(rkind),intent(in)           :: mLayerVolFracWatPrime(:)  ! derivative of volumetric total water content (s-1)
-  real(rkind),intent(in)           :: mLayerMatricHeadPrime(:)  ! derivative of total water matric potential (m s-1)
   ! output: temperature diagnostic variables
   real(rkind),intent(out)          :: scalarCanairTempTrial     ! trial value for canopy air temperature (K)
   real(rkind),intent(out)          :: scalarCanopyTempTrial     ! trial value for canopy temperature (K)
   real(rkind),intent(out)          :: mLayerTempTrial(:)        ! trial vector of layer temperature (K)
-  real(rkind),intent(out)          :: scalarCanairTempPrime     ! derivative of canopy air temperature (K s-1)
-  real(rkind),intent(out)          :: scalarCanopyTempPrime     ! derivative of canopy temperature (K s-1)
-  real(rkind),intent(out)          :: mLayerTempPrime(:)        ! derivative of layer temperature (K s-1)
   ! output: derivatives
   real(rkind),intent(out)          :: dCanairTemp_dEnthalpy     ! derivative of canopy air temperature with enthalpy
   real(rkind),intent(out)          :: dCanopyTemp_dEnthalpy     ! derivative of canopy temperature with enthalpy
   real(rkind),intent(out)          :: dTemp_dEnthalpy(:)        ! derivative of layer temperature with enthalpy
-  real(rkind),intent(out)          :: dTkCanairPrime_dEnthPrime ! derivative of canopy air temperature prime with enthalpy prime
-  real(rkind),intent(out)          :: dTkCanopyPrime_dEnthPrime ! derivative of canopy temperature prime with enthalpy prime
-  real(rkind),intent(out)          :: dTkPrime_dEnthPrime(:)    ! derivative of layer temperature prime with enthalpy prime
+  real(rkind),intent(out)          :: dCanopyTemp_dCanWat       ! derivative of canopy temperature with canopy water
+  real(rkind),intent(out)          :: dTemp_dTheta(:)           ! derivative of layer temperature with volumetric total water content
+  real(rkind),intent(out)          :: dTemp_dPsi0(:)            ! derivative of layer temperature with total water matric potential
   ! output: error control
   integer(i4b),intent(out)         :: err                       ! error code
   character(*),intent(out)         :: message                   ! error message
@@ -908,14 +890,6 @@ subroutine enthalpy2T(&
   real(rkind)                      :: integral_frz_upp          ! upper limit of integral of frozen soil water content (from Tfreeze to soil temperature)
   real(rkind)                      :: xConst                    ! constant in the freezing curve function (m K-1)
   real(rkind)                      :: mLayerPsiLiq              ! liquid water matric potential (m)
-  ! enthalpy
-  real(rkind)                      :: enthVeg                   ! enthalpy of the vegetation (J m-3)
-  real(rkind)                      :: enthSoil                  ! enthalpy of soil particles (J m-3)
-  real(rkind)                      :: enthLiq                   ! enthalpy of the liquid region (J m-3)
-  real(rkind)                      :: enthIce                   ! enthalpy of the ice region (J m-3)
-  real(rkind)                      :: enthAir                   ! enthalpy of air (J m-3)
-  real(rkind)                      :: enthPhase                 ! enthalpy associated with phase change (J m-3)
-  real(rkind)                      :: enthWater                 ! enthalpy of total water (J m-3)
   logical(lgt),parameter           :: doTest=.false.            ! flag to run unit test
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
@@ -966,9 +940,7 @@ subroutine enthalpy2T(&
         select case(ixDomainType)
           case(iname_cas)
             scalarCanairTempTrial = scalarCanairEnthalpy / ( Cp_air*iden_air ) + Tfreeze
-            scalarCanairTempPrime = scalarCanairEnthalpyPrime / ( Cp_air*iden_air )
             dCanairTemp_dEnthalpy = 1._rkind / ( Cp_air*iden_air )
-            dTkCanairPrime_dEnthPrime = 1._rkind / ( Cp_air*iden_air )
 
           case(iname_veg)
             ! association to necessary variables for vegetation
@@ -995,6 +967,36 @@ subroutine enthalpy2T(&
                 enthLiq = Cp_water * scalarCanopyWatTrial * integral / canopyDepth
                 enthIce = Cp_ice * scalarCanopyWatTrial * ( diffT - integral ) / canopyDepth
               endif
+               
+
+              ! ***** get initial guess
+              T = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial ) + Tfreeze
+              dT_dE = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )
+              dT_dW = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )**2_i4b
+              diffT = T - Tfreeze
+
+              if(diffT>=0._rkind)then
+                scalarCanopyTempTrial = T
+                dCanopyTemp_dEnthalpy = dT_dE
+                dCanopyTemp_dCanWat   = dT_dW
+              else
+                ! ***** iterate to find temperature
+
+                do while(abs(scalarCanopyEnthalpyTrial-H)>1.e-6_rkind)
+                  diffT = T - Tfreeze
+                  integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+                  fLiq =   1._rkind / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )
+                  H = ( (specificHeatVeg * maxMassVegetation + Cp_ice * scalarCanopyWatTrial )* diffT + (Cp_water - Cp_ice)* scalarCanopyWatTrial * integral &
+                     + LH_fus * (1._rkind - fLiq) * scalarCanopyWatTrial )/ canopyDepth
+
+
+
+
+
+
+                end do
+              ! ***** iterate to find temperature
+
 
               ! diffT>=0._rkind 
               scalarCanopyTempTrial = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial ) + Tfreeze

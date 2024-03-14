@@ -410,30 +410,21 @@ subroutine eval8summaWithPrime(&
                    scalarCanairEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the canopy air space (J m-3)
                    scalarCanopyEnthalpyTrial,  & ! intent(in):  trial value for enthalpy of the vegetation canopy (J m-3)
                    mLayerEnthalpyTrial,        & ! intent(in):  trial vector of enthalpy of each snow+soil layer (J m-3)
-                   scalarCanairEnthalpyPrime,  & ! intent(in):  derivative of enthalpy of the vegetation canopy (W m-3)
-                   scalarCanopyEnthalpyPrime,  & ! intent(in):  derivative of enthalpy of the vegetation canopy (W m-3)
-                   mLayerEnthalpyPrime,        & ! intent(in):  derivative of enthalpy of each snow+soil layer (W m-3)
                    ! input: water state variables
                    scalarCanopyWatTrial,       & ! intent(in):  trial value for canopy total water (kg m-2)
                    mLayerVolFracWatTrial,      & ! intent(in):  trial vector of volumetric total water content (-)
                    mLayerMatricHeadTrial,      & ! intent(in):  trial vector of total water matric potential (m)
-                   scalarCanopyWatPrime,       & ! intent(in):  derivative of canopy total water (kg m-2 s-1)
-                   mLayerVolFracWatPrime,      & ! intent(in):  derivative of volumetric total water content (s-1)
-                   mLayerMatricHeadPrime,      & ! intent(in):  derivative of total water matric potential (m s-1)
-                  ! output: temperature 
+                   ! output: temperature 
                    scalarCanairTempTrial,      & ! intent(out): trial value for canopy air temperature (K)
                    scalarCanopyTempTrial,      & ! intent(out): trial value for canopy temperature (K)
                    mLayerTempTrial,            & ! intent(out): trial vector of layer temperature (K)
-                   scalarCanairTempPrime,      & ! intent(out): derivative of canopy air temperature (K s-1)
-                   scalarCanopyTempPrime,      & ! intent(out): derivative of canopy temperature (K s-1)
-                   mLayerTempPrime,            & ! intent(out): derivative of layer temperature (K s-1)
                    ! output: derivatives
-                   dCanairTemp_dEnthalpy,      & ! derivative of canopy air temperature with enthalpy
-                   dCanopyTemp_dEnthalpy,      & ! derivative of canopy temperature with enthalpy
-                   dTemp_dEnthalpy,            & ! derivative of layer temperature with enthalpy
-                   dTkCanairPrime_dEnthPrime,  & ! derivative of canopy air temperature prime with enthalpy prime
-                   dTkCanopyPrime_dEnthPrime,  & ! derivative of canopy temperature prime with enthalpy prime
-                   dTkPrime_dEnthPrime,        & ! derivative of layer temperature prime with enthalpy prime
+                   dCanairTemp_dEnthalpy,      & ! intent(out): derivative of canopy air temperature with enthalpy
+                   dCanopyTemp_dEnthalpy,      & ! intent(out): derivative of canopy temperature with enthalpy
+                   dTemp_dEnthalpy,            & ! intent(out): derivative of layer temperature with enthalpy
+                   dCanopyTemp_dCanWat,        & ! intent(out): derivative of canopy temperature with canopy water
+                   dTemp_dTheta,               & ! intent(out): derivative of layer temperature with volumetric total water content
+                   dTemp_dPsi0,                & ! intent(out): derivative of layer temperature with total water matric potential
                    ! output: error control
                    err,cmessage)                ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
