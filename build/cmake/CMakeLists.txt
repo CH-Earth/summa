@@ -159,7 +159,7 @@ if(CMAKE_BUILD_TYPE MATCHES Cluster)
     if(CMAKE_BUILD_TYPE MATCHES Actors)
         find_package(CAF REQUIRED)
         set(INC_ACTORS ${CAF_INCLUDES} ${PARENT_DIR}/build/includes/global ${PARENT_DIR}/build/includes/summa_actor ${PARENT_DIR}/build/includes/job_actor ${PARENT_DIR}/build/includes/file_access_actor ${PARENT_DIR}/build/includes/hru_actor)
-        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io)
+        set(LIB_ACTORS ${CAF_LIBRARIES} -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
 else()
@@ -205,7 +205,7 @@ else()
                        ${PARENT_DIR}/build/includes/job_actor
                        ${PARENT_DIR}/build/includes/file_access_actor
                        ${PARENT_DIR}/build/includes/hru_actor)
-        set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io)
+        set(LIB_ACTORS ${DIR_ACTORS}/lib -lcaf_core -lcaf_io -lnetcdf)
     endif()
 
 endif()
@@ -442,7 +442,8 @@ set(JOB_ACTOR
     ${ACTORS_DIR}/job_actor/GRU.cpp
     ${ACTORS_DIR}/job_actor/job_actor.cpp)
 set(HRU_ACTOR
-    ${ACTORS_DIR}/hru_actor/hru_actor.cpp)
+    ${ACTORS_DIR}/hru_actor/hru_actor.cpp
+    ${ACTORS_DIR}/hru_actor/hru_batch_actor.cpp)
 
 
 #=========================================================================================
