@@ -364,7 +364,7 @@ subroutine enthalpy2T_snow(Hy,BulkDenWater,fc_param,Tk,err,message)
     ! get new function evaluation
     Ht1 = T2enthalpy_snow(Tg1,1._rkind,fc_param)
     f1  = Ht1 - H_spec
-    ! compute derivative if dT
+    ! compute derivative of dT
     dh  = (f1 - f0)/dT
     ! compute change in T
     dT  = -f1/dh
@@ -969,42 +969,54 @@ subroutine enthalpy2T(&
               endif
                
 
-              ! ***** get initial guess
+              ! ***** get temperature if unfrozen vegetation
               T = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial ) + Tfreeze
-              dT_dE = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )
+              dT_dH = canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )
               dT_dW = -Cp_water * scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )**2_i4b
-              diffT = T - Tfreeze
 
-              if(diffT>=0._rkind)then
-                scalarCanopyTempTrial = T
-                dCanopyTemp_dEnthalpy = dT_dE
-                dCanopyTemp_dCanWat   = dT_dW
-              else
-                ! ***** iterate to find temperature
+              ! ***** iterate to find temperature if ice exists
+              if( T<Tfreeze )then
+                T     = 260._rkind ! initial guess, very cold
+                H     = scalarCanopyEnthalpyTrial + 1._rkind ! to start the iteration
+                dT_dH = 0._rkind
+                dT_dW = 0._rkind
 
                 do while(abs(scalarCanopyEnthalpyTrial-H)>1.e-6_rkind)
-                  diffT = T - Tfreeze
+                  ! compute enthalpy function, H
+                  diffT    = T - Tfreeze
                   integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
-                  fLiq =   1._rkind / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )
-                  H = ( (specificHeatVeg * maxMassVegetation + Cp_ice * scalarCanopyWatTrial )* diffT + (Cp_water - Cp_ice)* scalarCanopyWatTrial * integral &
-                     + LH_fus * (1._rkind - fLiq) * scalarCanopyWatTrial )/ canopyDepth
+                  fLiq     =  1._rkind / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )
+                  H        = ( (specificHeatVeg * maxMassVegetation + Cp_ice * scalarCanopyWatTrial )* diffT + (Cp_water - Cp_ice)* scalarCanopyWatTrial * integral &
+                              + LH_fus * (1._rkind - fLiq) * scalarCanopyWatTrial )/ canopyDepth
 
+                  ! compute derivative of H with respect to T
+                  dintegral_dT   = (1._rkind/snowfrz_scale) / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+                  d2integral_dT2 = -2._rkind * snowfrz_scale * diffT / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**2_i4b
+                  dfLiq_dT       = -2._rkind * snowfrz_scale * diffT / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**2_i4b
+                  d2fLiq_dT2     =  2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
+                  dH_dT          = ( specificHeatVeg * maxMassVegetation + Cp_ice * scalarCanopyWatTrial + (Cp_water - Cp_ice)* scalarCanopyWatTrial * dintegral_dT &
+                                    - LH_fus * dfLiq_dT * scalarCanopyWatTrial )/ canopyDepth
+                  d2H_dT2        = ( (Cp_water - Cp_ice)* scalarCanopyWatTrial * d2integral_dT2 - LH_fus * d2fLiq_dT2 * scalarCanopyWatTrial )/ canopyDepth
 
+                  ! compute derivative of H with respect to canopy enthalpy
+                  dH_dH     = dH_dT * dT_dH
+                  dH_dT__dH = d2H_dT2 * dT_dH
 
+                  ! compute derivative of H with respect to canopy water
+                  dH_dW     = dH_dT * dT_dW   + ( Cp_ice * diffT + (Cp_water - Cp_ice) * integral + LH_fus * (1._rkind - fLiq) )/ canopyDepth
+                  dH_dT__dW = d2H_dT2 * dT_dW + ( Cp_ice * (1.0_rkind - dintegral_dT) - LH_fus * dfLiq )/ canopyDepth
 
-
-
+                  ! compute change in T and update, including derivatives
+                  T1    = T     - (H - scalarCanopyEnthalpyTrial)/dH_dT
+                  dT_dH = dT_dH - ( dH_dH - 1._rkind - dH_dT__dH * (H - scalarCanopyEnthalpyTrial)/dH_dT ) /dH_dT
+                  dT_dW = dT_dW - ( dH_dW            - dH_dT__dW * (H - scalarCanopyEnthalpyTrial)/dH_dT ) /dH_dT
                 end do
-              ! ***** iterate to find temperature
+              endif ! (if ice exists)
 
-
-              ! diffT>=0._rkind 
-              scalarCanopyTempTrial = scalarCanopyEnthalpy * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial ) + Tfreeze
-              scalarCanopyTempPrime = scalarCanopyEnthalpyPrime * canopyDepth / ( specificHeatVeg * maxMassVegetation + Cp_water * scalarCanopyWatTrial )
-
-              ! diffT<0._rkind        
-              scalarCanopyEnthalpy * canopyDepth = (specificHeatVeg * maxMassVegetation + Cp_ice * scalarCanopyWatTrial )* diffT + (Cp_water - Cp_ice)* scalarCanopyWatTrial * integral 
-                                                   + LH_fus * (1._rkind - fLiq) * scalarCanopyWatTrial
+              ! update temperature and derivatives
+              scalarCanopyTempTrial = T
+              dCanopyTemp_dEnthalpy = dT_dH
+              dCanopyTemp_dCanWat   = dT_dW
 
             end associate vegVars
 
@@ -1014,6 +1026,57 @@ subroutine enthalpy2T(&
             snowVars: associate(&
               snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1)   & ! intent(in):  [dp] scaling parameter for the snow freezing curve (K-1)
               )
+
+              ! ***** iterate to find temperature, ice always exists
+              T     = 260._rkind ! initial guess, very cold
+              H     =  mLayerEnthalpy(iLayer) + 1._rkind ! to start the iteration
+              dT_dH = 0._rkind
+              dT_dW = 0._rkind
+
+
+              do while(abs(mLayerEnthalpy(iLayer)-H)>1.e-6_rkind)
+                ! compute enthalpy function, H
+                diffT    = T - Tfreeze
+                integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
+                fLiq     =  1._rkind / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )
+                H        =  (specificHeatVeg * maxMassVegetation + Cp_ice * mLayerVolFracWatTrial(iLayer) )* diffT + (Cp_water - Cp_ice)* mLayerVolFracWatTrial(iLayer) * integral &
+                            + LH_fus * (1._rkind - fLiq) * mLayerVolFracWatTrial(iLayer)
+
+                ! compute derivative of H with respect to T
+                dintegral_dT   = (1._rkind/snowfrz_scale) / (1._rkind + (snowfrz_scale * diffT)**2_i4b)
+                d2integral_dT2 = -2._rkind * snowfrz_scale * diffT / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**2_i4b
+                dfLiq_dT       = -2._rkind * snowfrz_scale * diffT / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**2_i4b
+                d2fLiq_dT2     =  2._rkind * snowfrz_scale**2_i4b * ( 3._rkind * diffT**2_i4b - 1._rkind ) / ( 1._rkind + (snowfrz_scale * diffT)**2_i4b )**3_i4b
+                dH_dT          = specificHeatVeg * maxMassVegetation + Cp_ice * mLayerVolFracWatTrial(iLayer) + (Cp_water - Cp_ice)* mLayerVolFracWatTrial(iLayer) * dintegral_dT &
+                                  - LH_fus * dfLiq_dT * mLayerVolFracWatTrial(iLayer)
+                d2H_dT2        = ( (Cp_water - Cp_ice)* mLayerVolFracWatTrial(iLayer) * d2integral_dT2 - LH_fus * d2fLiq_dT2 * mLayerVolFracWatTrial(iLayer) )/ canopyDepth
+
+                ! compute derivative of H with respect to layer enthalpy
+                dH_dH     = dH_dT * dT_dH
+                dH_dT__dH = d2H_dT2 * dT_dH
+
+                ! compute derivative of H with respect to layer water content
+                dH_dW     = dH_dT * dT_dW   + Cp_ice * diffT + (Cp_water - Cp_ice) * integral + LH_fus * (1._rkind - fLiq)
+                dH_dT__dW = d2H_dT2 * dT_dW + Cp_ice * (1.0_rkind - dintegral_dT) - LH_fus * dfLiq
+
+                ! compute change in T and update, including derivatives
+                T1    = T     - (H - mLayerEnthalpy(iLayer))/dH_dT
+                dT_dH = dT_dH - ( dH_dH - 1._rkind - dH_dT__dH * (H - mLayerEnthalpy(iLayer))/dH_dT ) /dH_dT
+                dT_dW = dT_dW - ( dH_dW            - dH_dT__dW * (H - mLayerEnthalpy(iLayer))/dH_dT ) /dH_dT
+              end do
+
+
+
+
+
+
+
+
+
+
+
+
+
 
               diffT = mLayerTempTrial(iLayer) - Tfreeze  ! diffT<0._rkind because snow is frozen
               integral = (1._rkind/snowfrz_scale) * atan(snowfrz_scale * diffT)
