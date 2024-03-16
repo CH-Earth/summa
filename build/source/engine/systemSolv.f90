@@ -278,186 +278,19 @@ subroutine systemSolv(&
 
   call initial_function_evaluations; if (return_flag) return ! initial function evaluations -- return if error
 
-  globalVars: associate(&
-    ! model decisions
-    ixNumericalMethod       => model_decisions(iLookDECISIONS%num_method)%iDecision   ,& ! intent(in): [i4b] choice of numerical solver
-    ! layer geometry
-    nSnow                   => indx_data%var(iLookINDEX%nSnow)%dat(1)                 ,& ! intent(in):    [i4b]    number of snow layers
-    nSoil                   => indx_data%var(iLookINDEX%nSoil)%dat(1)                  & ! intent(in):    [i4b]    number of soil layers
-    )
-
-    ! **************************
-    ! * Solving the System
-    ! **************************
+  ! **************************
+  ! * Solving the System
+  ! **************************
+  associate(ixNumericalMethod => model_decisions(iLookDECISIONS%num_method)%iDecision) ! intent(in): [i4b] choice of numerical solver
     select case(ixNumericalMethod)
-#ifdef SUNDIALS_ACTIVE
-      case(ida)
-        ! get tolerance vectors
-        call popTol4ida(&
-                        ! input
-                        nState,                           & ! intent(in):    number of desired state variables
-                        prog_data,                        & ! intent(in):    model prognostic variables for a local HRU
-                        diag_data,                        & ! intent(in):    model diagnostic variables for a local HRU
-                        indx_data,                        & ! intent(in):    indices defining model states and layers
-                        mpar_data,                        & ! intent(in):    model parameters
-                        ! output
-                        atol,                             & ! intent(out):   absolute tolerances vector (mixed units)
-                        rtol,                             & ! intent(out):   relative tolerances vector (mixed units)
-                        err,cmessage)                       ! intent(out):   error control
-        if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  ! (check for errors)
-
-        ! allocate space for the temporary flux_sum structure
-        call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage)
-        if(err/=0)then; err=20; message=trim(message)//trim(cmessage); return; endif
-
-        ! initialize flux_sum
-        do concurrent ( iVar=1:size(flux_meta) )
-          flux_sum%var(iVar)%dat(:) = 0._rkind
-        end do
-        ! initialize sum of compression of the soil matrix
-        mLayerCmpress_sum(:) = 0._rkind
-
-        !---------------------------
-        ! * solving F(y,y') = 0 by IDA, y is the state vector and y' is the time derivative vector dy/dt
-        !---------------------------
-        ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-        call summaSolve4ida(&
-                          dt_cur,                  & ! intent(in):    current stepsize
-                          dt,                      & ! intent(in):    entire time step for drainage pond rate
-                          atol,                    & ! intent(in):    absolute tolerance
-                          rtol,                    & ! intent(in):    relative tolerance
-                          nSnow,                   & ! intent(in):    number of snow layers
-                          nSoil,                   & ! intent(in):    number of soil layers
-                          nLayers,                 & ! intent(in):    number of snow+soil layers
-                          nState,                  & ! intent(in):    number of state variables in the current subset
-                          ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
-                          firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                          computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                          scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                          computMassBalance,       & ! intent(in):    flag to compute mass balance
-                          computNrgBalance,        & ! intent(in):    flag to compute energy balance
-                          ! input: state vector
-                          stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
-                          sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
-                          dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
-                          ! input: data structures
-                          model_decisions,         & ! intent(in):    model decisions
-                          type_data,               & ! intent(in):    type of vegetation and soil
-                          attr_data,               & ! intent(in):    spatial attributes
-                          mpar_data,               & ! intent(in):    model parameters
-                          forc_data,               & ! intent(in):    model forcing data
-                          bvar_data,               & ! intent(in):    average model variables for the entire basin
-                          prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                          ! input-output: data structures
-                          indx_data,               & ! intent(inout): index data
-                          diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                          flux_temp,               & ! intent(inout): model fluxes for a local HRU
-                          flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
-                          deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                          mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
-                          ! output
-                          ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                          sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
-                          tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
-                          nSteps,                  & ! intent(out):   number of time steps taken in solver
-                          stateVecNew,             & ! intent(inout): model state vector (y) at the end of the data time step
-                          stateVecPrime,           & ! intent(inout): derivative of model state vector (y') at the end of the data time step
-                          balance,                 & ! intent(inout): balance per state
-                          err,cmessage)              ! intent(out):   error control
-        ! check if IDA is successful, only fail outright in the case of a non-recoverable error
-        if( .not.sunSucceeds )then
-          message=trim(message)//trim(cmessage)
-          !if(err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, could happen since not using imposeConstraints 
-          if(err.ne.-20) err = 20 ! -20 is a recoverable error
-          return
-        else
-          if (tooMuchMelt) return !exit to start same step over after merge
-        endif
-        niter = 0  ! iterations are counted inside IDA solver
-
-        ! save the computed solution
-        stateVecTrial = stateVecNew
-
-        ! compute average flux
-        do iVar=1,size(flux_meta)
-          flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_cur
-        end do
-
-        ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
-        soilVars: associate(&
-          ! layer geometry
-          mLayerDepth             => prog_data%var(iLookPROG%mLayerDepth)%dat               ,& ! depth of each layer in the snow-soil sub-domain (m)
-          mLayerCompress          => diag_data%var(iLookDIAG%mLayerCompress)%dat            ,& ! change in storage associated with compression of the soil matrix (-)
-          scalarSoilCompress      => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1)      & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
-          )
-          mLayerCompress = mLayerCmpress_sum /  dt_cur
-          scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
-        end associate soilVars
-
-      case(kinsol)
-        !---------------------------
-        ! * solving F(y) = 0 from Backward Euler with KINSOL, y is the state vector 
-        !---------------------------
-        ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
-        call summaSolve4kinsol(&
-                          dt_cur,                  & ! intent(in):    data time step
-                          dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
-                          fScale,                  & ! intent(in):    characteristic scale of the function evaluations
-                          xScale,                  & ! intent(in):    characteristic scale of the state vector
-                          nSnow,                   & ! intent(in):    number of snow layers
-                          nSoil,                   & ! intent(in):    number of soil layers
-                          nLayers,                 & ! intent(in):    number of snow+soil layers
-                          nState,                  & ! intent(in):    number of state variables in the current subset
-                          ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
-                          firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
-                          computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                          scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
-                          ! input: state vector
-                          stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
-                          sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
-                          dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
-                          ! input: data structures
-                          model_decisions,         & ! intent(in):    model decisions
-                          lookup_data,             & ! intent(in):    lookup tables
-                          type_data,               & ! intent(in):    type of vegetation and soil
-                          attr_data,               & ! intent(in):    spatial attributes
-                          mpar_data,               & ! intent(in):    model parameters
-                          forc_data,               & ! intent(in):    model forcing data
-                          bvar_data,               & ! intent(in):    average model variables for the entire basin
-                          prog_data,               & ! intent(in):    model prognostic variables for a local HRU
-                          ! input-output: data structures
-                          indx_data,               & ! intent(inout): index data
-                          diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
-                          flux_temp,               & ! intent(inout): model fluxes for a local HRU
-                          deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
-                          ! output
-                          ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
-                          sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
-                          stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
-                          fluxVec,                 & ! intent(out):   new flux vector
-                          resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
-                          resVec,                  & ! intent(out):   new residual vector       
-                          err,cmessage)              ! intent(out):   error control
-        ! check if KINSOL is successful, only fail outright in the case of a non-recoverable error
-        if( .not.sunSucceeds )then
-          message=trim(message)//trim(cmessage)
-          !if(err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, should not happen with imposeConstraints 
-          if(err.ne.-20) err = 20 ! -20 if hit maximum iterations
-          return
-        endif
-        niter = 0  ! iterations are counted inside KINSOL solver
-        nSteps = 1 ! number of time steps taken in solver
-
-        ! save the computed solution
-        stateVecTrial = stateVecNew
-        stateVecPrime = stateVecTrial ! prime values not used here, dummy
-
-#endif
-      case(numrec)
+      case(ida)    ! solve for general time step using IDA
+        call solve_with_IDA; if (return_flag) return           ! solve using IDA -- return if error
+      case(kinsol) ! solve for BE time step using KINSOL
+        call solve_with_KINSOL; if (return_flag) return        ! solve using KINSOL -- return if error
+      case(numrec) ! solve for BE time step using Newton iterations
         call Newton_iterations_numrec; if (return_flag) return ! Newton iterations using numerical recipes -- return if error
     end select
-
-  end associate globalVars ! end associate statements
+  end associate 
  
   call finalize_systemSolv ! set untapped melt to zero and deallocate arrays
 
@@ -735,7 +568,7 @@ contains
   ! Post processing step to “perfectly” conserve mass by pushing the errors into the state variables
   ! NOTE: if the residual is large this will cause the state variables to be pushed outside of their bounds
   layerVars: associate(&
-     nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)        ,& ! intent(in): [i4b] number of snow layers
+    nSnow        => indx_data%var(iLookINDEX%nSnow)%dat(1)        ,& ! intent(in): [i4b] number of snow layers
     ! vector of energy and hydrology indices for the snow and soil domains
     ixSnowSoilNrg => indx_data%var(iLookINDEX%ixSnowSoilNrg)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for energy state variables in the snow+soil domain
     ixSnowSoilHyd => indx_data%var(iLookINDEX%ixSnowSoilHyd)%dat   ,& ! intent(in): [i4b(:)] index in the state subset for hydrology state variables in the snow+soil domain
@@ -763,6 +596,185 @@ contains
     end if
   end associate layerVars
  end subroutine enforce_mass_conservation
+
+ subroutine solve_with_IDA
+#ifdef SUNDIALS_ACTIVE
+  ! get tolerance vectors
+  call popTol4ida(&
+                  ! input
+                  nState,                           & ! intent(in):  number of desired state variables
+                  prog_data,                        & ! intent(in):  model prognostic variables for a local HRU
+                  diag_data,                        & ! intent(in):  model diagnostic variables for a local HRU
+                  indx_data,                        & ! intent(in):  indices defining model states and layers
+                  mpar_data,                        & ! intent(in):  model parameters
+                  ! output
+                  atol,                             & ! intent(out): absolute tolerances vector (mixed units)
+                  rtol,                             & ! intent(out): relative tolerances vector (mixed units)
+                  err,cmessage)                       ! intent(out): error control
+  if (err/=0) then; message=trim(message)//trim(cmessage); return; end if  ! check for errors
+
+  layerGeometry: associate(&
+   nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
+   nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1) & ! intent(in): [i4b] number of soil layers
+   )
+
+   ! allocate space for the temporary flux_sum structure
+   call allocLocal(flux_meta(:),flux_sum,nSnow,nSoil,err,cmessage)
+   if (err/=0) then; err=20; message=trim(message)//trim(cmessage); return; end if
+
+   ! initialize flux_sum
+   do concurrent ( iVar=1:size(flux_meta) )
+    flux_sum%var(iVar)%dat(:) = 0._rkind
+   end do
+   ! initialize sum of compression of the soil matrix
+   mLayerCmpress_sum(:) = 0._rkind
+
+   !---------------------------
+   ! * solving F(y,y') = 0 by IDA, y is the state vector and y' is the time derivative vector dy/dt
+   !---------------------------
+   ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
+   call summaSolve4ida(&
+                       dt_cur,                  & ! intent(in):    current stepsize
+                       dt,                      & ! intent(in):    entire time step for drainage pond rate
+                       atol,                    & ! intent(in):    absolute tolerance
+                       rtol,                    & ! intent(in):    relative tolerance
+                       nSnow,                   & ! intent(in):    number of snow layers
+                       nSoil,                   & ! intent(in):    number of soil layers
+                       nLayers,                 & ! intent(in):    number of snow+soil layers
+                       nState,                  & ! intent(in):    number of state variables in the current subset
+                       ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
+                       firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                       computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                       scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                       computMassBalance,       & ! intent(in):    flag to compute mass balance
+                       computNrgBalance,        & ! intent(in):    flag to compute energy balance
+                       ! input: state vector
+                       stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
+                       sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
+                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
+                       ! input: data structures
+                       model_decisions,         & ! intent(in):    model decisions
+                       type_data,               & ! intent(in):    type of vegetation and soil
+                       attr_data,               & ! intent(in):    spatial attributes
+                       mpar_data,               & ! intent(in):    model parameters
+                       forc_data,               & ! intent(in):    model forcing data
+                       bvar_data,               & ! intent(in):    average model variables for the entire basin
+                       prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                       ! input-output: data structures
+                       indx_data,               & ! intent(inout): index data
+                       diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                       flux_temp,               & ! intent(inout): model fluxes for a local HRU
+                       flux_sum,                & ! intent(inout): sum of fluxes model fluxes for a local HRU over a data step
+                       deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                       mLayerCmpress_sum,       & ! intent(inout): sum of compression of the soil matrix
+                       ! output
+                       ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                       sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                       tooMuchMelt,             & ! intent(inout): flag to denote that there was too much melt
+                       nSteps,                  & ! intent(out):   number of time steps taken in solver
+                       stateVecNew,             & ! intent(inout): model state vector (y) at the end of the data time step
+                       stateVecPrime,           & ! intent(inout): derivative of model state vector (y') at the end of the data time step
+                       balance,                 & ! intent(inout): balance per state
+                       err,cmessage)              ! intent(out):   error control
+   ! check if IDA is successful, only fail outright in the case of a non-recoverable error
+   if ( .not.sunSucceeds ) then
+    message=trim(message)//trim(cmessage)
+    !if (err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, could happen since not using imposeConstraints 
+    if (err.ne.-20) err = 20 ! -20 is a recoverable error
+    return
+   else
+    if (tooMuchMelt) return !exit to start same step over after merge
+   end if
+   niter = 0  ! iterations are counted inside IDA solver
+
+   ! save the computed solution
+   stateVecTrial = stateVecNew
+
+   ! compute average flux
+   do iVar=1,size(flux_meta)
+    flux_temp%var(iVar)%dat(:) = ( flux_sum%var(iVar)%dat(:) ) /  dt_cur
+   end do
+
+   ! compute the total change in storage associated with compression of the soil matrix (kg m-2)
+   soilVars: associate(&
+    ! layer geometry
+    mLayerDepth        => prog_data%var(iLookPROG%mLayerDepth)%dat          ,& ! depth of each layer in the snow-soil sub-domain (m)
+    mLayerCompress     => diag_data%var(iLookDIAG%mLayerCompress)%dat       ,& ! change in storage associated with compression of the soil matrix (-)
+    scalarSoilCompress => diag_data%var(iLookDIAG%scalarSoilCompress)%dat(1) & ! total change in storage associated with compression of the soil matrix (kg m-2 s-1)
+    )
+    mLayerCompress = mLayerCmpress_sum /  dt_cur
+    scalarSoilCompress = sum(mLayerCompress(1:nSoil)*mLayerDepth(nSnow+1:nLayers))*iden_water
+   end associate soilVars
+  end associate layerGeometry
+#endif
+ end subroutine solve_with_IDA
+
+ subroutine solve_with_KINSOL
+#ifdef SUNDIALS_ACTIVE
+  associate(&
+   nSnow => indx_data%var(iLookINDEX%nSnow)%dat(1),& ! intent(in): [i4b] number of snow layers
+   nSoil => indx_data%var(iLookINDEX%nSoil)%dat(1) & ! intent(in): [i4b] number of soil layers
+   )
+   !---------------------------
+   ! * solving F(y) = 0 from Backward Euler with KINSOL, y is the state vector 
+   !---------------------------
+   ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
+   call summaSolve4kinsol(&
+                          dt_cur,                  & ! intent(in):    data time step
+                          dt,                      & ! intent(in):    length of the entire time step (seconds) for drainage pond rate
+                          fScale,                  & ! intent(in):    characteristic scale of the function evaluations
+                          xScale,                  & ! intent(in):    characteristic scale of the state vector
+                          nSnow,                   & ! intent(in):    number of snow layers
+                          nSoil,                   & ! intent(in):    number of soil layers
+                          nLayers,                 & ! intent(in):    number of snow+soil layers
+                          nState,                  & ! intent(in):    number of state variables in the current subset
+                          ixMatrix,                & ! intent(in):    type of matrix (dense or banded)
+                          firstSubStep,            & ! intent(in):    flag to indicate if we are processing the first sub-step
+                          computeVegFlux,          & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
+                          scalarSolution,          & ! intent(in):    flag to indicate the scalar solution
+                          ! input: state vector
+                          stateVecTrial,           & ! intent(in):    model state vector at the beginning of the data time step
+                          sMul,                    & ! intent(inout): state vector multiplier (used in the residual calculations)
+                          dMat,                    & ! intent(inout)  diagonal of the Jacobian matrix (excludes fluxes)
+                          ! input: data structures
+                          model_decisions,         & ! intent(in):    model decisions
+                          lookup_data,             & ! intent(in):    lookup tables
+                          type_data,               & ! intent(in):    type of vegetation and soil
+                          attr_data,               & ! intent(in):    spatial attributes
+                          mpar_data,               & ! intent(in):    model parameters
+                          forc_data,               & ! intent(in):    model forcing data
+                          bvar_data,               & ! intent(in):    average model variables for the entire basin
+                          prog_data,               & ! intent(in):    model prognostic variables for a local HRU
+                          ! input-output: data structures
+                          indx_data,               & ! intent(inout): index data
+                          diag_data,               & ! intent(inout): model diagnostic variables for a local HRU
+                          flux_temp,               & ! intent(inout): model fluxes for a local HRU
+                          deriv_data,              & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                          ! output
+                          ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
+                          sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
+                          stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
+                          fluxVec,                 & ! intent(out):   new flux vector
+                          resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
+                          resVec,                  & ! intent(out):   new residual vector       
+                          err,cmessage)              ! intent(out):   error control
+  end associate
+
+  ! check if KINSOL is successful, only fail outright in the case of a non-recoverable error
+  if ( .not.sunSucceeds ) then
+    message=trim(message)//trim(cmessage)
+    !if(err.ne.-20 .or. err=0) err = 20 ! 0 if infeasible solution, should not happen with imposeConstraints 
+    if (err.ne.-20) err = 20 ! -20 if hit maximum iterations
+    return
+  end if
+  niter = 0  ! iterations are counted inside KINSOL solver
+  nSteps = 1 ! number of time steps taken in solver
+
+  ! save the computed solution
+  stateVecTrial = stateVecNew
+  stateVecPrime = stateVecTrial ! prime values not used here, dummy
+#endif
+ end subroutine solve_with_KINSOL
 
  subroutine Newton_iterations_numrec
   ! ** Compute the backward Euler solution using Newton iterations from numerical recipes **
