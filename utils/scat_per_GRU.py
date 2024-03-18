@@ -30,11 +30,16 @@ if testing:
     stat = 'maxe'
     viz_dir = Path('/Users/amedin/Research/USask/test_py/statistics')
     method_name=['be1','sundials_1en6'] #maybe make this an argument
+    plt_name=['BE1','IDAe-6'] #maybe make this an argument
 else:
     import sys
     # The first input argument specifies the run where the files are
     stat = sys.argv[1]
-    method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+    #method_name=['be1','sundials_1en4','be4','be8','be16','be32','sundials_1en6'] #maybe make this an argument
+    #plt_name=['BE1','IDAe-4','BE4','BE8','BE16','BE32','IDAe-6'] #maybe make this an argument
+    method_name=['be1','be16','be32','sundials_1en6'] #maybe make this an argument
+    plt_name=['BE1','BE16','BE32','IDAe-6'] #maybe make this an argument
+
 if stat == 'kgem': do_rel = False # don't plot relative to the benchmark simulation for KGE
 
 # Simulation statistics file locations
@@ -79,10 +84,12 @@ else:
     plt.rcParams.update({'font.size': 100})
 
 if 'compressed' in fig_fil:
-    fig,axs = plt.subplots(3,2,figsize=(35,33))
+    fig,axs = plt.subplots(3,2,figsize=(31,33))
 else:
     fig,axs = plt.subplots(3,2,figsize=(140,133))
-fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
+#fig.suptitle('Hourly Errors and Values for each GRU', fontsize=40)
+fig.subplots_adjust(hspace=0.24) # Adjust the bottom margin, vertical space, and horizontal space
+
     
 def run_loop(i,var):
     r = i//2
@@ -136,26 +143,27 @@ def run_loop(i,var):
         else:
             axs[r,c].scatter(x=np.fabs(s.sel(stat=stat).values),y=s.sel(stat=stat0).values,s=1,zorder=0,label=m)        
             if stat == 'rmse': stat_word = 'RMSE'
-            if stat == 'rmnz': stat_word = 'RMSE no 0s'
+            if stat == 'rmnz': stat_word = 'RMSE' # no 0s'
             if stat == 'maxe': stat_word = 'max abs error'
             if stat == 'kgem': stat_word = 'KGE"'
  
     if stat0 == 'mean': stat0_word = 'mean'
-    if stat0 == 'mnnz': stat0_word = 'mean no 0s'
+    if stat0 == 'mnnz': stat0_word = 'mean' # no 0s'
     if stat0 == 'amax': stat0_word = 'max'
  
-    lgnd = axs[r,c].legend()
+    lgnd = axs[r,c].legend(plt_name)
     for j, m in enumerate(method_name):
        lgnd.legendHandles[j]._sizes = [80]
     axs[r,c].set_title(plt_titl[i])
     if stat == 'rmse' or stat == 'rmnz': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titl[i]))
     if stat == 'maxe': axs[r,c].set_xlabel(stat_word + ' [{}]'.format(leg_titlm[i]))   
     if stat == 'kgem': axs[r,c].set_xlabel(stat_word)
-    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + stat0_word)
+    #if do_rel and var!='wallClockTime': axs[r,c].set_xlabel(stat_word + ' rel to bench ' + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_xlabel('relative '+ stat_word)
 
     axs[r,c].set_ylabel(stat0_word + ' [{}]'.format(leg_titl0[i]))
-    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + ' rel to bench ' + stat0_word)
-
+    #if do_rel and var!='wallClockTime': axs[r,c].set_ylabel(stat0_word + ' rel to bench ' + stat0_word)
+    if do_rel and var!='wallClockTime': axs[r,c].set_ylabel('relative '+ stat0_word)
 
 for i,var in enumerate(plot_vars): 
     run_loop(i,var)

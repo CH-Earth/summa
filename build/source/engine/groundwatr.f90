@@ -125,34 +125,29 @@ subroutine groundwatr(&
   allocate(out_groundwatr % mLayerBaseflow(in_groundwatr%nSoil),out_groundwatr % dBaseflow_dMatric(in_groundwatr%nSoil,in_groundwatr%nSoil)) ! allocate intent(out) data structure components
   associate(&
     ! input: model control
-    nSnow       => in_groundwatr % nSnow,                       & ! intent(in): [i4b] number of snow layers
-    nSoil       => in_groundwatr % nSoil,                       & ! intent(in): [i4b] number of soil layers
-    nLayers     => in_groundwatr % nLayers,                     & ! intent(in): [i4b] total number of layers
-    getSatDepth => in_groundwatr % firstFluxCall,               & ! intent(in): [lgt] logical flag to compute index of the lowest saturated layer
+    nSnow               => in_groundwatr % nSnow,                              & ! intent(in):    [i4b] number of snow layers
+    nSoil               => in_groundwatr % nSoil,                              & ! intent(in):    [i4b] number of soil layers
+    nLayers             => in_groundwatr % nLayers,                            & ! intent(in):    [i4b] total number of layers
+    getSatDepth         => in_groundwatr % firstFluxCall,                      & ! intent(in):    [lgt] logical flag to compute index of the lowest saturated layer
     ! input: state and diagnostic variables
-    mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,        & ! intent(in): [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
-    mLayerMatricHeadLiq => in_groundwatr % mLayerMatricHeadLiqTrial, & ! intent(in): [dp] matric head in each layer at the current iteration (m)
-    mLayerVolFracLiq    => in_groundwatr % mLayerVolFracLiqTrial,    & ! intent(in): [dp] volumetric fraction of liquid water (-)
-    mLayerVolFracIce    => in_groundwatr % mLayerVolFracIceTrial,    & ! intent(in): [dp] volumetric fraction of ice (-)
+    mLayerdTheta_dPsi   => in_groundwatr % mLayerdTheta_dPsi,                  & ! intent(in):    [dp] derivative in the soil water characteristic w.r.t. matric head in each layer (m-1)
+    mLayerMatricHeadLiq => in_groundwatr % mLayerMatricHeadLiqTrial,           & ! intent(in):    [dp] matric head in each layer at the current iteration (m)
+    mLayerVolFracLiq    => in_groundwatr % mLayerVolFracLiqTrial,              & ! intent(in):    [dp] volumetric fraction of liquid water (-)
+    mLayerVolFracIce    => in_groundwatr % mLayerVolFracIceTrial,              & ! intent(in):    [dp] volumetric fraction of ice (-)
     ! input: baseflow parameters
-    fieldCapacity           => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),         & ! intent(in):  [dp] field capacity (-)
-    theta_sat               => mpar_data%var(iLookPARAM%theta_sat)%dat,                & ! intent(in):  [dp] soil porosity (-)
-    theta_res               => mpar_data%var(iLookPARAM%theta_res)%dat,                & ! intent(in):  [dp] residual volumetric water content (-)
-    ! input: van Genuchten soil parametrers
-    vGn_alpha               => mpar_data%var(iLookPARAM%vGn_alpha)%dat,                & ! intent(in):  [dp] van Genutchen "alpha" parameter (m-1)
-    vGn_n                   => mpar_data%var(iLookPARAM%vGn_n)%dat,                    & ! intent(in):  [dp] van Genutchen "n" parameter (-)
-    vGn_m                   => diag_data%var(iLookDIAG%scalarVGn_m)%dat,               & ! intent(in):  [dp] van Genutchen "m" parameter (-)
+    fieldCapacity       => mpar_data%var(iLookPARAM%fieldCapacity)%dat(1),     & ! intent(in):    [dp] field capacity (-)
+    theta_sat           => mpar_data%var(iLookPARAM%theta_sat)%dat,            & ! intent(in):    [dp] soil porosity (-)
     ! input-output: baseflow
-    ixSaturation            => io_groundwatr % ixSaturation,         & ! intent(inout): [i4b] index of lowest saturated layer (NOTE: only computed on the first iteration)
+    ixSaturation        => io_groundwatr % ixSaturation,                       & ! intent(inout): [i4b] index of lowest saturated layer (NOTE: only computed on the first iteration)
     ! output: diagnostic variables
-    scalarExfiltration      => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1),     & ! intent(out): [dp]    exfiltration from the soil profile (m s-1)
-    mLayerColumnOutflow     => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,       & ! intent(out): [dp(:)] column outflow from each soil layer (m3 s-1)
+    scalarExfiltration  => flux_data%var(iLookFLUX%scalarExfiltration)%dat(1), & ! intent(out):   [dp]    exfiltration from the soil profile (m s-1)
+    mLayerColumnOutflow => flux_data%var(iLookFLUX%mLayerColumnOutflow)%dat,   & ! intent(out):   [dp(:)] column outflow from each soil layer (m3 s-1)
     ! output: baseflow
-    mLayerBaseflow    => out_groundwatr % mLayerBaseflow,                              & ! intent(out): [dp(:)] baseflow from each soil layer (m s-1)
-    dBaseflow_dMatric => out_groundwatr % dBaseflow_dMatric,                           & ! intent(out): [dp(:,:)] derivative in baseflow w.r.t. matric head (s-1)
+    mLayerBaseflow      => out_groundwatr % mLayerBaseflow,                    & ! intent(out):   [dp(:)]   baseflow from each soil layer (m s-1)
+    dBaseflow_dMatric   => out_groundwatr % dBaseflow_dMatric,                 & ! intent(out):   [dp(:,:)] derivative in baseflow w.r.t. matric head (s-1)
     ! output: error control
-    err               => out_groundwatr % err,                                         & ! intent(out): [i4b] error code
-    message           => out_groundwatr % cmessage                                     & ! intent(out): [character] error message
+    err                 => out_groundwatr % err,                               & ! intent(out):   [i4b]       error code
+    message             => out_groundwatr % cmessage                           & ! intent(out):   [character] error message
     )  ! end association to variables in data structures
     ! initialize error control
     err=0; message='groundwatr/'
@@ -348,7 +343,7 @@ subroutine computeBaseflow(&
     totalColumnOutflow = sum(mLayerColumnOutflow(1:nSoil))/HRUarea
 
     ! compute the available storage (m)
-    availStorage = sum(mLayerDepth(1:nSoil)*(theta_sat - (mLayerVolFracLiq(1:nSoil)+mLayerVolFracIce(1:nSoil))))
+    availStorage = sum(mLayerDepth(1:nSoil)*(theta_sat(1:nSoil) - (mLayerVolFracLiq(1:nSoil)+mLayerVolFracIce(1:nSoil))))
 
     ! compute the smoothing function (-)
     if (availStorage < xMinEval) then
@@ -362,7 +357,7 @@ subroutine computeBaseflow(&
       dLogFunc_dLiq(:) = 0._rkind
     end if
 
-    ! compute the exfiltartion (m s-1)
+    ! compute the exfiltration (m s-1)
     if (totalColumnInflow > totalColumnOutflow .and. logF > tiny(1._rkind)) then
       scalarExfiltration = logF*(totalColumnInflow - totalColumnOutflow)  ! m s-1
     else

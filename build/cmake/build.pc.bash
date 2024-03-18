@@ -22,5 +22,5 @@
 #export FLAGS_OPT="-m64;-I"${MKLROOT}/include";-flto=1;-fuse-linker-plugin"   # optional compiler flags -- Intel oneMKL builds
 
 # CMake Commands (build type controlled using DCMAKE_BUILD_TYPE)
-cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=BE
+cmake -B ../cmake_build -S . -DCMAKE_BUILD_TYPE=Sundials
 cmake --build ../cmake_build --target all

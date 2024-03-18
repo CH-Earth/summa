@@ -74,7 +74,7 @@ MODULE var_lookup
   integer(i4b)    :: spatial_gw = integerMissing     ! choice of method for spatial representation of groundwater
   integer(i4b)    :: subRouting = integerMissing     ! choice of method for sub-grid routing
   integer(i4b)    :: snowDenNew = integerMissing     ! choice of method for new snow density
-  integer(i4b)    :: howHeatCap = integerMissing     ! how to compute heat capacity in energy equation
+  integer(i4b)    :: nrgConserv = integerMissing     ! choice of variable in energy conservation backward Euler residual
  endtype iLook_decision
 
  ! ***********************************************************************************************************
@@ -285,7 +285,7 @@ MODULE var_lookup
   integer(i4b)    :: maxstep               = integerMissing    ! maximum length of the time step
   integer(i4b)    :: be_steps              = integerMissing    ! minimum number of substeps to take in a maxstep numrec
   integer(i4b)    :: wimplicit             = integerMissing    ! weight assigned to the start-of-step fluxes
-  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iteration
+  integer(i4b)    :: maxiter               = integerMissing    ! maximum number of iterations numrec and kinsol
   integer(i4b)    :: relConvTol_liquid     = integerMissing    ! relative convergence tolerance for vol frac liq water (-)
   integer(i4b)    :: absConvTol_liquid     = integerMissing    ! absolute convergence tolerance for vol frac liq water (-)
   integer(i4b)    :: relConvTol_matric     = integerMissing    ! relative convergence tolerance for matric head (-)
@@ -389,8 +389,12 @@ MODULE var_lookup
   integer(i4b)    :: iLayerThermalC                  = integerMissing ! thermal conductivity at the interface of each layer (W m-1 K-1)
   ! enthalpy
   integer(i4b)    :: scalarCanairEnthalpy            = integerMissing ! enthalpy of the canopy air space (J m-3)
+  integer(i4b)    :: scalarCanopyEnthTemp            = integerMissing ! temperature component of enthalpy of the vegetation canopy (J m-3)
   integer(i4b)    :: scalarCanopyEnthalpy            = integerMissing ! enthalpy of the vegetation canopy (J m-3)
+  integer(i4b)    :: mLayerEnthTemp                  = integerMissing ! temperature component of enthalpy of the snow+soil layers (J m-3)
   integer(i4b)    :: mLayerEnthalpy                  = integerMissing ! enthalpy of the snow+soil layers (J m-3)
+  integer(i4b)    :: scalarTotalSoilEnthalpy         = integerMissing ! total enthalpy of the soil column (J m-3)
+  integer(i4b)    :: scalarTotalSnowEnthalpy         = integerMissing ! total enthalpy of the snow column (J m-3)
   ! forcing
   integer(i4b)    :: scalarVPair                     = integerMissing ! vapor pressure of the air above the vegetation canopy (Pa)
   integer(i4b)    :: scalarVP_CanopyAir              = integerMissing ! vapor pressure of the canopy air space (Pa)
@@ -453,8 +457,6 @@ MODULE var_lookup
   integer(i4b)    :: scalarSoilCompress              = integerMissing ! change in total soil storage due to compression of the soil matrix (kg m-2 s-1)
   integer(i4b)    :: mLayerMatricHeadLiq             = integerMissing ! matric potential of liquid water (m)
   ! mass balance check
-  integer(i4b)    :: scalarSoilWatBalError           = integerMissing ! error in the total soil water balance (kg m-2)
-  integer(i4b)    :: scalarAquiferBalError           = integerMissing ! error in the aquifer water balance (kg m-2)
   integer(i4b)    :: scalarTotalSoilLiq              = integerMissing ! total mass of liquid water in the soil (kg m-2)
   integer(i4b)    :: scalarTotalSoilIce              = integerMissing ! total mass of ice in the soil (kg m-2)
   integer(i4b)    :: scalarTotalSoilWat              = integerMissing ! total mass of water in the soil (kg m-2)
@@ -466,6 +468,26 @@ MODULE var_lookup
   integer(i4b)    :: numFluxCalls                    = integerMissing ! number of flux calls (-)
   integer(i4b)    :: wallClockTime                   = integerMissing ! wall clock time (s)
   integer(i4b)    :: meanStepSize                    = integerMissing ! mean time step size over data window (s)
+  ! balances
+  integer(i4b)    :: balanceCasNrg                   = integerMissing ! balance of energy in the canopy air space (W m-3)
+  integer(i4b)    :: balanceVegNrg                   = integerMissing ! balance of energy in the vegetation (W m-3)
+  integer(i4b)    :: balanceLayerNrg                 = integerMissing ! balance of energy in each snow+soil layer (W m-3)
+  integer(i4b)    :: balanceSnowNrg                  = integerMissing ! balance of energy in the snow (W m-3)
+  integer(i4b)    :: balanceSoilNrg                  = integerMissing ! balance of energy in the soil (W m-3)
+  integer(i4b)    :: balanceVegMass                  = integerMissing ! balance of water in the vegetation (kg m-2 s-1)
+  integer(i4b)    :: balanceLayerMass                = integerMissing ! balance of water in each snow+soil layer (kg m-2 s-1)
+  integer(i4b)    :: balanceSnowMass                 = integerMissing ! balance of water in the snow (kg m-2 s-1)
+  integer(i4b)    :: balanceSoilMass                 = integerMissing ! balance of water in the soil (kg m-2 s-1)
+  integer(i4b)    :: balanceAqMass                   = integerMissing ! balance of water in the aquifer (kg m-2 s-1)
+  ! scaled balances
+  integer(i4b)    :: scaledBalanceCasNrg             = integerMissing ! scaled balance of energy in the canopy air space (s-1)
+  integer(i4b)    :: scaledBalanceVegNrg             = integerMissing ! scaled balance of energy in the vegetation (s-1)
+  integer(i4b)    :: scaledBalanceSnowNrg            = integerMissing ! scaled balance of energy in the snow (s-1)
+  integer(i4b)    :: scaledBalanceSoilNrg            = integerMissing ! scaled balance of energy in the soil (s-1)
+  integer(i4b)    :: scaledBalanceVegMass            = integerMissing ! scaled balance of water in the vegetation (s-1)
+  integer(i4b)    :: scaledBalanceSnowMass           = integerMissing ! scaled balance of water in the snow (s-1)
+  integer(i4b)    :: scaledBalanceSoilMass           = integerMissing ! scaled balance of water in the soil (s-1)
+  integer(i4b)    :: scaledBalanceAqMass             = integerMissing ! scaled balance of water in the aquifer (s-1)
  endtype iLook_diag
 
  ! ***********************************************************************************************************
@@ -636,7 +658,7 @@ MODULE var_lookup
   integer(i4b)    :: iLayerLiqFluxSnowDeriv          = integerMissing ! derivative in vertical liquid water flux at layer interfaces (m s-1)
   ! derivative in liquid water fluxes for the soil domain w.r.t hydrology state variables
   integer(i4b)    :: dVolTot_dPsi0                   = integerMissing ! derivative in total water content w.r.t. total water matric potential (m-1)
-  integer(i4b)    :: d2VolTot_d2Psi0                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
+  integer(i4b)    :: d2VolTot_dPsi02                 = integerMissing ! second derivative in total water content w.r.t. total water matric potential
   integer(i4b)    :: dq_dHydStateAbove               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer above
   integer(i4b)    :: dq_dHydStateBelow               = integerMissing ! change in the flux in layer interfaces w.r.t. state variables in the layer below
   integer(i4b)    :: dq_dHydStateLayerSurfVec        = integerMissing ! change in the flux in soil surface interface w.r.t. state variables in layer above and below
@@ -838,7 +860,7 @@ MODULE var_lookup
  ! ***********************************************************************************************************
  type, public :: iLook_vLookup
   integer(i4b)    :: temperature = integerMissing ! temperature (K)
-  integer(i4b)    :: enthalpy    = integerMissing ! enthalpy (J m-3)
+  integer(i4b)    :: psiLiq_int  = integerMissing ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
   integer(i4b)    :: deriv2      = integerMissing ! second derivatives of the interpolating function
  endtype iLook_vLookup
 
@@ -894,7 +916,9 @@ MODULE var_lookup
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
                                                                          71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
                                                                          81, 82, 83, 84, 85, 86, 87, 88, 89, 90,&
-                                                                         91, 92)
+                                                                         91, 92, 93, 94, 95, 96, 97, 98, 99,100,&
+                                                                        101,102,103,104,105,106,107,108,109,110,&
+                                                                        111,112)
  ! named variables: model fluxes
  type(iLook_flux),    public,parameter :: iLookFLUX     =iLook_flux    (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

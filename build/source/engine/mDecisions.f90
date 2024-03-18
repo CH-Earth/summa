@@ -143,13 +143,14 @@ integer(i4b),parameter,public :: qInstant             = 302    ! instantaneous r
 integer(i4b),parameter,public :: constDens            = 311    ! Constant new snow density
 integer(i4b),parameter,public :: anderson             = 312    ! Anderson 1976
 integer(i4b),parameter,public :: hedAndPom            = 313    ! Hedstrom and Pomeroy (1998), expoential increase
-integer(i4b),parameter,public :: pahaut_76            = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
+integer(i4b),parameter,public :: pahaut_76           = 314    ! Pahaut 1976, wind speed dependent (derived from Col de Porte, French Alps)
 ! look-up values for the choice of snow unloading from the canopy
 integer(i4b),parameter,public :: meltDripUnload       = 321    ! Hedstrom and Pomeroy (1998), Storck et al 2002 (snowUnloadingCoeff & ratioDrip2Unloading)
 integer(i4b),parameter,public :: windUnload           = 322    ! Roesch et al 2001, formulate unloading based on wind and temperature
-! look-up values for the choice of energy equation
-integer(i4b),parameter,public :: enthalpyFD           = 323    ! enthalpyFD
-integer(i4b),parameter,public :: closedForm           = 324    ! closedForm
+! look-up values for the choice of energy conservation residual
+integer(i4b),parameter,public :: enthalpyFD           = 323    ! enthalpy with hypergeometric function finite difference in backward Euler residual
+integer(i4b),parameter,public :: closedForm           = 324    ! heat capacity closed form in backward Euler residual
+integer(i4b),parameter,public :: enthalpyFDlu         = 325    ! enthalpy with lookup tables finite difference in backward Euler residual
 ! -----------------------------------------------------------------------------------------------------------
 
 contains
@@ -411,15 +412,17 @@ subroutine mDecisions(err,message)
   endif
 #endif
 
-  ! how to compute heat capacity in energy equation, choice enthalpyFD has better coincidence of energy conservation with IDA tolerance.
-  select case(trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision))
-    case('enthalpyFD'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = enthalpyFD        ! heat capacity using enthalpy
-    case('closedForm'); model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm        ! heat capacity using closed form, not using enthalpy
+  ! choice of variable in energy conservation backward Euler residual, choice enthalpyFD has changes the residual computation and has better coincidence of energy conservation for backward Euler solution  
+  ! NOTE: choice does not change the residual for the IDA solution, as they are equivalent
+  select case(trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision))
+    case('closedForm'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm        ! heat capacity closed form in backward Euler residual
+    case('enthalpyFD'  ); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFD        ! enthalpy with hypergeometric function finite difference in backward Euler residual
+    case('enthalpyFDlu'); model_decisions(iLookDECISIONS%nrgConserv)%iDecision = enthalpyFDlu      ! enthalpy with lookup tables finite difference in backward Euler residual
     case default
       if (trim(model_decisions(iLookDECISIONS%num_method)%cDecision)=='itertive')then
-        model_decisions(iLookDECISIONS%howHeatCap)%iDecision = closedForm ! included for backwards compatibility
+        model_decisions(iLookDECISIONS%nrgConserv)%iDecision = closedForm ! included for backwards compatibility
       else
-        err=10; message=trim(message)//"unknown Cp computation [option="//trim(model_decisions(iLookDECISIONS%howHeatCap)%cDecision)//"]"; return
+        err=10; message=trim(message)//"unknown choice of variable in energy conservation backward Euler residual [option="//trim(model_decisions(iLookDECISIONS%nrgConserv)%cDecision)//"]"; return
       endif
   end select
 

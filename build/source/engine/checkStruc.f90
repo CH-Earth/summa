@@ -41,7 +41,7 @@ contains
  USE globalData,only:mpar_meta,indx_meta                              ! metadata structures
  USE globalData,only:bpar_meta,bvar_meta                              ! metadata structures
  USE globalData,only:lookup_meta                                      ! metadata structures
- ! named variables defining strructure elements
+  ! named variables defining strructure elements
  USE var_lookup,only:iLookTIME,iLookFORCE,iLookATTR,iLookTYPE,iLookID ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPROG,iLookDIAG,iLookFLUX,iLookDERIV         ! named variables showing the elements of each data structure
  USE var_lookup,only:iLookPARAM,iLookINDEX                            ! named variables showing the elements of each data structure

@@ -42,15 +42,16 @@ type data4kinsol
   real(qp), allocatable           :: sMul(:)                      ! state vector multiplier (used in the residual calculations)
   real(rkind), allocatable        :: dMat(:)                      ! diagonal of the Jacobian matrix
   real(rkind), allocatable        :: fluxVec(:)                   ! flux vector
+  real(qp), allocatable           :: resVec(:)                    ! residual vector
   real(qp), allocatable           :: resSink(:)                   ! additional (sink) terms on the RHS of the state equation
   real(rkind),allocatable         :: fScale(:)                    ! characteristic scale of the function evaluations
   real(rkind),allocatable         :: xScale(:)                    ! characteristic scale of the state vector
   real(rkind), allocatable        :: dBaseflow_dMatric(:,:)       ! derivative in baseflow w.r.t. matric head (s-1)
   integer(i4b)                    :: ixSaturation                 ! index of the lowest saturated layer
-  real(rkind), allocatable        :: stateVecPrev(:)              ! state vector from the previous iteration to help with infeasibility
   logical(lgt)                    :: firstStateIteration          ! flag to denote if we computed an iteration so we know to save the state
   integer(i4b)                    :: err                          ! error code
   character(len=50)               :: message                      ! error message
+  real(rkind), allocatable        :: stateVecPrev(:)              ! state vector from the previous iteration to help with infeasibility
 end type data4kinsol
 
 
