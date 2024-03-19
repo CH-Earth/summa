@@ -8,6 +8,10 @@ USE multiconst,only:&
                     iden_water,  & ! intrinsic density of water    (kg m-3)
                     gravity,     & ! gravitational acceleteration  (m s-2)
                     LH_fus         ! latent heat of fusion         (J kg-1)
+
+! missing values                 
+USE globalData,only:realMissing    ! missing real number                   
+
 implicit none
 private
 public::updateSnowPrime
@@ -23,37 +27,37 @@ contains
 ! *************************************************************************************************************
 subroutine updateSnowPrime(&
                       ! input
-                      mLayerTemp            ,& ! intent(in): temperature (K)
-                      mLayerTheta           ,& ! intent(in): volume fraction of total water (-)
-                      snowfrz_scale         ,& ! intent(in): scaling parameter for the snow freezing curve (K-1)
-                      mLayerTempPrime       ,& ! intent(in): temperature (K)
-                      mLayerThetaPrime      ,& ! intent(in): volume fraction of total water (-)
+                      mLayerTemp             ,& ! intent(in):  temperature (K)
+                      mLayerTheta            ,& ! intent(in):  volume fraction of total water (-)
+                      snowfrz_scale          ,& ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                      mLayerTempPrime        ,& ! intent(in):  temperature (K)
+                      mLayerThetaPrime       ,& ! intent(in):  volume fraction of total water (-)
                       ! output
-                      mLayerVolFracLiq      ,& ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce      ,& ! intent(out): volumetric fraction of ice (-)
-                      mLayerVolFracLiqPrime ,& ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIcePrime ,& ! intent(out): volumetric fraction of ice (-)
-                      fLiq                  ,& ! intent(out): fraction of liquid water (-)
-                      err,message)        ! intent(out): error control
+                      mLayerVolFracLiq       ,& ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce       ,& ! intent(out): volumetric fraction of ice (-)
+                      mLayerVolFracLiqPrime  ,& ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIcePrime  ,& ! intent(out): volumetric fraction of ice (-)
+                      fLiq                   ,& ! intent(out): fraction of liquid water (-)
+                      err,message)              ! intent(out): error control
   ! utility routines
-  USE snow_utils_module,only:fracliquid     ! compute volumetric fraction of liquid water
-  USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
+  USE snow_utils_module,only:fracliquid         ! compute volumetric fraction of liquid water
+  USE snow_utils_module,only:dFracLiq_dTk       ! differentiate the freezing curve w.r.t. temperature (snow)
   implicit none
   ! input variables
-  real(rkind),intent(in)           :: mLayerTemp           ! temperature (K)
-  real(rkind),intent(in)           :: mLayerTheta          ! volume fraction of total water (-)
-  real(rkind),intent(in)           :: snowfrz_scale        ! scaling parameter for the snow freezing curve (K-1)
-  real(rkind),intent(in)           :: mLayerTempPrime           ! temperature (K)
-  real(rkind),intent(in)           :: mLayerThetaPrime          ! volume fraction of total water (-)
+  real(rkind),intent(in)        :: mLayerTemp            ! temperature (K)
+  real(rkind),intent(in)        :: mLayerTheta           ! volume fraction of total water (-)
+  real(rkind),intent(in)        :: snowfrz_scale         ! scaling parameter for the snow freezing curve (K-1)
+  real(rkind),intent(in)        :: mLayerTempPrime       ! temperature (K)
+  real(rkind),intent(in)        :: mLayerThetaPrime      ! volume fraction of total water (-)
   ! output variables
-  real(rkind),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
-  real(rkind),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
-  real(rkind),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
-  real(rkind),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
-  real(rkind),intent(out)          :: fLiq                 ! fraction of liquid water (-)
+  real(rkind),intent(out)       :: mLayerVolFracLiq      ! volumetric fraction of liquid water (-)
+  real(rkind),intent(out)       :: mLayerVolFracIce      ! volumetric fraction of ice (-)
+  real(rkind),intent(out)       :: mLayerVolFracLiqPrime ! volumetric fraction of liquid water (-)
+  real(rkind),intent(out)       :: mLayerVolFracIcePrime ! volumetric fraction of ice (-)
+  real(rkind),intent(out)       :: fLiq                  ! fraction of liquid water (-)
   ! error control
-  integer(i4b),intent(out)      :: err                  ! error code
-  character(*),intent(out)      :: message              ! error message
+  integer(i4b),intent(out)      :: err                   ! error code
+  character(*),intent(out)      :: message               ! error message
   ! initialize error control
   err=0; message="updateSnowPrime/"
 
@@ -64,6 +68,12 @@ subroutine updateSnowPrime(&
   mLayerVolFracLiqPrime = fLiq * mLayerThetaPrime + dFracLiq_dTk(mLayerTemp,snowfrz_scale) * mLayerTheta * mLayerTempPrime
   mLayerVolFracIcePrime = ( mLayerThetaPrime - mLayerVolFracLiqPrime ) * (iden_water/iden_ice)
 
+  ! set primes to missing if the temperature prime is missing (enthalpy is state variable)
+  if(mLayerTempPrime==realMissing)then
+    mLayerVolFracLiqPrime=realMissing
+    mLayerVolFracIcePrime=realMissing
+  end if
+
 end subroutine updateSnowPrime
 
 ! ***********************************************************************************************************************************
@@ -71,52 +81,52 @@ end subroutine updateSnowPrime
 ! ***********************************************************************************************************************************
 subroutine updateSoilPrime(&
                       ! input
-                      mLayerTemp            ,& ! intent(in): temperature (K)
-                      mLayerMatricHead      ,& ! intent(in): total water matric potential (m)
-                      mLayerTempPrime       ,& ! intent(in): temperature time derivative (K/s)
-                      mLayerMatricHeadPrime, & ! intent(in): total water matric potential time derivative (m/s)
-                      vGn_alpha             ,& ! intent(in): van Genutchen "alpha" parameter
-                      vGn_n                 ,& ! intent(in): van Genutchen "n" parameter
-                      theta_sat             ,& ! intent(in): soil porosity (-)
-                      theta_res             ,& ! intent(in): soil residual volumetric water content (-)
-                      vGn_m                 ,& ! intent(in): van Genutchen "m" parameter (-)
+                      mLayerTemp             ,& ! intent(in):  temperature (K)
+                      mLayerMatricHead       ,& ! intent(in):  total water matric potential (m)
+                      mLayerTempPrime        ,& ! intent(in):  temperature time derivative (K/s)
+                      mLayerMatricHeadPrime  ,& ! intent(in):  total water matric potential time derivative (m/s)
+                      vGn_alpha              ,& ! intent(in):  van Genutchen "alpha" parameter
+                      vGn_n                  ,& ! intent(in):  van Genutchen "n" parameter
+                      theta_sat              ,& ! intent(in):  soil porosity (-)
+                      theta_res              ,& ! intent(in):  soil residual volumetric water content (-)
+                      vGn_m                  ,& ! intent(in):  van Genutchen "m" parameter (-)
                       ! output
-                      mLayerVolFracWat ,& ! intent(out): volumetric fraction of total water (-)
-                      mLayerVolFracLiq ,& ! intent(out): volumetric fraction of liquid water (-)
-                      mLayerVolFracIce ,& ! intent(out): volumetric fraction of ice (-)
-                      mLayerVolFracWatPrime ,& ! intent(out): volumetric fraction of total water time derivative (-)
-                      mLayerVolFracLiqPrime ,& ! intent(out): volumetric fraction of liquid water time derivative (-)
-                      mLayerVolFracIcePrime ,& ! intent(out): volumetric fraction of ice time derivative (-)
-                      err,message)        ! intent(out): error control
+                      mLayerVolFracWat       ,& ! intent(out): volumetric fraction of total water (-)
+                      mLayerVolFracLiq       ,& ! intent(out): volumetric fraction of liquid water (-)
+                      mLayerVolFracIce       ,& ! intent(out): volumetric fraction of ice (-)
+                      mLayerVolFracWatPrime  ,& ! intent(out): volumetric fraction of total water time derivative (-)
+                      mLayerVolFracLiqPrime  ,& ! intent(out): volumetric fraction of liquid water time derivative (-)
+                      mLayerVolFracIcePrime  ,& ! intent(out): volumetric fraction of ice time derivative (-)
+                      err,message)              ! intent(out): error control
   ! utility routines
-  USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water based on matric head
-  USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric liquid water content
+  USE soil_utils_module,only:volFracLiq         ! compute volumetric fraction of liquid water based on matric head
+  USE soil_utils_module,only:matricHead         ! compute the matric head based on volumetric liquid water content
   USE soil_utils_module,only:dTheta_dPsi
   implicit none
   ! input variables
-  real(rkind),intent(in)           :: mLayerTemp           ! estimate of temperature (K)
-  real(rkind),intent(in)           :: mLayerMatricHead     ! matric head (m)
-  real(rkind),intent(in)           :: mLayerTempPrime      ! temperature time derivative (K/s)
-  real(rkind),intent(in)           :: mLayerMatricHeadPrime ! matric head time derivative (m/s)
-  real(rkind),intent(in)           :: vGn_alpha            ! van Genutchen "alpha" parameter
-  real(rkind),intent(in)           :: vGn_n                ! van Genutchen "n" parameter
-  real(rkind),intent(in)           :: theta_sat            ! soil porosity (-)
-  real(rkind),intent(in)           :: theta_res            ! soil residual volumetric water content (-)
-  real(rkind),intent(in)           :: vGn_m                ! van Genutchen "m" parameter (-)
+  real(rkind),intent(in)       :: mLayerTemp                ! estimate of temperature (K)
+  real(rkind),intent(in)       :: mLayerMatricHead          ! matric head (m)
+  real(rkind),intent(in)       :: mLayerTempPrime           ! temperature time derivative (K/s)
+  real(rkind),intent(in)       :: mLayerMatricHeadPrime     ! matric head time derivative (m/s)
+  real(rkind),intent(in)       :: vGn_alpha                 ! van Genutchen "alpha" parameter
+  real(rkind),intent(in)       :: vGn_n                     ! van Genutchen "n" parameter
+  real(rkind),intent(in)       :: theta_sat                 ! soil porosity (-)
+  real(rkind),intent(in)       :: theta_res                 ! soil residual volumetric water content (-)
+  real(rkind),intent(in)       :: vGn_m                     ! van Genutchen "m" parameter (-)
   ! output variables
-  real(rkind),intent(out)          :: mLayerVolFracWat     ! fractional volume of total water (-)
-  real(rkind),intent(out)          :: mLayerVolFracLiq     ! volumetric fraction of liquid water (-)
-  real(rkind),intent(out)          :: mLayerVolFracIce     ! volumetric fraction of ice (-)
-  real(rkind),intent(out)          :: mLayerVolFracWatPrime     ! fractional volume of total water (-)
-  real(rkind),intent(out)          :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
-  real(rkind),intent(out)          :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
-  integer(i4b),intent(out)         :: err                  ! error code
-  character(*),intent(out)         :: message              ! error message
+  real(rkind),intent(out)      :: mLayerVolFracWat          ! fractional volume of total water (-)
+  real(rkind),intent(out)      :: mLayerVolFracLiq          ! volumetric fraction of liquid water (-)
+  real(rkind),intent(out)      :: mLayerVolFracIce          ! volumetric fraction of ice (-)
+  real(rkind),intent(out)      :: mLayerVolFracWatPrime     ! fractional volume of total water (-)
+  real(rkind),intent(out)      :: mLayerVolFracLiqPrime     ! volumetric fraction of liquid water (-)
+  real(rkind),intent(out)      :: mLayerVolFracIcePrime     ! volumetric fraction of ice (-)
+  integer(i4b),intent(out)     :: err                       ! error code
+  character(*),intent(out)     :: message                   ! error message
   ! define local variables
-  real(rkind)                      :: TcSoil               ! critical soil temperature when all water is unfrozen (K)
-  real(rkind)                      :: xConst               ! constant in the freezing curve function (m K-1)
-  real(rkind)                      :: mLayerPsiLiq         ! liquid water matric potential (m)
-  real(rkind),parameter            :: tinyVal=epsilon(1._rkind) ! used in balance check
+  real(rkind)                  :: TcSoil                    ! critical soil temperature when all water is unfrozen (K)
+  real(rkind)                  :: xConst                    ! constant in the freezing curve function (m K-1)
+  real(rkind)                  :: mLayerPsiLiq              ! liquid water matric potential (m)
+  real(rkind),parameter        :: tinyVal=epsilon(1._rkind) ! used in balance check
   ! initialize error control
   err=0; message="updateSoilPrime/"
 
@@ -149,6 +159,12 @@ subroutine updateSoilPrime(&
   ! - volumetric ice content (-)
   mLayerVolFracIce = mLayerVolFracWat - mLayerVolFracLiq
   mLayerVolFracIcePrime = mLayerVolFracWatPrime - mLayerVolFracLiqPrime
+
+  ! set primes to missing if the temperature prime is missing (enthalpy is state variable)
+  if(mLayerTempPrime==realMissing)then
+    mLayerVolFracLiqPrime=realMissing
+    mLayerVolFracIcePrime=realMissing
+  end if
 
 end subroutine updateSoilPrime
 

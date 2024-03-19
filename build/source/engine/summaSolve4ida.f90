@@ -109,6 +109,7 @@ subroutine summaSolve4ida(&
                       dMat,                    & ! intent(inout): diagonal of the Jacobian matrix (excludes fluxes)
                       ! input: data structures
                       model_decisions,         & ! intent(in):    model decisions
+                      lookup_data,             & ! intent(in):    lookup data
                       type_data,               & ! intent(in):    type of vegetation and soil
                       attr_data,               & ! intent(in):    spatial attributes
                       mpar_data,               & ! intent(in):    model parameters
@@ -174,6 +175,7 @@ subroutine summaSolve4ida(&
   real(rkind), intent(inout)      :: dMat(:)                ! diagonal of the Jacobian matrix (excludes fluxes)
   ! input: data structures
   type(model_options),intent(in)  :: model_decisions(:)     ! model decisions
+  type(zLookup),      intent(in)  :: lookup_data            ! lookup tables
   type(var_i),        intent(in)  :: type_data              ! type of vegetation and soil
   type(var_d),        intent(in)  :: attr_data              ! spatial attributes
   type(var_dlength),  intent(in)  :: mpar_data              ! model parameters
@@ -277,6 +279,8 @@ subroutine summaSolve4ida(&
     eqns_data%firstSubStep   = firstSubStep
     eqns_data%computeVegFlux = computeVegFlux
     eqns_data%scalarSolution = scalarSolution
+    eqns_data%deriv_data     = deriv_data
+    eqns_data%lookup_data    = lookup_data
     eqns_data%type_data      = type_data
     eqns_data%attr_data      = attr_data
     eqns_data%mpar_data      = mpar_data
@@ -286,7 +290,6 @@ subroutine summaSolve4ida(&
     eqns_data%indx_data      = indx_data
     eqns_data%diag_data      = diag_data
     eqns_data%flux_data      = flux_data
-    eqns_data%deriv_data     = deriv_data
     eqns_data%ixSaturation   = ixSaturation
     
     ! allocate space and fill
@@ -311,12 +314,9 @@ subroutine summaSolve4ida(&
     allocate( eqns_data%mLayerMatricHeadPrev(nSoil) )
     allocate( eqns_data%mLayerTempTrial(nLayers) )
     allocate( eqns_data%mLayerMatricHeadTrial(nSoil) )
-    allocate( eqns_data%mLayerMatricHeadLiqPrime(nSoil) )
-    allocate( eqns_data%mLayerVolFracWatTrial(nLayers) )
     allocate( eqns_data%mLayerTempPrime(nLayers) )       
     allocate( eqns_data%mLayerMatricHeadPrime(nSoil) )
     allocate( eqns_data%mLayerVolFracWatPrime(nLayers) ) 
-    allocate( eqns_data%mLayerVolFracIcePrime(nLayers) )
     allocate( mLayerMatricHeadPrimePrev(nSoil) )
     allocate( dCompress_dPsiPrev(nSoil) )
     allocate( eqns_data%fluxVec(nState) )
@@ -590,12 +590,9 @@ subroutine summaSolve4ida(&
     deallocate( eqns_data%mLayerMatricHeadPrev )
     deallocate( eqns_data%mLayerTempTrial )
     deallocate( eqns_data%mLayerMatricHeadTrial )
-    deallocate( eqns_data%mLayerVolFracWatTrial )
     deallocate( eqns_data%mLayerTempPrime )       
     deallocate( eqns_data%mLayerMatricHeadPrime )
-    deallocate( eqns_data%mLayerMatricHeadLiqPrime)
     deallocate( eqns_data%mLayerVolFracWatPrime ) 
-    deallocate( eqns_data%mLayerVolFracIcePrime )
     deallocate( mLayerMatricHeadPrimePrev )
     deallocate( dCompress_dPsiPrev )
     deallocate( eqns_data%resVec )

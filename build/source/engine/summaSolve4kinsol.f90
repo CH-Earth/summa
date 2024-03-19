@@ -248,7 +248,6 @@ subroutine summaSolve4kinsol(&
   eqns_data%indx_data               = indx_data
   eqns_data%diag_data               = diag_data
   eqns_data%flux_data               = flux_data
-  eqns_data%deriv_data              = deriv_data
   eqns_data%ixSaturation            = ixSaturation
   eqns_data%firstStateIteration     = .true.
 

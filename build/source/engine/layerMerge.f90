@@ -291,13 +291,13 @@ contains
  ! ***********************************************************************************************************
  subroutine layer_combine(mpar_data,prog_data,diag_data,flux_data,indx_data,iSnow,err,message)
  ! provide access to variables in the data structures
- USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX           ! named variables for structure elements
- USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta   ! metadata
- USE data_types,only:var_ilength,var_dlength                   ! data vectors with variable length dimension
- USE data_types,only:var_d                                     ! data structures with fixed dimension
+ USE var_lookup,only:iLookPARAM,iLookPROG,iLookINDEX              ! named variables for structure elements
+ USE globalData,only:prog_meta,diag_meta,flux_meta,indx_meta      ! metadata
+ USE data_types,only:var_ilength,var_dlength                      ! data vectors with variable length dimension
+ USE data_types,only:var_d                                        ! data structures with fixed dimension
  ! provide access to external modules
- USE snow_utils_module,only:fracliquid                         ! compute fraction of liquid water
- USE enthalpyTemp_module,only:enthalpy2T_snow,T2enthalpy_snow  ! convert temperature to enthalpy for a snow layer
+ USE snow_utils_module,only:fracliquid                            ! compute fraction of liquid water
+ USE enthalpyTemp_module,only:enthalpy2T_snowlu,T2enthalpy_snowlu ! convert temperature to enthalpy for a snow layer with lookup tables
  implicit none
  ! ------------------------------------------------------------------------------------------------------------
  ! input/output: data structures
@@ -361,19 +361,19 @@ contains
  cBulkDenWat     = (mLayerDepth(isnow)*bulkDenWat(1) + mLayerDepth(isnow+1)*bulkDenWat(2))/cDepth
 
  ! compute enthalpy for each layer (J m-3)
- l1Enthalpy = T2enthalpy_snow(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
- l2Enthalpy = T2enthalpy_snow(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
+ l1Enthalpy = T2enthalpy_snowlu(mLayerTemp(iSnow),  BulkDenWat(1),snowfrz_scale)
+ l2Enthalpy = T2enthalpy_snowlu(mLayerTemp(iSnow+1),BulkDenWat(2),snowfrz_scale)
 
  ! compute combined enthalpy (J m-3)
  cEnthalpy = (mLayerDepth(isnow)*l1Enthalpy + mLayerDepth(isnow+1)*l2Enthalpy)/cDepth
 
  ! convert enthalpy (J m-3) to temperature (K)
- call enthalpy2T_snow(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
+ call enthalpy2T_snowlu(cEnthalpy,cBulkDenWat,snowfrz_scale,cTemp,err,cmessage)
  if(err/=0)then; err=10; message=trim(message)//trim(cmessage); return; end if
 
  ! test enthalpy conversion
- if(abs(T2enthalpy_snow(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
-  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snow(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
+ if(abs(T2enthalpy_snowlu(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat - cEnthalpy/cBulkDenWat) > eTol)then
+  write(*,'(a,1x,f12.5,1x,2(e20.10,1x))') 'enthalpy test', cBulkDenWat, T2enthalpy_snowlu(cTemp,cBulkDenWat,snowfrz_scale)/cBulkDenWat, cEnthalpy/cBulkDenWat
   message=trim(message)//'problem with enthalpy-->temperature conversion'
   err=20; return
  end if

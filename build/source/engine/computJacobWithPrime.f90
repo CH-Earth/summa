@@ -113,7 +113,6 @@ subroutine computJacobWithPrime(&
                       ! input: state variables
                       mLayerTempPrime,            & ! intent(in):    vector of derivative value for layer temperature (K)
                       mLayerMatricHeadPrime,      & ! intent(in):    vector of derivative value for layer matric head
-                      mLayerMatricHeadLiqPrime,   & ! intent(in):    vector of derivative value for layer liquid matric head
                       mLayerVolFracWatPrime,      & ! intent(in):    vector of derivative value for layer water volume fraction
                       scalarCanopyTempPrime,      & ! intent(in):    derivative value for temperature of the vegetation canopy (K)
                       scalarCanopyWatPrime,       & ! intent(in):    derivative value for water content of the vegetation canopy
@@ -146,7 +145,6 @@ subroutine computJacobWithPrime(&
   ! input: state variables
   real(rkind),intent(in)               :: mLayerTempPrime(:)         ! vector of derivative value for layer temperature
   real(rkind),intent(in)               :: mLayerMatricHeadPrime(:)   ! vector of derivative value for layer matric head
-  real(rkind),intent(in)               :: mLayerMatricHeadLiqPrime(:)! vector of derivative value for layer liquid matric head
   real(rkind),intent(in)               :: mLayerVolFracWatPrime(:)   ! vector of derivative value for layer water volume fraction
   real(rkind),intent(in)               :: scalarCanopyTempPrime      ! derivative value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)               :: scalarCanopyWatPrime       ! derivative value for water content of the vegetation canopy
@@ -1134,7 +1132,6 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 ! input: state variables
                 eqns_data%mLayerTempPrime,                & ! intent(in):    derivative value for temperature of each snow and soil layer (K)
                 eqns_data%mLayerMatricHeadPrime,          & ! intent(in):    derivative value for matric head of each snow and soil layer (m)
-                eqns_data%mLayerMatricHeadLiqPrime,       & ! intent(in):    derivative value for liquid water matric head of each snow and soil layer (m)
                 eqns_data%mLayerVolFracWatPrime,          & ! intent(in):    derivative value for volumetric total water content of each snow and soil layer (-)
                 eqns_data%scalarCanopyTempPrime,          & ! intent(in):    derivative value for temperature of the vegetation canopy (K)
                 eqns_data%scalarCanopyWatPrime,           & ! intent(in):    derivative value for total water content of the vegetation canopy (kg m-2)

@@ -540,12 +540,12 @@ subroutine varExtract(&
                        prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                        indx_data,                                 & ! intent(in):    indices defining model states and layers
                        ! output: variables for the vegetation canopy
-                       scalarCanairTempTrial,                     & ! intent(inout):   trial value of canopy air temperature (K)
-                       scalarCanopyTempTrial,                     & ! intent(inout):   trial value of canopy temperature (K)
+                       scalarCanairNrgTrial,                      & ! intent(inout):   trial value of canopy air energy, temperature (K) or enthalpy (J m-3)
+                       scalarCanopyNrgTrial,                      & ! intent(inout):   trial value of canopy energy, temperature (K) or enthalpy (J m-3)
                        scalarCanopyWatTrial,                      & ! intent(inout):   trial value of canopy total water (kg m-2)
                        scalarCanopyLiqTrial,                      & ! intent(inout):   trial value of canopy liquid water (kg m-2)
                        ! output: variables for the snow-soil domain
-                       mLayerTempTrial,                           & ! intent(inout):   trial vector of layer temperature (K)
+                       mLayerNrgTrial,                            & ! intent(inout):   trial vector of layer energy, temperature (K) or enthalpy (J m-3)
                        mLayerVolFracWatTrial,                     & ! intent(inout):   trial vector of volumetric total water content (-)
                        mLayerVolFracLiqTrial,                     & ! intent(inout):   trial vector of volumetric liquid water content (-)
                        mLayerMatricHeadTrial,                     & ! intent(inout):   trial vector of total water matric potential (m)
@@ -563,12 +563,12 @@ subroutine varExtract(&
   type(var_dlength),intent(in)       :: prog_data                       ! prognostic variables for a local HRU
   type(var_ilength),intent(in)       :: indx_data                       ! indices defining model states and layers
   ! output: variables for the vegetation canopy
-  real(rkind),intent(inout)          :: scalarCanairTempTrial           ! trial value of canopy air temperature (K)
-  real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
+  real(rkind),intent(inout)          :: scalarCanairNrgTrial            ! trial value of canopy air energy, temperature (K) or enthalpy (J m-3)
+  real(rkind),intent(inout)          :: scalarCanopyNrgTrial            ! trial value of canopy energy, temperature (K) or enthalpy (J m-3)
   real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
   real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
   ! output: variables for the snow-soil domain
-  real(rkind),intent(inout)          :: mLayerTempTrial(:)              ! trial vector of layer temperature (K)
+  real(rkind),intent(inout)          :: mLayerNrgTrial(:)               ! trial vector of layer energy, temperature (K) or enthalpy (J m-3)
   real(rkind),intent(inout)          :: mLayerVolFracWatTrial(:)        ! trial vector of volumetric total water content (-)
   real(rkind),intent(inout)          :: mLayerVolFracLiqTrial(:)        ! trial vector of volumetric liquid water content (-)
   real(rkind),intent(inout)          :: mLayerMatricHeadTrial(:)        ! trial vector of total water matric potential (m)
@@ -614,10 +614,10 @@ subroutine varExtract(&
     if(ixCasNrg/=integerMissing .or. ixVegNrg/=integerMissing .or. ixVegHyd/=integerMissing)then
 
       ! extract temperature of the canopy air space
-      if(ixCasNrg/=integerMissing) scalarCanairTempTrial = stateVec(ixCasNrg)
+      if(ixCasNrg/=integerMissing) scalarCanairNrgTrial = stateVec(ixCasNrg)
 
       ! extract canopy temperature
-      if(ixVegNrg/=integerMissing) scalarCanopyTempTrial = stateVec(ixVegNrg)
+      if(ixVegNrg/=integerMissing) scalarCanopyNrgTrial = stateVec(ixVegNrg)
 
       ! extract intercepted water
       if(ixVegHyd/=integerMissing)then
@@ -636,7 +636,7 @@ subroutine varExtract(&
     ! overwrite with the energy values from the state vector
     if(nSnowSoilNrg>0)then
       do concurrent (iLayer=1:nLayers,ixSnowSoilNrg(iLayer)/=integerMissing)   ! (loop through non-missing energy state variables in the snow+soil domain)
-        mLayerTempTrial(iLayer) = stateVec( ixSnowSoilNrg(iLayer) )
+        mLayerNrgTrial(iLayer) = stateVec( ixSnowSoilNrg(iLayer) )
       end do  ! looping through non-missing energy state variables in the snow+soil domain
     endif
 

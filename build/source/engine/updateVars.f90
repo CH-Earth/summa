@@ -81,14 +81,13 @@ USE snow_utils_module,only:fracliquid     ! compute the fraction of liquid water
 USE snow_utils_module,only:dFracLiq_dTk   ! differentiate the freezing curve w.r.t. temperature (snow)
 USE soil_utils_module,only:dTheta_dTk     ! differentiate the freezing curve w.r.t. temperature (soil)
 USE soil_utils_module,only:dTheta_dPsi    ! derivative in the soil water characteristic (soil)
-USE soil_utils_module,only:dPsi_dTheta    ! derivative in the soil water characteristic (soil)
 USE soil_utils_module,only:matricHead     ! compute the matric head based on volumetric water content
 USE soil_utils_module,only:volFracLiq     ! compute volumetric fraction of liquid water
 USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
 USE soil_utils_module,only:liquidHead     ! compute the liquid water matric potential
 
 ! IEEE check
-USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
+USE, intrinsic :: ieee_arithmetic         ! check values (NaN, etc.)
 
 implicit none
 private
@@ -174,13 +173,13 @@ subroutine updateVars(&
   integer(i4b)                       :: iter                            ! iteration index
   integer(i4b)                       :: niter                           ! number of iterations
   integer(i4b),parameter             :: maxiter=100                     ! maximum number of iterations
-  real(rkind),parameter              :: nrgConvTol=1.e-4_rkind             ! convergence tolerance for energy (J m-3)
-  real(rkind),parameter              :: tempConvTol=1.e-6_rkind            ! convergence tolerance for temperature (K)
+  real(rkind),parameter              :: nrgConvTol=1.e-4_rkind          ! convergence tolerance for energy (J m-3)
+  real(rkind),parameter              :: tempConvTol=1.e-6_rkind         ! convergence tolerance for temperature (K)
   real(rkind)                        :: critDiff                        ! temperature difference from critical (K)
   real(rkind)                        :: tempMin                         ! minimum bracket for temperature (K)
   real(rkind)                        :: tempMax                         ! maximum bracket for temperature (K)
   logical(lgt)                       :: bFlag                           ! flag to denote that iteration increment was constrained using bi-section
-  real(rkind),parameter              :: epsT=1.e-7_rkind                   ! small interval above/below critical temperature (K)
+  real(rkind),parameter              :: epsT=1.e-7_rkind                ! small interval above/below critical temperature (K)
   ! --------------------------------------------------------------------------------------------------------------------------------
   ! make association with variables in the data structures
   associate(&
@@ -236,7 +235,7 @@ subroutine updateVars(&
     dTheta_dTkCanopy        => deriv_data%var(iLookDERIV%dTheta_dTkCanopy)%dat(1)     ,& ! intent(out): [dp]     derivative of volumetric liquid water content w.r.t. temperature
     ! derivatives inside solver for Jacobian only
     mLayerdTemp_dt          => deriv_data%var(iLookDERIV%mLayerdTemp_dt )%dat         ,& ! intent(out): [dp(:)]  timestep change in layer temperature
-    scalarCanopydTemp_dt    => deriv_data%var(iLookDERIV%scalarCanopydTemp_dt )%dat(1),& ! intent(out): [dp   ]  timestep change in canopy temperature
+    scalarCanopydTemp_dt    => deriv_data%var(iLookDERIV%scalarCanopydTemp_dt)%dat(1) ,& ! intent(out): [dp   ]  timestep change in canopy temperature
     mLayerdWat_dt           => deriv_data%var(iLookDERIV%mLayerdWat_dt)%dat           ,& ! intent(out): [dp(:)]  timestep change in layer volumetric fraction of total water
     scalarCanopydWat_dt     => deriv_data%var(iLookDERIV%scalarCanopydWat_dt)%dat(1)   & ! intent(out): [dp   ]  timestep change in canopy total water
     ) ! association with variables in the data structures
