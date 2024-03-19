@@ -267,8 +267,9 @@ subroutine coupled_em(&
   real(rkind),allocatable              :: liqSnowInit(:)         ! volumetric liquid water conetnt of snow at the start of the time step
   real(rkind),allocatable              :: liqSoilInit(:)         ! soil moisture at the start of the time step
   ! timing information
-  real(rkind)                          :: startTime              ! start time (used to compute wall clock time)
-  real(rkind)                          :: endTime                ! end time (used to compute wall clock time)
+  integer(kind=8)                      :: count_rate 
+  integer(kind=8)                      :: i_start, i_end
+  real                                 :: elapsed_time
   real(rkind)                          :: mean_step_dt_sub       ! mean solution step for the sub-step
   real(rkind)                          :: sumStepSize            ! sum solution step for the data step
   ! outer loop control
@@ -284,7 +285,9 @@ subroutine coupled_em(&
   ! This is the start of a data step for a local HRU
 
   ! get the start time
-  call cpu_time(startTime)
+ ! get the start time
+  CALL system_clock(count_rate=count_rate)
+  CALL system_clock(i_start)
 
   ! check that the decision is supported
   if(model_decisions(iLookDECISIONS%groundwatr)%iDecision==bigBucket .and. &
@@ -1510,10 +1513,11 @@ subroutine coupled_em(&
   end if
 
   ! get the end time
-  call cpu_time(endTime)
+  CALL system_clock(i_end)
+  elapsed_time = REAL(i_end - i_start) / REAL(count_rate)
 
   ! get the elapsed time
-  diag_data%var(iLookDIAG%wallClockTime)%dat(1) = endTime - startTime
+  diag_data%var(iLookDIAG%wallClockTime)%dat(1) = elapsed_time
 
 end subroutine coupled_em
 
