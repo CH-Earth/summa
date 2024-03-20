@@ -282,7 +282,7 @@ subroutine updateVarsWithPrime(&
     d2VolTot_dPsi02         => deriv_data%var(iLookDERIV%d2VolTot_dPsi02)%dat            ,& ! intent(out): [dp(:)]  second derivative in total water content w.r.t. total water matric potential
     mLayerd2Theta_dTk2      => deriv_data%var(iLookDERIV%mLayerd2Theta_dTk2)%dat         ,& ! intent(out): [dp(:)]  second derivative of volumetric liquid water content w.r.t. temperature
     d2Theta_dTkCanopy2      => deriv_data%var(iLookDERIV%d2Theta_dTkCanopy2)%dat(1)      ,& ! intent(out): [dp   ]  second derivative of volumetric liquid water content w.r.t. temperature
-    ! derivatives of temperature if enthalpy is the state variable, could probably turn off if outside of solver
+    ! derivatives of temperature if enthalpy is the state variable for Jacobian only
     dCanairTemp_dEnthalpy     => deriv_data%var(iLookDERIV%dCanairTemp_dEnthalpy)%dat(1) ,& ! intent(out): [dp]     derivative of canopy air temperature w.r.t. enthalpy
     dCanopyTemp_dEnthalpy     => deriv_data%var(iLookDERIV%dCanopyTemp_dEnthalpy)%dat(1) ,& ! intent(out): [dp]     derivative of canopy temperature w.r.t. enthalpy 
     dTemp_dEnthalpy           => deriv_data%var(iLookDERIV%dTemp_dEnthalpy)%dat          ,& ! intent(out): [dp(:)]  derivative of temperature w.r.t. enthalpy

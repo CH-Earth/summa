@@ -282,6 +282,13 @@ subroutine computJacobWithPrime(&
     ! derivative in Cm w.r.t. relevant state variables
     dCm_dTk                      => deriv_data%var(iLookDERIV%dCm_dTk                     )%dat     ,& ! intent(in): [dp(:)]  derivative in heat capacity w.r.t. temperature (J kg-1 K-2)
     dCm_dTkCanopy                => deriv_data%var(iLookDERIV%dCm_dTkCanopy               )%dat(1)  ,& ! intent(in): [dp   ]  derivative in heat capacity w.r.t. canopy temperature (J kg-1 K-2)
+    ! derivatives of temperature if enthalpy is the state variable
+    dCanairTemp_dEnthalpy        => deriv_data%var(iLookDERIV%dCanairTemp_dEnthalpy       )%dat(1)  ,& ! intent(in): [dp]     derivative of canopy air temperature w.r.t. enthalpy
+    dCanopyTemp_dEnthalpy        => deriv_data%var(iLookDERIV%dCanopyTemp_dEnthalpy       )%dat(1)  ,& ! intent(in): [dp]     derivative of canopy temperature w.r.t. enthalpy 
+    dTemp_dEnthalpy              => deriv_data%var(iLookDERIV%dTemp_dEnthalpy             )%dat     ,& ! intent(in): [dp(:)]  derivative of temperature w.r.t. enthalpy
+    dCanopyTemp_dCanWat          => deriv_data%var(iLookDERIV%dCanopyTemp_dCanWat         )%dat(1)  ,& ! intent(in): [dp]     derivative of canopy temperature w.r.t. volumetric water content
+    dTemp_dTheta                 => deriv_data%var(iLookDERIV%dTemp_dTheta                )%dat     ,& ! intent(in): [dp(:)]  derivative of temperature w.r.t. volumetric water content
+    dTemp_dPsi0                  => deriv_data%var(iLookDERIV%dTemp_dPsi0                 )%dat     ,& ! intent(in): [dp(:)]  derivative of temperature w.r.t. total water matric potential
     ! diagnostic variables
     scalarFracLiqVeg             => diag_data%var(iLookDIAG%scalarFracLiqVeg              )%dat(1)  ,& ! intent(in): [dp]     fraction of liquid water on vegetation (-)
     scalarBulkVolHeatCapVeg      => diag_data%var(iLookDIAG%scalarBulkVolHeatCapVeg       )%dat(1)  ,& ! intent(in): [dp]     bulk volumetric heat capacity of vegetation (J m-3 K-1)

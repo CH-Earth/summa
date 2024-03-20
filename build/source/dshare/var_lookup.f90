@@ -692,6 +692,13 @@ MODULE var_lookup
   integer(i4b)    :: scalarCanopydTemp_dt            = integerMissing ! timestep change in canopy temperature
   integer(i4b)    :: mLayerdWat_dt                   = integerMissing ! timestep change in layer volumetric fraction of total water
   integer(i4b)    :: scalarCanopydWat_dt             = integerMissing ! timestep change in canopy water content
+  ! derivatives of temperature if enthalpy is the state variable
+  integer(i4b)    :: dCanairTemp_dEnthalpy           = integerMissing ! derivative of canopy air temperature w.r.t. enthalpy
+  integer(i4b)    :: dCanopyTemp_dEnthalpy           = integerMissing ! derivative of canopy temperature w.r.t. enthalpy 
+  integer(i4b)    :: dTemp_dEnthalpy                 = integerMissing ! derivative of temperature w.r.t. enthalpy      
+  integer(i4b)    :: dCanopyTemp_dCanWat             = integerMissing ! derivative of canopy temperature w.r.t. volumetric water content  
+  integer(i4b)    :: dTemp_dTheta                    = integerMissing ! derivative of temperature w.r.t. volumetric water content         
+  integer(i4b)    :: dTemp_dPsi0                     = integerMissing ! derivative of temperature w.r.t. total water matric potential         
 
  endtype iLook_deriv
 
@@ -937,7 +944,8 @@ MODULE var_lookup
                                                                          41, 42, 43, 44, 45, 46, 47, 48, 49, 50,&
                                                                          51, 52, 53, 54, 55, 56, 57, 58, 59, 60,&
                                                                          61, 62, 63, 64, 65, 66, 67, 68, 69, 70,&
-                                                                         71, 72, 73, 74, 75)
+                                                                         71, 72, 73, 74, 75, 76, 77, 78, 79, 80,&
+                                                                         81)
  ! named variables: model indices
  type(iLook_index),   public,parameter :: iLookINDEX    =ilook_index   (  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,&
                                                                          11, 12, 13, 14, 15, 16, 17, 18, 19, 20,&

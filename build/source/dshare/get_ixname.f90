@@ -831,11 +831,18 @@ contains
   case('dFracLiqSnow_dTk'               ); get_ixderiv = iLookDERIV%dFracLiqSnow_dTk               ! derivative in fraction of liquid snow w.r.t. temperature
   case('mLayerdTheta_dTk'               ); get_ixderiv = iLookDERIV%mLayerdTheta_dTk               ! derivative of volumetric liquid water content w.r.t. temperature (K-1)
   case('mLayerd2Theta_dTk2'             ); get_ixderiv = iLookDERIV%mLayerd2Theta_dTk2             ! second derivative of volumetric liquid water content w.r.t. temperature
- ! derivatives in time
-  case( 'mLayerdTemp_dt'               ); get_ixderiv = iLookDERIV%mLayerdTemp_dt                  ! timestep change in layer temperature
-  case( 'scalarCanopydTemp_dt'         ); get_ixderiv = iLookDERIV%scalarCanopydTemp_dt            ! timestep change in canopy temperature
-  case( 'mLayerdWat_dt'                ); get_ixderiv = iLookDERIV%mLayerdWat_dt                   ! timestep change in layer volumetric fraction of total water
-  case( 'scalarCanopydWat_dt'          ); get_ixderiv = iLookDERIV%scalarCanopydWat_dt             ! timestep change in canopy water content
+  ! derivatives in time
+  case('mLayerdTemp_dt'                 ); get_ixderiv = iLookDERIV%mLayerdTemp_dt                 ! timestep change in layer temperature
+  case('scalarCanopydTemp_dt'           ); get_ixderiv = iLookDERIV%scalarCanopydTemp_dt           ! timestep change in canopy temperature
+  case('mLayerdWat_dt'                  ); get_ixderiv = iLookDERIV%mLayerdWat_dt                  ! timestep change in layer volumetric fraction of total water
+  case('scalarCanopydWat_dt'            ); get_ixderiv = iLookDERIV%scalarCanopydWat_dt            ! timestep change in canopy water content
+  ! derivatives of temperature if enthalpy is the state variable
+  case('dCanairTemp_dEnthalpy'          ); get_ixderiv = iLookDERIV%dCanairTemp_dEnthalpy          ! derivative of canopy air temperature w.r.t. enthalpy
+  case('dCanopyTemp_dEnthalpy'          ); get_ixderiv = iLookDERIV%dCanopyTemp_dEnthalpy          ! derivative of canopy temperature w.r.t. enthalpy 
+  case('dTemp_dEnthalpy'                ); get_ixderiv = iLookDERIV%dTemp_dEnthalpy                ! derivative of temperature w.r.t. enthalpy      
+  case('dCanopyTemp_dCanWat'            ); get_ixderiv = iLookDERIV%dCanopyTemp_dCanWat            ! derivative of canopy temperature w.r.t. volumetric water content  
+  case('dTemp_dTheta'                   ); get_ixderiv = iLookDERIV%dTemp_dTheta                   ! derivative of temperature w.r.t. volumetric water content         
+  case('dTemp_dPsi0'                    ); get_ixderiv = iLookDERIV%dTemp_dPsi0                    ! derivative of temperature w.r.t. total water matric potential         
 
   case default
    get_ixderiv = integerMissing

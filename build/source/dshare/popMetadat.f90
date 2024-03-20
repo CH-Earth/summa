@@ -657,10 +657,19 @@ subroutine popMetadat(err,message)
   deriv_meta(iLookDERIV%mLayerdTheta_dTk)              = var_info('mLayerdTheta_dTk'             , 'derivative of volumetric liquid water content w.r.t. temperature'     , 'K-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   deriv_meta(iLookDERIV%mLayerd2Theta_dTk2)            = var_info('mLayerd2Theta_dTk2'           , 'second derivative of volumetric liquid water content w.r.t. temperature','K-2'           , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
   ! derivatives in time
-  deriv_meta(iLookDERIV%mLayerdTemp_dt)                = var_info('mLayerdTemp_dt'               , 'timestep change in layer temperature'                                 , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%scalarCanopydTemp_dt)          = var_info('scalarCanopydTemp_dt'         , 'timestep change in canopy temperature'                                , 'K'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%mLayerdWat_dt)                 = var_info('mLayerdWat_dt'                , 'timestep change in layer volumetric fraction of total water'          , '-'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
-  deriv_meta(iLookDERIV%scalarCanopydWat_dt)           = var_info('scalarCanopydWat_dt'          , 'timestep change in canopy water content'                              , 'kg m-2'         , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%mLayerdTemp_dt)                = var_info('mLayerdTemp_dt'               , 'timestep change in layer temperature'                                 , 'K s-1'          , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%scalarCanopydTemp_dt)          = var_info('scalarCanopydTemp_dt'         , 'timestep change in canopy temperature'                                , 'K s-1'          , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%mLayerdWat_dt)                 = var_info('mLayerdWat_dt'                , 'timestep change in layer volumetric fraction of total water'          , 's-1'            , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%scalarCanopydWat_dt)           = var_info('scalarCanopydWat_dt'          , 'timestep change in canopy water content'                              , 'kg m-2 s-1'     , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  ! derivatives of temperature if enthalpy is the state variable
+  deriv_meta(iLookDERIV%dCanairTemp_dEnthalpy)         = var_info('dCanairTemp_dEnthalpy'        , 'derivative of canopy air temperature w.r.t. enthalpy'                 , 'K J-1 m3'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dCanopyTemp_dEnthalpy)         = var_info('dCanopyTemp_dEnthalpy'        , 'derivative of canopy temperature w.r.t. enthalpy'                     , 'K J-1 m3'       , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dTemp_dEnthalpy)               = var_info('dTemp_dEnthalpy'              , 'derivative of temperature w.r.t. enthalpy'                            , 'K J-1 m3'       , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dCanopyTemp_dCanWat)           = var_info('dCanopyTemp_dCanWat'          , 'derivative of canopy temperature w.r.t. volumetric water content'     , 'K'              , get_ixVarType('scalarv'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dTemp_dTheta)                  = var_info('dTemp_dTheta'                 , 'derivative of temperature w.r.t. volumetric water content'            , 'K'              , get_ixVarType('midToto'), iMissVec, iMissVec, .false.)
+  deriv_meta(iLookDERIV%dTemp_dPsi0)                   = var_info('dTemp_dPsi0'                  , 'derivative of temperature w.r.t. total water matric potential'        , 'K m-1'          , get_ixVarType('midSoil'), iMissVec, iMissVec, .false.)
+
+
   ! -----
   ! * basin-wide runoff and aquifer fluxes...
   ! -----------------------------------------
