@@ -237,7 +237,7 @@ set(NETCDF_DIR ${F_MASTER}/build/source/netcdf)
 set(NOAHMP_DIR ${F_MASTER}/build/source/noah-mp)
 
 # Define Actors specific directories
-set(ACTORS_DIR ${PARENT_DIR}/build/source/actors)
+set(ACTORS_DIR ${PARENT_DIR}/build/source)
 set(FILE_ACCESS_DIR ${ACTORS_DIR}/file_access_actor)
 set(JOB_ACTOR_DIR   ${ACTORS_DIR}/job_actor)
 set(HRU_ACTOR_DIR   ${ACTORS_DIR}/hru_actor)
@@ -440,7 +440,9 @@ set(FILE_ACCESS_ACTOR
     ${ACTORS_DIR}/file_access_actor/output_container.cpp)
 set(JOB_ACTOR
     ${ACTORS_DIR}/job_actor/GRU.cpp
-    ${ACTORS_DIR}/job_actor/job_actor.cpp)
+    ${ACTORS_DIR}/job_actor/job_actor.cpp
+    ${ACTORS_DIR}/job_actor/distributed_job_actor.cpp
+    ${ACTORS_DIR}/job_actor/node_actor.cpp)
 set(HRU_ACTOR
     ${ACTORS_DIR}/hru_actor/hru_actor.cpp
     ${ACTORS_DIR}/hru_actor/hru_batch_actor.cpp)
