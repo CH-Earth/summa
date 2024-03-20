@@ -66,15 +66,21 @@ USE multiconst,only:&
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 
 ! look-up values for the choice of groundwater parameterization
-USE mDecisions_module,only:       &
- qbaseTopmodel,                   & ! TOPMODEL-ish baseflow parameterization
- bigBucket,                       & ! a big bucket (lumped aquifer model)
- noExplicit                         ! no explicit groundwater parameterization
+USE mDecisions_module,only:  &
+ qbaseTopmodel,              & ! TOPMODEL-ish baseflow parameterization
+ bigBucket,                  & ! a big bucket (lumped aquifer model)
+ noExplicit                    ! no explicit groundwater parameterization
 
 ! look-up values for the form of Richards' equation
-USE mDecisions_module,only:       &
- moisture,                        & ! moisture-based form of Richards' equation
- mixdform                           ! mixed form of Richards' equation
+USE mDecisions_module,only:  &
+ moisture,                   & ! moisture-based form of Richards' equation
+ mixdform                      ! mixed form of Richards' equation
+
+! look-up values for the choice of heat capacity computation
+USE mDecisions_module,only:  &
+ closedForm,                 & ! heat capacity closed form in backward Euler residual
+ enthalpyFDlu,               & ! enthalpy with lookup tables finite difference in backward Euler residual
+ enthalpyFD                    ! enthalpy with hypergeometric function finite difference in backward Euler residual
 
 implicit none
 ! define constants
@@ -103,6 +109,7 @@ subroutine computJacobWithPrime(&
                       specificStorage,            & ! intent(in):    specific storage coefficient (m-1)
                       theta_sat,                  & ! intent(in):    soil porosity (-)
                       ixRichards,                 & ! intent(in):    choice of option for Richards' equation
+                      useEnthalpy,                & ! intent(in):    flag if enthalpy is state variable
                       ! input: data structures
                       model_decisions,            & ! intent(in):    model decisions
                       indx_data,                  & ! intent(in):    index data
@@ -135,6 +142,7 @@ subroutine computJacobWithPrime(&
   real(rkind),intent(in)               :: specificStorage            ! specific storage coefficient (m-1)
   real(rkind),intent(in)               :: theta_sat(:)               ! soil porosity (-)
   integer(i4b),intent(in)              :: ixRichards                 ! choice of option for Richards' equation
+  logical(lgt),intent(in)              :: useEnthalpy                ! flag if enthalpy is state variable
   ! input: data structures
   type(model_options),intent(in)       :: model_decisions(:)         ! model decisions
   type(var_ilength),intent(in)         :: indx_data                  ! indices defining model states and layers
@@ -1117,11 +1125,12 @@ integer(c_int) function computJacob4ida(t, cj, sunvec_y, sunvec_yp, sunvec_r, &
                 eqns_data%nSoil,                          & ! intent(in):    number of soil layers
                 eqns_data%nLayers,                        & ! intent(in):    total number of layers
                 eqns_data%computeVegFlux,                 & ! intent(in):    flag to indicate if we need to compute fluxes over vegetation
-                (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel), & ! intent(in):    flag to indicate if we need to compute baseflow
+                (eqns_data%model_decisions(iLookDECISIONS%groundwatr)%iDecision==qbaseTopmodel), & ! intent(in): flag to indicate if we need to compute baseflow
                 eqns_data%ixMatrix,                       & ! intent(in):    form of the Jacobian matrix
-                eqns_data%mpar_data%var(iLookPARAM%specificStorage)%dat(1) ,                     & ! intent(in):    specific storage coefficient (m-1)
-                eqns_data%mpar_data%var(iLookPARAM%theta_sat)%dat,                               & ! intent(in):    soil porosity (-)
-                eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                  & ! intent(in):    choice of option for Richards' equation
+                eqns_data%mpar_data%var(iLookPARAM%specificStorage)%dat(1) ,                     & ! intent(in): specific storage coefficient (m-1)
+                eqns_data%mpar_data%var(iLookPARAM%theta_sat)%dat,                               & ! intent(in): soil porosity (-)
+                eqns_data%model_decisions(iLookDECISIONS%f_Richards)%iDecision,                  & ! intent(in): choice of option for Richards' equation
+                (eqns_data%model_decisions(iLookDECISIONS%nrgConserv)%iDecision.ne.closedForm),  & ! intent(in): flag if enthalpy is state variable
                 ! input: data structures
                 eqns_data%model_decisions,                & ! intent(in):    model decisions
                 eqns_data%indx_data,                      & ! intent(in):    index data

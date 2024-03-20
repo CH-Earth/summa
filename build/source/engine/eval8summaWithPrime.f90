@@ -640,41 +640,42 @@ subroutine eval8summaWithPrime(&
       dt1 = 1._qp ! always 1 for IDA since using Prime derivatives
 
       call computResidWithPrime(&
-                      ! input: model control
-                      dt1,                       & ! intent(in):  length of the residual time step (seconds)
-                      nSnow,                     & ! intent(in):  number of snow layers
-                      nSoil,                     & ! intent(in):  number of soil layers
-                      nLayers,                   & ! intent(in):  total number of layers
+                       ! input: model control
+                      dt1,                        & ! intent(in):  length of the residual time step (seconds)
+                      nSnow,                      & ! intent(in):  number of snow layers
+                      nSoil,                      & ! intent(in):  number of soil layers
+                      nLayers,                    & ! intent(in):  total number of layers
+                      ixNrgConserv.ne.closedForm, & ! intent(in):  flag if enthalpy is state variable
                       ! input: flux vectors
-                      sMul,                      & ! intent(in):  state vector multiplier (used in the residual calculations)
-                      fluxVec,                   & ! intent(in):  flux vector
+                      sMul,                       & ! intent(in):  state vector multiplier (used in the residual calculations)
+                      fluxVec,                    & ! intent(in):  flux vector
                       ! input: state variables (already disaggregated into scalars and vectors)
-                      scalarCanairTempPrime,     & ! intent(in):  prime value for the temperature of the canopy air space (K s-1)
-                      scalarCanopyTempPrime,     & ! intent(in):  prime value for the temperature of the vegetation canopy (K s-1)
-                      scalarCanopyWatPrime,      & ! intent(in):  prime value for the water on the vegetation canopy (kg m-2 s-1)
-                      mLayerTempPrime,           & ! intent(in):  prime vector of the temperature of each snow and soil layer (K s-1)
-                      scalarAquiferStoragePrime, & ! intent(in):  prime value for storage of water in the aquifer (m s-1)
+                      scalarCanairTempPrime,      & ! intent(in):  prime value for the temperature of the canopy air space (K s-1)
+                      scalarCanopyTempPrime,      & ! intent(in):  prime value for the temperature of the vegetation canopy (K s-1)
+                      scalarCanopyWatPrime,       & ! intent(in):  prime value for the water on the vegetation canopy (kg m-2 s-1)
+                      mLayerTempPrime,            & ! intent(in):  prime vector of the temperature of each snow and soil layer (K s-1)
+                      scalarAquiferStoragePrime,  & ! intent(in):  prime value for storage of water in the aquifer (m s-1)
                       ! input: diagnostic variables defining the liquid water and ice content (function of state variables)
-                      scalarCanopyIcePrime,      & ! intent(in):  prime value for the ice on the vegetation canopy (kg m-2 s-1)
-                      scalarCanopyLiqPrime,      & ! intent(in):  prime value for the liq on the vegetation canopy (kg m-2 s-1)
-                      mLayerVolFracIcePrime,     & ! intent(in):  prime vector of the volumetric ice in each snow and soil layer (s-1)
-                      mLayerVolFracWatPrime,     & ! intent(in):  prime vector of the volumetric water in each snow and soil layer (s-1)
-                      mLayerVolFracLiqPrime,     & ! intent(in):  prime vector of the volumetric liq in each snow and soil layer (s-1)
+                      scalarCanopyIcePrime,       & ! intent(in):  prime value for the ice on the vegetation canopy (kg m-2 s-1)
+                      scalarCanopyLiqPrime,       & ! intent(in):  prime value for the liq on the vegetation canopy (kg m-2 s-1)
+                      mLayerVolFracIcePrime,      & ! intent(in):  prime vector of the volumetric ice in each snow and soil layer (s-1)
+                      mLayerVolFracWatPrime,      & ! intent(in):  prime vector of the volumetric water in each snow and soil layer (s-1)
+                      mLayerVolFracLiqPrime,      & ! intent(in):  prime vector of the volumetric liq in each snow and soil layer (s-1)
                       ! input: enthalpy terms
-                      canopyCmTrial,             & ! intent(in):  Cm of vegetation canopy (-)
-                      mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (-)
-                      scalarCanairEnthalpyPrime, & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
-                      scalarCanopyEnthalpyPrime, & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
-                      mLayerEnthalpyPrime,       & ! intent(in):  prime vector of the of enthalpy of each snow and soil layer (W m-3)
+                      canopyCmTrial,              & ! intent(in):  Cm of vegetation canopy (-)
+                      mLayerCmTrial,              & ! intent(in):  Cm of each snow and soil layer (-)
+                      scalarCanairEnthalpyPrime,  & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
+                      scalarCanopyEnthalpyPrime,  & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
+                      mLayerEnthalpyPrime,        & ! intent(in):  prime vector of the of enthalpy of each snow and soil layer (W m-3)
                       ! input: data structures
-                      prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
-                      diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
-                      flux_data,                 & ! intent(in):  model fluxes for a local HRU
-                      indx_data,                 & ! intent(in):  index data
+                      prog_data,                  & ! intent(in):  model prognostic variables for a local HRU
+                      diag_data,                  & ! intent(in):  model diagnostic variables for a local HRU
+                      flux_data,                  & ! intent(in):  model fluxes for a local HRU
+                      indx_data,                  & ! intent(in):  index data
                       ! output
-                      resSink,                   & ! intent(out): additional (sink) terms on the RHS of the state equation
-                      resVec,                    & ! intent(out): residual vector
-                      err,cmessage)                ! intent(out): error control
+                      resSink,                    & ! intent(out): additional (sink) terms on the RHS of the state equation
+                      resVec,                     & ! intent(out): residual vector
+                      err,cmessage)                 ! intent(out): error control
       if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
     else ! currently not using residuals outside Sundials!

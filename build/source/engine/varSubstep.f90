@@ -895,6 +895,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
         ! update diagnostic variables
         call updateVarsWithPrime(&
                     ! input
+                    ixNrgConserv.ne.closedForm,                & ! intent(in):    flag if need to update temperature from enthalpy
+                    ixNrgConserv==enthalpyFDlu,                & ! intent(in):    flag to use the lookup table for soil enthalpy
                     .false.,                                   & ! intent(in):    logical flag if computing for Jacobian update
                     doAdjustTemp,                              & ! intent(in):    logical flag to adjust temperature to account for the energy used in melt+freeze
                     mpar_data,                                 & ! intent(in):    model parameters for a local HRU
@@ -902,6 +904,10 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                     deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                    ! input: enthalpy state variables  
+                    scalarCanairEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the canopy air space (J m-3)
+                    scalarCanopyEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
+                    mLayerEnthalpyTrial,                       & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
                     ! output: variables for the vegetation canopy
                     scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
                     scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)

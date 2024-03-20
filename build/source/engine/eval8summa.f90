@@ -318,7 +318,7 @@ subroutine eval8summa(&
     end if ! ( feasibility check )
 
     if(ixNrgConserv == enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then
-      ! use mixed form of energy equation, need these true
+      ! use mixed form of energy equation, need these true to use for Jacobian
       updateStateCp = .true.
       updateFluxCp  = .true.
       needStateCm   = .true.
