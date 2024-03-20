@@ -444,13 +444,13 @@ subroutine updateVars(&
             case(iname_veg)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnow(xTemp,                                        & ! intent(in)   : temperature (K)
-                              scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in)   : volumetric fraction of total water (-)
-                              snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
-                              scalarVolFracLiq,                             & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                              scalarVolFracIce,                             & ! intent(out)  : trial volumetric fraction if ice (-)
-                              scalarFracLiqVeg,                             & ! intent(out)  : fraction of liquid water (-)
-                              err,cmessage)                                   ! intent(out)  : error control
+              call updateSnow(xTemp,                                        & ! intent(in):  temperature (K)
+                              scalarCanopyWatTrial/(iden_water*canopyDepth),& ! intent(in):  volumetric fraction of total water (-)
+                              snowfrz_scale,                                & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              scalarVolFracLiq,                             & ! intent(out): trial volumetric fraction of liquid water (-)
+                              scalarVolFracIce,                             & ! intent(out): trial volumetric fraction if ice (-)
+                              scalarFracLiqVeg,                             & ! intent(out): fraction of liquid water (-)
+                              err,cmessage)                                   ! intent(out): error control
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
               ! compute mass of water on the canopy
@@ -462,26 +462,26 @@ subroutine updateVars(&
             case(iname_snow)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSnow(xTemp,                                        & ! intent(in)   : temperature (K)
-                              mLayerVolFracWatTrial(iLayer),                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
-                              snowfrz_scale,                                & ! intent(in)   : scaling parameter for the snow freezing curve (K-1)
-                              mLayerVolFracLiqTrial(iLayer),                & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                              mLayerVolFracIceTrial(iLayer),                & ! intent(out)  : trial volumetric fraction if ice (-)
-                              mLayerFracLiqSnow(iLayer),                    & ! intent(out)  : fraction of liquid water (-)
-                              err,cmessage)                                   ! intent(out)  : error control
+              call updateSnow(xTemp,                          & ! intent(in):  temperature (K)
+                              mLayerVolFracWatTrial(iLayer),  & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
+                              snowfrz_scale,                  & ! intent(in):  scaling parameter for the snow freezing curve (K-1)
+                              mLayerVolFracLiqTrial(iLayer),  & ! intent(out): trial volumetric fraction of liquid water (-)
+                              mLayerVolFracIceTrial(iLayer),  & ! intent(out): trial volumetric fraction if ice (-)
+                              mLayerFracLiqSnow(iLayer),      & ! intent(out): fraction of liquid water (-)
+                              err,cmessage)                     ! intent(out): error control
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
               ! *** soil layers
             case(iname_soil)
 
               ! compute volumetric fraction of liquid water and ice
-              call updateSoil(xTemp,                                                                                                                        & ! intent(in)   : temperature (K)
-                              mLayerMatricHeadTrial(ixControlIndex),                                                                                        & ! intent(in)   : total water matric potential (m)
-                              vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex),    & ! intent(in)   : soil parameters
-                              mLayerVolFracWatTrial(iLayer),                                                                                                & ! intent(in)   : mass state variable = trial volumetric fraction of water (-)
-                              mLayerVolFracLiqTrial(iLayer),                                                                                                & ! intent(out)  : trial volumetric fraction of liquid water (-)
-                              mLayerVolFracIceTrial(iLayer),                                                                                                & ! intent(out)  : trial volumetric fraction if ice (-)
-                              err,cmessage)                                                                                                                   ! intent(out)  : error control
+              call updateSoil(xTemp,                                  & ! intent(in):  temperature (K)
+                              mLayerMatricHeadTrial(ixControlIndex),  & ! intent(in):  total water matric potential (m)
+                              vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
+                              mLayerVolFracWatTrial(iLayer),          & ! intent(in):  mass state variable = trial volumetric fraction of water (-)
+                              mLayerVolFracLiqTrial(iLayer),          & ! intent(out): trial volumetric fraction of liquid water (-)
+                              mLayerVolFracIceTrial(iLayer),          & ! intent(out): trial volumetric fraction if ice (-)
+                              err,cmessage)                             ! intent(out): error control
               if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
               ! check
@@ -526,33 +526,33 @@ subroutine updateVars(&
             case(iname_veg)
               call xTempSolve(&
                               ! constant over iterations
-                              meltNrg         = meltNrg                                 ,&  ! intent(in)    : energy for melt+freeze (J m-3)
-                              heatCap         = scalarBulkVolHeatCapVeg                 ,&  ! intent(in)    : volumetric heat capacity (J m-3 K-1)
-                              tempInit        = scalarCanopyTemp                        ,&  ! intent(in)    : initial temperature (K)
-                              volFracIceInit  = scalarCanopyIce/(iden_water*canopyDepth),&  ! intent(in)    : initial volumetric fraction of ice (-)
+                              meltNrg         = meltNrg                                 ,&  ! intent(in):    energy for melt+freeze (J m-3)
+                              heatCap         = scalarBulkVolHeatCapVeg                 ,&  ! intent(in):    volumetric heat capacity (J m-3 K-1)
+                              tempInit        = scalarCanopyTemp                        ,&  ! intent(in):    initial temperature (K)
+                              volFracIceInit  = scalarCanopyIce/(iden_water*canopyDepth),&  ! intent(in):    initial volumetric fraction of ice (-)
                               ! trial values
-                              xTemp           = xTemp                                   ,&  ! intent(inout) : trial value of temperature
-                              dLiq_dT         = dTheta_dTkCanopy                        ,&  ! intent(in)    : derivative in liquid water content w.r.t. temperature (K-1)
-                              volFracIceTrial = scalarVolFracIce                        ,&  ! intent(in)    : trial value for volumetric fraction of ice
+                              xTemp           = xTemp                                   ,&  ! intent(inout): trial value of temperature
+                              dLiq_dT         = dTheta_dTkCanopy                        ,&  ! intent(in):    derivative in liquid water content w.r.t. temperature (K-1)
+                              volFracIceTrial = scalarVolFracIce                        ,&  ! intent(in):    trial value for volumetric fraction of ice
                               ! residual and derivative
-                              residual        = residual                                ,&  ! intent(out)   : residual (J m-3)
-                              derivative      = derivative                               )  ! intent(out)   : derivative (J m-3 K-1)
+                              residual        = residual                                ,&  ! intent(out):   residual (J m-3)
+                              derivative      = derivative                               )  ! intent(out):   derivative (J m-3 K-1)
 
                     ! * snow and soil
             case(iname_snow, iname_soil)
               call xTempSolve(&
                               ! constant over iterations
-                              meltNrg         = meltNrg                                 ,&  ! intent(in)    : energy for melt+freeze (J m-3)
-                              heatCap         = mLayerVolHtCapBulk(iLayer)              ,&  ! intent(in)    : volumetric heat capacity (J m-3 K-1)
-                              tempInit        = mLayerTemp(iLayer)                      ,&  ! intent(in)    : initial temperature (K)
-                              volFracIceInit  = mLayerVolFracIce(iLayer)                ,&  ! intent(in)    : initial volumetric fraction of ice (-)
+                              meltNrg         = meltNrg                        ,&  ! intent(in):    energy for melt+freeze (J m-3)
+                              heatCap         = mLayerVolHtCapBulk(iLayer)     ,&  ! intent(in):    volumetric heat capacity (J m-3 K-1)
+                              tempInit        = mLayerTemp(iLayer)             ,&  ! intent(in):    initial temperature (K)
+                              volFracIceInit  = mLayerVolFracIce(iLayer)       ,&  ! intent(in):    initial volumetric fraction of ice (-)
                               ! trial values
-                              xTemp           = xTemp                                   ,&  ! intent(inout) : trial value of temperature
-                              dLiq_dT         = mLayerdTheta_dTk(iLayer)                ,&  ! intent(in)    : derivative in liquid water content w.r.t. temperature (K-1)
-                              volFracIceTrial = mLayerVolFracIceTrial(iLayer)           ,&  ! intent(in)    : trial value for volumetric fraction of ice
+                              xTemp           = xTemp                          ,&  ! intent(inout): trial value of temperature
+                              dLiq_dT         = mLayerdTheta_dTk(iLayer)       ,&  ! intent(in):    derivative in liquid water content w.r.t. temperature (K-1)
+                              volFracIceTrial = mLayerVolFracIceTrial(iLayer)  ,&  ! intent(in):    trial value for volumetric fraction of ice
                               ! residual and derivative
-                              residual        = residual                                ,&  ! intent(out)   : residual (J m-3)
-                              derivative      = derivative                               )  ! intent(out)   : derivative (J m-3 K-1)
+                              residual        = residual                       ,&  ! intent(out):   residual (J m-3)
+                              derivative      = derivative                      )  ! intent(out):   derivative (J m-3 K-1)
 
             ! * check
             case default; err=20; message=trim(message)//'expect case to be iname_veg, iname_snow, iname_soil'; return
@@ -653,17 +653,17 @@ subroutine updateVars(&
           ! compute the liquid matric potential (and the derivatives w.r.t. total matric potential and temperature)
           call liquidHead(&
                         ! input
-                        mLayerMatricHeadTrial(ixControlIndex)                                                                                     ,& ! intent(in) : total water matric potential (m)
-                        mLayerVolFracLiqTrial(iLayer)                                                                                             ,& ! intent(in) : volumetric fraction of liquid water (-)
-                        mLayerVolFracIceTrial(iLayer)                                                                                             ,& ! intent(in) : volumetric fraction of ice (-)
-                        vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in) : soil parameters
-                        dVolTot_dPsi0(ixControlIndex)                                                                                             ,& ! intent(in) : derivative in the soil water characteristic (m-1)
-                        mLayerdTheta_dTk(iLayer)                                                                                                  ,& ! intent(in) : derivative in volumetric total water w.r.t. temperature (K-1)
+                        mLayerMatricHeadTrial(ixControlIndex)     ,& ! intent(in):  total water matric potential (m)
+                        mLayerVolFracLiqTrial(iLayer)             ,& ! intent(in):  volumetric fraction of liquid water (-)
+                        mLayerVolFracIceTrial(iLayer)             ,& ! intent(in):  volumetric fraction of ice (-)
+                        vGn_alpha(ixControlIndex),vGn_n(ixControlIndex),theta_sat(ixControlIndex),theta_res(ixControlIndex),vGn_m(ixControlIndex), & ! intent(in): soil parameters
+                        dVolTot_dPsi0(ixControlIndex)             ,& ! intent(in):  derivative in the soil water characteristic (m-1)
+                        mLayerdTheta_dTk(iLayer)                  ,& ! intent(in):  derivative in volumetric total water w.r.t. temperature (K-1)
                         ! output
-                        mLayerMatricHeadLiqTrial(ixControlIndex)                                                                                  ,& ! intent(out): liquid water matric potential (m)
-                        dPsiLiq_dPsi0(ixControlIndex)                                                                                             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
-                        dPsiLiq_dTemp(ixControlIndex)                                                                                             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. temperature (m K-1)
-                        err,cmessage)                                                                                                                ! intent(out): error control
+                        mLayerMatricHeadLiqTrial(ixControlIndex)  ,& ! intent(out): liquid water matric potential (m)
+                        dPsiLiq_dPsi0(ixControlIndex)             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. the total water matric potential (-)
+                        dPsiLiq_dTemp(ixControlIndex)             ,& ! intent(out): derivative in the liquid water matric potential w.r.t. temperature (m K-1)
+                        err,cmessage)                                ! intent(out): error control
           if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
         endif  ! switch between hydrology and energy state
@@ -685,27 +685,27 @@ subroutine updateVars(&
 ! **********************************************************************************************************
 subroutine xTempSolve(&
                       ! input: constant over iterations
-                      meltNrg          ,&  ! intent(in)    : energy for melt+freeze (J m-3)
-                      heatCap          ,&  ! intent(in)    : volumetric heat capacity (J m-3 K-1)
-                      tempInit         ,&  ! intent(in)    : initial temperature (K)
-                      volFracIceInit   ,&  ! intent(in)    : initial volumetric fraction of ice (-)
+                      meltNrg          ,&  ! intent(in):    energy for melt+freeze (J m-3)
+                      heatCap          ,&  ! intent(in):    volumetric heat capacity (J m-3 K-1)
+                      tempInit         ,&  ! intent(in):    initial temperature (K)
+                      volFracIceInit   ,&  ! intent(in):    initial volumetric fraction of ice (-)
                       ! input-output: trial values
-                      xTemp            ,&  ! intent(inout) : trial value of temperature
-                      dLiq_dT          ,&  ! intent(in)    : derivative in liquid water content w.r.t. temperature (K-1)
-                      volFracIceTrial  ,&  ! intent(in)    : trial value for volumetric fraction of ice
+                      xTemp            ,&  ! intent(inout): trial value of temperature
+                      dLiq_dT          ,&  ! intent(in):    derivative in liquid water content w.r.t. temperature (K-1)
+                      volFracIceTrial  ,&  ! intent(in):    trial value for volumetric fraction of ice
                       ! output: residual and derivative
-                      residual         ,&  ! intent(out)   : residual (J m-3)
-                      derivative        )  ! intent(out)   : derivative (J m-3 K-1)
+                      residual         ,&  ! intent(out):   residual (J m-3)
+                      derivative        )  ! intent(out):   derivative (J m-3 K-1)
   implicit none
   ! input: constant over iterations
-  real(rkind),intent(in)             :: meltNrg                         ! energy for melt+freeze (J m-3)
-  real(rkind),intent(in)             :: heatCap                         ! volumetric heat capacity (J m-3 K-1)
-  real(rkind),intent(in)             :: tempInit                        ! initial temperature (K)
-  real(rkind),intent(in)             :: volFracIceInit                  ! initial volumetric fraction of ice (-)
+  real(rkind),intent(in)             :: meltNrg          ! energy for melt+freeze (J m-3)
+  real(rkind),intent(in)             :: heatCap          ! volumetric heat capacity (J m-3 K-1)
+  real(rkind),intent(in)             :: tempInit         ! initial temperature (K)
+  real(rkind),intent(in)             :: volFracIceInit   ! initial volumetric fraction of ice (-)
   ! input-output: trial values
-  real(rkind),intent(inout)          :: xTemp                           ! trial value for temperature
-  real(rkind),intent(in)             :: dLiq_dT                         ! derivative in liquid water content w.r.t. temperature (K-1)
-  real(rkind),intent(in)             :: volFracIceTrial                 ! trial value for the volumetric fraction of ice (-)
+  real(rkind),intent(inout)          :: xTemp            ! trial value for temperature
+  real(rkind),intent(in)             :: dLiq_dT          ! derivative in liquid water content w.r.t. temperature (K-1)
+  real(rkind),intent(in)             :: volFracIceTrial  ! trial value for the volumetric fraction of ice (-)
   ! output: residual and derivative
   real(rkind),intent(out)            :: residual         ! residual (J m-3)
   real(rkind),intent(out)            :: derivative       ! derivative (J m-3 K-1)
