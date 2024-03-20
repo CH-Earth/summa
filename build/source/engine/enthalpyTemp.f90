@@ -419,28 +419,29 @@ end function T2enthalpy_snwWat
 
 ! ************************************************************************************************************************
 ! public subroutine T2enthTemp: compute temperature component of enthalpy from temperature and total water content
+!                               NOTE: only computes the states in the state subset 
 ! ************************************************************************************************************************
 subroutine T2enthTemp(&
-                      use_lookup,                        & ! intent(in):  flag to use the lookup table for soil enthalpy
+                      use_lookup,                        & ! intent(in):    flag to use the lookup table for soil enthalpy
                       ! input: data structures
-                      diag_data,                         & ! intent(in):  model diagnostic variables for a local HRU
-                      mpar_data,                         & ! intent(in):  parameter data structure
-                      indx_data,                         & ! intent(in):  model indices
-                      lookup_data,                       & ! intent(in):  lookup table data structure
+                      diag_data,                         & ! intent(in):    model diagnostic variables for a local HRU
+                      mpar_data,                         & ! intent(in):    parameter data structure
+                      indx_data,                         & ! intent(in):    model indices
+                      lookup_data,                       & ! intent(in):    lookup table data structure
                       ! input: state variables for the vegetation canopy
-                      scalarCanairTempTrial,             & ! intent(in):  trial value of canopy air temperature (K)
-                      scalarCanopyTempTrial,             & ! intent(in):  trial value of canopy temperature (K)
-                      scalarCanopyWatTrial,              & ! intent(in):  trial value of canopy total water (kg m-2)
+                      scalarCanairTempTrial,             & ! intent(in):    trial value of canopy air temperature (K)
+                      scalarCanopyTempTrial,             & ! intent(in):    trial value of canopy temperature (K)
+                      scalarCanopyWatTrial,              & ! intent(in):    trial value of canopy total water (kg m-2)
                       ! input: variables for the snow-soil domain
-                      mLayerTempTrial,                   & ! intent(in):  trial vector of layer temperature (K)
-                      mLayerVolFracWatTrial,             & ! intent(in):  trial vector of volumetric total water content (-)
-                      mLayerMatricHeadTrial,             & ! intent(in):  trial vector of total water matric potential (m)
+                      mLayerTempTrial,                   & ! intent(in):    trial vector of layer temperature (K)
+                      mLayerVolFracWatTrial,             & ! intent(in):    trial vector of volumetric total water content (-)
+                      mLayerMatricHeadTrial,             & ! intent(in):    trial vector of total water matric potential (m)
                       ! output: enthalpy
-                      scalarCanairEnthalpy,              & ! intent(out): enthalpy of the canopy air space (J m-3)
-                      scalarCanopyEnthTemp,              & ! intent(out): temperature component of enthalpy of the vegetation canopy (J m-3)
-                      mLayerEnthTemp,                    & ! intent(out): temperature component of enthalpy of each snow+soil layer (J m-3)
+                      scalarCanairEnthalpy,              & ! intent(inout): enthalpy of the canopy air space (J m-3)
+                      scalarCanopyEnthTemp,              & ! intent(inout): temperature component of enthalpy of the vegetation canopy (J m-3)
+                      mLayerEnthTemp,                    & ! intent(inout): temperature component of enthalpy of each snow+soil layer (J m-3)
                       ! output: error control
-                      err,message)                         ! intent(out): error control
+                      err,message)                         ! intent(out):   error control
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines
   USE soil_utils_module,only:crit_soilT     ! compute critical temperature below which ice exists
@@ -464,9 +465,9 @@ subroutine T2enthTemp(&
   real(rkind),intent(in)           :: mLayerVolFracWatTrial(:)  ! trial vector of volumetric total water content (-)
   real(rkind),intent(in)           :: mLayerMatricHeadTrial(:)  ! trial vector of total water matric potential (m)
   ! output: enthalpy
-  real(rkind),intent(out)          :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
-  real(rkind),intent(out)          :: scalarCanopyEnthTemp      ! temperature component of enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(out)          :: mLayerEnthTemp(:)         ! temperature component of enthalpy of each snow+soil layer (J m-3)
+  real(rkind),intent(inout)        :: scalarCanairEnthalpy      ! enthalpy of the canopy air space (J m-3)
+  real(rkind),intent(inout)        :: scalarCanopyEnthTemp      ! temperature component of enthalpy of the vegetation canopy (J m-3)
+  real(rkind),intent(inout)        :: mLayerEnthTemp(:)         ! temperature component of enthalpy of each snow+soil layer (J m-3)
   ! output: error control
   integer(i4b),intent(out)         :: err                       ! error code
   character(*),intent(out)         :: message                   ! error message
@@ -531,7 +532,7 @@ subroutine T2enthTemp(&
       ixDomainType   = ixDomainType_subset(iState)    ! named variables defining the domain (iname_cas, iname_veg, etc.)
       ixControlIndex = ixControlVolume(ixFullVector)  ! index within a given domain
 
-      ! check an energy state
+      ! check an energy state, since only need for energy state residuals
       if(ixStateType(ixFullVector)==iname_nrgCanair .or. ixStateType(ixFullVector)==iname_nrgCanopy .or. ixStateType(ixFullVector)==iname_nrgLayer)then
 
         ! get the layer index
@@ -732,7 +733,6 @@ subroutine enthTemp2enthalpy(&
   character(*),intent(out)         :: message                    ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
-  character(len=128)               :: cmessage                   ! error message in downwind routine
   integer(i4b)                     :: iState                     ! index of model state variable
   integer(i4b)                     :: iLayer                     ! index of model layer
   integer(i4b)                     :: ixFullVector               ! index within full state vector
@@ -775,7 +775,7 @@ subroutine enthTemp2enthalpy(&
 
         ! get the layer index
         select case(ixDomainType)
-          case(iname_cas);     cycle ! canopy air space: do nothing (no water stored in canopy air space)
+          case(iname_cas); cycle ! canopy air space: do nothing (no water stored in canopy air space)
           case(iname_veg)
             scalarCanopyH= scalarCanopyH - LH_fus * scalarCanopyIce/ canopyDepth
           case(iname_snow)
