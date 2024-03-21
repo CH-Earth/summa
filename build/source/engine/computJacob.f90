@@ -86,19 +86,19 @@ contains
 ! public subroutine computJacob: compute the Jacobian matrix
 ! **********************************************************************************************************
 subroutine computJacob(&
-                                           ! input: model control
-                                           in_computJacob,             & ! intent(in):    model control 
-                                           ! input: data structures
-                                           indx_data,                  & ! intent(in):    index data
-                                           prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
-                                           diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
-                                           deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
-                                           dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
-                                           ! input-output: Jacobian and its diagonal
-                                           dMat,                       & ! intent(inout): diagonal of the Jacobian matrix
-                                           aJac,                       & ! intent(out):   Jacobian matrix
-                                           ! output: error control
-                                           out_computJacob)              ! intent(out):   error code and error message
+                       ! input: model control
+                       in_computJacob,             & ! intent(in):    model control 
+                       ! input: data structures
+                       indx_data,                  & ! intent(in):    index data
+                       prog_data,                  & ! intent(in):    model prognostic variables for a local HRU
+                       diag_data,                  & ! intent(in):    model diagnostic variables for a local HRU
+                       deriv_data,                 & ! intent(in):    derivatives in model fluxes w.r.t. relevant state variables
+                       dBaseflow_dMatric,          & ! intent(in):    derivative in baseflow w.r.t. matric head (s-1)
+                       ! input-output: Jacobian and its diagonal
+                       dMat,                       & ! intent(inout): diagonal of the Jacobian matrix
+                       aJac,                       & ! intent(out):   Jacobian matrix
+                       ! output: error control
+                       out_computJacob)              ! intent(out):   error code and error message
   ! -----------------------------------------------------------------------------------------------------------------
   implicit none
   ! input: model control

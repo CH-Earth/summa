@@ -157,11 +157,11 @@ subroutine computJacobWithPrime(&
   real(rkind),intent(in)               :: scalarCanopyTempPrime      ! derivative value for temperature of the vegetation canopy (K)
   real(rkind),intent(in)               :: scalarCanopyWatPrime       ! derivative value for water content of the vegetation canopy
   ! input-output: Jacobian and its diagonal
-  real(rkind),intent(inout)            :: dMat(:)         ! diagonal of the Jacobian matrix
-  real(rkind),intent(out)              :: aJac(:,:)       ! Jacobian matrix
+  real(rkind),intent(inout)            :: dMat(:)                    ! diagonal of the Jacobian matrix
+  real(rkind),intent(out)              :: aJac(:,:)                  ! Jacobian matrix
   ! output variables
-  integer(i4b),intent(out)             :: err             ! error code
-  character(*),intent(out)             :: message         ! error message
+  integer(i4b),intent(out)             :: err                        ! error code
+  character(*),intent(out)             :: message                    ! error message
   ! --------------------------------------------------------------
   ! * local variables
   ! --------------------------------------------------------------
@@ -337,6 +337,14 @@ subroutine computJacobWithPrime(&
                                     + LH_fus*iden_water * mLayerTempPrime(iLayer)  * mLayerd2Theta_dTk2(iLayer) &
                                     + LH_fus*iden_water * dFracLiqSnow_dTk(iLayer) * mLayerVolFracWatPrime(iLayer)
       endif
+    end do
+
+    if(useEnthalpy)then
+      dMat(ixCasNrg) = 1._rkind ! gets multiplied later by cj
+      dMat(ixVegNrg) = cj
+      do iLayer=1,nLayers
+        if(ixSnowSoilNrg(iLayer)/=integerMissing) dMat(ixSnowSoilNrg(iLayer)) = cj
+      end do
     end do
 
     ! compute additional terms for the Jacobian for the soil domain (excluding fluxes)

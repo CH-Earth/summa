@@ -54,8 +54,6 @@ USE globalData,only:flux_meta       ! metadata on the model fluxes
 
 ! constants
 USE multiconst,only:&
-                    LH_fus,       & ! latent heat of fusion                (J K-1)
-                    Tfreeze,      & ! temperature at freezing              (K)
                     iden_ice,     & ! intrinsic density of ice             (kg m-3)
                     iden_water      ! intrinsic density of liquid water    (kg m-3)
 

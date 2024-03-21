@@ -3,10 +3,9 @@ USE nrtype
 ! physical constants
 USE multiconst,only:&
                     Tfreeze,     & ! freezing point of pure water  (K)
-                    iden_air,    & ! intrinsic density of air      (kg m-3)
                     iden_ice,    & ! intrinsic density of ice      (kg m-3)
                     iden_water,  & ! intrinsic density of water    (kg m-3)
-                    gravity,     & ! gravitational acceleteration  (m s-2)
+                    gravity,     & ! gravitational acceleration  (m s-2)
                     LH_fus         ! latent heat of fusion         (J kg-1)
 
 ! missing values                 
