@@ -1111,7 +1111,6 @@ function ixOffDiag(jState,iState)
   implicit none
   integer(i4b),intent(in)  :: jState    ! off-diagonal state
   integer(i4b),intent(in)  :: iState    ! diagonal state
-  integer(i4b),parameter   :: ixDiag=kl+ku+1   ! index for the diagonal, the offset in the band Jacobian matrix
   integer(i4b)             :: ixOffDiag ! off-diagonal index in the band-diagonal matrix
 
   ixOffDiag = ixDiag + jState - iState
