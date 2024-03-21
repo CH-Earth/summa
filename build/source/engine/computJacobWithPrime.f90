@@ -514,7 +514,7 @@ subroutine computJacobWithPrime(&
               ! - include derivatives of water fluxes w.r.t energy fluxes for current layer
               aJac(ixOffDiag(watState,nrgState),nrgState) = (dt/mLayerDepth(iLayer))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)  ! (dVol/dT)
 
-              ! (cross-derivative terms for the layer below)
+              ! (cross-derivative terms for the layer be_low)
               if(iLayer<nSnow)then
                 aJac(ixOffDiag(ixSnowOnlyHyd(iLayer+1),nrgState),nrgState) = -(dt/mLayerDepth(iLayer+1))*iLayerLiqFluxSnowDeriv(iLayer)*mLayerdTheta_dTk(iLayer)    ! dVol(below)/dT(above) -- K-1
               endif ! (if there is a water state in the layer below the current layer in the given state subset)

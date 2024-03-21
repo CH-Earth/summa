@@ -33,16 +33,6 @@ USE globalData,only:iname_watAquifer ! named variable defining the water storage
 ! metadata for information in the data structures
 USE globalData,only:indx_meta       ! metadata for the variables in the index structure
 
-! constants
-USE multiconst,only:&
-                    gravity,      & ! acceleration of gravity              (m s-2)
-                    Tfreeze,      & ! temperature at freezing              (K)
-                    Cp_air,       & ! specific heat of air                 (J kg-1 K-1)
-                    LH_fus,       & ! latent heat of fusion                (J kg-1)
-                    iden_air,     & ! intrinsic density of air             (kg m-3)
-                    iden_ice,     & ! intrinsic density of ice             (kg m-3)
-                    iden_water      ! intrinsic density of liquid water    (kg m-3)
-
 ! provide access to the derived types to define the data structures
 USE data_types,only:&
                     var_i,        & ! data vector (i4b)
