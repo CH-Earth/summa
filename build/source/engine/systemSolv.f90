@@ -626,6 +626,8 @@ contains
    end do
    ! initialize sum of compression of the soil matrix
    mLayerCmpress_sum(:) = 0._rkind
+   stateVecNew(:) = 0._rkind 
+   stateVecPrime(:) = 0._rkind
 
    !---------------------------
    ! * solving F(y,y') = 0 by IDA, y is the state vector and y' is the time derivative vector dy/dt
@@ -716,6 +718,7 @@ contains
    !---------------------------
    ! * solving F(y) = 0 from Backward Euler with KINSOL, y is the state vector 
    !---------------------------
+   stateVecNew(:) = 0._rkind
    ! iterations and updates to trial state vector, fluxes, and derivatives are done inside IDA solver
    call summaSolve4kinsol(&
                           dt_cur,                  & ! intent(in):    data time step
@@ -751,7 +754,7 @@ contains
                           ! output
                           ixSaturation,            & ! intent(inout): index of the lowest saturated layer (NOTE: only computed on the first iteration)
                           sunSucceeds,             & ! intent(out):   flag to indicate if ida successfully solved the problem in current data step
-                          stateVecNew,             & ! intent(out):   model state vector (y) at the end of the data time step
+                          stateVecNew,             & ! intent(inout): model state vector (y) at the end of the data time step
                           fluxVec,                 & ! intent(out):   new flux vector
                           resSink,                 & ! intent(out):   additional (sink) terms on the RHS of the state equation
                           resVec,                  & ! intent(out):   new residual vector       

@@ -699,6 +699,8 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind)                     :: scalarCanairEnthalpyTrial     ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind)                     :: scalarCanopyEnthTempTrial     ! trial value for temperature component of enthalpy of the vegetation canopy (J m-3)
   real(rkind),dimension(nLayers)  :: mLayerEnthTempTrial           ! trial vector of temperature component of enthalpy of snow + soil (J m-3)
+  real(rkind)                     :: scalarCanopyEnthalpyTrial     ! trial value for enthalpy of the vegetation canopy (J m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyTrial         ! trial vector of enthalpy of each snow and soil layer (J m-3)
   ! diagnostic variables
   real(rkind)                     :: scalarCanopyLiqTrial          ! trial value for mass of liquid water on the vegetation canopy (kg m-2)
   real(rkind)                     :: scalarCanopyIceTrial          ! trial value for mass of ice on the vegetation canopy (kg m-2)
@@ -722,6 +724,13 @@ USE getVectorz_module,only:varExtract                              ! extract var
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime         ! trial vector of volumetric fraction of ice (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIceDelta         ! delta vector volumetric fraction of ice of snow + soil (-)
   real(rkind),dimension(nLayers)  :: mLayerHDelta                  ! delta vector of enthalpy of snow+soil (J m-3)
+  ! dummy state variables
+  real(rkind)                     :: scalarCanairNrgTrial        ! trial value for energy of the canopy air space
+  real(rkind)                     :: scalarCanopyNrgTrial        ! trial value for energy of the vegetation canopy
+  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each snow and soil layer
+  real(rkind)                     :: scalarCanairNrgPrime        ! prime value for energy of the canopy air space
+  real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
+  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each snow and soil layer
 
   ! -------------------------------------------------------------------------------------------------------------------
   ! -------------------------------------------------------------------------------------------------------------------
@@ -802,54 +811,73 @@ USE getVectorz_module,only:varExtract                              ! extract var
     ! ------------------
 
     ! initialize to state variable from the last update
-    scalarCanairTempTrial     = scalarCanairTemp
     scalarCanairEnthalpyTrial = scalarCanairEnthalpy
-    scalarCanopyTempTrial     = scalarCanopyTemp
+    scalarCanopyEnthTempTrial = scalarCanopyEnthTemp
     scalarCanopyWatTrial      = scalarCanopyWat
     scalarCanopyLiqTrial      = scalarCanopyLiq
     scalarCanopyIceTrial      = scalarCanopyIce
-    scalarCanopyEnthTempTrial = scalarCanopyEnthTemp
-    mLayerTempTrial           = mLayerTemp
+    mLayerEnthTempTrial       = mLayerEnthTemp
     mLayerVolFracWatTrial     = mLayerVolFracWat
     mLayerVolFracLiqTrial     = mLayerVolFracLiq
     mLayerVolFracIceTrial     = mLayerVolFracIce
     mLayerMatricHeadTrial     = mLayerMatricHead
     mLayerMatricHeadLiqTrial  = mLayerMatricHeadLiq
-    mLayerEnthTempTrial       = mLayerEnthTemp
     scalarAquiferStorageTrial = scalarAquiferStorage
 
+    if(ixNumericalMethod==ida .and. (ixNrgConserv==enthalpyFD .or. ixNrgConserv==enthalpyFDlu))then ! use state variable as enthalpy
+      scalarCanairNrgTrial = scalarCanairEnthalpy
+      scalarCanopyNrgTrial = realMissing ! currently not splitting in ida so no need to update
+      mLayerNrgTrial       = realMissing ! currently not splitting in ida so no need to update
+    else
+      scalarCanairNrgTrial = scalarCanairTemp
+      scalarCanopyNrgTrial = scalarCanopyTemp
+      mLayerNrgTrial       = mLayerTemp
+    endif
+      
     ! extract states from the state vector
     call varExtract(&
                     ! input
-                    stateVecTrial,            & ! intent(in):    model state vector (mixed units)
-                    diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
-                    prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                    indx_data,                & ! intent(in):    indices defining model states and layers
+                    stateVecTrial,             & ! intent(in):    model state vector (mixed units)
+                    diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
+                    prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
+                    indx_data,                 & ! intent(in):    indices defining model states and layers
                     ! output: variables for the vegetation canopy
-                    scalarCanairTempTrial,    & ! intent(inout):   trial value of canopy air temperature (K)
-                    scalarCanopyTempTrial,    & ! intent(inout):   trial value of canopy temperature (K)
-                    scalarCanopyWatTrial,     & ! intent(inout):   trial value of canopy total water (kg m-2)
-                    scalarCanopyLiqTrial,     & ! intent(inout):   trial value of canopy liquid water (kg m-2)
+                    scalarCanairNrgTrial,      & ! intent(inout): trial value of energy of the canopy air space, temperature (K) or enthalpy (J m-3)
+                    scalarCanopyNrgTrial,      & ! intent(inout): trial value of energy of the vegetation canopy, temperature (K) or enthalpy (J m-3)
+                    scalarCanopyWatTrial,      & ! intent(inout): trial value of canopy total water (kg m-2)
+                    scalarCanopyLiqTrial,      & ! intent(inout): trial value of canopy liquid water (kg m-2)
                     ! output: variables for the snow-soil domain
-                    mLayerTempTrial,          & ! intent(inout):   trial vector of layer temperature (K)
-                    mLayerVolFracWatTrial,    & ! intent(inout):   trial vector of volumetric total water content (-)
-                    mLayerVolFracLiqTrial,    & ! intent(inout):   trial vector of volumetric liquid water content (-)
-                    mLayerMatricHeadTrial,    & ! intent(inout):   trial vector of total water matric potential (m)
-                    mLayerMatricHeadLiqTrial, & ! intent(inout):   trial vector of liquid water matric potential (m)
+                    mLayerNrgTrial,            & ! intent(inout): trial vector of energy, temperature (K) or enthalpy (J m-3)
+                    mLayerVolFracWatTrial,     & ! intent(inout): trial vector of volumetric total water content (-)
+                    mLayerVolFracLiqTrial,     & ! intent(inout): trial vector of volumetric liquid water content (-)
+                    mLayerMatricHeadTrial,     & ! intent(inout): trial vector of total water matric potential (m)
+                    mLayerMatricHeadLiqTrial,  & ! intent(inout): trial vector of liquid water matric potential (m)
                     ! output: variables for the aquifer
-                    scalarAquiferStorageTrial,& ! intent(inout):   trial value of storage of water in the aquifer (m)
+                    scalarAquiferStorageTrial, & ! intent(inout): trial value of storage of water in the aquifer (m)
                     ! output: error control
                     err,cmessage)               ! intent(out):   error control
     if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
+  
+    if(ixNumericalMethod==ida .and. (ixNrgConserv==enthalpyFD .or. ixNrgConserv==enthalpyFDlu))then ! use state variable as enthalpy
+      scalarCanairEnthalpyTrial = scalarCanairNrgTrial
+      scalarCanopyEnthalpyTrial = scalarCanopyNrgTrial
+      mLayerEnthalpyTrial       = mLayerNrgTrial
+    else
+      scalarCanairTempTrial = scalarCanairNrgTrial
+      scalarCanopyTempTrial = scalarCanopyNrgTrial
+      mLayerTempTrial       = mLayerNrgTrial
+      ! do not need these variables, not saved out of the subroutine
+      scalarCanopyEnthalpyTrial = realMissing
+      mLayerEnthalpyTrial       = realMissing
+    endif
 
-    ! initialize to state variable from the last update
-    ! should all be set to previous values if splits, but for now operator splitting is not hooked up
-    scalarCanairTempPrime     = realMissing
-    scalarCanopyTempPrime     = realMissing
+    ! Placeholder: if we decide to use splitting, we need to pass all the previous values of the state variables
+    scalarCanairNrgPrime      = realMissing
+    scalarCanopyNrgPrime      = realMissing
     scalarCanopyWatPrime      = realMissing
     scalarCanopyLiqPrime      = realMissing
     scalarCanopyIcePrime      = realMissing
-    mLayerTempPrime           = realMissing
+    mLayerNrgPrime            = realMissing
     mLayerVolFracWatPrime     = realMissing
     mLayerVolFracLiqPrime     = realMissing
     mLayerVolFracIcePrime     = realMissing
@@ -871,27 +899,38 @@ USE getVectorz_module,only:varExtract                              ! extract var
         ! extract the derivatives from the state vector
         call varExtract(&
                   ! input
-                  stateVecPrime,            & ! intent(in):    derivative of model state vector (mixed units)
-                  diag_data,                & ! intent(in):    model diagnostic variables for a local HRU
-                  prog_data,                & ! intent(in):    model prognostic variables for a local HRU
-                  indx_data,                & ! intent(in):    indices defining model states and layers
+                  stateVecPrime,             & ! intent(in):    derivative of model state vector (mixed units)
+                  diag_data,                 & ! intent(in):    model diagnostic variables for a local HRU
+                  prog_data,                 & ! intent(in):    model prognostic variables for a local HRU
+                  indx_data,                 & ! intent(in):    indices defining model states and layers
                   ! output: variables for the vegetation canopy
-                  scalarCanairTempPrime,    & ! intent(inout):   derivative of canopy air temperature (K)
-                  scalarCanopyTempPrime,    & ! intent(inout):   derivative of canopy temperature (K)
-                  scalarCanopyWatPrime,     & ! intent(inout):   derivative of canopy total water (kg m-2)
-                  scalarCanopyLiqPrime,     & ! intent(inout):   derivative of canopy liquid water (kg m-2)
+                  scalarCanairNrgPrime,      & ! intent(inout): derivative of energy of the canopy air space, temperature (K s-1) or enthalpy (W m-3)
+                  scalarCanopyNrgPrime,      & ! intent(inout): derivative of energy of the vegetation canopy, temperature (K s-1) or enthalpy (W m-3)
+                  scalarCanopyWatPrime,      & ! intent(inout): derivative of canopy total water (kg m-2 s-1)
+                  scalarCanopyLiqPrime,      & ! intent(inout): derivative of canopy liquid water (kg m-2 s-1)
                   ! output: variables for the snow-soil domain
-                  mLayerTempPrime,          & ! intent(inout):   derivative of layer temperature (K)
-                  mLayerVolFracWatPrime,    & ! intent(inout):   derivative of volumetric total water content (-)
-                  mLayerVolFracLiqPrime,    & ! intent(inout):   derivative of volumetric liquid water content (-)
-                  mLayerMatricHeadPrime,    & ! intent(inout):   derivative of total water matric potential (m)
-                  mLayerMatricHeadLiqPrime, & ! intent(inout):   derivative of liquid water matric potential (m)
+                  mLayerNrgPrime,            & ! intent(inout): derivative of energy of each snow and soil layer, temperature (K s-1) or enthalpy (W m-3)
+                  mLayerVolFracWatPrime,     & ! intent(inout):   derivative of volumetric total water content (-)
+                  mLayerVolFracLiqPrime,     & ! intent(inout):   derivative of volumetric liquid water content (-)
+                  mLayerMatricHeadPrime,     & ! intent(inout):   derivative of total water matric potential (m)
+                  mLayerMatricHeadLiqPrime,  & ! intent(inout):   derivative of liquid water matric potential (m)
                   ! output: variables for the aquifer
-                  scalarAquiferStoragePrime,& ! intent(inout):   derivative of storage of water in the aquifer (m)
+                  scalarAquiferStoragePrime, & ! intent(inout):   derivative of storage of water in the aquifer (m)
                   ! output: error control
                   err,cmessage)               ! intent(out):   error control
         if(err/=0)then; message=trim(message)//trim(cmessage); return; end if  ! (check for errors)
 
+        if(ixNrgConserv== enthalpyFD .or. ixNrgConserv == enthalpyFDlu)then ! use state variable as enthalpy, need to compute temperature
+          ! do not use these variables
+          scalarCanairTempPrime = realMissing
+          scalarCanopyTempPrime = realMissing
+          mLayerTempPrime       = realMissing
+        else ! use state variable as temperature
+          scalarCanairTempPrime = scalarCanairNrgPrime
+          scalarCanopyTempPrime = scalarCanopyNrgPrime
+          mLayerTempPrime       = mLayerNrgPrime   
+        endif !(choice of how conservation of energy is implemented)
+    
         ! update diagnostic variables
         call updateVarsWithPrime(&
                     ! input

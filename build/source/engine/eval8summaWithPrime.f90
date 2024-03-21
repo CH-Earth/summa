@@ -182,7 +182,7 @@ subroutine eval8summaWithPrime(&
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqTrial       ! trial vector of volumetric liquid water content (-)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIceTrial       ! trial vector of volumetric ice content (-)
   real(rkind)                     :: scalarAquiferStorageTrial   ! trial value for storage of water in the aquifer (m)
-
+  ! prime state variables
   real(rkind)                     :: scalarCanairEnthalpyPrime   ! prime value for enthalpy of the canopy air space (W m-3)
   real(rkind)                     :: scalarCanairTempPrime       ! prime value for temperature of the canopy air space (K s-1)
   real(rkind)                     :: scalarCanopyEnthalpyPrime   ! prime value for enthalpy of the vegetation canopy (W m-3)
@@ -193,6 +193,13 @@ subroutine eval8summaWithPrime(&
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime       ! prime vector of volumetric fraction of ice (s-1)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime    ! prime vector of liquid water matric potential (m s-1)
   real(rkind)                     :: scalarAquiferStoragePrime   ! prime value of storage of water in the aquifer (m s-1)
+  ! dummy state variables
+  real(rkind)                     :: scalarCanairNrgTrial        ! trial value for energy of the canopy air space
+  real(rkind)                     :: scalarCanopyNrgTrial        ! trial value for energy of the vegetation canopy
+  real(rkind),dimension(nLayers)  :: mLayerNrgTrial              ! trial vector of energy of each snow and soil layer
+  real(rkind)                     :: scalarCanairNrgPrime        ! prime value for energy of the canopy air space
+  real(rkind)                     :: scalarCanopyNrgPrime        ! prime value for energy of the vegetation canopy
+  real(rkind),dimension(nLayers)  :: mLayerNrgPrime              ! prime vector of energy of each snow and soil layer
   ! other local variables
   integer(i4b)                    :: iLayer                      ! index of model layer in the snow+soil domain
   integer(i4b)                    :: jState(1)                   ! index of model state for the scalar solution within the soil domain
@@ -385,7 +392,7 @@ subroutine eval8summaWithPrime(&
       scalarCanairEnthalpyPrime = scalarCanairNrgPrime
       scalarCanopyEnthalpyPrime = scalarCanopyNrgPrime
       mLayerEnthalpyPrime       = mLayerNrgPrime
-      ! do not need these variables
+      ! do not use these variables
       scalarCanairTempPrime = realMissing
       scalarCanopyTempPrime = realMissing
       mLayerTempPrime       = realMissing
@@ -396,7 +403,7 @@ subroutine eval8summaWithPrime(&
       scalarCanairTempPrime = scalarCanairNrgPrime
       scalarCanopyTempPrime = scalarCanopyNrgPrime
       mLayerTempPrime       = mLayerNrgPrime
-      ! do not need these variables
+      ! do not use these variables
       scalarCanairEnthalpyTrial = realMissing
       scalarCanopyEnthalpyTrial = realMissing
       mLayerEnthalpyTrial       = realMissing
