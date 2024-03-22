@@ -336,14 +336,18 @@ subroutine updateVarsWithPrime(&
 
       ! get the index of the other (energy or mass) state variable within the full state vector
       select case(ixDomainType)
-        case(iname_cas)             ; ixOther = 0
+        case(iname_cas)             ; ixOther = integerMissing
         case(iname_veg)             ; ixOther = merge(ixHydCanopy(1),    ixNrgCanopy(1),    ixStateType(ixFullVector)==iname_nrgCanopy)
         case(iname_snow, iname_soil); ixOther = merge(ixHydLayer(iLayer),ixNrgLayer(iLayer),ixStateType(ixFullVector)==iname_nrgLayer)
         case default; err=20; message=trim(message)//'expect case to be iname_cas, iname_veg, iname_snow, iname_soil'; return
       end select
 
       ! get the index in the local state vector
-      ixOtherLocal = ixMapFull2Subset(ixOther)  ! ixOtherLocal could equal integerMissing
+      if(ixDomainType==iname_cas)then
+        ixOtherLocal = integerMissing
+      else
+        ixOtherLocal = ixMapFull2Subset(ixOther)  ! ixOtherLocal could equal integerMissing
+      endif
       if(ixOtherLocal/=integerMissing) computedCoupling(ixOtherLocal)=.true.
 
       ! check if we have a coupled solution
