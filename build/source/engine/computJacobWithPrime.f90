@@ -176,7 +176,7 @@ subroutine computJacobWithPrime(&
   integer(i4b)                         :: jLayer          ! index of model layer within the full state vector (hydrology)
   integer(i4b)                         :: pLayer          ! indices of soil layers (used for the baseflow derivatives)
   ! conversion factors
-  real(rkind)                          :: LHfu0           ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
+  real(rkind)                          :: LH_fu0          ! latent heat of fusion, modified to be 0 if using enthalpy formulation and not using
   real(rkind)                          :: convLiq2tot     ! factor to convert liquid water derivative to total water derivative
   ! --------------------------------------------------------------
   ! associate variables from data structures
@@ -1076,8 +1076,8 @@ subroutine computJacobWithPrime(&
           if(nrgState==integerMissing) cycle
           watState = ixSnowSoilHyd(iLayer)
           if(watstate/=integerMissing)then 
-            if(nLayer<=nSnow) aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
-            if(nLayer>nSnow)  aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer)
+            if(iLayer<=nSnow) aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dTheta(iLayer)
+            if(iLayer>nSnow)  aJac(:,watState) = aJac(:,watState) + aJac(:,nrgState) * dTemp_dPsi0(iLayer)
           endif
           aJac(:,nrgState) = aJac(:,nrgState) * dTemp_dEnthalpy(iLayer)
           if(ixMatrix==ixBandMatrix) aJac(ixDiag,   nrgState) = aJac(ixDiag,   nrgState) + 1._rkind * cj

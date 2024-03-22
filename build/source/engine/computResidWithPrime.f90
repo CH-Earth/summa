@@ -80,6 +80,9 @@ subroutine computResidWithPrime(&
                       ! input: enthalpy terms
                       scalarCanopyCmTrial,       & ! intent(in):  Cm of vegetation canopy (J kg K-1)
                       mLayerCmTrial,             & ! intent(in):  Cm of each snow and soil layer (J kg K-1)
+                      scalarCanairEnthalpyPrime, & ! intent(in):  prime value for the enthalpy of the canopy air space (W m-3)
+                      scalarCanopyEnthalpyPrime, & ! intent(in):  prime value for the of enthalpy of the vegetation canopy (W m-3)
+                      mLayerEnthalpyPrime,       & ! intent(in):  prime vector of the of enthalpy of each snow and soil layer (W m-3)
                       ! input: data structures
                       prog_data,                 & ! intent(in):  model prognostic variables for a local HRU
                       diag_data,                 & ! intent(in):  model diagnostic variables for a local HRU
@@ -115,6 +118,9 @@ subroutine computResidWithPrime(&
   ! input: enthalpy terms
   real(qp),intent(in)             :: scalarCanopyCmTrial       ! Cm of vegetation canopy (-)
   real(qp),intent(in)             :: mLayerCmTrial(:)          ! Cm of each snow and soil layer (-)
+  real(rkind),intent(in)          :: scalarCanairEnthalpyPrime ! prime value for enthalpy of the canopy air space (W m-3)
+  real(rkind),intent(in)          :: scalarCanopyEnthalpyPrime ! prime value for enthalpy of the vegetation canopy (W m-3)
+  real(rkind),intent(in)          :: mLayerEnthalpyPrime(:)    ! prime vector of enthalpy of each snow and soil layer (W m-3)
   ! input: data structures
   type(var_dlength),intent(in)    :: prog_data                 ! prognostic variables for a local HRU
   type(var_dlength),intent(in)    :: diag_data                 ! diagnostic variables for a local HRU
@@ -256,12 +262,12 @@ subroutine computResidWithPrime(&
 
     ! check
     if(any(isNan(rVec)))then
-      call printResidDAE(nSnow,nSoil,nLayers,indx_data,rAdd,rVec)
-      message=trim(message)//'we found NaN'
+      message=trim(message)//'vector of residuals contains NaN value(s) ' ! formerly known as the Indian bread error
+      write(*,'(a,1x,100(e12.5,1x))') 'rVec = ', rVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
+      write(*,'(a,1x,100(e12.5,1x))') 'fVec = ', fVec(min(iJac1,size(rVec)):min(iJac2,size(rVec)))
       err=20; return
     endif
-
-  ! end association with the necessary variabiles for the residual calculations
+    
   end associate
 
 end subroutine computResidWithPrime

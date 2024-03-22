@@ -56,13 +56,15 @@ USE globalData,only:iname_lmpLayer   ! named variable defining the liquid matric
 USE globalData,only:iname_watAquifer ! named variable defining the water storage in the aquifer
 
 ! missing values
-USE globalData,only:integerMissing ! missing integer
-USE globalData,only:realMissing    ! missing real
+USE globalData,only:integerMissing   ! missing integer
+USE globalData,only:realMissing      ! missing real
 
-! named variables that define the layer type
-USE globalData,only:iname_snow     ! snow
-USE globalData,only:iname_soil     ! soil
-
+! domain types
+USE globalData,only:iname_cas        ! named variables for canopy air space
+USE globalData,only:iname_veg        ! named variables for vegetation canopy
+USE globalData,only:iname_snow       ! named variables for snow
+USE globalData,only:iname_soil       ! named variables for soil
+USE globalData,only:iname_aquifer    ! named variables for the aquifer
 
 ! privacy
 implicit none
@@ -313,10 +315,10 @@ subroutine computHeatCapAnalytic(&
             endif
 
           case(iname_soil)
-            mLayerHeatCap(iLayer) =  iden_soil(iSoil)  * Cp_soil  * ( 1._rkind - theta_sat(iSoil) ) + & ! soil component
-                                     iden_ice          * Cp_ice   * mLayerVolFracIce(iLayer)        + & ! ice component
-                                     iden_water        * Cp_water * mLayerVolFracLiq(iLayer)        + & ! liquid water component
-                                     iden_air          * Cp_air   * ( theta_sat(iSoil) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
+            mLayerHeatCap(iLayer) =  iden_soil(ixControlIndex) * Cp_soil  * ( 1._rkind - theta_sat(ixControlIndex) ) + & ! soil component
+                                     iden_ice                  * Cp_ice   * mLayerVolFracIce(iLayer)                 + & ! ice component
+                                     iden_water                * Cp_water * mLayerVolFracLiq(iLayer)                 + & ! liquid water component
+                                     iden_air                  * Cp_air   * ( theta_sat(ixControlIndex) - (mLayerVolFracIce(iLayer) + mLayerVolFracLiq(iLayer)) )! air component
            ! derivatives
            dVolHtCapBulk_dTheta(iLayer) = realMissing ! do not use
            Tcrit = crit_soilT( mLayerMatricHead(ixControlIndex) )

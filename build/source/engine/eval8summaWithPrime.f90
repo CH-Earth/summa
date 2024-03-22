@@ -21,6 +21,7 @@ USE data_types,only:&
                     var_d,        & ! data vector (rkind)
                     var_ilength,  & ! data vector with variable length dimension (i4b)
                     var_dlength,  & ! data vector with variable length dimension (rkind)
+                    zLookup,      & ! lookup tables
                     model_options   ! defines the model decisions
 
 ! indices that define elements of the data structures
@@ -188,7 +189,7 @@ subroutine eval8summaWithPrime(&
   real(rkind)                     :: scalarCanopyEnthalpyPrime   ! prime value for enthalpy of the vegetation canopy (W m-3)
   real(rkind)                     :: scalarCanopyLiqPrime        ! prime value for liquid water storage in the canopy (kg m-2 s-1)
   real(rkind)                     :: scalarCanopyIcePrime        ! prime value for mass of ice on the vegetation canopy (kg m-2 s-1)
-  real(rkind),dimension(nLayers)  :: mLayerEnthalpyPrime         ! prime vector of enthalpy  of each snow and soil layer (W m-3)
+  real(rkind),dimension(nLayers)  :: mLayerEnthalpyPrime         ! prime vector of enthalpy of each snow and soil layer (W m-3)
   real(rkind),dimension(nLayers)  :: mLayerVolFracLiqPrime       ! prime vector of volumetric liquid water content (s-1)
   real(rkind),dimension(nLayers)  :: mLayerVolFracIcePrime       ! prime vector of volumetric fraction of ice (s-1)
   real(rkind),dimension(nSoil)    :: mLayerMatricHeadLiqPrime    ! prime vector of liquid water matric potential (m s-1)
@@ -432,6 +433,7 @@ subroutine eval8summaWithPrime(&
                     scalarCanopyEnthalpyTrial,  & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
                     mLayerEnthalpyTrial,        & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
                     ! output: variables for the vegetation canopy
+                    scalarCanairTempTrial,      & ! intent(inout): trial value of canopy air space temperature (K)
                     scalarCanopyTempTrial,      & ! intent(inout): trial value of canopy temperature (K)
                     scalarCanopyWatTrial,       & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqTrial,       & ! intent(inout): trial value of canopy liquid water (kg m-2)

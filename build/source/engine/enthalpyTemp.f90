@@ -59,15 +59,15 @@ USE globalData,only:integerMissing                 ! missing integer
 USE globalData,only:realMissing                    ! missing real number
 
 implicit none
-public::T2H_lookup_snow
+public::T2H_lookup_snWat
 public::T2L_lookup_soil
 public::enthalpy2T_snwWat
 public::T2enthalpy_snwWat
 public::enthTemp2enthalpy
-public::ethalpy2T_cas
-public::ethalpy2T_veg
-public::ethalpy2T_snow
-public::ethalpy2T_soil
+public::enthalpy2T_cas
+public::enthalpy2T_veg
+public::enthalpy2T_snow
+public::enthalpy2T_soil
 private::hyp_2F1_real
 
 ! define the snow look-up table used to compute temperature based on enthalpy
@@ -78,10 +78,10 @@ contains
 
 
 ! ************************************************************************************************************************
-! public subroutine T2H_lookup_snow: define a look-up table to mixture enthalpy based on temperature
-!                                    appropriate when no dry mass, as in snow
+! public subroutine T2H_lookup_snWat: define a look-up table to liquid + ice enthalpy based on temperature
+!                                     appropriate when no dry mass, as in snow
 ! ************************************************************************************************************************
-subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    parameter data structure
+subroutine T2H_lookup_snWat(mpar_data,                     &  ! intent(in):    parameter data structure
                            err,message)
   ! -------------------------------------------------------------------------------------------------------------------------
   ! downwind routines 
@@ -105,7 +105,7 @@ subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    pa
   integer(i4b)                  :: ilook                ! loop through lookup table
   ! -------------------------------------------------------------------------------------------------------------------------
   ! initialize error control
-  err=0; message="T2H_lookup_snow/"
+  err=0; message="T2H_lookup_snWat/"
 
   ! associate
   associate( snowfrz_scale => mpar_data%var(iLookPARAM%snowfrz_scale)%dat(1) )
@@ -134,7 +134,7 @@ subroutine T2H_lookup_snow(mpar_data,                     &  ! intent(in):    pa
 
   end associate
 
- end subroutine T2H_lookup_snow
+ end subroutine T2H_lookup_snWat
 
 ! ************************************************************************************************************************
 ! public subroutine T2L_lookup_soil: define a look-up table to compute integral of soil Clapeyron equation liquid water
@@ -1021,7 +1021,8 @@ subroutine enthalpy2T_snow(&
   real(rkind)                      :: T                  ! iteration temperature (K)
   real(rkind)                      :: H                  ! iteration enthalpy (J m-3)
   real(rkind)                      :: diffT              ! temperature difference of iteration temp from Tfreeze
-  real(rkind)                      :: fLiq               ! iteration fraction liquid water
+  real(rkind)                      :: integral           ! iteration integral of snow freezing curve
+  real(rkind)                      :: fLiq               ! iteration fraction liquid 
   real(rkind)                      :: enthLiq            ! iteration enthalpy of the liquid region (J m-3)
   real(rkind)                      :: enthIce            ! iteration enthalpy of the ice region (J m-3)
   real(rkind)                      :: enthAir            ! iteration enthalpy of air (J m-3)
@@ -1178,6 +1179,7 @@ subroutine enthalpy2T_soil(&
   character(*),intent(out)         :: message                ! error message
   ! -------------------------------------------------------------------------------------------------------------------------
   ! declare local variables
+  character(len=128)               :: cmessage               ! error message in downwind routine
   real(rkind)                      :: Tcrit                  ! temperature where all water is unfrozen (K)
   real(rkind)                      :: volFracWat             ! volumetric fraction of total water, liquid+ice (-)
   real(rkind)                      :: diff0                  ! temperature difference of Tcrit from Tfreeze
@@ -1194,7 +1196,6 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: T                      ! iteration temperature (K)
   real(rkind)                      :: H                      ! iteration enthalpy (J m-3)
   real(rkind)                      :: diffT                  ! temperature difference of iteration temp from Tfreeze
-  real(rkind)                      :: integral               ! iteration integral of snow freezing curve
   real(rkind)                      :: fLiq                   ! iteration fraction liquid water
   real(rkind)                      :: integral_frz_upp       ! upper limit of iteration integral of frozen soil water content (from Tfreeze to soil temperature)
   real(rkind)                      :: arg                    ! argument of iteration soil hypergeometric function
@@ -1213,11 +1214,13 @@ subroutine enthalpy2T_soil(&
   real(rkind)                      :: dH_dWat                ! derivative of iteration enthalpy with water state variable
   real(rkind)                      :: dH_dT__dWat            ! derivative of iteration enthalpy with iteration temperature with water state variable
   real(rkind)                      :: dfLiq_dT               ! derivative of iteration fraction liquid water with iteration temperature
+  real(rkind)                      :: dintegral_frz_upp_dT   ! derivative of iteration integral of frozen soil water content with iteration temperature
   real(rkind)                      :: denthSoil_dT           ! derivative of iteration enthalpy of soil with iteration temperature
   real(rkind)                      :: denthIce_dT            ! derivative of iteration enthalpy of ice with iteration temperature
   real(rkind)                      :: denthLiq_dT            ! derivative of iteration enthalpy of liquid water with iteration temperature
   real(rkind)                      :: denthAir_dT            ! derivative of iteration enthalpy of air with temperature
   real(rkind)                      :: d2fLiq_dT2             ! second derivative of iteration fraction liquid water with iteration temperature
+  real(rkind)                      :: d2integral_frz_upp_dT2 ! second derivative of iteration integral of frozen soil water content with iteration temperature
   real(rkind)                      :: d2enthSoil_dT2         ! second derivative of iteration enthalpy of soil with iteration temperature
   real(rkind)                      :: d2enthLiq_dT2          ! second derivative of iteration enthalpy of liquid water with iteration temperature
   real(rkind)                      :: d2enthIce_dT2          ! second derivative of iteration enthalpy of ice with iteration temperature
@@ -1242,7 +1245,7 @@ subroutine enthalpy2T_soil(&
   ! ***** get temperature if unfrozen soil
   T            = mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) ) + Tfreeze
   dT_dEnthalpy = 1._rkind / ( iden_water * Cp_water * volFracWat + soil_dens_intr*Cp_soil*(1._rkind - theta_sat) + iden_air*Cp_air*(1._rkind - theta_sat - volFracWat) )
-  dT_dWat = -iden_water * Cp_water * dTheta_dWat * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
+  dT_dWat = -iden_water * Cp_water * dvolFracWat_dPsi0 * mLayerEnthalpy / ( iden_water * Cp_water * volFracWat + soil_dens_intr * Cp_soil * (1._rkind - theta_sat) + iden_air * Cp_air * (1._rkind - theta_sat - volFracWat) )**2_i4b
 
   ! ***** iterate to find temperature if ice exists
   if( T<Tcrit )then
@@ -1294,7 +1297,7 @@ subroutine enthalpy2T_soil(&
 
       if(use_lookup)then ! cubic spline interpolation for integral of mLayerPsiLiq from Tfreeze to layer temperature
         ! make associate to the the lookup table
-        lookVars: associate(&
+        lookVars2: associate(&
           Tk => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%temperature)%lookup,  & ! temperature (K)
           Ly => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%psiLiq_int)%lookup,   & ! integral of mLayerPsiLiq from Tfreeze to Tk (K)
           L2 => lookup_data%z(ixControlIndex)%var(iLookLOOKUP%deriv2)%lookup        & ! second derivative of the interpolating function
@@ -1306,7 +1309,7 @@ subroutine enthalpy2T_soil(&
           dintegral_frz_upp_dT = dL
           if(computJac) d2integral_frz_upp_dT2 = 0._rkind
 
-        end associate lookVars
+        end associate lookVars2
 
       else ! hypergeometric function for integral of mLayerPsiLiq from Tfreeze to layer temperature
         gauss_hg_T             = hyp_2F1_real(vGn_m,1._rkind/vGn_n,1._rkind + 1._rkind/vGn_n,-arg)
@@ -1373,7 +1376,7 @@ subroutine enthalpy2T_soil(&
   if(computJac)then  
     dTemp_dEnthalpy = dT_dEnthalpy
     dTemp_dTheta    = realMissing ! do not use
-    dTemp_dPsi      = dT_dWat
+    dTemp_dPsi0     = dT_dWat
   endif
 
 end subroutine enthalpy2T_soil

@@ -738,6 +738,7 @@ USE getVectorz_module,only:varExtract                              ! extract var
   associate(&
     ! model decisions
     ixNumericalMethod         => model_decisions(iLookDECISIONS%num_method)%iDecision       ,& ! intent(in):  [i4b] choice of numerical solver
+    ixNrgConserv              => model_decisions(iLookDECISIONS%nrgConserv)%iDecision       ,& ! intent(in):  [i4b]   choice of variable in energy conservation backward Euler residual
     ! get indices for balances
     ixCasNrg                  => indx_data%var(iLookINDEX%ixCasNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy air space energy state variable
     ixVegNrg                  => indx_data%var(iLookINDEX%ixVegNrg)%dat(1)                  ,& ! intent(in)   : [i4b]    index of canopy energy state variable
@@ -943,11 +944,13 @@ USE getVectorz_module,only:varExtract                              ! extract var
                     prog_data,                                 & ! intent(in):    model prognostic variables for a local HRU
                     diag_data,                                 & ! intent(inout): model diagnostic variables for a local HRU
                     deriv_data,                                & ! intent(inout): derivatives in model fluxes w.r.t. relevant state variables
+                    lookup_data,                               & ! intent(in):    lookup table data structure
                     ! input: enthalpy state variables  
                     scalarCanairEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the canopy air space (J m-3)
                     scalarCanopyEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
                     mLayerEnthalpyTrial,                       & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
                     ! output: variables for the vegetation canopy
+                    scalarCanairTempTrial,                     & ! intent(inout): trial value of canopy air space temperature (K)
                     scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
                     scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
                     scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)

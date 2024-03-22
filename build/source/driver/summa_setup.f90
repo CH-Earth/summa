@@ -80,9 +80,8 @@ contains
  USE paramCheck_module,only:paramCheck                       ! module to check consistency of model parameters
  USE pOverwrite_module,only:pOverwrite                       ! module to overwrite default parameter values with info from the Noah tables
  USE read_param_module,only:read_param                       ! module to read model parameter sets
- USE enthalpyTemp_module,only:T2H_lookup_snow                ! module to calculate a look-up table for the snow temperature-enthalpy conversion
+ USE enthalpyTemp_module,only:T2H_lookup_snWat               ! module to calculate a look-up table for the snow temperature-enthalpy conversion
  USE enthalpyTemp_module,only:T2L_lookup_soil                ! module to calculate a look-up table for the soil temperature-enthalpy conversion
- USE enthalpyTemp_module,only:T2H_lookup_veg                 ! module to calculate a look-up table for the vegetation temperature-enthalpy conversion
  USE var_derive_module,only:fracFuture                       ! module to calculate the fraction of runoff in future time steps (time delay histogram)
  USE module_sf_noahmplsm,only:read_mp_veg_parameters         ! module to read NOAH vegetation tables
  ! global data structures
@@ -124,7 +123,6 @@ contains
  integer(i4b)                          :: iGRU,iHRU          ! looping variables
  integer(i4b)                          :: iVar               ! looping variables
  logical                               :: needLookup_soil    ! logical to decide if computing soil enthalpy lookup tables
- logical                               :: needLookup_veg     ! logical to decide if computing vegetation enthalpy lookup tables
  ! ---------------------------------------------------------------------------------------
  ! associate to elements in the data structure
  summaVars: associate(&
@@ -180,17 +178,9 @@ contains
 
  ! decide if computing soil enthalpy lookup tables and vegetation enthalpy lookup tables
  needLookup_soil = .false.
- needLookup_veg  = .false.
  ! if need enthalpy for energy conservation residual form and not using soil enthalpy hypergeometric function
  if(model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFDlu) needLookup_soil = .true. 
  ! if using IDA and enthalpy as a state variable, need temperature-enthalpy lookup tables for soil and vegetation
- if(model_decisions(iLookDECISIONS%num_method)%iDecision == ida) then
-   if (model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFD .or. &
-       model_decisions(iLookDECISIONS%nrgConserv)%iDecision == enthalpyFDlu) then
-     needLookup_soil = .true.
-     needLookup_veg  = .true.
-   endif
- endif
  
  ! get the maximum number of snow layers
  select case(model_decisions(iLookDECISIONS%snowLayers)%iDecision)
@@ -322,7 +312,7 @@ contains
    ! calculate a look-up table for the temperature-enthalpy conversion of snow for future snow layer merging
    ! NOTE1: might be able to make this more efficient by only doing this for the HRUs that have snow
    ! NOTE2: H is the mixture enthalpy of snow liquid and ice
-   call T2H_lookup_snow(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
+   call T2H_lookup_snWat(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
    if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! calculate a lookup table for the temperature-enthalpy conversion of soil 
@@ -335,10 +325,6 @@ contains
                           err,cmessage)                              ! intent(out):   error control
      if(err/=0)then; message=trim(message)//trim(cmessage); return; endif  
    endif
-
-   ! calculate a lookup table for the temperature-enthalpy conversion of canopy (vegetation)
-   call T2E_lookup_veg(mparStruct%gru(iGRU)%hru(iHRU),err,cmessage)
-   if(err/=0)then; message=trim(message)//trim(cmessage); return; endif
 
    ! overwrite the vegetation height
    HVT(typeStruct%gru(iGRU)%hru(iHRU)%var(iLookTYPE%vegTypeIndex)) = mparStruct%gru(iGRU)%hru(iHRU)%var(iLookPARAM%heightCanopyTop)%dat(1)

@@ -22,6 +22,8 @@ module updateVarsWithPrime_module
 
 ! data types
 USE nrtype
+USE data_types,only:zLookup         ! z(:)%var(:)%lookup(:)
+
 
 ! missing values
 USE globalData,only:integerMissing  ! missing integer
@@ -88,7 +90,10 @@ USE soil_utils_module,only:crit_soilT              ! compute critical temperatur
 USE soil_utilsAddPrime_module,only:liquidHeadPrime ! compute the liquid water matric potential
 USE soil_utilsAddPrime_module,only:d2Theta_dPsi2   ! second derivative in the soil water characteristic (soil)
 USE soil_utilsAddPrime_module,only:d2Theta_dTk2    ! second derivative in the freezing curve w.r.t. temperature (soil)
-USE enthalpyTemp_module,only:enthalpy2T            ! compute temperature from enthalpy and water content
+USE enthalpyTemp_module,only:enthalpy2T_cas        ! compute canopy air space temperature from enthalpy
+USE enthalpyTemp_module,only:enthalpy2T_veg        ! compute canopy temperature from enthalpy and water content
+USE enthalpyTemp_module,only:enthalpy2T_snow       ! compute snow layer temperature from enthalpy and water content
+USE enthalpyTemp_module,only:enthalpy2T_soil       ! compute soil layer temperature from enthalpy and matric potential
 
 ! IEEE checks
 USE, intrinsic :: ieee_arithmetic            ! check values (NaN, etc.)
@@ -119,6 +124,7 @@ subroutine updateVarsWithPrime(&
                      scalarCanopyEnthalpyTrial,                 & ! intent(in):    trial value for enthalpy of the vegetation canopy (J m-3)
                      mLayerEnthalpyTrial,                       & ! intent(in):    trial vector of enthalpy of each snow+soil layer (J m-3)                      
                      ! output: variables for the vegetation canopy
+                     scalarCanairTempTrial,                     & ! intent(inout): trial value of canopy air space temperature (K)
                      scalarCanopyTempTrial,                     & ! intent(inout): trial value of canopy temperature (K)
                      scalarCanopyWatTrial,                      & ! intent(inout): trial value of canopy total water (kg m-2)
                      scalarCanopyLiqTrial,                      & ! intent(inout): trial value of canopy liquid water (kg m-2)
@@ -159,8 +165,9 @@ subroutine updateVarsWithPrime(&
   ! input: enthalpy state variables  
   real(rkind),intent(in)             :: scalarCanairEnthalpyTrial       ! trial value for enthalpy of the canopy air space (J m-3)
   real(rkind),intent(in)             :: scalarCanopyEnthalpyTrial       ! trial value for enthalpy of the vegetation canopy (J m-3)
-  real(rkind),intent(in)             :: mLayerEnthalpyTrial             ! trial vector of enthalpy of each snow+soil layer (J m-3)                      
+  real(rkind),intent(in)             :: mLayerEnthalpyTrial(:)          ! trial vector of enthalpy of each snow+soil layer (J m-3)                      
   ! output: variables for the vegetation canopy
+  real(rkind),intent(inout)          :: scalarCanairTempTrial           ! trial value of canopy air space temperature (K)
   real(rkind),intent(inout)          :: scalarCanopyTempTrial           ! trial value of canopy temperature (K)
   real(rkind),intent(inout)          :: scalarCanopyWatTrial            ! trial value of canopy total water (kg m-2)
   real(rkind),intent(inout)          :: scalarCanopyLiqTrial            ! trial value of canopy liquid water (kg m-2)
